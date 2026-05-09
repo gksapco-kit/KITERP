@@ -2,7 +2,7 @@
 manufacturing / project orders, order cost lines.
 
 Revision ID: co001_controlling_core
-Revises: fin008_split_multi_month_audit_periods
+Revises: fin008_audit_month_split
 
 If your DB uses a different Alembic head, change down_revision or merge branches first.
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 
 revision = "co001_controlling_core"
-down_revision = "fin008_split_multi_month_audit_periods"
+down_revision = "fin008_audit_month_split"
 branch_labels = None
 depends_on = None
 

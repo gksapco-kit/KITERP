@@ -8,6 +8,10 @@ that container so you update the same Postgres DB as the API::
 
     docker compose exec backend python create_admin.py --email admin@kiterp.com --password Admin@123
 
+To demote every other platform superuser / support staff and keep only one admin email::
+
+    docker compose exec backend python prune_platform_admins.py
+
 Running ``python create_admin.py`` only on the host while the API runs in Docker seeds a different database,
 so platform login at localhost:3000 will keep failing with "incorrect password".
 """

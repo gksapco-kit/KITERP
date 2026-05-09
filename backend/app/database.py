@@ -89,6 +89,27 @@ async def ensure_user_contact_not_globally_unique() -> None:
     logger.info("ensure_user_contact_not_globally_unique: user.email / user.phone indexes refreshed (non-unique)")
 
 
+async def ensure_user_platform_staff_role_column() -> None:
+    """Add user columns/indexes the SQLAlchemy model expects but older DBs may lack (avoids 500 on auth).
+
+    Covers migrations: platform staff role, OTP verification fields, email-change flow.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_role VARCHAR(20)',
+        'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_role ON "user" (platform_staff_role)',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS verification_code VARCHAR(6)',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS verification_code_expires_at TIMESTAMPTZ',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS pending_email VARCHAR(255)',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email_change_code VARCHAR(6)',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email_change_expires_at TIMESTAMPTZ',
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+
+
 async def ensure_product_uom_column() -> None:
     """Ensure product.uom column exists (ORM expects it)."""
     if "postgresql" not in settings.DATABASE_URL.lower():

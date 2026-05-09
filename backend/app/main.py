@@ -27,6 +27,7 @@ from app.database import (
     ensure_website_tables,
     ensure_restaurant_schema,
     ensure_user_contact_not_globally_unique,
+    ensure_user_platform_staff_role_column,
 )
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
@@ -60,6 +61,7 @@ async def lifespan(app: FastAPI):
     await ensure_website_tables()
     await ensure_restaurant_schema()
     await ensure_user_contact_not_globally_unique()
+    await ensure_user_platform_staff_role_column()
     await connect_redis()
     yield
     await close_redis()
@@ -96,7 +98,10 @@ app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import http_exception_handler
 from fastapi import status
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 def _cors_headers(origin: str) -> dict:
@@ -125,8 +130,35 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+    """DB/schema errors must not be swallowed as generic 500 — subclass SQLAlchemyError before Exception."""
+    logger.error(
+        "Database error on %s %s: %s\n%s",
+        request.method,
+        request.url.path,
+        exc,
+        traceback.format_exc(),
+    )
+    origin = request.headers.get("origin", "") or "*"
+    orig = getattr(exc, "orig", None)
+    detail = str(orig).strip() if orig is not None else str(exc).strip()
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": detail or "Database error",
+            "type": type(exc).__name__,
+            "message": "Database/schema issue. Run: docker compose exec backend alembic upgrade heads",
+        },
+        headers=_cors_headers(origin),
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    # Safety net: HTTPException must never become a misleading HTTP 500 JSON body.
+    if isinstance(exc, StarletteHTTPException):
+        return await http_exception_handler(request, exc)
     logger.error("Unhandled exception on %s %s: %s\n%s", request.method, request.url.path, exc, traceback.format_exc())
     origin = request.headers.get("origin", "") or "*"
     return JSONResponse(

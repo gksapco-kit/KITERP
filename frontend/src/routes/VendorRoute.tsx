@@ -10,10 +10,12 @@ interface VendorRouteProps {
 
 export default function VendorRoute({ children }: VendorRouteProps) {
   const { user } = useAuthStore()
-  const { data: vendor, isLoading, isError } = useMyVendor()
+  const staff = isPlatformStaff(user)
+  // Superusers have no `/vendors/me` row — calling it returns 403 and looked like a failed login.
+  const { data: vendor, isLoading, isError } = useMyVendor({ enabled: !staff })
 
   // Platform staff (superuser or support) bypass vendor check — admin app on :3000
-  if (isPlatformStaff(user)) {
+  if (staff) {
     return <>{children}</>
   }
 

@@ -8,6 +8,56 @@ import { API_URL } from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
 import type { UserCreate } from '@/types/user'
 
+/** Readable message from FastAPI `{ detail: ... }` or empty/HTML proxy errors. */
+export function formatLoginError(
+  ax: AxiosError<{ detail?: unknown; type?: string; message?: string }>,
+): string {
+  const status = ax.response?.status
+  const raw = ax.response?.data
+  if (raw == null || (typeof raw === 'object' && raw !== null && Object.keys(raw).length === 0)) {
+    if (status === 503) {
+      return (
+        'Database error (HTTP 503). Run: docker compose exec backend alembic upgrade heads — ' +
+        'then restart the backend container.'
+      )
+    }
+    if (status === 500) {
+      return (
+        'Server error (HTTP 500). Restart the API container/process so startup migrations run, then check logs: ' +
+        'docker compose logs backend --tail 100'
+      )
+    }
+    return status
+      ? `Login failed (HTTP ${status}). Is the API running on port 8000? Run: docker compose up -d backend postgres redis`
+      : 'Login failed'
+  }
+  if (typeof raw === 'string') {
+    const s = raw.trim().slice(0, 240)
+    return s || `Login failed (HTTP ${status ?? '?'})`
+  }
+  const d = raw.detail
+  const errType = typeof raw.type === 'string' ? raw.type : ''
+  if (typeof d === 'string') {
+    const msg = d.trim() || 'Login failed'
+    let out = errType ? `${msg} (${errType})` : msg
+    if (status === 503 && typeof raw === 'object' && raw !== null && typeof raw.message === 'string') {
+      const hint = raw.message.trim()
+      if (hint) out = `${out}. ${hint}`
+    }
+    return out
+  }
+  if (Array.isArray(d)) {
+    const parts = d.map((item) =>
+      typeof item === 'object' && item !== null && 'msg' in item
+        ? String((item as { msg: unknown }).msg)
+        : JSON.stringify(item),
+    )
+    return parts.join('; ') || 'Login failed'
+  }
+  if (d != null && typeof d === 'object') return JSON.stringify(d).slice(0, 200)
+  return 'Login failed'
+}
+
 export const authKeys = {
   all: ['auth'] as const,
   me: () => [...authKeys.all, 'me'] as const,
@@ -31,14 +81,23 @@ export function useMe() {
 export function useLogin() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { setTokens } = useAuthStore()
 
   return useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      authApi.login(email, password),
-    onSuccess: (tokens) => {
-      setTokens(tokens)
-      queryClient.invalidateQueries({ queryKey: authKeys.me() })
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const tokens = await authApi.login(email, password)
+      const store = useAuthStore.getState()
+      store.setTokens(tokens)
+      try {
+        const user = await authApi.getMe()
+        store.setUser(user)
+        return user
+      } catch (err: unknown) {
+        store.logout()
+        throw err
+      }
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(authKeys.me(), user)
       toast.success('Login successful!')
       navigate('/dashboard')
     },
@@ -58,10 +117,7 @@ export function useLogin() {
         toast.error(`Cannot reach the API (${hint}).`, { duration: 12_000 })
         return
       }
-      const d = ax.response.data?.detail
-      const message =
-        typeof d === 'string' ? d : d != null ? JSON.stringify(d).slice(0, 200) : 'Login failed'
-      toast.error(message)
+      toast.error(formatLoginError(ax))
     },
   })
 }

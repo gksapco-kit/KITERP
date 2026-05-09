@@ -2,7 +2,7 @@
 Split existing audit fin_period rows that span more than one calendar month
 into one row per month (same behavior as add_audit_periods + expand).
 
-Revision ID: fin008_split_multi_month_audit_periods
+Revision ID: fin008_audit_month_split  (≤32 chars for alembic_version.version_num)
 Revises: fin007_fiscal_schema_repair
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import List, Optional, Tuple
 from alembic import op
 from sqlalchemy import text
 
-revision = "fin008_split_multi_month_audit_periods"
+revision = "fin008_audit_month_split"
 down_revision = "fin007_fiscal_schema_repair"
 branch_labels = None
 depends_on = None

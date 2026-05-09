@@ -7,7 +7,9 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useLogin } from '@/hooks/useAuth'
+import type { AxiosError } from 'axios'
+
+import { formatLoginError, useLogin } from '@/hooks/useAuth'
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -71,6 +73,16 @@ export default function Login() {
         )}
         Sign in
       </Button>
+
+      {loginMutation.isError && (
+        <p className="text-center text-sm text-red-600" role="alert">
+          {loginMutation.error &&
+          typeof loginMutation.error === 'object' &&
+          'response' in loginMutation.error
+            ? formatLoginError(loginMutation.error as AxiosError<{ detail?: unknown }>)
+            : 'Sign-in failed. Check email/password and that the API is running on port 8000.'}
+        </p>
+      )}
 
       <p className="text-center text-sm text-gray-600">
         Do not have an account?{' '}

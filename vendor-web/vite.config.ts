@@ -6,6 +6,9 @@ import path from 'path'
 // When running locally (npm run dev) it falls back to localhost:8000.
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000'
 
+// Polling is for Docker bind-mounts / network FS. On Windows + OneDrive it makes dev painfully slow.
+const useWatchPolling = process.env.VITE_WATCH_POLLING === '1'
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -24,10 +27,7 @@ export default defineConfig({
     allowedHosts: true,
     /** Align HMR client port with host port map (e.g. Docker 3001:3001). */
     hmr: { clientPort: 3001 },
-    watch: {
-      usePolling: true,
-      interval: 1000,
-    },
+    ...(useWatchPolling ? { watch: { usePolling: true, interval: 1000 } } : {}),
     proxy: {
       '/api': {
         target: BACKEND_URL,

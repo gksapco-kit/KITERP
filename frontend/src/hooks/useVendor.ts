@@ -15,7 +15,7 @@ export const vendorKeys = {
     [...vendorKeys.all, 'nearby', lat, lon, radius] as const,
 }
 
-export function useMyVendor() {
+export function useMyVendor(options?: { enabled?: boolean }) {
   const { setVendor } = useVendorStore()
 
   return useQuery({
@@ -27,6 +27,7 @@ export function useMyVendor() {
     },
     staleTime: 5 * 60 * 1000,
     retry: false,
+    enabled: options?.enabled ?? true,
   })
 }
 
