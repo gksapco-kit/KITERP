@@ -47,6 +47,8 @@ async def prune_platform_admins(*, keep_email: str, dry_run: bool) -> None:
                 demoted_other_email.append(f"{u.id} email={u.email!r}")
                 u.is_superuser = False
                 u.platform_staff_role = None
+                u.platform_staff_job_role = None
+                u.platform_staff_manager_id = None
 
         # ── Same email: keep a single superuser row ─────────────────────────
         dup_stmt = select(User).where(sqlfunc.lower(User.email) == keep_norm).order_by(User.id.asc())
@@ -60,11 +62,15 @@ async def prune_platform_admins(*, keep_email: str, dry_run: bool) -> None:
                 if keeper and u.id == keeper.id:
                     u.is_superuser = True
                     u.platform_staff_role = None
+                    u.platform_staff_job_role = None
+                    u.platform_staff_manager_id = None
                 else:
                     if u.is_superuser or u.platform_staff_role:
                         demoted_keep_dupe.append(str(u.id))
                     u.is_superuser = False
                     u.platform_staff_role = None
+                    u.platform_staff_job_role = None
+                    u.platform_staff_manager_id = None
 
         if dry_run:
             await session.rollback()

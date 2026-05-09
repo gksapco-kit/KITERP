@@ -93,6 +93,12 @@ def user_to_dict(user: User) -> dict:
         "is_active": user.is_active or False,
         "is_superuser": user.is_superuser or False,
         "platform_staff_role": getattr(user, "platform_staff_role", None),
+        "platform_staff_job_role": getattr(user, "platform_staff_job_role", None),
+        "platform_staff_manager_id": (
+            str(user.platform_staff_manager_id)
+            if getattr(user, "platform_staff_manager_id", None)
+            else None
+        ),
         "pending_email": getattr(user, "pending_email", None),
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None,
@@ -224,7 +230,11 @@ async def _build_me_payload(user: User, db: AsyncSession) -> dict:
 
     from app.repositories.vendor_user_repo import VendorUserRepository
     from app.repositories.vendor_repo import VendorRepository
-    from app.api.deps import get_effective_permissions
+    from app.api.deps import (
+        get_effective_permissions,
+        normalized_vendor_role,
+        vendor_member_role_display_name,
+    )
 
     vu_repo = VendorUserRepository(db)
     vu = await vu_repo.get_by_user_id(user.id)
@@ -255,9 +265,9 @@ async def _build_me_payload(user: User, db: AsyncSession) -> dict:
         perms = get_effective_permissions(vu)
         data["vendor_role"] = {
             "vendor_id": str(vu.vendor_id),
-            "role": vu.role,
+            "role": normalized_vendor_role(vu),
             "role_id": str(vu.role_id) if vu.role_id else None,
-            "role_name": vu.custom_role.name if (vu.role == "custom" and hasattr(vu, "custom_role") and vu.custom_role) else vu.role.capitalize(),
+            "role_name": vendor_member_role_display_name(vu),
             "permissions": perms,
             "is_active": vu.is_active,
         }

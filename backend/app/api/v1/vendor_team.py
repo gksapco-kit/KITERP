@@ -15,8 +15,12 @@ from app.models.user import User
 from app.models.vendor_user import VendorUser
 from app.models.vendor_role import DEFAULT_ROLE_PERMISSIONS, ALL_PERMISSIONS
 from app.api.deps import (
-    get_current_active_user, get_current_vendor_user,
-    require_permission, get_effective_permissions,
+    get_current_active_user,
+    get_current_vendor_user,
+    require_permission,
+    get_effective_permissions,
+    normalized_vendor_role,
+    vendor_member_role_display_name,
 )
 from app.repositories.vendor_user_repo import VendorUserRepository
 from app.repositories.vendor_role_repo import VendorRoleRepository
@@ -54,15 +58,14 @@ class UpdateTeamMember(BaseModel):
 
 def _member_to_dict(vu: VendorUser) -> dict:
     user = vu.user if hasattr(vu, "user") and vu.user else None
-    custom_role = vu.custom_role if hasattr(vu, "custom_role") and vu.custom_role else None
     perms = get_effective_permissions(vu)
     return {
         "id": str(vu.id),
         "vendor_id": str(vu.vendor_id),
         "user_id": str(vu.user_id),
-        "role": vu.role,
+        "role": normalized_vendor_role(vu),
         "role_id": str(vu.role_id) if vu.role_id else None,
-        "role_name": custom_role.name if custom_role else vu.role.capitalize(),
+        "role_name": vendor_member_role_display_name(vu),
         "permissions": perms,
         "is_active": vu.is_active,
         "invited_at": vu.invited_at.isoformat() if vu.invited_at else None,

@@ -104,10 +104,41 @@ async def ensure_user_platform_staff_role_column() -> None:
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS pending_email VARCHAR(255)',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email_change_code VARCHAR(6)',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email_change_expires_at TIMESTAMPTZ',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_job_role VARCHAR(32)',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_manager_id UUID',
+        'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_job_role ON "user" (platform_staff_job_role)',
+        'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_manager_id ON "user" (platform_staff_manager_id)',
     ]
     async with engine.begin() as conn:
         for s in stmts:
             await conn.execute(text(s))
+        # Self-FK (skip if already present)
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'fk_user_platform_staff_manager_id_user'
+                  ) THEN
+                    ALTER TABLE "user"
+                    ADD CONSTRAINT fk_user_platform_staff_manager_id_user
+                    FOREIGN KEY (platform_staff_manager_id) REFERENCES "user"(id) ON DELETE SET NULL;
+                  END IF;
+                END $$;
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                UPDATE "user"
+                SET platform_staff_job_role = 'consulting'
+                WHERE platform_staff_role = 'support'
+                  AND platform_staff_job_role IS NULL
+                """
+            )
+        )
 
 
 async def ensure_product_uom_column() -> None:
