@@ -1,5 +1,5 @@
 # app/models/user.py
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -23,6 +23,14 @@ class User(Base):
     is_superuser = Column(Boolean, default=False)
     # Platform admin app (port 3000): "support" = help desk; full control uses is_superuser.
     platform_staff_role = Column(String(20), nullable=True, index=True)
+    # Job function for support staff: sales | crm | consulting | relationship_manager | team_manager
+    platform_staff_job_role = Column(String(32), nullable=True, index=True)
+    platform_staff_manager_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     # OTP verification (used by both email-resend and phone-OTP flows)
     verification_code = Column(String(6), nullable=True)
     verification_code_expires_at = Column(DateTime(timezone=True), nullable=True)

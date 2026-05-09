@@ -1,8 +1,20 @@
 import apiClient from './client'
 import type { Vendor } from '@/types/vendor'
 
+export interface RelationshipManagerBrief {
+  id: string
+  full_name: string
+  email?: string | null
+}
+
+/** Admin vendor directory row (includes assigned relationship manager). */
+export interface AdminVendor extends Vendor {
+  relationship_manager_user_id?: string | null
+  relationship_manager?: RelationshipManagerBrief | null
+}
+
 export interface VendorListResponse {
-  items: Vendor[]
+  items: AdminVendor[]
   total: number
   page: number
   size: number
@@ -83,6 +95,27 @@ export interface AdminVendorUpdatePayload {
   is_gst_registered?: boolean
   default_tax_rate?: number
   status?: string
+  relationship_manager_user_id?: string | null
+}
+
+export interface VendorRmQueryAdminRow {
+  id: string
+  vendor_id: string
+  vendor_display_name?: string | null
+  created_by_user_id: string
+  created_by_name?: string | null
+  subject: string
+  body: string
+  status: string
+  created_at?: string | null
+}
+
+export interface VendorRmQueryListResponse {
+  items: VendorRmQueryAdminRow[]
+  total: number
+  page: number
+  size: number
+  pages: number
 }
 
 export interface AdminVendorStats {
@@ -98,6 +131,9 @@ export interface PlatformStaffMember {
   full_name: string
   is_active: boolean
   created_at?: string | null
+  job_role?: string | null
+  manager_id?: string | null
+  manager_name?: string | null
 }
 
 export interface PlatformStaffCreatePayload {
@@ -105,11 +141,16 @@ export interface PlatformStaffCreatePayload {
   password: string
   email?: string | null
   phone?: string | null
+  job_role: string
+  manager_id?: string | null
 }
 
 export interface PlatformStaffUpdatePayload {
   is_active?: boolean
   remove_access?: boolean
+  job_role?: string
+  /** Set to `null` to clear assignment */
+  manager_id?: string | null
 }
 
 export const adminApi = {
@@ -128,13 +169,31 @@ export const adminApi = {
     return response.data
   },
 
-  getVendor: async (vendorId: string): Promise<Vendor> => {
+  getVendor: async (vendorId: string): Promise<AdminVendor> => {
     const response = await apiClient.get(`/admin/vendors/${vendorId}`)
     return response.data
   },
 
-  updateVendor: async (vendorId: string, data: AdminVendorUpdatePayload): Promise<Vendor> => {
+  updateVendor: async (vendorId: string, data: AdminVendorUpdatePayload): Promise<AdminVendor> => {
     const response = await apiClient.put(`/admin/vendors/${vendorId}`, data)
+    return response.data
+  },
+
+  listVendorRmQueries: async (params?: {
+    vendor_id?: string
+    status?: string
+    page?: number
+    size?: number
+  }): Promise<VendorRmQueryListResponse> => {
+    const response = await apiClient.get('/admin/vendor-rm-queries', { params })
+    return response.data
+  },
+
+  patchVendorRmQuery: async (
+    queryId: string,
+    status: 'open' | 'in_progress' | 'closed',
+  ): Promise<VendorRmQueryAdminRow> => {
+    const response = await apiClient.patch(`/admin/vendor-rm-queries/${queryId}`, { status })
     return response.data
   },
 

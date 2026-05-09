@@ -10,6 +10,9 @@ export interface User {
   is_superuser?: boolean
   /** When `"support"`, user may sign in to admin app with limited permissions. */
   platform_staff_role?: string | null
+  /** Job function when platform_staff_role is support: sales | crm | consulting | relationship_manager | team_manager */
+  platform_staff_job_role?: string | null
+  platform_staff_manager_id?: string | null
   created_at: string
   updated_at: string
 }

@@ -35,8 +35,13 @@ async def get_current_user(
     if not user_id:
         return None
 
+    try:
+        uid = UUID(str(user_id))
+    except (ValueError, TypeError):
+        return None
+
     repo = UserRepository(db)
-    return await repo.get_by_id(UUID(user_id))
+    return await repo.get_by_id(uid)
 
 
 async def get_current_active_user(
@@ -119,9 +124,28 @@ async def get_current_vendor_user(
     )
 
 
+def normalized_vendor_role(vendor_user: VendorUser) -> str:
+    """ORM `role` should never be NULL; normalize legacy/bad rows so API handlers don't 500."""
+    r = vendor_user.role
+    if r is None or not str(r).strip():
+        return "staff"
+    return str(r).strip()
+
+
+def vendor_member_role_display_name(vendor_user: VendorUser) -> str:
+    """Human-readable role label for vendor_user payloads (safe if role is missing)."""
+    role = normalized_vendor_role(vendor_user)
+    if role == "custom":
+        cr = getattr(vendor_user, "custom_role", None)
+        if cr is not None and getattr(cr, "name", None):
+            return str(cr.name)
+        return "Custom"
+    return role.capitalize()
+
+
 def get_effective_permissions(vendor_user: VendorUser) -> List[str]:
     """Compute the effective permissions for a vendor user."""
-    role = vendor_user.role
+    role = normalized_vendor_role(vendor_user)
 
     # System role permissions
     if role in DEFAULT_ROLE_PERMISSIONS:
@@ -165,7 +189,7 @@ def require_role(*roles: str):
     async def _check(
         vendor_user: VendorUser = Depends(get_current_vendor_user),
     ) -> VendorUser:
-        if vendor_user.role not in roles:
+        if normalized_vendor_role(vendor_user) not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"This action requires one of: {', '.join(roles)}",

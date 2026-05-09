@@ -8,7 +8,7 @@ Create Date: 2026-05-09
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
+from sqlalchemy import text
 
 
 revision: str = "ps001_plat_staff"
@@ -24,18 +24,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "user",
-        sa.Column("platform_staff_role", sa.String(length=20), nullable=True),
-    )
-    op.create_index(
-        "ix_user_platform_staff_role",
-        "user",
-        ["platform_staff_role"],
-        unique=False,
+    # Idempotent: startup ``ensure_user_platform_staff_role_column`` may already add this column.
+    op.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_role VARCHAR(20)'))
+    op.execute(
+        text(
+            'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_role ON "user" (platform_staff_role)'
+        )
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_user_platform_staff_role", table_name="user")
-    op.drop_column("user", "platform_staff_role")
+    op.execute(text("DROP INDEX IF EXISTS ix_user_platform_staff_role"))
+    op.execute(text('ALTER TABLE "user" DROP COLUMN IF EXISTS platform_staff_role'))

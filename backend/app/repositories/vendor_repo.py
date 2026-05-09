@@ -25,6 +25,7 @@ class VendorRepository(BaseRepository[Vendor]):
                 selectinload(Vendor.documents),
                 selectinload(Vendor.bank_accounts),
                 selectinload(Vendor.owners),
+                selectinload(Vendor.relationship_manager),
             )
             .where(Vendor.id == id)
         )
@@ -176,15 +177,22 @@ class VendorRepository(BaseRepository[Vendor]):
         limit: int = 20,
         status: Optional[str] = None,
         search: Optional[str] = None,
+        relationship_manager_user_id: Optional[UUID] = None,
     ) -> tuple[List[Vendor], int]:
         """List vendors with filters and pagination."""
-        query = select(Vendor)
+        query = select(Vendor).options(selectinload(Vendor.relationship_manager))
         count_query = select(func.count()).select_from(Vendor)
-        
+
+        if relationship_manager_user_id is not None:
+            query = query.where(Vendor.relationship_manager_user_id == relationship_manager_user_id)
+            count_query = count_query.where(
+                Vendor.relationship_manager_user_id == relationship_manager_user_id
+            )
+
         if status:
             query = query.where(Vendor.status == status)
             count_query = count_query.where(Vendor.status == status)
-        
+
         if search:
             search_filter = or_(
                 Vendor.business_name.ilike(f"%{search}%"),

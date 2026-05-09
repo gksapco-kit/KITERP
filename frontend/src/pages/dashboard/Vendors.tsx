@@ -90,6 +90,8 @@ export default function Vendors() {
         business_name: (v: VendorRow) => v.business_name || v.display_name || '',
         primary_email: (v: VendorRow) => v.primary_email || '',
         business_type: (v: VendorRow) => v.business_type || '',
+        relationship_manager: (v: VendorRow) =>
+          v.relationship_manager?.full_name || '',
         status: (v: VendorRow) => v.status,
         created_at: (v: VendorRow) => v.created_at,
       },
@@ -179,6 +181,7 @@ export default function Vendors() {
               { value: 'business_name', label: 'Business' },
               { value: 'primary_email', label: 'Email' },
               { value: 'business_type', label: 'Type' },
+              { value: 'relationship_manager', label: 'RM' },
               { value: 'status', label: 'Status' },
             ]}
             sortKey={sortKey}
@@ -200,6 +203,9 @@ export default function Vendors() {
                     Type
                   </th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    RM
+                  </th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -213,14 +219,14 @@ export default function Vendors() {
               <tbody className="divide-y divide-gray-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
+                    <td colSpan={7} className="px-6 py-12 text-center">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
                       <p className="text-sm text-gray-500 mt-2">Loading vendors...</p>
                     </td>
                   </tr>
                 ) : !data?.items?.length ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
+                    <td colSpan={7} className="px-6 py-12 text-center">
                       <Store className="w-10 h-10 mx-auto text-gray-300" />
                       <p className="text-sm text-gray-500 mt-2">No vendors found</p>
                       {canManageVendors && (
@@ -263,6 +269,11 @@ export default function Vendors() {
                         <span className="text-sm text-gray-700 capitalize">
                           {vendor.business_type?.replace('_', ' ')}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {vendor.relationship_manager?.full_name || (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span

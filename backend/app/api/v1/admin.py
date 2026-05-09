@@ -1,10 +1,11 @@
 # app/api/v1/admin.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List, Any
+from sqlalchemy.orm import selectinload
+from typing import Optional, List, Any, Literal
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, model_validator
 import math
@@ -13,16 +14,74 @@ from app.database import get_db
 from app.api.deps import get_current_superuser, get_current_platform_staff
 from app.models.user import User
 from app.models.vendor import Vendor
+from app.models.vendor_rm_query import VendorRmQuery
 from app.models.vendor_plan import VendorPlan
 from app.models.platform_setting import PlatformSetting
-from app.schemas.vendor import VendorResponse, VendorListResponse, VendorCreate
+from app.schemas.vendor import (
+    VendorResponse,
+    VendorListResponse,
+    VendorCreate,
+    VendorAdminResponse,
+    VendorAdminListResponse,
+    serialize_vendor_admin,
+)
 from app.services.vendor_service import VendorService
 from app.repositories.vendor_repo import VendorRepository
 from app.repositories.user_repo import UserRepository
 from app.core.security import get_password_hash
-from app.utils.platform_staff import PLATFORM_SUPPORT_ROLE
+from app.utils.platform_staff import (
+    PLATFORM_SUPPORT_ROLE,
+    PLATFORM_JOB_ROLES,
+    PLATFORM_JOB_ROLE_TEAM_MANAGER,
+    PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER,
+)
 
 router = APIRouter()
+
+
+def _relationship_manager_list_scope(current_user: User) -> Optional[UUID]:
+    """Non-superuser relationship managers only see vendors assigned to them."""
+    if current_user.is_superuser:
+        return None
+    if getattr(current_user, "platform_staff_job_role", None) == PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER:
+        return current_user.id
+    return None
+
+
+async def _ensure_vendor_visible_to_platform_staff(current_user: User, vendor: Vendor) -> None:
+    scope = _relationship_manager_list_scope(current_user)
+    if scope is None:
+        return
+    if vendor.relationship_manager_user_id != scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not the assigned relationship manager for this vendor",
+        )
+
+
+async def _validate_relationship_manager_assignee(db: AsyncSession, user_id: Optional[UUID]) -> None:
+    """FK target must be active superuser or platform support user with job_role relationship_manager."""
+    if user_id is None:
+        return
+    result = await db.execute(select(User).where(User.id == user_id))
+    assignee = result.scalar_one_or_none()
+    if not assignee or not assignee.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Relationship manager user not found or inactive",
+        )
+    if assignee.is_superuser:
+        return
+    if getattr(assignee, "platform_staff_role", None) != PLATFORM_SUPPORT_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assigned user must be platform staff",
+        )
+    if getattr(assignee, "platform_staff_job_role", None) != PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assigned user must have job role relationship_manager (or be a superuser)",
+        )
 
 
 # ── Plan schemas ─────────────────────────────────────────────────────────────
@@ -97,6 +156,10 @@ class AdminVendorUpdate(BaseModel):
     is_gst_registered: Optional[bool] = None
     default_tax_rate: Optional[float] = Field(None, ge=0, le=100)
     status: Optional[str] = None
+    relationship_manager_user_id: Optional[UUID] = Field(
+        None,
+        description="Platform user id (relationship_manager staff or superuser); null clears assignment",
+    )
 
 
 class AdminVendorCreate(BaseModel):
@@ -205,7 +268,7 @@ async def admin_create_vendor(
     }
 
 
-@router.get("/vendors", response_model=VendorListResponse)
+@router.get("/vendors", response_model=VendorAdminListResponse)
 async def list_vendors(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
@@ -214,19 +277,21 @@ async def list_vendors(
     current_user: User = Depends(get_current_platform_staff),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all vendors (admin only)."""
+    """List vendors; relationship managers only see vendors assigned to them."""
     repo = VendorRepository(db)
     skip = (page - 1) * size
-    
+    rm_scope = _relationship_manager_list_scope(current_user)
+
     items, total = await repo.list_vendors(
         skip=skip,
         limit=size,
         status=status,
         search=search,
+        relationship_manager_user_id=rm_scope,
     )
-    
-    return VendorListResponse(
-        items=items,
+
+    return VendorAdminListResponse(
+        items=[serialize_vendor_admin(v) for v in items],
         total=total,
         page=page,
         size=size,
@@ -240,6 +305,30 @@ class AdminVendorStatsResponse(BaseModel):
     pending_review: int
 
 
+class VendorRmQueryAdminRow(BaseModel):
+    id: str
+    vendor_id: str
+    vendor_display_name: Optional[str] = None
+    created_by_user_id: str
+    created_by_name: Optional[str] = None
+    subject: str
+    body: str
+    status: str
+    created_at: Optional[str] = None
+
+
+class VendorRmQueryAdminListResponse(BaseModel):
+    items: List[VendorRmQueryAdminRow]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class VendorRmQueryStatusPatch(BaseModel):
+    status: Literal["open", "in_progress", "closed"]
+
+
 @router.get("/vendors/stats/summary", response_model=AdminVendorStatsResponse)
 async def vendor_stats_summary(
     current_user: User = Depends(get_current_platform_staff),
@@ -250,33 +339,35 @@ async def vendor_stats_summary(
     return await repo.get_admin_dashboard_stats()
 
 
-@router.get("/vendors/{vendor_id}", response_model=VendorResponse)
+@router.get("/vendors/{vendor_id}", response_model=VendorAdminResponse)
 async def get_vendor(
     vendor_id: UUID,
     current_user: User = Depends(get_current_platform_staff),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get vendor details (admin only)."""
+    """Get vendor details (platform staff)."""
     repo = VendorRepository(db)
     vendor = await repo.get_by_id(vendor_id)
-    
+
     if not vendor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vendor not found"
         )
-    
-    return vendor
+
+    await _ensure_vendor_visible_to_platform_staff(current_user, vendor)
+
+    return serialize_vendor_admin(vendor)
 
 
-@router.put("/vendors/{vendor_id}", response_model=VendorResponse)
+@router.put("/vendors/{vendor_id}", response_model=VendorAdminResponse)
 async def update_vendor(
     vendor_id: UUID,
     body: AdminVendorUpdate,
     current_user: User = Depends(get_current_superuser),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update vendor details (admin only). Only provided fields are updated."""
+    """Update vendor details (superuser). Only provided fields are updated."""
     repo = VendorRepository(db)
     vendor = await repo.get_by_id(vendor_id)
 
@@ -293,12 +384,125 @@ async def update_vendor(
             detail="No fields to update"
         )
 
+    if "relationship_manager_user_id" in update_data:
+        await _validate_relationship_manager_assignee(
+            db, update_data["relationship_manager_user_id"]
+        )
+
     for field, value in update_data.items():
         setattr(vendor, field, value)
 
     await db.commit()
     await db.refresh(vendor)
-    return vendor
+    vendor = await repo.get_by_id(vendor_id)
+    return serialize_vendor_admin(vendor)
+
+
+@router.get("/vendor-rm-queries", response_model=VendorRmQueryAdminListResponse)
+async def list_vendor_rm_queries(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    vendor_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """List vendor questions to their relationship manager (scoped for RM staff)."""
+    rm_scope = _relationship_manager_list_scope(current_user)
+
+    filters = []
+    if rm_scope is not None:
+        filters.append(Vendor.relationship_manager_user_id == rm_scope)
+    if vendor_id is not None:
+        filters.append(VendorRmQuery.vendor_id == vendor_id)
+    if status_filter:
+        filters.append(VendorRmQuery.status == status_filter)
+
+    count_stmt = (
+        select(func.count())
+        .select_from(VendorRmQuery)
+        .join(Vendor, VendorRmQuery.vendor_id == Vendor.id)
+    )
+    list_stmt = (
+        select(VendorRmQuery)
+        .join(Vendor, VendorRmQuery.vendor_id == Vendor.id)
+        .options(
+            selectinload(VendorRmQuery.vendor),
+            selectinload(VendorRmQuery.created_by),
+        )
+    )
+    for f in filters:
+        count_stmt = count_stmt.where(f)
+        list_stmt = list_stmt.where(f)
+
+    total = (await db.execute(count_stmt)).scalar_one()
+    skip = (page - 1) * size
+    list_stmt = list_stmt.order_by(VendorRmQuery.created_at.desc()).offset(skip).limit(size)
+    rows = list((await db.execute(list_stmt)).scalars().all())
+
+    items: List[VendorRmQueryAdminRow] = []
+    for r in rows:
+        v = r.vendor
+        cb = r.created_by
+        items.append(
+            VendorRmQueryAdminRow(
+                id=str(r.id),
+                vendor_id=str(r.vendor_id),
+                vendor_display_name=v.display_name if v else None,
+                created_by_user_id=str(r.created_by_user_id),
+                created_by_name=(cb.full_name or "").strip() if cb else None,
+                subject=r.subject,
+                body=r.body,
+                status=r.status,
+                created_at=r.created_at.isoformat() if r.created_at else None,
+            )
+        )
+
+    return VendorRmQueryAdminListResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=math.ceil(total / size) if total > 0 else 0,
+    )
+
+
+@router.patch("/vendor-rm-queries/{query_id}", response_model=VendorRmQueryAdminRow)
+async def patch_vendor_rm_query_status(
+    query_id: UUID,
+    body: VendorRmQueryStatusPatch,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(VendorRmQuery)
+        .where(VendorRmQuery.id == query_id)
+        .options(selectinload(VendorRmQuery.vendor), selectinload(VendorRmQuery.created_by))
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Query not found")
+    vendor = row.vendor
+    if not vendor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    await _ensure_vendor_visible_to_platform_staff(current_user, vendor)
+
+    row.status = body.status
+    await db.commit()
+    await db.refresh(row)
+    cb = row.created_by
+    return VendorRmQueryAdminRow(
+        id=str(row.id),
+        vendor_id=str(row.vendor_id),
+        vendor_display_name=vendor.display_name,
+        created_by_user_id=str(row.created_by_user_id),
+        created_by_name=(cb.full_name or "").strip() if cb else None,
+        subject=row.subject,
+        body=row.body,
+        status=row.status,
+        created_at=row.created_at.isoformat() if row.created_at else None,
+    )
 
 
 class CreateOwnerAccountRequest(BaseModel):
@@ -410,6 +614,13 @@ async def get_vendor_owner(
 ):
     """Get the vendor owner's user account info."""
     from app.models.vendor import VendorOwner
+
+    repo = VendorRepository(db)
+    vendor = await repo.get_by_id(vendor_id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    await _ensure_vendor_visible_to_platform_staff(current_user, vendor)
+
     result = await db.execute(
         select(VendorOwner).where(
             VendorOwner.vendor_id == vendor_id,
@@ -666,6 +877,60 @@ async def update_platform_settings(
 # ── Platform support staff (superuser manages; support can sign in to admin app) ──
 
 
+async def _validate_platform_staff_manager_assignment(
+    db: AsyncSession,
+    *,
+    job_role: str,
+    manager_id: Optional[UUID],
+    subject_user_id: Optional[UUID],
+) -> None:
+    if job_role not in PLATFORM_JOB_ROLES:
+        raise HTTPException(status_code=422, detail="Invalid job_role.")
+    if job_role == PLATFORM_JOB_ROLE_TEAM_MANAGER:
+        if manager_id is not None:
+            raise HTTPException(
+                status_code=422,
+                detail="Team managers cannot have a manager assigned.",
+            )
+        return
+    if manager_id is None:
+        return
+    if subject_user_id is not None and manager_id == subject_user_id:
+        raise HTTPException(status_code=422, detail="A user cannot be assigned as their own manager.")
+    mgr = await db.get(User, manager_id)
+    if not mgr or mgr.platform_staff_role != PLATFORM_SUPPORT_ROLE:
+        raise HTTPException(status_code=422, detail="Manager must be an active platform support user.")
+    if getattr(mgr, "platform_staff_job_role", None) != PLATFORM_JOB_ROLE_TEAM_MANAGER:
+        raise HTTPException(status_code=422, detail="Manager must have the team manager job role.")
+
+
+async def _platform_staff_manager_name_map(db: AsyncSession, rows: List[User]) -> dict:
+    ids = {
+        r.platform_staff_manager_id
+        for r in rows
+        if getattr(r, "platform_staff_manager_id", None) is not None
+    }
+    if not ids:
+        return {}
+    res = await db.execute(select(User.id, User.full_name).where(User.id.in_(ids)))
+    return {uid: name for uid, name in res.all()}
+
+
+def _platform_staff_member_response(u: User, manager_names: dict) -> "PlatformStaffMemberResponse":
+    mid = getattr(u, "platform_staff_manager_id", None)
+    return PlatformStaffMemberResponse(
+        id=str(u.id),
+        email=u.email,
+        phone=u.phone,
+        full_name=u.full_name,
+        is_active=bool(u.is_active),
+        created_at=u.created_at.isoformat() if u.created_at else None,
+        job_role=getattr(u, "platform_staff_job_role", None),
+        manager_id=str(mid) if mid else None,
+        manager_name=manager_names.get(mid) if mid else None,
+    )
+
+
 class PlatformStaffMemberResponse(BaseModel):
     id: str
     email: Optional[str] = None
@@ -673,6 +938,9 @@ class PlatformStaffMemberResponse(BaseModel):
     full_name: str
     is_active: bool
     created_at: Optional[str] = None
+    job_role: Optional[str] = None
+    manager_id: Optional[str] = None
+    manager_name: Optional[str] = None
 
 
 class PlatformStaffCreateRequest(BaseModel):
@@ -680,6 +948,8 @@ class PlatformStaffCreateRequest(BaseModel):
     password: str = Field(..., min_length=6, max_length=128)
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, max_length=24)
+    job_role: str = Field(..., min_length=3, max_length=32)
+    manager_id: Optional[UUID] = None
 
     @model_validator(mode="after")
     def require_email_or_phone(self):
@@ -693,6 +963,8 @@ class PlatformStaffCreateRequest(BaseModel):
 class PlatformStaffUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
     remove_access: bool = False
+    job_role: Optional[str] = Field(None, min_length=3, max_length=32)
+    manager_id: Optional[UUID] = None
 
 
 @router.get("/platform-staff", response_model=List[PlatformStaffMemberResponse])
@@ -706,17 +978,8 @@ async def list_platform_staff_members(
         .order_by(User.created_at.desc())
     )
     rows = result.scalars().all()
-    return [
-        PlatformStaffMemberResponse(
-            id=str(r.id),
-            email=r.email,
-            phone=r.phone,
-            full_name=r.full_name,
-            is_active=bool(r.is_active),
-            created_at=r.created_at.isoformat() if r.created_at else None,
-        )
-        for r in rows
-    ]
+    mgr_names = await _platform_staff_manager_name_map(db, rows)
+    return [_platform_staff_member_response(r, mgr_names) for r in rows]
 
 
 @router.post("/platform-staff", response_model=PlatformStaffMemberResponse, status_code=201)
@@ -728,6 +991,13 @@ async def create_platform_staff_member(
     user_repo = UserRepository(db)
     email_norm = str(body.email).strip().lower() if body.email else None
     phone_norm = (body.phone or "").strip() or None
+
+    job_role = body.job_role.strip().lower()
+    if job_role not in PLATFORM_JOB_ROLES:
+        raise HTTPException(status_code=422, detail="Invalid job_role.")
+    mgr_id: Optional[UUID] = body.manager_id
+    if job_role == PLATFORM_JOB_ROLE_TEAM_MANAGER:
+        mgr_id = None
 
     existing: Optional[User] = None
     if email_norm:
@@ -750,7 +1020,15 @@ async def create_platform_staff_member(
     if existing:
         if existing.is_superuser:
             raise HTTPException(status_code=400, detail="User is already a super administrator.")
+        await _validate_platform_staff_manager_assignment(
+            db,
+            job_role=job_role,
+            manager_id=mgr_id,
+            subject_user_id=existing.id,
+        )
         existing.platform_staff_role = PLATFORM_SUPPORT_ROLE
+        existing.platform_staff_job_role = job_role
+        existing.platform_staff_manager_id = mgr_id
         existing.password_hash = get_password_hash(body.password)
         existing.full_name = body.full_name
         if email_norm:
@@ -774,21 +1052,24 @@ async def create_platform_staff_member(
             is_active=True,
             is_superuser=False,
             platform_staff_role=PLATFORM_SUPPORT_ROLE,
+            platform_staff_job_role=job_role,
+            platform_staff_manager_id=mgr_id,
             is_email_verified=bool(email_norm),
             is_phone_verified=bool(phone_norm),
         )
         db.add(u)
+        await db.flush()
+        await _validate_platform_staff_manager_assignment(
+            db,
+            job_role=job_role,
+            manager_id=mgr_id,
+            subject_user_id=u.id,
+        )
         await db.commit()
         await db.refresh(u)
 
-    return PlatformStaffMemberResponse(
-        id=str(u.id),
-        email=u.email,
-        phone=u.phone,
-        full_name=u.full_name,
-        is_active=bool(u.is_active),
-        created_at=u.created_at.isoformat() if u.created_at else None,
-    )
+    mgr_names = await _platform_staff_manager_name_map(db, [u])
+    return _platform_staff_member_response(u, mgr_names)
 
 
 @router.patch("/platform-staff/{user_id}", response_model=PlatformStaffMemberResponse)
@@ -802,19 +1083,45 @@ async def update_platform_staff_member(
     if not u or u.platform_staff_role != PLATFORM_SUPPORT_ROLE:
         raise HTTPException(status_code=404, detail="Support staff user not found")
 
+    data = body.model_dump(exclude_unset=True)
+
     if body.remove_access:
+        await db.execute(
+            update(User)
+            .where(User.platform_staff_manager_id == user_id)
+            .values(platform_staff_manager_id=None)
+        )
         u.platform_staff_role = None
-    if body.is_active is not None:
-        u.is_active = body.is_active
+        u.platform_staff_job_role = None
+        u.platform_staff_manager_id = None
+    else:
+        if body.is_active is not None:
+            u.is_active = body.is_active
+        if "job_role" in data or "manager_id" in data:
+            role = data["job_role"] if "job_role" in data else u.platform_staff_job_role
+            mgr_id = data["manager_id"] if "manager_id" in data else u.platform_staff_manager_id
+            if role is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Support user has no job_role; set job_role first.",
+                )
+            if role not in PLATFORM_JOB_ROLES:
+                raise HTTPException(status_code=422, detail="Invalid job_role.")
+            if role == PLATFORM_JOB_ROLE_TEAM_MANAGER:
+                mgr_id = None
+            await _validate_platform_staff_manager_assignment(
+                db,
+                job_role=role,
+                manager_id=mgr_id,
+                subject_user_id=u.id,
+            )
+            if "job_role" in data:
+                u.platform_staff_job_role = role
+            if "manager_id" in data or ("job_role" in data and role == PLATFORM_JOB_ROLE_TEAM_MANAGER):
+                u.platform_staff_manager_id = mgr_id
 
     await db.commit()
     await db.refresh(u)
 
-    return PlatformStaffMemberResponse(
-        id=str(u.id),
-        email=u.email,
-        phone=u.phone,
-        full_name=u.full_name,
-        is_active=bool(u.is_active),
-        created_at=u.created_at.isoformat() if u.created_at else None,
-    )
+    mgr_names = await _platform_staff_manager_name_map(db, [u])
+    return _platform_staff_member_response(u, mgr_names)

@@ -35,6 +35,8 @@ class UserResponse(BaseModel):
     is_active: bool
     is_superuser: bool = False
     platform_staff_role: Optional[str] = None
+    platform_staff_job_role: Optional[str] = None
+    platform_staff_manager_id: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

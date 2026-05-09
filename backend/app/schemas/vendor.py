@@ -1,6 +1,6 @@
 # app/schemas/vendor.py
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
-from typing import Optional, List
+from typing import Any, Optional, List
 from datetime import datetime
 from uuid import UUID
 from enum import Enum
@@ -205,6 +205,46 @@ class VendorListResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+
+class RelationshipManagerBrief(BaseModel):
+    id: str
+    full_name: str
+    email: Optional[str] = None
+
+
+class VendorAdminResponse(VendorResponse):
+    """Admin/vendor-directory payload including assigned relationship manager."""
+
+    relationship_manager_user_id: Optional[str] = None
+    relationship_manager: Optional[RelationshipManagerBrief] = None
+
+
+class VendorAdminListResponse(BaseModel):
+    items: List[VendorAdminResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+def serialize_vendor_admin(vendor: Any) -> VendorAdminResponse:
+    """Map ORM Vendor (+ loaded relationship_manager) to admin API shape."""
+    base = VendorResponse.model_validate(vendor).model_dump()
+    rm_uid = getattr(vendor, "relationship_manager_user_id", None)
+    brief = None
+    rm = getattr(vendor, "relationship_manager", None)
+    if rm is not None:
+        brief = RelationshipManagerBrief(
+            id=str(rm.id),
+            full_name=(rm.full_name or "").strip() or "—",
+            email=rm.email,
+        )
+    return VendorAdminResponse(
+        **base,
+        relationship_manager_user_id=str(rm_uid) if rm_uid else None,
+        relationship_manager=brief,
+    )
 
 
 class NearbyVendorResponse(BaseModel):

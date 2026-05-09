@@ -88,6 +88,14 @@ class Vendor(Base):
     # Plan
     plan_id = Column(UUID(as_uuid=True), ForeignKey("vendor_plan.id"))
     plan_expires_at = Column(DateTime(timezone=True))
+
+    # Platform relationship manager (support user with job_role relationship_manager)
+    relationship_manager_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     
     # Audit
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -102,6 +110,15 @@ class Vendor(Base):
     users = relationship("VendorUser", back_populates="vendor", cascade="all, delete-orphan")
     products = relationship("Product", back_populates="vendor", cascade="all, delete-orphan")
     services = relationship("Service", back_populates="vendor", cascade="all, delete-orphan")
+    relationship_manager = relationship(
+        "User",
+        foreign_keys=[relationship_manager_user_id],
+    )
+    rm_queries = relationship(
+        "VendorRmQuery",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         Index("idx_vendor_status_created", "status", "created_at"),

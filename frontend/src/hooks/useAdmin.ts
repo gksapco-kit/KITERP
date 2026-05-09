@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import { adminApi, type ListVendorsParams, type AdminVendorUpdatePayload } from '@/api/admin.api'
+import {
+  adminApi,
+  type ListVendorsParams,
+  type AdminVendorUpdatePayload,
+} from '@/api/admin.api'
 
 export const adminKeys = {
   all: ['admin'] as const,
@@ -98,6 +102,46 @@ export function useRejectVendor() {
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to reject vendor'
       toast.error(message)
+    },
+  })
+}
+
+export function useVendorRmQueriesForVendor(vendorId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: vendorId ? ([...adminKeys.vendor(vendorId), 'rm-queries'] as const) : ['admin', 'rm-queries', 'noop'],
+    queryFn: () =>
+      adminApi.listVendorRmQueries({
+        vendor_id: vendorId,
+        page: 1,
+        size: 100,
+      }),
+    enabled: Boolean(vendorId && enabled),
+    staleTime: 15 * 1000,
+  })
+}
+
+export function usePatchVendorRmQueryStatus(vendorId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      queryId,
+      status,
+    }: {
+      queryId: string
+      status: 'open' | 'in_progress' | 'closed'
+    }) => adminApi.patchVendorRmQuery(queryId, status),
+    onSuccess: () => {
+      if (vendorId) {
+        queryClient.invalidateQueries({ queryKey: [...adminKeys.vendor(vendorId), 'rm-queries'] })
+      }
+      toast.success('Query status updated')
+    },
+    onError: (error: unknown) => {
+      const message =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        'Failed to update query'
+      toast.error(typeof message === 'string' ? message : 'Failed to update query')
     },
   })
 }

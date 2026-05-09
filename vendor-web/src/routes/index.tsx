@@ -54,6 +54,7 @@ import CreditDebitMemos from '@/pages/finance/CreditDebitMemos'
 import ProductionOrdersPage from '@/pages/production/index'
 import StoresPage from '@/pages/stores/index'
 import ProfilePage from '@/pages/profile/index'
+import RelationshipManagerPage from '@/pages/relationship-manager/index'
 
 // HR pages
 import HRDepartmentsPage from '@/pages/hr/departments'
@@ -261,6 +262,7 @@ export const router = createBrowserRouter([
       { path: 'roles', element: <RolesPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'relationship-manager', element: <RelationshipManagerPage /> },
       { path: 'plans', element: <PlansPage /> },
       { path: 'bookings', element: <BookingsPage /> },
       { path: 'bookings/:id', element: <BookingDetail /> },

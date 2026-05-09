@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
-    auth, vendors, vendor_products, vendor_services, vendor_categories,
+    auth, vendors, vendor_relationship_manager, vendor_products, vendor_services, vendor_categories,
     vendor_orders, vendor_customers, vendor_reviews,
     vendor_team, vendor_roles, vendor_inventory, vendor_procurement,
     vendor_pos, vendor_invoices, vendor_invoice_templates, vendor_coupons,
@@ -32,6 +32,11 @@ api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 
 # ── Vendor Management ────────────────────────────────────────────
 api_router.include_router(vendors.router, prefix="/vendors", tags=["Vendors"])
+api_router.include_router(
+    vendor_relationship_manager.router,
+    prefix="/vendors/me",
+    tags=["Vendor Relationship Manager"],
+)
 api_router.include_router(vendor_products.router, prefix="/vendors/me/products", tags=["Vendor Products"])
 api_router.include_router(vendor_services.router, prefix="/vendors/me/services", tags=["Vendor Services"])
 api_router.include_router(vendor_categories.router, prefix="/vendors/me/categories", tags=["Vendor Categories"])

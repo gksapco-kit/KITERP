@@ -68,6 +68,7 @@ const allSections: NavSection[] = [
       { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/workspace', icon: LayoutGrid, label: 'Workspace apps', alwaysShow: true },
+      { to: '/relationship-manager', icon: UsersRound, label: 'Relationship manager', alwaysShow: true },
     ],
   },
   {

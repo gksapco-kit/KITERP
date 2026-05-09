@@ -1,14 +1,41 @@
 import { lazy, Suspense, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAdminVendor, useApproveVendor, useRejectVendor, useVendorOwner, useUpdateAdminVendor } from '@/hooks/useAdmin'
+import {
+  useAdminVendor,
+  useApproveVendor,
+  useRejectVendor,
+  useVendorOwner,
+  useUpdateAdminVendor,
+  useVendorRmQueriesForVendor,
+  usePatchVendorRmQueryStatus,
+} from '@/hooks/useAdmin'
+import { usePlatformStaffList } from '@/hooks/usePlatformStaff'
 import { useAuthStore } from '@/stores/authStore'
-import { isSuperuserAdmin } from '@/lib/platformAccess'
+import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { usePlans, useVendorPlan, useAssignPlan } from '@/hooks/usePlans'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Check, X, ExternalLink, Store, Mail, Phone, MapPin, Calendar, Globe, Loader2, Smartphone, CreditCard, UserCircle, Pencil, Save } from 'lucide-react'
+import {
+  ArrowLeft,
+  Check,
+  X,
+  ExternalLink,
+  Store,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Globe,
+  Loader2,
+  Smartphone,
+  CreditCard,
+  UserCircle,
+  Pencil,
+  Save,
+  Headphones,
+} from 'lucide-react'
 import type { AdminVendorUpdatePayload } from '@/api/admin.api'
 
 const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
@@ -74,6 +101,7 @@ export default function VendorDetail() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const canMutate = isSuperuserAdmin(user)
+  const staffCanViewQueries = isPlatformStaff(user)
   const { data: vendor, isLoading, isError } = useAdminVendor(id!)
   const approveVendor = useApproveVendor()
   const rejectVendor = useRejectVendor()
@@ -83,6 +111,12 @@ export default function VendorDetail() {
   const { data: vendorPlanData } = useVendorPlan(id!)
   const assignPlan = useAssignPlan()
   const [showPlanPicker, setShowPlanPicker] = useState(false)
+  const { data: platformStaff } = usePlatformStaffList()
+  const relationshipManagers = (platformStaff ?? []).filter(
+    (m) => m.is_active && m.job_role === 'relationship_manager',
+  )
+  const { data: rmQueriesData } = useVendorRmQueriesForVendor(id, staffCanViewQueries && !!id)
+  const patchRmQuery = usePatchVendorRmQueryStatus(id)
 
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<AdminVendorUpdatePayload>({})
@@ -101,6 +135,11 @@ export default function VendorDetail() {
   const handleFieldChange = (field: keyof AdminVendorUpdatePayload, value: string | number | boolean) => {
     setEditData((prev) => ({ ...prev, [field]: value }))
   }
+
+  const selectedRmId =
+    editData.relationship_manager_user_id !== undefined
+      ? editData.relationship_manager_user_id
+      : vendor?.relationship_manager_user_id ?? null
 
   const handleSave = () => {
     if (!id || Object.keys(editData).length === 0) {
@@ -361,6 +400,96 @@ export default function VendorDetail() {
                     <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">Verified</span>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Headphones className="w-4 h-4 text-violet-600" /> Relationship manager
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {editMode ? (
+                <>
+                  <div>
+                    <Label className="text-xs text-gray-500 uppercase tracking-wide">Assigned manager</Label>
+                    <select
+                      className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={selectedRmId ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setEditData((prev) => ({
+                          ...prev,
+                          relationship_manager_user_id: v === '' ? null : v,
+                        }))
+                      }}
+                    >
+                      <option value="">Unassigned</option>
+                      {relationshipManagers.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.full_name}
+                          {m.email ? ` (${m.email})` : m.phone ? ` (${m.phone})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Vendors can message their assigned manager from the vendor dashboard. Only platform users with job role “relationship_manager” appear here (superusers can also be assigned via API).
+                    </p>
+                  </div>
+                </>
+              ) : vendor.relationship_manager ? (
+                <div className="text-sm space-y-1">
+                  <p className="font-medium">{vendor.relationship_manager.full_name}</p>
+                  {vendor.relationship_manager.email && (
+                    <p className="text-gray-500 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5" /> {vendor.relationship_manager.email}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No relationship manager assigned.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {staffCanViewQueries && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Queries to relationship manager</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!rmQueriesData?.items?.length ? (
+                  <p className="text-sm text-gray-500">No queries from this vendor yet.</p>
+                ) : (
+                  rmQueriesData.items.map((q) => (
+                    <div key={q.id} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex justify-between gap-2 items-start">
+                        <p className="text-sm font-medium">{q.subject}</p>
+                        <select
+                          className="text-xs border rounded px-2 py-1 bg-white shrink-0"
+                          value={q.status}
+                          disabled={patchRmQuery.isPending}
+                          onChange={(e) => {
+                            const next = e.target.value as 'open' | 'in_progress' | 'closed'
+                            if (next === q.status) return
+                            patchRmQuery.mutate({ queryId: q.id, status: next })
+                          }}
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In progress</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </div>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{q.body}</p>
+                      <div className="text-[10px] text-gray-400 flex justify-between">
+                        <span>{q.created_by_name || 'Vendor user'}</span>
+                        <span>{q.created_at ? new Date(q.created_at).toLocaleString() : ''}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           )}

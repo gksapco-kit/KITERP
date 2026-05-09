@@ -10,6 +10,22 @@ if TYPE_CHECKING:
 
 PLATFORM_SUPPORT_ROLE = "support"
 
+PLATFORM_JOB_ROLE_SALES = "sales"
+PLATFORM_JOB_ROLE_CRM = "crm"
+PLATFORM_JOB_ROLE_CONSULTING = "consulting"
+PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER = "relationship_manager"
+PLATFORM_JOB_ROLE_TEAM_MANAGER = "team_manager"
+
+PLATFORM_JOB_ROLES: frozenset[str] = frozenset(
+    {
+        PLATFORM_JOB_ROLE_SALES,
+        PLATFORM_JOB_ROLE_CRM,
+        PLATFORM_JOB_ROLE_CONSULTING,
+        PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER,
+        PLATFORM_JOB_ROLE_TEAM_MANAGER,
+    }
+)
+
 
 def has_platform_staff_access(user: User) -> bool:
     """True if the user may sign in at the platform admin app (port 3000)."""
