@@ -1,0 +1,170 @@
+# ============================================
+# KITERP - Docker Compose (Development)
+# ============================================
+# Usage:
+#   docker compose up              # Start all services
+#   docker compose up -d           # Start in detached mode
+#   docker compose up backend      # Start only backend + deps
+#   docker compose down            # Stop all services
+#   docker compose down -v         # Stop + remove volumes (reset data)
+#   docker compose logs -f backend # Follow backend logs
+#   docker compose build           # Rebuild all images
+# ============================================
+
+services:
+
+  # ---- Infrastructure ----
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: kiterp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kiterp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      # Override with POSTGRES_HOST_PORT in project root .env if host 5432 is already taken (e.g. local Postgres).
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kiterp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: kiterp-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- Backend API ----
+
+  backend:
+    build:
+      context: ./backend
+      target: development
+    container_name: kiterp-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=ArT API
+      - DEBUG=true
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/kiterp
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-ap-south-1}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-kiterp-uploads}
+      - SKIP_MIGRATIONS=${SKIP_MIGRATIONS:-false}
+      # CRM
+      - CRM_ENCRYPTION_KEY=${CRM_ENCRYPTION_KEY:-}
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---- CRM background workers (Celery) ----
+
+  crm-worker:
+    build:
+      context: ./backend
+      target: development
+    container_name: kiterp-crm-worker
+    restart: unless-stopped
+    command: celery -A app.worker.celery_app worker --loglevel=info -Q crm,default
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/kiterp
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      - CRM_ENCRYPTION_KEY=${CRM_ENCRYPTION_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  crm-beat:
+    build:
+      context: ./backend
+      target: development
+    container_name: kiterp-crm-beat
+    restart: unless-stopped
+    command: celery -A app.worker.celery_app beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/kiterp
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      - CRM_ENCRYPTION_KEY=${CRM_ENCRYPTION_KEY:-}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+
+  # ---- Frontend Apps ----
+  # vendor-web (:3001) and storefront-web (:3002) run NATIVELY (not in Docker).
+  # OneDrive volume mounts cause EIO crashes inside containers on Windows.
+  # Use start-dev.ps1 to launch them, or run manually:
+  #   cd vendor-web    && npm run dev
+  #   cd storefront-web && npm run dev
+  # Their .env files set VITE_API_URL=http://localhost:8000/api/v1
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    container_name: kiterp-admin
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+      - VITE_BASE_DOMAIN=kiterp.com
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+    name: kiterp-postgres-data
+  redis_data:
+    name: kiterp-redis-data
+  backend_uploads:
+    name: kiterp-uploads
+
+networks:
+  default:
+    name: kiterp-network

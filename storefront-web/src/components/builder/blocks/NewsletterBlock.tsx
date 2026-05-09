@@ -1,0 +1,43 @@
+import { useState } from 'react'
+import { Mail, Loader2 } from 'lucide-react'
+import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { publicSitesApi } from '@/api/publicSites'
+
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+
+export default function NewsletterBlock({ site, style, props }: Props) {
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
+  const title = (props.title as string) || 'Stay in the Loop'
+  const subtitle = (props.subtitle as string) || 'Get the latest updates delivered to your inbox.'
+  const ctaLabel = (props.cta_label as string) || 'Subscribe'
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!email) return
+    setLoading(true)
+    try { await publicSitesApi.submitNewsletter(site.id, email); setDone(true) }
+    catch { alert('Subscription failed, please try again') }
+    finally { setLoading(false) }
+  }
+  return (
+    <section className="py-16 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: `${style.primary_color}10` }}>
+      <div className="max-w-xl mx-auto text-center">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: style.primary_color }}>
+          <Mail className="w-6 h-6 text-white" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
+        <p className="text-gray-500 mb-6">{subtitle}</p>
+        {done ? (
+          <p className="text-green-600 font-semibold">You're subscribed! 🎉</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" required className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2" />
+            <button type="submit" disabled={loading} className="px-6 py-3 rounded-xl text-white font-semibold text-sm flex items-center gap-2 hover:opacity-90 disabled:opacity-60" style={{ backgroundColor: style.primary_color }}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : ctaLabel}
+            </button>
+          </form>
+        )}
+      </div>
+    </section>
+  )
+}

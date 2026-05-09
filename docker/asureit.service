@@ -1,0 +1,40 @@
+# ============================================
+# AsureIT - Systemd Service for EC2
+# ============================================
+# Ensures Docker Compose starts on boot and stops cleanly on shutdown.
+#
+# Installation (run on EC2):
+#   sudo cp docker/asureit.service /etc/systemd/system/asureit.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable asureit
+#   sudo systemctl start asureit
+#
+# Management:
+#   sudo systemctl status asureit
+#   sudo systemctl restart asureit
+#   sudo journalctl -u asureit -f
+# ============================================
+
+[Unit]
+Description=AsureIT Docker Compose Application
+Documentation=https://github.com/your-org/asureit
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/ec2-user/asureit
+EnvironmentFile=/home/ec2-user/asureit/.env
+
+ExecStartPre=/usr/bin/docker compose -f docker-compose.prod.yml pull --ignore-buildable
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d --build
+ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
+ExecReload=/usr/bin/docker compose -f docker-compose.prod.yml up -d --build
+
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

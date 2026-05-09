@@ -1,0 +1,193 @@
+import apiClient from './client'
+import type { Vendor } from '@/types/vendor'
+
+export interface VendorListResponse {
+  items: Vendor[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+export interface ListVendorsParams {
+  page?: number
+  size?: number
+  status?: string
+  search?: string
+}
+
+export interface AdminVendorCreatePayload {
+  owner_email: string
+  owner_password: string
+  owner_name: string
+  owner_phone?: string
+  business_name: string
+  display_name: string
+  slug: string
+  business_type: string
+  offering_type: string
+  industry: string
+  description?: string
+  primary_email?: string
+  primary_phone: string
+  street_address: string
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  latitude?: number
+  longitude?: number
+  service_radius_km: number
+}
+
+export interface AdminVendorCreateResponse {
+  vendor: {
+    id: string
+    business_name: string
+    display_name: string
+    slug: string
+    subdomain: string
+    status: string
+  }
+  owner_account: {
+    user_id: string
+    email: string
+    password: string
+    full_name: string
+    user_created: boolean
+  }
+  message: string
+}
+
+export interface AdminVendorUpdatePayload {
+  business_name?: string
+  display_name?: string
+  business_type?: string
+  offering_type?: string
+  industry?: string
+  description?: string
+  primary_email?: string
+  primary_phone?: string
+  support_email?: string
+  support_phone?: string
+  street_address?: string
+  city?: string
+  state?: string
+  postal_code?: string
+  country?: string
+  latitude?: number
+  longitude?: number
+  service_radius_km?: number
+  gstin?: string
+  pan_number?: string
+  is_gst_registered?: boolean
+  default_tax_rate?: number
+  status?: string
+}
+
+export interface AdminVendorStats {
+  total: number
+  approved: number
+  pending_review: number
+}
+
+export interface PlatformStaffMember {
+  id: string
+  email?: string | null
+  phone?: string | null
+  full_name: string
+  is_active: boolean
+  created_at?: string | null
+}
+
+export interface PlatformStaffCreatePayload {
+  full_name: string
+  password: string
+  email?: string | null
+  phone?: string | null
+}
+
+export interface PlatformStaffUpdatePayload {
+  is_active?: boolean
+  remove_access?: boolean
+}
+
+export const adminApi = {
+  createVendor: async (data: AdminVendorCreatePayload): Promise<AdminVendorCreateResponse> => {
+    const response = await apiClient.post('/admin/vendors/create', data)
+    return response.data
+  },
+
+  getVendorStats: async (): Promise<AdminVendorStats> => {
+    const response = await apiClient.get('/admin/vendors/stats/summary')
+    return response.data
+  },
+
+  listVendors: async (params?: ListVendorsParams): Promise<VendorListResponse> => {
+    const response = await apiClient.get('/admin/vendors', { params })
+    return response.data
+  },
+
+  getVendor: async (vendorId: string): Promise<Vendor> => {
+    const response = await apiClient.get(`/admin/vendors/${vendorId}`)
+    return response.data
+  },
+
+  updateVendor: async (vendorId: string, data: AdminVendorUpdatePayload): Promise<Vendor> => {
+    const response = await apiClient.put(`/admin/vendors/${vendorId}`, data)
+    return response.data
+  },
+
+  approveVendor: async (vendorId: string): Promise<Vendor> => {
+    const response = await apiClient.put(`/admin/vendors/${vendorId}/approve`)
+    return response.data
+  },
+
+  rejectVendor: async (vendorId: string, reason: string): Promise<Vendor> => {
+    const response = await apiClient.put(`/admin/vendors/${vendorId}/reject`, null, {
+      params: { reason },
+    })
+    return response.data
+  },
+
+  getVendorOwner: async (vendorId: string): Promise<{
+    user_id: string
+    email: string
+    full_name: string
+    phone?: string
+    is_active: boolean
+    is_email_verified: boolean
+    created_at?: string
+  }> => {
+    const response = await apiClient.get(`/admin/vendors/${vendorId}/owner`)
+    return response.data
+  },
+
+  getPlatformSettings: async (): Promise<Record<string, string>> => {
+    const response = await apiClient.get('/admin/platform-settings')
+    return response.data
+  },
+
+  updatePlatformSettings: async (settings: Record<string, string | null>): Promise<Record<string, string>> => {
+    const response = await apiClient.put('/admin/platform-settings', { settings })
+    return response.data
+  },
+
+  listPlatformStaff: async (): Promise<PlatformStaffMember[]> => {
+    const response = await apiClient.get('/admin/platform-staff')
+    return response.data
+  },
+
+  createPlatformStaff: async (data: PlatformStaffCreatePayload): Promise<PlatformStaffMember> => {
+    const response = await apiClient.post('/admin/platform-staff', data)
+    return response.data
+  },
+
+  updatePlatformStaff: async (
+    userId: string,
+    data: PlatformStaffUpdatePayload,
+  ): Promise<PlatformStaffMember> => {
+    const response = await apiClient.patch(`/admin/platform-staff/${userId}`, data)
+    return response.data
+  },
+}

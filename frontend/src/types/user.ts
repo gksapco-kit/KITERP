@@ -1,0 +1,33 @@
+export interface User {
+  id: string
+  email?: string | null
+  full_name: string
+  phone?: string | null
+  avatar_url?: string
+  is_email_verified: boolean
+  is_phone_verified: boolean
+  is_active: boolean
+  is_superuser?: boolean
+  /** When `"support"`, user may sign in to admin app with limited permissions. */
+  platform_staff_role?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface UserCreate {
+  email: string
+  password: string
+  full_name: string
+  phone?: string
+}
+
+export interface Token {
+  access_token: string
+  refresh_token: string
+  token_type: string
+}
+
+export interface LoginRequest {
+  email: string
+  password: string
+}

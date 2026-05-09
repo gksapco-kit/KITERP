@@ -1,0 +1,12 @@
+{
+  "name": "kiterp",
+  "private": true,
+  "description": "Run frontend apps from the repo root (each app lives in its own folder).",
+  "scripts": {
+    "dev:vendor": "npm run dev --prefix vendor-web",
+    "dev:storefront": "npm run dev --prefix storefront-web",
+    "dev:admin": "npm run dev --prefix frontend",
+    "install:all": "npm install --prefix vendor-web && npm install --prefix storefront-web && npm install --prefix frontend",
+    "build:aws": "npm run build:bundle --prefix vendor-web && npm run build --prefix storefront-web && npm run build:bundle --prefix frontend"
+  }
+}

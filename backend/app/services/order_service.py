@@ -1,0 +1,437 @@
+# app/services/order_service.py
+import logging
+from uuid import UUID
+from datetime import datetime, timezone
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import HTTPException, status
+
+from app.models.order import Order, OrderStatusHistory
+from app.models.payment import Payment
+from app.models.vendor_product import Product
+from app.schemas.order import CheckoutRequest, OrderStatusUpdate, OrderCancelRequest, ReturnExchangeRequest, ReturnResolveRequest
+from app.repositories.order_repo import OrderRepository
+from app.repositories.cart_repo import CartRepository
+from app.repositories.customer_repo import CustomerRepository
+from app.repositories.payment_repo import PaymentRepository
+from app.services.inventory_service import InventoryService
+from app.services.notification_service import NotificationService
+from app.services.invoice_service import InvoiceService
+
+log = logging.getLogger(__name__)
+
+# Valid status transitions: maps current status → allowed next statuses
+VALID_TRANSITIONS: dict[str, set[str]] = {
+    "pending":            {"confirmed", "processing", "cancelled"},
+    "confirmed":          {"processing", "shipped", "cancelled"},
+    "processing":         {"shipped", "delivered", "cancelled"},
+    "shipped":            {"delivered", "cancelled"},
+    "delivered":          {"returned", "exchanged"},
+    "quote_requested":    {"confirmed", "cancelled"},
+    "return_requested":   {"returned", "delivered"},
+    "exchange_requested": {"exchanged", "delivered"},
+    "returned":           set(),
+    "exchanged":          set(),
+    "cancelled":          set(),
+    "refunded":           set(),
+}
+
+
+class OrderService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.order_repo = OrderRepository(db)
+        self.cart_repo = CartRepository(db)
+        self.customer_repo = CustomerRepository(db)
+        self.payment_repo = PaymentRepository(db)
+        self.inventory_svc = InventoryService(db)
+        self.invoice_svc = InvoiceService(db)
+
+    def _record_status(
+        self, order_id: UUID, from_status: str | None, to_status: str,
+        changed_by: UUID | None = None, changed_by_role: str = "system", notes: str | None = None,
+    ):
+        entry = OrderStatusHistory(
+            order_id=order_id,
+            from_status=from_status,
+            to_status=to_status,
+            changed_by=changed_by,
+            changed_by_role=changed_by_role,
+            notes=notes,
+        )
+        self.db.add(entry)
+
+    async def checkout(
+        self, vendor_id: UUID, customer_id: UUID, data: CheckoutRequest
+    ) -> Order:
+        # Get cart
+        cart = await self.cart_repo.get_by_customer(vendor_id, customer_id)
+        if not cart or not cart.items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cart is empty",
+            )
+
+        # Calculate totals
+        items = cart.items
+        subtotal = sum(i.get("price", 0) * i.get("qty", 0) for i in items)
+        tax_amount = round(subtotal * 0.18, 2)  # 18% GST
+        discount_amount = float(cart.discount_amount or 0)
+        shipping_amount = 0  # Free shipping for now
+        total = round(subtotal + tax_amount - discount_amount + shipping_amount, 2)
+
+        # Generate order number
+        order_number = await self.order_repo.get_next_order_number(vendor_id)
+
+        # Create order
+        order = Order(
+            order_number=order_number,
+            vendor_id=vendor_id,
+            customer_id=customer_id,
+            items=items,
+            item_count=sum(i.get("qty", 0) for i in items),
+            subtotal=subtotal,
+            tax_amount=tax_amount,
+            discount_amount=discount_amount,
+            shipping_amount=shipping_amount,
+            total=total,
+            status="pending",
+            payment_status="pending",
+            payment_method=data.payment_method.value,
+            shipping_address=data.shipping_address.model_dump(),
+            notes=data.notes,
+            coupon_code=data.coupon_code,
+            source="online",
+        )
+        self.db.add(order)
+        await self.db.flush()
+
+        self._record_status(order.id, None, "pending", changed_by_role="customer", notes="Order placed")
+
+        # Create payment record
+        payment = Payment(
+            order_id=order.id,
+            vendor_id=vendor_id,
+            amount=total,
+            currency="INR",
+            method=data.payment_method.value,
+            status="completed" if data.payment_method.value == "cod" else "pending",
+        )
+        self.db.add(payment)
+
+        # If COD, mark order as confirmed and payment as pending-on-delivery
+        if data.payment_method.value == "cod":
+            order.payment_status = "pending"
+            order.status = "confirmed"
+            order.confirmed_at = datetime.now(timezone.utc)
+            payment.status = "pending"
+            self._record_status(order.id, "pending", "confirmed", changed_by_role="system", notes="Auto-confirmed (COD)")
+
+        # Auto-generate invoice for confirmed (COD) orders
+        if order.status == "confirmed":
+            try:
+                await self.invoice_svc.create_from_order(order, auto_commit=False)
+            except Exception as e:
+                log.warning("Auto-invoice at checkout failed for order %s: %s", order.id, e)
+
+        # Update customer stats
+        customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
+        if customer:
+            customer.total_orders = (customer.total_orders or 0) + 1
+            customer.total_spent = float(customer.total_spent or 0) + total
+
+        # Deduct inventory for each product in the order
+        await self._deduct_inventory_for_order(vendor_id, order)
+
+        # Clear cart
+        await self.cart_repo.clear_cart(cart)
+
+        # Increment purchase_count for each product in the order
+        for item in items:
+            pid = item.get("product_id") or item.get("id")
+            if pid:
+                try:
+                    result = await self.db.execute(select(Product).where(Product.id == UUID(str(pid))))
+                    prod = result.scalar_one_or_none()
+                    if prod:
+                        prod.purchase_count = (prod.purchase_count or 0) + 1
+                except Exception:
+                    pass
+
+        await self.db.commit()
+        await self.db.refresh(order)
+
+        # Send WhatsApp notification to vendor for new order
+        try:
+            from app.services.vendor_service import VendorService
+            vendor_svc = VendorService(self.db)
+            vendor = await vendor_svc.get_by_id(vendor_id)
+            if vendor:
+                notif_svc = NotificationService(self.db)
+                await notif_svc.notify_order_received(
+                    vendor_id=vendor_id,
+                    vendor_phone=vendor.primary_phone,
+                    vendor_name=vendor.display_name or vendor.business_name,
+                    order_number=order.order_number,
+                    total=float(order.total or 0),
+                    order_id=order.id,
+                )
+                # Persist in-app row: checkout already committed; session closes without a commit otherwise.
+                await self.db.commit()
+        except Exception:
+            pass  # Never let notification failure break order creation
+
+        # Fan-out the `order.placed` webhook to every published wb_site for
+        # this vendor so external listeners (Slack / Zapier / fulfillment)
+        # get notified immediately. Best-effort — never blocks checkout.
+        try:
+            from app.services.website_webhooks import (
+                dispatch_event_for_vendor,
+                order_payload,
+            )
+            await dispatch_event_for_vendor(
+                self.db,
+                vendor_id=vendor_id,
+                event="order.placed",
+                payload=order_payload(order),
+            )
+        except Exception as exc:
+            log.warning("order.placed webhook dispatch failed for order %s: %s", order.id, exc)
+
+        return order
+
+    async def _deduct_inventory_for_order(self, vendor_id: UUID, order: Order):
+        """Deduct stock for each item in the order that has track_inventory enabled."""
+        for item in (order.items or []):
+            product_id = item.get("product_id")
+            qty = item.get("qty", 0)
+            if not product_id or qty <= 0:
+                continue
+            try:
+                product = await self.db.get(Product, UUID(product_id))
+                if not product or not product.track_inventory:
+                    continue
+                await self.inventory_svc.deduct_for_sale(
+                    vendor_id=vendor_id,
+                    product_id=UUID(product_id),
+                    quantity=qty,
+                    reference_id=order.id,
+                    reference_type="order",
+                )
+            except Exception as e:
+                log.warning("Inventory deduction failed for product %s: %s", product_id, e)
+
+    async def _restore_inventory_for_order(self, vendor_id: UUID, order: Order):
+        """Restore stock for each item when an order is cancelled."""
+        for item in (order.items or []):
+            product_id = item.get("product_id")
+            qty = item.get("qty", 0)
+            if not product_id or qty <= 0:
+                continue
+            try:
+                product = await self.db.get(Product, UUID(product_id))
+                if not product or not product.track_inventory:
+                    continue
+                await self.inventory_svc.return_stock(
+                    vendor_id=vendor_id,
+                    product_id=UUID(product_id),
+                    quantity=qty,
+                    reference_id=order.id,
+                )
+            except Exception as e:
+                log.warning("Inventory restoration failed for product %s: %s", product_id, e)
+
+    async def update_status(
+        self, vendor_id: UUID, order_id: UUID, data: OrderStatusUpdate, user_id: UUID | None = None,
+    ) -> Order:
+        order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found",
+            )
+
+        previous_status = order.status
+        new_status = data.status.value
+        allowed = VALID_TRANSITIONS.get(previous_status, set())
+        if new_status != previous_status and new_status not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot transition order from '{previous_status}' to '{new_status}'",
+            )
+        now = datetime.now(timezone.utc)
+        order.status = new_status
+        self._record_status(
+            order.id, previous_status, new_status,
+            changed_by=user_id, changed_by_role="vendor", notes=data.notes,
+        )
+
+        if data.status.value == "confirmed":
+            order.confirmed_at = now
+            try:
+                await self.invoice_svc.create_from_order(order, auto_commit=False)
+            except Exception as e:
+                log.warning("Auto-invoice creation failed for order %s: %s", order_id, e)
+        elif data.status.value == "shipped":
+            order.shipped_at = now
+            if data.tracking_number:
+                order.tracking_number = data.tracking_number
+            if data.tracking_url:
+                order.tracking_url = data.tracking_url
+        elif data.status.value == "delivered":
+            order.delivered_at = now
+            order.payment_status = "paid"
+            # Mark the invoice as paid when order is delivered
+            try:
+                invoice = await self.invoice_svc.get_by_order_id(order.id, vendor_id)
+                if invoice and invoice.status != "paid":
+                    invoice.amount_paid = float(invoice.total or 0)
+                    invoice.balance_due = 0
+                    invoice.status = "paid"
+            except Exception as e:
+                log.warning("Invoice payment update failed for order %s: %s", order_id, e)
+        elif new_status == "cancelled" and previous_status != "cancelled":
+            await self._restore_inventory_for_order(vendor_id, order)
+            if data.cancel_reason:
+                order.cancel_reason = data.cancel_reason
+            if data.cancel_attachments is not None:
+                order.cancel_attachments = [a.model_dump() for a in data.cancel_attachments]
+
+        # Only append status-change notes to avoid overwriting order-level notes
+        if data.notes:
+            order.cancel_reason = order.cancel_reason or data.notes
+
+        await self.db.commit()
+        await self.db.refresh(order)
+
+        # Send WhatsApp notification to customer on status change
+        try:
+            from app.services.vendor_service import VendorService
+            vendor_svc = VendorService(self.db)
+            vendor = await vendor_svc.get_by_id(vendor_id)
+            if vendor and order.customer_id:
+                customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, order.customer_id)
+                if customer and customer.phone:
+                    notif_svc = NotificationService(self.db)
+                    await notif_svc.notify_order_status(
+                        vendor_id=vendor_id,
+                        customer_phone=customer.phone,
+                        customer_name=customer.full_name or customer.name,
+                        vendor_name=vendor.display_name or vendor.business_name,
+                        order_number=order.order_number,
+                        status=order.status,
+                        order_id=order.id,
+                        customer_id=customer.id,
+                    )
+                    await self.db.commit()
+        except Exception:
+            pass  # Never let notification failure break order update
+
+        return order
+
+    async def cancel_order(
+        self, vendor_id: UUID, customer_id: UUID, order_id: UUID, data: OrderCancelRequest, user_id: UUID | None = None,
+    ) -> Order:
+        order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found",
+            )
+
+        if order.customer_id != customer_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not your order",
+            )
+
+        if order.status in ("shipped", "delivered"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot cancel a shipped or delivered order",
+            )
+
+        prev = order.status
+        order.status = "cancelled"
+        order.cancel_reason = data.reason
+        if data.attachments:
+            order.cancel_attachments = [a.model_dump() for a in data.attachments]
+        else:
+            order.cancel_attachments = []
+        self._record_status(order.id, prev, "cancelled", changed_by=user_id, changed_by_role="customer", notes=data.reason)
+
+        # Restore inventory for cancelled order
+        await self._restore_inventory_for_order(vendor_id, order)
+
+        await self.db.commit()
+        await self.db.refresh(order)
+        return order
+
+    async def request_return_exchange(
+        self, vendor_id: UUID, customer_id: UUID, order_id: UUID, data: ReturnExchangeRequest,
+        user_id: UUID | None = None, initiated_by_role: str = "customer",
+    ) -> Order:
+        order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        if order.customer_id != customer_id:
+            raise HTTPException(status_code=403, detail="Not your order")
+        if order.status != "delivered":
+            raise HTTPException(status_code=400, detail="Only delivered orders can be returned or exchanged")
+        if order.return_status in ("requested", "approved"):
+            raise HTTPException(status_code=400, detail="A return/exchange request already exists for this order")
+
+        now = datetime.now(timezone.utc)
+        prev = order.status
+        order.return_type = data.return_type
+        order.return_reason = data.reason
+        order.return_status = "requested"
+        order.return_requested_at = now
+        order.status = "return_requested" if data.return_type == "return" else "exchange_requested"
+        if data.attachments:
+            order.return_attachments = [a.model_dump() for a in data.attachments]
+        else:
+            order.return_attachments = []
+        self._record_status(order.id, prev, order.status, changed_by=user_id, changed_by_role=initiated_by_role, notes=data.reason)
+
+        await self.db.commit()
+        await self.db.refresh(order)
+        return order
+
+    async def resolve_return(
+        self, vendor_id: UUID, order_id: UUID, data: ReturnResolveRequest, user_id: UUID | None = None,
+    ) -> Order:
+        order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        if order.return_status != "requested":
+            raise HTTPException(status_code=400, detail="No pending return/exchange request")
+
+        now = datetime.now(timezone.utc)
+        prev = order.status
+        order.return_resolved_at = now
+        order.return_notes = data.notes
+
+        if data.action == "approve":
+            order.return_status = "approved"
+            if data.return_tracking_number:
+                order.return_tracking_number = data.return_tracking_number
+            if data.return_tracking_url:
+                order.return_tracking_url = data.return_tracking_url
+            if order.return_type == "return":
+                order.status = "returned"
+                refund = data.refund_amount if data.refund_amount is not None else float(order.total or 0)
+                order.refund_amount = refund
+                order.payment_status = "refunded"
+                await self._restore_inventory_for_order(vendor_id, order)
+            else:
+                order.status = "exchanged"
+        else:
+            order.return_status = "rejected"
+            order.status = "delivered"
+
+        self._record_status(order.id, prev, order.status, changed_by=user_id, changed_by_role="vendor", notes=data.notes)
+
+        await self.db.commit()
+        await self.db.refresh(order)
+        return order

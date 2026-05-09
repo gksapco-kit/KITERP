@@ -1,0 +1,30 @@
+# Root-level docker ignore
+.git
+.gitignore
+.vscode
+.idea
+*.md
+LICENSE
+
+# Node modules (each service has its own)
+**/node_modules
+
+# Python virtual environments
+**/venv
+**/.venv
+**/__pycache__
+
+# Build outputs
+**/dist
+**/build
+
+# Environment files
+**/.env
+**/.env.local
+
+# Mobile app (not containerized)
+mobile/
+
+# Docker volumes
+docker/nginx/ssl/*.pem
+docker/nginx/ssl/*.key

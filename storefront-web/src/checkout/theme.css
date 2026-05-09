@@ -1,0 +1,253 @@
+/* ============================================================
+   Checkout Template — Theme Tokens
+   ------------------------------------------------------------
+   Override any of these CSS variables per tenant store to
+   re-skin the entire checkout. No code changes required.
+
+   Example (per-tenant):
+   <div class="checkout-root" style="
+     --brand-primary: 12 90% 55%;
+     --radius-md: 4px;
+     --font-heading: 'Playfair Display', serif;
+   ">
+     ...checkout pages...
+   </div>
+   ============================================================ */
+
+.checkout-root {
+  /* Brand colors (HSL triplets — used as hsl(var(--token))) */
+  --brand-primary: 222 47% 11%;
+  --brand-primary-foreground: 0 0% 100%;
+  --brand-accent: 220 13% 91%;
+  --brand-accent-foreground: 222 47% 11%;
+
+  /* Surfaces */
+  --surface: 0 0% 100%;
+  --surface-muted: 220 14% 97%;
+  --surface-elevated: 0 0% 100%;
+  --border-token: 220 13% 91%;
+
+  /* Text */
+  --text: 222 47% 11%;
+  --text-muted: 215 16% 47%;
+  --text-subtle: 215 14% 60%;
+
+  /* Status */
+  --success: 142 71% 38%;
+  --warning: 38 92% 50%;
+  --danger: 0 72% 51%;
+  --info: 210 90% 50%;
+
+  /* Typography */
+  --font-heading: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-size-base: 15px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* Spacing unit */
+  --space-unit: 4px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px hsl(var(--brand-primary) / 0.05);
+  --shadow-md: 0 4px 12px hsl(var(--brand-primary) / 0.08);
+  --shadow-lg: 0 16px 40px hsl(var(--brand-primary) / 0.12);
+
+  /* Brand asset */
+  --logo-height: 32px;
+
+  /* Apply base look */
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  color: hsl(var(--text));
+  background: hsl(var(--surface));
+}
+
+.checkout-root h1,
+.checkout-root h2,
+.checkout-root h3,
+.checkout-root h4 {
+  font-family: var(--font-heading);
+  color: hsl(var(--text));
+}
+
+/* ---------- Reusable utility classes (token-driven) ---------- */
+.ck-surface {
+  background: hsl(var(--surface));
+}
+.ck-surface-muted {
+  background: hsl(var(--surface-muted));
+}
+.ck-surface-elevated {
+  background: hsl(var(--surface-elevated));
+  box-shadow: var(--shadow-sm);
+}
+.ck-border {
+  border: 1px solid hsl(var(--border-token));
+}
+.ck-border-b {
+  border-bottom: 1px solid hsl(var(--border-token));
+}
+.ck-border-t {
+  border-top: 1px solid hsl(var(--border-token));
+}
+.ck-radius-sm {
+  border-radius: var(--radius-sm);
+}
+.ck-radius-md {
+  border-radius: var(--radius-md);
+}
+.ck-radius-lg {
+  border-radius: var(--radius-lg);
+}
+.ck-text-muted {
+  color: hsl(var(--text-muted));
+}
+.ck-text-subtle {
+  color: hsl(var(--text-subtle));
+}
+
+/* Primary button */
+.ck-btn-primary {
+  background: hsl(var(--brand-primary));
+  color: hsl(var(--brand-primary-foreground));
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  padding: 14px 20px;
+  width: 100%;
+  transition: filter 0.15s ease, transform 0.05s ease;
+  cursor: pointer;
+  border: none;
+  font-size: var(--font-size-base);
+}
+.ck-btn-primary:hover {
+  filter: brightness(1.08);
+}
+.ck-btn-primary:active {
+  transform: translateY(1px);
+}
+.ck-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ck-btn-secondary {
+  background: transparent;
+  color: hsl(var(--text));
+  border: 1px solid hsl(var(--border-token));
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.ck-btn-secondary:hover {
+  background: hsl(var(--surface-muted));
+}
+
+.ck-btn-ghost {
+  background: transparent;
+  color: hsl(var(--brand-primary));
+  border: none;
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  padding: 6px 8px;
+}
+.ck-btn-ghost:hover {
+  text-decoration: underline;
+}
+
+/* Inputs */
+.ck-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid hsl(var(--border-token));
+  border-radius: var(--radius-md);
+  background: hsl(var(--surface));
+  color: hsl(var(--text));
+  font-size: var(--font-size-base);
+  font-family: var(--font-body);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ck-input:focus {
+  outline: none;
+  border-color: hsl(var(--brand-primary));
+  box-shadow: 0 0 0 3px hsl(var(--brand-primary) / 0.12);
+}
+.ck-input[aria-invalid="true"] {
+  border-color: hsl(var(--danger));
+}
+.ck-label {
+  display: block;
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  margin-bottom: 6px;
+  color: hsl(var(--text));
+}
+.ck-field-error {
+  font-size: 12px;
+  color: hsl(var(--danger));
+  margin-top: 4px;
+}
+
+/* Selectable card (shipping option, payment tab, address) */
+.ck-selectable {
+  border: 1px solid hsl(var(--border-token));
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  background: hsl(var(--surface));
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ck-selectable:hover {
+  border-color: hsl(var(--brand-primary) / 0.5);
+}
+.ck-selectable[data-selected="true"] {
+  border-color: hsl(var(--brand-primary));
+  background: hsl(var(--brand-primary) / 0.04);
+  box-shadow: 0 0 0 1px hsl(var(--brand-primary)) inset;
+}
+
+/* Badge */
+.ck-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  background: hsl(var(--surface-muted));
+  color: hsl(var(--text-muted));
+}
+.ck-badge-success {
+  background: hsl(var(--success) / 0.12);
+  color: hsl(var(--success));
+}
+.ck-badge-warning {
+  background: hsl(var(--warning) / 0.15);
+  color: hsl(var(--warning));
+}
+.ck-badge-danger {
+  background: hsl(var(--danger) / 0.12);
+  color: hsl(var(--danger));
+}
+
+/* Skeleton */
+@keyframes ck-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.ck-skeleton {
+  background: hsl(var(--surface-muted));
+  border-radius: var(--radius-sm);
+  animation: ck-pulse 1.4s ease-in-out infinite;
+}

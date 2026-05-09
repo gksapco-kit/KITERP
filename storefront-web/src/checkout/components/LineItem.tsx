@@ -1,0 +1,105 @@
+import { Minus, Plus, Trash2 } from "lucide-react";
+import { CartItem } from "../types";
+import { formatMoney, useCheckoutConfig } from "../config";
+
+type Props = {
+  item: CartItem;
+  editable?: boolean;
+  onUpdateQuantity?: (id: string, q: number) => void;
+  onRemove?: (id: string) => void;
+  compact?: boolean;
+};
+
+export function LineItem({ item, editable, onUpdateQuantity, onRemove, compact }: Props) {
+  const { locale } = useCheckoutConfig();
+  const lineTotal = { amount: item.unitPrice.amount * item.quantity, currency: item.unitPrice.currency };
+
+  return (
+    <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+      <div
+        className="ck-radius-sm relative flex shrink-0 items-center justify-center"
+        style={{
+          width: compact ? 56 : 72,
+          height: compact ? 56 : 72,
+          background: "hsl(var(--surface-muted))",
+          overflow: "hidden",
+        }}
+      >
+        {item.imageUrl ? (
+          <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+        ) : (
+          <span className="ck-text-subtle text-xs">No image</span>
+        )}
+        {!editable && (
+          <span
+            className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs"
+            style={{
+              background: "hsl(var(--brand-primary))",
+              color: "hsl(var(--brand-primary-foreground))",
+            }}
+          >
+            {item.quantity}
+          </span>
+        )}
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0 sm:pr-1">
+            <div className="text-sm font-medium leading-snug break-words sm:line-clamp-3">{item.name}</div>
+            {item.variantLabel && <div className="ck-text-muted mt-0.5 text-xs">{item.variantLabel}</div>}
+            {item.inStock === false && (
+              <span className="ck-badge ck-badge-warning mt-1">Out of stock</span>
+            )}
+          </div>
+          <div className="shrink-0 text-sm font-medium tabular-nums sm:pt-0.5 sm:text-right">
+            {formatMoney(lineTotal, locale)}
+          </div>
+        </div>
+
+        {editable && (
+          <div className="mt-2 flex items-center justify-between">
+            <div
+              className="ck-border ck-radius-sm flex items-center"
+              style={{ width: "fit-content" }}
+            >
+              <button
+                type="button"
+                aria-label="Decrease quantity"
+                className="ck-btn-ghost"
+                onClick={() => onUpdateQuantity?.(item.id, Math.max(1, item.quantity - 1))}
+                disabled={item.quantity <= 1}
+                style={{ padding: "6px 10px" }}
+              >
+                <Minus size={14} />
+              </button>
+              <span className="px-2 text-sm" style={{ minWidth: 24, textAlign: "center" }}>
+                {item.quantity}
+              </span>
+              <button
+                type="button"
+                aria-label="Increase quantity"
+                className="ck-btn-ghost"
+                onClick={() =>
+                  onUpdateQuantity?.(item.id, Math.min(item.maxQuantity ?? 99, item.quantity + 1))
+                }
+                disabled={item.quantity >= (item.maxQuantity ?? 99)}
+                style={{ padding: "6px 10px" }}
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="ck-btn-ghost flex items-center gap-1"
+              onClick={() => onRemove?.(item.id)}
+              aria-label={`Remove ${item.name}`}
+            >
+              <Trash2 size={14} /> Remove
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

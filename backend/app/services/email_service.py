@@ -1,0 +1,138 @@
+"""
+Email service.
+
+Sends transactional emails via SMTP when SMTP_HOST is configured;
+otherwise falls back to logging the email content (dev-mode).
+
+The dev fallback is intentional so local environments can iterate without
+needing to wire an actual SMTP provider. Production should set:
+  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, FROM_EMAIL
+"""
+from __future__ import annotations
+
+import logging
+from email.message import EmailMessage
+from typing import Optional
+
+from app.config import get_settings
+
+logger = logging.getLogger(__name__)
+
+
+async def send_email(
+    to: str,
+    subject: str,
+    html: str,
+    text: Optional[str] = None,
+) -> bool:
+    """Send an HTML email. Returns True on success, False on (silent) dev fallback.
+
+    In dev fallback mode (SMTP_HOST unset), the email is logged at INFO level
+    and the function returns False, but does not raise. Callers can still treat
+    the operation as logically successful.
+    """
+    settings = get_settings()
+    host = (settings.SMTP_HOST or "").strip()
+    from_email = (settings.FROM_EMAIL or "noreply@kiterp.com").strip()
+
+    if not host:
+        logger.info(
+            "[email:dev] -> %s | subject=%r | text=%s",
+            to, subject, (text or _strip_html(html))[:500],
+        )
+        return False
+
+    try:
+        import aiosmtplib
+    except ImportError:
+        logger.error(
+            "aiosmtplib is not installed; cannot send real email. "
+            "Falling back to log-only mode."
+        )
+        logger.info(
+            "[email:fallback] -> %s | subject=%r | text=%s",
+            to, subject, (text or _strip_html(html))[:500],
+        )
+        return False
+
+    msg = EmailMessage()
+    msg["From"] = from_email
+    msg["To"] = to
+    msg["Subject"] = subject
+    if text:
+        msg.set_content(text)
+        msg.add_alternative(html, subtype="html")
+    else:
+        msg.add_alternative(html, subtype="html")
+
+    try:
+        await aiosmtplib.send(
+            msg,
+            hostname=host,
+            port=settings.SMTP_PORT or 587,
+            username=settings.SMTP_USER or None,
+            password=settings.SMTP_PASSWORD or None,
+            start_tls=True,
+            timeout=15,
+        )
+        logger.info("Email sent to %s (subject=%r)", to, subject)
+        return True
+    except Exception as e:
+        logger.exception("Failed to send email to %s: %s", to, e)
+        return False
+
+
+def _strip_html(html: str) -> str:
+    """Cheap HTML -> text conversion for dev logs only."""
+    import re
+    return re.sub(r"<[^>]+>", "", html)
+
+
+async def send_verification_code_email(to: str, code: str, purpose: str = "verify") -> bool:
+    """Send a 6-digit verification code via email.
+
+    `purpose` controls the subject line: "verify" (default), "change", "resend".
+    """
+    if purpose == "change":
+        subject = f"Confirm your new email — your KITERP code is {code}"
+        intro = "Use this code to confirm your new email address on your KITERP account."
+    else:
+        subject = f"Your KITERP verification code is {code}"
+        intro = "Use this code to verify your email address on your KITERP account."
+
+    html = f"""\
+<!doctype html>
+<html>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#f7f7fb; padding:24px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #ececf5;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#7c3aed 0%, #2563eb 100%); padding:20px 24px; color:#fff;">
+          <h2 style="margin:0; font-size:18px; font-weight:600;">KITERP</h2>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:24px;">
+          <p style="margin:0 0 12px; font-size:14px; color:#4b5563;">{intro}</p>
+          <div style="margin:20px 0; padding:16px; text-align:center; border:1px dashed #d1d5db; border-radius:8px; background:#fafafa;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size:28px; font-weight:700; letter-spacing:6px; color:#111827;">{code}</span>
+          </div>
+          <p style="margin:0 0 8px; font-size:12px; color:#6b7280;">This code expires in 10 minutes.</p>
+          <p style="margin:0; font-size:12px; color:#9ca3af;">If you didn't request this, you can safely ignore this email.</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:14px 24px; background:#fafafa; border-top:1px solid #ececf5;">
+          <p style="margin:0; font-size:11px; color:#9ca3af;">© KITERP — Vendor Dashboard</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
+
+    text = (
+        f"{intro}\n\n"
+        f"Your code: {code}\n"
+        f"This code expires in 10 minutes.\n\n"
+        f"If you didn't request this, you can safely ignore this email."
+    )
+    return await send_email(to=to, subject=subject, html=html, text=text)

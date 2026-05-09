@@ -1,0 +1,337 @@
+# app/api/deps.py
+from typing import Optional, Tuple, List
+from uuid import UUID
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models.user import User
+from app.models.customer import Customer
+from app.models.vendor_user import VendorUser
+from app.core.security import decode_token
+from app.repositories.user_repo import UserRepository
+from app.repositories.customer_repo import CustomerRepository
+from app.repositories.vendor_user_repo import VendorUserRepository
+from app.middleware.tenant import get_current_vendor_id as get_tenant_vendor_id
+from app.models.vendor_role import DEFAULT_ROLE_PERMISSIONS
+from app.utils.vendor_storefront import vendor_live_on_storefront
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+
+async def get_current_user(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[User]:
+    if not token:
+        return None
+
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    repo = UserRepository(db)
+    return await repo.get_by_id(UUID(user_id))
+
+
+async def get_current_active_user(
+    current_user: Optional[User] = Depends(get_current_user),
+) -> User:
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is disabled",
+        )
+
+    return current_user
+
+
+async def get_current_superuser(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+    return current_user
+
+
+async def get_current_platform_staff(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    """Superuser or platform support — can use vendor directory / read-only admin tasks."""
+    from app.utils.platform_staff import has_platform_staff_access
+
+    if not has_platform_staff_access(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform access required",
+        )
+    return current_user
+
+
+# ── Vendor Role Dependencies ─────────────────────────────────────
+
+async def get_current_vendor_user(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> VendorUser:
+    """Get the VendorUser record for the current user. Falls back to legacy owner lookup."""
+    repo = VendorUserRepository(db)
+    vu = await repo.get_by_user_id(current_user.id)
+    if vu:
+        return vu
+
+    # Fallback: check if user is a vendor owner (legacy data before VendorUser was populated)
+    from app.repositories.vendor_repo import VendorRepository
+    vendor_repo = VendorRepository(db)
+    vendor = await vendor_repo.get_by_user_id(current_user.id)
+    if vendor:
+        # Auto-create VendorUser entry for the owner
+        vu = VendorUser(
+            vendor_id=vendor.id,
+            user_id=current_user.id,
+            role="owner",
+            permissions=[],
+            is_active=True,
+        )
+        db.add(vu)
+        await db.commit()
+        await db.refresh(vu)
+        return vu
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You are not a member of any vendor.",
+    )
+
+
+def get_effective_permissions(vendor_user: VendorUser) -> List[str]:
+    """Compute the effective permissions for a vendor user."""
+    role = vendor_user.role
+
+    # System role permissions
+    if role in DEFAULT_ROLE_PERMISSIONS:
+        base_perms = set(DEFAULT_ROLE_PERMISSIONS[role])
+    elif role == "custom" and vendor_user.custom_role:
+        base_perms = set(vendor_user.custom_role.permissions or [])
+    else:
+        base_perms = set(DEFAULT_ROLE_PERMISSIONS.get("staff", []))
+
+    # Merge any per-user override permissions
+    if vendor_user.permissions:
+        base_perms.update(vendor_user.permissions)
+
+    return list(base_perms)
+
+
+def require_permission(*permissions: str):
+    """
+    Dependency factory: ensures the current vendor user has ALL of the listed permissions.
+    Usage: Depends(require_permission("products.create", "products.edit"))
+    """
+    async def _check(
+        vendor_user: VendorUser = Depends(get_current_vendor_user),
+    ) -> VendorUser:
+        effective = get_effective_permissions(vendor_user)
+        missing = [p for p in permissions if p not in effective]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permissions: {', '.join(missing)}",
+            )
+        return vendor_user
+    return _check
+
+
+def require_role(*roles: str):
+    """
+    Dependency factory: ensures the current vendor user has one of the listed roles.
+    Usage: Depends(require_role("owner", "admin"))
+    """
+    async def _check(
+        vendor_user: VendorUser = Depends(get_current_vendor_user),
+    ) -> VendorUser:
+        if vendor_user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"This action requires one of: {', '.join(roles)}",
+            )
+        return vendor_user
+    return _check
+
+
+# ── Customer dependencies (storefront) ──────────────────────────
+
+async def get_store_vendor_id(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
+    """
+    Resolve vendor ID from multiple sources (SaaS model):
+    1. Tenant middleware (subdomain / custom domain)
+    2. X-Vendor-Slug header — matches URL /store/{slug}/…; wins over stale X-Vendor-Id from localStorage
+    3. X-Vendor-Id header (mobile apps and callers that only have UUID)
+    """
+    # 1. From tenant middleware (subdomain resolution)
+    vendor_id = get_tenant_vendor_id(request)
+    if vendor_id:
+        return UUID(vendor_id)
+
+    # 2. Slug before ID: path-based storefront sends both headers; a leftover X-Vendor-Id from another
+    #    tab/store must not override the slug the user opened (fixes HR login “no employee profile”).
+    vendor_slug = request.headers.get("x-vendor-slug")
+    if vendor_slug:
+        from app.repositories.vendor_repo import VendorRepository
+        repo = VendorRepository(db)
+        vendor = await repo.find_by_slug(vendor_slug.strip())
+        if vendor and vendor_live_on_storefront(vendor.status):
+            return vendor.id
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vendor '{vendor_slug}' not found or not active.",
+        )
+
+    header_id = request.headers.get("x-vendor-id")
+    if header_id:
+        return UUID(header_id)
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Vendor context not found. Use subdomain, X-Vendor-Id, or X-Vendor-Slug header.",
+    )
+
+
+async def get_store_hr_vendor_id(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
+    """
+    Vendor scope for storefront employee HR (login + authenticated /store/hr/*).
+    Slug before X-Vendor-Id (see get_store_vendor_id). Slug lookup does **not** require
+    storefront-live status — otherwise login succeeds but GET /store/hr/me fails and the UI
+    bounces back to an empty login form.
+    """
+    vendor_id = get_tenant_vendor_id(request)
+    if vendor_id:
+        return UUID(vendor_id)
+
+    vendor_slug = request.headers.get("x-vendor-slug")
+    if vendor_slug:
+        from app.repositories.vendor_repo import VendorRepository
+
+        repo = VendorRepository(db)
+        vendor = await repo.find_by_slug_ci(vendor_slug.strip())
+        if vendor:
+            return vendor.id
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No vendor found for slug '{vendor_slug}'.",
+        )
+
+    header_id = request.headers.get("x-vendor-id")
+    if header_id:
+        return UUID(header_id)
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Vendor context not found. Use subdomain, X-Vendor-Id, or X-Vendor-Slug header.",
+    )
+
+
+async def get_current_store_hr_vendor_user(
+    ctx_vendor_id: UUID = Depends(get_store_hr_vendor_id),
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> VendorUser:
+    """
+    VendorUser for storefront employee HR (JWT from POST /store/hr/login).
+    Not a customer session — uses role store_hr_employee and vendor_user_id in the token.
+    """
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if payload.get("role") != "store_hr_employee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not an employee HR session",
+        )
+    vendor_user_id = payload.get("vendor_user_id")
+    vid = payload.get("vendor_id")
+    if not vendor_user_id or not vid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+    if UUID(str(vid)) != ctx_vendor_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token does not match this store",
+        )
+    repo = VendorUserRepository(db)
+    vu = await repo.get_with_details(UUID(str(vendor_user_id)))
+    if not vu or not vu.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Employee access inactive")
+    if vu.vendor_id != ctx_vendor_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vendor mismatch")
+    return vu
+
+
+async def get_current_customer(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[Customer]:
+    if not token:
+        return None
+
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        return None
+
+    if payload.get("role") != "customer":
+        return None
+
+    customer_id = payload.get("sub")
+    vendor_id = payload.get("vendor_id")
+    if not customer_id or not vendor_id:
+        return None
+
+    repo = CustomerRepository(db)
+    return await repo.get_by_vendor_and_id(UUID(vendor_id), UUID(customer_id))
+
+
+async def get_current_active_customer(
+    customer: Optional[Customer] = Depends(get_current_customer),
+) -> Customer:
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not customer.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is disabled",
+        )
+    return customer

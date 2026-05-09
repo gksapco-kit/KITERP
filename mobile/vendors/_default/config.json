@@ -1,0 +1,9 @@
+{
+  "name": "KITERP",
+  "slug": "kiterp-mobile",
+  "scheme": "kiterp",
+  "bundleId": "com.kiterp.mobile",
+  "package": "com.kiterp.mobile",
+  "primaryColor": "#2563eb",
+  "description": "Default platform app"
+}

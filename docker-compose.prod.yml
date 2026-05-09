@@ -1,0 +1,134 @@
+# ============================================
+# KITERP - Docker Compose (Production / AWS)
+# ============================================
+# Designed for AWS deployment with managed databases:
+#   - RDS PostgreSQL
+#   - ElastiCache Redis
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml down
+#   docker compose -f docker-compose.prod.yml logs -f
+#
+# Prerequisites:
+#   - Copy .env.example to .env and fill in all values
+#   - Ensure managed DB endpoints are reachable from this host
+#   - Place SSL certs in docker/nginx/ssl/ (fullchain.pem, privkey.pem)
+# ============================================
+
+services:
+
+  # ---- Backend API ----
+
+  backend:
+    build:
+      context: ./backend
+      target: production
+    container_name: kiterp-backend
+    restart: always
+    expose:
+      - "8000"
+    environment:
+      - APP_NAME=ArT API
+      - DEBUG=false
+      - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in .env}
+      - REDIS_URL=${REDIS_URL:?Set REDIS_URL in .env}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-ap-south-1}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-kiterp-uploads}
+      - AWS_CLOUDFRONT_URL=${AWS_CLOUDFRONT_URL:-}
+      - BASE_DOMAIN=${BASE_DOMAIN:-kiterp.com}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - FROM_EMAIL=${FROM_EMAIL:-noreply@kiterp.com}
+      - SKIP_MIGRATIONS=${SKIP_MIGRATIONS:-false}
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - internal
+
+  # ---- Frontend Apps (Production - Nginx static) ----
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+      args:
+        VITE_API_URL: ${VITE_ADMIN_API_URL:-/api/v1}
+        VITE_BASE_DOMAIN: ${BASE_DOMAIN:-kiterp.com}
+    container_name: kiterp-admin
+    restart: always
+    expose:
+      - "3000"
+    networks:
+      - internal
+
+  vendor-web:
+    build:
+      context: ./vendor-web
+      target: production
+      args:
+        VITE_API_URL: ${VITE_VENDOR_API_URL:-/api/v1}
+    container_name: kiterp-vendor
+    restart: always
+    expose:
+      - "3001"
+    networks:
+      - internal
+
+  storefront-web:
+    build:
+      context: ./storefront-web
+      target: production
+      args:
+        VITE_API_URL: ${VITE_STOREFRONT_API_URL:-/api/v1}
+    container_name: kiterp-storefront
+    restart: always
+    expose:
+      - "3002"
+    networks:
+      - internal
+
+  # ---- Nginx Reverse Proxy / Gateway ----
+
+  nginx:
+    image: nginx:alpine
+    container_name: kiterp-gateway
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - certbot_webroot:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+      - vendor-web
+      - storefront-web
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  backend_uploads:
+    name: kiterp-uploads
+  certbot_webroot:
+    name: kiterp-certbot
+
+networks:
+  internal:
+    name: kiterp-internal

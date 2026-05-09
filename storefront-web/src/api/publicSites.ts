@@ -1,0 +1,58 @@
+/**
+ * Public Sites API client — no auth token required.
+ * Consumed by the storefront BlockRenderer and VendorContext.
+ */
+import axios from 'axios'
+import type { PublicSite, PublicPage, LiveItem } from '@/blocks/registry'
+
+const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '')
+
+const publicApi = axios.create({
+  baseURL: `${API_URL}/public/sites`,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 10000,
+})
+
+export const publicSitesApi = {
+  /**
+   * Synthetic site JSON for a catalog template (website builder), for
+   * full browser preview on the storefront before the vendor applies the template.
+   */
+  getWebsiteTemplatePreview: (templateId: string): Promise<PublicSite> =>
+    publicApi
+      .get<PublicSite>(`/website-template/${encodeURIComponent(templateId)}/preview`)
+      .then(r => r.data),
+
+  /** Fetch the published site + all pages + blocks for a subdomain. */
+  getBySubdomain: (subdomain: string): Promise<PublicSite> =>
+    publicApi.get<PublicSite>(`/by-subdomain/${encodeURIComponent(subdomain)}`).then(r => r.data),
+
+  /** Frozen builder snapshot (opaque token). Same JSON shape as getBySubdomain. */
+  getPreviewByToken: (token: string): Promise<PublicSite> =>
+    publicApi.get<PublicSite>(`/preview/by-token/${encodeURIComponent(token)}`).then(r => r.data),
+
+  /** Fetch a single published page by slug. */
+  getPage: (siteId: string, slug: string): Promise<PublicPage> =>
+    publicApi.get<PublicPage>(`/${siteId}/pages/${encodeURIComponent(slug)}`).then(r => r.data),
+
+  /** Lightweight site metadata (no blocks). */
+  getSiteInfo: (siteId: string): Promise<PublicSite> =>
+    publicApi.get<PublicSite>(`/${siteId}/info`).then(r => r.data),
+
+  /** Live ERP data feed for a block type. */
+  getLiveResource: (
+    siteId: string,
+    resource: string,
+    limit = 12,
+    params?: Record<string, unknown>,
+  ): Promise<{ resource: string; items: LiveItem[]; count: number }> =>
+    publicApi.get(`/${siteId}/live/${resource}`, { params: { limit, ...(params || {}) } }).then(r => r.data),
+
+  /** Submit a contact form. */
+  submitContact: (siteId: string, body: Record<string, unknown>): Promise<{ ok: boolean }> =>
+    publicApi.post(`/${siteId}/live/contact`, body).then(r => r.data),
+
+  /** Subscribe to newsletter. */
+  submitNewsletter: (siteId: string, email: string): Promise<{ ok: boolean }> =>
+    publicApi.post(`/${siteId}/live/newsletter`, { email }).then(r => r.data),
+}

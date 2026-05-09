@@ -1,0 +1,2829 @@
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useService, useCreateService, useUpdateService, useCategoryTree } from '@/hooks/useVendor'
+import { vendorApi } from '@/api/vendor'
+import { mediaUrl } from '@/lib/utils'
+import { ServiceMediaUpload, getMediaType } from '@/components/common/ImageUpload'
+import {
+  ArrowLeft, Loader2, Upload, X, ChevronDown, ChevronUp,
+  Briefcase, IndianRupee, Receipt, Settings, CalendarClock,
+  Clock, Eye, Search, Puzzle, BarChart3, Edit2, History,
+  Calendar, MapPin, Star, Globe, Tag, Repeat, Plus, Trash2,
+  GripVertical, Film, Box, Image as ImageIcon, Copy, MessageSquare, ToggleRight, Info, Layers, Pencil, FileDown,
+  Printer,
+} from 'lucide-react'
+import {
+  BOOKING_DOC_TYPES, getServiceDocTemplates, setServiceDocTemplates,
+  type BookingDocTypeId,
+} from '@/lib/bookingDocuments'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+
+// ── Constants ─────────────────────────────────────────────────────
+
+// Universal UOM — same list used for products and services
+const UOM_OPTIONS: { value: string; label: string; group: string }[] = [
+  // Count
+  { value: 'piece', label: 'Piece (pc)', group: 'Count' },
+  { value: 'unit', label: 'Unit', group: 'Count' },
+  { value: 'pair', label: 'Pair', group: 'Count' },
+  { value: 'dozen', label: 'Dozen (12)', group: 'Count' },
+  { value: 'gross', label: 'Gross (144)', group: 'Count' },
+  { value: 'set', label: 'Set', group: 'Count' },
+  { value: 'pack', label: 'Pack', group: 'Count' },
+  { value: 'bundle', label: 'Bundle', group: 'Count' },
+  { value: 'box', label: 'Box', group: 'Count' },
+  { value: 'case', label: 'Case', group: 'Count' },
+  { value: 'carton', label: 'Carton', group: 'Count' },
+  { value: 'pallet', label: 'Pallet', group: 'Count' },
+  { value: 'roll', label: 'Roll', group: 'Count' },
+  { value: 'sheet', label: 'Sheet', group: 'Count' },
+  { value: 'bag', label: 'Bag', group: 'Count' },
+  { value: 'bottle', label: 'Bottle', group: 'Count' },
+  { value: 'can', label: 'Can', group: 'Count' },
+  { value: 'jar', label: 'Jar', group: 'Count' },
+  { value: 'tube', label: 'Tube', group: 'Count' },
+  { value: 'sachet', label: 'Sachet', group: 'Count' },
+  { value: 'pouch', label: 'Pouch', group: 'Count' },
+  // Weight
+  { value: 'mg', label: 'Milligram (mg)', group: 'Weight' },
+  { value: 'g', label: 'Gram (g)', group: 'Weight' },
+  { value: 'kg', label: 'Kilogram (kg)', group: 'Weight' },
+  { value: 'tonne', label: 'Metric Ton (t)', group: 'Weight' },
+  { value: 'oz', label: 'Ounce (oz)', group: 'Weight' },
+  { value: 'lb', label: 'Pound (lb)', group: 'Weight' },
+  { value: 'quintal', label: 'Quintal (100 kg)', group: 'Weight' },
+  // Volume
+  { value: 'ml', label: 'Millilitre (ml)', group: 'Volume' },
+  { value: 'cl', label: 'Centilitre (cl)', group: 'Volume' },
+  { value: 'l', label: 'Litre (L)', group: 'Volume' },
+  { value: 'kl', label: 'Kilolitre (kL)', group: 'Volume' },
+  { value: 'fl_oz', label: 'Fluid Ounce (fl oz)', group: 'Volume' },
+  { value: 'pt', label: 'Pint (pt)', group: 'Volume' },
+  { value: 'qt', label: 'Quart (qt)', group: 'Volume' },
+  { value: 'gal', label: 'Gallon (gal)', group: 'Volume' },
+  { value: 'cup', label: 'Cup', group: 'Volume' },
+  { value: 'tbsp', label: 'Tablespoon (tbsp)', group: 'Volume' },
+  // Length
+  { value: 'mm', label: 'Millimetre (mm)', group: 'Length' },
+  { value: 'cm', label: 'Centimetre (cm)', group: 'Length' },
+  { value: 'm', label: 'Metre (m)', group: 'Length' },
+  { value: 'km', label: 'Kilometre (km)', group: 'Length' },
+  { value: 'in', label: 'Inch (in)', group: 'Length' },
+  { value: 'ft', label: 'Foot (ft)', group: 'Length' },
+  { value: 'yd', label: 'Yard (yd)', group: 'Length' },
+  // Area
+  { value: 'sq_m', label: 'Square Metre (m²)', group: 'Area' },
+  { value: 'sq_ft', label: 'Square Foot (ft²)', group: 'Area' },
+  { value: 'sq_yd', label: 'Square Yard (yd²)', group: 'Area' },
+  { value: 'acre', label: 'Acre', group: 'Area' },
+  { value: 'hectare', label: 'Hectare (ha)', group: 'Area' },
+  // Time / Service
+  { value: 'hour', label: 'Hour (hr)', group: 'Time' },
+  { value: 'day', label: 'Day', group: 'Time' },
+  { value: 'week', label: 'Week', group: 'Time' },
+  { value: 'month', label: 'Month', group: 'Time' },
+  { value: 'year', label: 'Year', group: 'Time' },
+  { value: 'session', label: 'Session', group: 'Time' },
+  // Energy / Power
+  { value: 'watt', label: 'Watt (W)', group: 'Energy' },
+  { value: 'kw', label: 'Kilowatt (kW)', group: 'Energy' },
+  { value: 'kwh', label: 'Kilowatt-Hour (kWh)', group: 'Energy' },
+  // Data
+  { value: 'mb', label: 'Megabyte (MB)', group: 'Data' },
+  { value: 'gb', label: 'Gigabyte (GB)', group: 'Data' },
+  { value: 'tb', label: 'Terabyte (TB)', group: 'Data' },
+]
+
+const UOM_GROUPS = [...new Set(UOM_OPTIONS.map(u => u.group))]
+
+const SUBSCRIPTION_INTERVALS = [
+  { value: 'daily',     label: 'Daily' },
+  { value: 'weekly',    label: 'Weekly' },
+  { value: 'biweekly',  label: 'Bi-Weekly' },
+  { value: 'monthly',   label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'biannual',  label: 'Half-Yearly' },
+  { value: 'yearly',    label: 'Yearly' },
+]
+
+const SCHEDULE_MODE_OPTIONS = [
+  { value: 'dates',      label: 'Date Range' },
+  { value: 'cycles',     label: 'Billing Cycles' },
+  { value: 'pick_dates', label: 'Pick Dates' },
+  { value: 'weekly',     label: 'Weekly' },
+  { value: 'recurring',  label: 'Recurring' },
+]
+
+const SERVICE_TYPE_OPTIONS = [
+  { value: 'one_time',      label: 'One-time' },
+  { value: 'recurring',     label: 'Recurring' },
+  { value: 'consultation',  label: 'Consultation' },
+  { value: 'repair',        label: 'Repair' },
+  { value: 'installation',  label: 'Installation' },
+  { value: 'maintenance',   label: 'Maintenance' },
+  { value: 'cleaning',      label: 'Cleaning' },
+  { value: 'training',      label: 'Training' },
+  { value: 'assessment',    label: 'Assessment' },
+]
+
+const SERVICE_MODE_OPTIONS = [
+  { value: 'in_store',      label: 'In Store / Shop' },
+  { value: 'home_visit',    label: 'Home Visit' },
+  { value: 'both',          label: 'In Store & Home Visit' },
+  { value: 'online',        label: 'Online / Remote' },
+  { value: 'clinic',        label: 'Clinic' },
+  { value: 'office',        label: 'Office' },
+  { value: 'warehouse',     label: 'Warehouse' },
+  { value: 'salon',         label: 'Salon / Spa' },
+  { value: 'studio',        label: 'Studio' },
+  { value: 'lab',           label: 'Lab / Diagnostic Center' },
+  { value: 'gym',           label: 'Gym / Fitness Center' },
+  { value: 'restaurant',    label: 'Restaurant / Kitchen' },
+  { value: 'workshop',      label: 'Workshop / Garage' },
+  { value: 'field',         label: 'On-site / Field' },
+  { value: 'co_working',    label: 'Co-working Space' },
+  { value: 'event_venue',   label: 'Event Venue / Hall' },
+  { value: 'hospital',      label: 'Hospital' },
+  { value: 'pharmacy',      label: 'Pharmacy' },
+  { value: 'school',        label: 'School / Training Center' },
+  { value: 'other',         label: 'Other' },
+]
+
+const DAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+const DEFAULT_AVAILABILITY = [
+  { day_of_week: 0, start_time: '09:00', end_time: '18:00', is_available: true },
+  { day_of_week: 1, start_time: '09:00', end_time: '18:00', is_available: true },
+  { day_of_week: 2, start_time: '09:00', end_time: '18:00', is_available: true },
+  { day_of_week: 3, start_time: '09:00', end_time: '18:00', is_available: true },
+  { day_of_week: 4, start_time: '09:00', end_time: '18:00', is_available: true },
+  { day_of_week: 5, start_time: '10:00', end_time: '16:00', is_available: true },
+  { day_of_week: 6, start_time: '09:00', end_time: '18:00', is_available: false },
+]
+
+const LEAD_TIME_UNITS = [
+  { value: 'minutes', label: 'Minutes', toHours: 1 / 60 },
+  { value: 'hours',   label: 'Hours',   toHours: 1 },
+  { value: 'days',    label: 'Days',    toHours: 24 },
+  { value: 'weeks',   label: 'Weeks',   toHours: 168 },
+  { value: 'months',  label: 'Months',  toHours: 720 },
+]
+
+function hoursToLeadTime(hours?: number | string): { value: string; unit: string } {
+  if (!hours || Number(hours) === 0) return { value: '', unit: 'hours' }
+  const h = Number(hours)
+  for (const u of [...LEAD_TIME_UNITS].reverse()) {
+    if (h >= u.toHours) {
+      const qty = h / u.toHours
+      if (Math.abs(qty - Math.round(qty)) < 0.001) return { value: String(Math.round(qty)), unit: u.value }
+    }
+  }
+  return { value: String(h), unit: 'hours' }
+}
+
+function leadTimeToHours(value: string, unit: string): number | undefined {
+  const n = parseFloat(value)
+  if (!n || isNaN(n)) return undefined
+  const u = LEAD_TIME_UNITS.find(x => x.value === unit)
+  return u ? n * u.toHours : n
+}
+
+function formatLeadTime(hours?: number): string | undefined {
+  if (!hours || hours === 0) return undefined
+  const { value, unit } = hoursToLeadTime(hours)
+  const lbl = LEAD_TIME_UNITS.find(u => u.value === unit)?.label || unit
+  return `${value} ${lbl}`
+}
+
+const CURRENCY_SYMBOL: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£' }
+
+// ── Zod Schema ────────────────────────────────────────────────────
+
+const optStr = z.string().optional().or(z.literal(''))
+const optNum = z.coerce.number().optional().or(z.literal('').transform(() => undefined))
+const optInt = z.coerce.number().int().optional().or(z.literal('').transform(() => undefined))
+
+const schema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(255),
+  slug: z.string().max(255).regex(/^[a-z0-9-]*$/, 'Slug: lowercase, numbers, hyphens only').optional().or(z.literal('')),
+  description: optStr,
+  short_description: z.string().max(500).optional().or(z.literal('')),
+  brand: optStr,
+  service_type: z.string().default('one_time'),
+  category: optStr,
+  subcategory: optStr,
+  tags: optStr,
+  // Pricing
+  price_type: z.string().default('fixed'),
+  price: optNum,
+  price_min: optNum,
+  price_max: optNum,
+  currency: z.string().default('INR'),
+  discount_percentage: z.coerce.number().min(0).max(100).optional().or(z.literal('').transform(() => undefined)),
+  discount_amount: optNum,
+  discount_start_date: optStr,
+  discount_end_date: optStr,
+  offer_label: optStr,
+  is_on_sale: z.boolean().default(false),
+  // Tax
+  is_taxable: z.boolean().default(true),
+  tax_rate: z.coerce.number().min(0).max(100).optional().or(z.literal('').transform(() => undefined)),
+  sac_code: optStr,
+  gst_rate: z.coerce.number().min(0).max(100).optional().or(z.literal('').transform(() => undefined)),
+  // Configuration
+  uom: z.string().default('per_session'),
+  service_mode: z.string().default('in_store'),
+  duration_minutes: optInt,
+  buffer_minutes: z.coerce.number().int().min(0).default(0),
+  service_capacity: z.coerce.number().int().min(1).default(1),
+  // Subscription
+  is_subscription: z.boolean().default(false),
+  subscription_interval: optStr,
+  subscription_price: optNum,
+  subscription_price_type: z.string().default('per_cycle'),
+  subscription_trial_days: optInt,
+  subscription_setup_fee: optNum,
+  subscription_billing_cycles: optInt,
+  // Booking & Quotes
+  requires_booking: z.boolean().default(true),
+  allow_quote_request: z.boolean().default(false),
+  quote_form_config: z.any().optional(),
+  max_bookings_per_slot: z.coerce.number().int().min(1).default(1),
+  advance_booking_days: z.coerce.number().int().min(0).default(30),
+  booking_lead_time_hours: optInt,
+  cancellation_policy: optStr,
+  cancellation_hours: optInt,
+  rescheduling_policy: optStr,
+  no_show_policy: optStr,
+  // Lifecycle
+  service_expiry_date: optStr,
+  validity_period_days: optInt,
+  renewal_required: z.boolean().default(false),
+  // Visibility
+  status: z.string().default('active'),
+  is_featured: z.boolean().default(false),
+  is_visible: z.boolean().default(true),
+  is_popular: z.boolean().default(false),
+  is_new_service: z.boolean().default(false),
+  // SEO
+  meta_title: optStr,
+  meta_description: optStr,
+  meta_keywords: optStr,
+  // Advanced
+  prerequisites: optStr,
+  whats_included: optStr,
+  whats_not_included: optStr,
+  service_areas: optStr,
+  addons: optStr,
+  service_packages: optStr,
+})
+
+type FormData = z.infer<typeof schema>
+
+interface AvailSlot {
+  day_of_week: number
+  start_time: string
+  end_time: string
+  is_available: boolean
+}
+
+interface PlanDraft {
+  _key: string
+  name: string
+  description: string
+  price: string
+  uom: string
+  price_type: string
+  subscription_interval: string
+  subscription_trial_days: string
+  subscription_setup_fee: string
+  subscription_billing_cycles: string
+  subscription_schedule_modes: string[]
+  duration_minutes: string
+  is_active: boolean
+  // Feature toggles — enable per-plan overrides
+  enable_pricing: boolean
+  enable_tax: boolean
+  enable_booking: boolean
+  enable_availability: boolean
+  enable_lifecycle: boolean
+  // Service Configuration
+  service_frequency: string
+  service_mode: string
+  buffer_minutes: string
+  service_capacity: string
+  // Pricing
+  plan_price_type: string
+  price_min: string
+  price_max: string
+  compare_at_price: string
+  cost_price: string
+  currency: string
+  discount_percentage: string
+  discount_amount: string
+  offer_label: string
+  discount_start_date: string
+  discount_end_date: string
+  // Tax
+  is_taxable: boolean
+  tax_rate: string
+  sac_code: string
+  gst_rate: string
+  // Booking
+  requires_booking: boolean
+  max_bookings_per_slot: string
+  advance_booking_days: string
+  booking_lead_time_value: string
+  booking_lead_time_unit: string
+  cancellation_policy: string
+  cancellation_hours: string
+  rescheduling_policy: string
+  no_show_policy: string
+  // Weekly Availability
+  availability: AvailSlot[]
+  // Lifecycle
+  service_expiry_date: string
+  validity_period_days: string
+  renewal_required: boolean
+}
+
+function newPlan(i: number): PlanDraft {
+  return {
+    _key: `plan-${Date.now()}-${i}`,
+    name: `Plan ${i + 1}`,
+    description: '',
+    price: '',
+    uom: 'per_session',
+    price_type: 'per_cycle',
+    subscription_interval: 'monthly',
+    subscription_trial_days: '',
+    subscription_setup_fee: '',
+    subscription_billing_cycles: '',
+    subscription_schedule_modes: ['dates', 'cycles', 'pick_dates', 'weekly', 'recurring'],
+    duration_minutes: '',
+    is_active: true,
+    enable_pricing: true,
+    enable_tax: false,
+    enable_booking: false,
+    enable_availability: false,
+    enable_lifecycle: false,
+    service_frequency: 'once',
+    service_mode: 'in_store',
+    buffer_minutes: '0',
+    service_capacity: '1',
+    plan_price_type: 'fixed',
+    price_min: '',
+    price_max: '',
+    compare_at_price: '',
+    cost_price: '',
+    currency: 'INR',
+    discount_percentage: '',
+    discount_amount: '',
+    offer_label: '',
+    discount_start_date: '',
+    discount_end_date: '',
+    is_taxable: true,
+    tax_rate: '',
+    sac_code: '',
+    gst_rate: '',
+    requires_booking: true,
+    max_bookings_per_slot: '1',
+    advance_booking_days: '30',
+    booking_lead_time_value: '',
+    booking_lead_time_unit: 'hours',
+    cancellation_policy: '',
+    cancellation_hours: '',
+    rescheduling_policy: '',
+    no_show_policy: '',
+    availability: [...DEFAULT_AVAILABILITY],
+    service_expiry_date: '',
+    validity_period_days: '',
+    renewal_required: false,
+  }
+}
+
+// ── UI Helpers ────────────────────────────────────────────────────
+
+const selectCls = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
+const textareaCls = 'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+
+function Section({ title, icon: Icon, open, onToggle, badge, children }: {
+  title: string; icon: React.ElementType; open: boolean; onToggle: () => void
+  badge?: React.ReactNode; children: React.ReactNode
+}) {
+  return (
+    <Card>
+      <button type="button" onClick={onToggle}
+        className="w-full px-6 py-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors rounded-t-xl">
+        <div className="flex items-center gap-2.5">
+          <Icon className="w-4 h-4 text-gray-500" />
+          <span className="font-semibold text-sm text-gray-900">{title}</span>
+          {badge}
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
+      {open && <CardContent className="pt-0 pb-5 border-t">{children}</CardContent>}
+    </Card>
+  )
+}
+
+function Field({ label, error, children, className }: {
+  label: string; error?: string; children: React.ReactNode; className?: string
+}) {
+  return (
+    <div className={`space-y-1.5 ${className || ''}`}>
+      <Label className="text-xs font-medium text-gray-600">{label}</Label>
+      {children}
+      {error && <p className="text-[11px] text-red-500">{error}</p>}
+    </div>
+  )
+}
+
+function Toggle({ label, checked, onChange, small }: {
+  label?: string; checked: boolean; onChange: (v: boolean) => void; small?: boolean
+}) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer select-none">
+      <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
+        className={`relative inline-flex shrink-0 rounded-full border-2 border-transparent transition-colors
+          ${small ? 'h-5 w-9' : 'h-6 w-11'} ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}>
+        <span className={`pointer-events-none inline-block rounded-full bg-white shadow-sm transform transition-transform
+          ${small ? 'h-4 w-4' : 'h-5 w-5'} ${checked ? (small ? 'translate-x-4' : 'translate-x-5') : 'translate-x-0'}`} />
+      </button>
+      <span className={`text-gray-700 ${small ? 'text-xs' : 'text-sm'}`}>{label}</span>
+    </label>
+  )
+}
+
+function DisplayField({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (value === null || value === undefined || value === '') return null
+  return (
+    <div>
+      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+      <p className="text-sm text-gray-800">{value}</p>
+    </div>
+  )
+}
+
+function csvToArray(v?: string): string[] {
+  if (!v) return []
+  return v.split(',').map(t => t.trim()).filter(Boolean)
+}
+
+function parseJsonField(v?: string): unknown {
+  if (!v?.trim()) return undefined
+  try { return JSON.parse(v) } catch { return undefined }
+}
+
+function safeJsonStr(v: unknown): string {
+  if (!v) return ''
+  if (typeof v === 'string') return v
+  return JSON.stringify(v, null, 2)
+}
+
+// ── Quote Form Configurator ──────────────────────────────────────
+
+interface QuoteFormFieldDraft {
+  key: string
+  label: string
+  type: 'text' | 'textarea' | 'date' | 'time' | 'number' | 'email' | 'phone' | 'select'
+  required: boolean
+  enabled: boolean
+  placeholder: string
+  options: string[]
+}
+
+const DEFAULT_QUOTE_FIELDS: QuoteFormFieldDraft[] = [
+  { key: 'name', label: 'Full Name', type: 'text', required: true, enabled: true, placeholder: 'Customer name', options: [] },
+  { key: 'email', label: 'Email', type: 'email', required: true, enabled: true, placeholder: 'Email address', options: [] },
+  { key: 'phone', label: 'Phone Number', type: 'phone', required: false, enabled: true, placeholder: 'Phone number', options: [] },
+  { key: 'message', label: 'Message', type: 'textarea', required: true, enabled: true, placeholder: 'Describe your requirements...', options: [] },
+  { key: 'quantity', label: 'Quantity', type: 'number', required: false, enabled: false, placeholder: 'Qty', options: [] },
+  { key: 'preferred_date', label: 'Preferred Date', type: 'date', required: false, enabled: true, placeholder: '', options: [] },
+  { key: 'preferred_time', label: 'Preferred Time', type: 'time', required: false, enabled: true, placeholder: '', options: [] },
+  { key: 'budget', label: 'Budget Range', type: 'select', required: false, enabled: false, placeholder: 'Select budget', options: ['Under ₹1,000', '₹1,000 - ₹5,000', '₹5,000 - ₹10,000', '₹10,000 - ₹25,000', 'Above ₹25,000'] },
+]
+
+const FIELD_TYPES = [
+  { value: 'text', label: 'Text', icon: 'Aa' },
+  { value: 'textarea', label: 'Long Text', icon: '¶' },
+  { value: 'number', label: 'Number', icon: '#' },
+  { value: 'email', label: 'Email', icon: '@' },
+  { value: 'phone', label: 'Phone', icon: '📱' },
+  { value: 'date', label: 'Date', icon: '📅' },
+  { value: 'time', label: 'Time', icon: '🕐' },
+  { value: 'select', label: 'Dropdown', icon: '▼' },
+] as const
+
+function QuoteFormConfigurator({ fields, onChange }: {
+  fields: QuoteFormFieldDraft[]
+  onChange: (fields: QuoteFormFieldDraft[]) => void
+}) {
+  const [editingOptions, setEditingOptions] = useState<string | null>(null)
+  const [newOption, setNewOption] = useState('')
+
+  const isDefault = (key: string) => DEFAULT_QUOTE_FIELDS.some(d => d.key === key)
+
+  const addField = () => {
+    const key = `custom_${Date.now()}`
+    onChange([...fields, {
+      key, label: 'New Field', type: 'text', required: false,
+      enabled: true, placeholder: '', options: [],
+    }])
+  }
+
+  const removeField = (key: string) => {
+    onChange(fields.filter(f => f.key !== key))
+  }
+
+  const addOption = (key: string) => {
+    if (!newOption.trim()) return
+    onChange(fields.map(f => f.key === key ? { ...f, options: [...(f.options || []), newOption.trim()] } : f))
+    setNewOption('')
+  }
+
+  const removeOption = (key: string, idx: number) => {
+    onChange(fields.map(f => f.key === key ? { ...f, options: (f.options || []).filter((_, i) => i !== idx) } : f))
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {fields.map(f => (
+        <div key={f.key} className={`rounded-lg border transition-colors ${
+          f.enabled ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-60'
+        }`}>
+          <div className="flex items-center gap-2 px-3 py-2.5">
+            <button type="button" onClick={() => onChange(fields.map(x => x.key === f.key ? { ...x, enabled: !x.enabled } : x))}
+              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${f.enabled ? 'bg-blue-600' : 'bg-gray-200'}`}>
+              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${f.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+            </button>
+
+            {f.enabled ? (
+              <select value={f.type}
+                onChange={e => onChange(fields.map(x => x.key === f.key ? { ...x, type: e.target.value as any } : x))}
+                className="h-7 rounded border border-gray-200 bg-gray-50 px-1.5 text-[11px] text-gray-500 shrink-0">
+                {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+              </select>
+            ) : (
+              <span className="text-xs text-gray-400 w-5 text-center shrink-0">
+                {FIELD_TYPES.find(t => t.value === f.type)?.icon || '?'}
+              </span>
+            )}
+
+            <div className="flex-1 min-w-0">
+              <div className="relative group">
+                <input type="text" value={f.label}
+                  onChange={e => onChange(fields.map(x => x.key === f.key ? { ...x, label: e.target.value } : x))}
+                  disabled={!f.enabled}
+                  className={`w-full text-sm font-medium text-gray-800 rounded-md px-2 py-1 transition-all ${
+                    f.enabled
+                      ? 'border border-dashed border-transparent hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-transparent focus:bg-blue-50/30'
+                      : 'bg-transparent border-none'
+                  } outline-none`}
+                />
+                {f.enabled && <Pencil className="w-3 h-3 text-gray-300 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none group-hover:text-blue-400 transition-colors" />}
+              </div>
+            </div>
+
+            {f.enabled && (
+              <>
+                <button type="button" onClick={() => onChange(fields.map(x => x.key === f.key ? { ...x, required: !x.required } : x))}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors shrink-0 ${
+                    f.required ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'
+                  }`}>
+                  {f.required ? 'Required' : 'Optional'}
+                </button>
+                {!isDefault(f.key) && (
+                  <button type="button" onClick={() => removeField(f.key)}
+                    className="p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-500 transition-colors shrink-0">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {f.enabled && (
+            <div className="px-3 pb-2.5 pt-0 space-y-2">
+              <input type="text" value={f.placeholder}
+                onChange={e => onChange(fields.map(x => x.key === f.key ? { ...x, placeholder: e.target.value } : x))}
+                placeholder="Placeholder text shown to customer..."
+                className="w-full text-xs text-gray-400 rounded-md px-2 py-1 border border-dashed border-transparent hover:border-gray-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-100 bg-transparent outline-none transition-all"
+              />
+              {f.type === 'select' && (
+                <div className="pl-1">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">Dropdown Options</p>
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {(f.options || []).map((opt, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-[11px] pl-2 pr-1 py-0.5 rounded-full">
+                        {opt}
+                        <button type="button" onClick={() => removeOption(f.key, i)} className="hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                  {editingOptions === f.key ? (
+                    <div className="flex items-center gap-1">
+                      <input type="text" value={newOption} onChange={e => setNewOption(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(f.key) } }}
+                        placeholder="Option text..." autoFocus
+                        className="flex-1 h-7 rounded border border-gray-200 bg-white px-2 text-xs outline-none focus:ring-1 focus:ring-blue-400" />
+                      <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => addOption(f.key)}
+                        className="h-7 px-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Add</button>
+                      <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => { setEditingOptions(null); setNewOption('') }}
+                        className="h-7 px-1.5 text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setEditingOptions(f.key)}
+                      className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                      <Plus className="w-3 h-3" /> Add option
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+
+      <button type="button" onClick={addField}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-gray-200 text-sm text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/30 transition-all">
+        <Plus className="w-4 h-4" /> Add Custom Field
+      </button>
+    </div>
+  )
+}
+
+// ── Availability Editor ───────────────────────────────────────────
+
+function AvailabilityEditor({ availability, onChange }: {
+  availability: AvailSlot[]
+  onChange: (slots: AvailSlot[]) => void
+}) {
+  const slotsForDay = (day: number) => availability.filter(s => s.day_of_week === day)
+  const isDayOn = (day: number) => slotsForDay(day).some(s => s.is_available)
+
+  const toggleDay = (day: number) => {
+    const existing = slotsForDay(day)
+    if (existing.length === 0) {
+      onChange([...availability, { day_of_week: day, start_time: '09:00', end_time: '18:00', is_available: true }])
+    } else if (isDayOn(day)) {
+      onChange(availability.map(s => s.day_of_week === day ? { ...s, is_available: false } : s))
+    } else {
+      onChange(availability.map(s => s.day_of_week === day ? { ...s, is_available: true } : s))
+    }
+  }
+
+  const updateSlotTime = (day: number, slotIdx: number, field: 'start_time' | 'end_time', value: string) => {
+    let count = 0
+    onChange(availability.map(s => {
+      if (s.day_of_week === day) {
+        if (count === slotIdx) { count++; return { ...s, [field]: value } }
+        count++
+      }
+      return s
+    }))
+  }
+
+  const addSlot = (day: number) => {
+    const existing = slotsForDay(day)
+    const lastEnd = existing.length > 0 ? existing[existing.length - 1].end_time : '09:00'
+    const [h, m] = lastEnd.split(':').map(Number)
+    const nextStart = `${String(Math.min(h + 1, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+    const nextEnd = `${String(Math.min(h + 3, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+    onChange([...availability, { day_of_week: day, start_time: nextStart, end_time: nextEnd, is_available: true }])
+  }
+
+  const removeSlot = (day: number, slotIdx: number) => {
+    const daySlots = slotsForDay(day)
+    if (daySlots.length <= 1) { toggleDay(day); return }
+    let count = 0
+    onChange(availability.filter(s => {
+      if (s.day_of_week === day) {
+        if (count === slotIdx) { count++; return false }
+        count++
+      }
+      return true
+    }))
+  }
+
+  const timeCls = "h-7 rounded border border-gray-200 px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 w-[5.5rem]"
+
+  return (
+    <div className="space-y-1.5">
+      {DAYS_SHORT.map((dayLabel, day) => {
+        const daySlots = slotsForDay(day)
+        const isOn = isDayOn(day)
+        return (
+          <div key={day} className={`rounded-lg border px-3 py-2 transition-colors ${isOn ? 'border-blue-100 bg-blue-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => toggleDay(day)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${isOn ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${isOn ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
+              <span className={`w-8 text-xs font-semibold ${isOn ? 'text-gray-700' : 'text-gray-300'}`}>{dayLabel}</span>
+              {!isOn && <span className="text-xs text-gray-300">Closed</span>}
+              {isOn && (
+                <div className="flex-1 space-y-1.5">
+                  {daySlots.filter(s => s.is_available).map((slot, si) => (
+                    <div key={si} className="flex items-center gap-2">
+                      <input type="time" value={slot.start_time}
+                        onChange={e => updateSlotTime(day, si, 'start_time', e.target.value)}
+                        className={timeCls} />
+                      <span className="text-xs text-gray-400">–</span>
+                      <input type="time" value={slot.end_time}
+                        onChange={e => updateSlotTime(day, si, 'end_time', e.target.value)}
+                        className={timeCls} />
+                      {daySlots.filter(s => s.is_available).length > 1 && (
+                        <button type="button" onClick={() => removeSlot(day, si)}
+                          className="p-0.5 text-gray-300 hover:text-red-500 transition-colors">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isOn && (
+                <button type="button" onClick={() => addSlot(day)}
+                  className="text-blue-600 hover:text-blue-700 text-[10px] font-medium flex items-center gap-0.5 shrink-0">
+                  <Plus className="w-3 h-3" /> Slot
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+
+const toSlug = (s: string) =>
+  (s || '').toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+
+// ── Main Component ────────────────────────────────────────────────
+
+export default function ServiceForm() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const qc = useQueryClient()
+  const isEdit = !!id
+
+  const { data: service, isLoading } = useService(id || '')
+  const createService = useCreateService()
+  const updateService = useUpdateService()
+  const { data: categoryData } = useCategoryTree()
+  const serviceCategories = (categoryData?.categories || []).filter(
+    (c: any) => c.applies_to === 'service' || c.applies_to === 'both'
+  )
+
+  const [viewMode, setViewMode] = useState(searchParams.get('mode') === 'view')
+  const [isSaving, setIsSaving] = useState(false)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ basic: true, storefrontOptions: true, subscription: true })
+  const [availability, setAvailability] = useState<AvailSlot[]>(DEFAULT_AVAILABILITY)
+  const [plans, setPlans] = useState<PlanDraft[]>([])
+  const [expandedPlans, setExpandedPlans] = useState<Record<number, boolean>>({})
+  const [expandedPlanSections, setExpandedPlanSections] = useState<Record<string, boolean>>({})
+  const [deletingPlanIdx, setDeletingPlanIdx] = useState<number | null>(null)
+  const [leadTimeUnit, setLeadTimeUnit] = useState('hours')
+  const [quoteFields, setQuoteFields] = useState<QuoteFormFieldDraft[]>([...DEFAULT_QUOTE_FIELDS])
+  const [serviceAvailability, setServiceAvailability] = useState<AvailSlot[]>([...DEFAULT_AVAILABILITY])
+
+  // Print document templates for this service (persisted in localStorage when editing)
+  const [printDocIds, setPrintDocIds] = useState<BookingDocTypeId[]>(() =>
+    id ? getServiceDocTemplates(id) : [],
+  )
+  const [showDocPicker, setShowDocPicker] = useState(false)
+
+  // Structured add-ons (linked services / products with booking trigger rules)
+  interface ServiceAddonItem {
+    id: string
+    name: string
+    item_type: 'product' | 'service'
+    addon_type: string        // install | demo | warranty | maintenance | delivery | other
+    booking_trigger: string   // at_sale | after_delivery | on_status
+    trigger_status?: string
+    optional: boolean
+  }
+  const [serviceAddons, setServiceAddons] = useState<ServiceAddonItem[]>([])
+  const [svcAddonSearch, setSvcAddonSearch] = useState('')
+  const [svcAddonResults, setSvcAddonResults] = useState<Array<{ id: string; name: string; item_type: 'product' | 'service' }>>([])
+  const [svcAddonLoading, setSvcAddonLoading] = useState(false)
+
+  const searchServiceAddons = useCallback(async (q: string) => {
+    if (q.length < 2) { setSvcAddonResults([]); return }
+    setSvcAddonLoading(true)
+    try {
+      const [pRes, sRes] = await Promise.all([
+        vendorApi.listProducts({ search: q, size: 8 }),
+        vendorApi.listServices({ search: q, size: 8 }),
+      ])
+      const combined = [
+        ...(pRes?.items || []).map((p: any) => ({ id: p.id, name: p.name, item_type: 'product' as const })),
+        ...(sRes?.items || []).map((s: any) => ({ id: s.id, name: s.name, item_type: 'service' as const })),
+      ].filter(x => !serviceAddons.some(a => a.id === x.id))
+      setSvcAddonResults(combined)
+    } catch { setSvcAddonResults([]) }
+    finally { setSvcAddonLoading(false) }
+  }, [serviceAddons])
+
+  useEffect(() => {
+    const t = setTimeout(() => searchServiceAddons(svcAddonSearch), 300)
+    return () => clearTimeout(t)
+  }, [svcAddonSearch, searchServiceAddons])
+
+  const addPrintDoc = (docId: BookingDocTypeId) => {
+    setPrintDocIds(prev => {
+      if (prev.includes(docId)) return prev
+      const next = [...prev, docId]
+      if (id) setServiceDocTemplates(id, next)
+      return next
+    })
+    setShowDocPicker(false)
+  }
+
+  const removePrintDoc = (docId: BookingDocTypeId) => {
+    setPrintDocIds(prev => {
+      const next = prev.filter(x => x !== docId)
+      if (id) setServiceDocTemplates(id, next)
+      return next
+    })
+  }
+
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [pendingPreviews, setPendingPreviews] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const toggle = (key: string) => setOpenSections(p => ({ ...p, [key]: !p[key] }))
+
+  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      status: 'active', price_type: 'fixed', currency: 'INR', uom: 'per_session',
+      service_mode: 'in_store', service_type: 'one_time', is_taxable: true,
+      requires_booking: true, is_visible: true, buffer_minutes: 0,
+      service_capacity: 1, max_bookings_per_slot: 1, advance_booking_days: 30,
+      is_on_sale: false, is_subscription: false, allow_quote_request: false,
+      quote_form_config: [],
+      subscription_price_type: 'per_cycle',
+    },
+  })
+
+  const watchedPriceType    = watch('price_type')
+  const watchedCategory     = watch('category')
+  const watchedCurrency     = watch('currency')
+  const watchedDiscountPct  = watch('discount_percentage')
+  const watchedDiscountAmt  = watch('discount_amount')
+
+  const currencySymbol = CURRENCY_SYMBOL[watchedCurrency] || watchedCurrency
+
+  // Auto-set is_on_sale
+  useEffect(() => {
+    const has = (watchedDiscountPct && Number(watchedDiscountPct) > 0) ||
+                (watchedDiscountAmt && Number(watchedDiscountAmt) > 0)
+    setValue('is_on_sale', !!has)
+  }, [watchedDiscountPct, watchedDiscountAmt, setValue])
+
+  // ── Auto-fill discount_amount + discount_percentage for each plan on load/change ──
+  useEffect(() => {
+    if (!plans.length) return
+    setPlans(prev => prev.map(plan => {
+      const p = parseFloat(plan.price || '0')
+      const c = parseFloat(plan.compare_at_price || '0')
+      if (c > 0 && p > 0 && c > p) {
+        const pct = parseFloat(((c - p) / c * 100).toFixed(2))
+        const amt = parseFloat((c - p).toFixed(2))
+        const currPct = parseFloat(plan.discount_percentage || '0')
+        const currAmt = parseFloat(plan.discount_amount || '0')
+        const needsPct = Math.abs(pct - currPct) > 0.01
+        const needsAmt = Math.abs(amt - currAmt) > 0.01
+        if (needsPct || needsAmt) {
+          return {
+            ...plan,
+            discount_percentage: needsPct ? pct.toFixed(2) : plan.discount_percentage,
+            discount_amount: needsAmt ? amt.toFixed(2) : plan.discount_amount,
+          }
+        }
+      }
+      return plan
+    }))
+  }, [ // re-run only when plan prices change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    plans.map(p => `${p.price}|${p.compare_at_price}`).join(',')
+  ])
+
+  useEffect(() => {
+    if (!service) return
+    reset({
+      name: service.name, slug: toSlug(service.slug),
+      description: service.description || '', short_description: service.short_description || '',
+      brand: service.brand || '', service_type: service.service_type || 'one_time',
+      category: service.category || '', subcategory: service.subcategory || '',
+      tags: (service.tags || []).join(', '),
+      price_type: service.price_type || 'fixed',
+      price: service.price ?? undefined, price_min: service.price_min ?? undefined, price_max: service.price_max ?? undefined,
+      currency: service.currency || 'INR',
+      discount_percentage: service.discount_percentage ?? undefined,
+      discount_amount: service.discount_amount ?? undefined,
+      discount_start_date: service.discount_start_date?.split('T')[0] || '',
+      discount_end_date: service.discount_end_date?.split('T')[0] || '',
+      offer_label: service.offer_label || '',
+      is_on_sale: !!(service.discount_percentage || service.discount_amount),
+      is_taxable: service.is_taxable, tax_rate: service.tax_rate ?? undefined,
+      sac_code: service.sac_code || '', gst_rate: service.gst_rate ?? undefined,
+      uom: service.uom || 'fixed', service_mode: service.service_mode || 'in_store',
+      duration_minutes: service.duration_minutes ?? undefined,
+      buffer_minutes: service.buffer_minutes ?? 0, service_capacity: service.service_capacity ?? 1,
+      requires_booking: service.requires_booking,
+      allow_quote_request: service.allow_quote_request ?? false,
+      quote_form_config: service.quote_form_config || [],
+      max_bookings_per_slot: service.max_bookings_per_slot ?? 1,
+      advance_booking_days: service.advance_booking_days ?? 30,
+      booking_lead_time_hours: (() => {
+        const lt = hoursToLeadTime(service.booking_lead_time_hours)
+        return lt.value ? Number(lt.value) : undefined
+      })(),
+      cancellation_policy: service.cancellation_policy || '',
+      cancellation_hours: service.cancellation_hours ?? undefined,
+      rescheduling_policy: service.rescheduling_policy || '',
+      no_show_policy: service.no_show_policy || '',
+      service_expiry_date: service.service_expiry_date || '',
+      validity_period_days: service.validity_period_days ?? undefined,
+      renewal_required: service.renewal_required,
+      // Subscription
+      is_subscription: service.is_subscription ?? false,
+      subscription_interval: service.subscription_interval || '',
+      subscription_price: service.subscription_price ?? undefined,
+      subscription_price_type: service.subscription_price_type || 'per_cycle',
+      subscription_trial_days: service.subscription_trial_days ?? undefined,
+      subscription_setup_fee: service.subscription_setup_fee ?? undefined,
+      subscription_billing_cycles: service.subscription_billing_cycles ?? undefined,
+      status: service.status, is_featured: service.is_featured, is_visible: service.is_visible,
+      is_popular: service.is_popular, is_new_service: service.is_new_service,
+      meta_title: service.meta_title || '', meta_description: service.meta_description || '',
+      meta_keywords: (service.meta_keywords || []).join(', '),
+      prerequisites: service.prerequisites || '',
+      whats_included: (service.whats_included || []).join(', '),
+      whats_not_included: (service.whats_not_included || []).join(', '),
+      service_areas: (service.service_areas || []).join(', '),
+      addons: (service.addons || []).join(', '),
+      service_packages: safeJsonStr(service.service_packages),
+    })
+
+    // Load plans with all per-plan feature overrides
+    if (service.plans?.length) {
+      setPlans(service.plans.map((p: any) => ({
+        _key: p.id,
+        name: p.name || '',
+        description: p.description || '',
+        price: p.price != null ? String(p.price) : '',
+        uom: p.uom || 'per_session',
+        price_type: p.price_type || 'per_cycle',
+        subscription_interval: p.subscription_interval || 'monthly',
+        subscription_trial_days: p.subscription_trial_days != null ? String(p.subscription_trial_days) : '',
+        subscription_setup_fee: p.subscription_setup_fee != null ? String(p.subscription_setup_fee) : '',
+        subscription_billing_cycles: p.subscription_billing_cycles != null ? String(p.subscription_billing_cycles) : '',
+        subscription_schedule_modes: p.subscription_schedule_modes || ['dates', 'cycles', 'pick_dates', 'weekly', 'recurring'],
+        duration_minutes: p.duration_minutes != null ? String(p.duration_minutes) : '',
+        is_active: p.is_active ?? true,
+        enable_pricing: !!(p.plan_price_type || p.price_min || p.price_max || p.discount_percentage || p.discount_amount),
+        enable_tax: !!(p.tax_rate || p.sac_code || p.gst_rate || p.is_taxable === false),
+        enable_booking: !!(p.requires_booking != null || p.max_bookings_per_slot || p.cancellation_policy),
+        enable_availability: !!(p.availability?.length),
+        enable_lifecycle: !!(p.service_expiry_date || p.validity_period_days || p.renewal_required),
+        service_frequency: p.service_frequency || (p.subscription_interval ? 'recurring' : 'once'),
+        service_mode: p.service_mode || 'in_store',
+        buffer_minutes: p.buffer_minutes != null ? String(p.buffer_minutes) : '0',
+        service_capacity: p.service_capacity != null ? String(p.service_capacity) : '1',
+        plan_price_type: p.plan_price_type || 'fixed',
+        price_min: p.price_min != null ? String(p.price_min) : '',
+        price_max: p.price_max != null ? String(p.price_max) : '',
+        compare_at_price: p.compare_at_price != null ? String(p.compare_at_price) : '',
+        cost_price: p.cost_price != null ? String(p.cost_price) : '',
+        currency: p.currency || 'INR',
+        discount_percentage: p.discount_percentage != null ? String(p.discount_percentage) : '',
+        discount_amount: p.discount_amount != null ? String(p.discount_amount) : '',
+        offer_label: p.offer_label || '',
+        discount_start_date: p.discount_start_date?.split('T')[0] || '',
+        discount_end_date: p.discount_end_date?.split('T')[0] || '',
+        is_taxable: p.is_taxable ?? true,
+        tax_rate: p.tax_rate != null ? String(p.tax_rate) : '',
+        sac_code: p.sac_code || '',
+        gst_rate: p.gst_rate != null ? String(p.gst_rate) : '',
+        requires_booking: p.requires_booking ?? true,
+        max_bookings_per_slot: p.max_bookings_per_slot != null ? String(p.max_bookings_per_slot) : '1',
+        advance_booking_days: p.advance_booking_days != null ? String(p.advance_booking_days) : '30',
+        booking_lead_time_value: (() => { const lt = hoursToLeadTime(p.booking_lead_time_hours); return lt.value })(),
+        booking_lead_time_unit: (() => { const lt = hoursToLeadTime(p.booking_lead_time_hours); return lt.unit })(),
+        cancellation_policy: p.cancellation_policy || '',
+        cancellation_hours: p.cancellation_hours != null ? String(p.cancellation_hours) : '',
+        rescheduling_policy: p.rescheduling_policy || '',
+        no_show_policy: p.no_show_policy || '',
+        availability: p.availability?.length
+          ? (() => {
+              const loaded: AvailSlot[] = []
+              for (let d = 0; d < 7; d++) {
+                const ds = p.availability.filter((a: any) => a.day_of_week === d)
+                if (ds.length) ds.forEach((s: any) => loaded.push({ day_of_week: s.day_of_week, start_time: s.start_time, end_time: s.end_time, is_available: s.is_available ?? true }))
+                else { const def = DEFAULT_AVAILABILITY.find(x => x.day_of_week === d); loaded.push(def ? { ...def, is_available: false } : { day_of_week: d, start_time: '09:00', end_time: '18:00', is_available: false }) }
+              }
+              return loaded
+            })()
+          : [...DEFAULT_AVAILABILITY],
+        service_expiry_date: p.service_expiry_date || '',
+        validity_period_days: p.validity_period_days != null ? String(p.validity_period_days) : '',
+        renewal_required: p.renewal_required ?? false,
+      })))
+    }
+
+    // Parse lead time unit from stored hours
+    if (service.booking_lead_time_hours) {
+      const lt = hoursToLeadTime(service.booking_lead_time_hours)
+      setLeadTimeUnit(lt.unit)
+    }
+
+    if (service.availability?.length) {
+      // Load all slots per day (multiple time ranges supported)
+      const saved = service.availability as AvailSlot[]
+      const loadedMulti: AvailSlot[] = []
+      for (let day = 0; day < 7; day++) {
+        const daySlots = saved.filter((a: any) => a.day_of_week === day)
+        if (daySlots.length > 0) {
+          daySlots.forEach((s: any) => loadedMulti.push({
+            day_of_week: s.day_of_week, start_time: s.start_time, end_time: s.end_time, is_available: s.is_available ?? true,
+          }))
+        } else {
+          const def = DEFAULT_AVAILABILITY.find(d => d.day_of_week === day)
+          loadedMulti.push(def ? { ...def, is_available: false } : { day_of_week: day, start_time: '09:00', end_time: '18:00', is_available: false })
+        }
+      }
+      setAvailability(loadedMulti)
+      setServiceAvailability(loadedMulti)
+    }
+
+    if (service.quote_form_config?.length) {
+      const savedConfig = service.quote_form_config as QuoteFormFieldDraft[]
+      const merged = DEFAULT_QUOTE_FIELDS.map(def => {
+        const saved = savedConfig.find((f: any) => f.key === def.key)
+        return saved ? { ...def, ...saved } : { ...def, enabled: false }
+      })
+      const customFields = savedConfig.filter(f => !DEFAULT_QUOTE_FIELDS.some(d => d.key === f.key))
+      setQuoteFields([...merged, ...customFields.map(f => ({ ...f, options: f.options || [] }))])
+    }
+  }, [service, reset])
+
+  useEffect(() => {
+    return () => { pendingPreviews.forEach(URL.revokeObjectURL) }
+  }, [])
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    register('name').onChange(e)
+    if (!isEdit) {
+      setValue('slug', toSlug(e.target.value))
+    }
+  }
+
+  const onSubmit = async (raw: FormData) => {
+    setIsSaving(true)
+    try {
+      const data: Record<string, unknown> = { ...raw }
+      // Convert lead time value + unit to hours
+      if (raw.booking_lead_time_hours != null) {
+        data.booking_lead_time_hours = leadTimeToHours(String(raw.booking_lead_time_hours), leadTimeUnit)
+      }
+      data.tags = csvToArray(raw.tags)
+      data.meta_keywords = csvToArray(raw.meta_keywords)
+      data.addons = csvToArray(raw.addons)
+      data.whats_included = csvToArray(raw.whats_included)
+      data.whats_not_included = csvToArray(raw.whats_not_included)
+      data.service_areas = csvToArray(raw.service_areas)
+      data.service_packages = parseJsonField(raw.service_packages) || []
+      data.availability = availability.filter(a => a.is_available).map(({ day_of_week, start_time, end_time }) => ({ day_of_week, start_time, end_time, is_available: true }))
+
+      // Serialize plans with per-plan configuration
+      data.plans = plans.filter(p => p.name?.trim()).map((p, i) => {
+        const isRecurring = p.service_frequency === 'recurring'
+        const plan: Record<string, unknown> = {
+          name: p.name,
+          description: p.description || undefined,
+          price: p.price ? parseFloat(p.price) : undefined,
+          uom: p.uom,
+          price_type: isRecurring ? p.price_type : 'per_unit',
+          service_frequency: p.service_frequency,
+          service_mode: p.service_mode,
+          duration_minutes: p.duration_minutes ? parseInt(p.duration_minutes) : undefined,
+          buffer_minutes: p.buffer_minutes ? parseInt(p.buffer_minutes) : 0,
+          service_capacity: p.service_capacity ? parseInt(p.service_capacity) : 1,
+          currency: p.currency,
+          subscription_interval: isRecurring ? (p.subscription_interval || undefined) : undefined,
+          subscription_trial_days: isRecurring && p.subscription_trial_days ? parseInt(p.subscription_trial_days) : undefined,
+          subscription_setup_fee: isRecurring && p.subscription_setup_fee ? parseFloat(p.subscription_setup_fee) : undefined,
+          subscription_billing_cycles: isRecurring && p.subscription_billing_cycles ? parseInt(p.subscription_billing_cycles) : undefined,
+          subscription_schedule_modes: isRecurring && p.subscription_schedule_modes?.length ? p.subscription_schedule_modes : undefined,
+          is_active: p.is_active,
+          sort_order: i,
+        }
+        if (p.enable_pricing) {
+          plan.plan_price_type = p.plan_price_type
+          plan.price_min = p.price_min ? parseFloat(p.price_min) : undefined
+          plan.price_max = p.price_max ? parseFloat(p.price_max) : undefined
+          plan.currency = p.currency
+          plan.discount_percentage = p.discount_percentage ? parseFloat(p.discount_percentage) : undefined
+          plan.discount_amount = p.discount_amount ? parseFloat(p.discount_amount) : undefined
+          plan.offer_label = p.offer_label || undefined
+          plan.discount_start_date = p.discount_start_date || undefined
+          plan.discount_end_date = p.discount_end_date || undefined
+        }
+        if (p.enable_booking) {
+          plan.requires_booking = p.requires_booking
+          plan.max_bookings_per_slot = p.max_bookings_per_slot ? parseInt(p.max_bookings_per_slot) : 1
+          plan.advance_booking_days = p.advance_booking_days ? parseInt(p.advance_booking_days) : 30
+          plan.booking_lead_time_hours = leadTimeToHours(p.booking_lead_time_value, p.booking_lead_time_unit)
+          plan.cancellation_policy = p.cancellation_policy || undefined
+          plan.cancellation_hours = p.cancellation_hours ? parseInt(p.cancellation_hours) : undefined
+          plan.rescheduling_policy = p.rescheduling_policy || undefined
+          plan.no_show_policy = p.no_show_policy || undefined
+        }
+        if (p.enable_availability) {
+          plan.availability = p.availability.filter(a => a.is_available).map(({ day_of_week, start_time, end_time }) => ({ day_of_week, start_time, end_time, is_available: true }))
+        }
+        if (p.enable_tax) {
+          plan.is_taxable = true
+          plan.tax_rate = p.tax_rate ? parseFloat(p.tax_rate) : undefined
+          plan.sac_code = p.sac_code || undefined
+          plan.gst_rate = p.gst_rate ? parseFloat(p.gst_rate) : undefined
+        }
+        if (p.enable_lifecycle) {
+          plan.service_expiry_date = p.service_expiry_date || undefined
+          plan.validity_period_days = p.validity_period_days ? parseInt(p.validity_period_days) : undefined
+          plan.renewal_required = p.renewal_required
+        }
+        return plan
+      })
+
+      // Auto-sync service-level fields from first active plan
+      {
+        type PlanRow = { is_active?: boolean; price?: number; service_frequency?: string; service_mode?: string; duration_minutes?: number; buffer_minutes?: number; service_capacity?: number; subscription_interval?: string; subscription_trial_days?: number; subscription_setup_fee?: number; subscription_billing_cycles?: number; subscription_schedule_modes?: string[]; is_taxable?: boolean; tax_rate?: number; sac_code?: string; gst_rate?: number; service_expiry_date?: string; validity_period_days?: number; renewal_required?: boolean; requires_booking?: boolean }
+        const allPlans = (data.plans as PlanRow[]) || []
+        const firstActive = allPlans.find(p => p.is_active !== false && p.price != null && Number(p.price) > 0)
+        if (firstActive) {
+          data.service_mode = firstActive.service_mode || data.service_mode
+          data.duration_minutes = firstActive.duration_minutes ?? data.duration_minutes
+          data.buffer_minutes = firstActive.buffer_minutes ?? data.buffer_minutes
+          data.service_capacity = firstActive.service_capacity ?? data.service_capacity
+          if (raw.is_subscription && firstActive.service_frequency === 'recurring') {
+            data.subscription_price = Number(firstActive.price)
+            data.subscription_interval = firstActive.subscription_interval || data.subscription_interval
+            data.subscription_trial_days = firstActive.subscription_trial_days ?? data.subscription_trial_days
+            data.subscription_setup_fee = firstActive.subscription_setup_fee ?? data.subscription_setup_fee
+            data.subscription_billing_cycles = firstActive.subscription_billing_cycles ?? data.subscription_billing_cycles
+            data.subscription_schedule_modes = firstActive.subscription_schedule_modes || data.subscription_schedule_modes
+          }
+          if (firstActive.is_taxable != null) data.is_taxable = firstActive.is_taxable
+          if (firstActive.tax_rate != null) data.tax_rate = firstActive.tax_rate
+          if (firstActive.sac_code) data.sac_code = firstActive.sac_code
+          if (firstActive.gst_rate != null) data.gst_rate = firstActive.gst_rate
+          if (firstActive.requires_booking != null) data.requires_booking = firstActive.requires_booking
+        }
+      }
+
+      // Include quote form config (only enabled fields)
+      if (raw.allow_quote_request) {
+        data.quote_form_config = quoteFields.filter(f => f.enabled).map(({ key, label, type, required, enabled, placeholder, options }) => ({
+          key, label, type, required, enabled, placeholder, ...(options?.length ? { options } : {}),
+        }))
+      }
+
+      // Include service-level availability
+      data.availability = serviceAvailability.filter(a => a.is_available).map(({ day_of_week, start_time, end_time }) => ({
+        day_of_week, start_time, end_time, is_available: true,
+      }))
+
+      for (const k of Object.keys(data)) {
+        if (data[k] === '' || data[k] === undefined) delete data[k]
+      }
+
+      if (isEdit) {
+        await updateService.mutateAsync({ id, data })
+        setViewMode(true)
+      } else {
+        const newService = await createService.mutateAsync(data)
+        // Persist selected print doc templates now that we have a service ID
+        if (printDocIds.length > 0) setServiceDocTemplates(newService.id, printDocIds)
+        const uploads: Promise<unknown>[] = []
+        for (const file of pendingFiles) uploads.push(vendorApi.uploadServiceMedia(newService.id, file).catch(() => toast.error(`Upload failed: ${file.name}`)))
+        if (uploads.length) await Promise.all(uploads)
+        navigate(`/services/${newService.id}?mode=view`, { replace: true })
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleMediaUpload = useCallback(async (file: File) => {
+    if (!id) return
+    try { await vendorApi.uploadServiceMedia(id, file); qc.invalidateQueries({ queryKey: ['vendor', 'service', id] }); toast.success('Media uploaded') }
+    catch { toast.error('Failed to upload media') }
+  }, [id, qc])
+
+  const handleMediaDelete = useCallback(async (mediaId: string) => {
+    if (!id) return
+    try { await vendorApi.deleteServiceMedia(id, mediaId); qc.invalidateQueries({ queryKey: ['vendor', 'service', id] }); toast.success('Media removed') }
+    catch { toast.error('Failed to remove media') }
+  }, [id, qc])
+
+  const handleMediaSetPrimary = useCallback(async (mediaId: string) => {
+    if (!id) return
+    try { await vendorApi.setPrimaryServiceMedia(id, mediaId); qc.invalidateQueries({ queryKey: ['vendor', 'service', id] }); toast.success('Primary image updated') }
+    catch { toast.error('Failed to set primary') }
+  }, [id, qc])
+
+  const addPendingFiles = useCallback((fileList: FileList | null) => {
+    if (!fileList) return
+    const newFiles = Array.from(fileList)
+    setPendingFiles(p => [...p, ...newFiles])
+    setPendingPreviews(p => [...p, ...newFiles.map(f => URL.createObjectURL(f))])
+  }, [])
+
+  const removePendingFile = useCallback((index: number) => {
+    setPendingPreviews(p => { URL.revokeObjectURL(p[index]); return p.filter((_, i) => i !== index) })
+    setPendingFiles(p => p.filter((_, i) => i !== index))
+  }, [])
+
+  if (isEdit && isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+
+  // ── Display (View) Mode ──────────────────────────────────────────
+  if (viewMode && service) {
+    const sym = CURRENCY_SYMBOL[service.currency] || service.currency
+    const uomLbl = UOM_OPTIONS.find(u => u.value === service.uom)?.label || service.uom
+    const typeLbl = SERVICE_TYPE_OPTIONS.find(t => t.value === service.service_type)?.label || service.service_type
+    const modeLbl = SERVICE_MODE_OPTIONS.find(m => m.value === service.service_mode)?.label || service.service_mode
+    const history: any[] = (service as any).change_history || []
+    const priceDisplay = service.price_type === 'free' ? 'Free' :
+      service.price ? `${sym}${service.price.toLocaleString()}` :
+      (service.price_min && service.price_max) ? `${sym}${service.price_min}–${sym}${service.price_max}` : 'Quote'
+
+    return (
+      <div className="max-w-4xl mx-auto space-y-4 pb-20">
+        {/* View header */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/services')}>
+            <ArrowLeft className="w-4 h-4 mr-1" />Services
+          </Button>
+          <h1 className="flex-1 text-xl font-bold truncate text-gray-900">{service.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+              service.status === 'active' ? 'bg-green-100 text-green-700' :
+              service.status === 'archived' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'
+            }`}>{service.status}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">{typeLbl}</span>
+            {!service.is_visible && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Hidden</span>}
+          </div>
+          <Button size="sm" onClick={() => setViewMode(false)}>
+            <Edit2 className="w-3.5 h-3.5 mr-1.5" />Edit
+          </Button>
+        </div>
+
+        {/* Hero metrics */}
+        <Card>
+          <CardContent className="p-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="text-center rounded-lg border p-3">
+                <p className="text-xl font-bold text-blue-700">{priceDisplay}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{uomLbl}</p>
+              </div>
+              <div className="text-center rounded-lg border p-3">
+                <p className="text-xl font-bold">{service.duration_minutes ?? '—'}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{uomLbl}</p>
+              </div>
+              <div className="text-center rounded-lg border p-3">
+                <p className="text-xl font-bold">{service.view_count ?? 0}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Views</p>
+              </div>
+              <div className="text-center rounded-lg border p-3">
+                <p className="text-xl font-bold">{service.booking_count ?? 0}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Bookings</p>
+              </div>
+            </div>
+
+            {/* Media strip */}
+            {((service as any).media?.length > 0 || service.image_url || service.gallery?.length > 0) && (
+              <div className="flex gap-3 overflow-x-auto mb-4">
+                {((service as any).media?.length > 0
+                  ? (service as any).media.sort((a: any, b: any) => a.position - b.position)
+                  : [
+                      ...(service.image_url ? [{ id: 'main', url: service.image_url, media_type: 'image', is_primary: true, position: 0 }] : []),
+                      ...(service.gallery || []).map((url: string, i: number) => ({ id: `g${i}`, url, media_type: 'image', is_primary: false, position: i + 1 })),
+                    ]
+                ).map((img: any) => {
+                  const mt = img.media_type || 'image'
+                  return (
+                    <div key={img.id} className="w-28 h-28 rounded-lg overflow-hidden border bg-gray-50 shrink-0 relative">
+                      {mt === 'video' ? (
+                        <video src={mediaUrl(img.url)} className="w-full h-full object-cover" muted playsInline onMouseOver={e => (e.target as HTMLVideoElement).play()} onMouseOut={e => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0 }} />
+                      ) : mt === 'model3d' ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
+                          <Box className="w-8 h-8" />
+                          <span className="text-[9px] mt-0.5 font-medium">3D Model</span>
+                        </div>
+                      ) : (
+                        <img src={mediaUrl(img.url)} alt={img.alt_text || service.name} className="w-full h-full object-cover" />
+                      )}
+                      {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-purple-600 text-white text-[8px] font-bold px-1 rounded">VID</span>}
+                      {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[8px] font-bold px-1 rounded">3D</span>}
+                      {img.is_primary && <span className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 text-[8px] px-1 rounded font-bold">Primary</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <DisplayField label="Service Mode" value={modeLbl} />
+              <DisplayField label="Category" value={service.category} />
+              <DisplayField label="Subcategory" value={service.subcategory} />
+              <DisplayField label="Brand" value={service.brand} />
+              <DisplayField label="Slug" value={service.slug} />
+              <DisplayField label="Service Type" value={typeLbl} />
+            </div>
+            {service.short_description && <p className="text-sm text-gray-500 mt-3 border-t pt-3">{service.short_description}</p>}
+            {service.description && <p className="text-sm text-gray-700 mt-1">{service.description}</p>}
+            {(service.tags || []).length > 0 && (
+              <div className="flex gap-1 flex-wrap mt-3">
+                {service.tags.map((t: string, i: number) => <span key={i} className="text-[10px] px-2 py-0.5 bg-gray-100 rounded-full text-gray-500"><Tag className="w-2.5 h-2.5 inline mr-0.5" />{t}</span>)}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pricing */}
+        {(service.price || service.price_min || service.discount_percentage || service.discount_amount) && (
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Star className="w-3.5 h-3.5" />Pricing</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <DisplayField label="Price Type" value={service.price_type} />
+                <DisplayField label="Price" value={service.price ? `${sym}${service.price.toLocaleString()}` : undefined} />
+                <DisplayField label="Min Price" value={service.price_min ? `${sym}${service.price_min.toLocaleString()}` : undefined} />
+                <DisplayField label="Max Price" value={service.price_max ? `${sym}${service.price_max.toLocaleString()}` : undefined} />
+                <DisplayField label="Discount %" value={service.discount_percentage ? `${service.discount_percentage}%` : undefined} />
+                <DisplayField label="Discount Amt" value={service.discount_amount ? `${sym}${service.discount_amount}` : undefined} />
+                <DisplayField label="Offer Label" value={service.offer_label} />
+                <DisplayField label="Tax" value={service.is_taxable ? `${service.tax_rate ?? 0}% GST${service.sac_code ? ` (SAC: ${service.sac_code})` : ''}` : 'Not taxable'} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Storefront Options */}
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" />Storefront Options</p>
+            <div className="divide-y rounded-lg border">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="w-4 h-4 text-blue-600" />
+                  <p className="text-sm text-gray-700 font-medium">Booking</p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.requires_booking ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {service.requires_booking ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Repeat className="w-4 h-4 text-violet-600" />
+                  <p className="text-sm text-gray-700 font-medium">Subscription</p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(service as any).is_subscription ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {(service as any).is_subscription ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-amber-600" />
+                  <p className="text-sm text-gray-700 font-medium">Quote Requests</p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.allow_quote_request ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {service.allow_quote_request ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+            {service.allow_quote_request && Array.isArray(service.quote_form_config) && service.quote_form_config.length > 0 && (
+              <div className="mt-3 space-y-1">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Quote Form Fields</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {service.quote_form_config.map((f: any, i: number) => (
+                    f.enabled !== false && (
+                      <span key={i} className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${f.required ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                        {(f.label || f.name || '').replace(/_/g, ' ')}{f.required ? '*' : ''}
+                      </span>
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Subscription Plans — with per-plan feature details */}
+        {(service as any).is_subscription && (service as any).plans?.length > 0 && (
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Repeat className="w-3.5 h-3.5" />Subscription Plans</p>
+              <div className="space-y-4">
+                {(service as any).plans.filter((v: any) => v.is_active !== false).map((v: any) => {
+                  const freq = v.service_frequency || 'once'
+                  const isRec = freq === 'recurring'
+                  const interval = v.subscription_interval || (service as any).subscription_interval
+                  const vPriceType = v.price_type || 'per_cycle'
+                  const vUom = v.uom || service.uom || 'session'
+                  const vuomLbl = UOM_OPTIONS.find(u => u.value === vUom)?.label || vUom
+                  const priceSuffix = isRec && vPriceType === 'per_cycle' && interval ? `/${interval}` : `/${vuomLbl}`
+                  const vModeLbl = SERVICE_MODE_OPTIONS.find(m => m.value === v.service_mode)?.label
+                  return (
+                    <div key={v.id} className="rounded-xl border-2 border-violet-100 bg-violet-50/30 p-4 space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-gray-900">{v.name}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isRec ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>{isRec ? 'Recurring' : 'One-time'}</span>
+                        {isRec && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${vPriceType === 'per_cycle' ? 'bg-violet-50 text-violet-600' : 'bg-blue-50 text-blue-600'}`}>{vPriceType === 'per_cycle' ? 'Per Cycle' : 'Per UOM'}</span>}
+                        {isRec && interval && <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{interval}</span>}
+                        {vModeLbl && <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{vModeLbl}</span>}
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        {v.price != null && (
+                          <span className="text-xl font-bold text-violet-700">{sym}{v.price}<span className="text-xs font-normal text-gray-500">{priceSuffix}</span></span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-1 text-xs text-gray-500 flex-wrap">
+                        {v.subscription_trial_days ? <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full">{v.subscription_trial_days}d free trial</span> : null}
+                        {v.subscription_setup_fee ? <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">{sym}{v.subscription_setup_fee} setup</span> : null}
+                        {v.subscription_billing_cycles ? <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">max {v.subscription_billing_cycles} cycles</span> : null}
+                        {v.duration_minutes ? <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{v.duration_minutes} {vuomLbl.replace(/\s*\(.*\)/, '').toLowerCase()}</span> : null}
+                      </div>
+                      {v.description && <p className="text-xs text-gray-400 italic">{v.description}</p>}
+                      {v.subscription_schedule_modes?.length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {v.subscription_schedule_modes.map((m: string) => (
+                            <span key={m} className="text-[9px] bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full font-medium capitalize">{m.replace('_', ' ')}</span>
+                          ))}
+                        </div>
+                      )}
+                      {/* Per-plan feature badges */}
+                      {(v.service_mode || v.buffer_minutes || v.service_capacity > 1 || v.duration_minutes ||
+                        v.plan_price_type || v.discount_percentage || v.discount_amount ||
+                        v.tax_rate || v.sac_code || v.gst_rate ||
+                        v.requires_booking != null || v.cancellation_policy ||
+                        v.availability?.length || v.service_expiry_date || v.validity_period_days || v.renewal_required) && (
+                        <div className="border-t border-violet-200 pt-2 space-y-2">
+                          {/* Config */}
+                          <div className="flex gap-3 text-xs flex-wrap">
+                            <span className="font-medium text-blue-600 flex items-center gap-1"><Settings className="w-3 h-3" />Config:</span>
+                            {vModeLbl && <span>{vModeLbl}</span>}
+                            {v.duration_minutes ? <span>{v.duration_minutes} {(UOM_OPTIONS.find(u => u.value === vUom)?.label?.replace(/\s*\(.*\)/, '') || 'min').toLowerCase()}</span> : null}
+                          </div>
+                          {/* Pricing */}
+                          {(v.discount_percentage || v.discount_amount || v.offer_label) && (
+                            <div className="flex gap-3 text-xs">
+                              <span className="font-medium text-green-600 flex items-center gap-1"><IndianRupee className="w-3 h-3" />Discount:</span>
+                              {v.discount_percentage ? <span>{v.discount_percentage}%</span> : null}
+                              {v.discount_amount ? <span>{sym}{v.discount_amount}</span> : null}
+                              {v.offer_label && <span className="italic">{v.offer_label}</span>}
+                            </div>
+                          )}
+                          {/* Tax */}
+                          {(v.tax_rate || v.gst_rate || v.sac_code) && (
+                            <div className="flex gap-3 text-xs">
+                              <span className="font-medium text-amber-600 flex items-center gap-1"><Receipt className="w-3 h-3" />Tax:</span>
+                              {v.tax_rate ? <span>{v.tax_rate}%</span> : null}
+                              {v.gst_rate ? <span>GST {v.gst_rate}%</span> : null}
+                              {v.sac_code && <span>SAC: {v.sac_code}</span>}
+                            </div>
+                          )}
+                          {/* Booking */}
+                          {v.cancellation_policy && (
+                            <div className="flex gap-3 text-xs">
+                              <span className="font-medium text-indigo-600 flex items-center gap-1"><CalendarClock className="w-3 h-3" />Booking:</span>
+                              <span>{v.cancellation_policy}</span>
+                            </div>
+                          )}
+                          {/* Availability */}
+                          {v.availability?.length > 0 && (
+                            <div className="flex gap-2 flex-wrap text-xs">
+                              <span className="font-medium text-cyan-600 flex items-center gap-1"><Calendar className="w-3 h-3" />Availability:</span>
+                              {v.availability.filter((a: any) => a.is_available).map((a: any) => (
+                                <span key={a.day_of_week} className="bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded text-[10px]">
+                                  {DAYS_SHORT[a.day_of_week]} {a.start_time}–{a.end_time}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Lifecycle */}
+                          {(v.service_expiry_date || v.validity_period_days || v.renewal_required) && (
+                            <div className="flex gap-3 text-xs">
+                              <span className="font-medium text-rose-600 flex items-center gap-1"><Clock className="w-3 h-3" />Lifecycle:</span>
+                              {v.service_expiry_date && <span>Expires {v.service_expiry_date}</span>}
+                              {v.validity_period_days && <span>{v.validity_period_days}d validity</span>}
+                              {v.renewal_required && <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded-full">Renewal req.</span>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Booking, Tax, Availability, and Lifecycle details are shown per-plan above */}
+
+        {/* Advanced details */}
+        {(service.whats_included?.length || service.whats_not_included?.length || service.service_areas?.length || service.prerequisites) && (
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" />Details</p>
+              {service.prerequisites && <div className="mb-3"><p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Prerequisites</p><p className="text-sm text-gray-700">{service.prerequisites}</p></div>}
+              {service.whats_included?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">What's Included</p>
+                  <div className="flex gap-1.5 flex-wrap">{service.whats_included.map((w: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded-full border border-green-200">{w}</span>)}</div>
+                </div>
+              )}
+              {service.whats_not_included?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Not Included</p>
+                  <div className="flex gap-1.5 flex-wrap">{service.whats_not_included.map((w: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full border border-red-100">{w}</span>)}</div>
+                </div>
+              )}
+              {service.service_areas?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin className="w-2.5 h-2.5" />Service Areas</p>
+                  <div className="flex gap-1.5 flex-wrap">{service.service_areas.map((a: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-gray-100 rounded-full text-gray-600">{a}</span>)}</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* SEO & Metadata */}
+        {(service.meta_title || service.meta_description || service.meta_keywords) && (
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Search className="w-3.5 h-3.5" />SEO & Metadata</p>
+              <div className="space-y-2">
+                <DisplayField label="Meta Title" value={service.meta_title} />
+                <DisplayField label="Meta Description" value={service.meta_description} />
+                {service.meta_keywords && (
+                  <DisplayField label="Meta Keywords" value={
+                    <div className="flex flex-wrap gap-1.5">
+                      {(typeof service.meta_keywords === 'string'
+                        ? (service.meta_keywords as string).split(',').map((k: string) => k.trim()).filter(Boolean)
+                        : (service.meta_keywords as string[])
+                      ).map((k: string, i: number) => (
+                        <span key={i} className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">{k}</span>
+                      ))}
+                    </div>
+                  } />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Add-ons & Service Packages */}
+        {((service as any).addons || (service as any).service_packages) && (
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" />Add-ons & Packages</p>
+              {(service as any).addons && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Add-on Service IDs</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(typeof (service as any).addons === 'string'
+                      ? (service as any).addons.split(',').map((a: string) => a.trim()).filter(Boolean)
+                      : (service as any).addons
+                    ).map((a: string, i: number) => (
+                      <span key={i} className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{a}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(service as any).service_packages && (() => {
+                let pkgs: any[] = []
+                try { pkgs = typeof (service as any).service_packages === 'string' ? JSON.parse((service as any).service_packages) : (service as any).service_packages } catch { }
+                if (!Array.isArray(pkgs) || pkgs.length === 0) return null
+                return (
+                  <div>
+                    <p className="text-[10px] font-medium text-gray-400 uppercase mb-2">Service Packages</p>
+                    <div className="space-y-2">
+                      {pkgs.map((pkg: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between rounded-lg border px-3 py-2 bg-gray-50/50">
+                          <span className="text-sm font-medium text-gray-800">{pkg.name || `Package ${i + 1}`}</span>
+                          {pkg.price != null && <span className="text-sm font-bold text-gray-700">{sym}{pkg.price}</span>}
+                          {pkg.includes?.length > 0 && (
+                            <div className="flex gap-1 flex-wrap ml-3">
+                              {pkg.includes.map((inc: string, j: number) => (
+                                <span key={j} className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-700 rounded-full border border-green-100">{inc}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Visibility badges */}
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" />Visibility & Marketing</p>
+            <div className="flex gap-2 flex-wrap">
+              {service.is_featured  && <span className="text-xs px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-medium">⭐ Featured</span>}
+              {service.is_popular   && <span className="text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium">🔥 Popular</span>}
+              {service.is_new_service && <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-medium">✨ New</span>}
+              {service.is_visible   ? <span className="text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">👁 Visible</span>
+                                    : <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 font-medium">Hidden</span>}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* History */}
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-gray-400" />
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Change History</p>
+                <span className="text-[10px] bg-gray-100 rounded-full px-2 py-0.5 text-gray-500">v{service.version_number}</span>
+                <span className="text-xs text-gray-400">{(service as any).change_history?.length || 0} entries</span>
+              </div>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/services/${service.id}/audit`)}>
+                <FileDown className="w-4 h-4" />View Full Report
+              </Button>
+            </div>
+            {history.length === 0 ? (
+              <p className="text-sm text-gray-400">No history available yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {[...history].reverse().map((h: any, i: number) => {
+                  const changes = h.changes || {}
+                  const isCreation = changes._action?.new === 'Service created'
+                  const changedFields = Object.keys(changes).filter(k => k !== '_action')
+                  return (
+                    <div key={i} className="text-xs border rounded-lg p-2.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-gray-600">v{h.version}</span>
+                        <span className="text-gray-400">{h.changed_at ? new Date(h.changed_at).toLocaleString() : ''}</span>
+                        {h.changed_by_name && <span className="text-gray-500">by {h.changed_by_name}</span>}
+                      </div>
+                      {isCreation ? (
+                        <span className="text-green-600 font-medium">Service created</span>
+                      ) : changedFields.length > 0 ? changedFields.map((field, j) => (
+                        <div key={j} className="flex gap-2 text-[11px] text-gray-500 flex-wrap">
+                          <span className="font-medium text-gray-700 capitalize">{field.replace(/_/g, ' ')}:</span>
+                          <span className="text-red-500 line-through truncate max-w-[120px]">{String(changes[field]?.old ?? '(empty)')}</span>
+                          <span>→</span>
+                          <span className="text-green-600 truncate max-w-[120px]">{String(changes[field]?.new ?? '(empty)')}</span>
+                        </div>
+                      )) : (
+                        <span className="text-gray-400 italic">No field changes recorded</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // ── Edit / Create Mode ────────────────────────────────────────────
+
+  return (
+    <div className="max-w-4xl mx-auto pb-20">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm mb-4">
+        <div className="px-4 py-2 flex items-center gap-2 flex-wrap">
+          <Button variant="ghost" size="sm" onClick={() => isEdit ? setViewMode(true) : navigate('/services')}>
+            <ArrowLeft className="w-4 h-4 mr-1" />{isEdit ? 'View' : 'Back'}
+          </Button>
+          <h1 className="flex-1 text-sm font-semibold truncate text-gray-800">
+            {isEdit ? (service?.name || 'Edit Service') : 'New Service'}
+          </h1>
+          <Controller name="status" control={control} render={({ field }) => (
+            <select {...field} className={`h-8 rounded-md border px-2 text-xs font-medium focus:outline-none ${
+              field.value === 'active'   ? 'border-green-300 bg-green-50 text-green-700' :
+              field.value === 'archived' ? 'border-red-300 bg-red-50 text-red-600' :
+              'border-gray-300 bg-gray-50 text-gray-700'
+            }`}>
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+          )} />
+          <Controller name="is_visible" control={control} render={({ field }) => (
+            <Toggle label="Visible" checked={field.value} onChange={field.onChange} small />
+          )} />
+          <Button size="sm" type="button" disabled={isSaving}
+            onClick={handleSubmit(onSubmit, errs => {
+              const first = Object.keys(errs)[0]
+              toast.error(`Validation: ${first} — ${(errs as any)[first]?.message || 'invalid'}`)
+            })}>
+            {isSaving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+            {isEdit ? 'Save Service' : 'Create Service'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Media card — edit mode (instant upload like Product) */}
+      {isEdit && service ? (
+        <Card><div className="p-6"><h3 className="font-semibold mb-3">Media</h3>
+          <ServiceMediaUpload
+            media={(service as any).media || []}
+            onUpload={handleMediaUpload}
+            onDelete={handleMediaDelete}
+            onSetPrimary={handleMediaSetPrimary}
+          />
+        </div></Card>
+      ) : !isEdit ? (
+        /* Media card — create mode (staged until service is created) */
+        <Card><div className="p-6">
+          <h3 className="font-semibold mb-1">Media</h3>
+          <p className="text-xs text-gray-400 mb-3">Images, videos &amp; 3D models — uploaded after service is created</p>
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDrop={e => { e.preventDefault(); addPendingFiles(e.dataTransfer.files) }}
+            onDragOver={e => e.preventDefault()}
+            className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+          >
+            <Upload className="w-8 h-8 mx-auto text-gray-400" />
+            <p className="mt-2 text-sm text-gray-600">Click or drag files here</p>
+            <div className="flex items-center justify-center gap-3 mt-2">
+              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><ImageIcon className="w-3 h-3" />Images</span>
+              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Film className="w-3 h-3" />Videos</span>
+              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Box className="w-3 h-3" />3D Models</span>
+            </div>
+            <p className="text-[10px] text-gray-300 mt-1">Images: 5 MB · Videos: 50 MB · 3D (GLB/GLTF): 30 MB</p>
+            <input ref={fileInputRef} type="file" multiple
+              accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf"
+              className="hidden"
+              onChange={e => { addPendingFiles(e.target.files); if (fileInputRef.current) fileInputRef.current.value = '' }} />
+          </div>
+          {pendingFiles.length > 0 && (
+            <div className="grid grid-cols-4 gap-3 mt-4">
+              {pendingFiles.map((file, i) => {
+                const mt = getMediaType(file)
+                return (
+                  <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border bg-gray-50">
+                    {mt === 'video' ? (
+                      <video src={pendingPreviews[i]} className="w-full h-full object-cover" muted />
+                    ) : mt === 'model3d' ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
+                        <Box className="w-10 h-10" />
+                        <span className="text-[10px] mt-1 font-medium">{file.name.split('.').pop()?.toUpperCase()}</span>
+                      </div>
+                    ) : (
+                      <img src={pendingPreviews[i]} alt="" className="w-full h-full object-cover" />
+                    )}
+                    {mt === 'video' && <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
+                    {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
+                    <button type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>
+                    {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div></Card>
+      ) : null}
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+
+        {/* 1. Basic Information */}
+        <Section title="Basic Information" icon={Briefcase} open={openSections.basic ?? true} onToggle={() => toggle('basic')}>
+          <div className="space-y-3 pt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Service Name *" error={errors.name?.message}>
+                <Input {...register('name')} onChange={handleNameChange} placeholder="e.g. AC Repair & Service" />
+              </Field>
+              <Field label="Slug" error={errors.slug?.message}>
+                <Input {...register('slug')} placeholder="ac-repair-service" readOnly
+                  className="bg-gray-100 text-gray-500 cursor-not-allowed" />
+              </Field>
+            </div>
+            <Field label="Category" className="max-w-xs">
+              <select {...register('category')} className={selectCls}
+                onChange={e => { register('category').onChange(e); setValue('subcategory', '') }}>
+                <option value="">Select…</option>
+                {serviceCategories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+            </Field>
+            {watchedCategory && (
+              <Field label="Subcategory" className="max-w-xs">
+                {(() => {
+                  const selectedCat = serviceCategories.find((c: any) => c.name === watchedCategory)
+                  const subs = (selectedCat?.children || []).filter((s: any) => s.applies_to === 'service' || s.applies_to === 'both')
+                  return subs.length > 0 ? (
+                    <select {...register('subcategory')} className={selectCls}>
+                      <option value="">Select…</option>
+                      {subs.map((s: any) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    </select>
+                  ) : (
+                    <Input {...register('subcategory')} placeholder="e.g. Repair, Installation" />
+                  )
+                })()}
+              </Field>
+            )}
+            <Field label="Short Description">
+              <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
+            </Field>
+            <Field label="Full Description">
+              <textarea {...register('description')} rows={3} className={textareaCls} placeholder="Detailed service description..." />
+            </Field>
+            <Field label="Tags (comma separated)">
+              <Input {...register('tags')} placeholder="repair, home-service, ac, plumbing" />
+            </Field>
+          </div>
+        </Section>
+
+        {/* 2. Plans & Options */}
+        {/* 2. Storefront Options */}
+        <Section
+          title="Storefront Options"
+          icon={ToggleRight}
+          open={!!openSections.storefrontOptions}
+          onToggle={() => toggle('storefrontOptions')}
+        >
+          <div className="pt-4">
+            <p className="text-xs text-gray-500 mb-3">Control how customers interact with this service on the storefront.</p>
+            <div className="divide-y rounded-lg border">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <CalendarClock className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Booking</p>
+                    <p className="text-xs text-gray-400">Customers can book appointments or schedule sessions</p>
+                  </div>
+                </div>
+                <Controller name="requires_booking" control={control} render={({ field }) => (
+                  <Toggle checked={field.value} onChange={field.onChange} small />
+                )} />
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Repeat className="w-4 h-4 text-violet-600" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Subscription</p>
+                    <p className="text-xs text-gray-400">Offer recurring plans with billing intervals</p>
+                  </div>
+                </div>
+                <Controller name="is_subscription" control={control} render={({ field }) => (
+                  <Toggle checked={field.value} onChange={field.onChange} small />
+                )} />
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="w-4 h-4 text-amber-600" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Quote Requests</p>
+                    <p className="text-xs text-gray-400">Allow customers to request pricing quotes</p>
+                  </div>
+                </div>
+                <Controller name="allow_quote_request" control={control} render={({ field }) => (
+                  <Toggle checked={field.value} onChange={field.onChange} small />
+                )} />
+              </div>
+            </div>
+
+            {/* Quote Form Field Configurator */}
+            {watch('allow_quote_request') && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">Quote Request Form Fields</p>
+                    <p className="text-xs text-gray-400">Toggle fields on/off and mark them as required or optional</p>
+                  </div>
+                </div>
+                <QuoteFormConfigurator fields={quoteFields} onChange={setQuoteFields} />
+              </div>
+            )}
+
+            {/* Service-Level Weekly Availability */}
+            {watch('requires_booking') && (
+              <div className="mt-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Booking Availability</p>
+                  <p className="text-xs text-gray-400">Set your weekly availability for customer bookings. Plans can override these slots.</p>
+                </div>
+                <AvailabilityEditor availability={serviceAvailability} onChange={setServiceAvailability} />
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* 3. Plans */}
+        <Section
+          title="Plans"
+          icon={Layers}
+          open={!!openSections.subscription}
+          onToggle={() => toggle('subscription')}
+          badge={
+            plans.length > 0
+              ? <span className="ml-2 text-[10px] bg-violet-100 text-violet-600 rounded-full px-2 py-0.5 font-medium">{plans.length} plan{plans.length !== 1 ? 's' : ''}</span>
+              : undefined
+          }
+        >
+          <div className="space-y-4 pt-4">
+            {/* Add plan button */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Define pricing plans for this service. Plans apply to bookings, subscriptions, and quotes.</p>
+              <Button type="button" variant="outline" size="sm"
+                onClick={() => { setPlans(p => [...p, newPlan(p.length)]); setExpandedPlans(p => ({ ...p, [plans.length]: true })) }}>
+                <Plus className="w-4 h-4 mr-1" />Add plan
+              </Button>
+            </div>
+
+            {plans.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-6 border border-dashed rounded-lg">
+                No plans yet — add a plan to define pricing, scheduling, and options.
+              </p>
+            ) : (
+                  <div className="space-y-4">
+                    {plans.map((plan, idx) => {
+                      const isExpanded = expandedPlans[idx] ?? false
+                      const uomLbl = UOM_OPTIONS.find(u => u.value === plan.uom)?.label || plan.uom
+                      const priceLabel = plan.service_frequency === 'recurring' && plan.price_type === 'per_cycle' ? 'Price / Cycle' : `Price / ${uomLbl}`
+                      return (
+                        <div key={plan._key} className={`rounded-xl shadow-md transition-all duration-200 ${
+                          plan.is_active
+                            ? 'border-2 border-violet-200 bg-gradient-to-br from-white to-violet-50/30'
+                            : 'border-2 border-gray-300 bg-gray-50 opacity-70'
+                        }`}>
+                          {/* Collapsible header — matches product variant header */}
+                          <div
+                            className={`flex items-center justify-between gap-3 px-5 py-3 cursor-pointer select-none rounded-t-xl ${
+                              plan.is_active ? 'hover:bg-violet-50/50' : 'hover:bg-gray-100'
+                            }`}
+                            onClick={() => setExpandedPlans(p => ({ ...p, [idx]: !p[idx] }))}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold ${
+                                plan.is_active ? 'bg-violet-600 text-white' : 'bg-gray-400 text-white'
+                              }`}>{idx + 1}</span>
+                              <span className={`text-base font-semibold ${plan.is_active ? 'text-gray-800' : 'text-gray-500'}`}>Plan {idx + 1}</span>
+                              {plan.name && (
+                                <span className={`text-sm font-medium ${plan.is_active ? 'text-violet-600' : 'text-gray-400'}`}>— {plan.name}</span>
+                              )}
+                              {!plan.is_active && (
+                                <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">Inactive</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
+                              <Toggle label="Active" checked={plan.is_active}
+                                onChange={v => setPlans(p => p.map((x, i) => i === idx ? { ...x, is_active: v } : x))} />
+                              <button type="button" title="Duplicate plan"
+                                onClick={() => {
+                                  const clone = { ...plan, _key: `plan-${Date.now()}-${plans.length}`, name: `${plan.name || `Plan ${idx + 1}`} (copy)` }
+                                  setPlans(p => [...p, clone])
+                                  setExpandedPlans(p => ({ ...p, [plans.length]: true }))
+                                }}
+                                className="p-1.5 text-gray-500 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors">
+                                <Copy className="w-4 h-4" />
+                              </button>
+                              <button type="button" title="Delete plan" onClick={() => setDeletingPlanIdx(idx)}
+                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                          </div>
+
+                          {/* Collapsible body */}
+                          {isExpanded && (
+                            <div className={`px-4 pb-4 pt-2 space-y-3 border-t ${plan.is_active ? 'border-violet-100' : 'border-gray-200'}`}>
+                              {/* Identity */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <Field label="Plan Name">
+                                  <Input value={plan.name}
+                                    onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
+                                    placeholder="e.g. Basic / Premium" />
+                                </Field>
+                                <Field label="Description">
+                                  <Input value={plan.description}
+                                    onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, description: e.target.value } : x))}
+                                    placeholder="Short plan description" />
+                                </Field>
+                              </div>
+
+                              {/* Service Configuration */}
+                              <div className="pt-2 border-t border-violet-100 space-y-2">
+                                <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider flex items-center gap-1">
+                                  <Settings className="w-3 h-3" />Service Configuration
+                                </p>
+                                {/* Frequency: Once / Recurring — drives billing visibility */}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-gray-600">Frequency:</span>
+                                  <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                                    <button type="button"
+                                      className={`px-3.5 py-1.5 font-semibold transition-colors ${plan.service_frequency === 'once' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                                      onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_frequency: 'once' } : x))}
+                                    >Once</button>
+                                    <button type="button"
+                                      className={`px-3.5 py-1.5 font-semibold transition-colors ${plan.service_frequency === 'recurring' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                                      onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_frequency: 'recurring' } : x))}
+                                    >Recurring</button>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                  <Field label="Delivery Mode">
+                                    <select value={plan.service_mode}
+                                      onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_mode: e.target.value } : x))}
+                                      className={selectCls}>
+                                      {SERVICE_MODE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                                    </select>
+                                  </Field>
+                                  <Field label="UOM">
+                                    <select value={plan.uom}
+                                      onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, uom: e.target.value } : x))}
+                                      className={selectCls}>
+                                      {UOM_GROUPS.map(group => (
+                                        <optgroup key={group} label={group}>
+                                          {UOM_OPTIONS.filter(u => u.group === group).map(u => (
+                                            <option key={u.value} value={u.value}>{u.label}</option>
+                                          ))}
+                                        </optgroup>
+                                      ))}
+                                    </select>
+                                  </Field>
+                                  <Field label={`Qty / ${UOM_OPTIONS.find(u => u.value === plan.uom)?.label?.replace(/\s*\(.*\)/, '') || 'Unit'}`}>
+                                    <Input type="number" min="0" step="any" value={plan.duration_minutes}
+                                      onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, duration_minutes: e.target.value } : x))}
+                                      placeholder={plan.uom === 'hour' ? '2' : plan.uom === 'day' ? '1' : plan.uom === 'session' ? '1' : plan.uom === 'month' ? '1' : '1'} />
+                                  </Field>
+                                </div>
+                              </div>
+
+                              {/* Recurrence / Billing — only when frequency = recurring */}
+                              {plan.service_frequency === 'recurring' && (
+                                <div className="pt-2 border-t border-violet-100 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider flex items-center gap-1">
+                                      <Repeat className="w-3 h-3" />Recurrence & Billing
+                                    </p>
+                                    <div className="inline-flex rounded border border-violet-200 overflow-hidden text-[11px]">
+                                      <button type="button"
+                                        className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_cycle' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-violet-50'}`}
+                                        onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, price_type: 'per_cycle' } : x))}
+                                      >Per Cycle</button>
+                                      <button type="button"
+                                        className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_unit' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-violet-50'}`}
+                                        onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, price_type: 'per_unit' } : x))}
+                                      >Per UOM</button>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                    <Field label="Interval">
+                                      <select value={plan.subscription_interval}
+                                        onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, subscription_interval: e.target.value } : x))}
+                                        className={selectCls}>
+                                        <option value="">Select…</option>
+                                        {SUBSCRIPTION_INTERVALS.map(si => <option key={si.value} value={si.value}>{si.label}</option>)}
+                                      </select>
+                                    </Field>
+                                    <Field label="Max Cycles">
+                                      <Input type="number" min="0" value={plan.subscription_billing_cycles}
+                                        onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, subscription_billing_cycles: e.target.value } : x))}
+                                        placeholder="0 = ∞" />
+                                    </Field>
+                                    <Field label="Trial (days)">
+                                      <Input type="number" min="0" value={plan.subscription_trial_days}
+                                        onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, subscription_trial_days: e.target.value } : x))}
+                                        placeholder="14" />
+                                    </Field>
+                                    <Field label="Setup Fee">
+                                      <Input type="number" step="0.01" min="0" value={plan.subscription_setup_fee}
+                                        onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, subscription_setup_fee: e.target.value } : x))}
+                                        placeholder="99" />
+                                    </Field>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-medium text-gray-500 mb-1.5">Customer scheduling options</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {SCHEDULE_MODE_OPTIONS.map(opt => {
+                                        const active = plan.subscription_schedule_modes.includes(opt.value)
+                                        return (
+                                          <button key={opt.value} type="button"
+                                            onClick={() => setPlans(p => p.map((x, i) => {
+                                              if (i !== idx) return x
+                                              const next = active
+                                                ? x.subscription_schedule_modes.filter(s => s !== opt.value)
+                                                : [...x.subscription_schedule_modes, opt.value]
+                                              return { ...x, subscription_schedule_modes: next.length ? next : x.subscription_schedule_modes }
+                                            }))}
+                                            className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
+                                              active
+                                                ? 'bg-violet-600 text-white border-violet-600'
+                                                : 'bg-white text-gray-400 border-gray-200 hover:border-violet-300 hover:text-violet-600'
+                                            }`}>
+                                            {opt.label}
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ── Plan Settings ── */}
+                              <div className="pt-3 border-t border-violet-100 space-y-2">
+                                <p className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider">Plan Settings</p>
+
+                                {/* 1. Pricing & Discounts */}
+                                {(() => {
+                                  const secKey = `${idx}-pricing`
+                                  const isOpen = expandedPlanSections[secKey] ?? false
+                                  return (
+                                    <div className={`rounded-lg border transition-colors ${plan.enable_pricing ? 'border-green-200 bg-green-50/30' : 'border-gray-100'}`}>
+                                      <button type="button" className="w-full flex items-center justify-between px-3 py-2"
+                                        onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
+                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                          <IndianRupee className="w-3.5 h-3.5" />Pricing & Discounts
+                                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                        </span>
+                                        <span onClick={e => { e.stopPropagation(); setPlans(p => p.map((x, i) => i === idx ? { ...x, enable_pricing: !x.enable_pricing } : x)) }}
+                                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${plan.enable_pricing ? 'bg-green-600' : 'bg-gray-200'}`}>
+                                          <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${plan.enable_pricing ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </span>
+                                      </button>
+                                      {isOpen && (() => {
+                                        // Pure derived display values — NO setPlans here to avoid infinite re-renders
+                                        const pPrice = parseFloat(plan.price || '0')
+                                        const pCompare = parseFloat(plan.compare_at_price || '0')
+                                        const pCost = parseFloat(plan.cost_price || '0')
+                                        const autoDiscPct = (pCompare > 0 && pPrice > 0 && pCompare > pPrice)
+                                          ? parseFloat(((pCompare - pPrice) / pCompare * 100).toFixed(2)) : 0
+                                        const autoDiscAmt = (pCompare > 0 && pPrice > 0 && pCompare > pPrice)
+                                          ? parseFloat((pCompare - pPrice).toFixed(2)) : 0
+                                        const profit = pPrice > 0 && pCost > 0 ? pPrice - pCost : null
+                                        const margin = profit != null ? (profit / pPrice * 100) : null
+
+                                        // Helper called from onChange — safe to call setPlans here
+                                        const syncPlanPrices = (newPrice: number, newCompare: number) => {
+                                          if (newCompare > 0 && newPrice > 0 && newCompare > newPrice) {
+                                            const pct = parseFloat(((newCompare - newPrice) / newCompare * 100).toFixed(2))
+                                            const amt = parseFloat((newCompare - newPrice).toFixed(2))
+                                            const dateStr = (plan.discount_start_date && plan.discount_end_date)
+                                              ? ` · Valid ${new Date(plan.discount_start_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}–${new Date(plan.discount_end_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}`
+                                              : ''
+                                            setPlans(p => p.map((x, i) => {
+                                              if (i !== idx) return x
+                                              const lbl = (x.offer_label === '' || /^\d/.test(x.offer_label))
+                                                ? `${pct.toFixed(1)}% OFF${dateStr}` : x.offer_label
+                                              return { ...x, discount_percentage: pct.toFixed(2), discount_amount: amt.toFixed(2), offer_label: lbl }
+                                            }))
+                                          }
+                                        }
+
+                                        return (
+                                          <div className="px-3 pb-3 space-y-2">
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                              <Field label={priceLabel}>
+                                                <Input type="number" step="0.01" min="0" value={plan.price}
+                                                  onChange={e => {
+                                                    setPlans(p => p.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))
+                                                    syncPlanPrices(parseFloat(e.target.value||'0'), pCompare)
+                                                  }}
+                                                  placeholder="499" />
+                                              </Field>
+                                              <Field label="Compare At">
+                                                <Input type="number" step="0.01" min="0" value={plan.compare_at_price}
+                                                  onChange={e => {
+                                                    setPlans(p => p.map((x, i) => i === idx ? { ...x, compare_at_price: e.target.value } : x))
+                                                    syncPlanPrices(pPrice, parseFloat(e.target.value||'0'))
+                                                  }}
+                                                  placeholder="MRP / Regular" />
+                                              </Field>
+                                              <Field label="Cost Price">
+                                                <Input type="number" step="0.01" min="0" value={plan.cost_price}
+                                                  onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, cost_price: e.target.value } : x))}
+                                                  placeholder="Your cost" />
+                                              </Field>
+                                              <Field label="Currency">
+                                                <select value={plan.currency}
+                                                  onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, currency: e.target.value } : x))}
+                                                  className={selectCls}>
+                                                  <option value="INR">₹ INR</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option><option value="GBP">£ GBP</option>
+                                                </select>
+                                              </Field>
+                                            </div>
+                                            {/* Live price metrics */}
+                                            {(autoDiscPct > 0 || profit != null) && (
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                {autoDiscPct > 0 && (
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                                                    <Tag className="w-3 h-3" />{autoDiscPct.toFixed(1)}% OFF vs ₹{pCompare.toLocaleString()}
+                                                  </span>
+                                                )}
+                                                {profit != null && (
+                                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${profit >= 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                                    <BarChart3 className="w-3 h-3" />
+                                                    {profit >= 0 ? 'Profit' : 'Loss'}: ₹{Math.abs(profit).toLocaleString()} ({margin?.toFixed(1)}%)
+                                                  </span>
+                                                )}
+                                              </div>
+                                            )}
+                                            {/* Discount badges — purely display, no state updates */}
+                                            {(autoDiscPct > 0 || autoDiscAmt > 0) && (
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                {autoDiscPct > 0 && (
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                                                    <Tag className="w-3 h-3" />{autoDiscPct.toFixed(1)}% OFF
+                                                  </span>
+                                                )}
+                                                {autoDiscAmt > 0 && (
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                                                    ₹{autoDiscAmt.toLocaleString()} savings
+                                                  </span>
+                                                )}
+                                              </div>
+                                            )}
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                              <Field label="Discount %">
+                                                <Input type="number" step="0.01" min="0" max="100" value={plan.discount_percentage}
+                                                  onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, discount_percentage: e.target.value } : x))} />
+                                              </Field>
+                                              <Field label="Discount Amt">
+                                                <Input type="number" step="0.01" min="0" value={plan.discount_amount}
+                                                  onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, discount_amount: e.target.value } : x))}
+                                                  placeholder="Auto from price gap" />
+                                              </Field>
+                                              <Field label="Offer Label">
+                                                <Input value={plan.offer_label}
+                                                  onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, offer_label: e.target.value } : x))}
+                                                  placeholder={autoDiscPct > 0 ? `${autoDiscPct.toFixed(1)}% OFF` : '"Limited Time"'} />
+                                              </Field>
+                                            </div>
+                                            {/* Promotional period */}
+                                            <div className="p-2.5 rounded-lg bg-orange-50/50 border border-orange-100 space-y-2">
+                                              <p className="text-[10px] font-semibold text-orange-600 flex items-center gap-1"><Calendar className="w-3 h-3" /> Promotional Period</p>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <Field label="Promo Starts">
+                                                  <Input type="date" value={plan.discount_start_date}
+                                                    onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, discount_start_date: e.target.value } : x))} />
+                                                </Field>
+                                                <Field label="Promo Ends">
+                                                  <Input type="date" value={plan.discount_end_date}
+                                                    onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, discount_end_date: e.target.value } : x))} />
+                                                </Field>
+                                              </div>
+                                              {plan.discount_start_date && plan.discount_end_date && (
+                                                <p className="text-[11px] text-orange-700 font-medium flex items-center gap-1.5 bg-white border border-orange-200 rounded-lg px-2 py-1">
+                                                  <Clock className="w-3 h-3 shrink-0" />
+                                                  {autoDiscPct > 0 ? `${autoDiscPct.toFixed(1)}% OFF` : 'Offer'} valid: {new Date(plan.discount_start_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })} → {new Date(plan.discount_end_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )
+                                      })()}
+                                    </div>
+                                  )
+                                })()}
+
+                                {/* 2. Tax & Compliance */}
+                                {(() => {
+                                  const secKey = `${idx}-tax`
+                                  const isOpen = expandedPlanSections[secKey] ?? false
+                                  return (
+                                    <div className={`rounded-lg border transition-colors ${plan.enable_tax ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100'}`}>
+                                      <button type="button" className="w-full flex items-center justify-between px-3 py-2"
+                                        onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
+                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                          <Receipt className="w-3.5 h-3.5" />Tax & Compliance
+                                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                        </span>
+                                        <span onClick={e => { e.stopPropagation(); setPlans(p => p.map((x, i) => i === idx ? { ...x, enable_tax: !x.enable_tax } : x)) }}
+                                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${plan.enable_tax ? 'bg-amber-600' : 'bg-gray-200'}`}>
+                                          <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${plan.enable_tax ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </span>
+                                      </button>
+                                      {isOpen && (
+                                        <div className="px-3 pb-3 space-y-2">
+                                          <div className="grid grid-cols-3 gap-2">
+                                            <Field label="Tax Rate (%)">
+                                              <Input type="number" step="0.01" min="0" max="100" value={plan.tax_rate}
+                                                onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, tax_rate: e.target.value } : x))}
+                                                placeholder="18" />
+                                            </Field>
+                                            <Field label="SAC Code">
+                                              <Input value={plan.sac_code}
+                                                onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, sac_code: e.target.value } : x))}
+                                                placeholder="998311" maxLength={8} />
+                                            </Field>
+                                            <Field label="GST Rate (%)">
+                                              <Input type="number" step="0.01" min="0" max="100" value={plan.gst_rate}
+                                                onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, gst_rate: e.target.value } : x))}
+                                                placeholder="18" />
+                                            </Field>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+
+                                {/* 3. Booking & Scheduling */}
+                                {(() => {
+                                  const secKey = `${idx}-booking`
+                                  const isOpen = expandedPlanSections[secKey] ?? false
+                                  return (
+                                    <div className={`rounded-lg border transition-colors ${plan.enable_booking ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100'}`}>
+                                      <button type="button" className="w-full flex items-center justify-between px-3 py-2"
+                                        onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
+                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                          <CalendarClock className="w-3.5 h-3.5" />Booking & Scheduling
+                                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                        </span>
+                                        <span onClick={e => { e.stopPropagation(); setPlans(p => p.map((x, i) => i === idx ? { ...x, enable_booking: !x.enable_booking } : x)) }}
+                                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${plan.enable_booking ? 'bg-indigo-600' : 'bg-gray-200'}`}>
+                                          <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${plan.enable_booking ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </span>
+                                      </button>
+                                      {isOpen && (
+                                        <div className="px-3 pb-3 space-y-2">
+                                          <Toggle label="Requires Booking" checked={plan.requires_booking} small
+                                            onChange={v => setPlans(p => p.map((x, i) => i === idx ? { ...x, requires_booking: v } : x))} />
+                                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                            <Field label="Max / Slot">
+                                              <Input type="number" min="1" value={plan.max_bookings_per_slot}
+                                                onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, max_bookings_per_slot: e.target.value } : x))} />
+                                            </Field>
+                                            <Field label="Advance (days)">
+                                              <Input type="number" min="0" value={plan.advance_booking_days}
+                                                onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, advance_booking_days: e.target.value } : x))} />
+                                            </Field>
+                                            <Field label="Lead Time">
+                                              <div className="flex gap-1.5">
+                                                <Input type="number" min="0" className="w-20" value={plan.booking_lead_time_value}
+                                                  onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, booking_lead_time_value: e.target.value } : x))}
+                                                  placeholder="0" />
+                                                <select value={plan.booking_lead_time_unit}
+                                                  onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, booking_lead_time_unit: e.target.value } : x))}
+                                                  className={selectCls}>
+                                                  {LEAD_TIME_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                                                </select>
+                                              </div>
+                                            </Field>
+                                          </div>
+                                          <Field label="Cancellation Policy">
+                                            <textarea value={plan.cancellation_policy} rows={2} className={textareaCls}
+                                              onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, cancellation_policy: e.target.value } : x))}
+                                              placeholder="Free cancellation up to 24 hours before" />
+                                          </Field>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <Field label="Cancel Window (hrs)">
+                                              <Input type="number" min="0" value={plan.cancellation_hours}
+                                                onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, cancellation_hours: e.target.value } : x))}
+                                                placeholder="24" />
+                                            </Field>
+                                          </div>
+                                          <Field label="Rescheduling Policy">
+                                            <textarea value={plan.rescheduling_policy} rows={2} className={textareaCls}
+                                              onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, rescheduling_policy: e.target.value } : x))} />
+                                          </Field>
+                                          <Field label="No-show Policy">
+                                            <textarea value={plan.no_show_policy} rows={2} className={textareaCls}
+                                              onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, no_show_policy: e.target.value } : x))} />
+                                          </Field>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+
+                                {/* 4. Weekly Availability */}
+                                {(() => {
+                                  const secKey = `${idx}-availability`
+                                  const isOpen = expandedPlanSections[secKey] ?? false
+                                  return (
+                                    <div className={`rounded-lg border transition-colors ${plan.enable_availability ? 'border-cyan-200 bg-cyan-50/30' : 'border-gray-100'}`}>
+                                      <button type="button" className="w-full flex items-center justify-between px-3 py-2"
+                                        onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
+                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                          <Calendar className="w-3.5 h-3.5" />Weekly Availability
+                                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                        </span>
+                                        <span onClick={e => { e.stopPropagation(); setPlans(p => p.map((x, i) => i === idx ? { ...x, enable_availability: !x.enable_availability } : x)) }}
+                                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${plan.enable_availability ? 'bg-cyan-600' : 'bg-gray-200'}`}>
+                                          <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${plan.enable_availability ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </span>
+                                      </button>
+                                      {isOpen && (
+                                        <div className="px-3 pb-3">
+                                          <AvailabilityEditor
+                                            availability={plan.availability}
+                                            onChange={newAvail => setPlans(p => p.map((x, i) => i === idx ? { ...x, availability: newAvail } : x))}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+
+                                {/* 5. Service Lifecycle */}
+                                {(() => {
+                                  const secKey = `${idx}-lifecycle`
+                                  const isOpen = expandedPlanSections[secKey] ?? false
+                                  return (
+                                    <div className={`rounded-lg border transition-colors ${plan.enable_lifecycle ? 'border-rose-200 bg-rose-50/30' : 'border-gray-100'}`}>
+                                      <button type="button" className="w-full flex items-center justify-between px-3 py-2"
+                                        onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
+                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                          <Clock className="w-3.5 h-3.5" />Service Lifecycle
+                                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                        </span>
+                                        <span onClick={e => { e.stopPropagation(); setPlans(p => p.map((x, i) => i === idx ? { ...x, enable_lifecycle: !x.enable_lifecycle } : x)) }}
+                                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${plan.enable_lifecycle ? 'bg-rose-600' : 'bg-gray-200'}`}>
+                                          <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${plan.enable_lifecycle ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </span>
+                                      </button>
+                                      {isOpen && (
+                                        <div className="px-3 pb-3 space-y-2">
+                                          <div className="grid grid-cols-2 gap-2 max-w-xs">
+                                            <Field label="Expiry Date">
+                                              <Input type="date" value={plan.service_expiry_date}
+                                                onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_expiry_date: e.target.value } : x))} />
+                                            </Field>
+                                            <Field label="Validity (days)">
+                                              <Input type="number" min="0" value={plan.validity_period_days}
+                                                onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, validity_period_days: e.target.value } : x))}
+                                                placeholder="30" />
+                                            </Field>
+                                          </div>
+                                          <Toggle label="Renewal Required" checked={plan.renewal_required} small
+                                            onChange={v => setPlans(p => p.map((x, i) => i === idx ? { ...x, renewal_required: v } : x))} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+          </div>
+        </Section>
+
+        {/* Pricing, Tax, Booking, Availability, and Lifecycle are now inside each plan card */}
+
+        {/* 8. Visibility & Marketing */}
+        <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')}>
+          <div className="pt-4">
+            <p className="text-[10px] text-gray-400 bg-blue-50 rounded px-3 py-2 mb-3">Status and visibility are controlled from the top sticky bar.</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
+              <Controller name="is_featured" control={control} render={({ field }) => (
+                <Toggle label="⭐ Featured Service" checked={field.value} onChange={field.onChange} small />
+              )} />
+              <Controller name="is_popular" control={control} render={({ field }) => (
+                <Toggle label="🔥 Popular" checked={field.value} onChange={field.onChange} small />
+              )} />
+              <Controller name="is_new_service" control={control} render={({ field }) => (
+                <Toggle label="✨ New Service" checked={field.value} onChange={field.onChange} small />
+              )} />
+            </div>
+          </div>
+        </Section>
+
+        {/* 9. SEO */}
+        <Section title="SEO & Metadata" icon={Search} open={!!openSections.seo} onToggle={() => toggle('seo')}>
+          <div className="space-y-3 pt-4">
+            <Field label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (leave blank to auto-generate)" /></Field>
+            <Field label="Meta Description">
+              <textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." />
+            </Field>
+            <Field label="Meta Keywords (comma separated)">
+              <Input {...register('meta_keywords')} placeholder="ac repair, cooling service, home service" />
+            </Field>
+          </div>
+        </Section>
+
+        {/* 10. Advanced Features */}
+        <Section title="Advanced Features" icon={Puzzle} open={!!openSections.advanced} onToggle={() => toggle('advanced')}>
+          <div className="space-y-3 pt-4">
+            <Field label="Prerequisites">
+              <textarea {...register('prerequisites')} rows={2} className={textareaCls} placeholder="What the customer needs to prepare or have available..." />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="What's Included (comma separated)">
+                <Input {...register('whats_included')} placeholder="Inspection, Labor, Parts" />
+              </Field>
+              <Field label="What's Not Included (comma separated)">
+                <Input {...register('whats_not_included')} placeholder="Travel charges, Spare parts above ₹500" />
+              </Field>
+            </div>
+            <Field label="Service Areas (pin codes or names, comma separated)">
+              <Input {...register('service_areas')} placeholder="560001, 560002, Koramangala, Indiranagar" />
+            </Field>
+            <Field label="Service Packages (JSON array)">
+              <textarea {...register('service_packages')} rows={3} className={`${textareaCls} font-mono text-xs`}
+                placeholder='[{"name":"Basic","price":999,"includes":["2hr service","1 visit"]},{"name":"Premium","price":1999}]' />
+            </Field>
+          </div>
+        </Section>
+
+        {/* Add-ons & Linked Services/Products */}
+        <Section title="Add-ons & Linked Items" icon={Plus} open={!!openSections.addons} onToggle={() => toggle('addons')}>
+          <div className="space-y-4 pt-4">
+            <p className="text-xs text-gray-500">
+              Attach products or services that can be sold or booked alongside this service — e.g. spare parts, installation, warranty, follow-up sessions.
+              Set <strong>when booking is triggered</strong> based on the order channel or status.
+            </p>
+
+            {/* Search input */}
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search products or services to add…"
+                    value={svcAddonSearch}
+                    onChange={e => setSvcAddonSearch(e.target.value)}
+                    autoComplete="off"
+                    className="w-full h-9 pl-9 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                  {svcAddonLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-gray-400" />}
+                </div>
+              </div>
+              {svcAddonResults.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                  {svcAddonResults.map(r => (
+                    <button key={r.id} type="button"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-indigo-50 border-b border-gray-50 last:border-0"
+                      onClick={() => {
+                        setServiceAddons(prev => [...prev, {
+                          id: r.id, name: r.name, item_type: r.item_type,
+                          addon_type: r.item_type === 'service' ? 'demo' : 'other',
+                          booking_trigger: 'at_sale',
+                          optional: true,
+                        }])
+                        setSvcAddonSearch('')
+                        setSvcAddonResults([])
+                      }}>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${r.item_type === 'service' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {r.item_type === 'service' ? 'SVC' : 'PRD'}
+                      </span>
+                      <span className="font-medium text-gray-800">{r.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Addon list */}
+            {serviceAddons.length === 0 ? (
+              <div className="text-center py-8 border border-dashed border-gray-200 rounded-xl">
+                <Plus className="w-7 h-7 text-gray-300 mx-auto mb-1.5" />
+                <p className="text-xs text-gray-400">No add-ons yet. Search to link spare parts, warranties, follow-up sessions, or any complementary item.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {serviceAddons.map((addon, ai) => (
+                  <div key={addon.id} className="border border-gray-200 rounded-xl p-3 space-y-3 bg-gray-50/50">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {addon.item_type === 'service' ? 'Service' : 'Product'}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{addon.name}</span>
+                      <label className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
+                        <input type="checkbox" checked={addon.optional} onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, optional: e.target.checked } : a))} className="rounded" />
+                        Optional
+                      </label>
+                      <button type="button" onClick={() => setServiceAddons(p => p.filter((_, i) => i !== ai))}
+                        className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Type</label>
+                        <select value={addon.addon_type}
+                          onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, addon_type: e.target.value } : a))}
+                          className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                          <option value="install">Installation</option>
+                          <option value="demo">Demo / Training</option>
+                          <option value="warranty">Warranty</option>
+                          <option value="maintenance">Maintenance</option>
+                          <option value="delivery">Delivery</option>
+                          <option value="setup">Setup / Config</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Book When</label>
+                        <select value={addon.booking_trigger}
+                          onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, booking_trigger: e.target.value } : a))}
+                          className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                          <option value="at_sale">At Point of Sale / POS</option>
+                          <option value="after_delivery">After Delivery (online)</option>
+                          <option value="on_status">On Specific Order Status</option>
+                        </select>
+                      </div>
+                      {addon.booking_trigger === 'on_status' && (
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Trigger Status</label>
+                          <select value={addon.trigger_status || 'delivered'}
+                            onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, trigger_status: e.target.value } : a))}
+                            className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            <optgroup label="— Order Statuses —">
+                              <option value="confirmed">Order Confirmed</option>
+                              <option value="processing">Processing</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="out_for_delivery">Out for Delivery</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="installed">Installed</option>
+                            </optgroup>
+                            <optgroup label="— Booking Statuses —">
+                              <option value="booking_confirmed">Booking Confirmed</option>
+                              <option value="booking_scheduled">Booking Scheduled</option>
+                              <option value="booking_in_progress">In Progress</option>
+                              <option value="booking_completed">Booking Completed</option>
+                              <option value="booking_no_show">No Show</option>
+                              <option value="booking_rescheduled">Rescheduled</option>
+                              <option value="booking_cancelled">Booking Cancelled</option>
+                            </optgroup>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-medium flex items-center gap-1.5 ${
+                      addon.booking_trigger === 'at_sale' ? 'bg-green-50 text-green-700 border border-green-200' :
+                      addon.booking_trigger === 'after_delivery' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                      'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}>
+                      <Clock className="w-3 h-3 shrink-0" />
+                      {addon.booking_trigger === 'at_sale' && 'Booking can be scheduled immediately when sold at POS or checkout.'}
+                      {addon.booking_trigger === 'after_delivery' && 'For online/source purchases — booking available only after the item is delivered.'}
+                      {addon.booking_trigger === 'on_status' && `Booking opens when order reaches "${addon.trigger_status || 'delivered'}" status.`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* 11. Print Document Templates */}
+        <Section title="Print Documents" icon={Printer} open={!!openSections.printDocs} onToggle={() => toggle('printDocs')}>
+          <p className="text-xs text-gray-400 mb-3">
+            Choose which document templates are available when printing from a booking for this service.
+            {!isEdit && ' Templates will be saved once the service is created.'}
+          </p>
+
+          {/* Selected chips */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {printDocIds.length === 0 && (
+              <span className="text-[11px] text-gray-400 italic">No document templates selected yet.</span>
+            )}
+            {printDocIds.map(docId => {
+              const doc = BOOKING_DOC_TYPES.find(d => d.id === docId)
+              if (!doc) return null
+              return (
+                <span key={docId}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${doc.bg} ${doc.border} ${doc.color}`}>
+                  {doc.label}
+                  <button type="button" onClick={() => removePrintDoc(docId as BookingDocTypeId)}
+                    className="hover:opacity-70 transition-opacity" title="Remove">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )
+            })}
+          </div>
+
+          {/* Add picker */}
+          <div className="relative">
+            {!showDocPicker ? (
+              <button type="button" onClick={() => setShowDocPicker(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 text-xs text-gray-500 hover:border-violet-400 hover:text-violet-600 hover:bg-violet-50 transition-all font-medium">
+                <Plus className="w-3.5 h-3.5" /> Add document template
+              </button>
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
+                  <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide">Select a template</p>
+                  <button type="button" onClick={() => setShowDocPicker(false)}
+                    className="p-0.5 rounded hover:bg-gray-200 transition-colors">
+                    <X className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {BOOKING_DOC_TYPES.filter(doc => !printDocIds.includes(doc.id as BookingDocTypeId)).map(doc => (
+                    <button key={doc.id} type="button"
+                      onClick={() => addPrintDoc(doc.id as BookingDocTypeId)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:${doc.bg} transition-colors group`}>
+                      <div className={`w-7 h-7 rounded-lg ${doc.bg} border ${doc.border} flex items-center justify-center shrink-0`}>
+                        <Printer className={`w-3.5 h-3.5 ${doc.color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-semibold ${doc.color}`}>{doc.label}</p>
+                        <p className="text-[10px] text-gray-400">{doc.desc}</p>
+                      </div>
+                      <Plus className="w-3.5 h-3.5 text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
+                    </button>
+                  ))}
+                  {BOOKING_DOC_TYPES.every(doc => printDocIds.includes(doc.id as BookingDocTypeId)) && (
+                    <p className="px-3 py-4 text-xs text-gray-400 text-center">All templates added</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* 12. Statistics */}
+        {isEdit && (
+          <Section title="Statistics" icon={BarChart3} open={!!openSections.stats} onToggle={() => toggle('stats')}>
+            <div className="grid grid-cols-3 gap-4 text-center pt-4">
+              <div className="rounded-lg border p-4">
+                <p className="text-2xl font-bold">{service?.view_count ?? 0}</p>
+                <p className="text-xs text-gray-500 mt-1">Views</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-2xl font-bold">{service?.booking_count ?? 0}</p>
+                <p className="text-xs text-gray-500 mt-1">Bookings</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-2xl font-bold">v{service?.version_number ?? 1}</p>
+                <p className="text-xs text-gray-500 mt-1">Version</p>
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {/* Submit */}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => isEdit ? setViewMode(true) : navigate('/services')}>Cancel</Button>
+          <Button type="submit" disabled={isSaving} size="sm">
+            {isSaving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+            {isEdit ? 'Save Service' : 'Create Service'}
+          </Button>
+        </div>
+      </form>
+
+      {deletingPlanIdx !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-100">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </span>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Delete Plan</h3>
+                <p className="text-sm text-gray-500">
+                  Are you sure you want to delete <strong>{plans[deletingPlanIdx]?.name || `Plan ${deletingPlanIdx + 1}`}</strong>? This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeletingPlanIdx(null)}>Cancel</Button>
+              <Button type="button" size="sm" className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => { setPlans(p => p.filter((_, i) => i !== deletingPlanIdx)); setDeletingPlanIdx(null) }}>
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

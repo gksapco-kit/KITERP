@@ -1,0 +1,600 @@
+# app/api/v1/uploads.py
+"""
+File upload endpoints for product and service images.
+Files are stored locally in the uploads/ directory.
+"""
+import os
+import uuid
+import aiofiles
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi.responses import JSONResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
+
+from app.database import get_db
+from app.api.deps import get_current_active_user
+from app.models.user import User
+from app.models.vendor_product import Product, ProductImage, ProductVariant
+from app.models.vendor_service import Service
+from app.services.vendor_service import VendorService
+from app.repositories.product_repo import ProductRepository
+from app.repositories.service_repo import ServiceRepository
+
+router = APIRouter()
+
+UPLOAD_DIR = Path(__file__).resolve().parents[3] / "uploads"
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
+ALLOWED_3D_TYPES = {"model/gltf-binary", "model/gltf+json", "application/octet-stream"}
+ALLOWED_3D_EXTENSIONS = {".glb", ".gltf"}
+ALLOWED_TYPES = ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES | ALLOWED_3D_TYPES
+MAX_IMAGE_SIZE = 5 * 1024 * 1024    # 5 MB
+MAX_VIDEO_SIZE = 50 * 1024 * 1024   # 50 MB
+MAX_3D_SIZE = 30 * 1024 * 1024      # 30 MB
+
+
+async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return vendor.id
+
+
+def _detect_media_type(file: UploadFile) -> str:
+    """Detect whether the file is image, video, or 3D model."""
+    ct = file.content_type or ""
+    ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
+    if ct in ALLOWED_VIDEO_TYPES:
+        return "video"
+    if ct in ALLOWED_3D_TYPES or ext in ALLOWED_3D_EXTENSIONS:
+        return "model3d"
+    return "image"
+
+
+async def _save_file(file: UploadFile, subfolder: str) -> str:
+    """Save an uploaded file and return the relative URL path."""
+    ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
+    is_3d = ext in ALLOWED_3D_EXTENSIONS
+    if not is_3d and file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type {file.content_type} not allowed. Supported: images, videos (MP4/WebM), 3D models (GLB/GLTF).",
+        )
+
+    contents = await file.read()
+    media = _detect_media_type(file)
+    max_size = MAX_VIDEO_SIZE if media == "video" else MAX_3D_SIZE if media == "model3d" else MAX_IMAGE_SIZE
+    if len(contents) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large. Max {max_size // (1024*1024)} MB for {media}.",
+        )
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    folder = UPLOAD_DIR / subfolder
+    folder.mkdir(parents=True, exist_ok=True)
+
+    filepath = folder / filename
+    async with aiofiles.open(str(filepath), "wb") as f:
+        await f.write(contents)
+
+    return f"/uploads/{subfolder}/{filename}"
+
+
+# ── Vendor Logo & Banner ──────────────────────────────────────────
+
+@router.post("/vendor/logo")
+async def upload_vendor_logo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload or replace the vendor logo."""
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    url = await _save_file(file, "vendor-logos")
+
+    if vendor.logo_url:
+        old_path = UPLOAD_DIR.parent / vendor.logo_url.lstrip("/")
+        if old_path.exists():
+            old_path.unlink()
+
+    vendor.logo_url = url
+    await db.commit()
+    return JSONResponse(content={"logo_url": url})
+
+
+@router.post("/vendor/banner")
+async def upload_vendor_banner(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload or replace the vendor banner."""
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    url = await _save_file(file, "vendor-banners")
+
+    if vendor.banner_url:
+        old_path = UPLOAD_DIR.parent / vendor.banner_url.lstrip("/")
+        if old_path.exists():
+            old_path.unlink()
+
+    vendor.banner_url = url
+    await db.commit()
+    return JSONResponse(content={"banner_url": url})
+
+
+@router.post("/vendor/blog-cover")
+async def upload_vendor_blog_cover(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a cover image for a vendor blog post. Returns a URL to store in ``cover_url``."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-blog-covers/{vendor_id}")
+    return JSONResponse(content={"cover_url": url, "url": url})
+
+
+@router.post("/user/avatar")
+async def upload_user_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload (or replace) the current user's profile avatar.
+
+    Returns the saved URL. The frontend then calls PATCH /auth/me with
+    { avatar_url } to persist it on the user record.
+    """
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Avatar must be an image (JPEG, PNG, WebP, or GIF).",
+        )
+
+    url = await _save_file(file, f"users/{current_user.id}/avatar")
+
+    if current_user.avatar_url and current_user.avatar_url.startswith("/uploads/users/"):
+        old_path = UPLOAD_DIR.parent / current_user.avatar_url.lstrip("/")
+        try:
+            if old_path.exists():
+                old_path.unlink()
+        except Exception:
+            pass
+
+    return JSONResponse(content={"url": url, "avatar_url": url})
+
+
+@router.post("/vendor/logo-anonymous")
+async def upload_logo_anonymous(
+    file: UploadFile = File(...),
+):
+    """Upload a logo during onboarding (before vendor is created). Returns URL to use later."""
+    url = await _save_file(file, "vendor-logos")
+    return JSONResponse(content={"logo_url": url})
+
+
+@router.post("/vendor/banner-anonymous")
+async def upload_banner_anonymous(
+    file: UploadFile = File(...),
+):
+    """Upload a banner during onboarding (before vendor is created). Returns URL to use later."""
+    url = await _save_file(file, "vendor-banners")
+    return JSONResponse(content={"banner_url": url})
+
+
+# ── Product Images ─────────────────────────────────────────────────
+
+@router.post("/products/{product_id}/images")
+async def upload_product_image(
+    product_id: UUID,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload an image for a product."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    media = _detect_media_type(file)
+    url = await _save_file(file, "products")
+
+    existing_count = len(product.images) if product.images else 0
+
+    image = ProductImage(
+        product_id=product.id,
+        url=url,
+        alt_text=product.name,
+        position=existing_count,
+        is_primary=existing_count == 0 and media == "image",
+        media_type=media,
+    )
+    db.add(image)
+    await db.commit()
+    await db.refresh(image)
+
+    return JSONResponse(content={
+        "id": str(image.id),
+        "url": image.url,
+        "alt_text": image.alt_text,
+        "position": image.position,
+        "is_primary": image.is_primary,
+        "media_type": image.media_type or "image",
+    })
+
+
+@router.delete("/products/{product_id}/images/{image_id}")
+async def delete_product_image(
+    product_id: UUID,
+    image_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a product image."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    target = None
+    for img in (product.images or []):
+        if img.id == image_id:
+            target = img
+            break
+
+    if not target:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Delete file from disk
+    filepath = UPLOAD_DIR.parent / target.url.lstrip("/")
+    if filepath.exists():
+        filepath.unlink()
+
+    was_primary = target.is_primary
+    await db.delete(target)
+    await db.commit()
+
+    # If deleted image was primary, make the first remaining image primary
+    if was_primary:
+        product = await repo.get_by_vendor_and_id(vendor_id, product_id)
+        if product.images:
+            product.images[0].is_primary = True
+            await db.commit()
+
+    return JSONResponse(content={"detail": "Image deleted"})
+
+
+@router.put("/products/{product_id}/images/{image_id}/primary")
+async def set_primary_product_image(
+    product_id: UUID,
+    image_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set an image as the primary product image."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    found = False
+    for img in (product.images or []):
+        if img.id == image_id:
+            img.is_primary = True
+            found = True
+        else:
+            img.is_primary = False
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    await db.commit()
+    return JSONResponse(content={"detail": "Primary image updated"})
+
+
+# ── Variant Media ──────────────────────────────────────────────────
+
+@router.post("/variants/{variant_id}/media")
+async def upload_variant_media(
+    variant_id: UUID,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a media file (image/video/3D) for a specific variant."""
+    vendor_id = await _get_vendor_id(current_user, db)
+
+    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variant not found")
+
+    # Ensure the variant belongs to this vendor's product
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(vendor_id, variant.product_id)
+    if not product:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    media = _detect_media_type(file)
+    url = await _save_file(file, f"variants/{variant_id}")
+
+    current_media = list(variant.media or [])
+    is_primary = len(current_media) == 0 and media == "image"
+    current_media.append({
+        "url": url,
+        "media_type": media,
+        "is_primary": is_primary,
+        "alt_text": variant.name,
+        "position": len(current_media),
+    })
+    variant.media = current_media
+    await db.commit()
+
+    return JSONResponse(content={"media": current_media, "added": current_media[-1]})
+
+
+@router.delete("/variants/{variant_id}/media")
+async def delete_variant_media(
+    variant_id: UUID,
+    url: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a media item from a variant."""
+    vendor_id = await _get_vendor_id(current_user, db)
+
+    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variant not found")
+
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(vendor_id, variant.product_id)
+    if not product:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    current_media = [m for m in (variant.media or []) if m.get("url") != url]
+
+    # Set primary to first image if needed
+    if current_media and not any(m.get("is_primary") for m in current_media):
+        for m in current_media:
+            if m.get("media_type", "image") == "image":
+                m["is_primary"] = True
+                break
+
+    variant.media = current_media
+    await db.commit()
+
+    # Delete file from disk
+    filepath = UPLOAD_DIR.parent / url.lstrip("/")
+    if filepath.exists():
+        filepath.unlink()
+
+    return JSONResponse(content={"media": current_media})
+
+
+@router.put("/variants/{variant_id}/media/primary")
+async def set_primary_variant_media(
+    variant_id: UUID,
+    url: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set a media item as primary for a variant."""
+    vendor_id = await _get_vendor_id(current_user, db)
+
+    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variant not found")
+
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(vendor_id, variant.product_id)
+    if not product:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    current_media = list(variant.media or [])
+    for m in current_media:
+        m["is_primary"] = m.get("url") == url and m.get("media_type", "image") == "image"
+    variant.media = current_media
+    await db.commit()
+
+    return JSONResponse(content={"media": current_media})
+
+
+# ── Service Media ──────────────────────────────────────────────────
+
+@router.post("/services/{service_id}/media")
+async def upload_service_media(
+    service_id: UUID,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload media (image / video / 3D model) for a service."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = ServiceRepository(db)
+    svc = await repo.get_by_vendor_and_id(vendor_id, service_id)
+
+    if not svc:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    media_type = _detect_media_type(file)
+    url = await _save_file(file, "services")
+
+    current_media = list(svc.media or [])
+    is_primary = len(current_media) == 0 and media_type == "image"
+    media_item = {
+        "id": uuid.uuid4().hex,
+        "url": url,
+        "media_type": media_type,
+        "is_primary": is_primary,
+        "alt_text": svc.name,
+        "position": len(current_media),
+    }
+    current_media.append(media_item)
+    svc.media = current_media
+
+    if is_primary:
+        svc.image_url = url
+
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(svc, "media")
+    await db.commit()
+
+    return JSONResponse(content={"media": current_media, "item": media_item})
+
+
+@router.delete("/services/{service_id}/media/{media_id}")
+async def delete_service_media(
+    service_id: UUID,
+    media_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a media item from a service."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = ServiceRepository(db)
+    svc = await repo.get_by_vendor_and_id(vendor_id, service_id)
+
+    if not svc:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    current_media = list(svc.media or [])
+    target = None
+    for item in current_media:
+        if item.get("id") == media_id:
+            target = item
+            break
+
+    if not target:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    filepath = UPLOAD_DIR.parent / target["url"].lstrip("/")
+    if filepath.exists():
+        filepath.unlink()
+
+    was_primary = target.get("is_primary", False)
+    current_media.remove(target)
+
+    for i, item in enumerate(current_media):
+        item["position"] = i
+
+    if was_primary and current_media:
+        images = [m for m in current_media if m.get("media_type") == "image"]
+        if images:
+            images[0]["is_primary"] = True
+            svc.image_url = images[0]["url"]
+        else:
+            svc.image_url = None
+
+    svc.media = current_media
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(svc, "media")
+    await db.commit()
+
+    return JSONResponse(content={"media": current_media})
+
+
+@router.put("/services/{service_id}/media/{media_id}/primary")
+async def set_primary_service_media(
+    service_id: UUID,
+    media_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set a media item as the primary service image."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = ServiceRepository(db)
+    svc = await repo.get_by_vendor_and_id(vendor_id, service_id)
+
+    if not svc:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    current_media = list(svc.media or [])
+    found = False
+    for item in current_media:
+        if item.get("id") == media_id:
+            if item.get("media_type") != "image":
+                raise HTTPException(status_code=400, detail="Only images can be set as primary")
+            item["is_primary"] = True
+            svc.image_url = item["url"]
+            found = True
+        else:
+            item["is_primary"] = False
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    svc.media = current_media
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(svc, "media")
+    await db.commit()
+
+    return JSONResponse(content={"media": current_media})
+
+
+# -- HR Document Upload --
+
+ALLOWED_DOC_TYPES_HR = ALLOWED_IMAGE_TYPES | {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+MAX_DOC_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+@router.post("/hr/{emp_id}/documents")
+async def upload_hr_document(
+    emp_id: str,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if file.content_type not in ALLOWED_DOC_TYPES_HR:
+        raise HTTPException(status_code=400, detail="Only images, PDFs and Word documents are allowed.")
+
+    contents = await file.read()
+    if len(contents) > MAX_DOC_SIZE:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB).")
+
+    dest_dir = UPLOAD_DIR / "hr" / emp_id
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    ext = Path(file.filename or "file").suffix or ".bin"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    dest_path = dest_dir / filename
+
+    async with aiofiles.open(dest_path, "wb") as f:
+        await f.write(contents)
+
+    file_url = f"/uploads/hr/{emp_id}/{filename}"
+    is_image = file.content_type in ALLOWED_IMAGE_TYPES
+
+    return JSONResponse(content={
+        "file_url": file_url,
+        "original_name": file.filename,
+        "content_type": file.content_type,
+        "is_image": is_image,
+        "size": len(contents),
+    })

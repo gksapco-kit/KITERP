@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: kiterp-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # fill in Render dashboard
+      - key: MONGODB_URL
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: kiterp
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: APP_NAME
+        value: KITERP
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: PYTHONPATH
+        value: /app

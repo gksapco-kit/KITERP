@@ -1,0 +1,73 @@
+# ── Python / Backend ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+!.env.dev.example
+*.log
+*.sqlite3
+*.db
+htmlcov/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/alembic/versions/*.pyc
+
+# ── Node / Frontend ───────────────────────────────────────────────
+node_modules/
+dist/
+.next/
+out/
+.nuxt/
+.output/
+.cache/
+*.local
+.DS_Store
+Thumbs.db
+
+# ── Vercel / Netlify ──────────────────────────────────────────────
+.vercel/
+.netlify/
+
+# ── Docker ────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── IDE ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ── Nested project folder ─────────────────────────────────────────
+asureit/
+
+# ── OS ────────────────────────────────────────────────────────────
+.DS_Store
+*.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Secrets ───────────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.claude/ 

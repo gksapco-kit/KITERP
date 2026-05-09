@@ -1,0 +1,315 @@
+# app/api/v1/vendors.py
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Optional
+from uuid import UUID
+
+from app.database import get_db
+from app.api.deps import get_current_active_user
+from app.models.user import User
+from app.models.vendor_plan import VendorPlan
+from app.schemas.vendor import (
+    VendorCreate, VendorUpdate, VendorResponse,
+    SlugCheckRequest, SlugCheckResponse
+)
+from app.schemas.vendor_document import DocumentType, DocumentResponse
+from app.schemas.bank_account import BankAccountCreate, BankAccountResponse
+from app.services.vendor_service import VendorService
+from app.services.file_service import FileService
+
+router = APIRouter()
+
+
+def get_vendor_service(db: AsyncSession = Depends(get_db)) -> VendorService:
+    file_service = FileService()
+    return VendorService(db, file_service)
+
+
+# ============== Public Endpoints ==============
+
+@router.post("/register", response_model=VendorResponse, status_code=status.HTTP_201_CREATED)
+async def register_vendor(
+    data: VendorCreate,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """
+    Register a new vendor.
+    
+    - Requires authenticated user
+    - User becomes the vendor owner
+    """
+    vendor = await service.register(current_user.id, data)
+    return vendor
+
+
+@router.post("/check-slug", response_model=SlugCheckResponse)
+async def check_slug_availability(
+    data: SlugCheckRequest,
+    service: VendorService = Depends(get_vendor_service),
+):
+    """
+    Check if a slug is available for registration.
+    
+    - Returns availability status
+    - Provides suggestions if slug is taken
+    """
+    return await service.check_slug_availability(data.slug)
+
+
+# ============== Vendor Owner Endpoints ==============
+
+@router.get("/me", response_model=VendorResponse)
+async def get_my_vendor(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """Get current user's vendor profile."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user"
+        )
+    return vendor
+
+
+@router.put("/me", response_model=VendorResponse)
+async def update_my_vendor(
+    data: VendorUpdate,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """Update current user's vendor profile."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user"
+        )
+    return await service.update(vendor.id, data)
+
+
+# ============== Plan Management ==============
+
+@router.get("/plans")
+async def list_available_plans(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all active plans available for vendors to choose from."""
+    result = await db.execute(
+        select(VendorPlan)
+        .where(VendorPlan.is_active == True)
+        .order_by(VendorPlan.sort_order, VendorPlan.price_monthly)
+    )
+    plans = result.scalars().all()
+    return [
+        {
+            "id": str(p.id),
+            "name": p.name,
+            "slug": p.slug,
+            "description": p.description,
+            "price_monthly": float(p.price_monthly),
+            "price_yearly": float(p.price_yearly) if p.price_yearly else None,
+            "currency": p.currency or "INR",
+            "max_products": p.max_products,
+            "max_services": p.max_services,
+            "max_team_members": p.max_team_members,
+            "max_storage_mb": p.max_storage_mb,
+            "features": p.features or {},
+            "is_featured": p.is_featured,
+        }
+        for p in plans
+    ]
+
+
+@router.get("/me/plan")
+async def get_my_plan(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the current vendor's active plan and its features."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="No vendor found for this user")
+
+    if not vendor.plan_id:
+        return {"plan": None, "message": "No plan assigned"}
+
+    result = await db.execute(select(VendorPlan).where(VendorPlan.id == vendor.plan_id))
+    plan = result.scalar_one_or_none()
+    if not plan:
+        return {"plan": None, "message": "Plan not found"}
+
+    return {
+        "plan": {
+            "id": str(plan.id),
+            "name": plan.name,
+            "slug": plan.slug,
+            "description": plan.description,
+            "price_monthly": float(plan.price_monthly),
+            "price_yearly": float(plan.price_yearly) if plan.price_yearly else None,
+            "currency": plan.currency or "INR",
+            "max_products": plan.max_products,
+            "max_services": plan.max_services,
+            "max_team_members": plan.max_team_members,
+            "max_storage_mb": plan.max_storage_mb,
+            "features": plan.features or {},
+            "is_featured": plan.is_featured,
+        }
+    }
+
+
+@router.put("/me/plan")
+async def change_my_plan(
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Self-service plan upgrade or downgrade.
+    Body: { "plan_id": "<uuid>" }
+    """
+    plan_id = body.get("plan_id")
+    if not plan_id:
+        raise HTTPException(status_code=422, detail="plan_id is required")
+
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="No vendor found for this user")
+
+    try:
+        plan_uuid = UUID(plan_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid plan_id format")
+
+    result = await db.execute(
+        select(VendorPlan).where(VendorPlan.id == plan_uuid, VendorPlan.is_active == True)
+    )
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found or inactive")
+
+    old_plan_id = vendor.plan_id
+    vendor.plan_id = plan.id
+    await db.commit()
+    await db.refresh(vendor)
+
+    action = "upgraded" if (not old_plan_id or float(plan.price_monthly) >= 0) else "downgraded"
+
+    return {
+        "message": f"Plan {action} to '{plan.name}' successfully",
+        "plan": {
+            "id": str(plan.id),
+            "name": plan.name,
+            "slug": plan.slug,
+            "price_monthly": float(plan.price_monthly),
+            "currency": plan.currency or "INR",
+            "features": plan.features or {},
+        },
+    }
+
+
+# ============== Document Management ==============
+
+@router.post("/me/documents", response_model=DocumentResponse)
+async def upload_document(
+    document_type: DocumentType = Form(...),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """
+    Upload a verification document.
+    
+    - Supported types: business_registration, tax_id, id_proof, address_proof
+    - Allowed formats: JPEG, PNG, PDF
+    - Maximum size: 10MB
+    """
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user"
+        )
+    
+    return await service.upload_document(vendor.id, document_type, file)
+
+
+@router.get("/me/documents", response_model=List[DocumentResponse])
+async def get_my_documents(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """Get all uploaded verification documents."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user"
+        )
+    
+    return await service.get_documents(vendor.id)
+
+
+# ============== Bank Account ==============
+
+@router.post("/me/bank-account", response_model=BankAccountResponse)
+async def add_bank_account(
+    data: BankAccountCreate,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """Add a bank account for payouts."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user"
+        )
+    
+    return await service.add_bank_account(vendor.id, data)
+
+
+@router.get("/me/bank-accounts", response_model=List[BankAccountResponse])
+async def get_bank_accounts(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """Get all bank accounts."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user"
+        )
+    
+    return await service.get_bank_accounts(vendor.id)
+
+
+# ============== Review Submission ==============
+
+@router.post("/me/submit-review", response_model=VendorResponse)
+async def submit_for_review(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """
+    Submit vendor for admin review.
+    
+    Requirements:
+    - All required documents uploaded
+    - Primary bank account added
+    """
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user"
+        )
+    
+    return await service.submit_for_review(vendor.id)
