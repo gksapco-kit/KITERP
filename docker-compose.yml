@@ -133,12 +133,9 @@ services:
       - redis
 
   # ---- Frontend Apps ----
-  # vendor-web (:3001) and storefront-web (:3002) run NATIVELY (not in Docker).
-  # OneDrive volume mounts cause EIO crashes inside containers on Windows.
-  # Use start-dev.ps1 to launch them, or run manually:
-  #   cd vendor-web    && npm run dev
-  #   cd storefront-web && npm run dev
-  # Their .env files set VITE_API_URL=http://localhost:8000/api/v1
+  # Super Admin (:3000), Vendor (:3001), Storefront (:3002) start together with `docker compose up -d`.
+  # vendor-web needs sibling storefront sources (vite aliases); see vendor-web volume mounts below.
+  # On Windows + OneDrive, native `start-dev.ps1` may still be more reliable than bind-mounted Vite.
 
   frontend:
     build:
@@ -155,6 +152,40 @@ services:
       - VITE_BASE_DOMAIN=kiterp.com
     volumes:
       - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  vendor-web:
+    build:
+      context: ./vendor-web
+      target: development
+    container_name: kiterp-vendor-web
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    volumes:
+      - ./vendor-web:/app
+      # vite.config resolves ../storefront-web from /app → /storefront-web
+      - ./storefront-web:/storefront-web
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  storefront-web:
+    build:
+      context: ./storefront-web
+      target: development
+    container_name: kiterp-storefront-web
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    volumes:
+      - ./storefront-web:/app
       - /app/node_modules
     depends_on:
       - backend
