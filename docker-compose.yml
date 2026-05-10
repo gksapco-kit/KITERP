@@ -137,11 +137,9 @@ services:
   # vendor-web needs sibling storefront sources (vite aliases); see vendor-web volume mounts below.
   # On Windows + OneDrive, native `start-dev.ps1` may still be more reliable than bind-mounted Vite.
   #
-  # Before first `docker compose up` (or after package.json changes), install JS deps ON THE HOST so
-  # ./frontend, ./vendor-web, and ./storefront-web each contain node_modules:
-  #   (cd frontend && npm ci) && (cd vendor-web && npm ci) && (cd storefront-web && npm ci)
-  # We intentionally do NOT mount anonymous /app/node_modules volumes — those copy multi‑GB trees
-  # into /var/lib/docker and commonly cause "no space left on device" on small EC2 root volumes.
+  # No anonymous /app/node_modules volumes (saves multi‑GB under /var/lib/docker on small EC2 disks).
+  # Each service runs `npm ci` inside the Alpine container on first start if `vite` is missing, so
+  # node_modules match musl — do not rely on `npm ci` from the EC2 host (glibc) for container runtime.
 
   frontend:
     build:
@@ -158,6 +156,12 @@ services:
       - VITE_BASE_DOMAIN=kiterp.com
     volumes:
       - ./frontend:/app
+    command:
+      [
+        "sh",
+        "-c",
+        'set -e; if [ ! -x node_modules/.bin/vite ]; then npm ci; fi; exec npm run dev -- --host 0.0.0.0',
+      ]
     depends_on:
       - backend
 
@@ -175,6 +179,12 @@ services:
       - ./vendor-web:/app
       # vite.config resolves ../storefront-web from /app → /storefront-web
       - ./storefront-web:/storefront-web
+    command:
+      [
+        "sh",
+        "-c",
+        'set -e; if [ ! -x node_modules/.bin/vite ]; then npm ci; fi; exec npm run dev -- --host 0.0.0.0 --port 3001',
+      ]
     depends_on:
       - backend
 
@@ -190,6 +200,12 @@ services:
       - BACKEND_URL=http://backend:8000
     volumes:
       - ./storefront-web:/app
+    command:
+      [
+        "sh",
+        "-c",
+        'set -e; if [ ! -x node_modules/.bin/vite ]; then npm ci; fi; exec npm run dev -- --host 0.0.0.0',
+      ]
     depends_on:
       - backend
 
