@@ -136,6 +136,12 @@ services:
   # Super Admin (:3000), Vendor (:3001), Storefront (:3002) start together with `docker compose up -d`.
   # vendor-web needs sibling storefront sources (vite aliases); see vendor-web volume mounts below.
   # On Windows + OneDrive, native `start-dev.ps1` may still be more reliable than bind-mounted Vite.
+  #
+  # Before first `docker compose up` (or after package.json changes), install JS deps ON THE HOST so
+  # ./frontend, ./vendor-web, and ./storefront-web each contain node_modules:
+  #   (cd frontend && npm ci) && (cd vendor-web && npm ci) && (cd storefront-web && npm ci)
+  # We intentionally do NOT mount anonymous /app/node_modules volumes — those copy multi‑GB trees
+  # into /var/lib/docker and commonly cause "no space left on device" on small EC2 root volumes.
 
   frontend:
     build:
@@ -152,7 +158,6 @@ services:
       - VITE_BASE_DOMAIN=kiterp.com
     volumes:
       - ./frontend:/app
-      - /app/node_modules
     depends_on:
       - backend
 
@@ -170,7 +175,6 @@ services:
       - ./vendor-web:/app
       # vite.config resolves ../storefront-web from /app → /storefront-web
       - ./storefront-web:/storefront-web
-      - /app/node_modules
     depends_on:
       - backend
 
@@ -186,7 +190,6 @@ services:
       - BACKEND_URL=http://backend:8000
     volumes:
       - ./storefront-web:/app
-      - /app/node_modules
     depends_on:
       - backend
 
