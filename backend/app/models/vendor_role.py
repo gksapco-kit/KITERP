@@ -153,6 +153,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         "finance.audit.view",
         "commission.read", "commission.manage",
     ],
+    # Issued only via admin → vendor-web handoff; not inviteable from team UI.
+    "platform_staff": ALL_PERMISSIONS,
 }
 
 

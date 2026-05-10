@@ -25,6 +25,8 @@ import { BOMEditor } from '@/components/mrp/BOMEditor'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { isAxiosError } from 'axios'
+import { extractApiError } from '@/lib/errorMessages'
 
 // ── Zod schema ──────────────────────────────────────────────────
 
@@ -2314,8 +2316,10 @@ export default function ProductForm() {
         navigate(`/products/${newProduct.id}?edit=true`, { replace: true })
       }
     } catch (err) {
-      // Error toast is shown by mutation handlers
-      toast.error(`Submit error: ${(err as Error)?.message || 'unknown'}`)
+      // Mutations already toast via apiError(); avoid duplicate “Request failed with status code …”
+      if (!isAxiosError(err)) {
+        toast.error(extractApiError(err, 'Submit failed'))
+      }
     }
   }
 

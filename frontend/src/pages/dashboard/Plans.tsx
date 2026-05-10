@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { usePlans, useCreatePlan, useUpdatePlanFeatures } from '@/hooks/usePlans'
+import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useUpdatePlanFeatures } from '@/hooks/usePlans'
+import type { VendorPlan } from '@/api/plans.api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,6 +11,8 @@ import {
   Plus,
   Loader2,
   X,
+  Pencil,
+  Trash2,
   Smartphone,
   Globe,
   BarChart3,
@@ -29,6 +32,21 @@ const FEATURE_META: Record<string, { label: string; icon: typeof Smartphone; des
   white_label: { label: 'White Label', icon: Tag, description: 'Remove KITERP branding' },
 }
 
+type EditPlanFormState = {
+  name: string
+  slug: string
+  description: string
+  price_monthly: string
+  price_yearly: string
+  max_products: string
+  max_services: string
+  max_team_members: string
+  max_storage_mb: string
+  sort_order: string
+  is_active: boolean
+  is_featured: boolean
+}
+
 export default function Plans() {
   const { user } = useAuthStore()
   if (!isSuperuserAdmin(user)) {
@@ -36,8 +54,12 @@ export default function Plans() {
   }
   const { data: plans, isLoading } = usePlans()
   const createPlan = useCreatePlan()
+  const updatePlan = useUpdatePlan()
+  const deletePlan = useDeletePlan()
   const updateFeatures = useUpdatePlanFeatures()
   const [showCreate, setShowCreate] = useState(false)
+  const [editingPlan, setEditingPlan] = useState<VendorPlan | null>(null)
+  const [editForm, setEditForm] = useState<EditPlanFormState | null>(null)
   const [form, setForm] = useState({
     name: '',
     slug: '',
@@ -73,6 +95,86 @@ export default function Plans() {
     )
   }
 
+  const openEdit = (plan: VendorPlan) => {
+    setShowCreate(false)
+    setEditingPlan(plan)
+    setEditForm({
+      name: plan.name,
+      slug: plan.slug,
+      description: plan.description ?? '',
+      price_monthly: String(plan.price_monthly),
+      price_yearly: plan.price_yearly != null ? String(plan.price_yearly) : '',
+      max_products: String(plan.max_products),
+      max_services: String(plan.max_services),
+      max_team_members: String(plan.max_team_members),
+      max_storage_mb: String(plan.max_storage_mb),
+      sort_order: String(plan.sort_order ?? 0),
+      is_active: plan.is_active,
+      is_featured: plan.is_featured,
+    })
+  }
+
+  const closeEdit = () => {
+    setEditingPlan(null)
+    setEditForm(null)
+  }
+
+  const handleSaveEdit = () => {
+    if (!editingPlan || !editForm) return
+    const priceMonthly = parseFloat(editForm.price_monthly)
+    if (!editForm.name.trim() || !editForm.slug.trim() || Number.isNaN(priceMonthly)) return
+
+    const maxProducts = parseInt(editForm.max_products, 10)
+    const maxServices = parseInt(editForm.max_services, 10)
+    const maxTeam = parseInt(editForm.max_team_members, 10)
+    const maxStorage = parseInt(editForm.max_storage_mb, 10)
+    const sortOrder = parseInt(editForm.sort_order, 10)
+    if ([maxProducts, maxServices, maxTeam, maxStorage].some((n) => Number.isNaN(n))) return
+
+    let priceYearly: number | null | undefined = undefined
+    if (editForm.price_yearly.trim() === '') priceYearly = null
+    else {
+      const y = parseFloat(editForm.price_yearly)
+      if (Number.isNaN(y)) return
+      priceYearly = y
+    }
+
+    updatePlan.mutate(
+      {
+        planId: editingPlan.id,
+        data: {
+          name: editForm.name.trim(),
+          slug: editForm.slug.trim(),
+          description: editForm.description.trim() || null,
+          price_monthly: priceMonthly,
+          price_yearly: priceYearly,
+          max_products: maxProducts,
+          max_services: maxServices,
+          max_team_members: maxTeam,
+          max_storage_mb: maxStorage,
+          sort_order: Number.isNaN(sortOrder) ? 0 : sortOrder,
+          is_active: editForm.is_active,
+          is_featured: editForm.is_featured,
+        },
+      },
+      { onSuccess: () => closeEdit() },
+    )
+  }
+
+  const handleDeletePlan = (plan: VendorPlan) => {
+    if (
+      !confirm(
+        `Delete plan "${plan.name}"? Vendors using it will have no plan until you assign another.`,
+      )
+    )
+      return
+    deletePlan.mutate(plan.id, {
+      onSuccess: () => {
+        if (editingPlan?.id === plan.id) closeEdit()
+      },
+    })
+  }
+
   const handleToggleFeature = (planId: string, currentFeatures: Record<string, boolean>, featureKey: string) => {
     updateFeatures.mutate({
       planId,
@@ -101,7 +203,13 @@ export default function Plans() {
             Manage plans and feature flags. Toggle <strong>Branded App</strong> to allow vendors to get a custom mobile app.
           </p>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="gap-2">
+        <Button
+          onClick={() => {
+            closeEdit()
+            setShowCreate(true)
+          }}
+          className="gap-2"
+        >
           <Plus className="w-4 h-4" /> Create Plan
         </Button>
       </div>
@@ -192,32 +300,193 @@ export default function Plans() {
           {plans.map((plan) => (
             <Card key={plan.id} className="relative">
               {plan.is_featured && (
-                <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full">
+                <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full z-10">
                   Featured
                 </div>
               )}
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
                     <CardTitle className="text-lg">{plan.name}</CardTitle>
                     <p className="text-xs text-gray-500 font-mono mt-0.5">{plan.slug}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-blue-600">
-                      {plan.currency === 'INR' ? '₹' : '$'}{plan.price_monthly}
-                    </p>
-                    <p className="text-xs text-gray-500">/month</p>
-                    {plan.price_yearly && (
-                      <p className="text-xs text-gray-400">
-                        {plan.currency === 'INR' ? '₹' : '$'}{plan.price_yearly}/yr
+                  <div className="flex items-start gap-1 shrink-0">
+                    <div className="text-right mr-1">
+                      <p className="text-2xl font-bold text-blue-600">
+                        {plan.currency === 'INR' ? '₹' : '$'}{plan.price_monthly}
                       </p>
-                    )}
+                      <p className="text-xs text-gray-500">/month</p>
+                      {plan.price_yearly != null && plan.price_yearly > 0 && (
+                        <p className="text-xs text-gray-400">
+                          {plan.currency === 'INR' ? '₹' : '$'}{plan.price_yearly}/yr
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      title="Edit plan"
+                      disabled={updatePlan.isPending || deletePlan.isPending}
+                      onClick={() => openEdit(plan)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      title="Delete plan"
+                      disabled={updatePlan.isPending || deletePlan.isPending}
+                      onClick={() => handleDeletePlan(plan)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
                 {plan.description && (
                   <p className="text-sm text-gray-600 mt-1">{plan.description}</p>
                 )}
               </CardHeader>
+
+              {editingPlan?.id === plan.id && editForm && (
+                <div className="px-6 pb-4 border-t border-blue-200 bg-blue-50/40 space-y-4">
+                  <p className="text-sm font-medium text-gray-800 pt-2">Edit plan</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label>Plan name</Label>
+                      <Input
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Slug</Label>
+                      <Input
+                        value={editForm.slug}
+                        onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
+                        className="mt-1 font-mono"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label>Description</Label>
+                      <Input
+                        value={editForm.description}
+                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Monthly price ({plan.currency})</Label>
+                      <Input
+                        type="number"
+                        value={editForm.price_monthly}
+                        onChange={(e) => setEditForm({ ...editForm, price_monthly: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Yearly price (optional)</Label>
+                      <Input
+                        type="number"
+                        value={editForm.price_yearly}
+                        onChange={(e) => setEditForm({ ...editForm, price_yearly: e.target.value })}
+                        className="mt-1"
+                        placeholder="Leave empty to clear"
+                      />
+                    </div>
+                    <div>
+                      <Label>Max products (-1 = unlimited)</Label>
+                      <Input
+                        type="number"
+                        value={editForm.max_products}
+                        onChange={(e) => setEditForm({ ...editForm, max_products: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Max services (-1 = unlimited)</Label>
+                      <Input
+                        type="number"
+                        value={editForm.max_services}
+                        onChange={(e) => setEditForm({ ...editForm, max_services: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Max team members</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={editForm.max_team_members}
+                        onChange={(e) => setEditForm({ ...editForm, max_team_members: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Storage (MB)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={editForm.max_storage_mb}
+                        onChange={(e) => setEditForm({ ...editForm, max_storage_mb: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Sort order</Label>
+                      <Input
+                        type="number"
+                        value={editForm.sort_order}
+                        onChange={(e) => setEditForm({ ...editForm, sort_order: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-3 md:col-span-2 md:flex-row md:items-center pt-1">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editForm.is_active}
+                          onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })}
+                          className="rounded border-input"
+                        />
+                        Active (available for assignment)
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editForm.is_featured}
+                          onChange={(e) => setEditForm({ ...editForm, is_featured: e.target.checked })}
+                          className="rounded border-input"
+                        />
+                        Featured
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleSaveEdit}
+                      disabled={
+                        updatePlan.isPending ||
+                        !editForm.name.trim() ||
+                        !editForm.slug.trim() ||
+                        !editForm.price_monthly
+                      }
+                    >
+                      {updatePlan.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                      Save changes
+                    </Button>
+                    <Button type="button" variant="outline" onClick={closeEdit} disabled={updatePlan.isPending}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <CardContent>
                 <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-3">Features</p>
                 <div className="space-y-2">

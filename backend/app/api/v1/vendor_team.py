@@ -137,6 +137,11 @@ async def invite_team_member(
     valid_roles = list(DEFAULT_ROLE_PERMISSIONS.keys()) + ["custom"]
     if data.role not in valid_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role: {data.role}")
+    if data.role == "platform_staff":
+        raise HTTPException(
+            status_code=400,
+            detail="The platform_staff role is reserved for admin handoff — cannot invite manually.",
+        )
 
     # Cannot assign owner role
     if data.role == "owner":

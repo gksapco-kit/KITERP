@@ -90,22 +90,39 @@ async def get_current_platform_staff(
 
 # ── Vendor Role Dependencies ─────────────────────────────────────
 
+
+def preferred_vendor_id_from_request(request: Request) -> Optional[UUID]:
+    raw = request.headers.get("x-vendor-id")
+    if not raw or not str(raw).strip():
+        return None
+    try:
+        return UUID(str(raw).strip())
+    except (ValueError, TypeError):
+        return None
+
+
 async def get_current_vendor_user(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> VendorUser:
-    """Get the VendorUser record for the current user. Falls back to legacy owner lookup."""
+    """Vendor membership for dashboard APIs; respects ``X-Vendor-Id`` when the user has multiple tenants."""
     repo = VendorUserRepository(db)
+    pref = preferred_vendor_id_from_request(request)
+    if pref is not None:
+        vu = await repo.get_user_with_role(pref, current_user.id)
+        if vu:
+            return vu
+
     vu = await repo.get_by_user_id(current_user.id)
     if vu:
         return vu
 
-    # Fallback: check if user is a vendor owner (legacy data before VendorUser was populated)
     from app.repositories.vendor_repo import VendorRepository
+
     vendor_repo = VendorRepository(db)
-    vendor = await vendor_repo.get_by_user_id(current_user.id)
+    vendor = await vendor_repo.get_by_user_id(current_user.id, preferred_vendor_id=pref)
     if vendor:
-        # Auto-create VendorUser entry for the owner
         vu = VendorUser(
             vendor_id=vendor.id,
             user_id=current_user.id,
@@ -124,6 +141,25 @@ async def get_current_vendor_user(
     )
 
 
+async def get_current_vendor_id(
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
+    """Resolve vendor UUID for ``/vendors/me/*`` routers (owner or team; prefers ``X-Vendor-Id``)."""
+    from app.services.vendor_service import VendorService
+
+    pref = preferred_vendor_id_from_request(request)
+    service = VendorService(db)
+    vendor = await service.get_by_user_id(current_user.id, preferred_vendor_id=pref)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user",
+        )
+    return vendor.id
+
+
 def normalized_vendor_role(vendor_user: VendorUser) -> str:
     """ORM `role` should never be NULL; normalize legacy/bad rows so API handlers don't 500."""
     r = vendor_user.role
@@ -135,6 +171,8 @@ def normalized_vendor_role(vendor_user: VendorUser) -> str:
 def vendor_member_role_display_name(vendor_user: VendorUser) -> str:
     """Human-readable role label for vendor_user payloads (safe if role is missing)."""
     role = normalized_vendor_role(vendor_user)
+    if role == "platform_staff":
+        return "Platform support"
     if role == "custom":
         cr = getattr(vendor_user, "custom_role", None)
         if cr is not None and getattr(cr, "name", None):

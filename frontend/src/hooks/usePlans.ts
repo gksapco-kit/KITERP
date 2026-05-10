@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { plansApi, type PlanCreate } from '@/api/plans.api'
+import { plansApi, type PlanCreate, type PlanUpdate } from '@/api/plans.api'
 
 export const planKeys = {
   all: ['plans'] as const,
@@ -24,6 +24,31 @@ export function useCreatePlan() {
       toast.success('Plan created')
     },
     onError: () => toast.error('Failed to create plan'),
+  })
+}
+
+export function useUpdatePlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ planId, data }: { planId: string; data: PlanUpdate }) =>
+      plansApi.update(planId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: planKeys.list() })
+      toast.success('Plan updated')
+    },
+    onError: () => toast.error('Failed to update plan'),
+  })
+}
+
+export function useDeletePlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (planId: string) => plansApi.delete(planId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: planKeys.all })
+      toast.success('Plan deleted. Vendors on this plan no longer have it assigned.')
+    },
+    onError: () => toast.error('Failed to delete plan'),
   })
 }
 

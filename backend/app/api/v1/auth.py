@@ -16,12 +16,31 @@ from app.database import get_db
 from app.config import settings
 from app.api.deps import get_current_active_user
 from app.models.user import User
-from app.schemas.user import UserCreate, LoginRequest
+from app.models.vendor import Vendor
+from app.models.vendor_user import VendorUser
+from app.schemas.user import UserCreate, LoginRequest, Token
 from app.services.auth_service import AuthService
+from app.services.platform_staff_audit_service import (
+    log_platform_staff_audit,
+    ACTION_PLATFORM_LOGIN,
+)
 from app.services.vendor_service import apply_auto_approval_to_vendor_if_enabled
 from app.repositories.vendor_repo import VendorRepository
 from app.core.events import event_emitter
 from app.repositories.user_repo import UserRepository
+from app.repositories.vendor_user_repo import VendorUserRepository
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_vendor_handoff_token,
+)
+from app.schemas.vendor import VendorResponse
+from app.utils.platform_staff import has_platform_staff_access
+from app.utils.platform_vendor_access import ensure_vendor_visible_to_platform_staff
+from app.services.vendor_platform_audit_service import (
+    ACTION_VENDOR_HANDOFF_REDEEMED,
+    log_vendor_platform_audit,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -193,6 +212,7 @@ async def login(
 @router.post("/login/platform")
 async def login_platform(
     data: LoginRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -201,12 +221,114 @@ async def login_platform(
     and OAuth form bodies cannot be mishandled.
     """
     service = AuthService(db)
-    tokens = await service.login_platform(data.login.strip(), data.password)
+    tokens, user = await service.login_platform(data.login.strip(), data.password)
+    await log_platform_staff_audit(
+        db,
+        subject_user_id=user.id,
+        actor_user_id=user.id,
+        action=ACTION_PLATFORM_LOGIN,
+        request=request,
+    )
+    await db.commit()
     return {
         "access_token": tokens.access_token,
         "refresh_token": tokens.refresh_token,
         "token_type": tokens.token_type,
     }
+
+
+class VendorHandoffRedeemRequest(BaseModel):
+    handoff_token: str = Field(..., min_length=20)
+
+
+class VendorHandoffRedeemResponse(Token):
+    vendor: dict
+
+
+@router.post("/vendor-handoff/redeem", response_model=VendorHandoffRedeemResponse)
+async def redeem_vendor_handoff(
+    body: VendorHandoffRedeemRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Exchange a short-lived admin handoff JWT for normal vendor-dashboard tokens + vendor profile."""
+    payload = decode_vendor_handoff_token(body.handoff_token.strip())
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired handoff token",
+        )
+    try:
+        user_id = UUID(str(payload["sub"]))
+        vendor_id = UUID(str(payload["vendor_id"]))
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid handoff token payload",
+        )
+
+    user = await db.get(User, user_id)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+        )
+    if not has_platform_staff_access(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform access required",
+        )
+
+    vendor = await db.get(Vendor, vendor_id)
+    if not vendor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    await ensure_vendor_visible_to_platform_staff(user, vendor)
+
+    vu_repo = VendorUserRepository(db)
+    existing_rows = await vu_repo.list_all_for_vendor_and_user(vendor_id, user_id)
+    if existing_rows:
+        # Prefer newest row as canonical; deactivate duplicate vendor_user rows (same user+vendor).
+        vu = existing_rows[0]
+        vu.is_active = True
+        vu.role = "platform_staff"
+        vu.role_id = None
+        vu.permissions = []
+        for dup in existing_rows[1:]:
+            dup.is_active = False
+    else:
+        db.add(
+            VendorUser(
+                vendor_id=vendor_id,
+                user_id=user_id,
+                role="platform_staff",
+                permissions=[],
+                is_active=True,
+            )
+        )
+    await db.flush()
+
+    await log_vendor_platform_audit(
+        db,
+        vendor_id=vendor_id,
+        actor_user_id=user_id,
+        action=ACTION_VENDOR_HANDOFF_REDEEMED,
+        detail={"source": "admin_dashboard_handoff"},
+        request=request,
+    )
+    await db.commit()
+
+    token_data = {"sub": str(user.id)}
+    if user.email:
+        token_data["email"] = user.email
+    access_token = create_access_token(data=token_data)
+    refresh_token = create_refresh_token(data=token_data)
+    vendor_payload = VendorResponse.model_validate(vendor).model_dump(mode="json")
+    return VendorHandoffRedeemResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        vendor=vendor_payload,
+    )
 
 
 @router.post("/refresh")

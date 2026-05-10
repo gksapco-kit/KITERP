@@ -210,7 +210,7 @@ export function useCreateProduct() {
     mutationFn: ({ data, images }: { data: Record<string, unknown>; images?: File[] }) =>
       vendorApi.createProduct(data, images),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'products'] }); toast.success('Product created!') },
-    onError: apiError('Could not create product — verify all required fields (name, price, SKU) are filled'),
+    onError: apiError('Could not create product'),
   })
 }
 

@@ -31,6 +31,7 @@ from app.database import (
 )
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
+from app.middleware.vendor_platform_staff_audit import VendorPlatformStaffMutationAuditMiddleware
 from app.api.v1.router import api_router
 
 logger = logging.getLogger("uvicorn.error")
@@ -69,7 +70,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="ArT (Ask r Task) API - Vendor Management Platform",
+    description="KIT ERP API - Business Management Platform",
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/docs",
@@ -87,6 +88,7 @@ app.add_middleware(
 )
 app.add_middleware(TenantMiddleware)
 app.add_middleware(CrmAuditMiddleware)
+app.add_middleware(VendorPlatformStaffMutationAuditMiddleware)
 
 # API Routes
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
@@ -100,7 +102,7 @@ app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import http_exception_handler
 from fastapi import status
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import MultipleResultsFound, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
@@ -130,9 +132,40 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+@app.exception_handler(MultipleResultsFound)
+async def multiple_results_found_handler(request: Request, exc: MultipleResultsFound):
+    """ORM expected at most one row (e.g. duplicate vendor_user for same user+vendor). Not a DB outage."""
+    logger.warning(
+        "MultipleResultsFound on %s %s: %s",
+        request.method,
+        request.url.path,
+        exc,
+    )
+    origin = request.headers.get("origin", "") or "*"
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={
+            "detail": {
+                "code": "ambiguous_vendor_resolution",
+                "message": (
+                    "More than one vendor-team row matched your account for this business "
+                    "(duplicate membership). Remove the extra row in vendor_user for this user and vendor, "
+                    "or contact support. Platform support should open the store via admin handoff so "
+                    "X-Vendor-Id matches the correct business."
+                ),
+                "technical": str(exc),
+            },
+            "message": "Ambiguous vendor context — duplicate database rows for this user on this vendor.",
+        },
+        headers=_cors_headers(origin),
+    )
+
+
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
     """DB/schema errors must not be swallowed as generic 500 — subclass SQLAlchemyError before Exception."""
+    if isinstance(exc, MultipleResultsFound):
+        return await multiple_results_found_handler(request, exc)
     logger.error(
         "Database error on %s %s: %s\n%s",
         request.method,

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,31 +8,18 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { isSuperuserAdmin } from '@/lib/platformAccess'
-import { usePlatformStaffList, useCreatePlatformStaff, useUpdatePlatformStaff } from '@/hooks/usePlatformStaff'
+import {
+  usePlatformStaffList,
+  useCreatePlatformStaff,
+  useUpdatePlatformStaff,
+} from '@/hooks/usePlatformStaff'
+import { ResetPasswordModal } from '@/components/platform-team/ResetPasswordModal'
+import { PLATFORM_JOB_ROLES, formatPlatformJobRole, platformTeamSelectClassName } from '@/lib/platformTeam'
 import type { PlatformStaffMember } from '@/api/admin.api'
-import { Headphones, Loader2, Pencil, UserMinus, UserX } from 'lucide-react'
-
-const JOB_ROLES = [
-  { value: 'sales', label: 'Sales' },
-  { value: 'crm', label: 'CRM' },
-  { value: 'consulting', label: 'Consulting' },
-  { value: 'relationship_manager', label: 'Relationship manager' },
-  { value: 'team_manager', label: 'Team manager' },
-] as const
-
-function formatJobRole(role: string | null | undefined): string {
-  if (!role) return '—'
-  const row = JOB_ROLES.find((r) => r.value === role)
-  return row?.label ?? role
-}
-
-const selectClassName = cn(
-  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-  'disabled:cursor-not-allowed disabled:opacity-50',
-)
+import { Headphones, KeyRound, Loader2, Pencil, UserMinus, UserX } from 'lucide-react'
 
 export default function PlatformTeam() {
+  const navigate = useNavigate()
   const { user } = useAuthStore()
   const { data: members, isLoading, isError } = usePlatformStaffList()
   const createStaff = useCreatePlatformStaff()
@@ -45,39 +32,19 @@ export default function PlatformTeam() {
   const [jobRole, setJobRole] = useState<string>('consulting')
   const [managerIdForCreate, setManagerIdForCreate] = useState<string>('')
 
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editJobRole, setEditJobRole] = useState<string>('consulting')
-  const [editManagerId, setEditManagerId] = useState<string>('')
+  const [resetForMember, setResetForMember] = useState<PlatformStaffMember | null>(null)
 
   const teamManagers = useMemo(
     () => (members ?? []).filter((m) => m.job_role === 'team_manager'),
     [members],
   )
 
-  const editingMember = useMemo(
-    () => (members ?? []).find((m) => m.id === editingId) ?? null,
-    [members, editingId],
-  )
-
-  useEffect(() => {
-    if (!editingId || !members) return
-    if (!members.some((m) => m.id === editingId)) {
-      setEditingId(null)
-    }
-  }, [editingId, members])
-
   if (!isSuperuserAdmin(user)) {
     return <Navigate to="/dashboard" replace />
   }
 
-  const openEdit = (m: PlatformStaffMember) => {
-    setEditingId(m.id)
-    setEditJobRole(m.job_role || 'consulting')
-    setEditManagerId(m.manager_id || '')
-  }
-
-  const closeEdit = () => {
-    setEditingId(null)
+  const openMember = (id: string) => {
+    navigate(`/dashboard/platform-team/${id}`)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -114,23 +81,10 @@ export default function PlatformTeam() {
     )
   }
 
-  const saveEdit = () => {
-    if (!editingId) return
-    const role = editJobRole
-    updateStaff.mutate(
-      {
-        userId: editingId,
-        data: {
-          job_role: role,
-          manager_id: role === 'team_manager' ? null : editManagerId ? editManagerId : null,
-        },
-      },
-      { onSuccess: () => closeEdit() },
-    )
-  }
+  const busy = updateStaff.isPending
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-8 w-full max-w-none">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Headphones className="w-7 h-7 text-primary" />
@@ -138,60 +92,34 @@ export default function PlatformTeam() {
         </h1>
         <p className="text-gray-600 mt-1">
           Add users by email and/or phone so they can sign in here and help vendors (read-only vendor
-          directory; no approvals or global settings).
+          directory; no approvals or global settings). Click a row to open their profile page.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add support user</CardTitle>
+      <Card className="w-full max-w-7xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Add support user</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4 max-w-3xl">
-            <div>
-              <Label htmlFor="ps-name">Full name</Label>
-              <Input
-                id="ps-name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                minLength={2}
-                className="mt-1 max-w-lg"
-                autoComplete="name"
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 min-[480px]:items-end min-[480px]:gap-x-4">
-              <div>
-                <Label htmlFor="ps-email">Email (optional if phone set)</Label>
+        <CardContent className="pt-0 pb-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3 items-start">
+              <div className="min-w-0">
+                <Label htmlFor="ps-name">Full name</Label>
                 <Input
-                  id="ps-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1"
-                  autoComplete="off"
+                  id="ps-name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  minLength={2}
+                  className="mt-1 w-full"
+                  autoComplete="name"
                 />
               </div>
-              <div>
-                <Label htmlFor="ps-phone">Phone (optional if email set)</Label>
-                <p className="text-xs text-muted-foreground mt-0.5 mb-1">
-                  Pick country code, then enter the local number (stored as E.164).
-                </p>
-                <PhoneInput
-                  id="ps-phone"
-                  value={phone}
-                  onChange={setPhone}
-                  defaultCountryIso="IN"
-                  autoComplete="tel-national"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 min-[520px]:grid-cols-2 min-[520px]:gap-x-4">
-              <div>
+              <div className="min-w-0">
                 <Label htmlFor="ps-job-role">Job role</Label>
                 <select
                   id="ps-job-role"
-                  className={cn(selectClassName, 'mt-1 max-w-lg')}
+                  className={cn(platformTeamSelectClassName, 'mt-1 w-full')}
                   value={jobRole}
                   onChange={(e) => {
                     const v = e.target.value
@@ -199,21 +127,18 @@ export default function PlatformTeam() {
                     if (v === 'team_manager') setManagerIdForCreate('')
                   }}
                 >
-                  {JOB_ROLES.map((r) => (
+                  {PLATFORM_JOB_ROLES.map((r) => (
                     <option key={r.value} value={r.value}>
                       {r.label}
                     </option>
                   ))}
                 </select>
               </div>
-              <div>
+              <div className="min-w-0">
                 <Label htmlFor="ps-manager">Reports to (team manager)</Label>
-                <p className="text-xs text-muted-foreground mt-0.5 mb-1">
-                  Optional until you have team managers. Only users with role Team manager appear here.
-                </p>
                 <select
                   id="ps-manager"
-                  className={cn(selectClassName, 'mt-1 max-w-lg')}
+                  className={cn(platformTeamSelectClassName, 'mt-1 w-full')}
                   value={managerIdForCreate}
                   onChange={(e) => setManagerIdForCreate(e.target.value)}
                   disabled={jobRole === 'team_manager'}
@@ -225,34 +150,68 @@ export default function PlatformTeam() {
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                  Optional until you have team managers. Only users with role Team manager appear here.
+                </p>
               </div>
             </div>
-            <div>
-              <Label htmlFor="ps-password">Initial password</Label>
-              <Input
-                id="ps-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="mt-1 max-w-lg"
-                autoComplete="new-password"
-              />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-3 items-start">
+              <div className="min-w-0">
+                <Label htmlFor="ps-email">Email (optional if phone set)</Label>
+                <Input
+                  id="ps-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1 w-full"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="min-w-0">
+                <Label htmlFor="ps-phone">Phone (optional if email set)</Label>
+                <div className="mt-1 min-w-0">
+                  <PhoneInput
+                    id="ps-phone"
+                    value={phone}
+                    onChange={setPhone}
+                    defaultCountryIso="IN"
+                    autoComplete="tel-national"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                  Pick country code, then enter the local number (stored as E.164).
+                </p>
+              </div>
+              <div className="min-w-0">
+                <Label htmlFor="ps-password">Initial password</Label>
+                <Input
+                  id="ps-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="mt-1 w-full"
+                  autoComplete="new-password"
+                />
+              </div>
             </div>
-            <Button
-              type="submit"
-              disabled={createStaff.isPending || (!email.trim() && !phone.trim())}
-            >
-              {createStaff.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Saving…
-                </>
-              ) : (
-                'Add support user'
-              )}
-            </Button>
+            <div className="mt-3 flex justify-start md:justify-end">
+              <Button
+                type="submit"
+                disabled={createStaff.isPending || (!email.trim() && !phone.trim())}
+              >
+                {createStaff.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Saving…
+                  </>
+                ) : (
+                  'Add support user'
+                )}
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -262,69 +221,6 @@ export default function PlatformTeam() {
           <CardTitle>Current support users</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {editingMember && (
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-medium text-sm">
-                  Edit <span className="text-foreground">{editingMember.full_name}</span>
-                </p>
-                <Button type="button" variant="ghost" size="sm" onClick={closeEdit}>
-                  Cancel
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
-                <div>
-                  <Label htmlFor="edit-job-role">Job role</Label>
-                  <select
-                    id="edit-job-role"
-                    className={cn(selectClassName, 'mt-1')}
-                    value={editJobRole}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      setEditJobRole(v)
-                      if (v === 'team_manager') setEditManagerId('')
-                    }}
-                  >
-                    {JOB_ROLES.map((r) => (
-                      <option key={r.value} value={r.value}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="edit-manager">Reports to</Label>
-                  <select
-                    id="edit-manager"
-                    className={cn(selectClassName, 'mt-1')}
-                    value={editManagerId}
-                    onChange={(e) => setEditManagerId(e.target.value)}
-                    disabled={editJobRole === 'team_manager'}
-                  >
-                    <option value="">— None —</option>
-                    {teamManagers
-                      .filter((tm) => tm.id !== editingMember.id)
-                      .map((tm) => (
-                        <option key={tm.id} value={tm.id}>
-                          {tm.full_name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-              <Button type="button" size="sm" onClick={saveEdit} disabled={updateStaff.isPending}>
-                {updateStaff.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Saving…
-                  </>
-                ) : (
-                  'Save role & manager'
-                )}
-              </Button>
-            </div>
-          )}
-
           {isLoading && (
             <div className="flex items-center gap-2 text-gray-500 py-8 justify-center">
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -346,18 +242,37 @@ export default function PlatformTeam() {
                     <th className="px-4 py-2 font-medium text-gray-600">Email</th>
                     <th className="px-4 py-2 font-medium text-gray-600">Phone</th>
                     <th className="px-4 py-2 font-medium text-gray-600">Role</th>
+                    <th className="px-4 py-2 font-medium text-gray-600 text-right whitespace-nowrap">
+                      Accounts (RM)
+                    </th>
                     <th className="px-4 py-2 font-medium text-gray-600">Manager</th>
                     <th className="px-4 py-2 font-medium text-gray-600">Status</th>
-                    <th className="px-4 py-2 font-medium text-gray-600 text-right">Actions</th>
+                    <th className="px-4 py-2 font-medium text-gray-600 text-right">Quick actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {members.map((m) => (
-                    <tr key={m.id}>
+                    <tr
+                      key={m.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => openMember(m.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          openMember(m.id)
+                        }
+                      }}
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`Open profile for ${m.full_name}`}
+                    >
                       <td className="px-4 py-3 font-medium">{m.full_name}</td>
                       <td className="px-4 py-3 text-gray-600">{m.email || '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{m.phone || '—'}</td>
-                      <td className="px-4 py-3 text-gray-600">{formatJobRole(m.job_role)}</td>
+                      <td className="px-4 py-3 text-gray-600">{formatPlatformJobRole(m.job_role)}</td>
+                      <td className="px-4 py-3 text-gray-800 text-right tabular-nums font-medium">
+                        {m.assigned_business_account_count ?? 0}
+                      </td>
                       <td className="px-4 py-3 text-gray-600">{m.manager_name || '—'}</td>
                       <td className="px-4 py-3">
                         <span
@@ -370,50 +285,70 @@ export default function PlatformTeam() {
                           {m.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right space-x-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={updateStaff.isPending}
-                          onClick={() => openEdit(m)}
-                          title="Edit role and manager"
+                      <td className="px-3 py-2 text-right whitespace-nowrap w-[1%]">
+                        <div
+                          className="inline-flex flex-nowrap items-center justify-end gap-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
                         >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={updateStaff.isPending}
-                          onClick={() =>
-                            updateStaff.mutate({
-                              userId: m.id,
-                              data: { is_active: !m.is_active },
-                            })
-                          }
-                          title={m.is_active ? 'Deactivate login' : 'Reactivate'}
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={updateStaff.isPending}
-                          onClick={() => {
-                            if (
-                              confirm(
-                                'Remove platform access? They will no longer be able to open this admin app.',
-                              )
-                            ) {
-                              updateStaff.mutate({ userId: m.id, data: { remove_access: true } })
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            disabled={busy}
+                            onClick={() => openMember(m.id)}
+                            title="Open profile"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            disabled={busy}
+                            onClick={() => setResetForMember(m)}
+                            title="Reset password"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            disabled={busy}
+                            onClick={() =>
+                              updateStaff.mutate({
+                                userId: m.id,
+                                data: { is_active: !m.is_active },
+                              })
                             }
-                          }}
-                          title="Remove admin access"
-                        >
-                          <UserX className="w-4 h-4" />
-                        </Button>
+                            title={m.is_active ? 'Deactivate login' : 'Reactivate'}
+                          >
+                            <UserMinus className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            disabled={busy}
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  'Remove platform access? They will no longer be able to open this admin app.',
+                                )
+                              ) {
+                                updateStaff.mutate({ userId: m.id, data: { remove_access: true } })
+                              }
+                            }}
+                            title="Remove admin access"
+                          >
+                            <UserX className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -423,6 +358,8 @@ export default function PlatformTeam() {
           )}
         </CardContent>
       </Card>
+
+      <ResetPasswordModal member={resetForMember} onClose={() => setResetForMember(null)} />
     </div>
   )
 }

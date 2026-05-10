@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
+import { toast } from 'sonner'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   useAdminVendor,
@@ -36,7 +37,8 @@ import {
   Save,
   Headphones,
 } from 'lucide-react'
-import type { AdminVendorUpdatePayload } from '@/api/admin.api'
+import { adminApi, type AdminVendorUpdatePayload } from '@/api/admin.api'
+import { vendorAppBaseUrl } from '@/lib/appUrls'
 
 const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
 
@@ -120,7 +122,29 @@ export default function VendorDetail() {
 
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<AdminVendorUpdatePayload>({})
+  const [vendorHandoffPending, setVendorHandoffPending] = useState(false)
   const editMode = canMutate && editing
+
+  const openVendorDashboardHandoff = async () => {
+    if (!id) return
+    setVendorHandoffPending(true)
+    try {
+      const res = await adminApi.createVendorDashboardHandoff(id)
+      const url = `${vendorAppBaseUrl}/auth/handoff?token=${encodeURIComponent(res.handoff_token)}`
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      const msg =
+        typeof detail === 'string'
+          ? detail
+          : detail != null
+            ? JSON.stringify(detail)
+            : 'Could not open vendor dashboard'
+      toast.error(msg)
+    } finally {
+      setVendorHandoffPending(false)
+    }
+  }
 
   const handleEdit = () => {
     setEditData({})
@@ -177,8 +201,8 @@ export default function VendorDetail() {
   if (isError || !vendor) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500 mb-4">Vendor not found</p>
-        <Button onClick={() => navigate('/dashboard/vendors')}>Back to Vendors</Button>
+        <p className="text-gray-500 mb-4">Business account not found</p>
+        <Button onClick={() => navigate('/dashboard/vendors')}>Back to Business Accounts</Button>
       </div>
     )
   }
@@ -379,30 +403,58 @@ export default function VendorDetail() {
             </CardContent>
           </Card>
 
-          {ownerData && (
-            <Card className="border-blue-100">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <UserCircle className="w-4 h-4 text-blue-600" /> Owner Account
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="text-sm">
-                  <p className="font-medium">{ownerData.full_name}</p>
-                  <p className="text-gray-500 font-mono text-xs mt-0.5">{ownerData.email}</p>
-                  {ownerData.phone && <p className="text-gray-500 text-xs">{ownerData.phone}</p>}
+          <Card className="border-blue-100">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <UserCircle className="w-4 h-4 text-blue-600" /> Vendor dashboard
+              </CardTitle>
+              <p className="text-xs text-gray-500 font-normal leading-snug pt-1">
+                Opens <span className="font-mono text-[11px]">{vendorAppBaseUrl}</span> in a new tab using
+                your platform login — no separate password. Access is logged in both the admin audit trail and
+                this vendor&apos;s platform audit log.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                type="button"
+                variant="default"
+                className="w-full gap-2"
+                disabled={vendorHandoffPending || !isPlatformStaff(user)}
+                onClick={() => void openVendorDashboardHandoff()}
+              >
+                <ExternalLink className="w-4 h-4 shrink-0" />
+                {vendorHandoffPending ? 'Opening…' : 'Open vendor app'}
+              </Button>
+              {ownerData ? (
+                <div className="rounded-md bg-gray-50 border border-gray-100 p-3 text-xs space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    Owner account (reference)
+                  </p>
+                  <div className="text-sm text-gray-900">
+                    <p className="font-medium">{ownerData.full_name}</p>
+                    <p className="text-gray-600 font-mono mt-0.5 break-all">{ownerData.email}</p>
+                    {ownerData.phone && <p className="text-gray-600 mt-0.5">{ownerData.phone}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[11px] ${ownerData.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                    >
+                      {ownerData.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    {ownerData.is_email_verified && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[11px] bg-blue-100 text-blue-700">
+                        Verified
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className={`px-1.5 py-0.5 rounded-full ${ownerData.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {ownerData.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                  {ownerData.is_email_verified && (
-                    <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">Verified</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Owner details load separately — you can still open the vendor dashboard above.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

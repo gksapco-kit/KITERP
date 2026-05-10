@@ -211,6 +211,7 @@ class RelationshipManagerBrief(BaseModel):
     id: str
     full_name: str
     email: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class VendorAdminResponse(VendorResponse):
@@ -239,6 +240,7 @@ def serialize_vendor_admin(vendor: Any) -> VendorAdminResponse:
             id=str(rm.id),
             full_name=(rm.full_name or "").strip() or "—",
             email=rm.email,
+            phone=getattr(rm, "phone", None),
         )
     return VendorAdminResponse(
         **base,

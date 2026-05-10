@@ -1,13 +1,24 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useAdminVendors, useApproveVendor, useRejectVendor } from '@/hooks/useAdmin'
-import { useAuthStore } from '@/stores/authStore'
-import { isSuperuserAdmin } from '@/lib/platformAccess'
+import { Label } from '@/components/ui/label'
 import {
-  Plus,
+  useAdminVendors,
+  useApproveVendor,
+  useRejectVendor,
+  useRelationshipManagerOptions,
+} from '@/hooks/useAdmin'
+import { useAuthStore } from '@/stores/authStore'
+import {
+  canCreateBusinessAccounts,
+  isPlatformStaff,
+  isSuperuserAdmin,
+} from '@/lib/platformAccess'
+import { platformTeamSelectClassName } from '@/lib/platformTeam'
+import { cn } from '@/lib/utils'
+import {
   Search,
   ChevronLeft,
   ChevronRight,
@@ -16,6 +27,7 @@ import {
   Eye,
   Store,
   Loader2,
+  Plus,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -39,8 +51,10 @@ const statusFilters: { label: string; value: string }[] = [
 
 export default function Vendors() {
   const { user } = useAuthStore()
-  const canManageVendors = isSuperuserAdmin(user)
+  const canCreateVendor = canCreateBusinessAccounts(user)
+  const canApproveRejectVendors = isSuperuserAdmin(user)
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -48,12 +62,42 @@ export default function Vendors() {
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
+  const rmFilterFromUrl = (searchParams.get('relationship_manager_user_id') || '').trim()
+
+  /** Only superusers get the RM dropdown. Support accounts never see it. */
+  const showRmDropdown = isSuperuserAdmin(user) && !rmFilterFromUrl
+
+  /** Deep link / RM profile link: non-superuser support (not an RM) still filters via URL but sees read-only context. */
+  const showRmReadOnlyBanner =
+    !!rmFilterFromUrl &&
+    (isSuperuserAdmin(user) ||
+      (isPlatformStaff(user) &&
+        !user?.is_superuser &&
+        user?.platform_staff_job_role !== 'relationship_manager'))
+
+  const relationshipManagerUserIdForApi =
+    !rmFilterFromUrl
+      ? undefined
+      : user?.is_superuser
+        ? rmFilterFromUrl
+        : user?.platform_staff_job_role === 'relationship_manager'
+          ? undefined
+          : rmFilterFromUrl
+
+  const loadRelationshipManagerOptions = isSuperuserAdmin(user) || showRmReadOnlyBanner
+  const { data: rmOptions } = useRelationshipManagerOptions(loadRelationshipManagerOptions)
+
   const { data, isLoading, isFetching } = useAdminVendors({
     page,
     size: 10,
     status: statusFilter || undefined,
     search: search || undefined,
+    relationship_manager_user_id: relationshipManagerUserIdForApi,
   })
+
+  useEffect(() => {
+    setPage(1)
+  }, [relationshipManagerUserIdForApi])
 
   const approveVendor = useApproveVendor()
   const rejectVendor = useRejectVendor()
@@ -65,7 +109,7 @@ export default function Vendors() {
   }
 
   const handleApprove = (vendorId: string) => {
-    if (confirm('Are you sure you want to approve this vendor?')) {
+    if (confirm('Are you sure you want to approve this business account?')) {
       approveVendor.mutate(vendorId)
     }
   }
@@ -107,33 +151,92 @@ export default function Vendors() {
     })
   }
 
+  const selectedRmName = useMemo(() => {
+    if (!rmFilterFromUrl || !rmOptions?.length) return null
+    const o = rmOptions.find((row) => row.id === rmFilterFromUrl)
+    if (!o) return null
+    const login =
+      o.login_display?.trim() || o.email?.trim() || o.phone?.trim() || o.full_name?.trim() || null
+    const name = o.full_name?.trim()
+    if (login && name && login !== name) return `${login} (${name})`
+    return login || name || null
+  }, [rmFilterFromUrl, rmOptions])
+
+  const filteredRmOption = useMemo(
+    () =>
+      rmFilterFromUrl && rmOptions?.length
+        ? rmOptions.find((row) => row.id === rmFilterFromUrl)
+        : undefined,
+    [rmFilterFromUrl, rmOptions],
+  )
+
+  /** Plain copy when URL pins an RM: login/email — role (no dropdown). */
+  const rmFilteredReadOnlyLine = useMemo(() => {
+    if (!rmFilterFromUrl) return null
+    const o = filteredRmOption
+    if (!o) {
+      return 'This manager is not in the current directory list. Use “Show all accounts” below to remove the filter.'
+    }
+    const mailOrLogin =
+      o.email?.trim() ||
+      o.login_display?.trim() ||
+      o.phone?.trim() ||
+      o.full_name?.trim() ||
+      ''
+    const role = o.role_label?.trim() || 'Relationship manager'
+    if (!mailOrLogin) return role
+    return `${mailOrLogin} — ${role}`
+  }, [rmFilterFromUrl, filteredRmOption])
+
+  const setRmFilter = (userId: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (userId) next.set('relationship_manager_user_id', userId)
+        else next.delete('relationship_manager_user_id')
+        return next
+      },
+      { replace: true },
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Vendors</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold text-gray-900">Business Accounts</h1>
           <p className="text-gray-600 mt-1">
-            Manage all vendors on the platform
+            View and manage accounts; assign a relationship manager from each account&apos;s admin page
             {data?.total !== undefined && (
-              <span className="ml-1 text-gray-500">({data.total} total)</span>
+              <span className="ml-1 text-gray-500">
+                ({data.total}
+                {relationshipManagerUserIdForApi
+                  ? ` assigned${selectedRmName ? ` to ${selectedRmName}` : ''}`
+                  : ' total'}
+                )
+              </span>
             )}
           </p>
         </div>
-        {canManageVendors && (
-          <Button onClick={() => navigate('/dashboard/vendors/add')} className="gap-2">
+        {canCreateVendor && (
+          <Button
+            type="button"
+            onClick={() => navigate('/dashboard/vendors/add')}
+            className="gap-2 shrink-0 w-full sm:w-auto"
+          >
             <Plus className="w-4 h-4" />
-            Add Vendor
+            Create business account
           </Button>
         )}
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4 lg:items-end lg:flex-wrap">
             {/* Search */}
-            <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+            <form onSubmit={handleSearch} className="flex-1 flex gap-2 min-w-[240px]">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -148,8 +251,61 @@ export default function Vendors() {
               </Button>
             </form>
 
+            {showRmReadOnlyBanner && (
+              <div className="w-full sm:max-w-md shrink-0 space-y-1">
+                <p className="text-sm font-medium text-gray-900">Relationship manager</p>
+                <p className="text-sm text-gray-800">{rmFilteredReadOnlyLine}</p>
+                <button
+                  type="button"
+                  className="text-sm text-primary hover:underline font-medium"
+                  onClick={() => setRmFilter('')}
+                >
+                  Show all accounts
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  Limited to accounts assigned to this manager. Open full directory from an RM&apos;s profile uses
+                  the same filter.
+                </p>
+              </div>
+            )}
+
+            {showRmDropdown && (
+              <div className="w-full sm:w-72 shrink-0">
+                <Label htmlFor="vendor-rm-filter">Relationship manager</Label>
+                <select
+                  id="vendor-rm-filter"
+                  className={cn(platformTeamSelectClassName, 'mt-1')}
+                  value={rmFilterFromUrl}
+                  onChange={(e) => {
+                    setRmFilter(e.target.value)
+                  }}
+                >
+                  <option value="">All managers</option>
+                  {(rmOptions ?? []).map((o) => {
+                    const login =
+                      o.login_display?.trim() ||
+                      o.email?.trim() ||
+                      o.phone?.trim() ||
+                      o.full_name?.trim() ||
+                      o.id
+                    const name = o.full_name?.trim()
+                    const label = name && login !== name ? `${login} — ${name}` : login
+                    return (
+                      <option key={o.id} value={o.id}>
+                        {label}
+                      </option>
+                    )
+                  })}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Limit rows to accounts assigned to this RM. Open full directory from an RM&apos;s profile applies
+                  the same filter.
+                </p>
+              </div>
+            )}
+
             {/* Status filter */}
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-1 flex-wrap lg:flex-1 lg:justify-end">
               {statusFilters.map((filter) => (
                 <Button
                   key={filter.value}
@@ -221,24 +377,59 @@ export default function Vendors() {
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
-                      <p className="text-sm text-gray-500 mt-2">Loading vendors...</p>
+                      <p className="text-sm text-gray-500 mt-2">Loading business accounts...</p>
                     </td>
                   </tr>
                 ) : !data?.items?.length ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center">
                       <Store className="w-10 h-10 mx-auto text-gray-300" />
-                      <p className="text-sm text-gray-500 mt-2">No vendors found</p>
-                      {canManageVendors && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-4"
-                          onClick={() => navigate('/dashboard/vendors/add')}
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          Add First Vendor
-                        </Button>
+                      {relationshipManagerUserIdForApi ? (
+                        <>
+                          <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto">
+                            No accounts are assigned to this relationship manager yet. Use{' '}
+                            <strong>View all accounts</strong>, open an existing business, and set{' '}
+                            <strong>Relationship manager</strong> on its admin page.
+                          </p>
+                          {!!relationshipManagerUserIdForApi && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="mt-4"
+                              onClick={() => setRmFilter('')}
+                            >
+                              View all accounts
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto">
+                            {search || statusFilter
+                              ? 'No business accounts match the current search or status filters.'
+                              : user?.platform_staff_job_role === 'relationship_manager' &&
+                                  !user?.is_superuser
+                                ? "No business accounts are assigned to you yet. Your administrator can assign accounts to you from each account's admin page."
+                                : 'No business accounts match this view. Assignments use existing accounts—open one from the list (when available) and set Relationship manager there.'}
+                          </p>
+                          {(search || statusFilter) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="mt-4"
+                              onClick={() => {
+                                setSearchInput('')
+                                setSearch('')
+                                setStatusFilter('')
+                                setPage(1)
+                              }}
+                            >
+                              Clear filters
+                            </Button>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>
@@ -246,7 +437,17 @@ export default function Vendors() {
                   displayVendors.map((vendor) => (
                     <tr
                       key={vendor.id}
-                      className="hover:bg-gray-50 transition-colors"
+                      className="cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => navigate(`/dashboard/vendors/${vendor.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          navigate(`/dashboard/vendors/${vendor.id}`)
+                        }
+                      }}
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`Open business account ${vendor.display_name || vendor.business_name}`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -288,8 +489,12 @@ export default function Vendors() {
                         {formatDate(vendor.created_at)}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          {canManageVendors &&
+                        <div
+                          className="flex items-center justify-end gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          {canApproveRejectVendors &&
                             (vendor.status === 'pending' || vendor.status === 'under_review') && (
                             <>
                               <Button
@@ -334,7 +539,7 @@ export default function Vendors() {
           {data && data.pages > 1 && (
             <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
               <p className="text-sm text-gray-500">
-                Page {data.page} of {data.pages} ({data.total} vendors)
+                Page {data.page} of {data.pages} ({data.total} business accounts)
               </p>
               <div className="flex gap-2">
                 <Button

@@ -29,7 +29,7 @@ services:
     expose:
       - "8000"
     environment:
-      - APP_NAME=ArT API
+      - APP_NAME=KIT ERP API
       - DEBUG=false
       - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in .env}
       - REDIS_URL=${REDIS_URL:?Set REDIS_URL in .env}

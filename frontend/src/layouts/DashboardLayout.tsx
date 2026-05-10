@@ -10,11 +10,12 @@ import {
   Users,
   CreditCard,
   Headphones,
+  ScrollText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLogout } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/authStore'
-import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
+import { getDashboardUserRoleLabel, isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { useVendorStore } from '@/stores/vendorStore'
 import { Button } from '@/components/ui/button'
 
@@ -28,15 +29,17 @@ const vendorNavItems = [
 
 const adminNavItemsSuperuser = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/dashboard/vendors', icon: Users, label: 'Vendors' },
+  { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
   { to: '/dashboard/plans', icon: CreditCard, label: 'Plans' },
   { to: '/dashboard/platform-team', icon: Headphones, label: 'Support team' },
+  { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ]
 
 const adminNavItemsSupport = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/dashboard/vendors', icon: Users, label: 'Vendors' },
+  { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
+  { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
 ]
 
 export default function DashboardLayout() {
@@ -50,11 +53,8 @@ export default function DashboardLayout() {
       ? adminNavItemsSuperuser
       : adminNavItemsSupport
     : vendorNavItems
-  const displayName = isAdmin
-    ? isSuperuserAdmin(user)
-      ? 'Admin Panel'
-      : 'Support'
-    : vendor?.display_name || 'ArT'
+  const displayName = isAdmin ? 'KIT ERP' : vendor?.display_name || 'KIT ERP'
+  const roleLabel = getDashboardUserRoleLabel(user)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -68,9 +68,12 @@ export default function DashboardLayout() {
           </div>
 
           {/* User info */}
-          <div className="px-6 py-3 border-b border-gray-100">
+          <div className="px-6 py-3 border-b border-gray-100 space-y-0.5">
             <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name}</p>
             <p className="text-xs text-gray-500 truncate">{user?.email || user?.phone || '—'}</p>
+            {roleLabel ? (
+              <p className="text-xs font-medium text-gray-700 truncate pt-0.5">{roleLabel}</p>
+            ) : null}
           </div>
 
           {/* Navigation */}
@@ -110,7 +113,7 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64 p-8">
+      <main className="ml-64 min-h-screen w-[calc(100%-16rem)] max-w-none p-8">
         <Outlet />
       </main>
     </div>

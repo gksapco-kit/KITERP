@@ -46,6 +46,11 @@ export interface Token {
   token_type: string
 }
 
+/** Response from POST /auth/vendor-handoff/redeem */
+export interface VendorHandoffRedeem extends Token {
+  vendor: Vendor
+}
+
 // ── Vendor Roles & Team ────────────────────────────────────────
 export interface VendorRole {
   id: string

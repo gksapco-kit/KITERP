@@ -5,6 +5,7 @@ export interface RelationshipManagerBrief {
   id: string
   full_name: string
   email?: string | null
+  phone?: string | null
 }
 
 /** Admin vendor directory row (includes assigned relationship manager). */
@@ -21,11 +22,24 @@ export interface VendorListResponse {
   pages: number
 }
 
+export interface RelationshipManagerOption {
+  id: string
+  full_name: string
+  email?: string | null
+  phone?: string | null
+  /** Email or phone (login); fallback to name or id */
+  login_display?: string
+  /** e.g. Super Admin, Relationship manager */
+  role_label?: string
+}
+
 export interface ListVendorsParams {
   page?: number
   size?: number
   status?: string
   search?: string
+  /** Superuser only: filter to vendors assigned to this relationship manager user id */
+  relationship_manager_user_id?: string
 }
 
 export interface AdminVendorCreatePayload {
@@ -134,6 +148,8 @@ export interface PlatformStaffMember {
   job_role?: string | null
   manager_id?: string | null
   manager_name?: string | null
+  /** Vendors where this user is the assigned relationship manager */
+  assigned_business_account_count?: number
 }
 
 export interface PlatformStaffCreatePayload {
@@ -148,9 +164,36 @@ export interface PlatformStaffCreatePayload {
 export interface PlatformStaffUpdatePayload {
   is_active?: boolean
   remove_access?: boolean
+  full_name?: string
+  email?: string | null
+  phone?: string | null
   job_role?: string
   /** Set to `null` to clear assignment */
   manager_id?: string | null
+}
+
+export interface PlatformStaffAuditEntry {
+  id: string
+  action: string
+  detail?: Record<string, unknown> | null
+  actor_user_id?: string | null
+  actor_full_name?: string | null
+  ip?: string | null
+  created_at: string
+}
+
+export interface PlatformStaffAuditListResponse {
+  items: PlatformStaffAuditEntry[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+export interface VendorDashboardHandoffResponse {
+  handoff_token: string
+  vendor_id: string
+  vendor_slug: string
 }
 
 export const adminApi = {
@@ -166,6 +209,11 @@ export const adminApi = {
 
   listVendors: async (params?: ListVendorsParams): Promise<VendorListResponse> => {
     const response = await apiClient.get('/admin/vendors', { params })
+    return response.data
+  },
+
+  listRelationshipManagerOptions: async (): Promise<RelationshipManagerOption[]> => {
+    const response = await apiClient.get('/admin/vendors/relationship-manager-options')
     return response.data
   },
 
@@ -247,6 +295,37 @@ export const adminApi = {
     data: PlatformStaffUpdatePayload,
   ): Promise<PlatformStaffMember> => {
     const response = await apiClient.patch(`/admin/platform-staff/${userId}`, data)
+    return response.data
+  },
+
+  resetPlatformStaffPassword: async (
+    userId: string,
+    password: string,
+  ): Promise<PlatformStaffMember> => {
+    const response = await apiClient.post(`/admin/platform-staff/${userId}/reset-password`, {
+      password,
+    })
+    return response.data
+  },
+
+  listMyPlatformStaffAudit: async (params?: {
+    page?: number
+    size?: number
+  }): Promise<PlatformStaffAuditListResponse> => {
+    const response = await apiClient.get('/admin/platform-staff/me/audit-log', { params })
+    return response.data
+  },
+
+  listPlatformStaffAuditForMember: async (
+    userId: string,
+    params?: { page?: number; size?: number },
+  ): Promise<PlatformStaffAuditListResponse> => {
+    const response = await apiClient.get(`/admin/platform-staff/${userId}/audit-log`, { params })
+    return response.data
+  },
+
+  createVendorDashboardHandoff: async (vendorId: string): Promise<VendorDashboardHandoffResponse> => {
+    const response = await apiClient.post(`/admin/vendors/${vendorId}/dashboard-handoff`)
     return response.data
   },
 }

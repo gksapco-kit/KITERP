@@ -83,8 +83,8 @@ export function useLogin() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const tokens = await authApi.login(email, password)
+    mutationFn: async ({ login, password }: { login: string; password: string }) => {
+      const tokens = await authApi.login(login, password)
       const store = useAuthStore.getState()
       store.setTokens(tokens)
       try {

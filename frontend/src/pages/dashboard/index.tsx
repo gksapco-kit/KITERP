@@ -57,8 +57,8 @@ function AdminDashboard() {
   )
 
   const statCards = [
-    { name: 'Total Vendors', value: stats?.total ?? 0, icon: Store, color: 'bg-blue-500' },
-    { name: 'Active Vendors', value: stats?.approved ?? 0, icon: Users, color: 'bg-green-500' },
+    { name: 'Total business accounts', value: stats?.total ?? 0, icon: Store, color: 'bg-blue-500' },
+    { name: 'Active business accounts', value: stats?.approved ?? 0, icon: Users, color: 'bg-green-500' },
     { name: 'Pending Review', value: stats?.pending_review ?? 0, icon: Clock, color: 'bg-yellow-500' },
   ]
 
@@ -95,10 +95,10 @@ function AdminDashboard() {
         ))}
       </div>
 
-      {/* Recent Vendors */}
+      {/* Recent business accounts */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Vendors</CardTitle>
+          <CardTitle>Recent business accounts</CardTitle>
         </CardHeader>
         <TableToolbar
           search=""
@@ -132,7 +132,7 @@ function AdminDashboard() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">No vendors yet</p>
+            <p className="text-sm text-gray-500">No business accounts yet</p>
           )}
         </CardContent>
       </Card>

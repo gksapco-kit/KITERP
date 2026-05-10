@@ -114,19 +114,64 @@ class VendorRepository(BaseRepository[Vendor]):
         )
         return result.scalar_one_or_none()
     
-    async def get_by_user_id(self, user_id: UUID) -> Optional[Vendor]:
-        """Resolve vendor for this user: primary VendorOwner row, else active VendorUser membership."""
+    async def get_by_user_id(
+        self, user_id: UUID, preferred_vendor_id: Optional[UUID] = None
+    ) -> Optional[Vendor]:
+        """Resolve vendor for this user: primary VendorOwner row, else active VendorUser membership.
+
+        When ``preferred_vendor_id`` is set (from ``X-Vendor-Id``), prefer membership / ownership
+        on that vendor so platform staff can work in the correct tenant.
+        """
+        if preferred_vendor_id is not None:
+            # Duplicate vendor_user rows (same user+vendor) break scalar_one_or_none(); pick one row.
+            result = await self.db.execute(
+                select(Vendor)
+                .join(VendorUser, VendorUser.vendor_id == Vendor.id)
+                .where(
+                    and_(
+                        VendorUser.user_id == user_id,
+                        VendorUser.vendor_id == preferred_vendor_id,
+                        VendorUser.is_active.is_(True),
+                    )
+                )
+                .order_by(VendorUser.created_at.desc())
+                .limit(1)
+            )
+            hit = result.scalars().first()
+            if hit:
+                return hit
+
+            result = await self.db.execute(
+                select(Vendor)
+                .join(VendorOwner)
+                .where(
+                    and_(
+                        Vendor.id == preferred_vendor_id,
+                        VendorOwner.user_id == user_id,
+                        VendorOwner.is_primary == True,
+                    )
+                )
+                .order_by(VendorOwner.created_at.desc())
+                .limit(1)
+            )
+            owner_hit = result.scalars().first()
+            if owner_hit:
+                return owner_hit
+
+        # User may own multiple businesses (multiple primary rows) — never require exactly one.
         result = await self.db.execute(
             select(Vendor)
             .join(VendorOwner)
             .where(
                 and_(
                     VendorOwner.user_id == user_id,
-                    VendorOwner.is_primary == True
+                    VendorOwner.is_primary == True,
                 )
             )
+            .order_by(Vendor.created_at.asc())
+            .limit(1)
         )
-        vendor = result.scalar_one_or_none()
+        vendor = result.scalars().first()
         if vendor:
             return vendor
 
@@ -137,7 +182,7 @@ class VendorRepository(BaseRepository[Vendor]):
             .order_by(VendorUser.created_at.asc())
             .limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     
     async def get_documents(self, vendor_id: UUID) -> List[VendorDocument]:
         """Get all documents for a vendor."""
@@ -194,10 +239,13 @@ class VendorRepository(BaseRepository[Vendor]):
             count_query = count_query.where(Vendor.status == status)
 
         if search:
+            term = f"%{search}%"
             search_filter = or_(
-                Vendor.business_name.ilike(f"%{search}%"),
-                Vendor.display_name.ilike(f"%{search}%"),
-                Vendor.slug.ilike(f"%{search}%"),
+                Vendor.business_name.ilike(term),
+                Vendor.display_name.ilike(term),
+                Vendor.slug.ilike(term),
+                Vendor.primary_email.ilike(term),
+                Vendor.primary_phone.ilike(term),
             )
             query = query.where(search_filter)
             count_query = count_query.where(search_filter)

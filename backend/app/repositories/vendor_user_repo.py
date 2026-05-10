@@ -14,20 +14,31 @@ class VendorUserRepository(BaseRepository[VendorUser]):
         super().__init__(VendorUser, db)
 
     async def get_by_vendor_and_user(self, vendor_id: UUID, user_id: UUID) -> Optional[VendorUser]:
+        """Return one membership row; duplicates must not use scalar_one_or_none() without limit."""
         result = await self.db.execute(
-            select(VendorUser).where(
-                and_(VendorUser.vendor_id == vendor_id, VendorUser.user_id == user_id)
-            )
+            select(VendorUser)
+            .where(and_(VendorUser.vendor_id == vendor_id, VendorUser.user_id == user_id))
+            .order_by(VendorUser.created_at.desc())
+            .limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
+
+    async def list_all_for_vendor_and_user(self, vendor_id: UUID, user_id: UUID) -> List[VendorUser]:
+        result = await self.db.execute(
+            select(VendorUser)
+            .where(and_(VendorUser.vendor_id == vendor_id, VendorUser.user_id == user_id))
+            .order_by(VendorUser.created_at.desc())
+        )
+        return list(result.scalars().all())
 
     async def get_by_user_id(self, user_id: UUID) -> Optional[VendorUser]:
         result = await self.db.execute(
             select(VendorUser)
             .where(and_(VendorUser.user_id == user_id, VendorUser.is_active == True))
+            .order_by(VendorUser.created_at.asc())
             .limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def get_with_details(self, vendor_user_id: UUID) -> Optional[VendorUser]:
         result = await self.db.execute(
@@ -71,5 +82,7 @@ class VendorUserRepository(BaseRepository[VendorUser]):
                 VendorUser.user_id == user_id,
                 VendorUser.is_active == True,
             ))
+            .order_by(VendorUser.created_at.desc())
+            .limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()

@@ -1,12 +1,17 @@
 # app/api/v1/vendors.py
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from uuid import UUID
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.repositories.vendor_platform_audit_repo import VendorPlatformAuditRepository
+from app.schemas.vendor_platform_audit import (
+    VendorPlatformAuditEntry,
+    VendorPlatformAuditListResponse,
+)
 from app.models.user import User
 from app.models.vendor_plan import VendorPlan
 from app.schemas.vendor import (
@@ -89,6 +94,32 @@ async def update_my_vendor(
             detail="No vendor found for this user"
         )
     return await service.update(vendor.id, data)
+
+
+@router.get("/me/platform-audit", response_model=VendorPlatformAuditListResponse)
+async def list_vendor_platform_audit(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Platform support audit trail for this vendor (SSO handoff + recorded API changes)."""
+    repo = VendorPlatformAuditRepository(db)
+    total = await repo.count_for_vendor(vendor_id)
+    rows = await repo.list_for_vendor(vendor_id, skip=skip, limit=limit)
+    items = [
+        VendorPlatformAuditEntry(
+            id=row.id,
+            actor_user_id=row.actor_user_id,
+            actor_email=email,
+            action=row.action,
+            detail=row.detail,
+            ip=row.ip,
+            created_at=row.created_at,
+        )
+        for row, email in rows
+    ]
+    return VendorPlatformAuditListResponse(items=items, total=total)
 
 
 # ============== Plan Management ==============

@@ -9,7 +9,7 @@ import math
 import uuid as uuid_mod
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_current_vendor_id
 from app.models.user import User
 from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
 from app.schemas.vendor_service import (
@@ -223,20 +223,6 @@ def _service_to_dict(s) -> dict:
         "updated_at": _dt(s.updated_at),
         "published_at": _dt(s.published_at),
     }
-
-
-async def get_current_vendor_id(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> UUID:
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No vendor found for this user"
-        )
-    return vendor.id
 
 
 def _build_plans(service_id, plans_data: list) -> list:

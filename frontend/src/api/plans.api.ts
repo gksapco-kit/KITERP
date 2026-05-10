@@ -34,6 +34,24 @@ export interface PlanCreate {
   is_featured?: boolean
 }
 
+/** Partial update for PUT /admin/plans/:id */
+export interface PlanUpdate {
+  name?: string
+  slug?: string
+  description?: string | null
+  price_monthly?: number
+  price_yearly?: number | null
+  currency?: string
+  max_products?: number
+  max_services?: number
+  max_team_members?: number
+  max_storage_mb?: number
+  features?: Record<string, boolean>
+  is_active?: boolean
+  is_featured?: boolean
+  sort_order?: number
+}
+
 export interface VendorPlanInfo {
   vendor_id: string
   plan: VendorPlan | null
@@ -49,6 +67,15 @@ export const plansApi = {
   create: async (data: PlanCreate): Promise<VendorPlan> => {
     const res = await apiClient.post('/admin/plans', data)
     return res.data
+  },
+
+  update: async (planId: string, data: PlanUpdate): Promise<VendorPlan> => {
+    const res = await apiClient.put(`/admin/plans/${planId}`, data)
+    return res.data
+  },
+
+  delete: async (planId: string): Promise<void> => {
+    await apiClient.delete(`/admin/plans/${planId}`)
   },
 
   updateFeatures: async (planId: string, features: Record<string, boolean>): Promise<VendorPlan> => {

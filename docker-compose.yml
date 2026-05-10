@@ -61,7 +61,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - APP_NAME=ArT API
+      - APP_NAME=KIT ERP API
       - DEBUG=true
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/kiterp
       - REDIS_URL=redis://redis:6379

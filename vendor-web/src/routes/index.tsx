@@ -4,6 +4,7 @@ import DashboardLayout from '@/layouts/DashboardLayout'
 import ProtectedRoute from './ProtectedRoute'
 
 import Login from '@/pages/auth/Login'
+import VendorHandoff from '@/pages/auth/Handoff'
 import Register from '@/pages/auth/Register'
 import SignupWelcome from '@/pages/auth/SignupWelcome'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
@@ -23,6 +24,7 @@ import ReviewsPage from '@/pages/reviews/index'
 import TeamPage from '@/pages/team/index'
 import RolesPage from '@/pages/roles/index'
 import SettingsPage from '@/pages/settings/index'
+import SupportActivityPage from '@/pages/settings/SupportActivity'
 import CategoriesPage from '@/pages/categories/index'
 import Inventory from '@/pages/inventory/index'
 import POS from '@/pages/pos/index'
@@ -187,6 +189,11 @@ export const router = createBrowserRouter([
     children: [{ index: true, element: <Login /> }],
   },
   {
+    path: '/auth/handoff',
+    element: <AuthLayout />,
+    children: [{ index: true, element: <VendorHandoff /> }],
+  },
+  {
     path: '/register',
     element: <Register />,
   },
@@ -261,6 +268,7 @@ export const router = createBrowserRouter([
       { path: 'team', element: <TeamPage /> },
       { path: 'roles', element: <RolesPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'settings/support-activity', element: <SupportActivityPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'relationship-manager', element: <RelationshipManagerPage /> },
       { path: 'plans', element: <PlansPage /> },

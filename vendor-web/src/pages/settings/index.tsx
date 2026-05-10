@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,8 +12,8 @@ import {
   Save, Loader2, Store, MapPin, FileText, Globe,
   Clock, ChevronDown, ChevronUp, Building2, Phone,
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
-  Palette, ClipboardList, ChevronRight, Check, Settings2,
-  Info, CheckCircle2, Landmark,
+  Palette,   ClipboardList, ChevronRight, Check, Settings2,
+  Info, CheckCircle2, Landmark, HelpCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -52,6 +52,12 @@ export default function SettingsPage() {
   const { data: storesData } = useStores()
   const stores = storesData?.stores ?? []
 
+  const showSupportAuditLink =
+    !!vendor?.id &&
+    !!user?.vendor_role?.vendor_id &&
+    user.vendor_role.vendor_id === vendor.id &&
+    (user.vendor_role.role === 'owner' || user.vendor_role.role === 'platform_staff')
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -61,6 +67,25 @@ export default function SettingsPage() {
           {vendor?.status}
         </div>
       </div>
+
+      {showSupportAuditLink && (
+        <Card className="border-blue-100 bg-blue-50/60 dark:bg-blue-950/20 dark:border-blue-900">
+          <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <HelpCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-gray-900 dark:text-gray-100">Platform support activity</p>
+                <p className="text-sm text-muted-foreground">
+                  View when platform staff opened this dashboard from admin and what changes they made while signed in.
+                </p>
+              </div>
+            </div>
+            <Button variant="secondary" size="sm" className="shrink-0" asChild>
+              <Link to="/settings/support-activity">View audit log</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Unified Store & Overview card */}
       {(() => {

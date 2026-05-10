@@ -1,6 +1,7 @@
 # app/core/security.py
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from app.config import settings
@@ -45,6 +46,33 @@ def decode_token(token: str) -> Optional[dict]:
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )
+        return payload
+    except JWTError:
+        return None
+
+
+VENDOR_HANDOFF_TOKEN_EXPIRE_MINUTES = 5
+
+
+def create_vendor_handoff_token(user_id: UUID, vendor_id: UUID) -> str:
+    """Short-lived JWT for admin → vendor-web dashboard SSO (platform staff only)."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=VENDOR_HANDOFF_TOKEN_EXPIRE_MINUTES)
+    to_encode = {
+        "sub": str(user_id),
+        "vendor_id": str(vendor_id),
+        "type": "vendor_handoff",
+        "exp": expire,
+    }
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def decode_vendor_handoff_token(token: str) -> Optional[dict]:
+    try:
+        payload = jwt.decode(
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
+        if payload.get("type") != "vendor_handoff":
+            return None
         return payload
     except JWTError:
         return None

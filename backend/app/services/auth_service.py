@@ -1,5 +1,5 @@
 # app/services/auth_service.py
-from typing import Optional
+from typing import Optional, Tuple
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -137,7 +137,7 @@ class AuthService:
             refresh_token=refresh_token,
         )
 
-    async def login_platform(self, login: str, password: str) -> Token:
+    async def login_platform(self, login: str, password: str) -> Tuple[Token, User]:
         """
         Super Admin UI only: global lookup, never tenant-scoped.
         Allows ``is_superuser`` or ``platform_staff_role == support``.
@@ -204,9 +204,12 @@ class AuthService:
         access_token = create_access_token(data=token_data)
         refresh_token = create_refresh_token(data=token_data)
 
-        return Token(
-            access_token=access_token,
-            refresh_token=refresh_token,
+        return (
+            Token(
+                access_token=access_token,
+                refresh_token=refresh_token,
+            ),
+            user,
         )
 
     async def refresh_tokens(self, refresh_token: str) -> Token:

@@ -10,7 +10,7 @@ import re
 
 from app.database import get_db
 from app.models.procurement import Supplier
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_current_vendor_id
 from app.models.user import User
 from app.services.vendor_service import VendorService
 from app.services.procurement_service import SupplierService, PurchaseOrderService
@@ -21,17 +21,6 @@ from app.schemas.procurement import (
 )
 
 router = APIRouter()
-
-
-async def get_current_vendor_id(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> UUID:
-    service = VendorService(db)
-    vendor = await service.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(status_code=404, detail="No vendor found for this user")
-    return vendor.id
 
 
 def _supplier_to_dict(s) -> dict:

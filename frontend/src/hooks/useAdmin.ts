@@ -6,6 +6,7 @@ import {
   type ListVendorsParams,
   type AdminVendorUpdatePayload,
 } from '@/api/admin.api'
+import { platformStaffKeys } from '@/hooks/usePlatformStaff'
 
 export const adminKeys = {
   all: ['admin'] as const,
@@ -13,6 +14,7 @@ export const adminKeys = {
   vendorsList: (params?: ListVendorsParams) => [...adminKeys.vendors(), params] as const,
   vendorStats: () => [...adminKeys.all, 'vendor-stats'] as const,
   vendor: (id: string) => [...adminKeys.vendors(), id] as const,
+  relationshipManagerOptions: () => [...adminKeys.all, 'relationship-manager-options'] as const,
 }
 
 export function useAdminVendorStats() {
@@ -23,11 +25,24 @@ export function useAdminVendorStats() {
   })
 }
 
-export function useAdminVendors(params?: ListVendorsParams) {
+export function useAdminVendors(
+  params?: ListVendorsParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: adminKeys.vendorsList(params),
-    queryFn: () => adminApi.listVendors(params),
+    queryFn: () => adminApi.listVendors(params!),
     staleTime: 30 * 1000, // 30 seconds
+    enabled: options?.enabled ?? true,
+  })
+}
+
+export function useRelationshipManagerOptions(enabled: boolean) {
+  return useQuery({
+    queryKey: adminKeys.relationshipManagerOptions(),
+    queryFn: () => adminApi.listRelationshipManagerOptions(),
+    staleTime: 60 * 1000,
+    enabled,
   })
 }
 
@@ -57,6 +72,9 @@ export function useUpdateAdminVendor() {
       queryClient.invalidateQueries({ queryKey: adminKeys.vendor(variables.vendorId) })
       queryClient.invalidateQueries({ queryKey: adminKeys.vendors() })
       queryClient.invalidateQueries({ queryKey: adminKeys.vendorStats() })
+      if ('relationship_manager_user_id' in variables.data) {
+        queryClient.invalidateQueries({ queryKey: platformStaffKeys.all })
+      }
       toast.success('Vendor updated successfully!')
     },
     onError: (error: unknown) => {

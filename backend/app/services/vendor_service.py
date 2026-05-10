@@ -377,9 +377,11 @@ class VendorService:
         """Get vendor by ID."""
         return await self.repo.get_by_id(vendor_id)
     
-    async def get_by_user_id(self, user_id: UUID) -> Optional[Vendor]:
-        """Get vendor by owner user ID."""
-        return await self.repo.get_by_user_id(user_id)
+    async def get_by_user_id(
+        self, user_id: UUID, preferred_vendor_id: Optional[UUID] = None
+    ) -> Optional[Vendor]:
+        """Get vendor for this user (owner or team); optional preferred tenant."""
+        return await self.repo.get_by_user_id(user_id, preferred_vendor_id)
     
     async def update(self, vendor_id: UUID, data: VendorUpdate) -> Vendor:
         """Update vendor profile."""

@@ -14,8 +14,12 @@ const queryClient = new QueryClient({
   },
 })
 
-// Handle token handoff from storefront vendor signup
+// Handle token handoff from storefront vendor signup (?token= access JWT on non-handoff routes).
+// Do not treat /auth/handoff?token= as signup — that query param is a short-lived handoff JWT.
 ;(() => {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  if (path === '/auth/handoff') return
+
   const params = new URLSearchParams(window.location.search)
   const token = params.get('token')
   const refresh = params.get('refresh')

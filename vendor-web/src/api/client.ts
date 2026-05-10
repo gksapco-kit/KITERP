@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { useVendorStore } from '@/stores/vendorStore'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1'
 
@@ -20,6 +21,10 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('access_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    const vendorId = useVendorStore.getState().vendor?.id
+    if (vendorId) {
+      config.headers['X-Vendor-Id'] = vendorId
     }
     return config
   },
@@ -73,7 +78,9 @@ apiClient.interceptors.response.use(
       }
 
       // Only redirect if not already on an auth page (login / register / forgot-password)
-      const onAuthPage = /\/(login|register|forgot-password)/.test(window.location.pathname)
+      const onAuthPage = /\/(login|register|forgot-password|auth\/handoff)/.test(
+        window.location.pathname
+      )
       if (!onAuthPage) {
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')

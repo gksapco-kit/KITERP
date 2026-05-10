@@ -12,7 +12,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     # Application
-    APP_NAME: str = "ArT API"
+    APP_NAME: str = "KIT ERP API"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
     BASE_DOMAIN: str = "kiterp.com"

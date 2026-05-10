@@ -25,6 +25,12 @@ function _sanitiseDetail(detail: string): string {
   if (d.includes('deadlock')) {
     return 'A temporary conflict occurred — please try again'
   }
+  if (d.includes('multiple rows were found') || d.includes('multipleresultsfound')) {
+    return (
+      'Your account matched more than one vendor record for this business (often duplicate team membership). '
+      + 'Remove duplicate vendor_user rows or reopen this store from the admin handoff link.'
+    )
+  }
   if (d.includes('wb_builder_previews')) {
     return 'Preview database table is missing — run backend migrations (e.g. alembic upgrade web006) and restart the API'
   }
@@ -91,6 +97,9 @@ export function extractApiError(error: unknown, context: string): string {
     if (typeof rec.message === 'string') {
       return `${context}: ${_sanitiseDetail(rec.message)}`
     }
+    if (typeof rec.technical === 'string' && (rec.code === 'ambiguous_vendor_resolution' || !rec.message)) {
+      return `${context}: ${_sanitiseDetail(rec.technical as string)}`
+    }
   }
 
   if (data?.detail && Array.isArray(data.detail)) {
@@ -110,7 +119,7 @@ export function extractApiError(error: unknown, context: string): string {
   }
 
   if (data?.message && typeof data.message === 'string') {
-    return `${context}: ${data.message}`
+    return `${context}: ${_sanitiseDetail(data.message)}`
   }
 
   if (data?.error && typeof data.error === 'string') {
@@ -138,6 +147,9 @@ export function extractApiError(error: unknown, context: string): string {
       return `${context}: Internal server error — the team has been notified`
     case 502:
     case 503:
+      if (typeof ax.response?.data === 'object' && ax.response.data && typeof (ax.response.data as { detail?: unknown }).detail === 'string') {
+        return `${context}: ${_sanitiseDetail(String((ax.response.data as { detail: string }).detail))}`
+      }
       return `${context}: The server is temporarily unavailable — please try again shortly`
     default:
       return `${context}: Unexpected error (HTTP ${status})`

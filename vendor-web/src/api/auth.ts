@@ -1,7 +1,14 @@
 import apiClient from './client'
-import type { User, Token } from '@/types'
+import type { User, Token, VendorHandoffRedeem } from '@/types'
 
 export const authApi = {
+  redeemVendorHandoff: async (handoffToken: string): Promise<VendorHandoffRedeem> => {
+    const response = await apiClient.post('/auth/vendor-handoff/redeem', {
+      handoff_token: handoffToken,
+    })
+    return response.data
+  },
+
   /** Optional vendorSlug scopes login when the same email exists on multiple User rows (dev: env or ?vendor=). */
   login: async (email: string, password: string, vendorSlug?: string): Promise<Token> => {
     // OAuth2PasswordRequestForm expects application/x-www-form-urlencoded

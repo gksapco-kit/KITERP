@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { adminApi } from '@/api/admin.api'
 import { useAuthStore } from '@/stores/authStore'
-import { isSuperuserAdmin } from '@/lib/platformAccess'
+import { canCreateBusinessAccounts } from '@/lib/platformAccess'
 import { adminKeys } from '@/hooks/useAdmin'
 import { ArrowLeft, Loader2, MapPin, UserPlus, Copy, CheckCircle2 } from 'lucide-react'
 
@@ -59,7 +59,7 @@ function generatePassword(): string {
 
 export default function AddVendor() {
   const { user } = useAuthStore()
-  if (!isSuperuserAdmin(user)) {
+  if (!canCreateBusinessAccounts(user)) {
     return <Navigate to="/dashboard/vendors" replace />
   }
   const navigate = useNavigate()
@@ -149,12 +149,12 @@ export default function AddVendor() {
       queryClient.invalidateQueries({ queryKey: adminKeys.vendors() })
       queryClient.invalidateQueries({ queryKey: adminKeys.vendorStats() })
       setCreatedResult(result)
-      toast.success('Vendor created with owner account!')
+      toast.success('Business account created with owner login!')
     },
     onError: (error: unknown) => {
       const message =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to create vendor'
+        'Failed to create business account'
       toast.error(message)
     },
   })
@@ -170,7 +170,7 @@ export default function AddVendor() {
       <div className="max-w-xl mx-auto space-y-6">
         <div className="text-center pt-8">
           <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900">Vendor Created</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Business account created</h1>
           <p className="text-gray-600 mt-2">
             <strong>{vendor.display_name}</strong> has been registered successfully.
           </p>
@@ -235,13 +235,13 @@ export default function AddVendor() {
 
         <div className="flex justify-center gap-3">
           <Button variant="outline" onClick={() => navigate('/dashboard/vendors')}>
-            Back to Vendors
+            Back to Business Accounts
           </Button>
           <Button onClick={() => {
             setCreatedResult(null)
             setValue('owner_password', generatePassword())
           }}>
-            Create Another Vendor
+            Create another business account
           </Button>
         </div>
       </div>
@@ -257,8 +257,8 @@ export default function AddVendor() {
           Back
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add New Vendor</h1>
-          <p className="text-gray-600 mt-1">Register a new vendor with an owner login account</p>
+          <h1 className="text-2xl font-bold text-gray-900">Add business account</h1>
+          <p className="text-gray-600 mt-1">Register a new business with an owner login account</p>
         </div>
       </div>
 
@@ -488,7 +488,7 @@ export default function AddVendor() {
                 Creating...
               </>
             ) : (
-              'Create Vendor & Account'
+              'Create business account'
             )}
           </Button>
         </div>

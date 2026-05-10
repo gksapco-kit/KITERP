@@ -8,7 +8,7 @@ from decimal import Decimal
 from datetime import datetime, timezone
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_current_vendor_id
 from app.models.user import User
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.vendor_product import Product
@@ -20,19 +20,6 @@ from app.schemas.mrp import (
 )
 
 router = APIRouter()
-
-
-# ── Shared dep: current vendor id ────────────────────────────────────────────
-
-async def get_current_vendor_id(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> UUID:
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(status_code=404, detail="No vendor found for this user")
-    return vendor.id
 
 
 # ── BOM helpers ───────────────────────────────────────────────────────────────

@@ -1,11 +1,15 @@
-import { Outlet, Navigate } from 'react-router-dom'
+import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { Store } from 'lucide-react'
 
 export default function AuthLayout() {
   const { isAuthenticated } = useAuthStore()
+  const location = useLocation()
 
-  if (isAuthenticated) return <Navigate to="/" replace />
+  // Admin → vendor SSO always uses /auth/handoff?token=… — must run even when a session
+  // already exists (e.g. switching to another business). Never redirect away before redeem.
+  const isVendorHandoffRoute = location.pathname.replace(/\/+$/, '') === '/auth/handoff'
+  if (isAuthenticated && !isVendorHandoffRoute) return <Navigate to="/" replace />
 
   return (
     <div className="min-h-screen flex">

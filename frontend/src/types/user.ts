@@ -1,3 +1,13 @@
+/** Present on `/me` when the user belongs to a vendor (business dashboard). */
+export interface UserVendorRole {
+  vendor_id: string
+  role: string
+  role_id?: string | null
+  role_name?: string | null
+  permissions?: string[]
+  is_active?: boolean
+}
+
 export interface User {
   id: string
   email?: string | null
@@ -13,6 +23,7 @@ export interface User {
   /** Job function when platform_staff_role is support: sales | crm | consulting | relationship_manager | team_manager */
   platform_staff_job_role?: string | null
   platform_staff_manager_id?: string | null
+  vendor_role?: UserVendorRole | null
   created_at: string
   updated_at: string
 }

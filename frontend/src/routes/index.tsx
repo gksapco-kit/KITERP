@@ -30,6 +30,8 @@ import Services from '@/pages/dashboard/Services'
 import Inventory from '@/pages/dashboard/Inventory'
 import Settings from '@/pages/dashboard/Settings'
 import PlatformTeam from '@/pages/dashboard/PlatformTeam'
+import PlatformTeamMemberDetail from '@/pages/dashboard/PlatformTeamMemberDetail'
+import AccountActivity from '@/pages/dashboard/AccountActivity'
 
 // Storefront Pages
 import StorefrontHome from '@/pages/storefront/Home'
@@ -90,11 +92,13 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'vendors', element: <Vendors /> },
-      { path: 'vendors/:id', element: <VendorDetail /> },
-      { path: 'vendors/:id/app-builds', element: <VendorAppBuilds /> },
       { path: 'vendors/add', element: <AddVendor /> },
+      { path: 'vendors/:id/app-builds', element: <VendorAppBuilds /> },
+      { path: 'vendors/:id', element: <VendorDetail /> },
       { path: 'plans', element: <Plans /> },
       { path: 'platform-team', element: <PlatformTeam /> },
+      { path: 'platform-team/:userId', element: <PlatformTeamMemberDetail /> },
+      { path: 'account-activity', element: <AccountActivity /> },
       { path: 'products', element: <Products /> },
       { path: 'services', element: <Services /> },
       { path: 'inventory', element: <Inventory /> },

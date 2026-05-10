@@ -100,7 +100,7 @@ export default function VendorAppBuilds() {
     return (
       <div className="text-center py-20">
         <p className="text-gray-500 mb-4">Vendor not found</p>
-        <Button onClick={() => navigate('/dashboard/vendors')}>Back to Vendors</Button>
+        <Button onClick={() => navigate('/dashboard/vendors')}>Back to Business Accounts</Button>
       </div>
     )
   }

@@ -27,6 +27,8 @@ from app.models.invoice_template import InvoiceTemplate
 from app.models.merchandising import Bundle, BundleItem, UpsellMapping
 from app.models.loyalty import LoyaltyProgram, LoyaltyAccount, LoyaltyTransaction
 from app.models.platform_setting import PlatformSetting
+from app.models.platform_staff_audit import PlatformStaffAuditLog
+from app.models.vendor_platform_audit import VendorPlatformAuditLog
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.store import Store, StoreInventory
 from app.models.hr import (
@@ -156,6 +158,8 @@ __all__ = [
     "LoyaltyAccount",
     "LoyaltyTransaction",
     "PlatformSetting",
+    "PlatformStaffAuditLog",
+    "VendorPlatformAuditLog",
     "ProductBOMItem",
     "StockReservation",
     "Store",

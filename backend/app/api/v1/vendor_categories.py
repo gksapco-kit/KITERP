@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_current_vendor_id
 from app.models.user import User
 from app.models.vendor_category import VendorCategory
 from app.models.vendor_product import Product
@@ -18,17 +18,6 @@ from app.repositories.vendor_category_repo import VendorCategoryRepository
 from app.services.vendor_service import VendorService
 
 router = APIRouter()
-
-
-async def get_current_vendor_id(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> UUID:
-    service = VendorService(db)
-    vendor = await service.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(status_code=404, detail="No vendor found for this user")
-    return vendor.id
 
 
 def _slugify(name: str) -> str:

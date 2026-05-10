@@ -11,8 +11,30 @@ import type { AxiosError } from 'axios'
 
 import { formatLoginError, useLogin } from '@/hooks/useAuth'
 
+/** Align with backend auth_service._PHONE_RE */
+const PHONE_RE = /^\+?\d{7,15}$/
+
 const schema = z.object({
-  email: z.string().email('Invalid email address'),
+  login: z
+    .string()
+    .min(3, 'Enter email or phone')
+    .superRefine((val, ctx) => {
+      const trimmed = val.trim()
+      if (!trimmed) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter email or phone' })
+        return
+      }
+      const compactPhone = trimmed.replace(/\s/g, '')
+      const emailOk = z.string().email().safeParse(trimmed).success
+      const phoneOk = PHONE_RE.test(compactPhone)
+      if (!emailOk && !phoneOk) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'Enter a valid email or phone number (7–15 digits; spaces OK; optional +country code)',
+        })
+      }
+    }),
   password: z.string().min(1, 'Password is required'),
 })
 
@@ -36,16 +58,18 @@ export default function Login() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div>
-        <Label htmlFor="email">Email address</Label>
+        <Label htmlFor="login">Email or phone number</Label>
         <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          {...register('email')}
+          id="login"
+          type="text"
+          inputMode="text"
+          autoComplete="username"
+          placeholder="you@company.com or +91 98765 43210"
+          {...register('login')}
           className="mt-1"
         />
-        {errors.email && (
-          <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
+        {errors.login && (
+          <p className="mt-1 text-sm text-red-500">{errors.login.message}</p>
         )}
       </div>
 
@@ -80,7 +104,7 @@ export default function Login() {
           typeof loginMutation.error === 'object' &&
           'response' in loginMutation.error
             ? formatLoginError(loginMutation.error as AxiosError<{ detail?: unknown }>)
-            : 'Sign-in failed. Check email/password and that the API is running on port 8000.'}
+            : 'Sign-in failed. Check email or phone and password, and that the API is running on port 8000.'}
         </p>
       )}
 
