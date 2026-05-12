@@ -6,14 +6,15 @@
 #   - ElastiCache Redis
 #
 # Usage:
-#   docker compose -f docker-compose.prod.yml up -d --build
-#   docker compose -f docker-compose.prod.yml down
-#   docker compose -f docker-compose.prod.yml logs -f
+#   docker compose --env-file .env.config -f docker-compose.prod.yml up -d --build
+#   docker compose --env-file .env.config -f docker-compose.prod.yml down
+#   docker compose --env-file .env.config -f docker-compose.prod.yml logs -f
 #
 # Prerequisites:
-#   - Copy .env.example to .env and fill in all values
+#   - Copy/update .env.config and fill in all values
 #   - Ensure managed DB endpoints are reachable from this host
-#   - Place SSL certs in docker/nginx/ssl/ (fullchain.pem, privkey.pem)
+#   - Open EC2 security group inbound port 80
+#   - Later, when a real domain is available, add HTTPS/443 server blocks
 # ============================================
 
 services:
@@ -31,9 +32,9 @@ services:
     environment:
       - APP_NAME=KIT ERP API
       - DEBUG=false
-      - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in .env}
-      - REDIS_URL=${REDIS_URL:?Set REDIS_URL in .env}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in .env.config}
+      - REDIS_URL=${REDIS_URL:?Set REDIS_URL in .env.config}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env.config}
       - JWT_ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
@@ -43,11 +44,13 @@ services:
       - AWS_S3_BUCKET=${AWS_S3_BUCKET:-kiterp-uploads}
       - AWS_CLOUDFRONT_URL=${AWS_CLOUDFRONT_URL:-}
       - BASE_DOMAIN=${BASE_DOMAIN:-kiterp.com}
+      - CRM_ENCRYPTION_KEY=${CRM_ENCRYPTION_KEY:-}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - FROM_EMAIL=${FROM_EMAIL:-noreply@kiterp.com}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - SKIP_MIGRATIONS=${SKIP_MIGRATIONS:-false}
     volumes:
       - backend_uploads:/app/uploads
@@ -63,6 +66,9 @@ services:
       args:
         VITE_API_URL: ${VITE_ADMIN_API_URL:-/api/v1}
         VITE_BASE_DOMAIN: ${BASE_DOMAIN:-kiterp.com}
+        VITE_PUBLIC_BASE_PATH: ${VITE_ADMIN_BASE_PATH:-/admin/}
+        VITE_ROUTER_BASENAME: ${VITE_ADMIN_ROUTER_BASENAME:-/admin}
+        VITE_VENDOR_URL: ${VITE_VENDOR_URL:?Set VITE_VENDOR_URL in .env.config}
     container_name: kiterp-admin
     restart: always
     expose:
@@ -77,6 +83,9 @@ services:
       target: production
       args:
         VITE_API_URL: ${VITE_VENDOR_API_URL:-/api/v1}
+        VITE_PUBLIC_BASE_PATH: ${VITE_VENDOR_BASE_PATH:-/vendor/}
+        VITE_ROUTER_BASENAME: ${VITE_VENDOR_ROUTER_BASENAME:-/vendor}
+        VITE_STOREFRONT_URL: ${VITE_STOREFRONT_URL:?Set VITE_STOREFRONT_URL in .env.config}
     container_name: kiterp-vendor
     restart: always
     expose:
@@ -90,6 +99,10 @@ services:
       target: production
       args:
         VITE_API_URL: ${VITE_STOREFRONT_API_URL:-/api/v1}
+        VITE_PUBLIC_BASE_PATH: ${VITE_STOREFRONT_BASE_PATH:-/}
+        VITE_BASE_DOMAIN: ${BASE_DOMAIN:-kiterp.com}
+        VITE_VENDOR_URL: ${VITE_VENDOR_URL:?Set VITE_VENDOR_URL in .env.config}
+        VITE_ADMIN_URL: ${VITE_ADMIN_URL:?Set VITE_ADMIN_URL in .env.config}
     container_name: kiterp-storefront
     restart: always
     expose:
@@ -105,11 +118,9 @@ services:
     restart: always
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
       - certbot_webroot:/var/www/certbot:ro
     depends_on:
       - backend

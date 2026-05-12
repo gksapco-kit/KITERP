@@ -5,12 +5,14 @@ import path from 'path'
 // In Docker the BACKEND_URL env var points to the internal service name.
 // When running locally (npm run dev) it falls back to localhost:8000.
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000'
+const publicBasePath = process.env.VITE_PUBLIC_BASE_PATH?.trim() || '/'
 
 // Polling is for Docker bind-mounts / network FS. On Windows + OneDrive it makes dev painfully slow.
 const useWatchPolling = process.env.VITE_WATCH_POLLING === '1'
 
 export default defineConfig({
   plugins: [react()],
+  base: publicBasePath,
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

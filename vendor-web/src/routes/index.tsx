@@ -182,6 +182,8 @@ import CommissionAccruals from '@/pages/commission/Accruals'
 import CommissionPayouts from '@/pages/commission/Payouts'
 import CommissionReportPage from '@/pages/commission/reports/CommissionReport'
 
+const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
+
 export const router = createBrowserRouter([
   {
     path: '/login',
@@ -422,4 +424,6 @@ export const router = createBrowserRouter([
     path: '*',
     element: <Navigate to="/" replace />,
   },
-])
+], {
+  basename: routerBasename || undefined,
+})

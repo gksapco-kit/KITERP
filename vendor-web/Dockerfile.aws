@@ -18,11 +18,18 @@ WORKDIR /app
 COPY --from=deps /app/vendor-web/node_modules ./vendor-web/node_modules
 COPY vendor-web ./vendor-web
 COPY storefront-web/src ./storefront-web/src
+RUN ln -s /app/vendor-web/node_modules /app/node_modules
 
 WORKDIR /app/vendor-web
 
 ARG VITE_API_URL=http://localhost:8000/api/v1
+ARG VITE_PUBLIC_BASE_PATH=/
+ARG VITE_ROUTER_BASENAME=
+ARG VITE_STOREFRONT_URL=http://localhost:3002
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_PUBLIC_BASE_PATH=${VITE_PUBLIC_BASE_PATH}
+ENV VITE_ROUTER_BASENAME=${VITE_ROUTER_BASENAME}
+ENV VITE_STOREFRONT_URL=${VITE_STOREFRONT_URL}
 
 RUN npm run build
 

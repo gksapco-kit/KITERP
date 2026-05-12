@@ -49,6 +49,8 @@ import StorefrontContact from '@/pages/storefront/Contact'
 import ProtectedRoute from './ProtectedRoute'
 import VendorRoute from './VendorRoute'
 
+const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
+
 export const router = createBrowserRouter([
   // Auth Routes
   {
@@ -123,4 +125,6 @@ export const router = createBrowserRouter([
       { path: 'contact', element: <StorefrontContact /> },
     ],
   },
-])
+], {
+  basename: routerBasename || undefined,
+})

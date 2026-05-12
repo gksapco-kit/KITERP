@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_VENDOR_URL?: string
+  readonly VITE_ROUTER_BASENAME?: string
 }
 
 interface ImportMeta {
