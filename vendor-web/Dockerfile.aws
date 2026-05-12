@@ -1,0 +1,40 @@
+# ============================================
+# KITERP Vendor Web - AWS build with shared storefront source
+# ============================================
+
+# ---------- Stage 1: Dependencies ----------
+FROM node:20-alpine AS deps
+
+WORKDIR /app/vendor-web
+
+COPY vendor-web/package.json vendor-web/package-lock.json* ./
+RUN npm ci || npm install
+
+# ---------- Stage 2: Build ----------
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+COPY --from=deps /app/vendor-web/node_modules ./vendor-web/node_modules
+COPY vendor-web ./vendor-web
+COPY storefront-web/src ./storefront-web/src
+
+WORKDIR /app/vendor-web
+
+ARG VITE_API_URL=http://localhost:8000/api/v1
+ENV VITE_API_URL=${VITE_API_URL}
+
+RUN npm run build
+
+# ---------- Stage 3: Production (Nginx) ----------
+FROM nginx:alpine AS production
+
+COPY vendor-web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/vendor-web/dist /usr/share/nginx/html
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -10,7 +10,7 @@ import type { UserCreate } from '@/types/user'
 
 /** Readable message from FastAPI `{ detail: ... }` or empty/HTML proxy errors. */
 export function formatLoginError(
-  ax: AxiosError<{ detail?: unknown; type?: string; message?: string }>,
+  ax: AxiosError<string | { detail?: unknown; type?: string; message?: string }>,
 ): string {
   const status = ax.response?.status
   const raw = ax.response?.data

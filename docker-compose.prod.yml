@@ -72,7 +72,8 @@ services:
 
   vendor-web:
     build:
-      context: ./vendor-web
+      context: .
+      dockerfile: vendor-web/Dockerfile.aws
       target: production
       args:
         VITE_API_URL: ${VITE_VENDOR_API_URL:-/api/v1}
