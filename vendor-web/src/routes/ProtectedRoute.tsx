@@ -10,20 +10,25 @@ const AUTH_TIMEOUT_MS = 10_000
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { accessToken, isAuthenticated, logout } = useAuthStore()
-  const { isLoading, isError, fetchStatus } = useMe()
+  const me = useMe()
+  const { isError, data: meData, isPending, isFetching } = me
   const [timedOut, setTimedOut] = useState(false)
 
+  /** Wait only until the first /auth/me result — avoids relying on `isLoading` semantics across RQ versions. */
+  const waitingOnSession =
+    Boolean(accessToken) && !isError && meData === undefined && (isPending || isFetching)
+
   useEffect(() => {
-    if (!isLoading || fetchStatus === 'idle') return
+    if (!waitingOnSession) return
     const id = setTimeout(() => {
       logout()
       setTimedOut(true)
     }, AUTH_TIMEOUT_MS)
     return () => clearTimeout(id)
-  }, [isLoading, fetchStatus, logout])
+  }, [waitingOnSession, logout])
 
   if (!accessToken || timedOut) return <Navigate to="/login" state={{ from: location }} replace />
-  if (isLoading && fetchStatus !== 'idle') return <PageLoading />
+  if (waitingOnSession) return <PageLoading />
   if (isError || !isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
 
   return <>{children}</>

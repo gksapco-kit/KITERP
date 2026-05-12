@@ -87,7 +87,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     axios
-      .get(`${API_URL}/catalog/vendor/${encodeURIComponent(slug)}`)
+      .get(`${API_URL}/catalog/vendor/${encodeURIComponent(slug)}`, { timeout: 15_000 })
       .then((res) => {
         if (!cancelled) {
           setVendor(res.data)

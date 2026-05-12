@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
@@ -15,6 +15,7 @@ import {
   Shuffle, ClipboardCheck, Wand2, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
+  GripVertical, SlidersHorizontal, Database,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +40,32 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
+  loadSectionIds,
+  saveSectionIds,
+  loadItemOrders,
+  saveItemOrders,
+  clearSavedNavOrder,
+  orderNavItemsByTo,
+  orderSectionsById,
+} from '@/layouts/sidebarNavOrder'
 
 interface NavItem {
   to: string
@@ -56,15 +83,27 @@ interface NavItem {
 }
 
 interface NavSection {
+  /** Stable id for ordering / localStorage */
+  id: string
   title: string
+  /** Native `title` tooltip on the section header (defaults to `title`) */
+  titleTooltip?: string
+  /** Shown beside the section title in the sidebar */
+  icon: React.ElementType
+  /** Optional helper line under the title (e.g. My KIT) */
+  subtitle?: string
   items: NavItem[]
 }
 
 const allSections: NavSection[] = [
   {
-    title: 'Overview',
+    id: 'my-kit',
+    title: 'My Kit',
+    titleTooltip: 'My Kit-Personalize your navigation',
+    icon: Sparkles,
     items: [
       { to: '/', icon: BarChart3, label: 'Dashboard', alwaysShow: true },
+      { to: '/settings', icon: SlidersHorizontal, label: 'Menu & preferences', alwaysShow: true },
       { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/workspace', icon: LayoutGrid, label: 'Workspace apps', alwaysShow: true },
@@ -72,7 +111,9 @@ const allSections: NavSection[] = [
     ],
   },
   {
+    id: 'sales',
     title: 'Sales Management',
+    icon: ShoppingCart,
     items: [
       { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view' },
       { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'] },
@@ -89,7 +130,9 @@ const allSections: NavSection[] = [
     ],
   },
   {
-    title: 'Commission',
+    id: 'commission',
+    title: 'Commission Management',
+    icon: Percent,
     items: [
       { to: '/commission', icon: Percent, label: 'Overview', requiresPermission: 'commission.read' },
       { to: '/commission/payees', icon: UserCheck, label: 'Payees', requiresPermission: 'commission.manage' },
@@ -101,7 +144,9 @@ const allSections: NavSection[] = [
     ],
   },
   {
+    id: 'inventory',
     title: 'Inventory Management',
+    icon: Warehouse,
     items: [
       { to: '/products', icon: Package, label: 'Products', requiresOffering: ['products', 'both'], requiresPermission: 'products.view' },
       { to: '/services', icon: Wrench, label: 'Services', requiresOffering: ['services', 'both'], requiresPermission: 'services.view' },
@@ -111,7 +156,9 @@ const allSections: NavSection[] = [
     ],
   },
   {
+    id: 'finance',
     title: 'Finance Management',
+    icon: Landmark,
     items: [
       // ── Basic Finance mode ─────────────────────────────────────────────────
       { to: '/finance/basic', icon: Landmark, label: 'Finance', requiresPermission: 'finance.view', requiresFinanceMode: 'basic' },
@@ -142,7 +189,9 @@ const allSections: NavSection[] = [
     ],
   },
   {
-    title: 'Controlling (CO)',
+    id: 'controlling',
+    title: 'Controlling Management',
+    icon: Gauge,
     items: [
       { to: '/controlling', icon: Gauge, label: 'CO Dashboard', requiresPermission: 'finance.view' },
       // ── Cost Planning
@@ -169,14 +218,18 @@ const allSections: NavSection[] = [
     ],
   },
   {
+    id: 'master-data',
     title: 'Master Data Management',
+    icon: Database,
     items: [
       { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-[11px]', alwaysShow: true },
       { to: '/reviews', icon: MessageSquare, label: 'Reviews', requiresPermission: 'reviews.view' },
     ],
   },
   {
-    title: 'CRM',
+    id: 'crm',
+    title: 'CRM Management',
+    icon: UsersRound,
     items: [
       { to: '/crm', icon: LayoutDashboard, label: 'CRM Dashboard', requiresPermission: 'crm.view' },
       { to: '/crm/contacts', icon: Contact2, label: 'Contacts', requiresPermission: 'crm.view' },
@@ -198,7 +251,9 @@ const allSections: NavSection[] = [
     ],
   },
   {
-    title: 'Human Resources Management',
+    id: 'hr',
+    title: 'HR Management',
+    icon: Briefcase,
     items: [
       { to: '/hr/me', icon: UserCheck, label: 'My ESS Hub', alwaysShow: true },
       { to: '/hr/employees', icon: UserCog, label: 'Employees', requiresPermission: 'hr.view' },
@@ -228,7 +283,9 @@ const allSections: NavSection[] = [
     ],
   },
   {
-    title: 'Configuration',
+    id: 'system',
+    title: 'System Configuration',
+    icon: Settings,
     items: [
       { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Website templates', alwaysShow: true },
@@ -242,6 +299,139 @@ const allSections: NavSection[] = [
     ],
   },
 ]
+
+const DEFAULT_SECTION_IDS = allSections.map((s) => s.id)
+
+/** Insert a divider between consecutive sections when the rail group changes (DnD-safe: divider lives inside each sortable shell). */
+const SECTION_RAIL_GROUP = new Map<string, string>([
+  ['my-kit', 'personal'],
+  ['sales', 'operations'],
+  ['commission', 'operations'],
+  ['inventory', 'operations'],
+  ['finance', 'ledger'],
+  ['controlling', 'ledger'],
+  ['master-data', 'relationships'],
+  ['crm', 'relationships'],
+  ['hr', 'workforce'],
+  ['system', 'platform'],
+])
+function railGroupForSection(id: string) {
+  return SECTION_RAIL_GROUP.get(id) ?? 'other'
+}
+
+const SID_SEC = 'sb-sec:'
+const SID_ITM = 'sb-itm:'
+
+function secDndId(sectionId: string) {
+  return `${SID_SEC}${sectionId}`
+}
+function parseSecDndId(id: string): string | null {
+  if (!id.startsWith(SID_SEC)) return null
+  return id.slice(SID_SEC.length)
+}
+function itmDndId(sectionId: string, to: string) {
+  return `${SID_ITM}${sectionId}:${encodeURIComponent(to)}`
+}
+function parseItmDndId(id: string): { sectionId: string; to: string } | null {
+  if (!id.startsWith(SID_ITM)) return null
+  const rest = id.slice(SID_ITM.length)
+  const ci = rest.indexOf(':')
+  if (ci === -1) return null
+  return { sectionId: rest.slice(0, ci), to: decodeURIComponent(rest.slice(ci + 1)) }
+}
+
+function SortableSectionShell({
+  sectionId,
+  prepend,
+  sortDisabled,
+  children,
+}: {
+  sectionId: string
+  prepend?: ReactNode
+  /** When true, section cannot be dragged (e.g. browse mode hides drag handles). */
+  sortDisabled?: boolean
+  children: (
+    listeners: ReturnType<typeof useSortable>['listeners'],
+    attributes: ReturnType<typeof useSortable>['attributes'],
+  ) => ReactNode
+}) {
+  const id = secDndId(sectionId)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: Boolean(sortDisabled),
+  })
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 2 : undefined,
+  }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'mb-0 rounded-md transition-shadow duration-150 motion-reduce:transition-none',
+        isDragging && 'opacity-95 shadow-md ring-1 ring-border/40',
+      )}
+    >
+      {prepend}
+      {children(listeners, attributes)}
+    </div>
+  )
+}
+
+function SortableItemShell({
+  sectionId,
+  itemTo,
+  sortDisabled,
+  children,
+}: {
+  sectionId: string
+  itemTo: string
+  sortDisabled?: boolean
+  children: (
+    listeners: ReturnType<typeof useSortable>['listeners'],
+    attributes: ReturnType<typeof useSortable>['attributes'],
+  ) => ReactNode
+}) {
+  const id = itmDndId(sectionId, itemTo)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: Boolean(sortDisabled),
+  })
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 2 : undefined,
+  }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex min-h-[1.75rem] items-center gap-0 rounded-md transition-opacity duration-150 motion-reduce:transition-none',
+        isDragging && 'opacity-90',
+      )}
+    >
+      {children(listeners, attributes)}
+    </div>
+  )
+}
+
+/** Active leaf row: left rail + subtle fill (compact enterprise nav). */
+const navLinkActive =
+  'border-l-2 border-violet-600 bg-violet-500/[0.07] font-medium text-foreground rounded-r-md shadow-none dark:border-violet-400 dark:bg-violet-400/[0.09] dark:text-foreground'
+const navLinkInactive =
+  'border-l-2 border-transparent font-normal text-muted-foreground rounded-r-md hover:bg-muted/50 hover:text-foreground active:bg-muted/60 dark:hover:bg-zinc-800/55 dark:hover:text-foreground'
+
+const navRowTransition = 'transition-[background-color,color,border-color] duration-150 ease-out motion-reduce:transition-none'
+const navExpandTransition =
+  'transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] motion-reduce:transition-none'
+
+/** Sidebar horizontal rhythm: icon column + label column align across section headers, items, logout. */
+const NAV_ICON_COL = 'flex h-5 w-5 shrink-0 items-center justify-center'
+const NAV_DRAG_COL = 'flex h-7 w-5 shrink-0 items-center justify-center'
+const NAV_ROW_PAD_Y = 'py-0.5'
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard — Analytics',
@@ -384,7 +574,10 @@ export default function DashboardLayout() {
   const { vendor, selectedStore, setSelectedStore } = useVendorStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
+  /** Drag handles and section reordering only while this is on (reduces visual noise). */
+  const [navReorderMode, setNavReorderMode] = useState(false)
+  /** Default: all sections collapsed; only My Kit starts expanded. */
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({ 'My Kit': false })
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -591,8 +784,69 @@ export default function DashboardLayout() {
     .map(section => ({ ...section, items: section.items.filter(filterItem) }))
     .filter(section => section.items.length > 0)
 
+  const [sectionOrder, setSectionOrder] = useState<string[]>(() => loadSectionIds(DEFAULT_SECTION_IDS))
+  const [itemOrders, setItemOrders] = useState<Record<string, string[]>>(() => loadItemOrders())
+
+  useEffect(() => {
+    saveSectionIds(sectionOrder)
+  }, [sectionOrder])
+
+  useEffect(() => {
+    saveItemOrders(itemOrders)
+  }, [itemOrders])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const orderedVisibleSections = useMemo(
+    () => orderSectionsById(visibleSections, sectionOrder),
+    [visibleSections, sectionOrder],
+  )
+
+  function resetNavOrderToDefaults() {
+    clearSavedNavOrder()
+    setSectionOrder(loadSectionIds(DEFAULT_SECTION_IDS))
+    setItemOrders(loadItemOrders())
+    setNavReorderMode(false)
+    setSidebarOpen(true)
+  }
+
+  function handleNavDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const a = String(active.id)
+    const b = String(over.id)
+    const secA = parseSecDndId(a)
+    const secB = parseSecDndId(b)
+    if (secA && secB) {
+      setSectionOrder((prev) => {
+        const oi = prev.indexOf(secA)
+        const ni = prev.indexOf(secB)
+        if (oi < 0 || ni < 0) return prev
+        return arrayMove(prev, oi, ni)
+      })
+      return
+    }
+    const itA = parseItmDndId(a)
+    const itB = parseItmDndId(b)
+    if (itA && itB && itA.sectionId === itB.sectionId) {
+      const sid = itA.sectionId
+      const sec = visibleSections.find((s) => s.id === sid)
+      if (!sec) return
+      const ordered = orderNavItemsByTo(sec.items, itemOrders[sid])
+      const keys = ordered.map((i) => i.to)
+      const oi = keys.indexOf(itA.to)
+      const ni = keys.indexOf(itB.to)
+      if (oi < 0 || ni < 0) return
+      const next = arrayMove(keys, oi, ni)
+      setItemOrders((prev) => ({ ...prev, [sid]: next }))
+    }
+  }
+
   const toggleSection = (title: string) => {
-    setCollapsedSections(prev => ({ ...prev, [title]: !prev[title] }))
+    setCollapsedSections((prev) => ({ ...prev, [title]: !(prev[title] ?? true) }))
   }
 
   const toggleGroup = (key: string) => {
@@ -612,16 +866,16 @@ export default function DashboardLayout() {
      'Dashboard')
 
   const sidebarContent = (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Store Selector + User Role */}
-      <div className="relative border-b border-border">
+      <div className="relative border-b border-border/25 bg-card/40">
         <button
           type="button"
           onClick={openStorePicker}
-          className="w-full flex items-center gap-3 px-4 py-4 hover:bg-muted transition-colors"
+          className="flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-md shrink-0">
-            <Store className="w-6 h-6 text-white" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 shadow-sm">
+            <Store className="h-[1.05rem] w-[1.05rem] text-white" />
           </div>
           <div className="min-w-0 flex-1 text-left">
             <p className="text-sm font-bold text-foreground truncate leading-tight">
@@ -630,15 +884,15 @@ export default function DashboardLayout() {
             <p className="text-[11px] text-muted-foreground truncate mt-0.5">
               {storeHeaderSubtitle}
             </p>
-            <div className="flex items-center gap-0.5 mt-1">
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-700">
+            <div className="flex items-center gap-0.5 mt-0.5">
+              <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold bg-violet-500/12 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
                 <ShieldCheck className="w-2.5 h-2.5" />
                 {roleBadge}
               </span>
             </div>
           </div>
           <ChevronDown className={cn(
-            'w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200',
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none',
             storePickerOpen && 'rotate-180'
           )} />
         </button>
@@ -726,141 +980,332 @@ export default function DashboardLayout() {
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1 sidebar-scroll">
-        {visibleSections.map((section) => {
-          const isSectionCollapsed = collapsedSections[section.title] ?? false
-
-          // ── Build sub-groups (for sections that use groupLabel) ──────────────
-          type SubGroup = { label?: string; color?: string; key: string; items: NavItem[] }
-          const subGroups: SubGroup[] = []
-          let cur: SubGroup = { key: section.title + ':__top__', items: [] }
-          for (const item of section.items) {
-            if (item.groupLabel) {
-              if (cur.items.length > 0) subGroups.push(cur)
-              const key = section.title + ':' + item.groupLabel
-              cur = { label: item.groupLabel, color: item.groupColor, key, items: [item] }
-            } else {
-              cur.items.push(item)
-            }
-          }
-          if (cur.items.length > 0) subGroups.push(cur)
-
-          const groupBg: Record<string, string> = {
-            blue:    'bg-muted hover:bg-muted/80',
-            amber:   'bg-muted hover:bg-muted/80',
-            emerald: 'bg-muted hover:bg-muted/80',
-            indigo:  'bg-muted hover:bg-muted/80',
-            rose:    'bg-muted hover:bg-muted/80',
-            violet:  'bg-muted hover:bg-muted/80',
-          }
-          const groupActive: Record<string, string> = {
-            blue:    'bg-violet-600 text-white shadow-sm shadow-violet-200',
-            amber:   'bg-violet-600 text-white shadow-sm shadow-violet-200',
-            emerald: 'bg-violet-600 text-white shadow-sm shadow-violet-200',
-            indigo:  'bg-violet-600 text-white shadow-sm shadow-violet-200',
-            rose:    'bg-violet-600 text-white shadow-sm shadow-violet-200',
-            violet:  'bg-violet-600 text-white shadow-sm shadow-violet-200',
-          }
-
-          return (
-            <div key={section.title}>
-              {/* Section header */}
+      {/* Navigation — reorder mode shows drag handles (order saved in this browser) */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleNavDragEnd}>
+        <nav
+          className="sidebar-scroll sidebar-scroll-intent flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-1 pt-0.5"
+          aria-label="Main navigation"
+        >
+          <div className="mb-0.5 flex shrink-0 items-center justify-between gap-2 px-0.5 py-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/65">
+              Modules
+            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              {navReorderMode && (
+                <button
+                  type="button"
+                  aria-label="Reset menu order to default and exit reorder mode"
+                  onClick={resetNavOrderToDefaults}
+                  className={cn(
+                    'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    'text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground',
+                  )}
+                >
+                  Reset
+                </button>
+              )}
               <button
                 type="button"
-                className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => toggleSection(section.title)}
+                aria-pressed={navReorderMode}
+                aria-label={navReorderMode ? 'Finish customizing menu order' : 'Reorder menu sections and items'}
+                onClick={() => setNavReorderMode((v) => !v)}
+                className={cn(
+                  'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  navReorderMode
+                    ? 'bg-violet-600 text-white shadow-sm hover:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500'
+                    : 'text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground',
+                )}
               >
-                {section.title}
-                <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', isSectionCollapsed && '-rotate-90')} />
+                {navReorderMode ? 'Done' : 'Reorder'}
               </button>
+            </div>
+          </div>
 
-              {!isSectionCollapsed && (
-                <div className="mt-0.5 mb-2 space-y-0.5">
-                  {subGroups.map((grp) => {
-                    const isGroupCollapsed = collapsedGroups[grp.key] ?? false
-                    const hasActiveItem = grp.items.some(i => {
-                      const base = i.to.split('?')[0]
-                      return location.pathname === base || (base !== '/' && location.pathname.startsWith(base + '/'))
-                    })
+          <SortableContext items={orderedVisibleSections.map((s) => secDndId(s.id))} strategy={verticalListSortingStrategy}>
+            {orderedVisibleSections.map((section, sectionIdx) => {
+              const isSectionCollapsed = collapsedSections[section.title] ?? true
+              const orderedItems = orderNavItemsByTo(section.items, itemOrders[section.id])
+              const sectionHasActive = orderedItems.some((it) => {
+                const base = it.to.split('?')[0]
+                return (
+                  location.pathname === base ||
+                  (base !== '/' && location.pathname.startsWith(`${base}/`))
+                )
+              })
+              const prevSectionId = sectionIdx > 0 ? orderedVisibleSections[sectionIdx - 1]?.id : null
+              const showRailDivider =
+                prevSectionId != null && railGroupForSection(section.id) !== railGroupForSection(prevSectionId)
 
-                    return (
-                      <div key={grp.key}>
-                        {/* Coloured sub-group header (only when groupLabel present) */}
-                        {grp.label && (
+              const SectionIcon = section.icon
+              const sectionPanelId = `nav-section-${section.id}`
+              const sortLocked = !navReorderMode
+
+              return (
+                <SortableSectionShell
+                  key={section.id}
+                  sectionId={section.id}
+                  sortDisabled={sortLocked}
+                  prepend={
+                    showRailDivider ? (
+                      <div
+                        className="mx-2 my-1 h-px bg-border/[0.1] dark:bg-white/[0.06]"
+                        role="separator"
+                        aria-hidden
+                      />
+                    ) : null
+                  }
+                >
+                  {(secListeners, secAttributes) => (
+                    <>
+                      <div className="flex min-h-[1.75rem] items-center gap-0.5">
+                        {navReorderMode ? (
                           <button
                             type="button"
-                            onClick={() => toggleGroup(grp.key)}
+                            aria-label={`Drag to reorder ${section.title}`}
                             className={cn(
-                              'w-full flex items-center justify-between px-2.5 py-1.5 mt-1.5 mb-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-colors',
-                              grp.color ? groupBg[grp.color] : 'bg-muted hover:bg-muted/80',
-                              hasActiveItem ? 'text-violet-700' : 'text-muted-foreground',
+                              NAV_DRAG_COL,
+                              'touch-none cursor-grab rounded text-muted-foreground/40 transition-colors hover:bg-muted/40 hover:text-muted-foreground/70 active:cursor-grabbing',
+                            )}
+                            {...secListeners}
+                            {...secAttributes}
+                          >
+                            <GripVertical className="h-2.5 w-2.5" strokeWidth={2} aria-hidden />
+                          </button>
+                        ) : (
+                          <span className={NAV_DRAG_COL} aria-hidden />
+                        )}
+                        <button
+                          type="button"
+                          title={section.titleTooltip ?? section.title}
+                          id={`${sectionPanelId}-trigger`}
+                          aria-expanded={!isSectionCollapsed}
+                          aria-controls={sectionPanelId}
+                          className={cn(
+                            'group/sec flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-0.5 text-left',
+                            navRowTransition,
+                            sectionHasActive && !isSectionCollapsed
+                              ? 'bg-muted/45 text-foreground'
+                              : sectionHasActive
+                                ? 'bg-muted/25 text-foreground'
+                                : 'text-foreground hover:bg-muted/40',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+                          )}
+                          onClick={() => toggleSection(section.title)}
+                        >
+                          <span
+                            className={cn(
+                              NAV_ICON_COL,
+                              'rounded bg-muted/35 text-muted-foreground ring-1 ring-border/15 dark:bg-zinc-800/45 dark:ring-border/20',
+                              sectionHasActive && 'bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:bg-violet-950/40 dark:text-violet-300',
                             )}
                           >
-                            <span className="flex items-center gap-1.5">
-                              {hasActiveItem && <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />}
-                              {grp.label}
+                            <SectionIcon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                          </span>
+                          <div className="min-w-0 flex-1 py-0.5">
+                            <span className="block truncate text-[11px] font-semibold leading-tight tracking-tight text-foreground">
+                              {section.title}
                             </span>
-                            <ChevronDown className={cn(
-                              'w-3 h-3 transition-transform duration-200 shrink-0',
-                              hasActiveItem ? 'text-violet-500' : 'text-muted-foreground',
-                              isGroupCollapsed && '-rotate-90',
-                            )} />
-                          </button>
-                        )}
+                            {section.subtitle ? (
+                              <span className="mt-px block truncate text-[10px] font-normal leading-snug text-muted-foreground/90">
+                                {section.subtitle}
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="flex h-7 w-6 shrink-0 items-center justify-center pr-1" aria-hidden>
+                            <ChevronDown
+                              className={cn(
+                                'h-3.5 w-3.5 text-muted-foreground/70 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                                isSectionCollapsed && '-rotate-90',
+                              )}
+                            />
+                          </span>
+                        </button>
+                      </div>
 
-                        {/* Items — hidden when sub-group collapsed */}
-                        {!isGroupCollapsed && (
-                          <div className={cn('space-y-0.5', grp.label && 'pl-0.5')}>
-                            {grp.items.map((item) => {
-                              const itemColor = grp.color
-                              return (
-                                <NavLink
-                                  key={item.to + item.label}
-                                  to={item.to}
-                                  end={item.to === '/' || item.to === '/websites'}
-                                  onClick={() => setSidebarOpen(false)}
-                                  className={({ isActive }) =>
-                                    cn(
-                                      'group flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-all duration-150',
-                                      item.labelSize ?? 'text-[13px]',
-                                      isActive
-                                        ? (itemColor ? groupActive[itemColor] : 'bg-violet-600 text-white shadow-sm shadow-violet-200')
-                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      <div
+                        className={cn(
+                          'grid overflow-hidden',
+                          navExpandTransition,
+                          isSectionCollapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]',
+                        )}
+                      >
+                        <div
+                          id={sectionPanelId}
+                          role="region"
+                          aria-labelledby={`${sectionPanelId}-trigger`}
+                          className={cn(
+                            'min-h-0 overflow-hidden',
+                            isSectionCollapsed && 'pointer-events-none select-none',
+                          )}
+                          aria-hidden={isSectionCollapsed}
+                        >
+                          <div
+                            className="space-y-px py-0.5 pl-1.5 ml-0.5 border-l border-border/[0.08] dark:border-white/[0.06]"
+                            role="group"
+                            aria-label={`${section.title} pages`}
+                          >
+                            <SortableContext
+                              items={orderedItems.map((i) => itmDndId(section.id, i.to))}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              <div className="space-y-px">
+                                {(() => {
+                                  let prevGroupLabel: string | null = null
+                                  const rows: ReactNode[] = []
+                                  for (const item of orderedItems) {
+                                    const gl = item.groupLabel ?? null
+                                    if (gl !== null && gl !== prevGroupLabel) {
+                                      prevGroupLabel = gl
+                                      const grpKey = `${section.title}:${gl}`
+                                      const isGroupCollapsed = collapsedGroups[grpKey] ?? false
+                                      const hasActiveItem = orderedItems.some((it) => {
+                                        if ((it.groupLabel ?? null) !== gl) return false
+                                        const base = it.to.split('?')[0]
+                                        return (
+                                          location.pathname === base ||
+                                          (base !== '/' && location.pathname.startsWith(`${base}/`))
+                                        )
+                                      })
+                                      rows.push(
+                                        <button
+                                          key={`hdr-${grpKey}`}
+                                          type="button"
+                                          tabIndex={isSectionCollapsed ? -1 : undefined}
+                                          onClick={() => toggleGroup(grpKey)}
+                                          aria-expanded={!isGroupCollapsed}
+                                          className={cn(
+                                            'mt-0.5 flex min-h-[1.625rem] w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left text-[10px] font-semibold uppercase tracking-wide first:mt-0',
+                                            navRowTransition,
+                                            'text-muted-foreground/80 hover:bg-muted/35 hover:text-foreground',
+                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+                                            hasActiveItem && 'text-violet-700 dark:text-violet-300',
+                                          )}
+                                        >
+                                          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                            {hasActiveItem && (
+                                              <span className="h-1 w-1 shrink-0 rounded-full bg-violet-500 dark:bg-violet-400" />
+                                            )}
+                                            <span className="truncate">{gl}</span>
+                                          </span>
+                                          <span className="flex h-6 w-5 shrink-0 items-center justify-center pr-1" aria-hidden>
+                                            <ChevronDown
+                                              className={cn(
+                                                'h-3 w-3 text-muted-foreground/65 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                                                hasActiveItem && 'text-violet-600 dark:text-violet-400',
+                                                isGroupCollapsed && '-rotate-90',
+                                              )}
+                                            />
+                                          </span>
+                                        </button>,
+                                      )
+                                    }
+                                    if (gl === null) prevGroupLabel = null
+
+                                    const subgroupKey = gl ? `${section.title}:${gl}` : ''
+                                    const inCollapsedSubgroup = Boolean(gl && (collapsedGroups[subgroupKey] ?? false))
+
+                                    rows.push(
+                                      <SortableItemShell
+                                        key={item.to + item.label}
+                                        sectionId={section.id}
+                                        itemTo={item.to}
+                                        sortDisabled={sortLocked}
+                                      >
+                                        {(itemListeners, itemAttributes) => (
+                                          <div
+                                            className={cn(
+                                              'flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-0.5',
+                                              inCollapsedSubgroup && 'hidden',
+                                            )}
+                                          >
+                                            {navReorderMode ? (
+                                              <button
+                                                type="button"
+                                                tabIndex={isSectionCollapsed ? -1 : undefined}
+                                                aria-label={`Drag to reorder ${item.label}`}
+                                                className={cn(
+                                                  NAV_DRAG_COL,
+                                                  'touch-none cursor-grab rounded text-muted-foreground/35 transition-colors hover:bg-muted/40 hover:text-muted-foreground/65 active:cursor-grabbing',
+                                                )}
+                                                {...itemListeners}
+                                                {...itemAttributes}
+                                              >
+                                                <GripVertical className="h-2.5 w-2.5" strokeWidth={2} aria-hidden />
+                                              </button>
+                                            ) : (
+                                              <span className={NAV_DRAG_COL} aria-hidden />
+                                            )}
+                                            <NavLink
+                                              to={item.to}
+                                              end={item.to === '/' || item.to === '/websites'}
+                                              title={item.label}
+                                              tabIndex={isSectionCollapsed ? -1 : undefined}
+                                              onClick={() => setSidebarOpen(false)}
+                                              className="group/nav flex min-w-0 flex-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-0"
+                                            >
+                                              {({ isActive }) => (
+                                                <span
+                                                  className={cn(
+                                                    'flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-md py-0.5 pl-1 pr-2',
+                                                    item.labelSize ?? 'text-[11px]',
+                                                    'leading-snug',
+                                                    navRowTransition,
+                                                    isActive ? navLinkActive : navLinkInactive,
+                                                  )}
+                                                >
+                                                  <span
+                                                    className={cn(
+                                                      NAV_ICON_COL,
+                                                      'text-muted-foreground group-hover/nav:text-foreground/85',
+                                                    )}
+                                                  >
+                                                    <item.icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                                                  </span>
+                                                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                                                  {item.to === '/notifications' && unreadCount > 0 && (
+                                                    <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white tabular-nums">
+                                                      {unreadCount > 99 ? '99+' : unreadCount}
+                                                    </span>
+                                                  )}
+                                                </span>
+                                              )}
+                                            </NavLink>
+                                          </div>
+                                        )}
+                                      </SortableItemShell>,
                                     )
                                   }
-                                >
-                                  <item.icon className="w-4 h-4 shrink-0" />
-                                  <span className="flex-1 truncate leading-tight">{item.label}</span>
-                                  {item.to === '/notifications' && unreadCount > 0 && (
-                                    <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
-                                      {unreadCount > 99 ? '99+' : unreadCount}
-                                    </span>
-                                  )}
-                                </NavLink>
-                              )
-                            })}
+                                  return rows
+                                })()}
+                              </div>
+                            </SortableContext>
                           </div>
-                        )}
+                        </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </nav>
+                    </>
+                  )}
+                </SortableSectionShell>
+              )
+            })}
+          </SortableContext>
+        </nav>
+      </DndContext>
 
-      {/* Logout */}
-      <div className="px-3 py-3 border-t border-border">
+      {/* Logout — separated from primary nav */}
+      <div className="shrink-0 border-t border-border/15 bg-muted/10 px-2 py-1 dark:bg-muted/5">
         <button
           type="button"
           onClick={logout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
+          className={cn(
+            'flex min-h-[1.75rem] w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] font-medium text-muted-foreground',
+            navRowTransition,
+            'hover:bg-red-500/10 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-0 dark:hover:bg-red-950/30 dark:hover:text-red-300',
+          )}
         >
-          <LogOut className="w-4 h-4" />
-          Logout
+          <span className={cn(NAV_ICON_COL, 'text-muted-foreground')}>
+            <LogOut className="h-3.5 w-3.5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-left">Logout</span>
         </button>
       </div>
     </div>
@@ -868,26 +1313,48 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Reorder mode: dark callout with the former My Kit subtitle */}
+      {navReorderMode && (
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex justify-center px-4 pb-6 pt-2 lg:justify-start lg:pl-[calc(16rem+1.5rem)] lg:pr-8"
+          role="status"
+          aria-live="polite"
+        >
+          <div
+            className={cn(
+              'pointer-events-auto flex max-w-sm items-start gap-3 rounded-xl border border-zinc-600/50 bg-zinc-950 px-4 py-3 shadow-2xl',
+              'animate-in fade-in slide-in-from-bottom-3 duration-300',
+            )}
+          >
+            <span className="relative mt-1 flex h-2.5 w-2.5 shrink-0 items-center justify-center" aria-hidden>
+              <span className="absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-40 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-400" />
+            </span>
+            <p className="text-[13px] font-medium leading-snug text-zinc-50">Personalize your navigation</p>
+          </div>
+        </div>
+      )}
+
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-40 lg:hidden backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar - desktop */}
-      <aside className="hidden lg:block fixed inset-y-0 left-0 w-60 bg-card border-r border-border z-30">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 min-w-[14rem] max-w-[min(100vw,18rem)] border-r border-border/30 bg-card shadow-sm lg:block">
         {sidebarContent}
       </aside>
 
       {/* Sidebar - mobile */}
       <aside className={cn(
-        'fixed inset-y-0 left-0 w-72 bg-card border-r border-border z-50 transform transition-transform duration-300 lg:hidden',
+        'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 transform border-r border-border/30 bg-card shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none lg:hidden',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         {sidebarContent}
       </aside>
 
       {/* Main content */}
-      <div className="lg:ml-60">
+      <div className="lg:ml-64">
         {/* Top bar */}
         <header className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center justify-between h-14 px-4 lg:px-8">

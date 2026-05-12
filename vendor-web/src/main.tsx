@@ -6,6 +6,8 @@ import { Toaster } from 'sonner'
 
 import { router } from './routes'
 import { ThemeSync } from './components/ThemeSync'
+import { RootErrorBoundary } from './components/RootErrorBoundary'
+import { useAuthStore } from './stores/authStore'
 import './styles/globals.css'
 
 const queryClient = new QueryClient({
@@ -39,44 +41,42 @@ const queryClient = new QueryClient({
 console.log('%c🏪 VENDOR-WEB (Port 3001)', 'color: #10b981; font-size: 16px; font-weight: bold;')
 console.log('This is the vendor dashboard application')
 
-// Preflight: validate stored token BEFORE rendering so we never show the
-// infinite loading spinner when the session has expired.
+// Preflight: validate stored token in the background (clears stale auth if /auth/me fails).
 async function preflight() {
   const token = localStorage.getItem('access_token')
   if (!token) return
   const API = import.meta.env.VITE_API_URL || '/api/v1'
+  const ac = new AbortController()
+  const t = window.setTimeout(() => ac.abort(), 5000)
   try {
     const res = await fetch(`${API}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(5000),
+      signal: ac.signal,
     })
     if (res.status === 401 || res.status === 403) {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-      localStorage.removeItem('vendor-auth-storage')
-      localStorage.removeItem('vendor-store-data')
+      useAuthStore.getState().logout()
     }
   } catch {
-    // network error / timeout — clear to be safe
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('vendor-auth-storage')
-    localStorage.removeItem('vendor-store-data')
+    // network error / timeout — clear to be safe (must sync Zustand; localStorage-only breaks /login)
+    useAuthStore.getState().logout()
+  } finally {
+    clearTimeout(t)
   }
 }
 
-preflight()
-  .catch(() => {
-    /* Never block boot — preflight is best-effort session hygiene */
-  })
-  .then(() => {
-    ReactDOM.createRoot(document.getElementById('root')!).render(
-      <React.StrictMode>
-        <QueryClientProvider client={queryClient}>
-          <ThemeSync />
-          <RouterProvider router={router} />
-          <Toaster position="top-right" richColors />
-        </QueryClientProvider>
-      </React.StrictMode>,
-    )
-  })
+// Do not chain render behind preflight — a slow or stuck /api proxy would leave a blank tab.
+void preflight().catch(() => {
+  /* best-effort session hygiene */
+})
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <RootErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeSync />
+        <RouterProvider router={router} />
+        <Toaster position="top-right" richColors />
+      </QueryClientProvider>
+    </RootErrorBoundary>
+  </React.StrictMode>,
+)

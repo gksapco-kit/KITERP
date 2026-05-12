@@ -4824,8 +4824,7 @@ function BlockPreview({
         )
 
       case 'offer_banner':
-      case 'promo_strip':
-      case 'coupon_banner': {
+      case 'promo_strip': {
         const bannerBg = (p.bg_color as string) || primary_color
         const bannerTextColor = (p.text_color as string) || '#ffffff'
         const bannerSubtext = (p.subtitle as string) || (p.discount as string) || (p.code ? `Code: ${p.code}` : '') || ''

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User, Token } from '@/types'
+import { useVendorStore } from '@/stores/vendorStore'
 
 interface AuthState {
   user: User | null
@@ -28,6 +29,11 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
+        try {
+          useVendorStore.getState().clearVendor()
+        } catch {
+          /* ignore if vendor store not ready */
+        }
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
       },
     }),

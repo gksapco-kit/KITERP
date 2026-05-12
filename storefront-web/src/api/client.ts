@@ -125,9 +125,11 @@ apiClient.interceptors.response.use(
       if (vendorSlug) refreshHeaders['X-Vendor-Slug'] = vendorSlug
       if (vendorId) refreshHeaders['X-Vendor-Id'] = vendorId
       
-      const response = await axios.post(`${API_URL}/store/auth/refresh`, {
-        refresh_token: refreshToken,
-      }, { headers: refreshHeaders })
+      const response = await axios.post(
+        `${API_URL}/store/auth/refresh`,
+        { refresh_token: refreshToken },
+        { headers: refreshHeaders, timeout: 15_000 },
+      )
 
       const { access_token } = response.data
       localStorage.setItem('customer_access_token', access_token)
