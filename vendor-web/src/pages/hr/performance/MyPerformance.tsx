@@ -8,7 +8,7 @@ const REVIEW_STATUS: Record<string, { label: string; color: string }> = {
   self_pending:      { label: 'Self pending',      color: 'bg-amber-100 text-amber-700' },
   self_submitted:    { label: 'Self done',         color: 'bg-blue-100 text-blue-700' },
   manager_pending:   { label: 'Manager pending',   color: 'bg-amber-100 text-amber-700' },
-  manager_submitted: { label: 'Awaiting your ack', color: 'bg-violet-100 text-violet-700' },
+  manager_submitted: { label: 'Awaiting your ack', color: 'bg-primary/10 text-primary' },
   acknowledged:      { label: 'Acknowledged',      color: 'bg-green-100 text-green-700' },
   closed:            { label: 'Closed',            color: 'bg-gray-200 text-gray-700' },
 }

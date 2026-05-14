@@ -47,7 +47,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-primary/80" />
       </div>
     )
   }
@@ -57,8 +57,8 @@ export default function ProfilePage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Manage your personal information, security, and account preferences.
         </p>
       </div>
@@ -121,8 +121,8 @@ function SectionWrapper({
         className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors rounded-t-xl"
       >
         <div className="flex items-center gap-3 text-left">
-          <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-            <Icon className="w-4.5 h-4.5 text-violet-600" />
+          <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center shrink-0">
+            <Icon className="w-4.5 h-4.5 text-primary" />
           </div>
           <div>
             <p className="font-semibold text-gray-900">{title}</p>
@@ -186,11 +186,11 @@ function ProfileHero() {
 
   return (
     <Card className="overflow-hidden">
-      <div className="bg-gradient-to-br from-violet-500 via-violet-600 to-blue-600 h-24" />
+      <div className="bg-gradient-to-br from-primary via-primary to-info h-24" />
       <CardContent className="p-6 -mt-12">
         <div className="flex flex-col sm:flex-row sm:items-end gap-5">
           <div className="relative shrink-0">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-violet-400 to-blue-500 ring-4 ring-white shadow-lg flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-info ring-4 ring-white shadow-lg flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
               {user?.avatar_url ? (
                 <img
                   src={mediaUrl(user.avatar_url)}
@@ -212,9 +212,9 @@ function ProfileHero() {
               title="Change photo"
             >
               {upload.isPending ? (
-                <Loader2 className="w-4 h-4 text-violet-600 animate-spin" />
+                <Loader2 className="w-4 h-4 text-primary animate-spin" />
               ) : (
-                <Camera className="w-4 h-4 text-violet-600" />
+                <Camera className="w-4 h-4 text-primary" />
               )}
             </button>
             <input
@@ -229,7 +229,7 @@ function ProfileHero() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-bold text-gray-900 truncate">{user?.full_name}</h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-violet-50 text-violet-700 border border-violet-200">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-accent text-primary border border-primary/30">
                 <ShieldCheck className="w-3 h-3" />
                 {role}
               </span>
@@ -386,7 +386,7 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
             size="sm"
             onClick={onSave}
             disabled={!dirty || update.isPending}
-            className="bg-violet-600 hover:bg-violet-700"
+            className="bg-primary hover:bg-primary/90"
           >
             {update.isPending ? (
               <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Saving…</>
@@ -512,7 +512,7 @@ function SecuritySection({ open, toggle }: { open: boolean; toggle: () => void }
             type="submit"
             size="sm"
             disabled={!canSubmit || change.isPending}
-            className="bg-violet-600 hover:bg-violet-700"
+            className="bg-primary hover:bg-primary/90"
           >
             {change.isPending ? (
               <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Updating…</>
@@ -630,7 +630,7 @@ function RolePermissionsSection({ open, toggle }: { open: boolean; toggle: () =>
       open={open}
       toggle={toggle}
       badge={role && (
-        <span className="text-[10px] font-semibold px-2 py-1 rounded bg-violet-50 text-violet-700 border border-violet-200">
+        <span className="text-[10px] font-semibold px-2 py-1 rounded bg-accent text-primary border border-primary/30">
           {role.role_name}
         </span>
       )}
@@ -721,7 +721,7 @@ function ActivitySection({ open, toggle }: { open: boolean; toggle: () => void }
             title: 'Account created',
             meta: 'Welcome to KITERP',
             time: fmt(new Date(user.created_at)),
-            color: 'text-violet-600 bg-violet-50 border-violet-200',
+            color: 'text-primary bg-accent border-primary/30',
           }]
         : []),
     ]
@@ -781,7 +781,7 @@ function QuickLinks() {
     <Card>
       <CardContent className="p-5">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-1 h-4 rounded-full bg-violet-500" />
+          <div className="w-1 h-4 rounded-full bg-accent" />
           <h3 className="text-sm font-semibold text-gray-900">Quick links</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -789,10 +789,10 @@ function QuickLinks() {
             <Link
               key={item.to}
               to={item.to}
-              className="group flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-200 hover:border-violet-300 hover:bg-violet-50/50 transition-colors"
+              className="group flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-accent/80 transition-colors"
             >
-              <div className="w-9 h-9 rounded-lg bg-gray-100 group-hover:bg-violet-100 flex items-center justify-center shrink-0 transition-colors">
-                <item.icon className="w-4 h-4 text-gray-500 group-hover:text-violet-600" />
+              <div className="w-9 h-9 rounded-lg bg-gray-100 group-hover:bg-primary/15 flex items-center justify-center shrink-0 transition-colors">
+                <item.icon className="w-4 h-4 text-gray-500 group-hover:text-primary" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 truncate">{item.label}</p>
@@ -1080,7 +1080,7 @@ function EmailChangeCard() {
   return (
     <div className="rounded-lg border border-gray-200 p-4 bg-white">
       <div className="flex items-center gap-2 mb-3">
-        <Mail className="w-4 h-4 text-violet-600" />
+        <Mail className="w-4 h-4 text-primary" />
         <h4 className="text-sm font-semibold text-gray-900">Change email address</h4>
       </div>
 
@@ -1165,8 +1165,8 @@ function VerifyRow({
     <div className="rounded-lg border border-gray-200 p-4 bg-white">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4 text-violet-600" />
+          <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4 text-primary" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900">{title}</p>
@@ -1246,7 +1246,7 @@ function BusinessVerificationSection({ open, toggle }: { open: boolean; toggle: 
             size="sm"
             onClick={() => submit.mutate()}
             disabled={!canSubmit || submit.isPending}
-            className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50"
+            className="bg-primary hover:bg-primary/90 disabled:opacity-50"
           >
             {submit.isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Submitting…</> : 'Submit for review'}
           </Button>
@@ -1312,7 +1312,7 @@ function DocumentRow({
                     href={doc.file_url.startsWith('http') ? doc.file_url : `${API_BASE}${doc.file_url}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-violet-600 hover:text-violet-700"
+                    className="inline-flex items-center gap-1 text-primary hover:text-primary"
                   >
                     <ExternalLink className="w-3 h-3" /> View
                   </a>

@@ -270,7 +270,7 @@ export default function CompanyFiscalRow({
                                 </span>
                                 {isAudit && (
                                   <span
-                                    className="inline-flex items-center text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 border border-violet-200/80"
+                                    className="inline-flex items-center text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30/80"
                                   >
                                     Audit
                                   </span>

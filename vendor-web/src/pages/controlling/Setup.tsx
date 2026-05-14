@@ -158,14 +158,14 @@ export default function ControllingSetupPage() {
   return (
     <div className="p-6 max-w-6xl space-y-8">
       <div className="flex items-center gap-4">
-        <Link to="/controlling" className="text-sm text-violet-600 hover:underline inline-flex items-center gap-1">
+        <Link to="/controlling" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
           <ArrowLeft className="w-4 h-4" /> CO Dashboard
         </Link>
       </div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Layers className="w-7 h-7 text-violet-600" /> Activities &amp; overhead
+            <Layers className="w-7 h-7 text-primary" /> Activities &amp; overhead
           </h1>
           <p className="text-sm text-gray-500 mt-1">Drivers for activity-based costing and overhead absorption.</p>
         </div>
@@ -220,7 +220,7 @@ export default function ControllingSetupPage() {
             ) : (
               activities.map((a: { id: string; code: string; name: string; uom: string }) => (
                 <li key={a.id} className="py-2 flex justify-between gap-2">
-                  <span className="font-mono text-violet-700">{a.code}</span>
+                  <span className="font-mono text-primary">{a.code}</span>
                   <span className="text-gray-800">{a.name}</span>
                   <span className="text-gray-500 text-xs">{a.uom}</span>
                 </li>
@@ -295,11 +295,11 @@ export default function ControllingSetupPage() {
                   <button
                     type="button"
                     className={`w-full text-left flex flex-wrap items-center gap-2 rounded-lg px-2 py-1.5 -mx-2 ${
-                      poolForRates === p.id ? 'bg-violet-100' : 'hover:bg-gray-50'
+                      poolForRates === p.id ? 'bg-primary/10' : 'hover:bg-gray-50'
                     }`}
                     onClick={() => setPoolForRates(p.id)}
                   >
-                    <span className="font-mono text-violet-700 font-semibold">{p.code}</span>
+                    <span className="font-mono text-primary font-semibold">{p.code}</span>
                     <span className="text-gray-700 flex-1 min-w-[100px]">{p.name}</span>
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                       p.overhead_type === 'direct' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'

@@ -18,6 +18,7 @@ import {
   ShoppingCart, Package, CreditCard, Star, AlertTriangle, Upload, Trash2,
   Plus, Repeat2, CalendarClock, MailOpen, ChevronDown, ChevronUp, Music2,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ const EVENTS = [
   { key: 'low_stock',     label: 'Low Stock',     icon: Package,      color: 'bg-orange-100 text-orange-600' },
   { key: 'payments',      label: 'Payments',      icon: CreditCard,   color: 'bg-green-100 text-green-600' },
   { key: 'new_reviews',   label: 'New Reviews',   icon: Star,         color: 'bg-yellow-100 text-yellow-600' },
-  { key: 'system_updates',label: 'System',        icon: AlertTriangle,color: 'bg-purple-100 text-purple-600' },
+  { key: 'system_updates',label: 'System',        icon: AlertTriangle,color: 'bg-primary/12 text-primary' },
 ] as const
 
 const DAYS_SHORT = ['mon','tue','wed','thu','fri','sat','sun'] as const
@@ -100,10 +101,25 @@ const DURATION_OPTIONS: { sec: number; label: string }[] = [
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <button type="button" role="switch" aria-checked={checked} disabled={disabled}
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}>
-      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+      className={cn(
+        'relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors',
+        'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background',
+        'disabled:opacity-50',
+        checked ? 'bg-primary' : 'bg-muted dark:bg-secondary',
+      )}
+    >
+      <span
+        className={cn(
+          'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+          checked ? 'translate-x-5' : 'translate-x-0',
+        )}
+      />
     </button>
   )
 }
@@ -123,13 +139,19 @@ function SectionCard({ id, icon: Icon, iconColor, title, subtitle, children, dim
   id?: string; icon: React.ElementType; iconColor: string; title: string; subtitle: string; children: React.ReactNode; dimmed?: boolean
 }) {
   return (
-    <Card id={id} className={`scroll-mt-20 ${dimmed ? 'opacity-50 pointer-events-none select-none' : ''}`}>
+    <Card
+      id={id}
+      className={cn(
+        'scroll-mt-20 border-border',
+        dimmed && 'pointer-events-none select-none opacity-50',
+      )}
+    >
       <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Icon className={`w-4 h-4 ${iconColor}`} />
+        <CardTitle className="flex items-center gap-2 text-base text-foreground">
+          <Icon className={cn('h-4 w-4 shrink-0', iconColor)} />
           {title}
         </CardTitle>
-        <p className="text-xs text-gray-500">{subtitle}</p>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
       </CardHeader>
       <CardContent className="pt-0">{children}</CardContent>
     </Card>
@@ -142,19 +164,25 @@ function PreferenceRow({ icon: Icon, iconColor, title, description, checked, onC
   children?: React.ReactNode
 }) {
   return (
-    <div className="py-3 border-b last:border-0">
-      <div className="flex items-center justify-between">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div className={`mt-0.5 p-2 rounded-lg shrink-0 ${iconColor}`}><Icon className="w-4 h-4" /></div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-gray-900">{title}</p>
-              {badge && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{badge}</span>}
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+    <div className="border-b border-border py-3 last:border-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 gap-3">
+          <div className={cn('mt-0.5 shrink-0 rounded-lg p-2', iconColor)}>
+            <Icon className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">{title}</p>
+            {badge ? (
+              <span className="mt-1 inline-flex w-fit rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {badge}
+              </span>
+            ) : null}
+            <p className={cn('text-xs text-muted-foreground', badge ? 'mt-1.5' : 'mt-0.5')}>{description}</p>
           </div>
         </div>
-        <Toggle checked={checked} onChange={onChange} disabled={disabled} />
+        <div className="shrink-0 pt-0.5">
+          <Toggle checked={checked} onChange={onChange} disabled={disabled} />
+        </div>
       </div>
       {children}
     </div>
@@ -162,10 +190,36 @@ function PreferenceRow({ icon: Icon, iconColor, title, description, checked, onC
 }
 
 function PermissionBadge({ status }: { status: string }) {
-  if (status === 'granted')     return <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3" />Enabled</span>
-  if (status === 'denied')      return <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full"><XCircle className="w-3 h-3" />Blocked</span>
-  if (status === 'unsupported') return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full"><AlertCircle className="w-3 h-3" />Not supported</span>
-  return <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full"><AlertCircle className="w-3 h-3" />Not enabled</span>
+  if (status === 'granted') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950/50 dark:text-green-300">
+        <CheckCircle className="h-3 w-3" />
+        Enabled
+      </span>
+    )
+  }
+  if (status === 'denied') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-950/50 dark:text-red-300">
+        <XCircle className="h-3 w-3" />
+        Blocked
+      </span>
+    )
+  }
+  if (status === 'unsupported') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        <AlertCircle className="h-3 w-3" />
+        Not supported
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/45 dark:text-amber-200">
+      <AlertCircle className="h-3 w-3" />
+      Not enabled
+    </span>
+  )
 }
 
 // ── Per-event tone select (native, grouped, includes custom when file exists) ──
@@ -177,7 +231,7 @@ function ToneSelect({ value, onChange }: {
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white max-w-[140px]"
+      className="max-w-[140px] rounded-lg border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
     >
       <option value="">Default tone</option>
       {TONE_CATEGORIES.map(cat => {
@@ -435,30 +489,40 @@ export default function NotificationSettingsPage() {
     return () => window.removeEventListener('scroll', updateActive)
   }, [])
 
-  if (isLoading) return <div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+  if (isLoading) return <div className="flex justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
 
   return (
-    <div className="pb-24">
+    <div className="pb-32">
 
       {/* ── Page header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/notifications" className="gap-1.5 flex items-center text-gray-500 hover:text-gray-900">
-            <ArrowLeft className="w-4 h-4" /> Back
+          <Link to="/notifications" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> Back
           </Link>
         </Button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900">Notification Settings</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Control how, when, and where you receive notifications.</p>
+        <div className="min-w-0 flex-1 basis-[min(100%,16rem)]">
+          <h1 className="text-2xl font-bold text-foreground">Notification Settings</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Control how, when, and where you receive notifications.</p>
         </div>
         {/* Master toggle in header for quick access */}
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
-          prefs.notifications_enabled ? 'border-green-300 bg-green-50' : 'border-red-200 bg-red-50'
-        }`}>
+        <div
+          className={cn(
+            'ml-auto flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 transition-all',
+            prefs.notifications_enabled
+              ? 'border-primary/30 bg-primary/10 dark:bg-primary/15'
+              : 'border-destructive/30 bg-destructive/10 dark:bg-destructive/15',
+          )}
+        >
           {prefs.notifications_enabled
-            ? <Bell className="w-3.5 h-3.5 text-green-600" />
-            : <BellOff className="w-3.5 h-3.5 text-red-500" />}
-          <span className={`text-xs font-semibold ${prefs.notifications_enabled ? 'text-green-700' : 'text-red-600'}`}>
+            ? <Bell className="h-3.5 w-3.5 text-primary" />
+            : <BellOff className="h-3.5 w-3.5 text-destructive" />}
+          <span
+            className={cn(
+              'text-xs font-semibold',
+              prefs.notifications_enabled ? 'text-primary' : 'text-destructive',
+            )}
+          >
             {prefs.notifications_enabled ? 'On' : 'Off'}
           </span>
           <Toggle checked={prefs.notifications_enabled} onChange={v => set('notifications_enabled', v)} />
@@ -473,9 +537,9 @@ export default function NotificationSettingsPage() {
           className="hidden md:block w-40 shrink-0 self-start"
           style={{ position: 'sticky', top: 72 }}
         >
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-md overflow-hidden">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-4 pt-3 pb-2">Sections</p>
-            <nav className="pb-2 px-2 space-y-0.5">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
+            <p className="px-4 pb-2 pt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sections</p>
+            <nav className="space-y-0.5 px-2 pb-2">
               {NAV_SECTIONS.map(s => {
                 const isActive = activeSection === s.id
                 return (
@@ -486,16 +550,17 @@ export default function NotificationSettingsPage() {
                       e.preventDefault()
                       document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                     }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 ${
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-150',
                       isActive
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
-                    }`}
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
                   >
                     <s.icon className="w-3.5 h-3.5 shrink-0" />
                     {s.label}
                     {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white/70 shrink-0" />
+                      <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-primary-foreground/50" />
                     )}
                   </a>
                 )
@@ -513,21 +578,23 @@ export default function NotificationSettingsPage() {
         <PreferenceRow icon={Mail} iconColor="bg-indigo-100 text-indigo-600" title="Email" description="Sent to your registered email address." checked={prefs.email} onChange={v => set('email', v)} />
         <PreferenceRow icon={MessageSquare} iconColor="bg-green-100 text-green-600" title="SMS" description="Text message to your phone." checked={prefs.sms} onChange={v => set('sms', v)} badge="Coming soon" disabled />
         <PreferenceRow icon={MessageCircle} iconColor="bg-emerald-100 text-emerald-600" title="WhatsApp" description="Message via WhatsApp to your linked number." checked={prefs.whatsapp} onChange={v => set('whatsapp', v)} badge="Coming soon" disabled />
-        <PreferenceRow icon={Smartphone} iconColor="bg-purple-100 text-purple-600" title="Mobile Push" description="Native push on the mobile app." checked={prefs.push} onChange={v => set('push', v)} badge="Coming soon" disabled />
+        <PreferenceRow icon={Smartphone} iconColor="bg-primary/12 text-primary" title="Mobile Push" description="Native push on the mobile app." checked={prefs.push} onChange={v => set('push', v)} badge="Coming soon" disabled />
 
         {/* Browser desktop push — inline permission row */}
-        <div className="py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <div className="mt-0.5 p-2 rounded-lg shrink-0 bg-violet-100 text-violet-600">
-                <BellRing className="w-4 h-4" />
+        <div className="border-t border-border py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-1 gap-3">
+              <div className="mt-0.5 shrink-0 rounded-lg bg-primary/15 p-2 text-primary ring-1 ring-inset ring-primary/25 dark:bg-primary/20">
+                <BellRing className="h-4 w-4" />
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900">Browser (Desktop)</p>
-                <p className="text-xs text-gray-500 mt-0.5">Pop-up alerts even when the tab is in the background.</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">Browser (Desktop)</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Pop-up alerts even when the tab is in the background.</p>
               </div>
             </div>
-            <PermissionBadge status={isSupported ? permission : 'unsupported'} />
+            <div className="shrink-0 pt-0.5">
+              <PermissionBadge status={isSupported ? permission : 'unsupported'} />
+            </div>
           </div>
           {isSupported && permission === 'default' && (
             <div className="mt-2 pl-11">
@@ -548,37 +615,41 @@ export default function NotificationSettingsPage() {
       {/* ── Notification Events + per-event tone ─────────────────────────── */}
       <SectionCard id="sec-events" icon={Zap} iconColor="text-orange-500" title="Notification Events" subtitle="Choose which events trigger an alert and set a custom tone per event." dimmed={isDisabled}>
         {EVENTS.map(ev => (
-          <div key={ev.key} className="py-3 border-b last:border-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className={`mt-0.5 p-2 rounded-lg shrink-0 ${ev.color}`}><ev.icon className="w-4 h-4" /></div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900">{ev.label}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">Tone:</span>
-                    <ToneSelect
-                      value={prefs.per_event_tones[ev.key] ?? ''}
-                      onChange={v => set('per_event_tones', { ...prefs.per_event_tones, [ev.key]: v })}
-                    />
-                    {(prefs.per_event_tones[ev.key]) && (
-                      <button
-                        type="button"
-                        onClick={() => playTone((prefs.per_event_tones[ev.key] as ToneName), prefs.volume)}
-                        className="text-gray-400 hover:text-blue-600"
-                        title="Preview"
-                      >
-                        <Play className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+        <div className="border-t border-border py-3 last:border-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-1 gap-3">
+              <div className={cn('mt-0.5 shrink-0 rounded-lg p-2', ev.color)}>
+                <ev.icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">{ev.label}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Tone</span>
+                  <ToneSelect
+                    value={prefs.per_event_tones[ev.key] ?? ''}
+                    onChange={v => set('per_event_tones', { ...prefs.per_event_tones, [ev.key]: v })}
+                  />
+                  {(prefs.per_event_tones[ev.key]) && (
+                    <button
+                      type="button"
+                      onClick={() => playTone((prefs.per_event_tones[ev.key] as ToneName), prefs.volume)}
+                      className="text-muted-foreground transition-colors hover:text-primary"
+                      title="Preview"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
+            </div>
+            <div className="shrink-0 pt-0.5">
               <Toggle
                 checked={prefs[ev.key as keyof NotificationPreferences] as boolean}
                 onChange={v => set(ev.key as keyof NotificationPreferences, v as never)}
               />
             </div>
           </div>
+        </div>
         ))}
       </SectionCard>
 
@@ -1107,7 +1178,7 @@ export default function NotificationSettingsPage() {
       </SectionCard>
 
       {/* ── Notification Digest ───────────────────────────────────────────── */}
-      <SectionCard id="sec-digest" icon={MailOpen} iconColor="text-violet-600" title="Notification Delivery Mode" subtitle="Control when sounds and browser alerts fire. Your inbox always updates in real time." dimmed={isDisabled}>
+      <SectionCard id="sec-digest" icon={MailOpen} iconColor="text-primary" title="Notification Delivery Mode" subtitle="Control when sounds and browser alerts fire. Your inbox always updates in real time." dimmed={isDisabled}>
         <div className="space-y-2 py-2">
           {([
             {
@@ -1144,23 +1215,23 @@ export default function NotificationSettingsPage() {
               onClick={() => set('notify_mode', mode.value)}
               className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl border text-left transition-all duration-150 ${
                 prefs.notify_mode === mode.value
-                  ? 'border-violet-500 bg-violet-50 ring-1 ring-violet-300 shadow-sm'
+                  ? 'border-primary bg-accent ring-1 ring-ring shadow-sm'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
-              <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${prefs.notify_mode === mode.value ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-400'}`}>
+              <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${prefs.notify_mode === mode.value ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-400'}`}>
                 <mode.icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900">{mode.label}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{mode.description}</p>
                 {prefs.notify_mode === mode.value && mode.hint && (
-                  <p className="text-xs text-violet-600 font-medium mt-1.5 flex items-center gap-1">
+                  <p className="text-xs text-primary font-medium mt-1.5 flex items-center gap-1">
                     <Clock className="w-3 h-3 shrink-0" />{mode.hint}
                   </p>
                 )}
               </div>
-              {prefs.notify_mode === mode.value && <CheckCircle className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />}
+              {prefs.notify_mode === mode.value && <CheckCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />}
             </button>
           ))}
         </div>
@@ -1168,7 +1239,7 @@ export default function NotificationSettingsPage() {
         {/* Daily digest time picker */}
         {prefs.notify_mode === 'digest_daily' && (
           <div className="pt-3 border-t flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-violet-50 text-violet-600 shrink-0">
+            <div className="p-2 rounded-lg bg-accent text-primary shrink-0">
               <Clock className="w-4 h-4" />
             </div>
             <div className="flex-1">
@@ -1177,7 +1248,7 @@ export default function NotificationSettingsPage() {
                 type="time"
                 value={prefs.digest_time}
                 onChange={e => set('digest_time', e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 w-36"
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring w-36"
               />
             </div>
             <p className="text-xs text-gray-400 text-right">Fires daily if<br />you have unread<br />notifications</p>
@@ -1195,8 +1266,8 @@ export default function NotificationSettingsPage() {
       </div>{/* end two-column flex */}
 
       {/* ── Sticky save bar ───────────────────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-60 z-30 bg-white/95 backdrop-blur-sm border-t px-4 py-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-gray-400">Changes are saved to your account.</p>
+      <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-t border-border bg-card/95 px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur-sm dark:shadow-[0_-8px_30px_rgba(0,0,0,0.35)] lg:left-60 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <p className="text-xs text-muted-foreground">Changes are saved to your account.</p>
         <Button onClick={() => save.mutate(prefs)} disabled={save.isPending} className="gap-2 shadow">
           {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Save preferences

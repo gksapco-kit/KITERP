@@ -136,7 +136,7 @@ export default function TicketsPage() {
                     <p className="text-sm font-medium flex items-center gap-2">
                       <span className="font-mono text-xs text-gray-400">{t.number}</span>
                       <span className="truncate">{t.subject}</span>
-                      {t.sla_breached && <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" title="SLA breached" />}
+                      {t.sla_breached && <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" aria-label="SLA breached" />}
                     </p>
                   </td>
                   <td className="px-6 py-4 hidden md:table-cell">

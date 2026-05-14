@@ -66,8 +66,8 @@ export default function PlansPage() {
           if (!currentIds.includes(id)) await deleteRule.mutateAsync(id)
         }
         for (const r of rules) {
-          const ruleData = { ...r }
-          delete ruleData._key
+          const { _key: _omitRuleKey, ...ruleData } = r as typeof r & { _key?: string }
+          void _omitRuleKey
           if (r.id) {
             await updateRule.mutateAsync({ id: r.id as string, data: ruleData })
           } else {
@@ -77,8 +77,8 @@ export default function PlansPage() {
       } else {
         plan = await create.mutateAsync(payload)
         for (const r of rules) {
-          const ruleData = { ...r }
-          delete ruleData._key
+          const { _key: _omitRuleKey, ...ruleData } = r as typeof r & { _key?: string }
+          void _omitRuleKey
           await createRule.mutateAsync({ planId: plan.id, data: ruleData })
         }
         toast.success('Plan created')
@@ -106,7 +106,7 @@ export default function PlansPage() {
           <h1 className="text-xl font-semibold text-gray-900">Commission Plans</h1>
           <p className="text-sm text-gray-500 mt-0.5">Define rule-based plans that drive accrual calculations</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+        <button onClick={openCreate} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90">
           <Plus className="h-4 w-4" /> New Plan
         </button>
       </div>
@@ -137,7 +137,7 @@ export default function PlansPage() {
                       <span>Scope: {plan.payee_scope}</span>
                       <span>Priority: {plan.priority}</span>
                       <span>{plan.rules?.length || 0} rules</span>
-                      {plan.stackable && <span className="text-blue-600">Stackable</span>}
+                      {plan.stackable && <span className="text-primary">Stackable</span>}
                     </div>
                   </div>
                 </div>
@@ -147,7 +147,7 @@ export default function PlansPage() {
                       ? <ToggleRight className="h-5 w-5 text-green-500" />
                       : <ToggleLeft className="h-5 w-5" />}
                   </button>
-                  <button onClick={() => openEdit(plan)} className="text-gray-400 hover:text-blue-600">
+                  <button onClick={() => openEdit(plan)} className="text-gray-400 hover:text-primary">
                     <Edit2 className="h-4 w-4" />
                   </button>
                 </div>

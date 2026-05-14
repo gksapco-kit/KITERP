@@ -91,7 +91,7 @@ type SalesDayRow = { date: string; orders: number; revenue: number }
 const REPORTS: ReportDef[] = [
   { id: 'sales_overview',   label: 'Sales Overview',     description: 'Daily sales trend with revenue & order counts',      icon: BarChart3,   color: 'text-blue-600',    bg: 'bg-blue-50' },
   { id: 'revenue_summary',  label: 'Revenue Summary',    description: 'Revenue by today, week, month & year',              icon: IndianRupee,  color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  { id: 'orders_status',    label: 'Orders by Status',   description: 'Order distribution across fulfilment stages',       icon: ShoppingCart, color: 'text-violet-600',  bg: 'bg-violet-50' },
+  { id: 'orders_status',    label: 'Orders by Status',   description: 'Order distribution across fulfilment stages',       icon: ShoppingCart, color: 'text-primary',  bg: 'bg-accent' },
   { id: 'top_products',     label: 'Top Products',       description: 'Best-performing products by stock & price',         icon: Package,      color: 'text-orange-600',  bg: 'bg-orange-50' },
   { id: 'top_customers',    label: 'Top Customers',      description: 'Highest-spending customers and order frequency',    icon: Users,        color: 'text-pink-600',    bg: 'bg-pink-50' },
   { id: 'pos_report',       label: 'POS Sales',          description: 'Point-of-sale transactions and payment methods',    icon: Receipt,      color: 'text-indigo-600',  bg: 'bg-indigo-50' },
@@ -100,7 +100,7 @@ const REPORTS: ReportDef[] = [
   { id: 'coupons_report',   label: 'Coupons',            description: 'Active coupons, usage stats, and discount totals',  icon: Tag,          color: 'text-lime-600',    bg: 'bg-lime-50' },
   { id: 'inventory_report', label: 'Inventory',          description: 'Stock levels, low-stock alerts and valuation',      icon: Layers,       color: 'text-teal-600',    bg: 'bg-teal-50' },
   { id: 'reviews_report',   label: 'Reviews & Ratings',  description: 'Customer satisfaction and review trends',           icon: Star,         color: 'text-amber-600',   bg: 'bg-amber-50' },
-  { id: 'mrp_report',       label: 'Material Requirements Plan', description: 'Shortage analysis from open orders — convert to PO or production', icon: ClipboardList, color: 'text-purple-600', bg: 'bg-purple-50' },
+  { id: 'mrp_report',       label: 'Material Requirements Plan', description: 'Shortage analysis from open orders — convert to PO or production', icon: ClipboardList, color: 'text-primary', bg: 'bg-accent' },
 ]
 
 const DATE_RANGES: { label: string; value: DateRange; days: number }[] = [
@@ -114,11 +114,11 @@ const DATE_RANGES: { label: string; value: DateRange; days: number }[] = [
 const STATUS_COLORS: Record<string, { bar: string; badge: string; dot: string; hex: string }> = {
   pending:     { bar: 'bg-amber-400',  badge: 'bg-amber-100 text-amber-800',   dot: 'bg-amber-400',  hex: '#f59e0b' },
   confirmed:   { bar: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-800',     dot: 'bg-blue-500',   hex: '#3b82f6' },
-  shipped:     { bar: 'bg-purple-500', badge: 'bg-purple-100 text-purple-800', dot: 'bg-purple-500', hex: '#8b5cf6' },
+  shipped:     { bar: 'bg-primary', badge: 'bg-primary/12 text-primary', dot: 'bg-primary', hex: '#64C3A0' },
   delivered:   { bar: 'bg-green-500',  badge: 'bg-green-100 text-green-800',   dot: 'bg-green-500',  hex: '#22c55e' },
   cancelled:   { bar: 'bg-red-400',    badge: 'bg-red-100 text-red-800',       dot: 'bg-red-400',    hex: '#ef4444' },
   completed:   { bar: 'bg-green-500',  badge: 'bg-green-100 text-green-800',   dot: 'bg-green-500',  hex: '#22c55e' },
-  scheduled:   { bar: 'bg-purple-400', badge: 'bg-purple-100 text-purple-800', dot: 'bg-purple-400', hex: '#a855f7' },
+  scheduled:   { bar: 'bg-primary/70', badge: 'bg-primary/12 text-primary', dot: 'bg-primary/70', hex: '#50a080' },
   in_progress: { bar: 'bg-blue-400',   badge: 'bg-blue-100 text-blue-800',     dot: 'bg-blue-400',   hex: '#60a5fa' },
 }
 
@@ -131,7 +131,7 @@ const CHART_TYPES: { type: ChartType; label: string; icon: React.ElementType }[]
   { type: 'hbar',  label: 'H-Bar',     icon: Minus },
 ]
 
-const DEFAULT_PALETTE = ['#3b82f6','#8b5cf6','#f59e0b','#22c55e','#ef4444','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1']
+const DEFAULT_PALETTE = ['#3b82f6','#64C3A0','#f59e0b','#22c55e','#ef4444','#ec4899','#06b6d4','#84cc16','#f97316','#0d9488']
 
 const PROD_TEMPLATES: { id: string; label: string; emoji: string; description: string; defaultNotes: string }[] = [
   { id: 'standard',   label: 'Standard Production',  emoji: '🏭', description: 'Regular batch production order', defaultNotes: 'Follow standard operating procedures. Ensure quality checks at each stage.' },
@@ -156,7 +156,7 @@ const SMART_TRIGGERS: { id: string; label: string; description: string; icon: Re
   { id: 'new_order',        label: 'New Order Alert',          description: 'Instant alert when a new order is placed',         icon: ShoppingCart, color: 'text-blue-600',    bg: 'bg-blue-50',    badge: 'Instant' },
   { id: 'low_stock',        label: 'Low Stock Alert',          description: 'Alert when any product stock drops below 10',      icon: Package,      color: 'text-orange-600',  bg: 'bg-orange-50',  badge: 'Instant' },
   { id: 'booking_reminder', label: 'Booking Reminder',         description: "Today's upcoming service bookings summary",        icon: BookOpen,     color: 'text-cyan-600',    bg: 'bg-cyan-50',    badge: 'Morning' },
-  { id: 'weekly_perf',      label: 'Weekly Performance',       description: 'Week-over-week revenue and order comparison',      icon: TrendingUp,   color: 'text-violet-600',  bg: 'bg-violet-50',  badge: 'Weekly' },
+  { id: 'weekly_perf',      label: 'Weekly Performance',       description: 'Week-over-week revenue and order comparison',      icon: TrendingUp,   color: 'text-primary',  bg: 'bg-accent',  badge: 'Weekly' },
   { id: 'review_alert',     label: 'New Review Alert',         description: 'Alert when a new customer review is posted',       icon: Star,         color: 'text-amber-600',   bg: 'bg-amber-50',   badge: 'Instant' },
   { id: 'pending_orders',   label: 'Pending Orders Nudge',     description: 'Reminder when orders stay pending > 2 hours',      icon: Clock,        color: 'text-rose-600',    bg: 'bg-rose-50',    badge: 'Hourly' },
   { id: 'unpaid_invoices',  label: 'Unpaid Invoice Alert',     description: 'Summary of outstanding unpaid invoices',           icon: FileText,     color: 'text-red-600',     bg: 'bg-red-50',     badge: 'Daily' },
@@ -1617,7 +1617,7 @@ export default function ReportsPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="Total Revenue" value={formatCurrency(dashboard?.total_revenue ?? 0)} icon={IndianRupee} bg="bg-emerald-50" color="text-emerald-600" />
                 <StatCard label="Total Orders"  value={dashboard?.total_orders ?? 0} icon={ShoppingCart} bg="bg-blue-50" color="text-blue-600" />
-                <StatCard label="Today Revenue" value={formatCurrency(dashboard?.today_revenue ?? 0)} icon={TrendingUp} bg="bg-violet-50" color="text-violet-600" />
+                <StatCard label="Today Revenue" value={formatCurrency(dashboard?.today_revenue ?? 0)} icon={TrendingUp} bg="bg-accent" color="text-primary" />
                 <StatCard label="Today Orders"  value={dashboard?.today_orders ?? 0} icon={Clock} bg="bg-amber-50" color="text-amber-600" />
               </div>
               <Section title={`Daily Sales — Last ${days} Days`}
@@ -1625,7 +1625,7 @@ export default function ReportsPage() {
                 viewReport="revenue_summary" onViewReport={setActiveReport}>
                 {salesRows.length === 0 ? <p className="text-sm text-gray-400 text-center py-8">No sales data for this period.</p>
                   : <>{renderChart(salesChart, salesRows, 'revenue', 'date', '#3b82f6', 140)}
-                      <div className="mt-4">{renderChart(salesChart, salesRows, 'orders', 'date', '#8b5cf6', 80)}</div>
+                      <div className="mt-4">{renderChart(salesChart, salesRows, 'orders', 'date', '#64C3A0', 80)}</div>
                     </>}
               </Section>
               <Section title="Daily Sales Table">
@@ -1658,7 +1658,7 @@ export default function ReportsPage() {
           {activeReport === 'revenue_summary' && <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[{ l: 'Today', v: revenue?.today ?? 0, i: Clock, b: 'bg-blue-50', c: 'text-blue-600' },
-                { l: 'This Week', v: revenue?.this_week ?? 0, i: Calendar, b: 'bg-violet-50', c: 'text-violet-600' },
+                { l: 'This Week', v: revenue?.this_week ?? 0, i: Calendar, b: 'bg-accent', c: 'text-primary' },
                 { l: 'This Month', v: revenue?.this_month ?? 0, i: BarChart3, b: 'bg-emerald-50', c: 'text-emerald-600' },
                 { l: 'This Year', v: revenue?.this_fy ?? 0, i: TrendingUp, b: 'bg-amber-50', c: 'text-amber-600' },
               ].map(s => <StatCard key={s.l} label={s.l} value={formatCurrency(s.v)} icon={s.i} bg={s.b} color={s.c} />)}
@@ -1668,7 +1668,7 @@ export default function ReportsPage() {
                 const max = revenue?.this_fy || 1; const pct = Math.min(100, (item.v / max) * 100)
                 return <div key={item.l} className="mb-5 last:mb-0">
                   <div className="flex justify-between text-sm mb-1.5"><span className="font-medium text-gray-700">{item.l}</span><span className="font-semibold text-gray-900">{formatCurrency(item.v)}</span></div>
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-blue-500 to-violet-500 rounded-full transition-all duration-700" style={{ width: `${pct}%` }} /></div>
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-primary to-info rounded-full transition-all duration-700" style={{ width: `${pct}%` }} /></div>
                   <p className="text-[11px] text-gray-400 mt-1">{Math.round(pct)}% of annual revenue</p>
                 </div>
               })}
@@ -1772,7 +1772,7 @@ export default function ReportsPage() {
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatCard label="Total Customers" value={dashboard?.total_customers ?? 0} icon={Users} bg="bg-pink-50" color="text-pink-600" />
                 <StatCard label="Total Revenue" value={formatCurrency(dashboard?.total_revenue ?? 0)} icon={IndianRupee} bg="bg-emerald-50" color="text-emerald-600" />
-                <StatCard label="Avg Spend" value={customerRows.length ? formatCurrency(customerRows.reduce((s: number, c: any) => s + (c.spent || 0), 0) / customerRows.length) : '—'} icon={TrendingUp} bg="bg-violet-50" color="text-violet-600" />
+                <StatCard label="Avg Spend" value={customerRows.length ? formatCurrency(customerRows.reduce((s: number, c: any) => s + (c.spent || 0), 0) / customerRows.length) : '—'} icon={TrendingUp} bg="bg-accent" color="text-primary" />
               </div>
               <Section title="Top Customers" viewReport="reviews_report" onViewReport={setActiveReport}>
                 <ReportToolbar search={search} onSearch={setSearch} placeholder="Search by name or email…" />
@@ -2130,21 +2130,21 @@ export default function ReportsPage() {
               {/* ── Summary stat cards ─────────────────────────────────── */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                 <StatCard label="Open Orders" value={mrpSummary.openOrders} icon={ShoppingCart} bg="bg-blue-50" color="text-blue-600" />
-                <StatCard label="Materials Tracked" value={mrpSummary.total} icon={ClipboardList} bg="bg-purple-50" color="text-purple-600" />
+                <StatCard label="Materials Tracked" value={mrpSummary.total} icon={ClipboardList} bg="bg-accent" color="text-primary" />
                 <StatCard label="Shortage Items" value={mrpSummary.shortages} icon={BadgeAlert} bg="bg-red-50" color="text-red-600" />
                 <StatCard label="Sufficient Items" value={mrpSummary.sufficient} icon={BadgeCheck} bg="bg-green-50" color="text-green-600" />
                 <StatCard label="Est. Procurement Value" value={formatCurrency(mrpSummary.buyValue)} icon={IndianRupee} bg="bg-amber-50" color="text-amber-600" />
               </div>
               {/* Production history quick-access */}
               {prodHistory.length > 0 && (
-                <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-2.5">
-                  <Factory className="w-4 h-4 text-violet-500 shrink-0" />
-                  <p className="text-xs text-violet-700 flex-1">
+                <div className="flex items-center gap-3 bg-accent border border-primary/30 rounded-xl px-4 py-2.5">
+                  <Factory className="w-4 h-4 text-primary/80 shrink-0" />
+                  <p className="text-xs text-primary flex-1">
                     <strong>{prodHistory.length}</strong> production order{prodHistory.length > 1 ? 's' : ''} on record.
                     Latest: <strong>{prodHistory[0].orderNo}</strong> · {prodHistory[0].status.replace('_',' ')} · {prodHistory[0].progress}%
                   </p>
                   <button onClick={() => { setProdModal(true); setProdTab('history') }}
-                    className="text-[11px] font-semibold text-violet-700 hover:underline flex items-center gap-1">
+                    className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1">
                     <ChevronRight className="w-3 h-3" /> View History
                   </button>
                 </div>
@@ -2163,13 +2163,13 @@ export default function ReportsPage() {
                 {/* Order number filter */}
                 <div className="relative">
                   <select value={mrpOrderFilter} onChange={e => setMrpOrderFilter(e.target.value)}
-                    className={`text-xs border rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 max-w-[160px] ${mrpOrderFilter ? 'border-purple-400 text-purple-700 font-semibold' : 'border-gray-200'}`}>
+                    className={`text-xs border rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-ring max-w-[160px] ${mrpOrderFilter ? 'border-primary/60 text-primary font-semibold' : 'border-gray-200'}`}>
                     <option value="">All Orders</option>
                     {mrpOrderRefs.map(ref => <option key={ref} value={ref}>{ref}</option>)}
                   </select>
                   {mrpOrderFilter && (
                     <button onClick={() => setMrpOrderFilter('')} className="absolute right-6 top-1/2 -translate-y-1/2">
-                      <X className="w-3 h-3 text-purple-500" />
+                      <X className="w-3 h-3 text-primary/80" />
                     </button>
                   )}
                 </div>
@@ -2178,7 +2178,7 @@ export default function ReportsPage() {
                 <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
                   {(['all','shortage','sufficient'] as const).map(f => (
                     <button key={f} onClick={() => setMrpStatusFilter(f)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${mrpStatusFilter === f ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-gray-700'}`}>
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${mrpStatusFilter === f ? 'bg-white shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700'}`}>
                       {f === 'all' ? 'All' : f === 'shortage' ? '⚠ Short' : '✓ OK'}
                     </button>
                   ))}
@@ -2186,7 +2186,7 @@ export default function ReportsPage() {
 
                 {/* Action filter */}
                 <select value={mrpActionFilter} onChange={e => setMrpActionFilter(e.target.value as 'all' | 'buy' | 'produce' | 'sufficient')}
-                  className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400">
+                  className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="all">All Actions</option>
                   <option value="buy">Buy (PO)</option>
                   <option value="produce">Produce</option>
@@ -2196,7 +2196,7 @@ export default function ReportsPage() {
                 {/* Column config */}
                 <div className="relative">
                   <button onClick={() => setMrpColsOpen(v => !v)}
-                    className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpColsOpen ? 'border-purple-400 text-purple-700' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpColsOpen ? 'border-primary/60 text-primary' : 'border-gray-200 hover:bg-gray-50'}`}>
                     <Settings2 className="w-3.5 h-3.5" /> Columns
                   </button>
                   {mrpColsOpen && (
@@ -2210,7 +2210,7 @@ export default function ReportsPage() {
                               next.has(col.id) ? next.delete(col.id) : next.add(col.id)
                               return next
                             })}
-                            className="rounded border-gray-300 text-purple-600" />
+                            className="rounded border-gray-300 text-primary" />
                           <span className="text-xs text-gray-700">{col.label}</span>
                         </label>
                       ))}
@@ -2253,8 +2253,8 @@ export default function ReportsPage() {
                         <Layers className="w-3.5 h-3.5 text-gray-500" /> Print Report
                       </button>
                       <button onClick={() => { shareMrpNative(); setMrpShareOpen(false) }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-violet-50 text-xs text-violet-700 font-medium">
-                        <ExternalLink className="w-3.5 h-3.5 text-violet-500" /> More Share Options…
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-accent text-xs text-primary font-medium">
+                        <ExternalLink className="w-3.5 h-3.5 text-primary/80" /> More Share Options…
                       </button>
                     </div>
                   )}
@@ -2266,7 +2266,7 @@ export default function ReportsPage() {
               {(mrpOrderFilter || mrpStatusFilter !== 'all' || mrpActionFilter !== 'all') && (
                 <div className="flex flex-wrap gap-1.5">
                   {mrpOrderFilter && (
-                    <span className="inline-flex items-center gap-1 text-[11px] bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full font-semibold">
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-primary/12 text-primary px-2.5 py-1 rounded-full font-semibold">
                       Order: {mrpOrderFilter}
                       <button onClick={() => setMrpOrderFilter('')}><X className="w-2.5 h-2.5" /></button>
                     </span>
@@ -2288,19 +2288,19 @@ export default function ReportsPage() {
 
               {/* ── Bulk action bar ────────────────────────────────────── */}
               {mrpSelected.size > 0 && (
-                <div className="flex flex-wrap items-center gap-3 bg-purple-700 text-white rounded-2xl px-4 py-3 shadow-lg">
+                <div className="flex flex-wrap items-center gap-3 bg-primary/90 text-white rounded-2xl px-4 py-3 shadow-lg">
                   <ListChecks className="w-4 h-4 shrink-0" />
                   <span className="text-sm font-semibold">{mrpSelected.size} item{mrpSelected.size > 1 ? 's' : ''} selected</span>
                   <div className="flex-1" />
                   <button onClick={() => setPoModal(true)}
-                    className="flex items-center gap-1.5 bg-white text-purple-800 hover:bg-purple-50 px-4 py-1.5 rounded-xl text-xs font-bold transition-colors shadow-sm">
+                    className="flex items-center gap-1.5 bg-white text-primary hover:bg-accent px-4 py-1.5 rounded-xl text-xs font-bold transition-colors shadow-sm">
                     <Truck className="w-3.5 h-3.5" /> Create Purchase Order
                   </button>
                   <button onClick={() => { setProdTab('new'); setProdModal(true) }}
-                    className="flex items-center gap-1.5 bg-purple-500 hover:bg-purple-400 text-white px-4 py-1.5 rounded-xl text-xs font-bold transition-colors border border-purple-400">
+                    className="flex items-center gap-1.5 bg-primary hover:bg-primary/80 text-white px-4 py-1.5 rounded-xl text-xs font-bold transition-colors border border-primary/60">
                     <Factory className="w-3.5 h-3.5" /> Plan Production
                   </button>
-                  <button onClick={() => setMrpSelected(new Set())} className="p-1.5 rounded-lg hover:bg-purple-600 transition-colors ml-1">
+                  <button onClick={() => setMrpSelected(new Set())} className="p-1.5 rounded-lg hover:bg-primary/90 transition-colors ml-1">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -2316,7 +2316,7 @@ export default function ReportsPage() {
                           <input type="checkbox"
                             checked={mrpFiltered.length > 0 && mrpSelected.size === mrpFiltered.length}
                             onChange={toggleAllMrp}
-                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-400 cursor-pointer" />
+                            className="rounded border-gray-300 text-primary focus:ring-ring cursor-pointer" />
                         </th>
                         <th className="py-3 pr-3 cursor-pointer select-none hover:text-gray-700" onClick={() => mrpSort('name')}>
                           Product {mrpSortKey === 'name' && (mrpSortDir === 'asc' ? '↑' : '↓')}
@@ -2346,10 +2346,10 @@ export default function ReportsPage() {
                         return (
                           <>
                             <tr key={row.product_id}
-                              className={`transition-colors ${isSelected ? 'bg-purple-50' : 'hover:bg-gray-50/60'}`}>
+                              className={`transition-colors ${isSelected ? 'bg-accent' : 'hover:bg-gray-50/60'}`}>
                               <td className="py-3 px-4">
                                 <input type="checkbox" checked={isSelected} onChange={() => toggleMrpRow(row.product_id)}
-                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-400 cursor-pointer" />
+                                  className="rounded border-gray-300 text-primary focus:ring-ring cursor-pointer" />
                               </td>
                               <td className="py-3 pr-3">
                                 <button className="text-left w-full" onClick={() => setMrpDetailRow(isExpanded ? null : row.product_id)}>
@@ -2417,7 +2417,7 @@ export default function ReportsPage() {
                                       <Truck className="w-2.5 h-2.5" /> PO
                                     </button>
                                     <button onClick={() => { setMrpSelected(new Set([row.product_id])); setProdTab('new'); setProdModal(true) }}
-                                      className="flex items-center gap-1 text-[10px] font-bold bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded-lg transition-colors">
+                                      className="flex items-center gap-1 text-[10px] font-bold bg-primary hover:bg-primary/90 text-white px-2 py-1 rounded-lg transition-colors">
                                       <Hammer className="w-2.5 h-2.5" /> Produce
                                     </button>
                                   </div>
@@ -2430,7 +2430,7 @@ export default function ReportsPage() {
                             </tr>
                             {/* Expanded detail row */}
                             {isExpanded && (
-                              <tr key={`${row.product_id}-detail`} className="bg-purple-50/50">
+                              <tr key={`${row.product_id}-detail`} className="bg-accent/70">
                                 <td colSpan={10} className="px-6 py-4">
                                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
                                     <div className="bg-white rounded-xl p-3 border border-gray-100">
@@ -2473,7 +2473,7 @@ export default function ReportsPage() {
                                         <Truck className="w-3 h-3" /> Create Purchase Order
                                       </button>
                                       <button onClick={() => { setMrpSelected(new Set([row.product_id])); setProdTab('new'); setProdModal(true) }}
-                                        className="text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                                        className="text-[11px] font-bold text-primary bg-accent hover:bg-primary/12 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
                                         <Factory className="w-3 h-3" /> Plan Production
                                       </button>
                                     </div>
@@ -2643,24 +2643,24 @@ export default function ReportsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setProdModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center gap-3 px-6 py-4 border-b bg-gradient-to-r from-purple-50 to-violet-50 sticky top-0 z-10">
-              <div className="p-2 bg-purple-100 rounded-xl"><Factory className="w-5 h-5 text-purple-600" /></div>
+            <div className="flex items-center gap-3 px-6 py-4 border-b bg-gradient-to-r from-accent to-primary/10 sticky top-0 z-10">
+              <div className="p-2 bg-primary/12 rounded-xl"><Factory className="w-5 h-5 text-primary" /></div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="font-bold text-gray-900">Production Order</h2>
-                  <span className="text-xs font-mono bg-purple-100 text-purple-700 px-2 py-0.5 rounded-lg">{prodRef}</span>
+                  <span className="text-xs font-mono bg-primary/12 text-primary px-2 py-0.5 rounded-lg">{prodRef}</span>
                 </div>
               </div>
               {/* Tabs */}
               <div className="flex items-center bg-white border border-gray-200 rounded-xl p-0.5 gap-0.5">
                 {(['new','history'] as const).map(t => (
                   <button key={t} onClick={() => setProdTab(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${prodTab === t ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${prodTab === t ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                     {t === 'new' ? '+ New Order' : `📋 History (${prodHistory.length})`}
                   </button>
                 ))}
               </div>
-              <button onClick={() => setProdModal(false)} className="p-2 hover:bg-purple-100 rounded-xl transition-colors ml-2"><X className="w-4 h-4 text-gray-500" /></button>
+              <button onClick={() => setProdModal(false)} className="p-2 hover:bg-primary/12 rounded-xl transition-colors ml-2"><X className="w-4 h-4 text-gray-500" /></button>
             </div>
 
             {prodTab === 'new' ? (
@@ -2672,11 +2672,11 @@ export default function ReportsPage() {
                     {PROD_TEMPLATES.map(t => (
                       <button key={t.id} onClick={() => { setProdTemplate(t.id); if (t.defaultNotes) setProdNotes(t.defaultNotes) }}
                         className={`flex items-start gap-2 p-3 rounded-xl border text-left transition-all ${
-                          prodTemplate === t.id ? 'border-purple-400 bg-purple-50' : 'border-gray-200 hover:border-purple-200 hover:bg-purple-50/30'
+                          prodTemplate === t.id ? 'border-primary/60 bg-accent' : 'border-gray-200 hover:border-primary/30 hover:bg-accent/50'
                         }`}>
                         <span className="text-lg leading-none">{t.emoji}</span>
                         <div>
-                          <p className={`text-xs font-semibold leading-tight ${prodTemplate === t.id ? 'text-purple-800' : 'text-gray-700'}`}>{t.label}</p>
+                          <p className={`text-xs font-semibold leading-tight ${prodTemplate === t.id ? 'text-primary' : 'text-gray-700'}`}>{t.label}</p>
                           <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{t.description}</p>
                         </div>
                       </button>
@@ -2689,22 +2689,22 @@ export default function ReportsPage() {
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5">Work Order Ref</label>
                     <input value={prodRef} onChange={e => setProdRef(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5">Team / Department</label>
                     <input value={prodTeam} onChange={e => setProdTeam(e.target.value)} placeholder="e.g. Assembly Line A"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5">Target Completion Date</label>
                     <input type="date" value={prodTarget} onChange={e => setProdTarget(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                     <select value={prodStatus} onChange={e => setProdStatus(e.target.value as typeof prodStatus)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="draft">📝 Draft</option>
                       <option value="in_progress">🔄 In Progress</option>
                       <option value="on_hold">⏸ On Hold</option>
@@ -2717,10 +2717,10 @@ export default function ReportsPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-semibold text-gray-600">Completion Progress</label>
-                    <span className="text-xs font-bold text-purple-700">{prodProgress}%</span>
+                    <span className="text-xs font-bold text-primary">{prodProgress}%</span>
                   </div>
                   <input type="range" min={0} max={100} step={5} value={prodProgress} onChange={e => setProdProgress(Number(e.target.value))}
-                    className="w-full accent-purple-600" />
+                    className="w-full accent-primary" />
                   <div className="flex justify-between text-[10px] text-gray-400 mt-1">
                     <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
                   </div>
@@ -2728,7 +2728,7 @@ export default function ReportsPage() {
 
                 {/* Items to produce */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-purple-500" /> Items to Manufacture</p>
+                  <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-primary/80" /> Items to Manufacture</p>
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
                     <ResizableTable tableId="rpt-manufacture" defaultWidths={[220, 90, 100]}>
                       <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-gray-500 uppercase">
@@ -2742,7 +2742,7 @@ export default function ReportsPage() {
                             <td className="py-2.5 px-3 font-medium">{l.name}</td>
                             <td className="py-2.5 px-3 text-right">
                               <input type="number" min={1} defaultValue={l.qty}
-                                className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                             </td>
                             <td className="py-2.5 px-3 text-right hidden sm:table-cell">
                               <select defaultValue={i === 0 ? 'high' : 'medium'}
@@ -2851,7 +2851,7 @@ export default function ReportsPage() {
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Instructions / Notes</label>
                   <textarea value={prodNotes} onChange={e => setProdNotes(e.target.value)} rows={3}
                     placeholder="Raw materials needed, machine assignments, quality checks, safety notes…"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
 
                 {/* Actions */}
@@ -2861,7 +2861,7 @@ export default function ReportsPage() {
                     Cancel
                   </button>
                   <button onClick={saveProdHistoryEntry}
-                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-2.5 text-sm font-bold transition-colors flex items-center justify-center gap-2">
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-xl py-2.5 text-sm font-bold transition-colors flex items-center justify-center gap-2">
                     <Factory className="w-4 h-4" /> Save &amp; Download Order
                   </button>
                 </div>
@@ -2879,7 +2879,7 @@ export default function ReportsPage() {
                     <div className="flex items-center gap-3 px-4 py-3 bg-gray-50">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-sm font-bold text-purple-700">{entry.orderNo}</span>
+                          <span className="font-mono text-sm font-bold text-primary">{entry.orderNo}</span>
                           <span className="text-[10px] bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-semibold">{entry.template}</span>
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                             entry.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -2896,9 +2896,9 @@ export default function ReportsPage() {
                       {/* Progress bar */}
                       <div className="hidden sm:flex items-center gap-2 shrink-0">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-purple-500 rounded-full" style={{ width: `${entry.progress}%` }} />
+                          <div className="h-full bg-primary rounded-full" style={{ width: `${entry.progress}%` }} />
                         </div>
-                        <span className="text-xs font-bold text-purple-700 w-8 text-right">{entry.progress}%</span>
+                        <span className="text-xs font-bold text-primary w-8 text-right">{entry.progress}%</span>
                       </div>
                       <button onClick={() => setViewHistoryEntry(viewHistoryEntry?.id === entry.id ? null : entry)}
                         className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors ml-1">
@@ -2914,7 +2914,7 @@ export default function ReportsPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                           <div><p className="text-gray-500">Items</p>{entry.items.map(i => <p key={i.product_id} className="font-semibold">{i.name} × {i.qty}</p>)}</div>
                           <div><p className="text-gray-500">Status</p><p className="font-semibold capitalize">{entry.status.replace('_',' ')}</p></div>
-                          <div><p className="text-gray-500">Progress</p><p className="font-semibold text-purple-700">{entry.progress}%</p></div>
+                          <div><p className="text-gray-500">Progress</p><p className="font-semibold text-primary">{entry.progress}%</p></div>
                           <div><p className="text-gray-500">Stock Dispatched</p><p className="font-semibold text-green-700">{entry.stockDispatches.reduce((s, d) => s + d.qty, 0)} units</p></div>
                         </div>
                         {entry.attachments.length > 0 && (
@@ -2936,7 +2936,7 @@ export default function ReportsPage() {
                             ['Work Order', 'Template', 'Item', 'Qty', 'Team', 'Target Date', 'Status', 'Progress'],
                             entry.items.map(l => [entry.orderNo, entry.template, l.name, l.qty, entry.team, entry.targetDate, entry.status, `${entry.progress}%`]),
                           ); toast.success('Production order downloaded.')
-                        }} className="flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 px-3 py-2 rounded-lg transition-colors">
+                        }} className="flex items-center gap-1.5 text-xs font-bold text-primary bg-accent hover:bg-primary/12 px-3 py-2 rounded-lg transition-colors">
                           <Download className="w-3.5 h-3.5" /> Re-download Order
                         </button>
                       </div>

@@ -8,7 +8,7 @@ import {
 } from '@/hooks/useCommission'
 import { TrendingUp, Users, Clock, DollarSign, Award } from 'lucide-react'
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#64C3A0', '#ec4899', '#06b6d4']
 const BUCKET_OPTIONS = ['day', 'week', 'month', 'quarter']
 
 function KPICard({ title, value, sub, icon: Icon, color }: { title: string; value: string; sub?: string; icon: React.ElementType; color: string }) {
@@ -67,7 +67,7 @@ export default function CommissionReportPage() {
         <KPICard title="Total Accrued" value={fmtCurrency(summary?.total_accrued || 0)} icon={TrendingUp} color="bg-blue-500" />
         <KPICard title="Total Paid" value={fmtCurrency(summary?.total_paid || 0)} icon={DollarSign} color="bg-green-500" />
         <KPICard title="Pending Approval" value={fmtCurrency(summary?.pending_approval || 0)} icon={Clock} color="bg-yellow-500" />
-        <KPICard title="Avg per Sale" value={fmtCurrencyFull(summary?.avg_per_sale || 0)} sub={`${summary?.sale_count || 0} sales`} icon={Award} color="bg-purple-500" />
+        <KPICard title="Avg per Sale" value={fmtCurrencyFull(summary?.avg_per_sale || 0)} sub={`${summary?.sale_count || 0} sales`} icon={Award} color="bg-primary" />
         <KPICard title="Top Payee" value={fmtCurrency(summary?.top_payee_amount || 0)} sub={summary?.top_payee_id ? `ID: ${summary.top_payee_id.slice(0, 8)}` : '—'} icon={Users} color="bg-pink-500" />
       </div>
 

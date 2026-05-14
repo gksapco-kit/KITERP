@@ -161,7 +161,7 @@ export function MediaStudioPanel({
         step={step}
         value={(adjustments as any)[field]}
         onChange={e => setAdjustments(a => ({ ...a, [field]: Number(e.target.value) }))}
-        className="w-full accent-violet-600 h-1.5"
+        className="w-full accent-primary h-1.5"
       />
     </div>
   )
@@ -195,8 +195,8 @@ export function MediaStudioPanel({
           className={cn(
             'w-full py-5 border-2 border-dashed rounded-xl text-xs cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5',
             isDragging
-              ? 'border-violet-500 bg-violet-50 text-violet-700'
-              : 'border-violet-200 text-violet-600 hover:bg-violet-50 hover:border-violet-400',
+              ? 'border-primary bg-accent text-primary'
+              : 'border-primary/30 text-primary hover:bg-accent hover:border-primary/60',
           )}
         >
           {uploadMedia.isPending ? (
@@ -217,13 +217,13 @@ export function MediaStudioPanel({
       <div className="p-3 shrink-0">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Media Library ({mediaList.length})</span>
-          <button type="button" onClick={() => refetch()} className="text-[10px] text-violet-500 hover:text-violet-700 flex items-center gap-0.5">
+          <button type="button" onClick={() => refetch()} className="text-[10px] text-primary/80 hover:text-primary flex items-center gap-0.5">
             <RefreshCcw className="w-3 h-3" /> Refresh
           </button>
         </div>
         {isLoading && mediaList.length === 0 ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+            <Loader2 className="w-5 h-5 animate-spin text-primary/70" />
           </div>
         ) : mediaList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-gray-400 gap-2">
@@ -245,7 +245,7 @@ export function MediaStudioPanel({
                   }}
                   className={cn(
                     'group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all',
-                    isSelected ? 'border-violet-500 ring-2 ring-violet-200 scale-105' : 'border-transparent hover:border-violet-300',
+                    isSelected ? 'border-primary ring-2 ring-primary/25 scale-105' : 'border-transparent hover:border-primary/40',
                   )}
                 >
                   {m.file_type === 'video' ? (
@@ -269,7 +269,7 @@ export function MediaStudioPanel({
                     <ImageIcon className="w-5 h-5 text-gray-300" />
                   </div>
                   {m.ai_tags?.includes('ai-generated') && (
-                    <div className="absolute top-1 left-1 bg-violet-600 text-white text-[8px] font-bold px-1 py-0.5 rounded">AI</div>
+                    <div className="absolute top-1 left-1 bg-primary text-white text-[8px] font-bold px-1 py-0.5 rounded">AI</div>
                   )}
                   <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1.5">
                     <button
@@ -278,7 +278,7 @@ export function MediaStudioPanel({
                         ev.stopPropagation()
                         onApplyUrl(m.original_url)
                       }}
-                      className="w-full py-1.5 bg-violet-600 rounded-lg text-[10px] font-bold text-white hover:bg-violet-700"
+                      className="w-full py-1.5 bg-primary rounded-lg text-[10px] font-bold text-white hover:bg-primary/90"
                     >
                       {applyToImageLayer ? 'Use in Layer' : 'Use in Block'}
                     </button>
@@ -295,7 +295,7 @@ export function MediaStudioPanel({
                     </button>
                   </div>
                   {isSelected && (
-                    <div className="absolute bottom-1 right-1 w-4 h-4 bg-violet-600 rounded-full flex items-center justify-center">
+                    <div className="absolute bottom-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
                       <Check className="w-2.5 h-2.5 text-white" />
                     </div>
                   )}
@@ -309,7 +309,7 @@ export function MediaStudioPanel({
       {selectedMediaObj && (
         <div className="flex-1 p-3 border-t border-gray-100 space-y-3">
           <div className="flex items-center gap-1.5">
-            <Wand2 className="w-3.5 h-3.5 text-violet-600" />
+            <Wand2 className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-bold text-gray-700">Image Adjuster & Designer</span>
             <span className="ml-auto text-[10px] text-gray-400 truncate max-w-[100px]">{selectedMediaObj.filename}</span>
           </div>
@@ -338,7 +338,7 @@ export function MediaStudioPanel({
             <button
               type="button"
               onClick={() => onApplyUrl(adjustedUrl || selectedMediaObj.original_url)}
-              className="flex-1 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 flex items-center justify-center gap-1.5"
+              className="flex-1 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 flex items-center justify-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" />
               {applyPrimaryLabel}
@@ -385,7 +385,7 @@ export function MediaStudioPanel({
                       type="checkbox"
                       checked={(adjustments as any)[key]}
                       onChange={e => setAdjustments(a => ({ ...a, [key]: e.target.checked }))}
-                      className="rounded accent-violet-600"
+                      className="rounded accent-primary"
                     />
                     <span className="text-[11px] text-gray-600 font-medium">{label}</span>
                   </label>
@@ -403,8 +403,8 @@ export function MediaStudioPanel({
                       className={cn(
                         'py-1.5 rounded-lg text-[10px] font-bold border transition-colors',
                         adjustments.color_grade === grade
-                          ? 'bg-violet-600 text-white border-violet-600'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300',
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
                       )}
                     >
                       {grade ? grade.charAt(0).toUpperCase() + grade.slice(1) : 'None'}
@@ -424,8 +424,8 @@ export function MediaStudioPanel({
                       className={cn(
                         'py-1.5 rounded-lg text-[10px] font-bold border transition-colors',
                         (adjustments as any).overlay === ov
-                          ? 'bg-violet-600 text-white border-violet-600'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300',
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
                       )}
                     >
                       {ov ? ov.replace('_', ' ').charAt(0).toUpperCase() + ov.replace('_', ' ').slice(1) : 'None'}
@@ -460,7 +460,7 @@ export function MediaStudioPanel({
                   type="button"
                   onClick={handleAdjust}
                   disabled={isAdjusting}
-                  className="flex-1 py-2 bg-gradient-to-r from-violet-600 to-blue-500 text-white text-xs font-bold rounded-lg disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2 bg-gradient-to-r from-primary to-info text-white text-xs font-bold rounded-lg disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {isAdjusting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
                   Apply AI

@@ -48,7 +48,7 @@ export default function ESSOnboardingPage() {
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all"
+            className="h-full bg-gradient-to-r from-primary to-info transition-all"
             style={{ width: `${pct}%` }}
           />
         </div>

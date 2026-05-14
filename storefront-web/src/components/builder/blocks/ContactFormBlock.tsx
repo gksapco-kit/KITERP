@@ -89,7 +89,7 @@ export default function ContactFormBlock({ site, style, props, liveItems }: Prop
     }
   }
 
-  const primary = style.primary_color || '#7c3aed'
+  const primary = style.primary_color || '#64C3A0'
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
@@ -193,7 +193,7 @@ export default function ContactFormBlock({ site, style, props, liveItems }: Prop
                         type="checkbox"
                         checked={values[field.name] === 'true'}
                         onChange={e => setValue(field.name, e.target.checked ? 'true' : 'false')}
-                        className="mt-0.5 rounded accent-violet-600"
+                        className="mt-0.5 rounded accent-primary"
                       />
                       <span className="text-sm text-gray-600">{field.placeholder || field.label}</span>
                     </label>
@@ -245,7 +245,7 @@ export default function ContactFormBlock({ site, style, props, liveItems }: Prop
                     checked={gdprConsent}
                     onChange={e => setGdprConsent(e.target.checked)}
                     required
-                    className="mt-0.5 rounded accent-violet-600"
+                    className="mt-0.5 rounded accent-primary"
                   />
                   <span className="text-xs text-gray-500">
                     I agree to the <a href="/privacy" className="underline" style={{ color: primary }}>Privacy Policy</a> and consent to being contacted.

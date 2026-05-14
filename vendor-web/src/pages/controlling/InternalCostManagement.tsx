@@ -61,7 +61,7 @@ function CostCenterCard({ name, totalActual, byCategory }: {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <Building2 className="w-4 h-4 text-violet-500" />
+        <Building2 className="w-4 h-4 text-primary/80" />
         <p className="font-semibold text-gray-900 text-sm truncate">{name}</p>
       </div>
       <div className="space-y-2">
@@ -70,7 +70,7 @@ function CostCenterCard({ name, totalActual, byCategory }: {
             <span className="w-20 text-gray-500 capitalize">{cat}</span>
             <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-violet-400 rounded-full"
+                className="h-full bg-primary/50 rounded-full"
                 style={{ width: totalActual > 0 ? `${(amt / totalActual) * 100}%` : '0%' }}
               />
             </div>
@@ -214,12 +214,12 @@ export default function InternalCostManagementPage() {
           </div>
           <p className="text-2xl font-bold text-gray-900">{formatCurrency(costSummary.total)}</p>
         </div>
-        <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
+        <div className="rounded-xl border border-primary/20 bg-accent p-4">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-violet-500" />
-            <span className="text-xs text-violet-600">Activity types</span>
+            <TrendingUp className="w-4 h-4 text-primary/80" />
+            <span className="text-xs text-primary">Activity types</span>
           </div>
-          <p className="text-2xl font-bold text-violet-700">{(activityTypes as ActivityTypeRow[]).filter(a => a.is_active).length}</p>
+          <p className="text-2xl font-bold text-primary">{(activityTypes as ActivityTypeRow[]).filter(a => a.is_active).length}</p>
         </div>
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -241,7 +241,7 @@ export default function InternalCostManagementPage() {
       {/* Cost by category */}
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <BarChart2 className="w-4 h-4 text-violet-500" />
+          <BarChart2 className="w-4 h-4 text-primary/80" />
           Actual Cost by Category (all orders)
         </h2>
         <div className="space-y-3">
@@ -252,7 +252,7 @@ export default function InternalCostManagementPage() {
                 <span className="w-24 text-xs font-medium text-gray-600 capitalize">{cat}</span>
                 <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500"
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-info"
                     style={{ width: costSummary.total > 0 ? `${(amt / costSummary.total) * 100}%` : '0%' }}
                   />
                 </div>
@@ -271,7 +271,7 @@ export default function InternalCostManagementPage() {
       {/* Activity types */}
       <div>
         <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-violet-500" />
+          <TrendingUp className="w-4 h-4 text-primary/80" />
           Activity Types
         </h2>
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -308,7 +308,7 @@ export default function InternalCostManagementPage() {
       {/* Overhead pools */}
       <div>
         <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-violet-500" />
+          <Building2 className="w-4 h-4 text-primary/80" />
           Overhead Pools & Rates
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -326,7 +326,7 @@ export default function InternalCostManagementPage() {
       {/* Period allocations */}
       <div>
         <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <GitMerge className="w-4 h-4 text-violet-500" />
+          <GitMerge className="w-4 h-4 text-primary/80" />
           Cost Allocations — {MONTHS[month - 1]} {year}
         </h2>
         {(allocations as AllocRow[]).length === 0 ? (
@@ -369,7 +369,7 @@ export default function InternalCostManagementPage() {
       {internalOrderCosts.length > 0 && (
         <div>
           <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-violet-500" />
+            <Building2 className="w-4 h-4 text-primary/80" />
             Internal & Project Order Cost Centers
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

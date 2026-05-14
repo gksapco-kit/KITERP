@@ -99,14 +99,14 @@ export default function ControllingProductCostsPage() {
   return (
     <div className="p-6 max-w-6xl space-y-6">
       <div className="flex items-center gap-4">
-        <Link to="/controlling" className="text-sm text-violet-600 hover:underline inline-flex items-center gap-1">
+        <Link to="/controlling" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
           <ArrowLeft className="w-4 h-4" /> CO Dashboard
         </Link>
       </div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Boxes className="w-7 h-7 text-violet-600" /> Product cost planning
+            <Boxes className="w-7 h-7 text-primary" /> Product cost planning
           </h1>
           <p className="text-sm text-gray-500 mt-1">Standard costs, BOM explosion, material / activity / overhead breakdown.</p>
         </div>
@@ -223,10 +223,10 @@ export default function ControllingProductCostsPage() {
                   const indirectPools = pools.filter(p => p.overhead_type !== 'direct')
                   return (
                     <>
-                      <tr key={v.id} className={`border-t border-gray-100 cursor-pointer ${isExpanded ? 'bg-violet-50/30' : 'hover:bg-gray-50'}`}
+                      <tr key={v.id} className={`border-t border-gray-100 cursor-pointer ${isExpanded ? 'bg-accent/60' : 'hover:bg-gray-50'}`}
                         onClick={() => setExpandedId(isExpanded ? null : v.id)}>
                         <td className="px-3 py-3 text-gray-400">
-                          {isExpanded ? <ChevronDown className="w-4 h-4 text-violet-500" /> : <ChevronRight className="w-4 h-4" />}
+                          {isExpanded ? <ChevronDown className="w-4 h-4 text-primary/80" /> : <ChevronRight className="w-4 h-4" />}
                         </td>
                         <td className="px-4 py-3 font-medium text-gray-900">{v.version_code}</td>
                         <td className="px-4 py-3 text-gray-700">{pname}</td>
@@ -236,7 +236,7 @@ export default function ControllingProductCostsPage() {
                           }`}>{v.status}</span>
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-gray-600">{formatCurrency(Number(v.material_total_planned ?? 0))}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-violet-600">{formatCurrency(Number(v.activity_total_planned ?? 0))}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-primary">{formatCurrency(Number(v.activity_total_planned ?? 0))}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-blue-600">{formatCurrency(Number(v.direct_overhead_total_planned ?? 0))}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-amber-600">{formatCurrency(Number(v.indirect_overhead_total_planned ?? 0))}</td>
                         <td className="px-4 py-3 text-right tabular-nums font-semibold text-gray-900">
@@ -263,7 +263,7 @@ export default function ControllingProductCostsPage() {
                               {/* Routing selector */}
                               <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
                                 <div className="flex items-center gap-2">
-                                  <GitBranch className="w-4 h-4 text-violet-500" />
+                                  <GitBranch className="w-4 h-4 text-primary/80" />
                                   <h3 className="text-sm font-semibold text-gray-800">Routing selection</h3>
                                 </div>
                                 <p className="text-xs text-gray-400">
@@ -357,7 +357,7 @@ export default function ControllingProductCostsPage() {
                                     const total = Number(v.rolled_up_unit_cost) || 1
                                     const catBadge: Record<string, string> = {
                                       material: 'bg-blue-100 text-blue-700',
-                                      activity: 'bg-violet-100 text-violet-700',
+                                      activity: 'bg-primary/10 text-primary',
                                       direct_overhead: 'bg-sky-100 text-sky-700',
                                       indirect_overhead: 'bg-amber-100 text-amber-700',
                                       scrap: 'bg-red-100 text-red-500',

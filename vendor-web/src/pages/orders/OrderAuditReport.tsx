@@ -26,7 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
   confirmed: 'bg-blue-100 text-blue-700',
   processing: 'bg-indigo-100 text-indigo-700',
-  shipped: 'bg-purple-100 text-purple-700',
+  shipped: 'bg-primary/12 text-primary',
   delivered: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
   refunded: 'bg-orange-100 text-orange-700',
@@ -74,8 +74,8 @@ function buildCsvContent(rows: AuditRow[], order: Order): string {
 
 function buildHtmlTable(rows: AuditRow[], order: Order): string {
   const statusPalette = [
-    { s: 'pending', c: '#eab308' }, { s: 'confirmed', c: '#3b82f6' }, { s: 'processing', c: '#6366f1' },
-    { s: 'shipped', c: '#a855f7' }, { s: 'delivered', c: '#22c55e' }, { s: 'cancelled', c: '#ef4444' },
+    { s: 'pending', c: '#eab308' }, { s: 'confirmed', c: '#3b82f6' }, { s: 'processing', c: '#3b82f6' },
+    { s: 'shipped', c: '#64C3A0' }, { s: 'delivered', c: '#22c55e' }, { s: 'cancelled', c: '#ef4444' },
     { s: 'refunded', c: '#f97316' }, { s: 'returned', c: '#f43f5e' },
   ]
   const getColor = (s: string) => statusPalette.find(p => p.s === s)?.c || '#6b7280'
@@ -241,7 +241,7 @@ export default function OrderAuditReport() {
   const ROW_COLORS = [
     { bg: 'bg-emerald-50', border: 'border-l-emerald-500' },
     { bg: 'bg-blue-50', border: 'border-l-blue-500' },
-    { bg: 'bg-purple-50', border: 'border-l-purple-500' },
+    { bg: 'bg-accent', border: 'border-l-primary' },
     { bg: 'bg-amber-50', border: 'border-l-amber-500' },
     { bg: 'bg-rose-50', border: 'border-l-rose-500' },
     { bg: 'bg-cyan-50', border: 'border-l-cyan-500' },
@@ -319,7 +319,7 @@ export default function OrderAuditReport() {
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { shareReport(order, filteredRows, 'copy'); setShowShareMenu(false) }}><Copy className="w-4 h-4 text-gray-400" /> Copy to Clipboard</button>
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { shareReport(order, filteredRows, 'whatsapp'); setShowShareMenu(false) }}><MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp</button>
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { shareReport(order, filteredRows, 'email'); setShowShareMenu(false) }}><Mail className="w-4 h-4 text-blue-500" /> Email</button>
-                <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { shareReport(order, filteredRows, 'native'); setShowShareMenu(false) }}><Share2 className="w-4 h-4 text-purple-500" /> Share</button>
+                <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { shareReport(order, filteredRows, 'native'); setShowShareMenu(false) }}><Share2 className="w-4 h-4 text-primary/80" /> Share</button>
               </div>
             )}
           </div>

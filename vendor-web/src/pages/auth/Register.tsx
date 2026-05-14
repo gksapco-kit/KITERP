@@ -127,7 +127,7 @@ const PwField = forwardRef<
         <Input
           ref={ref}
           type={show ? 'text' : 'password'}
-          className={cn('h-10 text-sm pr-9', className)}
+          className={cn('h-11 min-h-11 text-base pr-10', className)}
           {...props}
         />
         <button
@@ -136,10 +136,10 @@ const PwField = forwardRef<
           onClick={() => setShow((v) => !v)}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
         >
-          {show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
-      {error && <p className="text-[11px] text-red-500 mt-0.5">{error}</p>}
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   )
 })
@@ -187,8 +187,8 @@ function TypeDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'w-full flex items-center gap-2.5 h-10 px-3 border rounded-md text-sm bg-white transition-all',
-          open ? 'border-violet-400 ring-1 ring-violet-200' : 'border-gray-200 hover:border-gray-300',
+          'flex h-11 min-h-11 w-full items-center gap-2.5 rounded-lg border bg-white px-3 text-base transition-all',
+          open ? 'border-primary/60 ring-1 ring-primary/25' : 'border-gray-200 hover:border-gray-300',
           error ? 'border-red-400' : '',
         )}
       >
@@ -209,7 +209,7 @@ function TypeDropdown({
             </span>
           </>
         ) : (
-          <span className="flex-1 text-left text-gray-400">Select category…</span>
+            <span className="flex-1 text-left text-gray-400 text-sm sm:text-base">Select category…</span>
         )}
         <ChevronDown className={cn('w-4 h-4 text-gray-400 shrink-0 transition-transform', open && 'rotate-180')} />
       </button>
@@ -273,7 +273,7 @@ function TypeDropdown({
           </div>
         </div>
       )}
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   )
 }
@@ -475,7 +475,9 @@ export default function Register() {
           </div>
           <p className="text-sm text-gray-500">
             Already a vendor?{' '}
-            <Link to="/login" className="text-blue-600 font-medium hover:underline">Sign in</Link>
+            <Link to="/login" className="-mx-0.5 rounded-md px-1 py-2 font-semibold text-blue-600 hover:underline">
+              Sign in
+            </Link>
           </p>
         </div>
       </header>
@@ -515,32 +517,43 @@ export default function Register() {
             </div>
 
             {/* Right — form card */}
-            <div className="h-full flex items-center justify-center min-h-0">
-              <div className="w-full bg-white rounded-2xl border shadow-xl p-5 sm:p-6 overflow-y-auto max-h-full">
+            <div className="flex h-full min-h-0 flex-col lg:justify-center">
+              <div className="shrink-0 px-1 pb-3 pt-1 text-center lg:hidden">
+                <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-[1.65rem]">
+                  Start selling online{' '}
+                  <span className="text-blue-600">in minutes</span>
+                </h1>
+                <p className="mt-1.5 text-sm leading-snug text-gray-600">
+                  Create your branded store, manage products &amp; services, accept orders, and grow your business.
+                </p>
+              </div>
+
+              <div className="flex min-h-0 flex-1 flex-col lg:flex-none">
+                <div className="max-h-full w-full flex-1 overflow-y-auto rounded-2xl border bg-white p-6 shadow-xl sm:p-8 lg:flex-none">
                 {/* Mobile logo */}
-                <div className="text-center mb-3 lg:hidden">
-                  <Store className="w-8 h-8 text-blue-600 mx-auto mb-1" />
+                <div className="mb-2 text-center lg:hidden">
+                  <Store className="mx-auto mb-1 h-9 w-9 text-blue-600" />
                 </div>
 
-                <div className="mb-4">
-                  <h2 className="text-xl font-bold text-gray-900">Create your Business</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Fill in the details below to get started</p>
+                <div className="mb-5">
+                  <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Create your business</h2>
+                  <p className="mt-1 text-sm text-gray-600">Fill in the details below to get started</p>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                   {/* Row 1 — Business Name + Business Category */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Business Name / Brand</label>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Business Name / Brand</label>
                       <Input
                         {...register('business_name')}
                         placeholder="e.g. Fresh Mart"
-                        className="h-10 text-sm"
+                        className="h-11 min-h-11 text-base"
                       />
-                      {errors.business_name && <p className="text-[11px] text-red-500 mt-0.5">{errors.business_name.message}</p>}
+                      {errors.business_name && <p className="mt-1 text-xs text-red-500">{errors.business_name.message}</p>}
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Business Category</label>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Business Category</label>
                       <Controller
                         control={control}
                         name="business_category"
@@ -557,22 +570,22 @@ export default function Register() {
 
                   {/* Row 2 — Full Name */}
                   <div>
-                    <label className="text-xs font-medium text-gray-700 mb-1 block">Full Name</label>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Full Name</label>
                     <Input
                       {...register('full_name')}
                       placeholder="Your full name"
-                      className="h-10 text-sm"
+                      className="h-11 min-h-11 text-base"
                     />
-                    {errors.full_name && <p className="text-[11px] text-red-500 mt-0.5">{errors.full_name.message}</p>}
+                    {errors.full_name && <p className="mt-1 text-xs text-red-500">{errors.full_name.message}</p>}
                   </div>
 
                   {/* Row 3 — Phone + Email (at least one required; phone needs OTP) */}
-                  <p className="text-[11px] text-gray-500 -mt-1">
-                    Provide <strong className="font-medium text-gray-700">either</strong> a contact email <strong className="font-medium text-gray-700">or</strong> a mobile number. After you click Create My Business, we will ask for a phone OTP in a secure popup.
+                  <p className="-mt-1 text-sm leading-snug text-gray-600">
+                    Provide <strong className="font-medium text-gray-800">either</strong> a contact email <strong className="font-medium text-gray-800">or</strong> a mobile number. After you click Create your business, we will ask for a phone OTP in a secure popup.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Phone Number</label>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Phone Number</label>
                       <Controller
                         control={control}
                         name="phone"
@@ -584,26 +597,27 @@ export default function Register() {
                             error={errors.phone?.message}
                             defaultCountryIso="IN"
                             inferCountryFromLocation
+                            comfortable
                           />
                         )}
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Contact Email</label>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Contact Email</label>
                       <Input
                         {...register('email')}
                         type="email"
                         placeholder="Optional if you use phone"
-                        className="h-10 text-sm"
+                        className="h-11 min-h-11 text-base"
                       />
-                      {errors.email && <p className="text-[11px] text-red-500 mt-0.5">{errors.email.message}</p>}
+                      {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
                     </div>
                   </div>
 
                   {/* Row 4 — Password + Confirm */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Password</label>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
                       <PwField
                         {...register('password')}
                         placeholder="Min. 8 characters"
@@ -611,7 +625,7 @@ export default function Register() {
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Confirm Password</label>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Confirm Password</label>
                       <PwField
                         {...register('confirm_password')}
                         placeholder="Re-enter password"
@@ -622,28 +636,38 @@ export default function Register() {
 
                   <Button
                     type="submit"
-                    className="w-full h-11 font-bold text-sm bg-blue-600 hover:bg-blue-700 mt-1"
+                    className="mt-2 w-full min-h-12 rounded-xl bg-blue-600 px-4 py-3 text-lg font-bold hover:bg-blue-700 sm:min-h-14 sm:px-6 sm:py-3.5 sm:text-xl"
                     disabled={signupMut.isPending || otpModalOpen || checkingContact}
                   >
                     {checkingContact ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Checking…</>
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin sm:h-6 sm:w-6" />
+                        Checking…
+                      </>
                     ) : signupMut.isPending && !otpModalOpen ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account…</>
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin sm:h-6 sm:w-6" />
+                        Creating account…
+                      </>
                     ) : (
-                      <><Rocket className="w-4 h-4 mr-2" />Create My Business</>
+                      <>
+                        <Rocket className="mr-2 h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
+                        Create your business
+                      </>
                     )}
                   </Button>
                 </form>
 
-                <p className="text-[11px] text-gray-400 text-center mt-3">
+                <p className="mt-4 text-center text-xs text-gray-500 sm:text-sm">
                   By signing up, you agree to our{' '}
-                  <a href="#" className="underline hover:text-gray-600">Terms of Service</a>
+                  <a href="#" className="underline hover:text-gray-700">Terms of Service</a>
                   {' '}and{' '}
-                  <a href="#" className="underline hover:text-gray-600">Privacy Policy</a>.
+                  <a href="#" className="underline hover:text-gray-700">Privacy Policy</a>.
                 </p>
 
-                <div className="mt-4">
+                <div className="mt-5">
                   <HelpAccordion />
+                </div>
                 </div>
               </div>
             </div>
@@ -679,10 +703,10 @@ export default function Register() {
               <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-3 ring-4 ring-blue-500/10">
                 <Smartphone className="w-7 h-7 text-blue-600" />
               </div>
-              <h3 id="vendor-otp-title" className="text-lg font-bold text-slate-900">
+              <h3 id="vendor-otp-title" className="text-xl font-bold text-slate-900 sm:text-2xl">
                 Verify your phone
               </h3>
-              <p className="text-sm text-slate-500 mt-1.5 leading-snug">
+              <p className="mt-2 text-sm leading-snug text-slate-600 sm:text-base">
                 Enter the 6-digit code we sent to{' '}
                 <span className="font-semibold text-slate-800">{otpSentTo ?? maskPhoneTail(pendingPhoneSignup.phone)}</span>
               </p>
@@ -709,23 +733,29 @@ export default function Register() {
                   autoFocus
                 />
 
-                <div className="flex flex-col gap-2 mt-5">
+                <div className="mt-5 flex flex-col gap-3">
                   <Button
                     type="button"
-                    className="w-full h-11 font-bold bg-blue-600 hover:bg-blue-700"
+                    className="w-full min-h-12 rounded-xl bg-blue-600 px-4 py-3 text-lg font-bold hover:bg-blue-700 sm:min-h-14 sm:text-xl"
                     disabled={signupMut.isPending || modalOtp.replace(/\D/g, '').length !== 6}
                     onClick={submitPhoneSignupWithOtp}
                   >
                     {signupMut.isPending ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating your business…</>
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin sm:h-6 sm:w-6" />
+                        Creating your business…
+                      </>
                     ) : (
-                      <><Check className="w-4 h-4 mr-2" />Verify &amp; create account</>
+                      <>
+                        <Check className="mr-2 h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
+                        Verify &amp; create account
+                      </>
                     )}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full"
+                    className="min-h-11 w-full rounded-xl text-base font-semibold sm:min-h-12 sm:text-lg"
                     disabled={sendPhoneOtpMut.isPending}
                     onClick={() => pendingPhoneSignup && sendPhoneOtpMut.mutate(pendingPhoneSignup.phone)}
                   >

@@ -32,7 +32,7 @@ const statusBadge: Record<string, { bg: string; text: string; label: string }> =
 }
 
 const typeBadge: Record<string, { bg: string; text: string; label: string }> = {
-  estimate: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Estimate' },
+  estimate: { bg: 'bg-accent', text: 'text-primary', label: 'Estimate' },
   invoice: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Invoice' },
   receipt: { bg: 'bg-green-50', text: 'text-green-700', label: 'Receipt' },
   credit_note: { bg: 'bg-red-50', text: 'text-red-700', label: 'Credit Note' },
@@ -373,7 +373,7 @@ export default function InvoiceDetail() {
                   toast.success('Invoice details copied!')
                 }
               }}>
-                <Share2 className="w-4 h-4 mr-1.5 text-purple-600" /> Share
+                <Share2 className="w-4 h-4 mr-1.5 text-primary" /> Share
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/invoices/templates')}>
                 <Settings2 className="w-4 h-4 mr-1.5" /> Settings

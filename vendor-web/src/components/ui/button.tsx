@@ -7,15 +7,15 @@ const buttonVariants = cva(
   // Base — shared by every variant/size
   'inline-flex items-center justify-center gap-1.5 whitespace-nowrap font-medium select-none ' +
   'transition-all duration-150 ease-out ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ' +
   'disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        // Primary action — rich blue
+        // Primary action — theme `--primary`
         default:
-          'bg-blue-600 text-white shadow-sm ' +
-          'hover:bg-blue-700 active:bg-blue-800 active:scale-[0.98]',
+          'bg-primary text-primary-foreground shadow-sm ' +
+          'hover:bg-primary/90 active:bg-primary/85 active:scale-[0.98]',
 
         // Danger
         destructive:
@@ -39,14 +39,14 @@ const buttonVariants = cva(
           'hover:bg-gray-100 hover:text-gray-900 ' +
           'active:bg-gray-200',
 
-        // Soft blue — for non-primary confirmatory actions
+        // Soft — tinted surface using `--accent` / primary
         soft:
-          'bg-blue-50 text-blue-700 border border-blue-100 ' +
-          'hover:bg-blue-100 hover:border-blue-200 ' +
-          'active:bg-blue-200 active:scale-[0.98]',
+          'bg-accent text-primary border border-primary/15 ' +
+          'hover:bg-primary/10 hover:border-primary/25 ' +
+          'active:bg-primary/15 active:scale-[0.98]',
 
         // Inline text link
-        link: 'text-blue-600 underline-offset-4 hover:underline h-auto p-0',
+        link: 'text-primary underline-offset-4 hover:underline h-auto p-0',
       },
       size: {
         default: 'h-9 px-4 py-2 rounded-lg text-sm',

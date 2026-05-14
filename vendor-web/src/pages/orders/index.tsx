@@ -29,11 +29,11 @@ const statusFilters = [
 ]
 
 const statusStyle: Record<string, string> = {
-  quote_requested: 'bg-violet-100 text-violet-700',
+  quote_requested: 'bg-primary/10 text-primary',
   pending: 'bg-yellow-100 text-yellow-700',
   confirmed: 'bg-blue-100 text-blue-700',
   processing: 'bg-indigo-100 text-indigo-700',
-  shipped: 'bg-purple-100 text-purple-700',
+  shipped: 'bg-primary/12 text-primary',
   delivered: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
   return_requested: 'bg-amber-100 text-amber-700',
@@ -293,7 +293,7 @@ export default function Orders() {
               ) : !data?.items?.length ? (
                 <tr><td colSpan={9} className="px-6 py-12 text-center text-sm text-gray-500">No orders found</td></tr>
               ) : displayOrders.map((order) => {
-                const srcStyle: Record<string, string> = { online: 'bg-blue-100 text-blue-700', pos: 'bg-emerald-100 text-emerald-700', booking: 'bg-purple-100 text-purple-700', quote: 'bg-violet-100 text-violet-700' }
+                const srcStyle: Record<string, string> = { online: 'bg-blue-100 text-blue-700', pos: 'bg-emerald-100 text-emerald-700', booking: 'bg-primary/12 text-primary', quote: 'bg-primary/10 text-primary' }
                 const src = order.source || 'online'
                 return (
                 <tr key={order.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => {

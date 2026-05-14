@@ -125,7 +125,7 @@ function TopConfetti() {
         w: i % 3 === 0 ? 6 : 5,
         h: i % 2 === 0 ? 8 : 7,
         rotate: (i * 41) % 180,
-        color: ['bg-sky-500', 'bg-amber-400', 'bg-emerald-500', 'bg-rose-500', 'bg-violet-500', 'bg-blue-600'][i % 6],
+        color: ['bg-sky-500', 'bg-amber-400', 'bg-emerald-500', 'bg-rose-500', 'bg-primary', 'bg-blue-600'][i % 6],
       })),
     [],
   )

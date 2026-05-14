@@ -46,7 +46,7 @@ export default function RestaurantFloorPage() {
       {!isLoading && !tables.length && (
         <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-gray-500 text-sm">
           No tables yet.&nbsp;
-          <Link to="/restaurant/setup" className="text-violet-600 font-medium hover:underline">Add tables</Link>
+          <Link to="/restaurant/setup" className="text-primary font-medium hover:underline">Add tables</Link>
         </div>
       )}
 

@@ -123,7 +123,7 @@ interface SectionDef {
 }
 
 const SECTION_DEFS: SectionDef[] = [
-  { id: 'announcement_bar', label: 'Announcement Bar', description: 'Scrolling banner at the very top', icon: Megaphone, defaultProps: { announcement_text: 'Free delivery on orders above ₹500! 🎉', announcement_color: '#7c3aed' } },
+  { id: 'announcement_bar', label: 'Announcement Bar', description: 'Scrolling banner at the very top', icon: Megaphone, defaultProps: { announcement_text: 'Free delivery on orders above ₹500! 🎉', announcement_color: '#64C3A0' } },
   { id: 'hero', label: 'Hero Banner', description: 'Full-width hero with headline & CTAs', icon: Zap, defaultProps: { headline: '', subtitle: '', cta_primary: 'Shop Now', cta_secondary: 'Learn More', bg_style: 'gradient' } },
   { id: 'trust_badges', label: 'Trust Badges', description: 'Shipping, payment & guarantee icons', icon: Check, defaultProps: { badge_1: 'Free Shipping', badge_2: 'Secure Payment', badge_3: 'Easy Returns' } },
   { id: 'featured_products', label: 'Featured Products', description: 'Grid of highlighted products', icon: ShoppingBag, defaultProps: { title: 'Featured Products', layout: 'grid-3' } },
@@ -326,12 +326,12 @@ const FONTS = [
 ]
 
 const COLOR_PALETTES = [
-  { name: 'Violet', primary: '#7c3aed', secondary: '#6d28d9', accent: '#f59e0b' },
+  { name: 'Mint', primary: '#64C3A0', secondary: '#13624A', accent: '#f59e0b' },
   { name: 'Blue', primary: '#2563eb', secondary: '#1d4ed8', accent: '#f97316' },
   { name: 'Rose', primary: '#be185d', secondary: '#831843', accent: '#fbbf24' },
   { name: 'Emerald', primary: '#059669', secondary: '#047857', accent: '#6366f1' },
   { name: 'Orange', primary: '#ea580c', secondary: '#c2410c', accent: '#16a34a' },
-  { name: 'Sky', primary: '#0ea5e9', secondary: '#0284c7', accent: '#8b5cf6' },
+  { name: 'Sky', primary: '#0ea5e9', secondary: '#0284c7', accent: '#64C3A0' },
   { name: 'Slate', primary: '#334155', secondary: '#1e293b', accent: '#6366f1' },
   { name: 'Teal', primary: '#0d9488', secondary: '#0f766e', accent: '#f59e0b' },
 ]
@@ -800,7 +800,7 @@ const STOREFRONT_PAGES: StorefrontPageDef[] = [
 ]
 
 // ─── Default config ───────────────────────────────────────────────────────────
-const DEFAULT_STYLE: StyleConfig = { primary_color: '#7c3aed', secondary_color: '#6d28d9', accent_color: '#f59e0b', bg_color: '#ffffff', font_heading: 'Inter', font_body: 'Inter', border_radius: 'rounded', spacing: 'comfortable', animation: 'subtle', dark_mode: false }
+const DEFAULT_STYLE: StyleConfig = { primary_color: '#64C3A0', secondary_color: '#13624A', accent_color: '#f59e0b', bg_color: '#ffffff', font_heading: 'Inter', font_body: 'Inter', border_radius: 'rounded', spacing: 'comfortable', animation: 'subtle', dark_mode: false }
 const DEFAULT_MODULES: ModulesConfig = { ess_portal: false, ess_access: 'footer_link', crm_widget: false, job_board: false, customer_reviews: true, newsletter: true, b2b_portal: false, online_booking: false, store_locator: false, store_locator_limit: 6, store_locator_geo: false, store_locator_layout: 'grid', store_locator_filter: 'none' }
 const DEFAULT_SECTIONS: BuilderSection[] = [
   { id: 'hero', visible: true, props: { headline: '', subtitle: '', cta_primary: 'Shop Now', cta_secondary: 'Learn More', bg_style: 'gradient' } },
@@ -847,7 +847,7 @@ function normalizeRemovedTemplateIds(bc: BuilderConfig): BuilderConfig {
 // ─── AI Engine ────────────────────────────────────────────────────────────────
 function runAI(prompt: string, vendor: Vendor | null, current: BuilderConfig): { reply: string; patch: Partial<BuilderConfig> } {
   const p = prompt.toLowerCase()
-  if (p.includes('dark') || p.includes('night') || p.includes('bold')) return { reply: "Switched to a bold dark theme — great for premium or creative brands.", patch: { style: { ...current.style, primary_color: '#7c3aed', secondary_color: '#4c1d95', bg_color: '#0f0a1e', dark_mode: true } } }
+  if (p.includes('dark') || p.includes('night') || p.includes('bold')) return { reply: "Switched to a bold dark theme — great for premium or creative brands.", patch: { style: { ...current.style, primary_color: '#64C3A0', secondary_color: '#13624A', bg_color: '#0f0a1e', dark_mode: true } } }
   if (p.includes('warm') || p.includes('cozy') || p.includes('food') || p.includes('restaurant') || p.includes('cafe')) return { reply: "Applied the **Verde** restaurant layout — dark editorial dining with menu and booking sections.", patch: buildConfigPatchForTemplate('verde', current) }
   if (p.includes('minimal') || p.includes('clean') || p.includes('simple') || p.includes('white')) return { reply: "Switched to the **Atelier** editorial retail layout — clean whitespace and Fraunces typography.", patch: buildConfigPatchForTemplate('atelier', current) }
   if (p.includes('professional') || p.includes('corporate') || p.includes('business') || p.includes('formal')) return { reply: "Applied a professional blue palette — great for B2B or corporate brands.", patch: { style: { ...current.style, primary_color: '#1e40af', secondary_color: '#1e3a8a', accent_color: '#0ea5e9', bg_color: '#f8faff', font_heading: 'DM Sans' } } }
@@ -1384,7 +1384,7 @@ export default function StorefrontBuilderPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
         <div className="relative">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center shadow-lg">
             <Sparkles className="w-8 h-8 text-white animate-pulse" />
           </div>
         </div>
@@ -1393,7 +1393,7 @@ export default function StorefrontBuilderPage() {
           <p className="text-sm text-gray-500 mt-1">{isGeneratingDefaults ? 'Analysing your business profile and generating the best layout' : 'Fetching your storefront configuration'}</p>
         </div>
         <div className="flex gap-1.5 mt-2">
-          {[0, 1, 2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+          {[0, 1, 2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
         </div>
       </div>
     )
@@ -1404,7 +1404,7 @@ export default function StorefrontBuilderPage() {
       {/* ── Header Bar ── */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center">
             <Wand2 className="w-4 h-4 text-white" />
           </div>
           <div>
@@ -1413,7 +1413,7 @@ export default function StorefrontBuilderPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <a href={storeUrl} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 hover:text-violet-600 transition-colors px-2 py-1.5 rounded-lg hover:bg-violet-50">
+          <a href={storeUrl} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary transition-colors px-2 py-1.5 rounded-lg hover:bg-accent">
             <ExternalLink className="w-3.5 h-3.5" />
             View Live
           </a>
@@ -1447,7 +1447,7 @@ export default function StorefrontBuilderPage() {
             <Button
               size="sm"
               variant="outline"
-              className="gap-1.5 text-xs border-violet-300 text-violet-700 hover:bg-violet-50 transition-all duration-200"
+              className="gap-1.5 text-xs border-primary/40 text-primary hover:bg-accent transition-all duration-200"
               onClick={() => setPreviewMode('edit')}
             >
               <Pencil className="w-3.5 h-3.5" />
@@ -1471,7 +1471,7 @@ export default function StorefrontBuilderPage() {
                 variant="outline"
                 size="sm"
                 className={cn(
-                  'gap-1.5 text-xs transition-all duration-300 border-violet-200 text-violet-700 hover:bg-violet-50',
+                  'gap-1.5 text-xs transition-all duration-300 border-primary/30 text-primary hover:bg-accent',
                   recentlySaved && 'border-green-500 text-green-700 bg-green-50 hover:bg-green-50',
                 )}
                 onClick={() => {
@@ -1489,7 +1489,7 @@ export default function StorefrontBuilderPage() {
               </Button>
               <Button
                 size="sm"
-                className="gap-1.5 text-xs bg-violet-600 hover:bg-violet-700"
+                className="gap-1.5 text-xs bg-primary hover:bg-primary/90"
                 onClick={handlePublish}
                 disabled={saveMutation.isPending || isPublishing}
               >
@@ -1512,7 +1512,7 @@ export default function StorefrontBuilderPage() {
           <div className="flex border-b bg-gray-50">
             {tabConfig.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={cn('flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors', activeTab === tab.id ? 'text-violet-600 bg-white border-b-2 border-violet-600' : 'text-gray-400 hover:text-gray-600')}>
+                className={cn('flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors', activeTab === tab.id ? 'text-primary bg-white border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600')}>
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
               </button>
@@ -1525,9 +1525,9 @@ export default function StorefrontBuilderPage() {
             {/* ── TEMPLATES TAB — homepage presets (screenshots + apply) ── */}
             {activeTab === 'templates' && (
               <div className="p-3 space-y-3">
-                <div className="flex gap-2 p-2.5 bg-violet-50 rounded-xl border border-violet-100">
-                  <LayoutTemplate className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-violet-800 leading-snug">
+                <div className="flex gap-2 p-2.5 bg-accent rounded-xl border border-primary/20">
+                  <LayoutTemplate className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-primary leading-snug">
                     <strong>Click a template</strong> to preview it in the builder. Use <strong>Edit</strong> in the header (or <strong>Apply &amp; Save</strong> in the preview bar) to apply that template and edit it. <strong>Cancel</strong> in the bar discards the preview. Open <strong>Style</strong> for colours, fonts, spacing, and checkout layout.
                   </p>
                 </div>
@@ -1540,16 +1540,16 @@ export default function StorefrontBuilderPage() {
                   return (
                     <div key={tpl.id} className={cn(
                       'rounded-xl border-2 overflow-hidden transition-all shadow-sm',
-                      isActive     ? 'border-violet-500 ring-1 ring-violet-200' :
+                      isActive     ? 'border-primary ring-1 ring-primary/25' :
                       isPreviewing ? 'border-amber-400' :
-                      'border-gray-100 hover:border-violet-200',
+                      'border-gray-100 hover:border-primary/30',
                     )}>
                       <button
                         type="button"
                         onClick={() => setPreviewTemplateId(tpl.id)}
                         title={isPreviewing ? 'Previewing this layout — use Cancel in the preview bar to exit' : 'Preview this homepage layout'}
                         className={cn(
-                          'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400',
+                          'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                           isPreviewing ? 'ring-2 ring-inset ring-amber-300/60' : '',
                         )}
                       >
@@ -1566,7 +1566,7 @@ export default function StorefrontBuilderPage() {
                           )}
                           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                           <div className="absolute top-2 right-2 flex flex-wrap justify-end gap-1">
-                            {isActive && <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-600 text-white font-bold shadow"><Check className="w-2.5 h-2.5" /> Applied</span>}
+                            {isActive && <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-primary text-white font-bold shadow"><Check className="w-2.5 h-2.5" /> Applied</span>}
                             {isPreviewing && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 font-bold shadow">Preview</span>}
                             {tpl.tag && !isActive && !isPreviewing && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/90 text-amber-800 font-bold shadow">{tpl.tag}</span>}
                           </div>
@@ -1576,7 +1576,7 @@ export default function StorefrontBuilderPage() {
                         <div className="p-3 bg-white space-y-2">
                           <p className="text-[10px] text-gray-500 leading-snug">{tpl.description}</p>
                           <p className="text-[9px] text-gray-400">{tpl.sectionOrder.length} homepage sections.</p>
-                          <p className="text-[9px] font-medium text-violet-600 pt-0.5">
+                          <p className="text-[9px] font-medium text-primary pt-0.5">
                             {isPreviewing ? 'Previewing — use Cancel in the bar above' : 'Click to preview in the builder'}
                           </p>
                         </div>
@@ -1587,7 +1587,7 @@ export default function StorefrontBuilderPage() {
 
                 {TEMPLATES.length > 5 && (
                   <button type="button" onClick={() => setShowMoreTemplates(!showMoreTemplates)}
-                    className="w-full text-center text-xs text-violet-600 hover:text-violet-700 py-1.5 font-medium">
+                    className="w-full text-center text-xs text-primary hover:text-primary py-1.5 font-medium">
                     {showMoreTemplates ? 'Show fewer options' : `Show ${TEMPLATES.length - 5} more options ↓`}
                   </button>
                 )}
@@ -1606,10 +1606,10 @@ export default function StorefrontBuilderPage() {
                       <div key={sec.id} draggable onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDrop={e => onDrop(e, idx)} onDragEnd={onDragEnd}
                         className={cn('flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-default group',
                           selectedSectionId === sec.id
-                            ? 'border-violet-500 bg-violet-50 ring-1 ring-violet-200 shadow-sm'
+                            ? 'border-primary bg-accent ring-1 ring-primary/25 shadow-sm'
                             : dragOverIdx === idx && draggedSectionIdx !== idx
-                              ? 'border-violet-400 bg-violet-50 scale-[1.02]'
-                              : 'border-gray-100 bg-white hover:border-violet-200 hover:bg-violet-50/40',
+                              ? 'border-primary/60 bg-accent scale-[1.02]'
+                              : 'border-gray-100 bg-white hover:border-primary/30 hover:bg-accent/70',
                           draggedSectionIdx === idx ? 'opacity-40' : 'opacity-100',
                         )}>
                         <GripVertical className="w-4 h-4 text-gray-300 cursor-grab shrink-0" />
@@ -1619,8 +1619,8 @@ export default function StorefrontBuilderPage() {
                           title="Click to edit this section"
                         >
                           <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors',
-                            selectedSectionId === sec.id ? 'bg-violet-600' : sec.visible ? 'bg-violet-100' : 'bg-gray-100')}>
-                            <def.icon className={cn('w-3.5 h-3.5', selectedSectionId === sec.id ? 'text-white' : sec.visible ? 'text-violet-600' : 'text-gray-400')} />
+                            selectedSectionId === sec.id ? 'bg-primary' : sec.visible ? 'bg-primary/10' : 'bg-gray-100')}>
+                            <def.icon className={cn('w-3.5 h-3.5', selectedSectionId === sec.id ? 'text-white' : sec.visible ? 'text-primary' : 'text-gray-400')} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={cn('text-xs font-medium truncate', sec.visible ? 'text-gray-900' : 'text-gray-400')}>{def.label}</p>
@@ -1634,7 +1634,7 @@ export default function StorefrontBuilderPage() {
                         </div>
                         <button onClick={() => toggleSection(sec.id)} className="shrink-0 ml-1" title={sec.visible ? 'Hide section' : 'Show section'}>
                           {sec.visible
-                            ? <Eye className="w-4 h-4 text-violet-400 hover:text-violet-600" />
+                            ? <Eye className="w-4 h-4 text-primary/70 hover:text-primary" />
                             : <EyeOff className="w-4 h-4 text-amber-400 hover:text-amber-600" />}
                         </button>
                       </div>
@@ -1646,8 +1646,8 @@ export default function StorefrontBuilderPage() {
                   <div className="space-y-1">
                     {SECTION_DEFS.filter(def => !draft.sections.find(s => s.id === def.id)).map(def => (
                       <button key={def.id} onClick={() => addSection(def)}
-                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-gray-200 hover:border-violet-300 hover:bg-violet-50 text-left transition-colors">
-                        <Plus className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-colors">
+                        <Plus className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                         <def.icon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="text-xs text-gray-600">{def.label}</span>
                       </button>
@@ -1678,15 +1678,15 @@ export default function StorefrontBuilderPage() {
                           onClick={() => updateStyle({ checkout_layout: o.id })}
                           className={cn(
                             'w-full flex items-center justify-between px-3 py-2 rounded-xl border text-left transition-all',
-                            active ? 'border-violet-500 bg-violet-50' : 'border-gray-100 hover:border-violet-300 bg-white',
+                            active ? 'border-primary bg-accent' : 'border-gray-100 hover:border-primary/40 bg-white',
                           )}
                         >
                           <div>
-                            <p className={cn('text-xs font-semibold', active ? 'text-violet-700' : 'text-gray-700')}>{o.label}</p>
+                            <p className={cn('text-xs font-semibold', active ? 'text-primary' : 'text-gray-700')}>{o.label}</p>
                             <p className="text-[10px] text-gray-400 mt-0.5">{o.desc}</p>
                           </div>
                           {active && (
-                            <div className="w-4 h-4 rounded-full bg-violet-600 flex items-center justify-center shrink-0">
+                            <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
                               <Check className="w-2.5 h-2.5 text-white" />
                             </div>
                           )}
@@ -1704,7 +1704,7 @@ export default function StorefrontBuilderPage() {
                       onClick={() => setStyleDetailsExpanded(false)}
                       className={cn(
                         'flex-1 py-2 text-xs font-semibold rounded-lg transition-all',
-                        !styleDetailsExpanded ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                        !styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
                       )}
                     >
                       Fewer
@@ -1714,7 +1714,7 @@ export default function StorefrontBuilderPage() {
                       onClick={() => setStyleDetailsExpanded(true)}
                       className={cn(
                         'flex-1 py-2 text-xs font-semibold rounded-lg transition-all',
-                        styleDetailsExpanded ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                        styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
                       )}
                     >
                       Expanded
@@ -1774,7 +1774,7 @@ export default function StorefrontBuilderPage() {
                       <div className="grid grid-cols-2 gap-1.5">
                         {FONTS.map(f => (
                           <button key={f.id} onClick={() => updateStyle({ font_heading: f.id })}
-                            className={cn('text-left rounded-lg border-2 p-2 transition-colors', draft.style.font_heading === f.id ? 'border-violet-500 bg-violet-50' : 'border-gray-100 hover:border-gray-300')}>
+                            className={cn('text-left rounded-lg border-2 p-2 transition-colors', draft.style.font_heading === f.id ? 'border-primary bg-accent' : 'border-gray-100 hover:border-gray-300')}>
                             <p className="text-xs font-semibold text-gray-900">{f.name}</p>
                             <p className="text-[10px] text-gray-400 mt-0.5" style={{ fontFamily: f.id }}>{f.specimen}</p>
                           </button>
@@ -1788,7 +1788,7 @@ export default function StorefrontBuilderPage() {
                       <div className="flex gap-1.5">
                         {(['sharp', 'rounded', 'pill'] as const).map(val => (
                           <button key={val} onClick={() => updateStyle({ border_radius: val })}
-                            className={cn('flex-1 py-2 text-xs font-medium capitalize transition-colors', val === 'sharp' ? 'rounded' : val === 'rounded' ? 'rounded-lg' : 'rounded-full', draft.style.border_radius === val ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                            className={cn('flex-1 py-2 text-xs font-medium capitalize transition-colors', val === 'sharp' ? 'rounded' : val === 'rounded' ? 'rounded-lg' : 'rounded-full', draft.style.border_radius === val ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
                             {val}
                           </button>
                         ))}
@@ -1801,7 +1801,7 @@ export default function StorefrontBuilderPage() {
                       <div className="flex gap-1.5">
                         {(['compact', 'comfortable', 'spacious'] as const).map(val => (
                           <button key={val} onClick={() => updateStyle({ spacing: val })}
-                            className={cn('flex-1 py-2 text-[11px] font-medium capitalize rounded-lg transition-colors', draft.style.spacing === val ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                            className={cn('flex-1 py-2 text-[11px] font-medium capitalize rounded-lg transition-colors', draft.style.spacing === val ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
                             {val}
                           </button>
                         ))}
@@ -1814,7 +1814,7 @@ export default function StorefrontBuilderPage() {
                       <div className="flex gap-1.5">
                         {(['none', 'subtle', 'expressive'] as const).map(val => (
                           <button key={val} onClick={() => updateStyle({ animation: val })}
-                            className={cn('flex-1 py-2 text-[11px] font-medium capitalize rounded-lg transition-colors', draft.style.animation === val ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                            className={cn('flex-1 py-2 text-[11px] font-medium capitalize rounded-lg transition-colors', draft.style.animation === val ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
                             {val}
                           </button>
                         ))}
@@ -1828,7 +1828,7 @@ export default function StorefrontBuilderPage() {
                         <p className="text-[10px] text-gray-400">Dark background, light text</p>
                       </div>
                       <button onClick={() => updateStyle({ dark_mode: !draft.style.dark_mode })}>
-                        {draft.style.dark_mode ? <ToggleRight className="w-8 h-8 text-violet-500" /> : <ToggleLeft className="w-8 h-8 text-gray-300" />}
+                        {draft.style.dark_mode ? <ToggleRight className="w-8 h-8 text-primary/80" /> : <ToggleLeft className="w-8 h-8 text-gray-300" />}
                       </button>
                     </div>
                   </div>
@@ -1840,24 +1840,24 @@ export default function StorefrontBuilderPage() {
             {activeTab === 'ai' && (
               <div className="flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                  <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl border border-violet-100">
-                    <Sparkles className="w-4 h-4 text-violet-500 shrink-0" />
-                    <p className="text-[11px] text-violet-700">Describe your brand or what to change in plain language</p>
+                  <div className="flex items-center gap-2 p-2 bg-accent rounded-xl border border-primary/20">
+                    <Sparkles className="w-4 h-4 text-primary/80 shrink-0" />
+                    <p className="text-[11px] text-primary">Describe your brand or what to change in plain language</p>
                   </div>
                   {aiMessages.map((msg, i) => (
                     <div key={i} className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                       {msg.role === 'ai' && (
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
                           <Bot className="w-3.5 h-3.5 text-white" />
                         </div>
                       )}
                       <div className={cn('max-w-[85%]', msg.role === 'user' ? '' : '')}>
-                        <div className={cn('rounded-2xl px-3 py-2 text-xs leading-relaxed', msg.role === 'user' ? 'bg-violet-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm')}>
+                        <div className={cn('rounded-2xl px-3 py-2 text-xs leading-relaxed', msg.role === 'user' ? 'bg-primary text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm')}>
                           {msg.content}
                         </div>
                         {msg.role === 'ai' && msg.patch && (
                           <button onClick={() => applyAIPatch(msg.patch!)}
-                            className="mt-1.5 flex items-center gap-1 text-[10px] text-violet-600 hover:text-violet-700 font-medium bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-lg transition-colors">
+                            className="mt-1.5 flex items-center gap-1 text-[10px] text-primary hover:text-primary font-medium bg-accent hover:bg-primary/15 px-2 py-1 rounded-lg transition-colors">
                             <Check className="w-3 h-3" />
                             Apply to preview
                           </button>
@@ -1867,7 +1867,7 @@ export default function StorefrontBuilderPage() {
                   ))}
                   {aiLoading && (
                     <div className="flex gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center shrink-0">
                         <Bot className="w-3.5 h-3.5 text-white" />
                       </div>
                       <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-3 py-2 flex gap-1 items-center">
@@ -1882,16 +1882,16 @@ export default function StorefrontBuilderPage() {
                     <input value={aiInput} onChange={e => setAiInput(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAiSubmit()}
                       placeholder="E.g. make it dark and bold…"
-                      className="flex-1 text-xs border rounded-xl px-3 py-2 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200" />
+                      className="flex-1 text-xs border rounded-xl px-3 py-2 outline-none focus:border-primary/60 focus:ring-1 focus:ring-ring" />
                     <button onClick={handleAiSubmit} disabled={aiLoading || !aiInput.trim()}
-                      className="w-8 h-8 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center transition-colors">
+                      className="w-8 h-8 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-40 flex items-center justify-center transition-colors">
                       <Send className="w-3.5 h-3.5 text-white" />
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1 mt-2">
                     {['Dark & bold', 'Warm tones', 'Minimal clean', 'Add employee portal', 'Show me more'].map(s => (
                       <button key={s} onClick={() => { setAiInput(s); setTimeout(handleAiSubmit, 50) }}
-                        className="text-[10px] px-2 py-0.5 bg-gray-100 hover:bg-violet-100 hover:text-violet-700 rounded-full text-gray-500 transition-colors">
+                        className="text-[10px] px-2 py-0.5 bg-gray-100 hover:bg-primary/15 hover:text-primary rounded-full text-gray-500 transition-colors">
                         {s}
                       </button>
                     ))}
@@ -1913,10 +1913,10 @@ export default function StorefrontBuilderPage() {
                   { key: 'newsletter' as const, label: 'Newsletter Signup', desc: 'Email opt-in for marketing', icon: Mail },
                   { key: 'b2b_portal' as const, label: 'B2B Client Portal', desc: 'Dedicated portal for business clients', icon: Globe },
                 ].map(item => (
-                  <div key={item.key} className={cn('rounded-xl border p-3 transition-colors', draft.modules[item.key] ? 'border-violet-200 bg-violet-50/50' : 'border-gray-100 bg-white')}>
+                  <div key={item.key} className={cn('rounded-xl border p-3 transition-colors', draft.modules[item.key] ? 'border-primary/30 bg-accent/80' : 'border-gray-100 bg-white')}>
                     <div className="flex items-start gap-2.5">
-                      <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', draft.modules[item.key] ? 'bg-violet-100' : 'bg-gray-100')}>
-                        <item.icon className={cn('w-4 h-4', draft.modules[item.key] ? 'text-violet-600' : 'text-gray-400')} />
+                      <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', draft.modules[item.key] ? 'bg-primary/10' : 'bg-gray-100')}>
+                        <item.icon className={cn('w-4 h-4', draft.modules[item.key] ? 'text-primary' : 'text-gray-400')} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-900">{item.label}</p>
@@ -1924,15 +1924,15 @@ export default function StorefrontBuilderPage() {
                         {item.warning && draft.modules[item.key] && <p className="text-[10px] text-amber-500 mt-0.5">⚠ {item.warning}</p>}
                       </div>
                       <button onClick={() => updateModules({ [item.key]: !draft.modules[item.key] })}>
-                        {draft.modules[item.key] ? <ToggleRight className="w-7 h-7 text-violet-500" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
+                        {draft.modules[item.key] ? <ToggleRight className="w-7 h-7 text-primary/80" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
                       </button>
                     </div>
                     {item.key === 'ess_portal' && draft.modules.ess_portal && (
-                      <div className="mt-2.5 pt-2.5 border-t border-violet-100">
+                      <div className="mt-2.5 pt-2.5 border-t border-primary/20">
                         <p className="text-[10px] font-medium text-gray-500 mb-1.5">Employee portal access</p>
                         {(['hidden', 'footer_link', 'dedicated_page'] as const).map(opt => (
                           <label key={opt} className="flex items-center gap-2 py-1 cursor-pointer">
-                            <input type="radio" name="ess_access" value={opt} checked={draft.modules.ess_access === opt} onChange={() => updateModules({ ess_access: opt })} className="accent-violet-600" />
+                            <input type="radio" name="ess_access" value={opt} checked={draft.modules.ess_access === opt} onChange={() => updateModules({ ess_access: opt })} className="accent-primary" />
                             <span className="text-[11px] text-gray-600 capitalize">{opt.replace('_', ' ')}</span>
                           </label>
                         ))}
@@ -1942,22 +1942,22 @@ export default function StorefrontBuilderPage() {
                 ))}
 
                 {/* ── Store Locator ── */}
-                <div className={cn('rounded-xl border p-3 transition-colors', draft.modules.store_locator ? 'border-violet-200 bg-violet-50/50' : 'border-gray-100 bg-white')}>
+                <div className={cn('rounded-xl border p-3 transition-colors', draft.modules.store_locator ? 'border-primary/30 bg-accent/80' : 'border-gray-100 bg-white')}>
                   <div className="flex items-start gap-2.5">
-                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', draft.modules.store_locator ? 'bg-violet-100' : 'bg-gray-100')}>
-                      <MapPin className={cn('w-4 h-4', draft.modules.store_locator ? 'text-violet-600' : 'text-gray-400')} />
+                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', draft.modules.store_locator ? 'bg-primary/10' : 'bg-gray-100')}>
+                      <MapPin className={cn('w-4 h-4', draft.modules.store_locator ? 'text-primary' : 'text-gray-400')} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-900">Store Locator</p>
                       <p className="text-[10px] text-gray-400 leading-tight mt-0.5">Show your branch / location cards on the storefront</p>
                     </div>
                     <button onClick={() => updateModules({ store_locator: !draft.modules.store_locator })}>
-                      {draft.modules.store_locator ? <ToggleRight className="w-7 h-7 text-violet-500" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
+                      {draft.modules.store_locator ? <ToggleRight className="w-7 h-7 text-primary/80" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
                     </button>
                   </div>
 
                   {draft.modules.store_locator && (
-                    <div className="mt-3 pt-3 border-t border-violet-100 space-y-3">
+                    <div className="mt-3 pt-3 border-t border-primary/20 space-y-3">
 
                       {/* Stores to display */}
                       <div>
@@ -1970,8 +1970,8 @@ export default function StorefrontBuilderPage() {
                               className={cn(
                                 'text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors',
                                 draft.modules.store_locator_limit === n
-                                  ? 'bg-violet-600 text-white border-violet-600'
-                                  : 'border-gray-200 text-gray-600 hover:border-violet-300'
+                                  ? 'bg-primary text-white border-primary'
+                                  : 'border-gray-200 text-gray-600 hover:border-primary/40'
                               )}
                             >
                               {n === 0 ? 'All' : `Show ${n}`}
@@ -1991,8 +1991,8 @@ export default function StorefrontBuilderPage() {
                               className={cn(
                                 'flex-1 text-[11px] py-1 rounded-lg border font-medium capitalize transition-colors',
                                 draft.modules.store_locator_layout === l
-                                  ? 'bg-violet-600 text-white border-violet-600'
-                                  : 'border-gray-200 text-gray-600 hover:border-violet-300'
+                                  ? 'bg-primary text-white border-primary'
+                                  : 'border-gray-200 text-gray-600 hover:border-primary/40'
                               )}
                             >
                               {l === 'grid' ? '⊞ Grid' : '☰ List'}
@@ -2012,8 +2012,8 @@ export default function StorefrontBuilderPage() {
                               className={cn(
                                 'flex-1 text-[11px] py-1 rounded-lg border font-medium transition-colors',
                                 draft.modules.store_locator_filter === v
-                                  ? 'bg-violet-600 text-white border-violet-600'
-                                  : 'border-gray-200 text-gray-600 hover:border-violet-300'
+                                  ? 'bg-primary text-white border-primary'
+                                  : 'border-gray-200 text-gray-600 hover:border-primary/40'
                               )}
                             >
                               {l}
@@ -2029,7 +2029,7 @@ export default function StorefrontBuilderPage() {
                           type="checkbox"
                           checked={draft.modules.store_locator_geo}
                           onChange={e => updateModules({ store_locator_geo: e.target.checked })}
-                          className="w-3.5 h-3.5 accent-violet-600"
+                          className="w-3.5 h-3.5 accent-primary"
                         />
                         <div>
                           <span className="text-[11px] font-medium text-gray-700">Detect user location</span>
@@ -2055,7 +2055,7 @@ export default function StorefrontBuilderPage() {
                   </div>
                   <div>
                     <Label className="text-xs text-gray-600">Meta Description</Label>
-                    <textarea className="mt-1 w-full rounded-md border px-3 py-2 text-xs resize-none outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200" rows={3} value={draft.seo.meta_description} onChange={e => updateSeo({ meta_description: e.target.value })} placeholder="Welcome to our store…" />
+                    <textarea className="mt-1 w-full rounded-md border px-3 py-2 text-xs resize-none outline-none focus:border-primary/60 focus:ring-1 focus:ring-ring" rows={3} value={draft.seo.meta_description} onChange={e => updateSeo({ meta_description: e.target.value })} placeholder="Welcome to our store…" />
                     <p className="text-[10px] text-gray-400">{draft.seo.meta_description.length}/160 chars</p>
                   </div>
                   <div>
@@ -2078,7 +2078,7 @@ export default function StorefrontBuilderPage() {
               <div className="flex flex-col min-h-0 flex-1">
                 {!mediaSiteId ? (
                   <div className="p-4 space-y-3 text-center">
-                    <Camera className="w-10 h-10 text-violet-300 mx-auto" />
+                    <Camera className="w-10 h-10 text-primary/50 mx-auto" />
                     <p className="text-xs font-semibold text-gray-700">Create a website first</p>
                     <p className="text-[10px] text-gray-500 leading-snug">
                       Media uploads and AI adjustments are stored on your builder site. Create or open a site, then return here.
@@ -2089,8 +2089,8 @@ export default function StorefrontBuilderPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="px-3 py-2 border-b bg-violet-50/80 shrink-0">
-                      <p className="text-[10px] text-violet-800 leading-snug">
+                    <div className="px-3 py-2 border-b bg-accent/80 shrink-0">
+                      <p className="text-[10px] text-primary leading-snug">
                         Upload, pick from your library, tune with sliders, then <span className="font-semibold">Apply AI</span> for server-side adjustments. Use{' '}
                         <span className="font-semibold">Media studio</span> on any section image to set where the result goes.
                       </p>
@@ -2154,7 +2154,7 @@ export default function StorefrontBuilderPage() {
               >
                 <div className={cn(
                   'w-1.5 h-14 rounded-full transition-all duration-150',
-                  isDraggingPreview ? 'bg-violet-500 scale-y-110' : 'bg-gray-300 group-hover:bg-violet-400 group-hover:scale-y-110'
+                  isDraggingPreview ? 'bg-accent scale-y-110' : 'bg-gray-300 group-hover:bg-primary/50 group-hover:scale-y-110'
                 )}>
                   <div className="flex flex-col items-center justify-center h-full gap-0.5 pt-5">
                     <div className="w-0.5 h-0.5 rounded-full bg-white/70" />
@@ -2172,7 +2172,7 @@ export default function StorefrontBuilderPage() {
               >
                 <div className={cn(
                   'w-1.5 h-14 rounded-full transition-all duration-150',
-                  isDraggingPreview ? 'bg-violet-500 scale-y-110' : 'bg-gray-300 group-hover:bg-violet-400 group-hover:scale-y-110'
+                  isDraggingPreview ? 'bg-accent scale-y-110' : 'bg-gray-300 group-hover:bg-primary/50 group-hover:scale-y-110'
                 )}>
                   <div className="flex flex-col items-center justify-center h-full gap-0.5 pt-5">
                     <div className="w-0.5 h-0.5 rounded-full bg-white/70" />
@@ -2240,19 +2240,19 @@ export default function StorefrontBuilderPage() {
           <div className="border-b">
             <div className="flex">
               <button onClick={() => setPanelMode('properties')}
-                className={cn('flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2', panelMode === 'properties' ? 'border-violet-600 text-violet-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600 bg-gray-50')}>
+                className={cn('flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2', panelMode === 'properties' ? 'border-primary text-primary bg-white' : 'border-transparent text-gray-400 hover:text-gray-600 bg-gray-50')}>
                 Structure
               </button>
               <button onClick={() => setPanelMode('pages')}
-                className={cn('flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2', panelMode === 'pages' ? 'border-violet-600 text-violet-700 bg-white' : 'border-transparent text-gray-400 hover:text-gray-600 bg-gray-50')}>
+                className={cn('flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2', panelMode === 'pages' ? 'border-primary text-primary bg-white' : 'border-transparent text-gray-400 hover:text-gray-600 bg-gray-50')}>
                 Pages & Routes
               </button>
             </div>
             {panelMode === 'properties' && selectedSection && selectedDef && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 border-t border-violet-100">
-                <selectedDef.icon className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-                <p className="text-[11px] text-violet-700 font-semibold flex-1">{selectedDef.label}</p>
-                <span className="text-[9px] text-violet-400 font-medium">editing</span>
+              <div className="flex items-center gap-2 px-3 py-2 bg-accent border-t border-primary/20">
+                <selectedDef.icon className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+                <p className="text-[11px] text-primary font-semibold flex-1">{selectedDef.label}</p>
+                <span className="text-[9px] text-primary/70 font-medium">editing</span>
               </div>
             )}
           </div>
@@ -2270,11 +2270,11 @@ export default function StorefrontBuilderPage() {
             ) : !selectedSection ? (
               <div className="p-3 space-y-3">
                 {/* How it works callout */}
-                <div className="flex items-start gap-2 p-3 bg-violet-50 rounded-xl border border-violet-100">
-                  <Pencil className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2 p-3 bg-accent rounded-xl border border-primary/20">
+                  <Pencil className="w-3.5 h-3.5 text-primary/80 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-[11px] font-semibold text-violet-800">Click a section to edit</p>
-                    <p className="text-[10px] text-violet-600 mt-0.5 leading-snug">Text fields appear <strong>inline in the preview</strong>. This panel shows layout, size &amp; visibility controls.</p>
+                    <p className="text-[11px] font-semibold text-primary">Click a section to edit</p>
+                    <p className="text-[10px] text-primary mt-0.5 leading-snug">Text fields appear <strong>inline in the preview</strong>. This panel shows layout, size &amp; visibility controls.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/80">
@@ -2285,14 +2285,14 @@ export default function StorefrontBuilderPage() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('sections')}
-                      className="mt-2 text-[10px] font-semibold text-violet-600 hover:text-violet-700"
+                      className="mt-2 text-[10px] font-semibold text-primary hover:text-primary"
                     >
                       Open Sections tab →
                     </button>
                   </div>
                 </div>
                 <button onClick={() => setPanelMode('pages')}
-                  className="w-full text-xs text-violet-500 hover:text-violet-700 flex items-center justify-center gap-1.5 font-medium py-2">
+                  className="w-full text-xs text-primary/80 hover:text-primary flex items-center justify-center gap-1.5 font-medium py-2">
                   <Globe className="w-3.5 h-3.5" /> View all pages & routes
                 </button>
               </div>
@@ -2334,7 +2334,7 @@ export default function StorefrontBuilderPage() {
           {panelMode === 'properties' && selectedSection && (
             <div className="p-3 border-t bg-gray-50 space-y-2">
               <button onClick={() => toggleSection(selectedSection.id)}
-                className={cn('w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-colors', selectedSection.visible ? 'border-gray-200 text-gray-600 hover:bg-gray-100' : 'border-violet-200 text-violet-600 bg-violet-50 hover:bg-violet-100')}>
+                className={cn('w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-colors', selectedSection.visible ? 'border-gray-200 text-gray-600 hover:bg-gray-100' : 'border-primary/30 text-primary bg-accent hover:bg-primary/15')}>
                 {selectedSection.visible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 {selectedSection.visible ? 'Hide Section from Website' : 'Show Section on Website'}
               </button>
@@ -2363,7 +2363,7 @@ export default function StorefrontBuilderPage() {
 }
 
 // ─── Shared input class ───────────────────────────────────────────────────────
-const FIELD_CLASS = "w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 bg-white"
+const FIELD_CLASS = "w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs outline-none focus:border-primary/60 focus:ring-1 focus:ring-ring bg-white"
 
 // ─── Link field editor ────────────────────────────────────────────────────────
 interface LinkEditorProps { value: string; onChange: (v: string) => void }
@@ -2396,7 +2396,7 @@ function LinkEditor({ value, onChange }: LinkEditorProps) {
           className={FIELD_CLASS} />
       )}
       {type === 'booking' && (
-        <p className="text-[10px] text-violet-600 bg-violet-50 rounded-lg px-2 py-1">Links to your live booking calendar</p>
+        <p className="text-[10px] text-primary bg-accent rounded-lg px-2 py-1">Links to your live booking calendar</p>
       )}
     </div>
   )
@@ -2423,7 +2423,7 @@ function FieldTypographyRow({
   const rangeDisplay = !sizeVal || Number.isNaN(sizeNum) ? 18 : Math.min(72, Math.max(8, sizeNum))
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2 border-t border-violet-100/70">
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2 border-t border-primary/20/70">
       <span className="text-[9px] font-semibold text-gray-500 shrink-0">Colour</span>
       <label className="relative w-6 h-6 rounded-md border border-gray-200 overflow-hidden cursor-pointer shrink-0 shadow-sm">
         <input
@@ -2449,7 +2449,7 @@ function FieldTypographyRow({
         step={1}
         value={rangeDisplay}
         onChange={e => setPatch({ [fsKey]: e.target.value })}
-        className="flex-1 min-w-[72px] max-w-[120px] h-1 accent-violet-600"
+        className="flex-1 min-w-[72px] max-w-[120px] h-1 accent-primary"
       />
       <input
         type="number"
@@ -2544,17 +2544,17 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
       {contentFields.length > 0 && (
         <div className="mb-3">
           <div className="flex items-center gap-1.5 mb-2 px-0.5">
-            <Pencil className="w-3 h-3 text-violet-500" />
-            <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wider">Edit Text Content</span>
+            <Pencil className="w-3 h-3 text-primary/80" />
+            <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Edit Text Content</span>
           </div>
-          <div className="divide-y divide-gray-100 rounded-xl border border-violet-100 bg-violet-50/40 overflow-hidden">
+          <div className="divide-y divide-gray-100 rounded-xl border border-primary/20 bg-accent/70 overflow-hidden">
             {contentFields.map(field => (
               <div key={field.key} className={cn('px-3 py-2.5 transition-opacity', isHidden(field.key) ? 'opacity-40' : '')}>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-semibold text-gray-600">{field.label}</label>
                   {field.hideable && (
                     <button onClick={() => toggleHidden(field.key)} title={isHidden(field.key) ? 'Show on website' : 'Hide from website'}
-                      className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(field.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-violet-50 hover:text-violet-500')}>
+                      className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(field.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
                       {isHidden(field.key) ? <><EyeOff className="w-2.5 h-2.5" /> hidden</> : <><Eye className="w-2.5 h-2.5" /> visible</>}
                     </button>
                   )}
@@ -2588,7 +2588,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
             <Label className="text-[11px] text-gray-600 font-semibold">{field.label}</Label>
             {field.hideable && (
               <button onClick={() => toggleHidden(field.key)} title={isHidden(field.key) ? 'Show on website' : 'Hide from website'}
-                className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(field.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-violet-50 hover:text-violet-500')}>
+                className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(field.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
                 {isHidden(field.key) ? <><EyeOff className="w-2.5 h-2.5" /> hidden</> : <><Eye className="w-2.5 h-2.5" /> visible</>}
               </button>
             )}
@@ -2615,14 +2615,14 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
           )}
           {/* Sub-fields — appear when a specific option is chosen */}
           {field.type === 'select' && field.subFields && val(field.key) && field.subFields[val(field.key)] && (
-            <div className="mt-2.5 pl-3 border-l-2 border-violet-200 space-y-3">
+            <div className="mt-2.5 pl-3 border-l-2 border-primary/30 space-y-3">
               {field.subFields[val(field.key)].map(sf => (
                 <div key={sf.key}>
                   <div className="flex items-center justify-between mb-1">
                     <Label className="text-[11px] text-gray-500 font-medium">{sf.label}</Label>
                     {sf.hideable && (
                       <button onClick={() => toggleHidden(sf.key)} title={isHidden(sf.key) ? 'Show on website' : 'Hide from website'}
-                        className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(sf.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-violet-50 hover:text-violet-500')}>
+                        className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(sf.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
                         {isHidden(sf.key) ? <><EyeOff className="w-2.5 h-2.5" /> hidden</> : <><Eye className="w-2.5 h-2.5" /> visible</>}
                       </button>
                     )}
@@ -2649,7 +2649,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                     <div className="space-y-1.5">
                       <div className="flex gap-1.5">
                         <button type="button" onClick={() => onMediaUpload.current?.click()}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-[11px] text-gray-500 hover:border-violet-400 hover:text-violet-600 transition-colors">
+                          className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-[11px] text-gray-500 hover:border-primary/60 hover:text-primary transition-colors">
                           <ImageIcon className="w-3.5 h-3.5" />
                           {val(sf.key) ? 'Change' : 'Upload'}
                         </button>
@@ -2657,7 +2657,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                           <button
                             type="button"
                             onClick={() => { onOpenMediaStudio(sf.key, sf.label); onFieldAction?.(sf.key) }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-semibold bg-primary text-white hover:bg-primary/90 transition-colors"
                           >
                             <Wand2 className="w-3.5 h-3.5" />
                             Media studio
@@ -2677,10 +2677,10 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                   {sf.type === 'color' && (
                     <div className="flex items-center gap-2">
                       <label className="relative w-7 h-7 rounded-lg border-2 border-gray-200 overflow-hidden cursor-pointer shrink-0">
-                        <input type="color" value={val(sf.key) || '#7c3aed'} onChange={e => { set(sf.key)(e.target.value); onFieldAction?.(sf.key) }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                        <div className="w-full h-full" style={{ backgroundColor: val(sf.key) || '#7c3aed' }} />
+                        <input type="color" value={val(sf.key) || '#64C3A0'} onChange={e => { set(sf.key)(e.target.value); onFieldAction?.(sf.key) }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                        <div className="w-full h-full" style={{ backgroundColor: val(sf.key) || '#64C3A0' }} />
                       </label>
-                      <input value={val(sf.key)} onChange={e => set(sf.key)(e.target.value)} onFocus={() => onFieldAction?.(sf.key)} placeholder="#7c3aed" className={cn(FIELD_CLASS, 'flex-1 font-mono')} />
+                      <input value={val(sf.key)} onChange={e => set(sf.key)(e.target.value)} onFocus={() => onFieldAction?.(sf.key)} placeholder="#64C3A0" className={cn(FIELD_CLASS, 'flex-1 font-mono')} />
                     </div>
                   )}
                 </div>
@@ -2690,7 +2690,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
           {/* Toggle */}
           {field.type === 'toggle' && (
             <button onClick={() => { onUpdate({ [field.key]: !(p[field.key] as boolean) }); onFieldAction?.(field.key) }} className="flex items-center gap-2">
-              {p[field.key] ? <ToggleRight className="w-7 h-7 text-violet-500" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
+              {p[field.key] ? <ToggleRight className="w-7 h-7 text-primary/80" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
               <span className="text-[11px] text-gray-500">{p[field.key] ? 'On' : 'Off'}</span>
             </button>
           )}
@@ -2707,18 +2707,18 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                   onMouseDown={e => startNumDrag(e, field)}
                   className={cn(
                     'flex items-center gap-2 px-3 py-2 rounded-lg border select-none cursor-ew-resize transition-colors',
-                    isDragging ? 'border-violet-400 bg-violet-50 ring-1 ring-violet-200' : 'border-gray-200 bg-gray-50 hover:border-violet-300 hover:bg-violet-50/50'
+                    isDragging ? 'border-primary/60 bg-accent ring-1 ring-primary/25' : 'border-gray-200 bg-gray-50 hover:border-primary/40 hover:bg-accent/80'
                   )}
                   title="Drag left or right to resize"
                 >
-                  <GripHorizontal className={cn('w-3.5 h-3.5 shrink-0 transition-colors', isDragging ? 'text-violet-500' : 'text-gray-400')} />
+                  <GripHorizontal className={cn('w-3.5 h-3.5 shrink-0 transition-colors', isDragging ? 'text-primary/80' : 'text-gray-400')} />
                   <div className="flex-1 relative h-1.5 rounded-full bg-gray-200 overflow-hidden">
-                    <div className="absolute left-0 top-0 h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: isDragging ? '#7c3aed' : '#a78bfa' }} />
+                    <div className="absolute left-0 top-0 h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: isDragging ? '#64C3A0' : '#8fd4bc' }} />
                   </div>
-                  <span className={cn('text-xs font-mono font-semibold min-w-[44px] text-right transition-colors', isDragging ? 'text-violet-700' : 'text-gray-600')}>
+                  <span className={cn('text-xs font-mono font-semibold min-w-[44px] text-right transition-colors', isDragging ? 'text-primary' : 'text-gray-600')}>
                     {current}{field.unit || ''}
                   </span>
-                  <GripHorizontal className={cn('w-3.5 h-3.5 shrink-0 transition-colors', isDragging ? 'text-violet-500' : 'text-gray-400')} />
+                  <GripHorizontal className={cn('w-3.5 h-3.5 shrink-0 transition-colors', isDragging ? 'text-primary/80' : 'text-gray-400')} />
                 </div>
                 <div className="flex items-center justify-between px-1">
                   <span className="text-[9px] text-gray-400">{min}{field.unit || ''}</span>
@@ -2731,10 +2731,10 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
           {field.type === 'color' && (
             <div className="flex items-center gap-2">
               <label className="relative w-8 h-8 rounded-lg border-2 border-gray-200 overflow-hidden cursor-pointer shrink-0">
-                <input type="color" value={val(field.key) || '#7c3aed'} onChange={e => { set(field.key)(e.target.value); onFieldAction?.(field.key) }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                <div className="w-full h-full" style={{ backgroundColor: val(field.key) || '#7c3aed' }} />
+                <input type="color" value={val(field.key) || '#64C3A0'} onChange={e => { set(field.key)(e.target.value); onFieldAction?.(field.key) }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <div className="w-full h-full" style={{ backgroundColor: val(field.key) || '#64C3A0' }} />
               </label>
-              <input value={val(field.key)} onChange={e => set(field.key)(e.target.value)} onFocus={() => onFieldAction?.(field.key)} placeholder="#7c3aed" className={cn(FIELD_CLASS, 'flex-1 font-mono')} />
+              <input value={val(field.key)} onChange={e => set(field.key)(e.target.value)} onFocus={() => onFieldAction?.(field.key)} placeholder="#64C3A0" className={cn(FIELD_CLASS, 'flex-1 font-mono')} />
             </div>
           )}
           {/* Image */}
@@ -2742,7 +2742,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
             <div className="space-y-1.5">
               <div className="flex gap-1.5">
                 <button type="button" onClick={() => onImageUpload(field.key)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-[11px] text-gray-500 hover:border-violet-400 hover:text-violet-600 transition-colors">
+                  className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-[11px] text-gray-500 hover:border-primary/60 hover:text-primary transition-colors">
                   <ImageIcon className="w-3.5 h-3.5" />
                   Upload
                 </button>
@@ -2750,7 +2750,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                   <button
                     type="button"
                     onClick={() => { onOpenMediaStudio(field.key, field.label); onFieldAction?.(field.key) }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-semibold bg-primary text-white hover:bg-primary/90 transition-colors"
                   >
                     <Wand2 className="w-3.5 h-3.5" />
                     Media studio
@@ -2827,7 +2827,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
               <input type="range" min={0} max={80} step={4}
                 value={parseInt((section.props._padding_top as string) || '0')}
                 onChange={e => onUpdate({ _padding_top: e.target.value })}
-                className="flex-1 h-1.5 accent-violet-600" />
+                className="flex-1 h-1.5 accent-primary" />
               <span className="text-[10px] font-mono text-gray-500 w-8 text-right">{String(section.props._padding_top ?? '0')}px</span>
             </div>
           </div>
@@ -2838,7 +2838,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
               <input type="range" min={0} max={80} step={4}
                 value={parseInt((section.props._padding_bottom as string) || '0')}
                 onChange={e => onUpdate({ _padding_bottom: e.target.value })}
-                className="flex-1 h-1.5 accent-violet-600" />
+                className="flex-1 h-1.5 accent-primary" />
               <span className="text-[10px] font-mono text-gray-500 w-8 text-right">{String(section.props._padding_bottom ?? '0')}px</span>
             </div>
           </div>
@@ -2877,16 +2877,16 @@ function PagesPanel({ modules, storefrontBase, onNavigatePreview }: { modules: M
       </div>
 
       {pages.map(pg => (
-        <div key={pg.route} className={cn('rounded-xl border overflow-hidden', pg.editableInBuilder ? 'border-violet-200' : 'border-gray-100')}>
+        <div key={pg.route} className={cn('rounded-xl border overflow-hidden', pg.editableInBuilder ? 'border-primary/30' : 'border-gray-100')}>
           <button onClick={() => setExpanded(expanded === pg.route ? null : pg.route)}
             className="w-full flex items-center gap-2.5 p-3 text-left bg-white hover:bg-gray-50/80 transition-colors">
-            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', pg.editableInBuilder ? 'bg-violet-100' : 'bg-gray-100')}>
-              <pg.icon className={cn('w-4 h-4', pg.editableInBuilder ? 'text-violet-600' : 'text-gray-400')} />
+            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', pg.editableInBuilder ? 'bg-primary/10' : 'bg-gray-100')}>
+              <pg.icon className={cn('w-4 h-4', pg.editableInBuilder ? 'text-primary' : 'text-gray-400')} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-xs font-semibold text-gray-900 truncate">{pg.label}</p>
-                {pg.editableInBuilder && <span className="text-[8px] px-1 py-0.5 rounded bg-violet-100 text-violet-700 font-bold shrink-0">EDITABLE</span>}
+                {pg.editableInBuilder && <span className="text-[8px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold shrink-0">EDITABLE</span>}
               </div>
               <p className="text-[10px] text-gray-400 font-mono truncate">{pg.route}</p>
             </div>
@@ -2901,15 +2901,15 @@ function PagesPanel({ modules, storefrontBase, onNavigatePreview }: { modules: M
                 <ul className="space-y-1">
                   {pg.features.map(f => (
                     <li key={f} className="flex items-start gap-1.5 text-[10px] text-gray-600">
-                      <Check className="w-2.5 h-2.5 text-violet-400 shrink-0 mt-0.5" />{f}
+                      <Check className="w-2.5 h-2.5 text-primary/70 shrink-0 mt-0.5" />{f}
                     </li>
                   ))}
                 </ul>
               </div>
               {pg.editorHint && (
-                <div className="flex items-start gap-1.5 p-2 bg-violet-50 rounded-lg border border-violet-100">
-                  <Wand2 className="w-3 h-3 text-violet-500 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-violet-700">{pg.editorHint}</p>
+                <div className="flex items-start gap-1.5 p-2 bg-accent rounded-lg border border-primary/20">
+                  <Wand2 className="w-3 h-3 text-primary/80 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-primary">{pg.editorHint}</p>
                 </div>
               )}
               <div className="flex gap-1.5">
@@ -2918,7 +2918,7 @@ function PagesPanel({ modules, storefrontBase, onNavigatePreview }: { modules: M
                   return previewRoute ? (
                     <button
                       onClick={() => onNavigatePreview(previewRoute)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-violet-200 text-[11px] font-medium text-violet-600 hover:border-violet-400 hover:bg-violet-50 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-primary/30 text-[11px] font-medium text-primary hover:border-primary/60 hover:bg-accent transition-colors"
                     >
                       <Eye className="w-3 h-3" />
                       Open in preview
@@ -2937,7 +2937,7 @@ function PagesPanel({ modules, storefrontBase, onNavigatePreview }: { modules: M
                   href={routeUrl(pg.route)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-600 hover:border-violet-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-600 hover:border-primary/60 hover:text-primary hover:bg-accent transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" />
                   Open in storefront
@@ -3035,12 +3035,12 @@ function InlineSectionEditor({
 
   return (
     <div
-      className="border-t-2 border-violet-400 bg-white/98 backdrop-blur-sm"
+      className="border-t-2 border-primary/60 bg-white/98 backdrop-blur-sm"
       onClick={e => e.stopPropagation()}
     >
-      <div className="px-2.5 py-1 flex items-center gap-1.5 bg-violet-50 border-b border-violet-100">
-        <Pencil className="w-2.5 h-2.5 text-violet-500" />
-        <span className="text-[9px] font-bold text-violet-700 uppercase tracking-wider">Edit Content</span>
+      <div className="px-2.5 py-1 flex items-center gap-1.5 bg-accent border-b border-primary/20">
+        <Pencil className="w-2.5 h-2.5 text-primary/80" />
+        <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Edit Content</span>
       </div>
       <div className="p-2 space-y-1.5">
         {textFields.map(field => (
@@ -3051,14 +3051,14 @@ function InlineSectionEditor({
                 value={(sectionProps[field.key] as string) || ''}
                 onChange={e => onUpdateProp(field.key, e.target.value)}
                 rows={2}
-                className="flex-1 text-[10px] border border-gray-200 rounded px-1.5 py-1 resize-none outline-none focus:border-violet-400 bg-white"
+                className="flex-1 text-[10px] border border-gray-200 rounded px-1.5 py-1 resize-none outline-none focus:border-primary/60 bg-white"
                 placeholder={field.placeholder}
               />
             ) : (
               <input
                 value={(sectionProps[field.key] as string) || ''}
                 onChange={e => onUpdateProp(field.key, e.target.value)}
-                className="flex-1 text-[10px] border border-gray-200 rounded px-1.5 py-1 outline-none focus:border-violet-400 bg-white"
+                className="flex-1 text-[10px] border border-gray-200 rounded px-1.5 py-1 outline-none focus:border-primary/60 bg-white"
                 placeholder={field.placeholder}
               />
             )}
@@ -3255,9 +3255,9 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
         onClick={sectionClick(id)}
         className={cn(
           'relative cursor-pointer group transition-all duration-200',
-          isSelected && !isFieldActive && 'ring-2 ring-inset ring-violet-500 shadow-[0_0_0_4px_rgba(124,58,237,0.12)]',
+          isSelected && !isFieldActive && 'ring-2 ring-inset ring-ring shadow-[0_0_0_4px_rgba(100,195,160,0.15)]',
           isSelected && isFieldActive  && 'ring-2 ring-inset ring-amber-400 shadow-[0_0_0_5px_rgba(251,191,36,0.25)]',
-          !isSelected && 'hover:ring-1 hover:ring-inset hover:ring-violet-300',
+          !isSelected && 'hover:ring-1 hover:ring-inset hover:ring-ring',
           isBlinking && 'sb-blink',
         )}
         style={styleOverrides}
@@ -3281,7 +3281,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                 onClick={() => onMoveSection(id, 'up')}
                 disabled={!canMoveUp}
                 title="Move section up"
-                className="w-5 h-5 flex items-center justify-center rounded bg-gray-900/75 text-white hover:bg-violet-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors backdrop-blur-sm">
+                className="w-5 h-5 flex items-center justify-center rounded bg-gray-900/75 text-white hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors backdrop-blur-sm">
                 <ChevronUp className="w-3 h-3" />
               </button>
             )}
@@ -3291,7 +3291,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                 onClick={() => onMoveSection(id, 'down')}
                 disabled={!canMoveDown}
                 title="Move section down"
-                className="w-5 h-5 flex items-center justify-center rounded bg-gray-900/75 text-white hover:bg-violet-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors backdrop-blur-sm">
+                className="w-5 h-5 flex items-center justify-center rounded bg-gray-900/75 text-white hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors backdrop-blur-sm">
                 <ChevronDown className="w-3 h-3" />
               </button>
             )}
@@ -3312,7 +3312,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               <button
                 onClick={() => onDuplicateSection(id)}
                 title="Duplicate section"
-                className="w-5 h-5 flex items-center justify-center rounded bg-gray-900/75 text-white hover:bg-violet-600 transition-colors backdrop-blur-sm">
+                className="w-5 h-5 flex items-center justify-center rounded bg-gray-900/75 text-white hover:bg-primary/90 transition-colors backdrop-blur-sm">
                 <Copy className="w-3 h-3" />
               </button>
             )}
@@ -3352,7 +3352,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
           >
             <div className={cn(
               'h-1 w-10 rounded-full transition-all',
-              isPaddingDragging ? 'bg-violet-500 w-16' : 'bg-gray-400/60 group-hover:bg-violet-400'
+              isPaddingDragging ? 'bg-accent w-16' : 'bg-gray-400/60 group-hover:bg-primary/50'
             )} />
           </div>
         )}
@@ -3362,9 +3362,9 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
           <div
             className={cn(
               'flex items-center gap-2.5 px-3 py-2 transition-colors duration-300',
-              isFieldActive ? 'bg-amber-500' : 'bg-violet-600',
+              isFieldActive ? 'bg-amber-500' : 'bg-primary',
             )}
-            style={{ borderTop: `2px solid ${isFieldActive ? '#f59e0b' : '#7c3aed'}` }}
+            style={{ borderTop: `2px solid ${isFieldActive ? '#f59e0b' : '#64C3A0'}` }}
           >
             <div className={cn('w-6 h-6 rounded-md flex items-center justify-center shrink-0', isFieldActive ? 'bg-white/25' : 'bg-white/20')}>
               {isFieldActive
@@ -3378,11 +3378,11 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   ✏ Editing: <span className="text-white font-bold">{activeFieldDef.label}</span>
                 </p>
               ) : (
-                <p className="text-violet-200 text-[9px] leading-snug truncate">{def.description}</p>
+                <p className="text-primary-foreground/85 text-[9px] leading-snug truncate">{def.description}</p>
               )}
             </div>
             {!isFieldActive && (
-              <div className="shrink-0 flex items-center gap-1 text-[9px] text-violet-300 font-medium whitespace-nowrap">
+              <div className="shrink-0 flex items-center gap-1 text-[9px] text-primary/50 font-medium whitespace-nowrap">
                 <Pencil className="w-2.5 h-2.5" /> Edit above · Structure →
               </div>
             )}

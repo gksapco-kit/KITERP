@@ -26,7 +26,7 @@ import { vendorApi } from '@/api/vendor'
 const SYSTEM_ROLES = ['owner', 'admin', 'manager', 'sales', 'staff']
 
 const roleColors: Record<string, string> = {
-  owner: 'bg-purple-100 text-purple-700',
+  owner: 'bg-primary/12 text-primary',
   admin: 'bg-blue-100 text-blue-700',
   manager: 'bg-green-100 text-green-700',
   sales: 'bg-amber-100 text-amber-700',

@@ -36,7 +36,7 @@ interface ProductImageUploadProps {
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf'
 
 function MediaBadge({ type }: { type: string }) {
-  if (type === 'video') return <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>
+  if (type === 'video') return <span className="absolute top-1 right-1 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>
   if (type === 'model3d') return <span className="absolute top-1 right-1 bg-cyan-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>
   return null
 }

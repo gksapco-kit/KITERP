@@ -122,7 +122,7 @@ const STATUS_CONFIG: Record<POStatus, { label: string; color: string; bg: string
   draft:         { label: 'Draft',        color: 'text-gray-600',   bg: 'bg-gray-100',    icon: CircleDot },
   confirmed:     { label: 'Confirmed',    color: 'text-blue-700',   bg: 'bg-blue-100',    icon: CheckSquare },
   in_production: { label: 'In Production',color: 'text-amber-700',  bg: 'bg-amber-100',   icon: Factory },
-  qc:            { label: 'QC Check',     color: 'text-violet-700', bg: 'bg-violet-100',  icon: BadgeAlert },
+  qc:            { label: 'QC Check',     color: 'text-primary', bg: 'bg-primary/10',  icon: BadgeAlert },
   completed:     { label: 'Completed',    color: 'text-green-700',  bg: 'bg-green-100',   icon: CheckCircle },
   on_hold:       { label: 'On Hold',      color: 'text-orange-700', bg: 'bg-orange-100',  icon: PauseCircle },
   cancelled:     { label: 'Cancelled',    color: 'text-red-700',    bg: 'bg-red-100',     icon: X },
@@ -188,7 +188,7 @@ function PriorityDot({ priority }: { priority: Priority }) {
 }
 
 function ProgressBar({ value, status }: { value: number; status: POStatus }) {
-  const color = status === 'completed' ? 'bg-green-500' : status === 'on_hold' ? 'bg-orange-400' : status === 'cancelled' ? 'bg-red-400' : 'bg-purple-500'
+  const color = status === 'completed' ? 'bg-green-500' : status === 'on_hold' ? 'bg-orange-400' : status === 'cancelled' ? 'bg-red-400' : 'bg-primary'
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -681,12 +681,12 @@ export default function ProductionOrdersPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Factory className="w-6 h-6 text-purple-600" /> Production Orders
+              <Factory className="w-6 h-6 text-primary" /> Production Orders
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Manage Make-to-Order &amp; Make-to-Stock production workflows</p>
           </div>
           <Button onClick={() => { setShowCreate(true); setCreateType(null) }}
-            className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5 shrink-0">
+            className="bg-primary hover:bg-primary/90 text-white gap-1.5 shrink-0">
             <Plus className="w-4 h-4" /> New Order
           </Button>
         </div>
@@ -694,7 +694,7 @@ export default function ProductionOrdersPage() {
         {/* ── Stats ──────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {[
-            { label: 'Total Orders', value: stats.total, icon: ClipboardList, bg: 'bg-purple-50', color: 'text-purple-600' },
+            { label: 'Total Orders', value: stats.total, icon: ClipboardList, bg: 'bg-accent', color: 'text-primary' },
             { label: 'MTO (Customer)', value: stats.mto, icon: ShoppingCart, bg: 'bg-indigo-50', color: 'text-indigo-600' },
             { label: 'MTS (Stock)', value: stats.mts, icon: Package, bg: 'bg-teal-50', color: 'text-teal-600' },
             { label: 'In Production', value: stats.inProd, icon: Factory, bg: 'bg-amber-50', color: 'text-amber-600' },
@@ -749,14 +749,14 @@ export default function ProductionOrdersPage() {
           <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
             {(['all', 'mto', 'mts'] as const).map(t => (
               <button key={t} onClick={() => setTypeFilter(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${typeFilter === t ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-gray-700'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${typeFilter === t ? 'bg-white shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700'}`}>
                 {t === 'all' ? 'All Types' : t === 'mto' ? '🛒 MTO' : '📦 MTS'}
               </button>
             ))}
           </div>
 
           <button onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-white transition-colors ${showFilters ? 'border-purple-400 text-purple-700' : 'border-gray-200 hover:bg-gray-50'}`}>
+            className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-white transition-colors ${showFilters ? 'border-primary/60 text-primary' : 'border-gray-200 hover:bg-gray-50'}`}>
             <Filter className="w-3.5 h-3.5" /> More Filters
           </button>
 
@@ -775,7 +775,7 @@ export default function ProductionOrdersPage() {
               <div className="flex flex-wrap gap-1">
                 {(['all', ...Object.keys(STATUS_CONFIG)] as const).map(s => (
                   <button key={s} onClick={() => setStatusFilter(s as 'all' | POStatus)}
-                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${statusFilter === s ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${statusFilter === s ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {s === 'all' ? 'All' : STATUS_CONFIG[s as POStatus].label}
                   </button>
                 ))}
@@ -786,7 +786,7 @@ export default function ProductionOrdersPage() {
               <div className="flex flex-wrap gap-1">
                 {(['all', 'low', 'medium', 'high', 'urgent'] as const).map(p => (
                   <button key={p} onClick={() => setPriorityFilter(p)}
-                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${priorityFilter === p ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${priorityFilter === p ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {p === 'all' ? 'All' : PRIORITY_CONFIG[p].label}
                   </button>
                 ))}
@@ -805,7 +805,7 @@ export default function ProductionOrdersPage() {
                 <Factory className="w-12 h-12 mx-auto mb-3 opacity-20" />
                 <p className="font-semibold text-gray-500">No production orders yet</p>
                 <p className="text-sm mt-1">Click "New Order" to create your first MTO or MTS order.</p>
-                <Button onClick={() => { setShowCreate(true); setCreateType(null) }} className="mt-4 bg-purple-600 hover:bg-purple-700 text-white gap-1.5 text-sm">
+                <Button onClick={() => { setShowCreate(true); setCreateType(null) }} className="mt-4 bg-primary hover:bg-primary/90 text-white gap-1.5 text-sm">
                   <Plus className="w-3.5 h-3.5" /> New Order
                 </Button>
               </div>
@@ -876,12 +876,12 @@ export default function ProductionOrdersPage() {
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${
                               cancelled ? 'border-red-300 bg-red-50 text-red-400' :
                               done ? 'border-green-500 bg-green-500 text-white' :
-                              active ? 'border-purple-500 bg-purple-500 text-white' :
+                              active ? 'border-primary bg-primary text-white' :
                               'border-gray-200 bg-white text-gray-400'
                             }`}>
                               {done ? <CheckCircle className="w-3.5 h-3.5" /> : <span className="text-[10px] font-bold">{i + 1}</span>}
                             </div>
-                            <p className={`text-[10px] font-semibold mt-1 ${active ? 'text-purple-700' : done ? 'text-green-700' : 'text-gray-400'}`}>{step.label}</p>
+                            <p className={`text-[10px] font-semibold mt-1 ${active ? 'text-primary' : done ? 'text-green-700' : 'text-gray-400'}`}>{step.label}</p>
                           </div>
                           {i < WORKFLOW_STEPS.length - 1 && (
                             <div className={`w-8 sm:w-12 h-0.5 mb-4 ${done ? 'bg-green-400' : 'bg-gray-200'}`} />
@@ -896,7 +896,7 @@ export default function ProductionOrdersPage() {
                 <div className="flex border-b bg-gray-50/60">
                   {(['details', 'items', 'stock', 'history'] as const).map(tab => (
                     <button key={tab} onClick={() => setDetailTab(tab)}
-                      className={`flex-1 text-xs font-semibold py-2.5 capitalize transition-all border-b-2 ${detailTab === tab ? 'border-purple-500 text-purple-700 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                      className={`flex-1 text-xs font-semibold py-2.5 capitalize transition-all border-b-2 ${detailTab === tab ? 'border-primary text-primary bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                       {tab === 'stock' ? 'Stock Dispatch' : tab === 'history' ? 'Attachments' : tab}
                     </button>
                   ))}
@@ -912,16 +912,16 @@ export default function ProductionOrdersPage() {
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-semibold text-gray-600">Production Progress</span>
-                            <span className="text-xs font-bold text-purple-700">{order.progress}%</span>
+                            <span className="text-xs font-bold text-primary">{order.progress}%</span>
                           </div>
                           <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${order.status === 'completed' ? 'bg-green-500' : 'bg-purple-500'}`} style={{ width: `${order.progress}%` }} />
+                            <div className={`h-full rounded-full transition-all ${order.status === 'completed' ? 'bg-green-500' : 'bg-primary'}`} style={{ width: `${order.progress}%` }} />
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {order.status !== 'completed' && order.status !== 'cancelled' && curStepIdx < WORKFLOW_STEPS.length - 1 && (
                             <button onClick={() => advanceStatus(order)}
-                              className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                              className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
                               <PlayCircle className="w-3.5 h-3.5" /> Advance to {WORKFLOW_STEPS[curStepIdx + 1]?.label}
                             </button>
                           )}
@@ -934,12 +934,12 @@ export default function ProductionOrdersPage() {
                           <div className="space-y-2 pt-2 border-t">
                             <div className="flex gap-2">
                               <select value={editStatus} onChange={e => setEditStatus(e.target.value as POStatus)}
-                                className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400">
+                                className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring">
                                 {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                               </select>
                               <input type="number" min={0} max={100} value={editProgress} onChange={e => setEditProgress(Number(e.target.value))}
-                                className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-400" placeholder="Progress%" />
-                              <button onClick={() => applyStatusEdit(order)} className="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-700">Save</button>
+                                className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Progress%" />
+                              <button onClick={() => applyStatusEdit(order)} className="bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90">Save</button>
                               <button onClick={() => setEditStatus('')} className="px-2 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-xs">✕</button>
                             </div>
                           </div>
@@ -994,7 +994,7 @@ export default function ProductionOrdersPage() {
                           {!editAssigneesMode && (
                             <button
                               onClick={() => openAssigneeEdit(order)}
-                              className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 px-2 py-1 rounded-lg transition-colors"
+                              className="flex items-center gap-1 text-xs text-primary hover:text-primary hover:bg-accent px-2 py-1 rounded-lg transition-colors"
                             >
                               <Edit2 className="w-3 h-3" /> Edit
                             </button>
@@ -1002,12 +1002,12 @@ export default function ProductionOrdersPage() {
                         </div>
 
                         {editAssigneesMode ? (
-                          <div className="space-y-2 bg-purple-50 border border-purple-200 rounded-xl p-3">
+                          <div className="space-y-2 bg-accent border border-primary/30 rounded-xl p-3">
                             {/* Assignee tab + search */}
                             <div className="flex gap-1 mb-1">
                               {(['team', 'supplier'] as const).map(tab => (
                                 <button key={tab} onClick={() => setDetailAssigneeTab(tab)}
-                                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${detailAssigneeTab === tab ? 'bg-purple-600 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
+                                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${detailAssigneeTab === tab ? 'bg-primary text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
                                   {tab === 'team' ? '👤 Team' : '🚚 Supplier'}
                                 </button>
                               ))}
@@ -1019,7 +1019,7 @@ export default function ProductionOrdersPage() {
                                 onChange={e => { setDetailAssigneeSearch(e.target.value); setDetailAssigneeDropOpen(true) }}
                                 onFocus={() => setDetailAssigneeDropOpen(true)}
                                 placeholder={detailAssigneeTab === 'team' ? 'Search team member…' : 'Search supplier / vendor…'}
-                                className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                                className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-white"
                               />
                               {detailAssigneeDropOpen && (detailAssigneeTab === 'team' ? filteredDetailTeam : filteredDetailSuppliers).length > 0 && (
                                 <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden max-h-44 overflow-y-auto">
@@ -1031,8 +1031,8 @@ export default function ProductionOrdersPage() {
                                         role: m.role || (detailAssigneeTab === 'team' ? 'Team Member' : 'Vendor'),
                                         type: detailAssigneeTab,
                                       })}
-                                      className="w-full text-left px-3 py-2.5 hover:bg-purple-50 border-b last:border-b-0 flex items-center gap-2.5 text-sm">
-                                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${detailAssigneeTab === 'team' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                                      className="w-full text-left px-3 py-2.5 hover:bg-accent border-b last:border-b-0 flex items-center gap-2.5 text-sm">
+                                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${detailAssigneeTab === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-600'}`}>
                                         {(detailAssigneeTab === 'team' ? m.full_name : m.company_name)?.[0]?.toUpperCase()}
                                       </div>
                                       <div>
@@ -1050,7 +1050,7 @@ export default function ProductionOrdersPage() {
                             {detailEditAssignees.length > 0 && (
                               <div className="flex flex-wrap gap-2 pt-1">
                                 {detailEditAssignees.map(a => (
-                                  <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                  <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
                                     {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
                                     {a.name} <span className="opacity-60 text-[10px]">({a.role})</span>
                                     <button onClick={() => removeDetailAssignee(a.id)} className="ml-0.5 opacity-60 hover:opacity-100">
@@ -1066,7 +1066,7 @@ export default function ProductionOrdersPage() {
 
                             <div className="flex gap-2 pt-1">
                               <button onClick={() => saveAssigneeEdit(order)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors">
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-lg transition-colors">
                                 <Check className="w-3.5 h-3.5" /> Save
                               </button>
                               <button onClick={() => setEditAssigneesMode(false)}
@@ -1078,7 +1078,7 @@ export default function ProductionOrdersPage() {
                         ) : (
                           <div className="flex flex-wrap gap-2">
                             {order.assignees && order.assignees.length > 0 ? order.assignees.map(a => (
-                              <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                              <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
                                 {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
                                 {a.name} <span className="opacity-60">({a.role})</span>
                               </div>
@@ -1096,7 +1096,7 @@ export default function ProductionOrdersPage() {
                           {!editNotesMode && (
                             <button
                               onClick={() => openNotesEdit(order)}
-                              className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 px-2 py-1 rounded-lg transition-colors"
+                              className="flex items-center gap-1 text-xs text-primary hover:text-primary hover:bg-accent px-2 py-1 rounded-lg transition-colors"
                             >
                               <Edit2 className="w-3 h-3" /> {order.notes ? 'Edit' : 'Add Note'}
                             </button>
@@ -1110,12 +1110,12 @@ export default function ProductionOrdersPage() {
                               onChange={e => setDetailEditNotes(e.target.value)}
                               rows={3}
                               placeholder="Production instructions, quality requirements, safety notes…"
-                              className="w-full border border-purple-300 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                              className="w-full border border-primary/40 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring bg-white"
                               autoFocus
                             />
                             <div className="flex gap-2">
                               <button onClick={() => saveNotesEdit(order)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors">
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-lg transition-colors">
                                 <Check className="w-3.5 h-3.5" /> Save
                               </button>
                               <button onClick={() => setEditNotesMode(false)}
@@ -1163,7 +1163,7 @@ export default function ProductionOrdersPage() {
                                   }
                                 </td>
                                 <td className="py-2.5 px-3 hidden sm:table-cell">
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-violet-50 text-violet-700' : 'bg-blue-50 text-blue-700'}`}>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-700'}`}>
                                     {item.item_type === 'service' ? '⚙️ Service' : '📦 Product'}
                                   </span>
                                 </td>
@@ -1254,7 +1254,7 @@ export default function ProductionOrdersPage() {
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-semibold text-gray-600">Attachments ({order.attachments.length})</p>
                         <button onClick={() => fileInputRef.current?.click()}
-                          className="flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors">
+                          className="flex items-center gap-1 text-xs font-semibold text-primary bg-accent hover:bg-primary/12 px-3 py-1.5 rounded-lg transition-colors">
                           <Paperclip className="w-3.5 h-3.5" /> Attach File
                         </button>
                         <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" className="hidden"
@@ -1354,10 +1354,10 @@ export default function ProductionOrdersPage() {
                               <div className="space-y-1">
                                 {[...(order.audit_log || [])].reverse().map((ev, i) => {
                                   const cfg: Record<AuditAction, { icon: string; dot: string; text: string }> = {
-                                    created:           { icon: '🏭', dot: 'bg-purple-400', text: 'text-purple-700' },
+                                    created:           { icon: '🏭', dot: 'bg-primary/70', text: 'text-primary' },
                                     status_changed:    { icon: '🔄', dot: 'bg-blue-400',   text: 'text-blue-700' },
                                     progress_updated:  { icon: '📊', dot: 'bg-indigo-400', text: 'text-indigo-700' },
-                                    assignees_updated: { icon: '👤', dot: 'bg-violet-400', text: 'text-violet-700' },
+                                    assignees_updated: { icon: '👤', dot: 'bg-primary/50', text: 'text-primary' },
                                     notes_updated:     { icon: '📝', dot: 'bg-amber-400',  text: 'text-amber-700' },
                                     stock_dispatched:  { icon: '📦', dot: 'bg-green-400',  text: 'text-green-700' },
                                     file_attached:     { icon: '📎', dot: 'bg-sky-400',    text: 'text-sky-700' },
@@ -1370,8 +1370,8 @@ export default function ProductionOrdersPage() {
                                   return (
                                     <div key={ev.id} className="relative flex items-start gap-3 pl-7">
                                       {/* dot */}
-                                      <div className={`absolute left-2 top-1.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${c.dot} ${isFirst ? 'ring-2 ring-offset-1 ring-purple-300' : ''}`} />
-                                      <div className={`flex-1 min-w-0 rounded-xl px-3 py-2.5 ${isFirst ? 'bg-purple-50 border border-purple-100' : 'bg-gray-50'}`}>
+                                      <div className={`absolute left-2 top-1.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${c.dot} ${isFirst ? 'ring-2 ring-offset-1 ring-primary/30' : ''}`} />
+                                      <div className={`flex-1 min-w-0 rounded-xl px-3 py-2.5 ${isFirst ? 'bg-accent border border-primary/20' : 'bg-gray-50'}`}>
                                         <div className="flex items-start justify-between gap-2">
                                           <p className={`text-xs font-semibold leading-tight ${isFirst ? c.text : 'text-gray-700'}`}>
                                             <span className="mr-1">{c.icon}</span>
@@ -1412,10 +1412,10 @@ export default function ProductionOrdersPage() {
             {/* Step 1: choose type */}
             {!createType ? (
               <div>
-                <div className="flex items-center gap-3 px-6 py-5 border-b bg-gradient-to-r from-purple-50 to-violet-50">
-                  <div className="p-2 bg-purple-100 rounded-xl"><Factory className="w-5 h-5 text-purple-600" /></div>
+                <div className="flex items-center gap-3 px-6 py-5 border-b bg-gradient-to-r from-accent to-primary/10">
+                  <div className="p-2 bg-primary/12 rounded-xl"><Factory className="w-5 h-5 text-primary" /></div>
                   <div className="flex-1"><h2 className="font-bold text-gray-900">New Production Order</h2><p className="text-xs text-gray-500">Choose the production type</p></div>
-                  <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-purple-100 rounded-xl"><X className="w-4 h-4 text-gray-500" /></button>
+                  <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-primary/12 rounded-xl"><X className="w-4 h-4 text-gray-500" /></button>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1473,9 +1473,9 @@ export default function ProductionOrdersPage() {
                     <div className="grid grid-cols-3 gap-2">
                       {TEMPLATES.map(t => (
                         <button key={t.id} onClick={() => setFormTemplate(t.id)}
-                          className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${formTemplate === t.id ? 'border-purple-400 bg-purple-50' : 'border-gray-200 hover:border-purple-200'}`}>
+                          className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${formTemplate === t.id ? 'border-primary/60 bg-accent' : 'border-gray-200 hover:border-primary/30'}`}>
                           <span className="text-base">{t.emoji}</span>
-                          <div><p className={`text-xs font-semibold leading-tight ${formTemplate === t.id ? 'text-purple-800' : 'text-gray-700'}`}>{t.label}</p></div>
+                          <div><p className={`text-xs font-semibold leading-tight ${formTemplate === t.id ? 'text-primary' : 'text-gray-700'}`}>{t.label}</p></div>
                         </button>
                       ))}
                     </div>
@@ -1486,12 +1486,12 @@ export default function ProductionOrdersPage() {
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1.5">Work Order Ref</label>
                       <input value={formRef} onChange={e => setFormRef(e.target.value)}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1.5">Priority</label>
                       <select value={formPriority} onChange={e => setFormPriority(e.target.value as Priority)}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                         <option value="low">🟢 Low</option><option value="medium">🔵 Medium</option>
                         <option value="high">🟠 High</option><option value="urgent">🔴 Urgent</option>
                       </select>
@@ -1499,12 +1499,12 @@ export default function ProductionOrdersPage() {
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1.5">Production Team</label>
                       <input value={formTeam} onChange={e => setFormTeam(e.target.value)} placeholder="e.g. Assembly Line A"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1.5">Target Completion</label>
                       <input type="date" value={formTargetDate} onChange={e => setFormTargetDate(e.target.value)}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                   </div>
 
@@ -1589,7 +1589,7 @@ export default function ProductionOrdersPage() {
                           <div className="flex items-center justify-between gap-2">
                             <button
                               onClick={() => navigate('/master-data/new?returnTo=/production')}
-                              className="text-xs text-violet-600 hover:text-violet-800 hover:underline flex items-center gap-1"
+                              className="text-xs text-primary hover:text-primary hover:underline flex items-center gap-1"
                             >
                               Enter more details
                             </button>
@@ -1631,16 +1631,16 @@ export default function ProductionOrdersPage() {
 
                   {/* Items picker — Products & Services */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-purple-500" /> Items to Produce</p>
+                    <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-primary/80" /> Items to Produce</p>
                     {/* Tab + search row */}
                     <div className="flex gap-2 mb-2">
                       <div className="flex items-center bg-gray-100 rounded-xl p-0.5 shrink-0">
                         <button onClick={() => setItemTab('product')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'product' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'product' ? 'bg-white shadow-sm text-primary' : 'text-gray-500'}`}>
                           <Package className="w-3 h-3" /> Product
                         </button>
                         <button onClick={() => setItemTab('service')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'service' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'service' ? 'bg-white shadow-sm text-primary' : 'text-gray-500'}`}>
                           <Layers className="w-3 h-3" /> Service
                         </button>
                       </div>
@@ -1648,17 +1648,17 @@ export default function ProductionOrdersPage() {
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                         <input value={itemSearch} onChange={e => setItemSearch(e.target.value)}
                           placeholder={itemTab === 'product' ? 'Search product name or SKU…' : 'Search service name…'}
-                          className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                          className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                         {itemSearch && <button onClick={() => setItemSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2"><X className="w-3 h-3 text-gray-400" /></button>}
                       </div>
                       <input type="number" min={1} value={itemQty} onChange={e => setItemQty(e.target.value)} placeholder="Qty"
-                        className="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                        className="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-ring" />
                       {/* Camera barcode scanner button */}
                       <button
                         type="button"
                         onClick={() => setShowCameraScanner(true)}
                         title="Scan barcode"
-                        className="flex items-center gap-1 px-2.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-purple-50 hover:border-purple-300 text-gray-500 hover:text-purple-600 transition-colors shrink-0"
+                        className="flex items-center gap-1 px-2.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-accent hover:border-primary/40 text-gray-500 hover:text-primary transition-colors shrink-0"
                       >
                         {scanLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
                       </button>
@@ -1677,16 +1677,16 @@ export default function ProductionOrdersPage() {
                                 addItem({ id: p.id, name: p.name, sku: p.sku, type: itemTab })
                               }
                             }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 border-b last:border-b-0 flex items-center gap-2">
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-accent border-b last:border-b-0 flex items-center gap-2">
                               <span className="text-base">{itemTab === 'product' ? '📦' : '⚙️'}</span>
                               <span className="flex-1 font-medium">{p.name}</span>
                               {p.sku && <span className="text-xs text-gray-400 font-mono">{p.sku}</span>}
                               {hasVariants && (
-                                <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full shrink-0">
+                                <span className="text-[10px] font-bold bg-primary/12 text-primary px-1.5 py-0.5 rounded-full shrink-0">
                                   {activeVariants.length} variants
                                 </span>
                               )}
-                              <Plus className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                              <Plus className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                             </button>
                           )
                         })}
@@ -1724,7 +1724,7 @@ export default function ProductionOrdersPage() {
                                     }
                                   </td>
                                   <td className="py-2 px-3 hidden sm:table-cell">
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'product' ? 'bg-blue-50 text-blue-700' : 'bg-violet-50 text-violet-700'}`}>
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'product' ? 'bg-blue-50 text-blue-700' : 'bg-accent text-primary'}`}>
                                       {item.item_type === 'product' ? '📦 Product' : '⚙️ Service'}
                                     </span>
                                   </td>
@@ -1735,7 +1735,7 @@ export default function ProductionOrdersPage() {
                                           ? { ...i, qty: Number(e.target.value) }
                                           : i,
                                       ))}
-                                      className="w-16 border border-gray-200 rounded-lg px-2 py-0.5 text-right text-sm focus:outline-none focus:ring-1 focus:ring-purple-400" />
+                                      className="w-16 border border-gray-200 rounded-lg px-2 py-0.5 text-right text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
                                   </td>
                                   <td className="py-2 px-2">
                                     <button onClick={() => setFormItems(prev => prev.filter(i =>
@@ -1755,15 +1755,15 @@ export default function ProductionOrdersPage() {
 
                   {/* Assignee picker — Team member or Vendor/Supplier */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-purple-500" /> Assign To (Employee / Vendor)</p>
+                    <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-primary/80" /> Assign To (Employee / Vendor)</p>
                     <div className="flex gap-2 mb-2">
                       <div className="flex items-center bg-gray-100 rounded-xl p-0.5 shrink-0">
                         <button onClick={() => setAssigneeTab('team')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'team' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'team' ? 'bg-white shadow-sm text-primary' : 'text-gray-500'}`}>
                           <User className="w-3 h-3" /> Employee
                         </button>
                         <button onClick={() => setAssigneeTab('supplier')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'supplier' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'supplier' ? 'bg-white shadow-sm text-primary' : 'text-gray-500'}`}>
                           <Truck className="w-3 h-3" /> Vendor
                         </button>
                       </div>
@@ -1772,15 +1772,15 @@ export default function ProductionOrdersPage() {
                         <input value={assigneeSearch} onChange={e => { setAssigneeSearch(e.target.value); setAssigneeDropOpen(true) }}
                           onFocus={() => setAssigneeDropOpen(true)}
                           placeholder={assigneeTab === 'team' ? 'Search team member…' : 'Search supplier / vendor…'}
-                          className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                          className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                         {assigneeDropOpen && (
                           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden max-h-44 overflow-y-auto">
                             {(assigneeTab === 'team' ? filteredTeam : filteredSuppliers).map((m: { id: string; full_name?: string; company_name?: string; role?: string; email?: string }) => (
                               <button key={m.id}
                                 onClick={() => addAssignee({ id: m.id, name: assigneeTab === 'team' ? (m.full_name || '') : (m.company_name || ''), role: m.role || (assigneeTab === 'team' ? 'Team Member' : 'Vendor'), type: assigneeTab })}
-                                className="w-full text-left px-3 py-2.5 hover:bg-purple-50 border-b last:border-b-0 flex items-center gap-2.5">
-                                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${assigneeTab === 'team' ? 'bg-purple-100' : 'bg-blue-100'}`}>
-                                  <span className={`text-xs font-bold ${assigneeTab === 'team' ? 'text-purple-600' : 'text-blue-600'}`}>
+                                className="w-full text-left px-3 py-2.5 hover:bg-accent border-b last:border-b-0 flex items-center gap-2.5">
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${assigneeTab === 'team' ? 'bg-primary/12' : 'bg-blue-100'}`}>
+                                  <span className={`text-xs font-bold ${assigneeTab === 'team' ? 'text-primary' : 'text-blue-600'}`}>
                                     {(assigneeTab === 'team' ? m.full_name : m.company_name)?.[0]?.toUpperCase()}
                                   </span>
                                 </div>
@@ -1788,7 +1788,7 @@ export default function ProductionOrdersPage() {
                                   <p className="text-sm font-semibold text-gray-800">{assigneeTab === 'team' ? m.full_name : m.company_name}</p>
                                   <p className="text-xs text-gray-400">{m.role || m.email || ''}</p>
                                 </div>
-                                <Plus className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                <Plus className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                               </button>
                             ))}
                             {(assigneeTab === 'team' ? filteredTeam : filteredSuppliers).length === 0 && (
@@ -1802,7 +1802,7 @@ export default function ProductionOrdersPage() {
                     {formAssignees.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-1">
                         {formAssignees.map(a => (
-                          <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                          <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
                             {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
                             {a.name}
                             <span className="text-[10px] opacity-60 ml-0.5">({a.role})</span>
@@ -1818,7 +1818,7 @@ export default function ProductionOrdersPage() {
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5">Instructions / Notes</label>
                     <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2}
                       placeholder="Production instructions, quality requirements, safety notes…"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
 
                   {/* Attachments */}
@@ -1887,7 +1887,7 @@ export default function ProductionOrdersPage() {
                       })
                       setVariantPickerProduct(null)
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-purple-50 hover:border-purple-200 transition-colors text-left"
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{v.name || variantPickerProduct.name}</p>
@@ -1898,7 +1898,7 @@ export default function ProductionOrdersPage() {
                     </div>
                     <div className="text-right ml-3 shrink-0">
                       <p className="text-xs text-gray-500">Stock: {v.quantity ?? '—'}</p>
-                      <Plus className="w-3.5 h-3.5 text-purple-400 ml-auto mt-1" />
+                      <Plus className="w-3.5 h-3.5 text-primary/70 ml-auto mt-1" />
                     </div>
                   </button>
                 ))}
@@ -1953,7 +1953,7 @@ function ProductionOrderCard({
 
   return (
     <div
-      className={`w-full bg-white rounded-2xl border transition-all hover:shadow-md cursor-pointer ${isActive ? 'border-purple-400 shadow-md ring-2 ring-purple-100' : 'border-gray-200 hover:border-gray-300'}`}
+      className={`w-full bg-white rounded-2xl border transition-all hover:shadow-md cursor-pointer ${isActive ? 'border-primary/60 shadow-md ring-2 ring-primary/15' : 'border-gray-200 hover:border-gray-300'}`}
       onClick={onSelect}
     >
       <div className="px-4 py-3">

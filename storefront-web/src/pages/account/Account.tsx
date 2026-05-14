@@ -14,7 +14,7 @@ export default function Account() {
     { to: storePath('/account/bookings'), icon: CalendarDays, label: 'Your Bookings', desc: 'View service appointments', color: 'bg-indigo-50 text-indigo-600' },
     { to: storePath('/account/wishlist'), icon: Heart, label: 'Wishlist', desc: 'Saved products you love', color: 'bg-rose-50 text-rose-600' },
     { to: storePath('/account/addresses'), icon: MapPin, label: 'Saved Addresses', desc: 'Manage delivery addresses', color: 'bg-green-50 text-green-600' },
-    { to: storePath('/account/profile'), icon: Settings, label: 'Profile & Settings', desc: 'Edit profile, password, notifications', color: 'bg-purple-50 text-purple-600' },
+    { to: storePath('/account/profile'), icon: Settings, label: 'Profile & Settings', desc: 'Edit profile, password, notifications', color: 'bg-accent text-primary' },
     { to: storePath('/cart'), icon: ShoppingBag, label: 'Your Cart', desc: 'View items in your cart', color: 'bg-amber-50 text-amber-600' },
   ]
 

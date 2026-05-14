@@ -54,8 +54,8 @@ export default function ControllingDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center">
-              <Boxes className="w-5 h-5 text-violet-700" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Boxes className="w-5 h-5 text-primary" />
             </div>
             <span className="text-sm font-medium text-gray-600">Active standard costs</span>
           </div>
@@ -115,16 +115,16 @@ export default function ControllingDashboardPage() {
               <li key={to as string}>
                 <Link
                   to={to as string}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 hover:border-violet-200 hover:bg-violet-50/50 px-3 py-2 transition-colors"
+                  className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-accent/80 px-3 py-2 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    {Icon && <Icon className="w-4 h-4 text-violet-500 shrink-0" />}
+                    {Icon && <Icon className="w-4 h-4 text-primary/80 shrink-0" />}
                     <div>
                       <p className="text-sm font-medium text-gray-900">{label as string}</p>
                       <p className="text-xs text-gray-500">{desc as string}</p>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-violet-600 shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-primary shrink-0" />
                 </Link>
               </li>
             ))}
@@ -142,16 +142,16 @@ export default function ControllingDashboardPage() {
               <li key={to as string}>
                 <Link
                   to={to as string}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 hover:border-violet-200 hover:bg-violet-50/50 px-3 py-2 transition-colors"
+                  className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-accent/80 px-3 py-2 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    {Icon && <Icon className="w-4 h-4 text-violet-500 shrink-0" />}
+                    {Icon && <Icon className="w-4 h-4 text-primary/80 shrink-0" />}
                     <div>
                       <p className="text-sm font-medium text-gray-900">{label as string}</p>
                       <p className="text-xs text-gray-500">{desc as string}</p>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-violet-600 shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-primary shrink-0" />
                 </Link>
               </li>
             ))}
@@ -167,16 +167,16 @@ export default function ControllingDashboardPage() {
               <li key={to as string}>
                 <Link
                   to={to as string}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 hover:border-violet-200 hover:bg-violet-50/50 px-3 py-2 transition-colors"
+                  className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-accent/80 px-3 py-2 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    {Icon && <Icon className="w-4 h-4 text-violet-500 shrink-0" />}
+                    {Icon && <Icon className="w-4 h-4 text-primary/80 shrink-0" />}
                     <div>
                       <p className="text-sm font-medium text-gray-900">{label as string}</p>
                       <p className="text-xs text-gray-500">{desc as string}</p>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-violet-600 shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-primary shrink-0" />
                 </Link>
               </li>
             ))}

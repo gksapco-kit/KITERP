@@ -74,7 +74,7 @@ function VideoPlayer({ url, alt }: { url: string; alt?: string }) {
           <Maximize className="w-4 h-4" />
         </button>
       </div>
-      <span className="absolute top-3 right-3 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span className="absolute top-3 right-3 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
         <Play className="w-3 h-3" />Video
       </span>
     </div>
@@ -178,7 +178,7 @@ function ThumbnailItem({ item, isSelected, onClick }: { item: MediaItem; isSelec
         <img src={imgUrl(item.url)} alt="" className="w-full h-full object-cover" />
       )}
       {mt !== 'image' && (
-        <span className={`absolute bottom-0.5 right-0.5 text-[8px] font-bold text-white px-1 rounded ${mt === 'video' ? 'bg-purple-600' : 'bg-cyan-600'}`}>
+        <span className={`absolute bottom-0.5 right-0.5 text-[8px] font-bold text-white px-1 rounded ${mt === 'video' ? 'bg-primary' : 'bg-cyan-600'}`}>
           {mt === 'video' ? 'VID' : '3D'}
         </span>
       )}

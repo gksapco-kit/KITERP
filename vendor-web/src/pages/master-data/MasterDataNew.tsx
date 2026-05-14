@@ -67,7 +67,6 @@ export default function MasterDataNew() {
 
   return (
     <AddPartyModal
-      isOpen={true}
       onClose={goBack}
       onCreated={handleCreated as any}
     />

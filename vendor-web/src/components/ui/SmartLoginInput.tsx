@@ -6,7 +6,9 @@
 import { useState, useMemo, useEffect } from 'react'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Mail, Phone } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { prefetchInferredPhoneCountry } from '@/lib/inferPhoneCountryIso'
 import { inferLoginUiPhoneMode } from '@/lib/loginIdentifier'
 
@@ -19,6 +21,11 @@ export interface SmartLoginInputProps {
   inferCountryFromLocation?: boolean
   autoFocus?: boolean
   /**
+   * When set, rendered on the same row as the phone/email toggle, above the field
+   * (e.g. “Email or Phone” left, “Use phone instead” right).
+   */
+  fieldLabel?: string
+  /**
    * Stable `id` / `name` on the active field so password managers and browser
    * "save password" work with the form (use `name="login"` for the first field).
    */
@@ -26,6 +33,8 @@ export interface SmartLoginInputProps {
   name?: string
   autoComplete?: string
   className?: string
+  /** Taller fields + clearer label row (e.g. vendor login). */
+  comfortable?: boolean
 }
 
 export function SmartLoginInput({
@@ -35,10 +44,12 @@ export function SmartLoginInput({
   defaultCountryIso = 'IN',
   inferCountryFromLocation = true,
   autoFocus = false,
+  fieldLabel,
   inputId = 'login',
   name = 'login',
   autoComplete = 'username',
   className,
+  comfortable = false,
 }: SmartLoginInputProps) {
   const [modeOverride, setModeOverride] = useState<'phone' | 'email' | null>(null)
 
@@ -59,7 +70,47 @@ export function SmartLoginInput({
   }
 
   return (
-    <div className={className ? `space-y-1 ${className}` : 'space-y-1'}>
+    <div className={cn('w-full', fieldLabel ? (comfortable ? 'space-y-2' : 'space-y-1.5') : 'space-y-1', className)}>
+      <div
+        className={cn(
+          'flex min-h-8 gap-2',
+          fieldLabel ? 'items-center justify-between' : 'justify-end',
+        )}
+      >
+        {fieldLabel ? (
+          <Label
+            htmlFor={inputId}
+            className={cn(
+              'shrink-0 text-gray-800',
+              comfortable ? 'text-[0.95rem] font-semibold' : 'text-sm font-medium',
+            )}
+          >
+            {fieldLabel}
+          </Label>
+        ) : null}
+        <button
+          type="button"
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 rounded-lg text-primary transition-colors hover:bg-primary/10 hover:underline',
+            comfortable
+              ? 'min-h-8 px-2 py-1 text-[0.95rem] font-semibold'
+              : 'text-xs hover:underline',
+          )}
+          onClick={handleToggle}
+        >
+          {isPhone ? (
+            <>
+              <Mail className={comfortable ? 'h-4 w-4' : 'h-3 w-3'} />
+              Use email instead
+            </>
+          ) : (
+            <>
+              <Phone className={comfortable ? 'h-4 w-4' : 'h-3 w-3'} />
+              Use phone instead
+            </>
+          )}
+        </button>
+      </div>
       {isPhone ? (
         <PhoneInput
           id={inputId}
@@ -70,11 +121,14 @@ export function SmartLoginInput({
           error={error}
           defaultCountryIso={defaultCountryIso}
           inferCountryFromLocation={inferCountryFromLocation}
+          comfortable={comfortable}
         />
       ) : (
         <>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <div className="relative w-full">
+            <Mail
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            />
             <Input
               id={inputId}
               name={name}
@@ -83,24 +137,18 @@ export function SmartLoginInput({
               value={value}
               onChange={e => onChange(e.target.value)}
               placeholder="you@example.com or +919876543210"
-              className={`pl-9 ${error ? 'border-red-400' : ''}`}
+              className={cn(
+                comfortable
+                  ? 'h-[calc(2.75rem*0.95)] min-h-[calc(2.75rem*0.95)] w-full pl-10 text-[0.95rem] rounded-md'
+                  : 'pl-9 rounded-md',
+                error && 'border-red-400',
+              )}
               autoFocus={autoFocus}
             />
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
         </>
       )}
-      <button
-        type="button"
-        className="text-xs text-violet-600 hover:underline flex items-center gap-1 mt-0.5"
-        onClick={handleToggle}
-      >
-        {isPhone ? (
-          <><Mail className="w-3 h-3" /> Use email instead</>
-        ) : (
-          <><Phone className="w-3 h-3" /> Use phone instead</>
-        )}
-      </button>
     </div>
   )
 }

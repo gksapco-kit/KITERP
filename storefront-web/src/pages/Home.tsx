@@ -788,7 +788,7 @@ function StoreLocatorSection({
 function AnnouncementBarSection({ props }: { props: SectionProps }) {
   const [dismissed, setDismissed] = useState(false)
   if (dismissed) return null
-  const color = str(props.announcement_color as string, '#7c3aed')
+  const color = str(props.announcement_color as string, '#64C3A0')
   return (
     <div className="relative text-center py-2.5 px-8 text-sm font-medium text-white" style={{ backgroundColor: color }}>
       {str(props.announcement_text as string, '')}

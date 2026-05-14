@@ -10,7 +10,7 @@ const TYPE_COLOR: Record<FitnessClass["type"], string> = {
   Yoga: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   HIIT: "bg-orange-500/15 text-orange-600 dark:text-orange-400",
   Cycle: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-  Pilates: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400",
+  Pilates: "bg-primary/15 text-primary dark:text-primary/80",
   Strength: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   Boxing: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
 };

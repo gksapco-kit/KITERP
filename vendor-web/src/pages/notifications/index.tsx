@@ -10,6 +10,7 @@ import {
   Package, Info, CreditCard, Star, Settings2, AlertTriangle,
   Search, X, SlidersHorizontal, ArrowUpDown, ChevronDown,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,8 +40,8 @@ const TYPE_META: Record<string, { label: string; icon: React.ElementType; color:
   inventory: { label: 'Inventory', icon: Package,      color: 'bg-orange-100 text-orange-600', activeRing: 'border-orange-400 bg-orange-50 ring-orange-300' },
   payment:   { label: 'Payments',  icon: CreditCard,   color: 'bg-green-100 text-green-600',  activeRing: 'border-green-500 bg-green-50 ring-green-400' },
   review:    { label: 'Reviews',   icon: Star,         color: 'bg-yellow-100 text-yellow-600', activeRing: 'border-yellow-500 bg-yellow-50 ring-yellow-400' },
-  system:    { label: 'System',    icon: AlertTriangle,color: 'bg-purple-100 text-purple-600', activeRing: 'border-purple-500 bg-purple-50 ring-purple-400' },
-  info:      { label: 'Info',      icon: Info,         color: 'bg-gray-100 text-gray-500',    activeRing: 'border-gray-400 bg-gray-50 ring-gray-300' },
+  system:    { label: 'System',    icon: AlertTriangle,color: 'bg-primary/12 text-primary', activeRing: 'border-primary bg-accent ring-ring' },
+  info:      { label: 'Info',      icon: Info,         color: 'bg-muted text-muted-foreground',    activeRing: 'border-muted-foreground/40 bg-muted ring-ring' },
 }
 
 const ALL_TYPES = Object.keys(TYPE_META)
@@ -53,7 +54,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ]
 
 function getTypeMeta(type: string) {
-  return TYPE_META[type] ?? { label: type, icon: Info, color: 'bg-gray-100 text-gray-500', activeRing: 'border-gray-400 bg-gray-50 ring-gray-300' }
+  return TYPE_META[type] ?? { label: type, icon: Info, color: 'bg-muted text-muted-foreground', activeRing: 'border-border bg-muted ring-ring' }
 }
 
 function timeAgo(iso?: string) {
@@ -81,26 +82,27 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (v: SortK
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground transition-colors hover:border-input hover:bg-accent/60 dark:hover:bg-secondary/50"
       >
-        <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
+        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-xs font-medium">{label}</span>
-        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={cn('h-3 w-3 text-muted-foreground transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[150px]">
+          <div className="absolute right-0 top-full z-20 mt-1 min-w-[150px] overflow-hidden rounded-xl border border-border bg-popover py-1 text-popover-foreground shadow-lg">
             {SORT_OPTIONS.map(o => (
               <button
                 key={o.value}
                 type="button"
                 onClick={() => { onChange(o.value); setOpen(false) }}
-                className={`w-full text-left px-3 py-2 text-xs rounded-md mx-1 transition-all duration-100 ${
+                className={cn(
+                  'mx-1 w-full rounded-md px-3 py-2 text-left text-xs transition-all duration-100',
                   value === o.value
-                    ? 'font-semibold text-blue-600 bg-blue-50'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+                    ? 'bg-primary/15 font-semibold text-primary'
+                    : 'text-foreground hover:bg-accent',
+                )}
               >
                 {o.label}
               </button>
@@ -200,16 +202,16 @@ export default function NotificationsPage() {
     <div className="space-y-4">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {unreadCount > 0
               ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
               : 'All caught up!'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
           {unreadCount > 0 && (
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending}>
               {markAllRead.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
@@ -225,7 +227,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* ── Type stat cards — always show ALL types ───────────────────── */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {ALL_TYPES.map(t => {
           const meta = getTypeMeta(t)
           const Icon = meta.icon
@@ -234,20 +236,27 @@ export default function NotificationsPage() {
           return (
             <button
               key={t}
+              type="button"
               onClick={() => setActiveType(isActive ? null : t)}
-              className={`rounded-xl border p-3 text-left transition-all ${
+              className={cn(
+                'flex min-h-[5.5rem] flex-col rounded-xl border p-3 text-left transition-all',
                 isActive
-                  ? `ring-1 ${meta.activeRing}`
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-              }`}
+                  ? cn('ring-1', meta.activeRing)
+                  : 'border-border bg-card hover:border-primary/30 hover:bg-accent/40 dark:hover:bg-secondary/40',
+              )}
             >
-              <div className={`inline-flex p-1.5 rounded-lg mb-2 ${meta.color}`}>
-                <Icon className="w-3.5 h-3.5" />
+              <div className={cn('mb-2 inline-flex rounded-lg p-1.5', meta.color)}>
+                <Icon className="h-3.5 w-3.5" />
               </div>
-              <div className="flex items-end justify-between gap-1">
+              <div className="mt-auto flex items-end justify-between gap-1">
                 <div>
-                  <p className="text-[11px] font-medium text-gray-500 leading-tight">{meta.label}</p>
-                  <p className={`text-xl font-bold leading-tight ${byType.total > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+                  <p className="text-[11px] font-medium leading-tight text-muted-foreground">{meta.label}</p>
+                  <p
+                    className={cn(
+                      'text-xl font-bold leading-tight',
+                      byType.total > 0 ? 'text-foreground' : 'text-muted-foreground/50',
+                    )}
+                  >
                     {byType.total}
                   </p>
                 </div>
@@ -265,39 +274,40 @@ export default function NotificationsPage() {
       {/* ── Search + Sort + Filter bar ───────────────────────────────────── */}
       <div className="space-y-2">
         {/* Search row */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-0 flex-1 basis-[min(100%,12rem)]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search notifications…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white placeholder:text-gray-400"
+              className="w-full rounded-xl border border-input bg-background py-2 pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
           <button
             type="button"
             onClick={() => setShowFilters(v => !v)}
-            className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-150 select-none ${
+            className={cn(
+              'relative flex select-none items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-150',
               showFilters || activeFiltersCount > 0
-                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800'
-            }`}
+                ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-accent/50 hover:text-foreground',
+            )}
           >
-            <SlidersHorizontal className="w-4 h-4" />
+            <SlidersHorizontal className="h-4 w-4" />
             Filter
             {activeFiltersCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                 {activeFiltersCount}
               </span>
             )}
@@ -307,9 +317,9 @@ export default function NotificationsPage() {
 
         {/* Filter panel — Status only (type is filtered via the stat cards above) */}
         {showFilters && (
-          <div className="border border-gray-200 rounded-xl bg-white p-3 space-y-3">
+          <div className="space-y-3 rounded-xl border border-border bg-card p-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Status</p>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</p>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -365,25 +375,25 @@ export default function NotificationsPage() {
 
       {/* ── Results count ─────────────────────────────────────────────────── */}
       {!isLoading && (
-        <div className="flex items-center justify-between text-xs text-gray-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{notifications.length} notification{notifications.length !== 1 ? 's' : ''}{search ? ` matching "${search}"` : ''}</span>
-          {sort !== 'newest' && <span className="text-gray-400">Sorted: {SORT_OPTIONS.find(o => o.value === sort)?.label}</span>}
+          {sort !== 'newest' && <span className="text-muted-foreground">Sorted: {SORT_OPTIONS.find(o => o.value === sort)?.label}</span>}
         </div>
       )}
 
       {/* ── List ─────────────────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : notifications.length === 0 ? (
         <div className="text-center py-16">
-          <Bell className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">
+          <Bell className="mx-auto mb-3 h-12 w-12 text-muted-foreground/30" />
+          <p className="font-medium text-muted-foreground">
             {search ? `No notifications matching "${search}"` : unreadOnly ? 'No unread notifications.' : 'No notifications yet.'}
           </p>
           {(search || activeType || unreadOnly) && (
-            <button type="button" onClick={clearAll} className="mt-2 text-sm text-blue-600 hover:underline">Clear filters</button>
+            <button type="button" onClick={clearAll} className="mt-2 text-sm text-primary hover:underline">Clear filters</button>
           )}
         </div>
       ) : (
@@ -392,26 +402,32 @@ export default function NotificationsPage() {
             const meta = getTypeMeta(n.type)
             const Icon = meta.icon
             return (
-              <Card key={n.id} className={`transition-all duration-150 ${!n.is_read ? 'border-blue-200 bg-blue-50/30 shadow-sm' : 'border-gray-100 bg-white'}`}>
+              <Card key={n.id} className={cn(
+                'transition-all duration-150',
+                !n.is_read
+                  ? 'border-primary/30 bg-primary/5 shadow-sm dark:bg-primary/10'
+                  : 'border-border bg-card',
+              )}
+              >
                 <CardContent className="p-4 flex items-start gap-4">
-                  <div className={`mt-0.5 p-2 rounded-full shrink-0 ${!n.is_read ? meta.color : 'bg-gray-100 text-gray-400'}`}>
-                    <Icon className="w-4 h-4" />
+                  <div className={cn('mt-0.5 shrink-0 rounded-full p-2', !n.is_read ? meta.color : 'bg-muted text-muted-foreground')}>
+                    <Icon className="h-4 w-4" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className={`text-sm font-medium ${!n.is_read ? 'text-gray-900' : 'text-gray-600'}`}>{n.title}</p>
-                      {!n.is_read && <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+                      <p className={cn('text-sm font-medium', !n.is_read ? 'text-foreground' : 'text-muted-foreground')}>{n.title}</p>
+                      {!n.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">{n.message}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-gray-400">{timeAgo(n.created_at)}</span>
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-gray-200 text-gray-500">{meta.label}</Badge>
+                    <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{timeAgo(n.created_at)}</span>
+                      <Badge variant="outline" className="border-border px-1.5 py-0 text-xs text-muted-foreground">{meta.label}</Badge>
                     </div>
                   </div>
                   {!n.is_read && (
-                    <Button variant="ghost" size="sm" className="text-blue-600 text-xs shrink-0"
+                    <Button variant="ghost" size="sm" className="shrink-0 text-xs text-primary"
                       onClick={() => markRead.mutate(n.id)} disabled={markRead.isPending}>
-                      <Check className="w-3.5 h-3.5 mr-1" /> Mark read
+                      <Check className="mr-1 h-3.5 w-3.5" /> Mark read
                     </Button>
                   )}
                 </CardContent>

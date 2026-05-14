@@ -71,7 +71,7 @@ function formatDisplayDate(d: string): string {
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
   pending:     { label: 'Pending',     dot: 'bg-amber-400',  badge: 'bg-amber-100 text-amber-700' },
   confirmed:   { label: 'Confirmed',   dot: 'bg-blue-400',   badge: 'bg-blue-100 text-blue-700' },
-  in_progress: { label: 'In Progress', dot: 'bg-purple-400', badge: 'bg-purple-100 text-purple-700' },
+  in_progress: { label: 'In Progress', dot: 'bg-primary/70', badge: 'bg-primary/12 text-primary' },
   completed:   { label: 'Completed',   dot: 'bg-green-400',  badge: 'bg-green-100 text-green-700' },
   cancelled:   { label: 'Cancelled',   dot: 'bg-gray-300',   badge: 'bg-gray-100 text-gray-500' },
   no_show:     { label: 'No-Show',     dot: 'bg-gray-300',   badge: 'bg-gray-100 text-gray-500' },
@@ -80,7 +80,7 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string 
 function CustomerInitial({ name }: { name?: string }) {
   const initials = (name || 'G').trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   return (
-    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-violet-600 flex items-center justify-center shrink-0">
+    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center shrink-0">
       <span className="text-[10px] font-bold text-white">{initials}</span>
     </div>
   )
@@ -116,7 +116,7 @@ export function POSBookingPanel({
     queryFn: () => vendorApi.listTeamMembers({ size: 100 }),
     staleTime: 5 * 60_000,
   })
-  const teamMembers = (teamData?.items || []) as Record<string, unknown>[]
+  const teamMembers = ((teamData?.items || []) as unknown) as Record<string, unknown>[]
 
   // Resizable two-column layout — persisted
   const { widths: panelWidths, startResize: startPanelResize, resetWidths: resetPanelWidths } = usePanelResize(
@@ -245,14 +245,14 @@ export function POSBookingPanel({
       >
 
         {/* ── Header ── */}
-        <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-4 flex items-start justify-between">
+        <div className="bg-gradient-to-r from-primary to-emerald-700 px-6 py-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
               <CalendarCheck2 className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white leading-tight">Book Appointment Slot</h2>
-              <p className="text-violet-200 text-xs mt-0.5 truncate max-w-xs">{serviceName}</p>
+              <p className="text-primary-foreground/85 text-xs mt-0.5 truncate max-w-xs">{serviceName}</p>
             </div>
           </div>
           <button
@@ -264,21 +264,21 @@ export function POSBookingPanel({
         </div>
 
         {/* ── Service info strip ── */}
-        <div className="grid grid-cols-2 divide-x border-b bg-violet-50">
+        <div className="grid grid-cols-2 divide-x border-b bg-accent">
           <div className="flex items-center gap-2.5 px-5 py-3">
-            <Hourglass className="w-4 h-4 text-violet-400 shrink-0" />
+            <Hourglass className="w-4 h-4 text-primary/70 shrink-0" />
             <div>
-              <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">Standard Slot</p>
-              <p className="text-sm font-bold text-violet-800 mt-0.5">
+              <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wide">Standard Slot</p>
+              <p className="text-sm font-bold text-primary mt-0.5">
                 {maxDuration > 0 ? formatDuration(maxDuration) : <span className="font-normal text-gray-400">Not set</span>}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 px-5 py-3">
-            <div className="w-4 h-4 text-violet-400 shrink-0 font-bold text-sm flex items-center justify-center">₹</div>
+            <div className="w-4 h-4 text-primary/70 shrink-0 font-bold text-sm flex items-center justify-center">₹</div>
             <div>
-              <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">Base Price</p>
-              <p className="text-sm font-bold text-violet-800 mt-0.5">{formatCurrency(servicePrice)}</p>
+              <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wide">Base Price</p>
+              <p className="text-sm font-bold text-primary mt-0.5">{formatCurrency(servicePrice)}</p>
             </div>
           </div>
         </div>
@@ -294,8 +294,8 @@ export function POSBookingPanel({
 
               {/* Customer chip (read-only from POS) */}
               {customer && (
-                <div className="flex items-center gap-2 p-2.5 bg-violet-50 border border-violet-200 rounded-xl">
-                  <div className="w-7 h-7 rounded-full bg-violet-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                <div className="flex items-center gap-2 p-2.5 bg-accent border border-primary/30 rounded-xl">
+                  <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
                     {customer.full_name[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -303,8 +303,8 @@ export function POSBookingPanel({
                     <p className="text-[10px] text-gray-500 truncate">{customer.phone || customer.email}</p>
                   </div>
                   <a href={`/customers/${customer.id}`} target="_blank" rel="noopener noreferrer"
-                    className="p-1 rounded hover:bg-violet-100 shrink-0" title="Open customer profile">
-                    <ExternalLink className="w-3 h-3 text-violet-400" />
+                    className="p-1 rounded hover:bg-primary/15 shrink-0" title="Open customer profile">
+                    <ExternalLink className="w-3 h-3 text-primary/70" />
                   </a>
                 </div>
               )}
@@ -313,13 +313,13 @@ export function POSBookingPanel({
               {teamMembers.length > 0 && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-violet-400" /> Who Serves
+                    <Users className="w-3.5 h-3.5 text-primary/70" /> Who Serves
                   </label>
                   <select
                     value={selectedStaff}
                     onChange={e => setSelectedStaff(e.target.value)}
                     className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm text-gray-800 bg-gray-50
-                      focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent hover:border-gray-300 transition-colors"
+                      focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:border-gray-300 transition-colors"
                   >
                     <option value="">Any available staff</option>
                     {teamMembers.map((m: any) => (
@@ -332,7 +332,7 @@ export function POSBookingPanel({
               {/* Date */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1.5">
-                  <CalendarDays className="w-3.5 h-3.5 text-violet-400" /> Booking Date
+                  <CalendarDays className="w-3.5 h-3.5 text-primary/70" /> Booking Date
                 </label>
                 <input
                   type="date"
@@ -340,7 +340,7 @@ export function POSBookingPanel({
                   min={today}
                   onChange={e => setDate(e.target.value)}
                   className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm text-gray-800
-                    focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent
+                    focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                     hover:border-gray-300 transition-colors bg-gray-50"
                 />
                 {date && (
@@ -354,27 +354,27 @@ export function POSBookingPanel({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-violet-400" /> Start Time
+                    <Clock className="w-3.5 h-3.5 text-primary/70" /> Start Time
                   </label>
                   <input
                     type="time"
                     value={fromTime}
                     onChange={e => handleFromChange(e.target.value)}
                     className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm text-gray-800
-                      focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent
+                      focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                       hover:border-gray-300 transition-colors bg-gray-50"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-violet-400" /> End Time
+                    <Clock className="w-3.5 h-3.5 text-primary/70" /> End Time
                   </label>
                   <input
                     type="time"
                     value={toTime}
                     onChange={e => setToTime(e.target.value)}
                     className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm text-gray-800
-                      focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent
+                      focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                       hover:border-gray-300 transition-colors bg-gray-50"
                   />
                 </div>
@@ -385,7 +385,7 @@ export function POSBookingPanel({
                 <button
                   type="button"
                   onClick={applyStandardDuration}
-                  className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary font-medium transition-colors"
                 >
                   <Zap className="w-3.5 h-3.5" />
                   Auto-fill standard duration ({formatDuration(maxDuration)})
@@ -479,7 +479,7 @@ export function POSBookingPanel({
                       className={`absolute top-1 bottom-1 rounded-lg border-2 ${
                         hasConflict
                           ? 'bg-red-400/30 border-red-500'
-                          : 'bg-violet-400/30 border-violet-500'
+                          : 'bg-primary/50/30 border-primary'
                       }`}
                       style={{ left: `${selectedFromPct}%`, width: `${Math.max(1.5, selectedToPct - selectedFromPct)}%` }}
                     />
@@ -517,7 +517,7 @@ export function POSBookingPanel({
                   </div>
                   {selectedDuration > 0 && (
                     <div className="flex items-center gap-1.5">
-                      <div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-violet-400/30 border-violet-500'}`} />
+                      <div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/30 border-primary'}`} />
                       <span className="text-[10px] text-gray-500">Your slot</span>
                     </div>
                   )}
@@ -579,14 +579,14 @@ export function POSBookingPanel({
             Cancel
           </Button>
           <button type="button" onClick={resetPanelWidths}
-            className="text-[10px] text-gray-400 hover:text-violet-600 font-medium transition-colors">
+            className="text-[10px] text-gray-400 hover:text-primary font-medium transition-colors">
             ⊟ Reset layout
           </button>
           {onOpenFullBooking && (
             <Button
               type="button"
               variant="outline"
-              className="h-10 px-4 text-xs font-semibold border-violet-200 text-violet-700 hover:bg-violet-50 gap-1.5"
+              className="h-10 px-4 text-xs font-semibold border-primary/30 text-primary hover:bg-accent gap-1.5"
               onClick={handleOpenFullBooking}
             >
               <ExternalLink className="w-3.5 h-3.5" />
@@ -606,7 +606,7 @@ export function POSBookingPanel({
                 ? 'bg-rose-600 hover:bg-rose-700'
                 : exceedsMax
                 ? 'bg-amber-500 hover:bg-amber-600'
-                : 'bg-violet-600 hover:bg-violet-700'
+                : 'bg-primary hover:bg-primary/90'
             }`}
             disabled={!canConfirm}
             onClick={handleApply}

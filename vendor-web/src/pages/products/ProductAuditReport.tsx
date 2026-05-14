@@ -95,7 +95,7 @@ function buildHtmlTable(rows: AuditRow[], product: any): string {
   const htmlPalette = [
     { bg: '#ecfdf5', border: '#10b981', badge: '#059669' },
     { bg: '#eff6ff', border: '#3b82f6', badge: '#2563eb' },
-    { bg: '#faf5ff', border: '#a855f7', badge: '#9333ea' },
+    { bg: '#f0fdf9', border: '#64C3A0', badge: '#13624A' },
     { bg: '#fffbeb', border: '#f59e0b', badge: '#d97706' },
     { bg: '#fff1f2', border: '#f43f5e', badge: '#e11d48' },
     { bg: '#ecfeff', border: '#06b6d4', badge: '#0891b2' },
@@ -310,7 +310,7 @@ export default function ProductAuditReport() {
     const palette = [
       { bg: 'bg-emerald-50', border: 'border-l-emerald-500', badge: 'bg-emerald-600' },
       { bg: 'bg-blue-50', border: 'border-l-blue-500', badge: 'bg-blue-600' },
-      { bg: 'bg-purple-50', border: 'border-l-purple-500', badge: 'bg-purple-600' },
+      { bg: 'bg-accent', border: 'border-l-primary', badge: 'bg-primary' },
       { bg: 'bg-amber-50', border: 'border-l-amber-500', badge: 'bg-amber-600' },
       { bg: 'bg-rose-50', border: 'border-l-rose-500', badge: 'bg-rose-600' },
       { bg: 'bg-cyan-50', border: 'border-l-cyan-500', badge: 'bg-cyan-600' },
@@ -319,7 +319,7 @@ export default function ProductAuditReport() {
       { bg: 'bg-teal-50', border: 'border-l-teal-500', badge: 'bg-teal-600' },
       { bg: 'bg-pink-50', border: 'border-l-pink-500', badge: 'bg-pink-600' },
       { bg: 'bg-lime-50', border: 'border-l-lime-500', badge: 'bg-lime-600' },
-      { bg: 'bg-fuchsia-50', border: 'border-l-fuchsia-500', badge: 'bg-fuchsia-600' },
+      { bg: 'bg-accent', border: 'border-l-primary', badge: 'bg-primary' },
     ]
     const versions = [...new Set(allRows.map(r => r.version))]
     const map: Record<string, typeof palette[0]> = {}
@@ -437,7 +437,7 @@ export default function ProductAuditReport() {
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   onClick={() => { shareReport(product, filteredRows, 'native'); setShowShareMenu(false) }}
                 >
-                  <Share2 className="w-4 h-4 text-purple-500" /> Share
+                  <Share2 className="w-4 h-4 text-primary/80" /> Share
                 </button>
               </div>
             )}

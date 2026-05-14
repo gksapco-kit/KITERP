@@ -32,7 +32,7 @@ const statusBadge: Record<string, { bg: string; text: string }> = {
 }
 
 const typeBadge: Record<string, { bg: string; text: string; label: string }> = {
-  estimate: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Estimate' },
+  estimate: { bg: 'bg-accent', text: 'text-primary', label: 'Estimate' },
   invoice: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Invoice' },
   receipt: { bg: 'bg-green-50', text: 'text-green-700', label: 'Receipt' },
   credit_note: { bg: 'bg-red-50', text: 'text-red-700', label: 'Credit Note' },
@@ -100,7 +100,7 @@ function ShareMenu({ invoice, onClose }: {
     {
       label: 'SMS',
       icon: Smartphone,
-      color: 'text-purple-600 hover:bg-purple-50',
+      color: 'text-primary hover:bg-accent',
       onClick: () => {
         window.open(`sms:${cleanPhone}?body=${encodeURIComponent(msg)}`, '_self')
         onClose()
@@ -440,7 +440,7 @@ function ItemSearchRow({
                       onMouseDown={e => { e.preventDefault(); apply(c) }}
                       className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors flex items-center gap-3"
                     >
-                      <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${c.kind === 'product' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                      <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${c.kind === 'product' ? 'bg-blue-100 text-blue-700' : 'bg-primary/12 text-primary'}`}>
                         {c.kind === 'product' ? '📦' : '⚙️'}
                       </span>
                       <div className="flex-1 min-w-0">

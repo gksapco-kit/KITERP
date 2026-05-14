@@ -29,7 +29,7 @@ export default function CashFlow() {
     ? [
         { title: 'Operating Activities', ...data.operating, color: 'bg-green-50 text-green-800', netColor: 'text-green-700' },
         { title: 'Investing Activities', ...data.investing, color: 'bg-blue-50 text-blue-800', netColor: 'text-blue-700' },
-        { title: 'Financing Activities', ...data.financing, color: 'bg-purple-50 text-purple-800', netColor: 'text-purple-700' },
+        { title: 'Financing Activities', ...data.financing, color: 'bg-accent text-primary', netColor: 'text-primary' },
       ]
     : []
 

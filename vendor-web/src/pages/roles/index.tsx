@@ -147,14 +147,14 @@ export default function RolesPage() {
           const isExpanded = expandedBuiltIn === dr.name
           const permCount = dr.permissions.length
           const roleColors: Record<string, string> = {
-            owner: 'border-purple-200 bg-purple-50',
+            owner: 'border-primary/30 bg-accent',
             admin: 'border-blue-200 bg-blue-50',
             manager: 'border-green-200 bg-green-50',
             sales: 'border-orange-200 bg-orange-50',
             staff: 'border-gray-200 bg-gray-50',
           }
           const headerColors: Record<string, string> = {
-            owner: 'text-purple-700', admin: 'text-blue-700',
+            owner: 'text-primary', admin: 'text-blue-700',
             manager: 'text-green-700', sales: 'text-orange-700', staff: 'text-gray-700',
           }
           return (

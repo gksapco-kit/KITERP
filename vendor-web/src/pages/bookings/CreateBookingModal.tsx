@@ -214,14 +214,14 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-gradient-to-r from-primary to-emerald-700 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
               <CalendarCheck2 className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white">Create Booking</h2>
-              <p className="text-violet-200 text-xs mt-0.5">Fill in the details below to confirm the appointment</p>
+              <p className="text-primary-foreground/85 text-xs mt-0.5">Fill in the details below to confirm the appointment</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors">
@@ -233,14 +233,14 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
         <div className="flex-1 overflow-hidden flex min-h-0">
           {/* ── COL 1: Who & What ──────────────────────────────────────────── */}
           <div className="w-64 shrink-0 border-r overflow-y-auto px-4 py-5 space-y-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500">Who &amp; What</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Who &amp; What</p>
 
             {/* Customer */}
             <div>
               <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Customer *</label>
               {selectedCustomer ? (
-                <div className="flex items-center gap-2 p-2 bg-violet-50 border border-violet-200 rounded-xl">
-                  <div className="w-7 h-7 rounded-full bg-violet-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                <div className="flex items-center gap-2 p-2 bg-accent border border-primary/30 rounded-xl">
+                  <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
                     {selectedCustomer.full_name[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -249,12 +249,12 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <a href={`/customers/${selectedCustomer.id}`} target="_blank" rel="noopener noreferrer"
-                      className="p-1 rounded hover:bg-violet-100" title="Open" onClick={e => e.stopPropagation()}>
-                      <ExternalLink className="w-3 h-3 text-violet-400" />
+                      className="p-1 rounded hover:bg-primary/15" title="Open" onClick={e => e.stopPropagation()}>
+                      <ExternalLink className="w-3 h-3 text-primary/70" />
                     </a>
                     <button onClick={() => { setSelectedCustomer(null); setCustSearch('') }}
-                      className="p-1 rounded hover:bg-violet-100" title="Remove">
-                      <X className="w-3 h-3 text-violet-400" />
+                      className="p-1 rounded hover:bg-primary/15" title="Remove">
+                      <X className="w-3 h-3 text-primary/70" />
                     </button>
                   </div>
                 </div>
@@ -267,16 +267,16 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
                     onChange={e => setCustSearch(e.target.value)}
                     onFocus={() => custResults.length && setShowCustDropdown(true)}
                     autoComplete="off"
-                    className="w-full h-9 pl-8 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    className="w-full h-9 pl-8 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   {showCustDropdown && custResults.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border rounded-xl shadow-xl max-h-48 overflow-y-auto">
                       {custResults.map(c => (
                         <button key={c.id}
-                          className="w-full text-left px-3 py-2 hover:bg-violet-50 flex items-center gap-2 border-b border-gray-50 last:border-0"
+                          className="w-full text-left px-3 py-2 hover:bg-accent flex items-center gap-2 border-b border-gray-50 last:border-0"
                           onClick={() => { setSelectedCustomer(c); setShowCustDropdown(false); setCustSearch('') }}>
-                          <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-                            <span className="text-[10px] font-bold text-violet-700">{c.full_name[0].toUpperCase()}</span>
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-[10px] font-bold text-primary">{c.full_name[0].toUpperCase()}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold truncate">{c.full_name}</p>
@@ -294,7 +294,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
             <div>
               <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Service *</label>
               <select
-                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                 value={selectedService}
                 onChange={e => handleServiceChange(e.target.value)}
               >
@@ -306,7 +306,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
                 ))}
               </select>
               {selectedSvc && svcDuration > 0 && (
-                <p className="text-[10px] text-violet-600 flex items-center gap-1 mt-1">
+                <p className="text-[10px] text-primary flex items-center gap-1 mt-1">
                   <Hourglass className="w-2.5 h-2.5" /> {fmtDur(svcDuration)}
                   {(selectedSvc.price as number) > 0 && <span className="ml-auto text-gray-500">{formatCurrency(selectedSvc.price as number)}</span>}
                 </p>
@@ -317,10 +317,10 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
             {teamMembers.length > 0 && (
               <div>
                 <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
-                  <Users className="w-3 h-3 text-violet-400" /> Who Serves
+                  <Users className="w-3 h-3 text-primary/70" /> Who Serves
                 </label>
                 <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
-                  className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                  className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="">Any available</option>
                   {teamMembers.map((m: any) => (
                     <option key={m.id} value={m.id}>{m.full_name || m.name}</option>
@@ -333,10 +333,10 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
             {stores.length > 1 && (
               <div>
                 <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
-                  <Building2 className="w-3 h-3 text-violet-400" /> Location
+                  <Building2 className="w-3 h-3 text-primary/70" /> Location
                 </label>
                 <select value={selectedStore} onChange={e => setSelectedStore(e.target.value)}
-                  className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                  className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="">All locations</option>
                   {stores.map((st: any) => (
                     <option key={st.id} value={st.id}>{st.name}</option>
@@ -349,7 +349,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
             <div>
               <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Payment</label>
               <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
-                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                 <option value="cod">Cash on Delivery</option>
                 <option value="cash">Cash</option>
                 <option value="upi">UPI</option>
@@ -362,7 +362,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
             <div>
               <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Notes</label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                 rows={3}
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
@@ -373,16 +373,16 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
 
           {/* ── COL 2: When ────────────────────────────────────────────────── */}
           <div className="w-56 shrink-0 border-r overflow-y-auto px-4 py-5 space-y-4 bg-gray-50/40">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500">When</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">When</p>
 
             {/* Date */}
             <div>
               <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
-                <CalendarDays className="w-3 h-3 text-violet-400" /> Date *
+                <CalendarDays className="w-3 h-3 text-primary/70" /> Date *
               </label>
               <input type="date" value={bookingDate} min={today}
                 onChange={e => setBookingDate(e.target.value)}
-                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring" />
               {bookingDate && (
                 <p className="text-[10px] text-gray-400 mt-1">
                   {new Date(bookingDate + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short' })}
@@ -393,23 +393,23 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
             {/* Start + End time */}
             <div>
               <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
-                <Clock className="w-3 h-3 text-violet-400" /> Time Slot
+                <Clock className="w-3 h-3 text-primary/70" /> Time Slot
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-[10px] text-gray-400 mb-0.5">Start</p>
                   <input type="time" value={startTime} onChange={e => handleStartChange(e.target.value)}
-                    className="w-full h-9 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                    className="w-full h-9 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 mb-0.5">End</p>
                   <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-                    className="w-full h-9 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                    className="w-full h-9 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
               {svcDuration > 0 && startTime && (
                 <button type="button" onClick={() => setEndTime(minsT(Math.min(tMins(startTime) + svcDuration, 23*60+59)))}
-                  className="mt-1.5 flex items-center gap-1 text-[10px] text-violet-600 hover:text-violet-800 font-medium">
+                  className="mt-1.5 flex items-center gap-1 text-[10px] text-primary hover:text-primary font-medium">
                   <Zap className="w-3 h-3" /> Auto-fill ({fmtDur(svcDuration)})
                 </button>
               )}
@@ -452,7 +452,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
           {/* ── COL 3: Availability ─────────────────────────────────────────── */}
           <div className="flex-1 min-w-0 overflow-y-auto px-4 py-5 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500">Availability</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Availability</p>
               {dateSlotsLoading
                 ? <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
                 : bookingDate && (
@@ -472,7 +472,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
                       style={{ left: `${((h*60-SLOT_START)/SLOT_SPAN)*100}%` }} />
                   ))}
                   {selFromPct !== null && selToPct !== null && selectedDuration > 0 && (
-                    <div className={`absolute top-1 bottom-1 rounded-lg border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-violet-400/30 border-violet-500'}`}
+                    <div className={`absolute top-1 bottom-1 rounded-lg border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/30 border-primary'}`}
                       style={{ left: `${selFromPct}%`, width: `${Math.max(1.5, selToPct-selFromPct)}%` }} />
                   )}
                   {activeSlots.map((slot: any) => {
@@ -493,7 +493,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
                 </div>
                 <div className="flex items-center gap-4 mt-2">
                   <div className="flex items-center gap-1.5"><div className="w-3 h-2.5 rounded bg-rose-500 opacity-75"/><span className="text-[10px] text-gray-500">Booked</span></div>
-                  {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-violet-400/30 border-violet-500'}`}/><span className="text-[10px] text-gray-500">Your slot</span></div>}
+                  {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/30 border-primary'}`}/><span className="text-[10px] text-gray-500">Your slot</span></div>}
                 </div>
               </div>
             )}
@@ -516,12 +516,12 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
                 </div>
               )}
               {!dateSlotsLoading && activeSlots.map((slot: any) => {
-                const dot: Record<string, string> = { pending: 'bg-amber-400', confirmed: 'bg-blue-400', in_progress: 'bg-purple-400', completed: 'bg-green-400' }
-                const badge: Record<string, string> = { pending: 'bg-amber-100 text-amber-700', confirmed: 'bg-blue-100 text-blue-700', in_progress: 'bg-purple-100 text-purple-700', completed: 'bg-green-100 text-green-700' }
+                const dot: Record<string, string> = { pending: 'bg-amber-400', confirmed: 'bg-blue-400', in_progress: 'bg-primary/70', completed: 'bg-green-400' }
+                const badge: Record<string, string> = { pending: 'bg-amber-100 text-amber-700', confirmed: 'bg-blue-100 text-blue-700', in_progress: 'bg-primary/12 text-primary', completed: 'bg-green-100 text-green-700' }
                 const label: Record<string, string> = { pending: 'Pending', confirmed: 'Confirmed', in_progress: 'In Progress', completed: 'Completed' }
                 return (
                   <div key={slot.id} className="flex items-center gap-2.5 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-violet-600 flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center shrink-0">
                       <span className="text-[10px] font-bold text-white">
                         {(slot.customer_name || 'G').trim().split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase()}
                       </span>
@@ -552,7 +552,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
           {/* Summary pills */}
           <div className="hidden sm:flex items-center gap-2 flex-wrap">
             {selectedCustomer && (
-              <span className="text-[10px] bg-violet-100 text-violet-700 px-2.5 py-1 rounded-full font-semibold">
+              <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-full font-semibold">
                 {selectedCustomer.full_name}
               </span>
             )}
@@ -569,7 +569,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
             )}
           </div>
           <Button
-            className="h-10 px-6 bg-violet-600 hover:bg-violet-700 font-semibold gap-2 min-w-[160px]"
+            className="h-10 px-6 bg-primary hover:bg-primary/90 font-semibold gap-2 min-w-[160px]"
             disabled={!selectedCustomer || !selectedService || !bookingDate || creating}
             onClick={handleCreate}
           >

@@ -61,8 +61,8 @@ export default function SettingsPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className={`w-2 h-2 rounded-full ${vendor?.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'}`} />
           {vendor?.status}
         </div>
@@ -102,28 +102,28 @@ export default function SettingsPage() {
         const activeDesc = selectedStore?.description || vendor?.business_type || ''
 
         return (
-          <Card className={cn(selectedStore && 'ring-2 ring-violet-400 ring-offset-1')}>
+          <Card className={cn(selectedStore && 'ring-2 ring-ring ring-offset-1')}>
             {/* Header row: icon + name/link + logged-in + manage button */}
             <CardContent className="py-4 pb-0">
               <div className="flex items-start gap-4">
                 {/* Icon */}
                 <div className={cn(
-                  'w-14 h-14 rounded-xl flex items-center justify-center shrink-0',
-                  selectedStore ? 'bg-violet-50' : 'bg-blue-50'
+                  'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl',
+                  selectedStore ? 'bg-accent' : 'bg-primary/15 dark:bg-secondary/80',
                 )}>
                   {vendor?.logo_url && !selectedStore ? (
-                    <img src={mediaUrl(vendor.logo_url)} alt="" className="w-14 h-14 rounded-xl object-cover" />
+                    <img src={mediaUrl(vendor.logo_url)} alt="" className="h-14 w-14 rounded-xl object-cover" />
                   ) : selectedStore ? (
-                    <Store className="w-7 h-7 text-violet-600" />
+                    <Store className="h-7 w-7 text-primary" />
                   ) : (
-                    <Building2 className="w-7 h-7 text-blue-600" />
+                    <Building2 className="h-7 w-7 text-primary" />
                   )}
                 </div>
 
                 {/* Name + link */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-gray-900 truncate">{activeName}</p>
+                    <p className="truncate font-semibold text-foreground">{activeName}</p>
                     <VerifiedBadge level={vendorVerificationLevel(vendor)} size="xs" />
                     {selectedStore ? (
                       <IdChip
@@ -143,7 +143,7 @@ export default function SettingsPage() {
                       )
                     )}
                   </div>
-                  {activeDesc && <p className="text-xs text-gray-500 truncate mt-0.5">{activeDesc}</p>}
+                  {activeDesc && <p className="mt-0.5 truncate text-xs text-muted-foreground">{activeDesc}</p>}
                   {/* Store / vendor link */}
                   <div className="flex items-center gap-1.5 mt-1">
                     <a
@@ -161,15 +161,15 @@ export default function SettingsPage() {
                         navigator.clipboard.writeText(activeLink)
                         toast.success(selectedStore ? `${selectedStore.name} link copied!` : 'Store link copied!')
                       }}
-                      className="p-1 rounded hover:bg-gray-100 transition-colors shrink-0"
+                      className="shrink-0 rounded p-1 transition-colors hover:bg-accent/80 dark:hover:bg-secondary/50"
                       title="Copy link"
                     >
-                      <Copy className="w-3.5 h-3.5 text-gray-400" />
+                      <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     </button>
                   </div>
                   {/* Secondary: main vendor link when a branch is selected */}
                   {selectedStore && slug && (
-                    <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-border">
                       <span className="text-[10px] text-gray-400 shrink-0">All stores:</span>
                       <a
                         href={storeBase}
@@ -186,14 +186,14 @@ export default function SettingsPage() {
 
                 {/* Right: logged-in + manage */}
                 <div className="text-right shrink-0 space-y-2">
-                  <div className="text-xs text-gray-400">
+                  <div className="space-y-1 text-xs text-muted-foreground">
                     <p>Logged in as</p>
-                    <p className="font-medium text-gray-600">{user?.full_name}</p>
+                    <p className="font-medium text-foreground">{user?.full_name}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => navigate('/stores')}
-                    className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 font-medium transition-colors px-2 py-1 rounded-lg hover:bg-violet-50 ml-auto"
+                    className="flex items-center gap-1 text-xs text-primary hover:text-primary font-medium transition-colors px-2 py-1 rounded-lg hover:bg-accent ml-auto"
                   >
                     <Settings2 className="w-3 h-3" />
                     Company Codes
@@ -204,7 +204,7 @@ export default function SettingsPage() {
             </CardContent>
 
             {/* Divider */}
-            <div className="mx-4 mt-3 border-t border-gray-100" />
+            <div className="mx-4 mt-3 border-t border-border" />
 
             {/* Store selector dropdown trigger */}
             <CardContent className="pt-3 pb-4">
@@ -213,62 +213,63 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => setStoreDropOpen(v => !v)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all text-left',
+                    'flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-all',
                     storeDropOpen
-                      ? 'border-violet-400 bg-violet-50/40'
-                      : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/20'
+                      ? 'border-primary/60 bg-accent/70'
+                      : 'border-border hover:border-primary/40 hover:bg-accent/30 dark:hover:bg-secondary/40',
                   )}
                 >
                   <div className={cn(
                     'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
-                    selectedStore ? 'bg-violet-600' : 'bg-gradient-to-br from-violet-500 to-blue-500'
+                    selectedStore ? 'bg-primary' : 'bg-gradient-to-br from-primary to-info'
                   )}>
                     {selectedStore ? <Check className="w-4 h-4 text-white" /> : <Store className="w-4 h-4 text-white" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="truncate text-sm font-semibold text-foreground">
                       {selectedStore?.name || vendor?.display_name || 'All Stores'}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="truncate text-xs text-muted-foreground">
                       {selectedStore
                         ? selectedStore.description || selectedStore.code || 'Active store'
                         : `${stores.length} store${stores.length !== 1 ? 's' : ''} · click to switch`}
                     </p>
                   </div>
                   <ChevronDown className={cn(
-                    'w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200',
-                    storeDropOpen && 'rotate-180'
-                  )} />
+                    'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                    storeDropOpen && 'rotate-180',
+                  )}
+                  />
                 </button>
 
                 {storeDropOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setStoreDropOpen(false)} />
-                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-xl">
                       {/* All stores option */}
                       <button
                         type="button"
                         onClick={() => { setSelectedStore(null); setStoreDropOpen(false) }}
                         className={cn(
-                          'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-violet-50 transition-colors',
-                          !selectedStore && 'bg-violet-50'
+                          'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors',
+                          !selectedStore && 'bg-accent'
                         )}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-info flex items-center justify-center shrink-0">
                           <Building2 className="w-4 h-4 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-800">{vendor?.display_name || 'All Stores'}</p>
-                          <p className="text-[11px] text-gray-400">
+                          <p className="text-sm font-semibold text-foreground">{vendor?.display_name || 'All Stores'}</p>
+                          <p className="text-[11px] text-muted-foreground">
                             {vendor?.slug?.trim()
                               ? `${getCustomerStorefrontBaseUrl(vendor.slug.trim()).replace(/^https?:\/\//, '')} · all branches`
                               : 'Store URL'}
                           </p>
                         </div>
-                        {!selectedStore && <Check className="w-4 h-4 text-violet-600 shrink-0" />}
+                        {!selectedStore && <Check className="w-4 h-4 text-primary shrink-0" />}
                       </button>
 
-                      {stores.length > 0 && <div className="border-t border-gray-100" />}
+                      {stores.length > 0 && <div className="border-t border-border" />}
 
                       {stores.map((s) => {
                         const branchKey = s.code || s.id
@@ -286,24 +287,24 @@ export default function SettingsPage() {
                               toast.success(`Switched to ${s.name}`)
                             }}
                             className={cn(
-                              'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-violet-50 transition-colors',
-                              selectedStore?.id === s.id && 'bg-violet-50'
+                              'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors',
+                              selectedStore?.id === s.id && 'bg-accent'
                             )}
                           >
-                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                              <Store className="w-4 h-4 text-gray-500" />
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                              <Store className="h-4 w-4 text-muted-foreground" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-800 truncate">{s.name}</p>
-                              <p className="text-[11px] text-gray-400 font-mono truncate">{branchLink}</p>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
+                              <p className="truncate font-mono text-[11px] text-muted-foreground">{branchLink}</p>
                             </div>
-                            {selectedStore?.id === s.id && <Check className="w-4 h-4 text-violet-600 shrink-0" />}
+                            {selectedStore?.id === s.id && <Check className="w-4 h-4 text-primary shrink-0" />}
                           </button>
                         )
                       })}
 
                       {stores.length === 0 && (
-                        <p className="px-4 py-4 text-sm text-gray-400 text-center">No branches configured yet</p>
+                        <p className="px-4 py-4 text-center text-sm text-muted-foreground">No branches configured yet</p>
                       )}
                     </div>
                   </>
@@ -324,12 +325,12 @@ export default function SettingsPage() {
         <CardContent className="pt-0 space-y-2">
           <button
             onClick={() => navigate('/invoices/templates')}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-lg border hover:bg-gray-50 transition-colors text-left"
+            className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50"
           >
             <div className="flex items-center gap-3">
               <FileText className="w-5 h-5 text-gray-400" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Invoice Templates</p>
+                <p className="text-sm font-medium text-foreground">Invoice Templates</p>
                 <p className="text-xs text-gray-500">Customise your invoice appearance, logo & colours</p>
               </div>
             </div>
@@ -337,12 +338,12 @@ export default function SettingsPage() {
           </button>
           <button
             onClick={() => navigate('/purchase-orders/templates')}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-lg border hover:bg-gray-50 transition-colors text-left"
+            className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50"
           >
             <div className="flex items-center gap-3">
               <ClipboardList className="w-5 h-5 text-gray-400" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Purchase Order Templates</p>
+                <p className="text-sm font-medium text-foreground">Purchase Order Templates</p>
                 <p className="text-xs text-gray-500">Choose layout, colour & content for your POs</p>
               </div>
             </div>
@@ -424,15 +425,39 @@ function SectionWrapper({ title, icon: Icon, open, toggle, children }: {
   title: string; icon: React.ElementType; open: boolean; toggle: () => void; children: React.ReactNode
 }) {
   return (
-    <Card>
-      <button onClick={toggle} className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors rounded-t-xl">
-        <div className="flex items-center gap-3">
-          <Icon className="w-5 h-5 text-gray-500" />
-          <span className="font-semibold text-gray-900">{title}</span>
+    <Card className="overflow-hidden shadow-sm">
+      <button
+        type="button"
+        onClick={toggle}
+        className={cn(
+          'flex w-full items-center justify-between gap-3 px-4 py-4 text-left sm:px-5 sm:py-[1.125rem]',
+          'transition-colors',
+          'hover:bg-accent/80 dark:hover:bg-secondary/60',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3.5">
+          <span
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+              'bg-primary/12 text-primary ring-1 ring-inset ring-primary/20',
+              'dark:bg-primary/25 dark:ring-primary/40',
+            )}
+            aria-hidden
+          >
+            <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
+          </span>
+          <span className="truncate text-base font-semibold leading-snug tracking-tight text-foreground">{title}</span>
         </div>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground dark:text-foreground/80">
+          {open ? <ChevronUp className="h-5 w-5" aria-hidden /> : <ChevronDown className="h-5 w-5" aria-hidden />}
+        </span>
       </button>
-      {open && <CardContent className="pt-0 pb-6 border-t">{children}</CardContent>}
+      {open && (
+        <CardContent className="border-t border-border bg-muted/25 px-4 pb-6 pt-0 dark:bg-black/20 sm:px-6">
+          {children}
+        </CardContent>
+      )}
     </Card>
   )
 }
@@ -452,22 +477,22 @@ function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
       <div className="space-y-4 pt-2">
         <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gray-100 text-gray-500"><Globe className="w-4 h-4" /></div>
+            <div className="rounded-lg bg-muted p-2 text-muted-foreground"><Globe className="h-4 w-4" /></div>
             <div>
-              <p className="text-sm font-medium text-gray-900">Vendor Admin — KITERP</p>
-              <p className="text-xs text-gray-500">Build {APP_BUILD}</p>
+              <p className="text-sm font-medium text-foreground">Vendor Admin — KITERP</p>
+              <p className="text-xs text-muted-foreground">Build {APP_BUILD}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-mono font-semibold text-gray-800">v{APP_VERSION}</p>
-            <p className="text-[10px] text-gray-400">{LAST_UPDATED}</p>
+            <p className="font-mono text-sm font-semibold text-foreground">v{APP_VERSION}</p>
+            <p className="text-[10px] text-muted-foreground">{LAST_UPDATED}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {SUPPORT_PHONE ? (
             <a
               href={telHref}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-medium hover:bg-violet-700"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90"
             >
               <Phone className="w-3.5 h-3.5" /> Call support
             </a>
@@ -476,7 +501,7 @@ function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
             href={SUPPORT_CHAT_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50"
           >
             Chat with support
           </a>
@@ -622,7 +647,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
         {/* Logo & Banner */}
@@ -765,7 +790,7 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Contact Information" icon={Phone} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -852,7 +877,7 @@ function AddressSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Address & Location" icon={MapPin} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
         <div className="space-y-1.5">
@@ -951,7 +976,7 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Tax & Compliance" icon={FileText} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
         <label className="flex items-center gap-3 cursor-pointer">
@@ -1044,7 +1069,7 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Business Hours" icon={Clock} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-3 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
         {DAYS.map((day) => (
@@ -1132,7 +1157,7 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
   return (
     <SectionWrapper title="Order Acceptance" icon={ShoppingBag} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
         <label className="flex items-center gap-3 cursor-pointer">
@@ -1248,7 +1273,7 @@ function SocialLinksSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Social & Web Links" icon={Globe} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1350,7 +1375,7 @@ function ModulesSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Module Settings" icon={Landmark} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
 
@@ -1452,7 +1477,7 @@ function DisplayFieldsSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Storefront Display" icon={Eye} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-        <div className="flex justify-end border-b border-gray-100 pb-3 -mt-1">
+        <div className="flex justify-end border-b border-border pb-3 -mt-1">
           <SaveButton loading={onSave.isPending} />
         </div>
         <p className="text-sm text-gray-500">
@@ -1470,7 +1495,7 @@ function DisplayFieldsSection({ vendor, open, toggle, onSave }: SectionProps) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {PRODUCT_DISPLAY_FIELDS.map((f) => (
-              <label key={f.key} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+              <label key={f.key} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50">
                 <input
                   type="checkbox"
                   checked={productFields[f.key] ?? true}
@@ -1494,7 +1519,7 @@ function DisplayFieldsSection({ vendor, open, toggle, onSave }: SectionProps) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {SERVICE_DISPLAY_FIELDS.map((f) => (
-              <label key={f.key} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+              <label key={f.key} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50">
                 <input
                   type="checkbox"
                   checked={serviceFields[f.key] ?? true}

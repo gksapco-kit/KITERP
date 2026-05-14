@@ -33,14 +33,14 @@ function fmtTime12(t: string) { if (!t) return ''; const [h, m] = t.split(':').m
 const SLOT_START = 8 * 60; const SLOT_END = 22 * 60; const SLOT_SPAN = SLOT_END - SLOT_START
 function slotPct(t: string) { return Math.min(100, Math.max(0, ((timeToMins(t) - SLOT_START) / SLOT_SPAN) * 100)) }
 const SLOT_STATUS_DOT: Record<string, string> = {
-  pending: 'bg-amber-400', confirmed: 'bg-blue-400', in_progress: 'bg-purple-400',
+  pending: 'bg-amber-400', confirmed: 'bg-blue-400', in_progress: 'bg-primary/70',
   completed: 'bg-green-400', cancelled: 'bg-gray-300', no_show: 'bg-gray-300',
 }
 
 const statusBadge: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Pending' },
   confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Confirmed' },
-  in_progress: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'In Progress' },
+  in_progress: { bg: 'bg-accent', text: 'text-primary', label: 'In Progress' },
   completed: { bg: 'bg-green-50', text: 'text-green-700', label: 'Completed' },
   cancelled: { bg: 'bg-red-50', text: 'text-red-700', label: 'Cancelled' },
   no_show: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'No Show' },
@@ -70,9 +70,9 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
     ? 'border-orange-200 bg-orange-50'
     : dimmed
       ? 'border-gray-100 bg-gray-50/50 opacity-60'
-      : 'border-gray-100 bg-white hover:bg-violet-50/30'
+      : 'border-gray-100 bg-white hover:bg-accent/60'
 
-  const avatarCls = overdue ? 'bg-orange-400' : dimmed ? 'bg-gray-300' : 'bg-gradient-to-br from-violet-500 to-purple-600'
+  const avatarCls = overdue ? 'bg-orange-400' : dimmed ? 'bg-gray-300' : 'bg-gradient-to-br from-primary to-emerald-700'
   const statusDotColor = SLOT_STATUS_DOT[status] || 'bg-gray-300'
 
   return (
@@ -100,7 +100,7 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
               {(s.start_time as string)?.slice(0, 5)}{s.end_time ? `–${(s.end_time as string).slice(0, 5)}` : ''}
             </span>
             {!!s.service_name && (
-              <span className="text-[9px] text-violet-500 font-medium truncate max-w-[90px]">
+              <span className="text-[9px] text-primary/80 font-medium truncate max-w-[90px]">
                 {s.service_name as string}
               </span>
             )}
@@ -116,7 +116,7 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
           <span className={`flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
             status === 'pending'     ? 'bg-amber-100 text-amber-700' :
             status === 'confirmed'   ? 'bg-blue-100 text-blue-700' :
-            status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
+            status === 'in_progress' ? 'bg-primary/12 text-primary' :
             status === 'completed'   ? 'bg-emerald-100 text-emerald-700' :
             'bg-gray-100 text-gray-500'
           }`}>
@@ -126,7 +126,7 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
 
           {/* View button */}
           <button onClick={onView} title="View booking"
-            className="p-1 rounded-md hover:bg-violet-100 text-violet-400 hover:text-violet-600 transition-colors">
+            className="p-1 rounded-md hover:bg-primary/15 text-primary/70 hover:text-primary transition-colors">
             <ExternalLink className="w-3 h-3" />
           </button>
 
@@ -139,7 +139,7 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
           )}
           {canAct && status === 'confirmed' && (
             <button onClick={onStart} disabled={isPending} title="Start"
-              className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[9px] font-bold bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 transition-colors">
+              className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[9px] font-bold bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors">
               <Play className="w-2.5 h-2.5" /> Go
             </button>
           )}
@@ -238,7 +238,7 @@ function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, select
     available: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 cursor-pointer',
     conflict:  'bg-rose-100 border-rose-300 text-rose-500 cursor-not-allowed opacity-70',
     other:     'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100 cursor-pointer',
-    selected:  'bg-violet-600 border-violet-600 text-white cursor-pointer',
+    selected:  'bg-primary border-primary text-white cursor-pointer',
     past:      'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed',
   }
 
@@ -249,10 +249,10 @@ function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, select
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-3 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-primary to-emerald-700 px-4 py-3 flex items-center justify-between">
           <div>
             <p className="text-white font-bold text-sm">Select Time Slot</p>
-            <p className="text-violet-200 text-[11px]">
+            <p className="text-primary-foreground/85 text-[11px]">
               {date} {staffId ? '· Filtered by staff' : '· All staff'}{duration > 0 ? ` · ${fmtDur(duration)} slots` : ''}
             </p>
           </div>
@@ -265,7 +265,7 @@ function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, select
         <div className="flex items-center gap-4 px-4 py-2 border-b bg-gray-50">
           {[
             { color: 'bg-emerald-400', label: 'Available' },
-            { color: 'bg-violet-600', label: 'Selected' },
+            { color: 'bg-primary', label: 'Selected' },
             { color: 'bg-rose-400', label: 'Conflict' },
             { color: 'bg-amber-400', label: 'Other staff' },
             { color: 'bg-gray-200', label: 'Past / N/A' },
@@ -722,14 +722,14 @@ export default function BookingsPage() {
             onClick={e => e.stopPropagation()}
           >
             {/* ── Header ── */}
-            <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-6 py-4 flex items-center justify-between shrink-0">
+            <div className="bg-gradient-to-r from-primary via-primary/90 to-emerald-800 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
                   <CalendarCheck2 className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white leading-tight">New Booking</h2>
-                  <p className="text-violet-200 text-[11px]">Fill in the details and pick a time slot</p>
+                  <p className="text-primary-foreground/85 text-[11px]">Fill in the details and pick a time slot</p>
                 </div>
               </div>
               <button
@@ -747,7 +747,7 @@ export default function BookingsPage() {
               <div className="shrink-0 flex flex-col overflow-y-auto bg-gray-50/60"
                 style={{ width: modalWidths[0], minWidth: 160 }}>
                 <div className="px-5 pt-5 pb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500 mb-4">Who &amp; What</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80 mb-4">Who &amp; What</p>
 
                   {/* Customer */}
                   <div className="mb-4">
@@ -757,7 +757,7 @@ export default function BookingsPage() {
                         <button
                           type="button"
                           onClick={() => { setShowQuickCreate(true); setCustSearch(''); setShowCustDropdown(false) }}
-                          className="flex items-center gap-0.5 text-[10px] text-violet-600 hover:text-violet-800 font-semibold transition-colors"
+                          className="flex items-center gap-0.5 text-[10px] text-primary hover:text-primary font-semibold transition-colors"
                         >
                           <Plus className="w-3 h-3" /> New
                         </button>
@@ -765,8 +765,8 @@ export default function BookingsPage() {
                     </div>
 
                     {selectedCustomer ? (
-                      <div className="flex items-center gap-2 p-2.5 bg-violet-50 border border-violet-200 rounded-xl">
-                        <div className="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                      <div className="flex items-center gap-2 p-2.5 bg-accent border border-primary/30 rounded-xl">
+                        <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
                           {selectedCustomer.full_name[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -775,12 +775,12 @@ export default function BookingsPage() {
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <a href={`/customers/${selectedCustomer.id}`} target="_blank" rel="noopener noreferrer"
-                            className="p-1 rounded hover:bg-violet-100 transition-colors" title="Open customer" onClick={e => e.stopPropagation()}>
-                            <ExternalLink className="w-3 h-3 text-violet-500" />
+                            className="p-1 rounded hover:bg-primary/15 transition-colors" title="Open customer" onClick={e => e.stopPropagation()}>
+                            <ExternalLink className="w-3 h-3 text-primary/80" />
                           </a>
                           <button onClick={() => { setSelectedCustomer(null); setCustSearch('') }}
-                            className="p-1 rounded hover:bg-violet-100 transition-colors" title="Remove">
-                            <X className="w-3 h-3 text-violet-400" />
+                            className="p-1 rounded hover:bg-primary/15 transition-colors" title="Remove">
+                            <X className="w-3 h-3 text-primary/70" />
                           </button>
                         </div>
                       </div>
@@ -793,16 +793,16 @@ export default function BookingsPage() {
                           onChange={e => setCustSearch(e.target.value)}
                           onFocus={() => custResults.length && setShowCustDropdown(true)}
                           autoComplete="off"
-                          className="w-full h-9 pl-8 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+                          className="w-full h-9 pl-8 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                         />
                         {showCustDropdown && custResults.length > 0 && (
                           <div className="absolute z-10 w-full mt-1 bg-white border rounded-xl shadow-xl max-h-48 overflow-y-auto">
                             {custResults.map(c => (
                               <button key={c.id}
-                                className="w-full text-left px-3 py-2 hover:bg-violet-50 flex items-center gap-2 border-b border-gray-50 last:border-0"
+                                className="w-full text-left px-3 py-2 hover:bg-accent flex items-center gap-2 border-b border-gray-50 last:border-0"
                                 onClick={() => { setSelectedCustomer(c); setShowCustDropdown(false); setCustSearch('') }}>
-                                <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-                                  <span className="text-[10px] font-bold text-violet-700">{c.full_name[0].toUpperCase()}</span>
+                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                  <span className="text-[10px] font-bold text-primary">{c.full_name[0].toUpperCase()}</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-semibold text-gray-900 truncate">{c.full_name}</p>
@@ -820,7 +820,7 @@ export default function BookingsPage() {
                   <div className="mb-4">
                     <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Service *</label>
                     <select
-                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                       value={selectedService}
                       onChange={e => {
                         const svcId = e.target.value
@@ -843,7 +843,7 @@ export default function BookingsPage() {
                     {selectedSvc && (
                       <div className="flex items-center justify-between mt-1.5">
                         {svcDuration > 0 && (
-                          <span className="text-[10px] text-violet-600 flex items-center gap-1">
+                          <span className="text-[10px] text-primary flex items-center gap-1">
                             <Hourglass className="w-2.5 h-2.5" /> {fmtDur(svcDuration)}
                           </span>
                         )}
@@ -858,10 +858,10 @@ export default function BookingsPage() {
                   {serviceProviders.length > 0 && (
                     <div className="mb-4">
                       <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                        <Users className="w-3 h-3 inline mr-1 text-violet-400" />Service Provider (optional)
+                        <Users className="w-3 h-3 inline mr-1 text-primary/70" />Service Provider (optional)
                       </label>
                       <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
-                        className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                        className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                         <option value="">— Any available provider —</option>
                         {/* Group by category */}
                         {['Internal Staff', 'Contractor', 'Partner', 'External Employee', 'Supplier / Vendor'].map(cat => {
@@ -886,7 +886,7 @@ export default function BookingsPage() {
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                               sp.isExternal
                                 ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-violet-50 text-violet-700 border-violet-200'
+                                : 'bg-accent text-primary border-primary/30'
                             }`}>
                               {sp.isExternal ? '🔗 ' : '👤 '}{sp.category}
                               {sp.category === 'Internal Staff' && ` · ${sp.subCategory}`}
@@ -901,10 +901,10 @@ export default function BookingsPage() {
                   {stores.length > 1 && (
                     <div className="mb-4">
                       <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                        <Building2 className="w-3 h-3 inline mr-1 text-violet-400" />Location
+                        <Building2 className="w-3 h-3 inline mr-1 text-primary/70" />Location
                       </label>
                       <select value={selectedStore} onChange={e => setSelectedStore(e.target.value)}
-                        className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                        className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                         <option value="">All locations</option>
                         {stores.map((st: any) => (
                           <option key={st.id} value={st.id}>{st.name}</option>
@@ -917,7 +917,7 @@ export default function BookingsPage() {
                   <div className="mb-4">
                     <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Payment</label>
                     <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
-                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="cod">Cash on Delivery</option>
                       <option value="cash">Cash</option>
                       <option value="upi">UPI</option>
@@ -930,7 +930,7 @@ export default function BookingsPage() {
                   <div>
                     <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Notes</label>
                     <textarea
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                       rows={3}
                       value={notes}
                       onChange={e => setNotes(e.target.value)}
@@ -946,22 +946,22 @@ export default function BookingsPage() {
               <div className="shrink-0 flex flex-col overflow-y-auto bg-white"
                 style={{ width: modalWidths[1], minWidth: 160 }}>
                 <div className="px-5 pt-5 pb-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500 mb-4">When</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80 mb-4">When</p>
 
                   {/* Date */}
                   <div className="mb-4">
                     <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
-                      <CalendarDays className="w-3 h-3 text-violet-400" /> Date *
+                      <CalendarDays className="w-3 h-3 text-primary/70" /> Date *
                     </label>
                     <input type="date" value={bookingDate} min={today}
                       onChange={e => setBookingDate(e.target.value)}
-                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
 
                   {/* Time Slot — Picker button + manual inputs */}
                   <div className="mb-3">
                     <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
-                      <Clock className="w-3 h-3 text-violet-400" /> Time Slot
+                      <Clock className="w-3 h-3 text-primary/70" /> Time Slot
                     </label>
 
                     {/* Slot picker trigger */}
@@ -973,9 +973,9 @@ export default function BookingsPage() {
                         startTime
                           ? hasConflict
                             ? 'border-red-400 bg-red-50 text-red-700'
-                            : 'border-violet-400 bg-violet-50 text-violet-700'
+                            : 'border-primary/60 bg-accent text-primary'
                           : bookingDate
-                            ? 'border-dashed border-gray-300 bg-gray-50 text-gray-500 hover:border-violet-400 hover:text-violet-600'
+                            ? 'border-dashed border-gray-300 bg-gray-50 text-gray-500 hover:border-primary/60 hover:text-primary'
                             : 'border-dashed border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed'
                       }`}
                     >
@@ -992,7 +992,7 @@ export default function BookingsPage() {
 
                     {/* Manual override inputs */}
                     <details className="group">
-                      <summary className="text-[10px] text-gray-400 cursor-pointer select-none hover:text-violet-600 font-medium list-none flex items-center gap-1">
+                      <summary className="text-[10px] text-gray-400 cursor-pointer select-none hover:text-primary font-medium list-none flex items-center gap-1">
                         <span className="group-open:hidden">▸</span><span className="hidden group-open:inline">▾</span>
                         Manual entry
                       </summary>
@@ -1000,16 +1000,16 @@ export default function BookingsPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-gray-400 w-8 shrink-0">Start</span>
                           <input type="time" value={startTime} onChange={e => handleStartTimeChange(e.target.value)}
-                            className="flex-1 h-8 px-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                            className="flex-1 h-8 px-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-gray-400 w-8 shrink-0">End</span>
                           <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-                            className="flex-1 h-8 px-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                            className="flex-1 h-8 px-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
                         </div>
                         {svcDuration > 0 && startTime && (
                           <button type="button" onClick={applyStandardDuration}
-                            className="flex items-center gap-1 text-[10px] text-violet-600 hover:text-violet-800 font-semibold transition-colors">
+                            className="flex items-center gap-1 text-[10px] text-primary hover:text-primary font-semibold transition-colors">
                             <Zap className="w-3 h-3" /> Auto-fill {fmtDur(svcDuration)}
                           </button>
                         )}
@@ -1067,7 +1067,7 @@ export default function BookingsPage() {
                 <div className="px-5 pt-5 pb-3 space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500">Availability</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Availability</p>
                       {(selectedStaff || selectedStore) && (
                         <p className="text-[9px] text-gray-400 mt-0.5">
                           {selectedStaff && `Provider: ${serviceProviders.find(p => p.id === selectedStaff)?.name || '—'}`}
@@ -1083,7 +1083,7 @@ export default function BookingsPage() {
                             <button
                               type="button"
                               onClick={() => setShowSlotPicker(true)}
-                              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
+                              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
                               <Grid3X3 className="w-3 h-3" /> Pick Slot
                             </button>
                             <button
@@ -1124,7 +1124,7 @@ export default function BookingsPage() {
                           {startTime && endTime && selectedDuration > 0 && (() => {
                             const fp = slotPct(startTime); const tp = slotPct(endTime)
                             return (
-                              <div className={`absolute top-1 bottom-1 rounded-lg border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-violet-400/40 border-violet-500'}`}
+                              <div className={`absolute top-1 bottom-1 rounded-lg border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/40 border-primary'}`}
                                 style={{ left: `${fp}%`, width: `${Math.max(2, tp - fp)}%` }} />
                             )
                           })()}
@@ -1148,7 +1148,7 @@ export default function BookingsPage() {
                         <div className="flex items-center gap-4 mt-1.5 flex-wrap">
                           <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-rose-500 opacity-70" /><span className="text-[9px] text-gray-400">Booked{selectedStaff ? ` (${serviceProviders.find(p=>p.id===selectedStaff)?.name||'same provider'})` : ''}</span></div>
                           {selectedStaff && <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-amber-400 opacity-70" /><span className="text-[9px] text-gray-400">Other provider</span></div>}
-                          {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2 rounded-sm border ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-violet-400/40 border-violet-500'}`} /><span className="text-[9px] text-gray-400">Your slot</span></div>}
+                          {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2 rounded-sm border ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/40 border-primary'}`} /><span className="text-[9px] text-gray-400">Your slot</span></div>}
                         </div>
                       </div>
 
@@ -1159,15 +1159,15 @@ export default function BookingsPage() {
                           <div className="flex flex-col items-center py-8 text-center">
                             {activeSlots.length > 0 && !showAllSlots ? (
                               <>
-                                <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center mb-2">
-                                  <Search className="w-4 h-4 text-violet-400" />
+                                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                                  <Search className="w-4 h-4 text-primary/70" />
                                 </div>
                                 <p className="text-xs font-semibold text-gray-600">No matching bookings</p>
                                 <p className="text-[11px] text-gray-400 mt-1">
                                   {activeSlots.length} booking{activeSlots.length > 1 ? 's' : ''} exist on this date
                                 </p>
                                 <button type="button" onClick={() => setShowAllSlots(true)}
-                                  className="mt-2 text-[11px] text-violet-600 font-semibold hover:underline">
+                                  className="mt-2 text-[11px] text-primary font-semibold hover:underline">
                                   View all bookings →
                                 </button>
                               </>
@@ -1237,32 +1237,32 @@ export default function BookingsPage() {
               <div className="flex items-center gap-3 flex-1">
                 {selectedCustomer && (
                   <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1">
-                    <User className="w-3 h-3 text-violet-500" />
+                    <User className="w-3 h-3 text-primary/80" />
                     {selectedCustomer.full_name}
                   </span>
                 )}
                 {selectedSvc && (
                   <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1">
-                    <Hourglass className="w-3 h-3 text-violet-500" />
+                    <Hourglass className="w-3 h-3 text-primary/80" />
                     {selectedSvc.name as string}
                   </span>
                 )}
                 {bookingDate && startTime && (
                   <span className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1">
-                    <Clock className="w-3 h-3 text-violet-500" />
+                    <Clock className="w-3 h-3 text-primary/80" />
                     {bookingDate} · {fmtTime12(startTime)}
                   </span>
                 )}
               </div>
               <button type="button" title="Reset column widths" onClick={resetModalWidths}
-                className="text-[10px] text-gray-400 hover:text-violet-600 font-medium transition-colors px-1">
+                className="text-[10px] text-gray-400 hover:text-primary font-medium transition-colors px-1">
                 ⊟ Reset layout
               </button>
               <Button variant="outline" className="h-9 px-4 text-sm" onClick={() => { setShowCreate(false); resetCreateForm() }}>
                 Cancel
               </Button>
               <Button
-                className="h-9 px-5 gap-2 bg-violet-600 hover:bg-violet-700 font-semibold text-sm"
+                className="h-9 px-5 gap-2 bg-primary hover:bg-primary/90 font-semibold text-sm"
                 onClick={handleCreate}
                 disabled={creating || !selectedService || !bookingDate || !selectedCustomer}
               >
@@ -1291,19 +1291,19 @@ export default function BookingsPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5 mb-1">
-                  <CalendarDays className="w-3.5 h-3.5 text-violet-400" /> New Date *
+                  <CalendarDays className="w-3.5 h-3.5 text-primary/70" /> New Date *
                 </label>
                 <input type="date" min={today} value={rescheduleDate}
                   onChange={e => setRescheduleDate(e.target.value)}
-                  className="w-full h-10 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                  className="w-full h-10 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5 mb-1">
-                  <Clock className="w-3.5 h-3.5 text-violet-400" /> New Start Time
+                  <Clock className="w-3.5 h-3.5 text-primary/70" /> New Start Time
                 </label>
                 <input type="time" value={rescheduleTime}
                   onChange={e => setRescheduleTime(e.target.value)}
-                  className="w-full h-10 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                  className="w-full h-10 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </div>
             <div className="flex gap-2 pt-1">
@@ -1468,7 +1468,7 @@ export default function BookingsPage() {
 
                             if (b.status === 'confirmed') return (
                               <div className="flex gap-1.5 justify-end items-center">
-                                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 font-semibold text-purple-700 border-purple-300 bg-purple-50 hover:bg-purple-100" onClick={() => handleStatusChange(bId, 'in_progress')} disabled={isPend}>
+                                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 font-semibold text-primary border-primary/40 bg-accent hover:bg-primary/12" onClick={() => handleStatusChange(bId, 'in_progress')} disabled={isPend}>
                                   <Play className="w-3.5 h-3.5" /> Start
                                 </Button>
                                 <button title="No Show" disabled={isPend} onClick={() => handleStatusChange(bId, 'no_show')}

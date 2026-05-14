@@ -111,7 +111,7 @@ export default function VendorStorefrontLinksCard({
           rel="noopener noreferrer"
           className="flex items-center gap-2 rounded-md px-2 py-2 text-xs font-medium text-foreground border border-border bg-background hover:bg-muted/80 transition-colors"
         >
-          <Store className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+          <Store className="w-3.5 h-3.5 text-primary shrink-0" />
           <span className="flex-1 min-w-0 truncate">Customer store</span>
           <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
         </a>

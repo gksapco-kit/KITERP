@@ -35,7 +35,7 @@ const statusConfig: Record<string, { icon: typeof Clock; color: string; label: s
   config_generated: { icon: Package, color: 'text-blue-600 bg-blue-50', label: 'Config Ready' },
   building: { icon: Hammer, color: 'text-indigo-600 bg-indigo-50', label: 'Building' },
   built: { icon: CheckCircle2, color: 'text-green-600 bg-green-50', label: 'Built' },
-  submitted: { icon: Upload, color: 'text-purple-600 bg-purple-50', label: 'Submitted' },
+  submitted: { icon: Upload, color: 'text-primary bg-accent', label: 'Submitted' },
   published: { icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50', label: 'Published' },
   failed: { icon: XCircle, color: 'text-red-600 bg-red-50', label: 'Failed' },
 }

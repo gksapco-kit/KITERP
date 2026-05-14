@@ -7,7 +7,7 @@ import type { HelpdeskTicket, HelpdeskTicketComment } from '@/types'
 const STATUS: Record<string, { label: string; color: string }> = {
   open:        { label: 'Open',        color: 'bg-blue-100 text-blue-700' },
   in_progress: { label: 'In Progress', color: 'bg-yellow-100 text-yellow-700' },
-  waiting:     { label: 'Waiting',     color: 'bg-purple-100 text-purple-700' },
+  waiting:     { label: 'Waiting',     color: 'bg-primary/12 text-primary' },
   resolved:    { label: 'Resolved',    color: 'bg-green-100 text-green-700' },
   closed:      { label: 'Closed',      color: 'bg-gray-200 text-gray-700' },
 }

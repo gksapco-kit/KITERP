@@ -35,7 +35,7 @@ const statusConfig: Record<string, { bg: string; text: string; label: string }> 
   ordered: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Ordered' },
   partial_received: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Partially Received' },
   received: { bg: 'bg-green-50', text: 'text-green-700', label: 'Fully Received' },
-  closed: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Closed' },
+  closed: { bg: 'bg-accent', text: 'text-primary', label: 'Closed' },
   cancelled: { bg: 'bg-red-50', text: 'text-red-700', label: 'Cancelled' },
 }
 
@@ -238,7 +238,7 @@ export default function PurchaseOrderDetail() {
     window.open(`mailto:${email}?subject=${encodeURIComponent(`Purchase Order: ${po.po_number}`)}&body=${encodeURIComponent(poMessage())}`, '_blank')
   }
   // Build a normalised PO data object that templates can consume regardless of field naming
-  const buildPODataForTemplate = () => {
+  const buildPODataForTemplate = (): Record<string, unknown> => {
     const raw = po as unknown as Record<string, unknown>
     return {
       ...raw,
@@ -261,7 +261,7 @@ export default function PurchaseOrderDetail() {
   const handleDownload = async () => {
     const settings = mergedTemplateSettings()
     const poData = buildPODataForTemplate()
-    const rawLogo = (settings.logo_url || poData.vendor_logo_url as string) || ''
+    const rawLogo = (settings.logo_url || (poData.vendor_logo_url as string | undefined)) || ''
     const rawSig = settings.signature_url || ''
     const [logoDataUrl, sigDataUrl] = await Promise.all([
       rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
@@ -359,7 +359,7 @@ export default function PurchaseOrderDetail() {
         <Button variant="outline" size="sm" className="gap-1.5" onClick={handleWhatsApp}><MessageCircle className="w-3.5 h-3.5 text-green-600" /> WhatsApp</Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={handleSms}><MessageSquare className="w-3.5 h-3.5 text-amber-600" /> SMS</Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={handleEmail}><Mail className="w-3.5 h-3.5 text-blue-600" /> Email</Button>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleShare}><Share2 className="w-3.5 h-3.5 text-purple-600" /> Share</Button>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleShare}><Share2 className="w-3.5 h-3.5 text-primary" /> Share</Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/purchase-orders/templates')}>
           <Palette className="w-3.5 h-3.5 text-gray-500" /> Template
         </Button>

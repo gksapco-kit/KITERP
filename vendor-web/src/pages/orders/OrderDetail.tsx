@@ -35,11 +35,11 @@ const bookingTimeline = [
 ]
 
 const statusBadge: Record<string, string> = {
-  quote_requested: 'bg-violet-100 text-violet-700',
+  quote_requested: 'bg-primary/10 text-primary',
   pending: 'bg-yellow-100 text-yellow-700',
   confirmed: 'bg-blue-100 text-blue-700',
   processing: 'bg-indigo-100 text-indigo-700',
-  shipped: 'bg-purple-100 text-purple-700',
+  shipped: 'bg-primary/12 text-primary',
   delivered: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
   return_requested: 'bg-amber-100 text-amber-700',
@@ -118,7 +118,7 @@ export default function OrderDetail() {
                 </span>
               )}
               {isQuote && (
-                <span className="inline-flex px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold">Quote</span>
+                <span className="inline-flex px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">Quote</span>
               )}
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${statusBadge[order.status] || 'bg-gray-100'}`}>
                 {statusLabel[order.status] || order.status}
@@ -217,24 +217,24 @@ export default function OrderDetail() {
 
       {/* Quote Request Banner */}
       {order.source === 'quote' && (
-        <Card className="border-violet-200 bg-violet-50">
+        <Card className="border-primary/30 bg-accent">
           <CardContent className="py-5">
             <div className="flex items-start gap-3">
-              <MessageSquare className="w-6 h-6 text-violet-600 shrink-0 mt-0.5" />
+              <MessageSquare className="w-6 h-6 text-primary shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-violet-800">Quote Request</h3>
-                <p className="text-sm text-violet-700 mt-1">
+                <h3 className="font-semibold text-primary">Quote Request</h3>
+                <p className="text-sm text-primary mt-1">
                   Customer requested a quote for: <strong>{order.items?.[0]?.name || 'Service'}</strong>
                 </p>
                 {order.notes && (
-                  <div className="mt-3 bg-white/70 rounded-lg p-3 border border-violet-200">
-                    <p className="text-xs font-medium text-violet-600 mb-1">Customer Message</p>
+                  <div className="mt-3 bg-white/70 rounded-lg p-3 border border-primary/30">
+                    <p className="text-xs font-medium text-primary mb-1">Customer Message</p>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{order.notes}</p>
                   </div>
                 )}
                 {order.status === 'quote_requested' && (
                   <div className="flex gap-2 mt-3">
-                    <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white"
+                    <Button size="sm" className="bg-primary hover:bg-primary/90 text-white"
                       onClick={() => handleStatusUpdate('confirmed')}>
                       Accept & Convert to Order
                     </Button>

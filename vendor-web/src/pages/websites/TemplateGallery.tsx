@@ -62,11 +62,11 @@ export default function WebsiteTemplateGalleryPage() {
   const busy = sitesLoading || templatesLoading
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-violet-50/40 to-gray-50/80">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-accent/70 to-gray-50/80">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
           <div>
-            <div className="inline-flex items-center gap-2 text-violet-700 font-extrabold text-sm mb-1">
+            <div className="inline-flex items-center gap-2 text-primary font-extrabold text-sm mb-1">
               <Sparkles className="w-4 h-4" />
               Configuration
             </div>
@@ -77,7 +77,7 @@ export default function WebsiteTemplateGalleryPage() {
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <Link
                 to="/websites"
-                className="inline-flex items-center gap-1 text-violet-700 font-semibold hover:underline"
+                className="inline-flex items-center gap-1 text-primary font-semibold hover:underline"
               >
                 <Globe className="w-4 h-4" />
                 All sites
@@ -93,14 +93,14 @@ export default function WebsiteTemplateGalleryPage() {
           {!sitesLoading && sites.length === 0 && (
             <p className="text-sm text-gray-600">
               You don’t have a website yet.{' '}
-              <Link to="/websites" className="text-violet-700 font-semibold hover:underline">Create a site</Link>
+              <Link to="/websites" className="text-primary font-semibold hover:underline">Create a site</Link>
               , then return here to apply a template.
             </p>
           )}
           {!sitesLoading && sites.length > 0 && (
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <select
-                className="w-full sm:max-w-md border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-violet-300"
+                className="w-full sm:max-w-md border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                 value={selectedSiteId || ''}
                 onChange={e => onSiteChange(e.target.value)}
               >
@@ -129,7 +129,7 @@ export default function WebsiteTemplateGalleryPage() {
               value={templateSearch}
               onChange={e => setTemplateSearch(e.target.value)}
               placeholder="Search templates…"
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -141,7 +141,7 @@ export default function WebsiteTemplateGalleryPage() {
                 className={cn(
                   'text-[10px] px-2 py-1 rounded-full font-extrabold transition-colors',
                   templateCategory === cat
-                    ? 'bg-violet-600 text-white shadow-sm'
+                    ? 'bg-primary text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
                 )}
               >
@@ -164,22 +164,22 @@ export default function WebsiteTemplateGalleryPage() {
                   type="button"
                   onClick={() => setPreview(tpl)}
                   className={cn(
-                    'text-left border border-gray-100 rounded-2xl overflow-hidden hover:border-violet-200 transition-colors group bg-white',
-                    'shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(124,58,237,0.12)]',
+                    'text-left border border-gray-100 rounded-2xl overflow-hidden hover:border-primary/30 transition-colors group bg-white',
+                    'shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(100,195,160,0.15)]',
                   )}
                 >
                   <div className="relative">
                     {tpl.thumbnail ? (
                       <img src={tpl.thumbnail} className="w-full h-36 sm:h-40 object-cover" alt={tpl.name} loading="lazy" />
                     ) : (
-                      <div className="w-full h-36 sm:h-40 bg-gradient-to-r from-violet-100 to-fuchsia-100" />
+                      <div className="w-full h-36 sm:h-40 bg-gradient-to-r from-accent to-primary/20" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent pointer-events-none" />
                     <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={cn(
                           'text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide',
-                          tier === 'full' ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-white/80 text-gray-700',
+                          tier === 'full' ? 'bg-accent text-primary' : 'bg-white/80 text-gray-700',
                         )}>
                           {tier === 'full' ? 'Full site' : 'Lite'}
                         </span>
@@ -195,7 +195,7 @@ export default function WebsiteTemplateGalleryPage() {
                     </div>
                   </div>
                   <div className="p-3.5">
-                    <div className="font-extrabold text-gray-900 group-hover:text-violet-800 transition-colors">{tpl.name}</div>
+                    <div className="font-extrabold text-gray-900 group-hover:text-primary transition-colors">{tpl.name}</div>
                     <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tpl.description}</p>
                   </div>
                 </button>

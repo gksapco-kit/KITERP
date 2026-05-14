@@ -69,7 +69,7 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
           </button>
           <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             onClick={() => { shareProduct(product, 'native'); setOpen(false) }}>
-            <Share2 className="w-4 h-4 text-purple-500" /> Share
+            <Share2 className="w-4 h-4 text-primary/80" /> Share
           </button>
           <div className="border-t my-1" />
           {confirmDelete ? (

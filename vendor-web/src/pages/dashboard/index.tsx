@@ -163,47 +163,54 @@ export default function Dashboard() {
   const showServices = vendor?.offering_type === 'services' || vendor?.offering_type === 'both'
 
   const quickActions = [
-    showProducts && { label: 'New Product', icon: Package, to: '/products/new', color: 'bg-blue-600 hover:bg-blue-700' },
-    showServices && { label: 'New Service', icon: Wrench, to: '/services/new', color: 'bg-violet-600 hover:bg-violet-700' },
-    { label: 'View Orders', icon: ShoppingCart, to: '/orders', color: 'bg-emerald-600 hover:bg-emerald-700' },
-    { label: 'Reports', icon: BarChart3, to: '/reports', color: 'bg-gray-700 hover:bg-gray-800' },
+    showProducts && { label: 'New Product', icon: Package, to: '/products/new', color: 'border border-white/25 bg-white/10 hover:bg-white/20' },
+    showServices && { label: 'New Service', icon: Wrench, to: '/services/new', color: 'border border-white/25 bg-white/10 hover:bg-white/20' },
+    { label: 'View Orders', icon: ShoppingCart, to: '/orders', color: 'bg-primary hover:bg-primary/90' },
+    { label: 'Reports', icon: BarChart3, to: '/reports', color: 'bg-[hsl(var(--hero-cta))] hover:brightness-110' },
   ].filter(Boolean) as { label: string; icon: React.ElementType; to: string; color: string }[]
 
-  if (dashLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+  if (dashLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
 
   const stats = [
-    { label: 'Total Orders',   value: dashboard?.total_orders ?? 0,                   icon: ShoppingCart, color: 'bg-blue-500',    link: '/orders' },
-    { label: 'Today Orders',   value: dashboard?.today_orders ?? 0,                   icon: Receipt,      color: 'bg-purple-500',  link: '/orders' },
-    { label: 'Total Revenue',  value: formatCurrency(dashboard?.total_revenue ?? 0),  icon: IndianRupee,  color: 'bg-emerald-500', link: '/orders' },
-    { label: 'Today Revenue',  value: formatCurrency(dashboard?.today_revenue ?? 0),  icon: TrendingUp,   color: 'bg-amber-500',   link: '/orders' },
-    { label: 'POS Today',      value: formatCurrency(dashboard?.pos_today ?? 0),      icon: BarChart3,    color: 'bg-indigo-500',  link: '/pos' },
-    { label: 'Customers',      value: dashboard?.total_customers ?? 0,                icon: Users,        color: 'bg-pink-500',    link: '/customers' },
-    { label: 'Active Products',value: dashboard?.total_products ?? 0,                 icon: Package,      color: 'bg-teal-500',    link: '/products' },
-    { label: 'Unpaid Invoices',value: formatCurrency(dashboard?.unpaid_invoices ?? 0),icon: FileText,     color: 'bg-red-500',     link: '/invoices' },
+    { label: 'Total Orders',   value: dashboard?.total_orders ?? 0,                   icon: ShoppingCart, chipBg: 'bg-info/10',              chipText: 'text-info',              link: '/orders' },
+    { label: 'Today Orders',   value: dashboard?.today_orders ?? 0,                   icon: Receipt,      chipBg: 'bg-primary/15',         chipText: 'text-primary',           link: '/orders' },
+    { label: 'Total Revenue',  value: formatCurrency(dashboard?.total_revenue ?? 0),  icon: IndianRupee,  chipBg: 'bg-success/10',           chipText: 'text-success',           link: '/orders' },
+    { label: 'Today Revenue',  value: formatCurrency(dashboard?.today_revenue ?? 0),  icon: TrendingUp,   chipBg: 'bg-warning/15',           chipText: 'text-warning', link: '/orders' },
+    { label: 'POS Today',      value: formatCurrency(dashboard?.pos_today ?? 0),      icon: BarChart3,    chipBg: 'bg-sidebar-foreground/10', chipText: 'text-sidebar-foreground', link: '/pos' },
+    { label: 'Customers',      value: dashboard?.total_customers ?? 0,                icon: Users,        chipBg: 'bg-accent',               chipText: 'text-accent-foreground', link: '/customers' },
+    { label: 'Active Products',value: dashboard?.total_products ?? 0,                 icon: Package,      chipBg: 'bg-primary/10',           chipText: 'text-primary',           link: '/products' },
+    { label: 'Unpaid Invoices',value: formatCurrency(dashboard?.unpaid_invoices ?? 0),icon: FileText,     chipBg: 'bg-destructive/10',       chipText: 'text-destructive',       link: '/invoices' },
   ]
 
   return (
     <div className="space-y-6 max-w-7xl">
 
-      {/* Welcome banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-blue-600 to-blue-700 p-6 lg:p-8 text-white">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-1/2 w-48 h-48 bg-white/5 rounded-full translate-y-1/2" />
-        <div className="relative">
-          <p className="text-blue-100 text-sm font-medium">{greeting}</p>
-          <h1 className="text-2xl lg:text-3xl font-bold mt-1">{vendor?.display_name || 'Welcome'}</h1>
-          <p className="text-blue-200 mt-2 text-sm max-w-lg">
-            Here's a complete overview of your store performance. Insights, analytics, and trends at a glance.
-          </p>
-          <div className="flex flex-wrap gap-2 mt-4">
+      {/* Welcome banner — token-driven gradient (primary → hero-via → hero-to) */}
+      <div className="relative overflow-hidden rounded-xl bg-[linear-gradient(90deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_42%,hsl(var(--hero-to))_100%)] px-3 py-3.5 text-white shadow-lg shadow-black/15 sm:py-4 lg:px-4 lg:py-5">
+        {/* Accent orb — right side only (not behind headline / left copy) */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-1 right-0 z-0 h-28 w-28 translate-x-[18%] rounded-full bg-white/[0.12] sm:bottom-2 sm:h-32 sm:w-32 sm:translate-x-[22%] lg:bottom-3 lg:h-36 lg:w-36 lg:translate-x-[28%]"
+        />
+        <div className="relative z-[1] flex w-full flex-col gap-1.5 text-left sm:gap-2 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+          <div className="min-w-0 max-w-xl space-y-1 lg:space-y-1.5">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-white/85 sm:text-xs">{greeting}</p>
+            <h1 className="text-lg font-bold leading-tight text-white drop-shadow-sm sm:text-xl lg:text-2xl">
+              {vendor?.display_name || 'Welcome'}
+            </h1>
+            <p className="max-w-lg text-[11px] leading-snug text-primary-foreground/85 sm:text-xs sm:leading-normal">
+              Here's a complete overview of your store performance. Insights, analytics, and trends at a glance.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pt-1 lg:flex-nowrap lg:justify-end lg:gap-2 lg:pt-0">
             {quickActions.map(action => (
               <Button
                 key={action.to}
-                size="sm"
-                className={`${action.color} text-white gap-1.5 shadow-lg shadow-black/10`}
+                size="xs"
+                className={`${action.color} gap-1 text-white shadow-md shadow-black/15`}
                 onClick={() => navigate(action.to)}
               >
-                <action.icon className="w-3.5 h-3.5" />
+                <action.icon className="h-3 w-3 shrink-0" />
                 {action.label}
               </Button>
             ))}
@@ -215,19 +222,19 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {stats.map(s => (
           <div key={s.label}
-            className="bg-white rounded-xl border p-4 hover:shadow-md transition-shadow cursor-pointer group"
+            className="cursor-pointer rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-md group"
             onClick={() => navigate(s.link)}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                   {s.label}
-                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ExternalLink className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
                 </p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{s.value}</p>
+                <p className="mt-1 text-xl font-bold text-card-foreground">{s.value}</p>
               </div>
-              <div className={`w-10 h-10 rounded-xl ${s.color} bg-opacity-10 flex items-center justify-center`}>
-                <s.icon className={`w-5 h-5 ${s.color.replace('bg-', 'text-')}`} />
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.chipBg}`}>
+                <s.icon className={`h-5 w-5 ${s.chipText}`} />
               </div>
             </div>
           </div>
@@ -235,50 +242,50 @@ export default function Dashboard() {
       </div>
 
       {/* HR Quick Stats Card */}
-      <div className="bg-white rounded-xl border shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <UserCog className="w-5 h-5 text-blue-600" />
-            <h3 className="font-semibold text-gray-900">Human Resources</h3>
+            <UserCog className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold text-foreground">Human Resources</h3>
           </div>
-          <Link to="/hr/employees" className="text-xs text-blue-600 hover:underline">View all →</Link>
+          <Link to="/hr/employees" className="text-xs text-info hover:underline">View all →</Link>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-xs text-blue-600 font-medium">Team Size</span>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="rounded-xl border border-info/20 bg-info/10 p-3">
+            <div className="mb-1 flex items-center gap-2">
+              <Users className="h-4 w-4 text-info" />
+              <span className="text-xs font-medium text-info">Team Size</span>
             </div>
-            <p className="text-2xl font-bold text-blue-900">{hrEmpData?.total ?? '—'}</p>
+            <p className="text-2xl font-bold text-foreground">{hrEmpData?.total ?? '—'}</p>
           </div>
-          <div className={`rounded-xl p-3 border ${hrToday?.clocked_in ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-4 h-4 text-green-600" />
-              <span className="text-xs text-green-600 font-medium">My Attendance</span>
+          <div className={`rounded-xl border p-3 ${hrToday?.clocked_in ? 'border-success/25 bg-success/10' : 'border-border bg-muted'}`}>
+            <div className="mb-1 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-success" />
+              <span className="text-xs font-medium text-success">My Attendance</span>
             </div>
-            <p className="text-sm font-semibold text-gray-900">
+            <p className="text-sm font-semibold text-foreground">
               {hrToday?.clocked_in ? (hrToday?.clocked_out ? 'Day Complete' : 'Clocked In') : 'Not Clocked In'}
             </p>
-            <Link to="/hr/attendance/my" className="text-xs text-blue-500 hover:underline">
+            <Link to="/hr/attendance/my" className="text-xs text-info hover:underline">
               {hrToday?.clocked_in && !hrToday?.clocked_out ? 'Clock Out →' : 'Clock In →'}
             </Link>
           </div>
           {isHRAdmin && (
-            <div className="bg-yellow-50 rounded-xl p-3 border border-yellow-100">
-              <div className="flex items-center gap-2 mb-1">
-                <Plane className="w-4 h-4 text-yellow-600" />
-                <span className="text-xs text-yellow-600 font-medium">Pending Leaves</span>
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-3">
+              <div className="mb-1 flex items-center gap-2">
+                <Plane className="h-4 w-4 text-warning" />
+                <span className="text-xs font-medium text-warning">Pending Leaves</span>
               </div>
-              <p className="text-2xl font-bold text-yellow-900">{hrLeaveData?.total ?? '—'}</p>
-              <Link to="/hr/leaves" className="text-xs text-blue-500 hover:underline">Review →</Link>
+              <p className="text-2xl font-bold text-foreground">{hrLeaveData?.total ?? '—'}</p>
+              <Link to="/hr/leaves" className="text-xs text-info hover:underline">Review →</Link>
             </div>
           )}
-          <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
-            <div className="flex items-center gap-2 mb-1">
-              <Plane className="w-4 h-4 text-purple-600" />
-              <span className="text-xs text-purple-600 font-medium">My Leaves</span>
+          <div className="rounded-xl border border-primary/20 bg-accent p-3">
+            <div className="mb-1 flex items-center gap-2">
+              <Plane className="h-4 w-4 text-primary" />
+              <span className="text-xs font-medium text-primary">My Leaves</span>
             </div>
-            <Link to="/hr/leaves/my" className="text-xs text-blue-500 hover:underline">View Balances →</Link>
+            <Link to="/hr/leaves/my" className="text-xs text-info hover:underline">View Balances →</Link>
           </div>
         </div>
       </div>
@@ -295,9 +302,9 @@ export default function Dashboard() {
                 { label: 'This Month', value: revenue.this_month },
                 { label: 'This FY',    value: revenue.this_fy },
               ].map(r => (
-                <div key={r.label} className="text-center py-4 bg-gray-50 rounded-xl">
-                  <p className="text-sm text-gray-500">{r.label}</p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">{formatCurrency(r.value)}</p>
+                <div key={r.label} className="rounded-xl bg-muted py-4 text-center">
+                  <p className="text-sm text-muted-foreground">{r.label}</p>
+                  <p className="mt-1 text-lg font-bold text-foreground">{formatCurrency(r.value)}</p>
                 </div>
               ))}
             </div>
@@ -308,38 +315,38 @@ export default function Dashboard() {
       {/* Catalog summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {showProducts && (
-          <div className="group flex items-center gap-4 bg-white rounded-xl border border-gray-200/80 p-4 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer" onClick={() => navigate('/products')}>
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <Package className="w-5 h-5 text-blue-600" />
+          <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-info/30 hover:shadow-md" onClick={() => navigate('/products')}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
+              <Package className="h-5 w-5 text-info" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-2xl font-bold text-gray-900">{productData?.total ?? 0}</p>
-              <p className="text-xs text-gray-500">Products</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl font-bold text-foreground">{productData?.total ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Products</p>
             </div>
-            <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-blue-500 transition-colors" />
+            <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-info" />
           </div>
         )}
         {showServices && (
-          <div className="group flex items-center gap-4 bg-white rounded-xl border border-gray-200/80 p-4 hover:shadow-md hover:border-violet-200 transition-all cursor-pointer" onClick={() => navigate('/services')}>
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-              <Wrench className="w-5 h-5 text-violet-600" />
+          <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md" onClick={() => navigate('/services')}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+              <Wrench className="h-5 w-5 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-2xl font-bold text-gray-900">{serviceData?.total ?? 0}</p>
-              <p className="text-xs text-gray-500">Services</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl font-bold text-foreground">{serviceData?.total ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Services</p>
             </div>
-            <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-violet-500 transition-colors" />
+            <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary/80" />
           </div>
         )}
-        <div className="group flex items-center gap-4 bg-white rounded-xl border border-gray-200/80 p-4 hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer" onClick={() => navigate('/invoices')}>
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-            <Receipt className="w-5 h-5 text-emerald-600" />
+        <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-success/30 hover:shadow-md" onClick={() => navigate('/invoices')}>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+            <Receipt className="h-5 w-5 text-success" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-2xl font-bold text-gray-900">{dashboard?.total_orders ?? 0}</p>
-            <p className="text-xs text-gray-500">Invoices</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl font-bold text-foreground">{dashboard?.total_orders ?? 0}</p>
+            <p className="text-xs text-muted-foreground">Invoices</p>
           </div>
-          <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-emerald-500 transition-colors" />
+          <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-success" />
         </div>
       </div>
 
@@ -356,22 +363,30 @@ export default function Dashboard() {
               />
               <div className="p-5 space-y-3">
                 {ordersStatusRows.map(({ status, count }) => {
-                  const colors: Record<string, string> = { pending: 'bg-yellow-500', confirmed: 'bg-blue-500', shipped: 'bg-purple-500', delivered: 'bg-green-500', cancelled: 'bg-red-500' }
+                  const colors: Record<string, string> = {
+                    pending: 'bg-warning',
+                    confirmed: 'bg-info',
+                    shipped: 'bg-primary',
+                    delivered: 'bg-success',
+                    cancelled: 'bg-destructive',
+                    completed: 'bg-success',
+                    processing: 'bg-info',
+                  }
                   const total = Object.values(ordersByStatus.data as Record<string, number>).reduce((s: number, v) => s + (v as number), 0)
                   const pct = total > 0 ? (count / total) * 100 : 0
                   return (
-                    <div key={status} className="cursor-pointer hover:bg-gray-50 rounded-lg p-1.5 -mx-1.5" onClick={() => navigate('/orders')}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="capitalize text-gray-700 flex items-center gap-1">{status} <ExternalLink className="w-3 h-3 text-gray-300" /></span>
+                    <div key={status} className="-mx-1.5 cursor-pointer rounded-lg p-1.5 hover:bg-muted/60" onClick={() => navigate('/orders')}>
+                      <div className="mb-1 flex justify-between text-sm">
+                        <span className="flex items-center gap-1 capitalize text-foreground">{status} <ExternalLink className="h-3 w-3 text-muted-foreground" /></span>
                         <span className="font-medium">{count}</span>
                       </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${colors[status] || 'bg-gray-400'}`} style={{ width: `${pct}%` }} />
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div className={`h-full rounded-full ${colors[status] || 'bg-muted-foreground/40'}`} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   )
                 })}
-                {ordersStatusRows.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No rows match your filter.</p>}
+                {ordersStatusRows.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No rows match your filter.</p>}
               </div>
             </CardContent>
           </Card>
@@ -390,15 +405,15 @@ export default function Dashboard() {
               <div className="space-y-1 max-h-64 overflow-y-auto p-4">
                 {salesRows.map((d) => (
                   <div key={d.date} className="flex items-center gap-3 py-1.5">
-                    <span className="text-xs text-gray-500 w-24 shrink-0">{d.date}</span>
-                    <div className="flex-1 h-5 bg-gray-50 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, ((d.revenue || 0) / maxRevenue) * 100)}%` }} />
+                    <span className="w-24 shrink-0 text-xs text-muted-foreground">{d.date}</span>
+                    <div className="h-5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, ((d.revenue || 0) / maxRevenue) * 100)}%` }} />
                     </div>
-                    <span className="text-xs font-medium w-20 text-right">{formatCurrency(d.revenue)}</span>
-                    <span className="text-xs text-gray-400 w-12 text-right">{d.orders} ord</span>
+                    <span className="w-20 text-right text-xs font-medium">{formatCurrency(d.revenue)}</span>
+                    <span className="w-12 text-right text-xs text-muted-foreground">{d.orders} ord</span>
                   </div>
                 ))}
-                {salesRows.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No rows match your filter.</p>}
+                {salesRows.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No rows match your filter.</p>}
               </div>
             </CardContent>
           </Card>
@@ -416,8 +431,8 @@ export default function Dashboard() {
               />
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
-                    <th className="px-5 py-2 w-10">#</th>
+                  <tr className="border-b bg-muted text-left text-xs font-semibold uppercase text-muted-foreground">
+                    <th className="w-10 px-5 py-2">#</th>
                     <th className="px-5 py-2">Product</th>
                     <th className="px-5 py-2 text-right">Price</th>
                     <th className="px-5 py-2 text-right">Qty</th>
@@ -425,16 +440,16 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y">
                   {topProductRows.map((p, i) => (
-                    <tr key={p.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
-                      <td className="px-5 py-2.5 text-gray-400">{i + 1}</td>
-                      <td className="px-5 py-2.5 font-medium text-blue-600 hover:underline">{p.name}</td>
+                    <tr key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/products/${p.id}`)}>
+                      <td className="px-5 py-2.5 text-muted-foreground">{i + 1}</td>
+                      <td className="px-5 py-2.5 font-medium text-primary hover:underline">{p.name}</td>
                       <td className="px-5 py-2.5 text-right">{formatCurrency(p.price)}</td>
-                      <td className="px-5 py-2.5 text-right text-gray-500">{p.stock} qty</td>
+                      <td className="px-5 py-2.5 text-right text-muted-foreground">{p.stock} qty</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {topProductRows.length === 0 && <p className="text-sm text-gray-500 text-center py-6">No products match your filter.</p>}
+              {topProductRows.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No products match your filter.</p>}
             </CardContent>
           </Card>
         )}
@@ -451,8 +466,8 @@ export default function Dashboard() {
               />
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
-                    <th className="px-5 py-2 w-10">#</th>
+                  <tr className="border-b bg-muted text-left text-xs font-semibold uppercase text-muted-foreground">
+                    <th className="w-10 px-5 py-2">#</th>
                     <th className="px-5 py-2">Customer</th>
                     <th className="px-5 py-2 text-right">Orders</th>
                     <th className="px-5 py-2 text-right">Spent</th>
@@ -460,11 +475,11 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y">
                   {topCustomerRows.map((c, i) => (
-                    <tr key={c.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/customers/${c.id}`)}>
-                      <td className="px-5 py-2.5 text-gray-400">{i + 1}</td>
+                    <tr key={c.id} className="cursor-pointer hover:bg-muted/60" onClick={() => navigate(`/customers/${c.id}`)}>
+                      <td className="px-5 py-2.5 text-muted-foreground">{i + 1}</td>
                       <td className="px-5 py-2.5">
-                        <p className="font-medium text-blue-600 hover:underline">{c.name}</p>
-                        <p className="text-xs text-gray-400">{c.email}</p>
+                        <p className="font-medium text-primary hover:underline">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">{c.email}</p>
                       </td>
                       <td className="px-5 py-2.5 text-right">{c.orders} orders</td>
                       <td className="px-5 py-2.5 text-right font-medium">{formatCurrency(c.spent)}</td>
@@ -472,7 +487,7 @@ export default function Dashboard() {
                   ))}
                 </tbody>
               </table>
-              {topCustomerRows.length === 0 && <p className="text-sm text-gray-500 text-center py-6">No customers match your filter.</p>}
+              {topCustomerRows.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No customers match your filter.</p>}
             </CardContent>
           </Card>
         )}
@@ -483,11 +498,11 @@ export default function Dashboard() {
         <CardHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-indigo-600" /> Orders Report
+              <Receipt className="h-5 w-5 text-info" /> Orders Report
             </CardTitle>
 
             {/* Tab dropdown */}
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+            <div className="flex items-center gap-1 rounded-xl bg-muted p-1">
               {([
                 { key: 'orders',   label: 'Orders / All',    icon: ShoppingCart, nav: '/orders' },
                 { key: 'pos',      label: 'POS',             icon: Receipt,      nav: '/pos' },
@@ -496,13 +511,13 @@ export default function Dashboard() {
                 <button
                   key={tab.key}
                   onClick={() => { setOrderTab(tab.key); setOrderSearch(''); setOrderSortKey(tab.key === 'bookings' ? 'booking_date' : 'created_at'); setOrderSortDir('desc'); setOrderPage(0) }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
                     orderTab === tab.key
-                      ? 'bg-white text-indigo-700 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-card text-primary shadow-sm ring-1 ring-primary/15'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <tab.icon className="w-3.5 h-3.5" />
+                  <tab.icon className="h-3.5 w-3.5" />
                   {tab.label}
                 </button>
               ))}
@@ -510,7 +525,7 @@ export default function Dashboard() {
 
             <button
               onClick={() => navigate(orderTab === 'pos' ? '/pos' : orderTab === 'orders' ? '/orders' : '/bookings')}
-              className="text-xs text-blue-600 hover:underline flex items-center gap-1 ml-auto"
+              className="ml-auto flex items-center gap-1 text-xs text-info hover:underline"
             >
               View all <ExternalLink className="w-3 h-3" />
             </button>
@@ -520,17 +535,17 @@ export default function Dashboard() {
         <CardContent className="p-0">
           {/* Summary stats */}
           <div className="grid grid-cols-3 gap-4 px-5 pb-4">
-            <div className="text-center py-3 bg-indigo-50 rounded-xl">
-              <p className="text-xs text-gray-500">Total Count</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">{orderStats.count}</p>
+            <div className="rounded-xl bg-info/10 py-3 text-center">
+              <p className="text-xs text-muted-foreground">Total Count</p>
+              <p className="mt-0.5 text-lg font-bold text-foreground">{orderStats.count}</p>
             </div>
-            <div className="text-center py-3 bg-emerald-50 rounded-xl">
-              <p className="text-xs text-gray-500">Total Revenue</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">{formatCurrency(orderStats.revenue)}</p>
+            <div className="rounded-xl bg-success/10 py-3 text-center">
+              <p className="text-xs text-muted-foreground">Total Revenue</p>
+              <p className="mt-0.5 text-lg font-bold text-foreground">{formatCurrency(orderStats.revenue)}</p>
             </div>
-            <div className="text-center py-3 bg-amber-50 rounded-xl">
-              <p className="text-xs text-gray-500">Avg Value</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">{formatCurrency(orderStats.avg)}</p>
+            <div className="rounded-xl bg-warning/10 py-3 text-center">
+              <p className="text-xs text-muted-foreground">Avg Value</p>
+              <p className="mt-0.5 text-lg font-bold text-foreground">{formatCurrency(orderStats.avg)}</p>
             </div>
           </div>
 
@@ -571,22 +586,22 @@ export default function Dashboard() {
             const totalPages = Math.ceil(orderRows.length / ORDER_PAGE_SIZE)
             const pagedRows = orderRows.slice(orderPage * ORDER_PAGE_SIZE, (orderPage + 1) * ORDER_PAGE_SIZE)
             const sColor: Record<string, string> = {
-              pending:     'bg-yellow-100 text-yellow-800',
-              confirmed:   'bg-blue-100 text-blue-800',
-              delivered:   'bg-green-100 text-green-800',
-              cancelled:   'bg-red-100 text-red-800',
-              completed:   'bg-green-100 text-green-800',
-              scheduled:   'bg-purple-100 text-purple-800',
-              shipped:     'bg-indigo-100 text-indigo-800',
-              returned:    'bg-orange-100 text-orange-800',
-              exchanged:   'bg-teal-100 text-teal-800',
-              in_progress: 'bg-blue-100 text-blue-800',
+              pending:     'bg-warning/15 text-warning',
+              confirmed:   'bg-info/15 text-info',
+              delivered:   'bg-success/15 text-success',
+              cancelled:   'bg-destructive/15 text-destructive',
+              completed:   'bg-success/15 text-success',
+              scheduled:   'bg-primary/15 text-primary',
+              shipped:     'bg-primary/12 text-primary',
+              returned:    'bg-warning/20 text-warning',
+              exchanged:   'bg-accent text-accent-foreground',
+              in_progress: 'bg-info/15 text-info',
             }
             return (
               <>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                    <tr className="border-b bg-muted text-left text-xs font-semibold uppercase text-muted-foreground">
                       <th className="px-5 py-2">Date</th>
                       <th className="px-5 py-2">{isBookingTab ? 'Booking #' : 'Order #'}</th>
                       {isBookingTab && <th className="px-5 py-2">Service</th>}
@@ -600,17 +615,17 @@ export default function Dashboard() {
                     {pagedRows.map((row: any) => {
                       if (isBookingTab) {
                         return (
-                          <tr key={row.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/bookings/${row.id}`)}>
-                            <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap">
+                          <tr key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/bookings/${row.id}`)}>
+                            <td className="whitespace-nowrap px-5 py-2.5 text-muted-foreground">
                               {row.booking_date
                                 ? new Date(row.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
                                 : '—'}
                             </td>
-                            <td className="px-5 py-2.5 font-medium text-blue-600 hover:underline">{row.booking_number || '—'}</td>
-                            <td className="px-5 py-2.5 text-gray-600">{row.service_name || '—'}</td>
-                            <td className="px-5 py-2.5 text-gray-600">{row.customer_name || <span className="text-gray-400 italic">Guest</span>}</td>
+                            <td className="px-5 py-2.5 font-medium text-primary hover:underline">{row.booking_number || '—'}</td>
+                            <td className="px-5 py-2.5 text-foreground/80">{row.service_name || '—'}</td>
+                            <td className="px-5 py-2.5 text-foreground/80">{row.customer_name || <span className="italic text-muted-foreground">Guest</span>}</td>
                             <td className="px-5 py-2.5">
-                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${sColor[row.status] || 'bg-gray-100 text-gray-700'}`}>
+                              <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize ${sColor[row.status] || 'bg-muted text-muted-foreground'}`}>
                                 {row.status || '—'}
                               </span>
                             </td>
@@ -618,26 +633,26 @@ export default function Dashboard() {
                         )
                       }
                       return (
-                        <tr key={row.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/orders/${row.id}`)}>
-                          <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap">
+                        <tr key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/orders/${row.id}`)}>
+                          <td className="whitespace-nowrap px-5 py-2.5 text-muted-foreground">
                             {new Date(row.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                            <span className="text-gray-400 ml-1 text-xs">
+                            <span className="ml-1 text-xs text-muted-foreground/80">
                               {new Date(row.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </td>
-                          <td className="px-5 py-2.5 font-medium text-blue-600 hover:underline">{row.order_number}</td>
-                          <td className="px-5 py-2.5 text-gray-600">{row.customer_name || <span className="text-gray-400 italic">Walk-in</span>}</td>
+                          <td className="px-5 py-2.5 font-medium text-primary hover:underline">{row.order_number}</td>
+                          <td className="px-5 py-2.5 text-foreground/80">{row.customer_name || <span className="italic text-muted-foreground">Walk-in</span>}</td>
                           <td className="px-5 py-2.5 text-right font-medium">{formatCurrency(row.total)}</td>
                           <td className="px-5 py-2.5">
                             <span className="inline-flex items-center gap-1 text-xs capitalize">
-                              {row.payment_method === 'cash' && <Banknote className="w-3.5 h-3.5 text-green-600" />}
-                              {row.payment_method === 'upi'  && <Smartphone className="w-3.5 h-3.5 text-purple-600" />}
-                              {row.payment_method === 'card' && <CreditCard className="w-3.5 h-3.5 text-blue-600" />}
+                              {row.payment_method === 'cash' && <Banknote className="h-3.5 w-3.5 text-success" />}
+                              {row.payment_method === 'upi'  && <Smartphone className="h-3.5 w-3.5 text-primary" />}
+                              {row.payment_method === 'card' && <CreditCard className="h-3.5 w-3.5 text-info" />}
                               {row.payment_method || '—'}
                             </span>
                           </td>
                           <td className="px-5 py-2.5">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${sColor[row.status] || 'bg-gray-100 text-gray-700'}`}>
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize ${sColor[row.status] || 'bg-muted text-muted-foreground'}`}>
                               {row.status}
                             </span>
                           </td>
@@ -648,22 +663,22 @@ export default function Dashboard() {
                 </table>
 
                 {orderRows.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Receipt className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">No records found</p>
+                  <div className="py-8 text-center">
+                    <Receipt className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">No records found</p>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50/60">
-                    <span className="text-xs text-gray-500">
+                  <div className="flex items-center justify-between border-t bg-muted/40 px-5 py-3">
+                    <span className="text-xs text-muted-foreground">
                       Page {orderPage + 1} of {totalPages} &middot; {orderRows.length} total
                     </span>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => setOrderPage(p => Math.max(0, p - 1))}
                         disabled={orderPage === 0}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white hover:shadow-sm"
+                        className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-card hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                        <ChevronLeft className="h-3.5 w-3.5" /> Prev
                       </button>
 
                       {/* Page number pills */}
@@ -674,18 +689,18 @@ export default function Dashboard() {
                         if (!near) return null
                         return (
                           <span key={i}>
-                            {ellipsisBefore && <span className="px-1 text-xs text-gray-400">…</span>}
+                            {ellipsisBefore && <span className="px-1 text-xs text-muted-foreground">…</span>}
                             <button
                               onClick={() => setOrderPage(i)}
-                              className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                              className={`h-7 w-7 rounded-lg text-xs font-semibold transition-colors ${
                                 i === orderPage
-                                  ? 'bg-indigo-600 text-white shadow-sm'
-                                  : 'hover:bg-white hover:shadow-sm text-gray-600 border'
+                                  ? 'bg-primary text-primary-foreground shadow-sm'
+                                  : 'border text-muted-foreground hover:bg-card hover:shadow-sm'
                               }`}
                             >
                               {i + 1}
                             </button>
-                            {ellipsisAfter && <span className="px-1 text-xs text-gray-400">…</span>}
+                            {ellipsisAfter && <span className="px-1 text-xs text-muted-foreground">…</span>}
                           </span>
                         )
                       })}
@@ -693,17 +708,17 @@ export default function Dashboard() {
                       <button
                         onClick={() => setOrderPage(p => Math.min(totalPages - 1, p + 1))}
                         disabled={orderPage >= totalPages - 1}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white hover:shadow-sm"
+                        className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-card hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        Next <ChevronRight className="w-3.5 h-3.5" />
+                        Next <ChevronRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
 
                     <button
                       onClick={() => navigate(orderTab === 'pos' ? '/pos' : orderTab === 'orders' ? '/orders' : '/bookings')}
-                      className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
+                      className="flex items-center gap-1 text-xs text-info hover:underline"
                     >
-                      View all <ExternalLink className="w-3 h-3" />
+                      View all <ExternalLink className="h-3 w-3" />
                     </button>
                   </div>
                 )}

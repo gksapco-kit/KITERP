@@ -518,7 +518,7 @@ async def forgot_password(
   <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f7fb;padding:24px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
       style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #ececf5;">
-      <tr><td style="background:linear-gradient(135deg,#7c3aed 0%,#2563eb 100%);padding:18px 24px;color:#fff;">
+      <tr><td style="background:linear-gradient(135deg,#64C3A0 0%,#13624A 100%);padding:18px 24px;color:#fff;">
         <h2 style="margin:0;font-size:17px;font-weight:600;">KITERP</h2>
       </td></tr>
       <tr><td style="padding:24px;">

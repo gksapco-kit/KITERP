@@ -47,7 +47,7 @@ export default function DesignationsPage() {
                 <tr key={desig.id} className="border-b hover:bg-gray-50 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      <Award className="w-4 h-4 text-purple-500" />
+                      <Award className="w-4 h-4 text-primary/80" />
                       <span className="font-medium text-sm">{desig.name}</span>
                     </div>
                   </td>

@@ -232,26 +232,26 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-violet-600 to-blue-600 px-6 py-5 text-white">
+        <div className="bg-gradient-to-r from-primary to-info px-6 py-5 text-white">
           <h2 className="text-xl font-bold">Create Website</h2>
-          <p className="text-violet-200 text-sm mt-1">Use a ready-made store setup first. Advanced editing stays available after creation.</p>
+          <p className="text-primary-foreground/85 text-sm mt-1">Use a ready-made store setup first. Advanced editing stays available after creation.</p>
         </div>
 
         {/* Mode toggle */}
         <div className="grid grid-cols-3 gap-2 px-6 pt-5">
           <button onClick={() => setMode('guided')}
             className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all flex items-center justify-center gap-2',
-              mode === 'guided' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500 hover:border-violet-300')}>
+              mode === 'guided' ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40')}>
             <Layout className="w-4 h-4" /> Guided Setup
           </button>
           <button onClick={() => setMode('ai')}
             className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all flex items-center justify-center gap-2',
-              mode === 'ai' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500 hover:border-violet-300')}>
+              mode === 'ai' ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40')}>
             <Sparkles className="w-4 h-4" /> AI Generate
           </button>
           <button onClick={() => setMode('blank')}
             className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all flex items-center justify-center gap-2',
-              mode === 'blank' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500 hover:border-violet-300')}>
+              mode === 'blank' ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40')}>
             <FileText className="w-4 h-4" /> Blank / Advanced
           </button>
         </div>
@@ -265,7 +265,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
                   {BUSINESS_PRESETS.map(t => (
                     <button key={t.id} type="button" onClick={() => { setBusinessType(t.id); setSellingMode(t.sells) }}
                       className={cn('p-3 rounded-xl border-2 text-left transition-all',
-                        businessType === t.id ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-violet-300 hover:bg-gray-50')}>
+                        businessType === t.id ? 'border-primary bg-accent' : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50')}>
                       <div className="text-xl mb-1">{t.icon}</div>
                       <div className="text-xs font-semibold text-gray-800">{t.label}</div>
                       <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">{t.desc}</div>
@@ -306,14 +306,14 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">4. Site name</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder={selectedBusiness.defaultName}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 onKeyDown={e => e.key === 'Enter' && handleGuidedCreate()} />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Extra details (optional)</label>
               <textarea value={desc} onChange={e => setDesc(e.target.value)}
                 placeholder="Example: We are a premium bakery in Bangalore selling cakes, cookies, and party orders..."
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
             <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
               <div className="text-xs font-bold text-gray-700 mb-2">Your ready-made setup includes</div>
@@ -327,7 +327,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="flex items-center justify-end gap-3">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleGuidedCreate} disabled={isLoading} className="bg-violet-600 hover:bg-violet-700 text-white">
+              <Button onClick={handleGuidedCreate} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
                 Build Ready-Made Website
               </Button>
@@ -335,20 +335,20 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
           </div>
         ) : mode === 'ai' ? (
           <div className="p-6 space-y-4">
-            <div className="p-3 bg-violet-50 border border-violet-100 rounded-xl text-xs text-violet-700">
+            <div className="p-3 bg-accent border border-primary/20 rounded-xl text-xs text-primary">
               <strong>AI will build your full site</strong> — pages, copy, blocks, and a theme — all from one description.
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Describe your business *</label>
               <textarea value={aiDesc} onChange={e => setAiDesc(e.target.value)}
                 placeholder="E.g. We run a boutique yoga studio in Bangalore for working professionals. We offer morning classes, workshops, and online subscriptions..."
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 h-28 resize-none" />
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring h-28 resize-none" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Industry / Niche</label>
                 <input value={aiNiche} onChange={e => setAiNiche(e.target.value)} placeholder="yoga, saas, restaurant..."
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tone</label>
@@ -369,7 +369,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
             <div className="flex items-center justify-end gap-3">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
               <Button onClick={handleAICreate} disabled={!aiDesc.trim() || isLoading}
-                className="bg-gradient-to-r from-violet-600 to-blue-600 hover:opacity-90 text-white">
+                className="bg-gradient-to-r from-primary to-info hover:opacity-90 text-white">
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
                 Generate with AI
                 <ChevronRight className="w-4 h-4 ml-1" />
@@ -384,13 +384,13 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Site Name *</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="My Website"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 onKeyDown={e => e.key === 'Enter' && handleBlankCreate()} />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description (optional)</label>
               <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Brief description..."
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
             <div className="flex items-center justify-end gap-3">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -481,7 +481,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group">
       {/* Thumbnail */}
       <div
-        className="relative h-40 bg-gradient-to-br from-violet-100 via-blue-50 to-indigo-100 cursor-pointer overflow-hidden"
+        className="relative h-40 bg-gradient-to-br from-accent via-info/10 to-primary/15 cursor-pointer overflow-hidden"
         onClick={() => navigate(`/websites/${site.id}`)}
       >
         {site.favicon_url ? (
@@ -489,11 +489,11 @@ function SiteCard({ site }: { site: SiteListItem }) {
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
             <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center">
-              <Globe className="w-8 h-8 text-violet-500" />
+              <Globe className="w-8 h-8 text-primary/80" />
             </div>
             <div className="flex gap-1">
               {[...Array(site.page_count || 1)].slice(0, 4).map((_, i) => (
-                <div key={i} className="w-2 h-2 rounded-full bg-violet-300 opacity-60" />
+                <div key={i} className="w-2 h-2 rounded-full bg-primary/35 opacity-60" />
               ))}
             </div>
           </div>
@@ -525,7 +525,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
                   href={testUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-violet-600 hover:text-violet-800 flex items-center gap-1 min-w-0 flex-1 truncate"
+                  className="text-xs text-primary hover:text-primary flex items-center gap-1 min-w-0 flex-1 truncate"
                 >
                   <Globe2 className="w-3 h-3 shrink-0" />
                   <span className="truncate">{testUrl.replace('https://', '')}</span>
@@ -533,7 +533,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
                 <button
                   onClick={handleCopy}
                   title="Copy test link"
-                  className="p-1 rounded-md text-gray-400 hover:text-violet-600 hover:bg-violet-50 transition-colors shrink-0"
+                  className="p-1 rounded-md text-gray-400 hover:text-primary hover:bg-accent transition-colors shrink-0"
                 >
                   {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                 </button>
@@ -554,14 +554,14 @@ function SiteCard({ site }: { site: SiteListItem }) {
                     value={subdomainInput}
                     onChange={e => setSubdomainInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
                     placeholder="my-store"
-                    className="flex-1 min-w-0 px-2.5 py-1.5 border border-violet-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    className="flex-1 min-w-0 px-2.5 py-1.5 border border-primary/40 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                     onKeyDown={e => e.key === 'Enter' && handleGetLink()}
                     autoFocus
                   />
                   <button
                     onClick={handleGetLink}
                     disabled={updateSite.isPending}
-                    className="px-2.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-lg disabled:opacity-60 transition-colors"
+                    className="px-2.5 py-1.5 bg-primary hover:bg-primary/90 text-white text-xs font-semibold rounded-lg disabled:opacity-60 transition-colors"
                   >
                     {updateSite.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Set'}
                   </button>
@@ -578,7 +578,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
             ) : (
               <button
                 onClick={() => setSettingLink(true)}
-                className="flex items-center gap-1 mt-1.5 text-xs text-gray-400 hover:text-violet-600 transition-colors"
+                className="flex items-center gap-1 mt-1.5 text-xs text-gray-400 hover:text-primary transition-colors"
               >
                 <Link2 className="w-3 h-3" /> Get test link
               </button>
@@ -599,21 +599,21 @@ function SiteCard({ site }: { site: SiteListItem }) {
                 <div className="absolute right-0 top-8 z-30 bg-white border border-gray-200 rounded-xl shadow-xl w-44 py-1 overflow-hidden">
                   <button
                     onClick={() => { navigate(`/websites/${site.id}`); setMenuOpen(false) }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-violet-50"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
                   >
                     <Edit3 className="w-4 h-4 text-gray-400" /> Open Builder
                   </button>
                   {testUrl && (
                     <button
                       onClick={() => { window.open(testUrl, '_blank'); setMenuOpen(false) }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-violet-50"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
                     >
                       <ExternalLink className="w-4 h-4 text-gray-400" /> View Store
                     </button>
                   )}
                   <button
                     onClick={handleTogglePublish}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-violet-50"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
                   >
                     {site.is_published
                       ? <><EyeOff className="w-4 h-4 text-gray-400" /> Unpublish</>
@@ -647,7 +647,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
 
         {/* CTA */}
         <Button
-          className="w-full mt-3 bg-violet-600 hover:bg-violet-700 text-white text-sm"
+          className="w-full mt-3 bg-primary hover:bg-primary/90 text-white text-sm"
           onClick={() => navigate(`/websites/${site.id}`)}
         >
           <Edit3 className="w-3.5 h-3.5 mr-2" /> Open Builder
@@ -748,7 +748,7 @@ export default function WebsitesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Globe className="w-6 h-6 text-violet-600" /> Website Builder
+            <Globe className="w-6 h-6 text-primary" /> Website Builder
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             Start from a ready-made store website, then fine-tune with the advanced builder
@@ -759,7 +759,7 @@ export default function WebsitesPage() {
             variant="outline"
             disabled={openingTemplateEditor}
             onClick={() => { void openTemplateEditorSandbox('Template library') }}
-            className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-400"
+            className="border-primary/30 text-primary hover:bg-accent hover:border-primary/60"
           >
             {openingTemplateEditor
               ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Opening…</>
@@ -767,7 +767,7 @@ export default function WebsitesPage() {
           </Button>
           <Button
             onClick={() => setCreateOpen(true)}
-            className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
+            className="bg-primary hover:bg-primary/90 text-white shadow-sm"
           >
             <Plus className="w-4 h-4 mr-2" /> New Website
           </Button>
@@ -776,9 +776,9 @@ export default function WebsitesPage() {
 
       {/* Feature highlights */}
       {sites.length === 0 && !isLoading && (
-        <div className="bg-gradient-to-br from-violet-50 via-blue-50 to-indigo-50 border border-violet-100 rounded-2xl p-8 text-center">
+        <div className="bg-gradient-to-br from-accent via-info/10 to-primary/10 border border-primary/20 rounded-2xl p-8 text-center">
           <div className="w-20 h-20 bg-white rounded-3xl shadow-md flex items-center justify-center mx-auto mb-4">
-            <Globe className="w-10 h-10 text-violet-500" />
+            <Globe className="w-10 h-10 text-primary/80" />
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Build Your First Store Website</h2>
           <p className="text-gray-600 text-sm max-w-md mx-auto mb-6">
@@ -793,7 +793,7 @@ export default function WebsitesPage() {
               { icon: Globe, label: 'Go Live', desc: 'Mobile-ready pages with publish checklist' },
             ].map(f => (
               <div key={f.label} className="bg-white rounded-xl p-4 shadow-sm border border-white">
-                <f.icon className="w-5 h-5 text-violet-600 mb-2" />
+                <f.icon className="w-5 h-5 text-primary mb-2" />
                 <div className="text-sm font-semibold text-gray-800">{f.label}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{f.desc}</div>
               </div>
@@ -803,7 +803,7 @@ export default function WebsitesPage() {
           <Button
             onClick={() => setCreateOpen(true)}
             size="lg"
-            className="bg-violet-600 hover:bg-violet-700 text-white shadow-lg"
+            className="bg-primary hover:bg-primary/90 text-white shadow-lg"
           >
             <Rocket className="w-4 h-4 mr-2" /> Start Guided Setup
           </Button>
@@ -813,7 +813,7 @@ export default function WebsitesPage() {
       {/* Loading */}
       {isLoading && (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary/80" />
         </div>
       )}
 
@@ -827,9 +827,9 @@ export default function WebsitesPage() {
             {/* Add new card */}
             <button
               onClick={() => setCreateOpen(true)}
-              className="border-2 border-dashed border-violet-200 rounded-2xl h-64 flex flex-col items-center justify-center gap-3 text-violet-500 hover:border-violet-400 hover:bg-violet-50 transition-all"
+              className="border-2 border-dashed border-primary/30 rounded-2xl h-64 flex flex-col items-center justify-center gap-3 text-primary/80 hover:border-primary/60 hover:bg-accent transition-all"
             >
-              <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Plus className="w-6 h-6" />
               </div>
               <div className="text-sm font-semibold">Add New Website</div>

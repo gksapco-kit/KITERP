@@ -15,7 +15,7 @@ export default function MyESSPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex items-center gap-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-5 mb-6 text-white">
+      <div className="flex items-center gap-4 bg-gradient-to-r from-primary to-emerald-700 rounded-xl p-5 mb-6 text-white">
         <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
           <User className="w-7 h-7" />
         </div>
@@ -95,7 +95,7 @@ const COLORS: Record<string, string> = {
   amber:  'from-amber-500 to-orange-500',
   blue:   'from-blue-500 to-cyan-500',
   green:  'from-green-500 to-emerald-500',
-  purple: 'from-purple-500 to-pink-500',
+  purple: 'from-primary to-emerald-600',
 }
 
 function SummaryCard({

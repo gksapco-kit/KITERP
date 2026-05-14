@@ -252,7 +252,7 @@ function StoreModal({
               onClick={() => { setTypeDropOpen(v => !v); setShowCustomInput(false) }}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-md border text-sm text-left transition-all',
-                typeDropOpen ? 'border-violet-500 ring-2 ring-violet-200' : 'border-input hover:border-gray-400'
+                typeDropOpen ? 'border-primary ring-2 ring-primary/25' : 'border-input hover:border-gray-400'
               )}
             >
               {(() => {
@@ -260,8 +260,8 @@ function StoreModal({
                 const Icon = preset?.icon
                 return Icon ? (
                   <>
-                    <span className="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center shrink-0">
-                      <Icon className="w-3.5 h-3.5 text-violet-600" />
+                    <span className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                      <Icon className="w-3.5 h-3.5 text-primary" />
                     </span>
                     <span className="flex-1 font-medium text-gray-800">{preset.label}</span>
                   </>
@@ -293,20 +293,20 @@ function StoreModal({
                         type="button"
                         onClick={() => selectType(value)}
                         className={cn(
-                          'w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-violet-50 transition-colors',
-                          form.company_type === value && 'bg-violet-50'
+                          'w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-accent transition-colors',
+                          form.company_type === value && 'bg-accent'
                         )}
                       >
                         <span className={cn(
                           'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
-                          form.company_type === value ? 'bg-violet-600' : 'bg-gray-100'
+                          form.company_type === value ? 'bg-primary' : 'bg-gray-100'
                         )}>
                           <Icon className={cn('w-3.5 h-3.5', form.company_type === value ? 'text-white' : 'text-gray-500')} />
                         </span>
-                        <span className={cn('flex-1 text-sm', form.company_type === value ? 'font-semibold text-violet-700' : 'text-gray-700')}>
+                        <span className={cn('flex-1 text-sm', form.company_type === value ? 'font-semibold text-primary' : 'text-gray-700')}>
                           {label}
                         </span>
-                        {form.company_type === value && <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />}
+                        {form.company_type === value && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                       </button>
                     ))}
                   </div>
@@ -537,11 +537,11 @@ function StoreCard({
   return (
     <Card className={cn(
       'relative border-2 transition-all hover:shadow-md',
-      isSelected ? 'border-violet-500 shadow-md shadow-violet-100' : store.is_default ? 'border-indigo-300' : 'border-transparent',
+      isSelected ? 'border-primary shadow-md shadow-primary/25' : store.is_default ? 'border-primary/30' : 'border-transparent',
     )}>
       {/* Selected badge */}
       {isSelected && (
-        <span className="absolute top-3 right-3 bg-violet-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
+        <span className="absolute top-3 right-3 bg-primary text-white text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
           <Check className="w-2.5 h-2.5" /> Active
         </span>
       )}
@@ -560,9 +560,9 @@ function StoreCard({
             return (
               <div className={cn(
                 'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
-                isSelected ? 'bg-violet-100' : store.is_active ? 'bg-indigo-100' : 'bg-gray-100',
+                isSelected ? 'bg-primary/10' : store.is_active ? 'bg-indigo-100' : 'bg-gray-100',
               )}>
-                <Icon className={cn('w-5 h-5', isSelected ? 'text-violet-600' : store.is_active ? 'text-indigo-600' : 'text-gray-400')} />
+                <Icon className={cn('w-5 h-5', isSelected ? 'text-primary' : store.is_active ? 'text-indigo-600' : 'text-gray-400')} />
               </div>
             )
           })()}
@@ -572,7 +572,7 @@ function StoreCard({
               {(() => {
                 const companyType = (store.settings as Record<string, string> | undefined)?.company_type
                 return companyType ? (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                     {companyType}
                   </span>
                 ) : null
@@ -650,7 +650,7 @@ function StoreCard({
           <Button
             size="sm"
             variant={isSelected ? 'default' : 'outline'}
-            className={cn('h-8 text-xs flex-1', isSelected && 'bg-violet-600 hover:bg-violet-700 text-white')}
+            className={cn('h-8 text-xs flex-1', isSelected && 'bg-primary hover:bg-primary/90 text-white')}
             onClick={onSelect}
           >
             {isSelected ? <><Check className="w-3 h-3 mr-1" />Selected</> : 'Select'}
@@ -733,7 +733,7 @@ function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void
           { label: 'SKUs in Stock', value: store.inventory_count ?? 0, icon: Package, color: 'text-indigo-600 bg-indigo-50' },
           { label: 'Staff Members', value: store.staff_count ?? 0, icon: Users, color: 'text-emerald-600 bg-emerald-50' },
           { label: 'City', value: store.address?.city || '—', icon: MapPin, color: 'text-amber-600 bg-amber-50' },
-          { label: 'Phone', value: store.phone || '—', icon: Phone, color: 'text-purple-600 bg-purple-50' },
+          { label: 'Phone', value: store.phone || '—', icon: Phone, color: 'text-primary bg-accent' },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -938,7 +938,7 @@ export default function StoresPage() {
           <button
             type="button"
             onClick={() => navigate('/settings')}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-violet-600 mb-2 transition-colors group"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary mb-2 transition-colors group"
           >
             <ChevronRight className="w-4 h-4 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
             Back to Settings
@@ -947,7 +947,7 @@ export default function StoresPage() {
           <p className="text-sm text-gray-500 mt-0.5">
             Manage your physical locations, inventory per store, and staff assignments.
             {selectedStore && (
-              <span className="ml-2 inline-flex items-center gap-1 text-violet-600 font-medium">
+              <span className="ml-2 inline-flex items-center gap-1 text-primary font-medium">
                 <Check className="w-3 h-3" /> Viewing: {selectedStore.name}
               </span>
             )}

@@ -170,7 +170,7 @@ export default function OrderDetail() {
                   </span>
                 )}
                 {isQuote && (
-                  <span className="inline-flex px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs font-medium">Quote</span>
+                  <span className="inline-flex px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">Quote</span>
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-0.5">Placed on {formatDate(order.created_at)}</p>
@@ -224,10 +224,10 @@ export default function OrderDetail() {
               </div>
             </div>
           ) : isQuote ? (
-            <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-              <p className="font-semibold text-violet-800">Quote Request Submitted</p>
-              <p className="text-sm text-violet-700 mt-1">The vendor will review your request and get back to you.</p>
-              {order.notes && <p className="text-sm text-gray-600 mt-2 border-t border-violet-200 pt-2">{order.notes}</p>}
+            <div className="bg-accent border border-primary/30 rounded-xl p-4">
+              <p className="font-semibold text-primary">Quote Request Submitted</p>
+              <p className="text-sm text-primary mt-1">The vendor will review your request and get back to you.</p>
+              {order.notes && <p className="text-sm text-gray-600 mt-2 border-t border-primary/30 pt-2">{order.notes}</p>}
             </div>
           ) : (
             <div className="flex items-center justify-between relative">
@@ -397,16 +397,16 @@ export default function OrderDetail() {
 
           {/* Tracking card (shown when shipped) */}
           {order.status === 'shipped' && order.tracking_number && (
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-5">
+            <div className="bg-accent border border-primary/30 rounded-xl p-5">
               <div className="flex items-center gap-3">
-                <Truck className="w-6 h-6 text-purple-600 shrink-0" />
+                <Truck className="w-6 h-6 text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-purple-900">Your order is on the way!</p>
-                  <p className="text-sm text-purple-700 mt-1">Tracking: <span className="font-mono font-medium">{order.tracking_number}</span></p>
+                  <p className="font-semibold text-sm text-primary">Your order is on the way!</p>
+                  <p className="text-sm text-primary mt-1">Tracking: <span className="font-mono font-medium">{order.tracking_number}</span></p>
                 </div>
                 {order.tracking_url && (
                   <a href={order.tracking_url} target="_blank" rel="noopener noreferrer">
-                    <Button size="sm" variant="outline" className="gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-100">
+                    <Button size="sm" variant="outline" className="gap-1.5 border-primary/40 text-primary hover:bg-primary/12">
                       <ExternalLink className="w-3.5 h-3.5" /> Track
                     </Button>
                   </a>

@@ -42,8 +42,8 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
         onClick={() => setExpanded(v => !v)}
       >
         {/* Avatar */}
-        <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-          <User className="w-4 h-4 text-violet-600" />
+        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <User className="w-4 h-4 text-primary" />
         </div>
 
         {/* Main info */}
@@ -71,7 +71,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
         {/* Meta */}
         <div className="flex items-center gap-3 shrink-0">
           {sub.crm_lead_id && (
-            <span className="text-[10px] bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-full">
+            <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
               CRM Lead
             </span>
           )}
@@ -119,7 +119,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
                   href={`/crm/leads`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-violet-600 hover:underline"
+                  className="flex items-center gap-1 text-primary hover:underline"
                 >
                   View CRM Lead <ExternalLink className="w-3 h-3" />
                 </a>
@@ -185,7 +185,7 @@ export default function WebsiteSubmissions() {
         <div className="w-px h-4 bg-gray-300" />
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Mail className="w-5 h-5 text-violet-600" /> Form Submissions
+            <Mail className="w-5 h-5 text-primary" /> Form Submissions
           </h1>
           {site && <p className="text-sm text-gray-500">{site.name}</p>}
         </div>
@@ -218,7 +218,7 @@ export default function WebsiteSubmissions() {
       {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-7 h-7 animate-spin text-violet-500" />
+          <Loader2 className="w-7 h-7 animate-spin text-primary/80" />
         </div>
       ) : submissions.length === 0 ? (
         <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-200">

@@ -24,7 +24,7 @@ export default function PeriodControl() {
   const { data: companies = [], isLoading: compLoad } = useCompanies()
   const { data: allFiscalYearRows = [], isLoading: allFyLoad } = useAllFiscalYears()
   const [createOpen, setCreateOpen] = useState(false)
-  const auditSaveHandlers = useRef(new Map<string, () => boolean>())
+  const auditSaveHandlers = useRef(new Map<string, () => 0 | 1 | 2>())
 
   const registerPageAuditSave = useCallback((companyId: string, trySave: () => 0 | 1 | 2) => {
     auditSaveHandlers.current.set(companyId, trySave)

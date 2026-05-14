@@ -1,5 +1,7 @@
 const LS_SECTION = 'kiterp.vendor.sidebar.section-ids'
 const LS_ITEMS = 'kiterp.vendor.sidebar.item-orders'
+/** Ordered `to` paths per section id (links may appear under any visible module). */
+const LS_PLACEMENTS_V2 = 'kiterp.vendor.sidebar.nav-placements-v2'
 
 export function loadSectionIds(defaultIds: string[]): string[] {
   try {
@@ -45,16 +47,6 @@ export function saveItemOrders(orders: Record<string, string[]>) {
   }
 }
 
-/** Clear persisted sidebar order so the next load uses built-in defaults. */
-export function clearSavedNavOrder() {
-  try {
-    localStorage.removeItem(LS_SECTION)
-    localStorage.removeItem(LS_ITEMS)
-  } catch {
-    /* ignore */
-  }
-}
-
 /** Apply saved `to` order; unknown keys keep file order at end. */
 export function orderNavItemsByTo<T extends { to: string }>(items: T[], order: string[] | undefined): T[] {
   if (!order?.length) return items
@@ -89,4 +81,97 @@ export function orderSectionsById<T extends { id: string }>(sections: T[], order
     if (!seen.has(s.id)) out.push(s)
   }
   return out
+}
+
+/** Canonical file order: each section lists its own `to` keys in definition order. */
+export function buildDefaultPlacementsFromSections(
+  sections: { id: string; items: { to: string }[] }[],
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const s of sections) {
+    out[s.id] = s.items.map((i) => i.to)
+  }
+  return out
+}
+
+function migrateLegacyItemOrdersToPlacements(
+  sections: { id: string; items: { to: string }[] }[],
+  legacy: Record<string, string[]>,
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const s of sections) {
+    const ordered = orderNavItemsByTo(s.items, legacy[s.id])
+    out[s.id] = ordered.map((i) => i.to)
+  }
+  return out
+}
+
+/**
+ * Keep placements consistent with visible nav: drop invalid `to`, assign each visible route exactly once
+ * (preserve non-canonical grouping from `prev` when still valid).
+ */
+export function reconcileNavPlacements(
+  prev: Record<string, string[]>,
+  sections: { id: string; items: { to: string }[] }[],
+): Record<string, string[]> {
+  const validTos = new Set<string>()
+  const home = new Map<string, string>()
+  for (const s of sections) {
+    for (const it of s.items) {
+      validTos.add(it.to)
+      home.set(it.to, s.id)
+    }
+  }
+  const out: Record<string, string[]> = {}
+  for (const s of sections) out[s.id] = []
+  const assigned = new Set<string>()
+
+  for (const s of sections) {
+    for (const to of prev[s.id] ?? []) {
+      if (!validTos.has(to) || assigned.has(to)) continue
+      out[s.id].push(to)
+      assigned.add(to)
+    }
+  }
+  for (const to of validTos) {
+    if (assigned.has(to)) continue
+    const sid = home.get(to)
+    if (sid) out[sid].push(to)
+  }
+  return out
+}
+
+/** Load v2 placements, or migrate from legacy per-section order (same-module only). */
+export function loadNavPlacementsState(sections: { id: string; items: { to: string }[] }[]): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(LS_PLACEMENTS_V2)
+    if (raw) {
+      const o = JSON.parse(raw) as Record<string, string[]>
+      if (o && typeof o === 'object') return reconcileNavPlacements(o, sections)
+    }
+  } catch {
+    /* fall through */
+  }
+  const legacy = loadItemOrders()
+  const migrated = migrateLegacyItemOrdersToPlacements(sections, legacy)
+  return reconcileNavPlacements(migrated, sections)
+}
+
+export function saveNavPlacementsState(p: Record<string, string[]>) {
+  try {
+    localStorage.setItem(LS_PLACEMENTS_V2, JSON.stringify(p))
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Clear persisted sidebar order so the next load uses built-in defaults. */
+export function clearSavedNavOrder() {
+  try {
+    localStorage.removeItem(LS_SECTION)
+    localStorage.removeItem(LS_ITEMS)
+    localStorage.removeItem(LS_PLACEMENTS_V2)
+  } catch {
+    /* ignore */
+  }
 }

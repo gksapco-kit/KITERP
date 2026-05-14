@@ -83,7 +83,7 @@ function AccountCombobox({
   const TYPE_COLORS: Record<string, string> = {
     Asset: 'bg-blue-100 text-blue-700',
     Liability: 'bg-red-100 text-red-700',
-    Equity: 'bg-purple-100 text-purple-700',
+    Equity: 'bg-primary/12 text-primary',
     Income: 'bg-green-100 text-green-700',
     Expense: 'bg-orange-100 text-orange-700',
   }

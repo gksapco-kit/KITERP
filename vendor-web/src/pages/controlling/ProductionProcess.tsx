@@ -166,9 +166,9 @@ export default function ProductionProcessPage() {
           <p className="text-xs text-amber-600 mb-1">Open (WIP)</p>
           <p className="text-2xl font-bold text-amber-700">{openOrders}</p>
         </div>
-        <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
-          <p className="text-xs text-violet-600 mb-1">WIP actual cost</p>
-          <p className="text-2xl font-bold text-violet-700">{formatCurrency(wipCost)}</p>
+        <div className="rounded-xl border border-primary/20 bg-accent p-4">
+          <p className="text-xs text-primary mb-1">WIP actual cost</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(wipCost)}</p>
         </div>
       </div>
 
@@ -292,14 +292,14 @@ export default function ProductionProcessPage() {
                               <button
                                 onClick={() => handleTransition(o.id, stage.next!)}
                                 disabled={transitionMut.isPending}
-                                className="text-[10px] font-medium text-violet-600 hover:text-violet-800 flex items-center gap-0.5"
+                                className="text-[10px] font-medium text-primary hover:text-primary flex items-center gap-0.5"
                               >
                                 {stage.nextLabel} <ChevronRight className="w-3 h-3" />
                               </button>
                             )}
                             <Link
                               to={`/controlling/orders/${o.id}`}
-                              className="text-gray-400 hover:text-violet-600"
+                              className="text-gray-400 hover:text-primary"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                             </Link>

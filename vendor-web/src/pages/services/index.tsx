@@ -72,7 +72,7 @@ function MoreMenu({ service, onDelete }: {
           </button>
           <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             onClick={() => { shareService(service, 'native'); setOpen(false) }}>
-            <Share2 className="w-4 h-4 text-purple-500" /> Share
+            <Share2 className="w-4 h-4 text-primary/80" /> Share
           </button>
           <div className="border-t my-1" />
           {confirmDelete ? (
@@ -192,7 +192,7 @@ export default function Services() {
             </div>
             <Button type="button" variant="outline" className="gap-2" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-4 h-4" />Filters
-              {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none font-bold bg-violet-600 text-white rounded-full">{activeFilterCount}</span>}
+              {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none font-bold bg-primary text-white rounded-full">{activeFilterCount}</span>}
             </Button>
           </div>
           {showFilters && (
@@ -200,7 +200,7 @@ export default function Services() {
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</label>
                 <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}
-                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow">
+                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/60 transition-shadow">
                   <option value="">All Statuses</option>
                   <option value="active">Active</option>
                   <option value="draft">Draft</option>
@@ -210,7 +210,7 @@ export default function Services() {
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Category</label>
                 <select value={category} onChange={e => { setCategory(e.target.value); setPage(1) }}
-                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow">
+                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/60 transition-shadow">
                   <option value="">All Categories</option>
                   {serviceCategories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
@@ -290,13 +290,13 @@ export default function Services() {
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-900 group-hover:text-violet-700 transition-colors truncate">{service.name}</p>
+                            <p className="text-sm font-medium text-gray-900 group-hover:text-primary transition-colors truncate">{service.name}</p>
                             <p className="text-[11px] text-gray-400 truncate">{service.category || 'Uncategorized'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 text-[11px] rounded-full font-semibold bg-purple-50 text-purple-700 capitalize">
+                        <span className="px-2 py-0.5 text-[11px] rounded-full font-semibold bg-accent text-primary capitalize">
                           {(service.service_type || 'one_time').replace('_', ' ')}
                         </span>
                       </td>
@@ -314,7 +314,7 @@ export default function Services() {
                       <td className="px-4 py-3">
                         {plansCount > 0 ? (
                           <div className="flex items-center gap-1.5">
-                            <Layers className="w-3.5 h-3.5 text-violet-400" />
+                            <Layers className="w-3.5 h-3.5 text-primary/70" />
                             <span className="text-xs font-medium text-gray-700">{plansCount}</span>
                             <span className="text-[10px] text-gray-400">({activePlans} active)</span>
                           </div>

@@ -8,7 +8,7 @@ export default function AnnouncementBarBlock({ props }: Props) {
   const [dismissed, setDismissed] = useState(false)
   if (dismissed) return null
   const text = (props.text as string) || ''
-  const color = (props.color as string) || '#7c3aed'
+  const color = (props.color as string) || '#64C3A0'
   const showClose = props.show_close !== false
   if (!text) return null
   return (

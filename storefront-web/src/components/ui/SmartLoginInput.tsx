@@ -6,7 +6,9 @@
 import { useState, useMemo } from 'react'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Mail, Phone } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { inferLoginUiPhoneMode } from '@/lib/loginIdentifier'
 
 export interface SmartLoginInputProps {
@@ -15,6 +17,8 @@ export interface SmartLoginInputProps {
   error?: string
   defaultCountryIso?: string
   className?: string
+  /** Same row as toggle, above the field (e.g. “Email or Phone”). */
+  fieldLabel?: string
   inputId?: string
   name?: string
   autoComplete?: string
@@ -26,6 +30,7 @@ export function SmartLoginInput({
   error,
   defaultCountryIso = 'IN',
   className = '',
+  fieldLabel,
   inputId = 'login',
   name = 'login',
   autoComplete = 'username',
@@ -44,7 +49,25 @@ export function SmartLoginInput({
   }
 
   return (
-    <div className={`space-y-1 ${className}`}>
+    <div className={cn(fieldLabel ? 'space-y-1.5' : 'space-y-1', className)}>
+      <div className={cn('flex items-center gap-2', fieldLabel ? 'justify-between' : 'justify-end')}>
+        {fieldLabel ? (
+          <Label htmlFor={inputId} className="shrink-0 text-gray-700">
+            {fieldLabel}
+          </Label>
+        ) : null}
+        <button
+          type="button"
+          className="inline-flex shrink-0 items-center gap-1 text-xs text-amber-600 hover:underline"
+          onClick={handleToggle}
+        >
+          {isPhone ? (
+            <><Mail className="w-3 h-3" /> Use email instead</>
+          ) : (
+            <><Phone className="w-3 h-3" /> Use phone instead</>
+          )}
+        </button>
+      </div>
       {isPhone ? (
         <PhoneInput
           id={inputId}
@@ -73,17 +96,6 @@ export function SmartLoginInput({
           {error && <p className="text-xs text-red-500">{error}</p>}
         </>
       )}
-      <button
-        type="button"
-        className="text-xs text-amber-600 hover:underline flex items-center gap-1 mt-0.5"
-        onClick={handleToggle}
-      >
-        {isPhone ? (
-          <><Mail className="w-3 h-3" /> Use email instead</>
-        ) : (
-          <><Phone className="w-3 h-3" /> Use phone instead</>
-        )}
-      </button>
     </div>
   )
 }

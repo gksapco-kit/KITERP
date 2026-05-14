@@ -89,7 +89,7 @@ const DIMENSIONS: Dimension[] = [
     label: 'Contractor',
     icon: FileText,
     partyType: 'contractor',
-    color: 'bg-purple-100 text-purple-700 border-purple-200',
+    color: 'bg-primary/12 text-primary border-primary/30',
     description: 'Lines posted against contract workers',
   },
   {
@@ -121,7 +121,7 @@ const SOURCE_LABELS: Record<string, string> = {
 const TYPE_COLORS: Record<string, string> = {
   Asset: 'bg-blue-50 text-blue-700',
   Liability: 'bg-red-50 text-red-700',
-  Equity: 'bg-purple-50 text-purple-700',
+  Equity: 'bg-accent text-primary',
   Income: 'bg-green-50 text-green-700',
   Expense: 'bg-orange-50 text-orange-700',
 }
@@ -317,7 +317,7 @@ function LedgerTable({
               key={i}
               className={cn(
                 'transition-colors hover:bg-indigo-50/30 group',
-                row.debit > 0 ? '' : 'bg-purple-50/10',
+                row.debit > 0 ? '' : 'bg-accent/10',
               )}
             >
               <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px]">{row.date}</td>
@@ -722,7 +722,7 @@ export default function GLReport() {
                 value={fmt(totalCredit)}
                 sub={`${rows.filter(r => r.credit > 0).length} entries`}
                 icon={ArrowDownLeft}
-                color="bg-purple-100 text-purple-700"
+                color="bg-primary/12 text-primary"
               />
               <KPI
                 label="Closing Balance"

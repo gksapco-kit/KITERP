@@ -239,7 +239,7 @@ export default function VarianceAnalysisPage() {
                 <>
                   <tr
                     key={o.id}
-                    className={`hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-violet-50/30' : ''}`}
+                    className={`hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-accent/60' : ''}`}
                     onClick={() => setExpandedId(isExpanded ? null : o.id)}
                   >
                     <td className="px-4 py-3">
@@ -270,7 +270,7 @@ export default function VarianceAnalysisPage() {
                       <Link
                         to={`/controlling/orders/${o.id}`}
                         onClick={e => e.stopPropagation()}
-                        className="text-violet-500 hover:text-violet-700"
+                        className="text-primary/80 hover:text-primary"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Link>

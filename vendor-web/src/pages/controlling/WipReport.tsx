@@ -25,7 +25,7 @@ export default function ControllingWipReportPage() {
 
   return (
     <div className="p-6 max-w-6xl space-y-6">
-      <Link to="/controlling" className="text-sm text-violet-600 hover:underline inline-flex items-center gap-1">
+      <Link to="/controlling" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
         <ArrowLeft className="w-4 h-4" /> CO Dashboard
       </Link>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -116,7 +116,7 @@ export default function ControllingWipReportPage() {
                       <td className="px-4 py-2 text-right tabular-nums">{fmt(o.actual)}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{fmt(o.variance)}</td>
                       <td className="px-4 py-2 text-right">
-                        <Link to={`/controlling/orders/${o.order_id}`} className="text-violet-600 text-xs hover:underline">
+                        <Link to={`/controlling/orders/${o.order_id}`} className="text-primary text-xs hover:underline">
                           Open
                         </Link>
                       </td>

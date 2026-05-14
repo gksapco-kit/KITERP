@@ -330,7 +330,7 @@ function PreviewBar({
         {onEditToggle && (
           <button type="button" onClick={onEditToggle}
             className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors ${
-              editOpen ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-amber-300 text-gray-700 hover:bg-amber-100'
+              editOpen ? 'bg-primary text-white border-primary' : 'bg-white border-amber-300 text-gray-700 hover:bg-amber-100'
             }`}>
             <Paintbrush className="w-3.5 h-3.5" />
             Edit style
@@ -340,7 +340,7 @@ function PreviewBar({
           <button
             type="button"
             onClick={onEditInBuilder}
-            className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border bg-violet-600 text-white border-violet-600 hover:bg-violet-700 transition-colors shadow-sm"
+            className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border bg-primary text-white border-primary hover:bg-primary/90 transition-colors shadow-sm"
           >
             <Pencil className="w-3.5 h-3.5" />
             Edit in Builder
@@ -378,7 +378,7 @@ function StyleTab({
       <div>
         <label className="block text-[10px] font-extrabold uppercase tracking-wide text-gray-500 mb-1.5">Store name</label>
         <input type="text" value={storeName} onChange={e => onStoreNameChange(e.target.value)} placeholder="My Store"
-          className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-300 text-gray-900" />
+          className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-gray-900" />
       </div>
       <div>
         <div className="text-[10px] font-extrabold uppercase tracking-wide text-gray-500 mb-2">Brand colors</div>
@@ -394,7 +394,7 @@ function StyleTab({
                 <div className="text-[10px] font-semibold text-gray-500 mb-0.5">{label}</div>
                 <input type="text" value={value} maxLength={7} placeholder="#000000"
                   onChange={e => { const v = e.target.value.trim(); if (/^#[0-9A-Fa-f]{6}$/.test(v)) onColorChange(key, v) }}
-                  className="w-full font-mono text-xs px-2 py-1 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-1 focus:ring-violet-300 text-gray-800" />
+                  className="w-full font-mono text-xs px-2 py-1 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-1 focus:ring-ring text-gray-800" />
               </div>
             </div>
           ))}
@@ -409,7 +409,7 @@ function StyleTab({
           <div>
             <label className="text-[10px] font-semibold text-gray-500 block mb-1">Heading font</label>
             <select value={displayFont} onChange={e => onDisplayFontChange(e.target.value)}
-              className="w-full text-sm px-2.5 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-300 text-gray-800">
+              className="w-full text-sm px-2.5 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-ring text-gray-800">
               {HEADING_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
             <div className="mt-1 text-xs text-gray-400 truncate" style={{ fontFamily: `'${displayFont}', serif` }}>
@@ -419,7 +419,7 @@ function StyleTab({
           <div>
             <label className="text-[10px] font-semibold text-gray-500 block mb-1">Body font</label>
             <select value={bodyFont} onChange={e => onBodyFontChange(e.target.value)}
-              className="w-full text-sm px-2.5 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-300 text-gray-800">
+              className="w-full text-sm px-2.5 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-ring text-gray-800">
               {BODY_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
             <div className="mt-1 text-xs text-gray-400 truncate" style={{ fontFamily: `'${bodyFont}', sans-serif` }}>
@@ -466,15 +466,15 @@ function ContentTab({
         const isOpen = open === section.id
         const isHighlighted = highlighted === section.id
         return (
-          <div key={section.id} className={`border-b border-gray-100 ${isHighlighted ? 'bg-violet-50/40' : ''}`}>
+          <div key={section.id} className={`border-b border-gray-100 ${isHighlighted ? 'bg-accent/70' : ''}`}>
             <button
               type="button"
               onClick={() => { setOpen(isOpen ? null : section.id); onHighlight(section.id) }}
               className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors group"
             >
               <div className="flex items-center gap-2 min-w-0">
-                {isHighlighted && <span className="w-1.5 h-1.5 rounded-full bg-violet-600 shrink-0" />}
-                <span className={`text-xs font-bold truncate ${isHighlighted ? 'text-violet-700' : 'text-gray-800'}`}>
+                {isHighlighted && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                <span className={`text-xs font-bold truncate ${isHighlighted ? 'text-primary' : 'text-gray-800'}`}>
                   {section.label}
                 </span>
               </div>
@@ -482,7 +482,7 @@ function ContentTab({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); scrollToSection(section) }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-violet-100 text-violet-600"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-primary/15 text-primary"
                   title="Scroll to this section"
                 >
                   <ExternalLink className="w-3 h-3" />
@@ -504,7 +504,7 @@ function ContentTab({
                           onChange={e => onContentChange(field.key, e.target.value)}
                           placeholder={field.fallback}
                           rows={3}
-                          className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-300 text-gray-900 resize-y leading-relaxed"
+                          className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-900 resize-y leading-relaxed"
                         />
                       ) : field.type === 'image' ? (
                         <div>
@@ -513,7 +513,7 @@ function ContentTab({
                             value={val}
                             onChange={e => onContentChange(field.key, e.target.value)}
                             placeholder={field.fallback}
-                            className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-300 text-gray-900 font-mono"
+                            className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-900 font-mono"
                           />
                           {(val || field.fallback) && (
                             <div className="mt-2 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 aspect-video max-h-24">
@@ -533,7 +533,7 @@ function ContentTab({
                           value={val}
                           onChange={e => onContentChange(field.key, e.target.value)}
                           placeholder={field.fallback}
-                          className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-300 text-gray-900"
+                          className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-900"
                         />
                       )}
                     </div>
@@ -579,7 +579,7 @@ function EditPanel(props: EditPanelProps) {
     <div className="fixed top-[3.5rem] right-0 bottom-0 w-72 bg-white border-l border-gray-200 shadow-2xl z-[200] flex flex-col">
       {/* Header */}
       <div className="p-3 border-b border-gray-100 flex items-center gap-2 shrink-0">
-        <Paintbrush className="w-4 h-4 text-violet-600" />
+        <Paintbrush className="w-4 h-4 text-primary" />
         <span className="text-sm font-extrabold text-gray-900 flex-1">Edit template</span>
       </div>
 
@@ -589,7 +589,7 @@ function EditPanel(props: EditPanelProps) {
           type="button"
           onClick={() => setTab('content')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition-colors ${
-            tab === 'content' ? 'text-violet-700 border-b-2 border-violet-600 bg-violet-50/50' : 'text-gray-500 hover:text-gray-700'
+            tab === 'content' ? 'text-primary border-b-2 border-primary bg-accent/80' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
           <Type className="w-3.5 h-3.5" /> Content
@@ -598,7 +598,7 @@ function EditPanel(props: EditPanelProps) {
           type="button"
           onClick={() => setTab('style')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition-colors ${
-            tab === 'style' ? 'text-violet-700 border-b-2 border-violet-600 bg-violet-50/50' : 'text-gray-500 hover:text-gray-700'
+            tab === 'style' ? 'text-primary border-b-2 border-primary bg-accent/80' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
           <Paintbrush className="w-3.5 h-3.5" /> Style
@@ -774,7 +774,7 @@ function StorefrontPreview({ templateId }: { templateId: string }) {
         <div className={panelOpen ? 'pr-72 transition-all' : 'transition-all'}>
           <Suspense fallback={
             <div className="flex-1 flex items-center justify-center py-32">
-              <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+              <Loader2 className="w-8 h-8 text-primary/80 animate-spin" />
             </div>
           }>
             <TemplateComponent config={config} basePath={`/template-browser/${templateId}`} />
@@ -890,11 +890,11 @@ function BlockBasedPreview({ templateId }: { templateId: string }) {
     }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-8 h-8 text-violet-500 animate-spin" /></div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-8 h-8 text-primary/80 animate-spin" /></div>
   if (err || !site || !activePage) return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
         <p className="text-gray-700 mb-3">{err || 'No preview available.'}</p>
-        <Link to="/" className="text-violet-600 font-medium hover:underline">Back to home</Link>
+        <Link to="/" className="text-primary font-medium hover:underline">Back to home</Link>
       </div>
     )
 
@@ -912,7 +912,7 @@ function BlockBasedPreview({ templateId }: { templateId: string }) {
         {openingBuilder && (
           <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center">
             <div className="bg-white rounded-2xl shadow-2xl px-8 py-6 flex items-center gap-4">
-              <Loader2 className="w-6 h-6 animate-spin text-violet-600" />
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
               <div>
                 <div className="font-bold text-gray-900">Opening in Builder…</div>
                 <div className="text-xs text-gray-500 mt-0.5">Creating template sandbox and loading editor</div>
@@ -932,7 +932,7 @@ export default function TemplateBrowserPreview() {
   if (!templateId) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
       <p className="text-gray-700 mb-3">Missing template id.</p>
-      <Link to="/" className="text-violet-600 font-medium hover:underline">Back to home</Link>
+      <Link to="/" className="text-primary font-medium hover:underline">Back to home</Link>
     </div>
   )
   if (templateId in STOREFRONT_TEMPLATES) return <StorefrontPreview templateId={templateId} />

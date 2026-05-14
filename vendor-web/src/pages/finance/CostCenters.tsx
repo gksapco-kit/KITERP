@@ -32,7 +32,7 @@ const CC_GROUPS = [
 const GROUP_COLORS: Record<string, string> = {
   'Operations':               'bg-blue-100 text-blue-700 border-blue-200',
   'Sales & Marketing':        'bg-green-100 text-green-700 border-green-200',
-  'Finance & Accounting':     'bg-violet-100 text-violet-700 border-violet-200',
+  'Finance & Accounting':     'bg-primary/10 text-primary border-primary/30',
   'Human Resources':          'bg-pink-100 text-pink-700 border-pink-200',
   'Information Technology':   'bg-cyan-100 text-cyan-700 border-cyan-200',
   'Manufacturing':            'bg-amber-100 text-amber-700 border-amber-200',

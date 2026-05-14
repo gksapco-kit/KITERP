@@ -283,7 +283,7 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -309,7 +309,7 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
         <div>
           <h1 className="text-6xl font-bold text-gray-200 mb-4">404</h1>
           <p className="text-gray-500 mb-6">Page not found</p>
-          <button onClick={() => navigate(-1)} className="px-6 py-3 bg-violet-600 text-white rounded-xl font-semibold hover:bg-violet-700">
+          <button onClick={() => navigate(-1)} className="px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90">
             Go Back
           </button>
         </div>

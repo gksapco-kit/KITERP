@@ -63,7 +63,7 @@ export function ProductQuoteModal({ productId, productName, formConfig, customer
 
   const inputCls = (key: string) =>
     `w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors ${
-      errors[key] ? 'border-red-400 ring-2 ring-red-100' : 'border-gray-300 focus:ring-2 focus:ring-violet-500 focus:border-violet-500'
+      errors[key] ? 'border-red-400 ring-2 ring-red-100' : 'border-gray-300 focus:ring-2 focus:ring-ring focus:border-primary'
     }`
   const readOnlyCls = 'bg-gray-50 text-gray-500 cursor-not-allowed'
 
@@ -105,15 +105,15 @@ export function ProductQuoteModal({ productId, productName, formConfig, customer
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 fade-in-0 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white rounded-t-2xl z-10">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-violet-600" />
+            <MessageSquare className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold text-gray-900">Request a Quote</h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="bg-violet-50 border border-violet-100 rounded-xl p-3">
-            <p className="text-sm text-violet-800 font-medium">{productName}</p>
-            <p className="text-xs text-violet-600 mt-0.5">The vendor will review your request and respond with pricing.</p>
+          <div className="bg-accent border border-primary/20 rounded-xl p-3">
+            <p className="text-sm text-primary font-medium">{productName}</p>
+            <p className="text-xs text-primary mt-0.5">The vendor will review your request and respond with pricing.</p>
           </div>
           {otherFields.map(f => (
             <div key={f.key}>
@@ -138,7 +138,7 @@ export function ProductQuoteModal({ productId, productName, formConfig, customer
             </div>
           )}
           <Button type="submit" disabled={requestQuote.isPending}
-            className="w-full h-11 font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-xl" size="lg">
+            className="w-full h-11 font-bold bg-primary hover:bg-primary/90 text-white rounded-xl" size="lg">
             {requestQuote.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
             Submit Quote Request
           </Button>
@@ -336,7 +336,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                 {isSubscription ? (
                   <div>
                     <p className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
-                      <Repeat className="w-4 h-4 text-violet-600" /> Choose a Plan
+                      <Repeat className="w-4 h-4 text-primary" /> Choose a Plan
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {activeVariants.map(v => {
@@ -352,22 +352,22 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                           <button key={v.id} onClick={() => setSelectedVariantId(v.id)}
                             className={`relative p-4 rounded-xl border-2 text-left transition-all ${
                               isSelected
-                                ? 'border-violet-600 bg-violet-50 ring-1 ring-violet-200 shadow-sm'
-                                : 'border-gray-200 hover:border-violet-300 bg-white'
+                                ? 'border-primary bg-accent ring-1 ring-primary/25 shadow-sm'
+                                : 'border-gray-200 hover:border-primary/40 bg-white'
                             }`}>
                             {vDiscount > 0 && (
                               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">-{vDiscount}%</span>
                             )}
                             <div className="flex items-start justify-between">
                               <div>
-                                <p className={`text-sm font-bold ${isSelected ? 'text-violet-800' : 'text-gray-900'}`}>{v.name}</p>
-                                <p className={`text-xs font-medium mt-0.5 ${isSelected ? 'text-violet-600' : 'text-gray-500'}`}>
+                                <p className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>{v.name}</p>
+                                <p className={`text-xs font-medium mt-0.5 ${isSelected ? 'text-primary' : 'text-gray-500'}`}>
                                   {intervalLabel[vInterval] || vInterval}
                                   {vPriceType === 'per_unit' && ` · per ${v.uom || 'unit'}`}
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className={`text-lg font-extrabold ${isSelected ? 'text-violet-700' : 'text-gray-900'}`}>
+                                <p className={`text-lg font-extrabold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
                                   {formatCurrency(v.price, v.currency)}
                                 </p>
                                 <p className="text-[11px] text-gray-400">{vShort}</p>
@@ -392,7 +392,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                             )}
                             {isSelected && (
                               <div className="absolute top-2 right-2">
-                                <Check className="w-4 h-4 text-violet-600" />
+                                <Check className="w-4 h-4 text-primary" />
                               </div>
                             )}
                           </button>
@@ -448,7 +448,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               {[
                 { icon: Truck, text: product.shipping_cost ? `Shipping: ${formatCurrency(product.shipping_cost)}` : 'Free Delivery', color: 'text-blue-600 bg-blue-50' },
                 { icon: RefreshCw, text: returnDays ? `${returnDays}-Day Returns` : isReturnable === false ? 'Non-returnable' : 'Easy Returns', color: 'text-green-600 bg-green-50' },
-                { icon: ShieldCheck, text: warrantyDays ? `${warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)}Y` : `${warrantyDays}D`} Warranty` : 'Secure Buy', color: 'text-purple-600 bg-purple-50' },
+                { icon: ShieldCheck, text: warrantyDays ? `${warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)}Y` : `${warrantyDays}D`} Warranty` : 'Secure Buy', color: 'text-primary bg-accent' },
               ].map((badge) => (
                 <div key={badge.text} className={`text-center p-2.5 rounded-lg ${badge.color}`}>
                   <badge.icon className="w-5 h-5 mx-auto mb-0.5" />
@@ -569,7 +569,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
 
         {(warrantyType || warrantyDays) && (
           <div className="bg-white rounded-xl border p-5">
-            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-purple-600" /> Warranty</h3>
+            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-primary" /> Warranty</h3>
             <div className="space-y-2.5 text-sm">
               <div className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span className="text-gray-600">{warrantyDays ? warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)} Year${Math.floor(warrantyDays / 365) > 1 ? 's' : ''} Warranty` : `${warrantyDays} Day Warranty` : 'Warranty Included'}</span>
@@ -586,7 +586,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
       {hasVariants && activeVariants.length > 1 && (
         <div className="bg-white rounded-xl border p-4 sm:p-6 lg:p-8 mt-6 overflow-x-auto">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            {isSubscription ? <><Repeat className="w-5 h-5 text-violet-600" /> Compare Plans</> : <><Box className="w-5 h-5" /> Available Options</>}
+            {isSubscription ? <><Repeat className="w-5 h-5 text-primary" /> Compare Plans</> : <><Box className="w-5 h-5" /> Available Options</>}
           </h3>
           <table className="w-full text-sm">
             <thead>
@@ -616,14 +616,14 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                   : ''
                 return (
                   <tr key={v.id} className={`border-b last:border-0 transition-colors ${
-                    isSelected ? (isSubscription ? 'bg-violet-50/50' : 'bg-blue-50/50') : 'hover:bg-gray-50'
+                    isSelected ? (isSubscription ? 'bg-accent/80' : 'bg-blue-50/50') : 'hover:bg-gray-50'
                   }`}>
                     <td className="py-3 pr-4">
-                      <span className={`font-medium ${isSelected ? (isSubscription ? 'text-violet-700' : 'text-blue-700') : 'text-gray-900'}`}>{v.name}</span>
+                      <span className={`font-medium ${isSelected ? (isSubscription ? 'text-primary' : 'text-blue-700') : 'text-gray-900'}`}>{v.name}</span>
                     </td>
                     {isSubscription && (
                       <td className="py-3 pr-4">
-                        <span className="text-xs font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-medium text-primary bg-accent px-2 py-0.5 rounded-full">
                           {intervalLabel[vInterval] || vInterval}
                         </span>
                       </td>
@@ -665,7 +665,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                       <button onClick={() => setSelectedVariantId(v.id)}
                         className={`text-xs font-medium px-3 py-1 rounded-md transition-colors ${
                           isSelected
-                            ? (isSubscription ? 'bg-violet-600 text-white' : 'bg-blue-600 text-white')
+                            ? (isSubscription ? 'bg-primary text-white' : 'bg-blue-600 text-white')
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}>
                         {isSelected ? 'Selected' : 'Select'}

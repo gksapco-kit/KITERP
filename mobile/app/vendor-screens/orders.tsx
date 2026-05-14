@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from '../../lib/utils'
 import type { Order } from '../../types'
 
 const statusColor: Record<string, string> = {
-  pending: '#f59e0b', confirmed: '#3b82f6', shipped: '#8b5cf6',
+  pending: '#f59e0b', confirmed: '#3b82f6', shipped: '#64C3A0',
   delivered: '#10b981', cancelled: '#ef4444',
 }
 

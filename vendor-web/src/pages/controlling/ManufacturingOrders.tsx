@@ -86,14 +86,14 @@ export default function ControllingManufacturingOrdersPage() {
   return (
     <div className="p-6 max-w-6xl space-y-6">
       <div className="flex items-center gap-4">
-        <Link to="/controlling" className="text-sm text-violet-600 hover:underline inline-flex items-center gap-1">
+        <Link to="/controlling" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
           <ArrowLeft className="w-4 h-4" /> CO Dashboard
         </Link>
       </div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Factory className="w-7 h-7 text-violet-600" /> Manufacturing &amp; project orders
+            <Factory className="w-7 h-7 text-primary" /> Manufacturing &amp; project orders
           </h1>
           <p className="text-sm text-gray-500 mt-1">Planned vs actual cost lines, variance, WIP on open statuses.</p>
         </div>
@@ -214,7 +214,7 @@ export default function ControllingManufacturingOrdersPage() {
                       <td className="px-4 py-3 text-right">
                         <Link
                           to={`/controlling/orders/${o.id}`}
-                          className="text-sm text-violet-600 hover:underline font-medium"
+                          className="text-sm text-primary hover:underline font-medium"
                         >
                           Open
                         </Link>
@@ -244,7 +244,7 @@ export default function ControllingManufacturingOrdersPage() {
       </div>
 
       {variance && (
-        <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 space-y-2">
+        <div className="rounded-xl border border-primary/30 bg-accent/70 p-4 space-y-2">
           <div className="flex justify-between items-center">
             <h3 className="font-semibold text-gray-900">Variance — {variance.order_no}</h3>
             <Button type="button" size="sm" variant="ghost" onClick={() => setVarianceFor(undefined)}>Close</Button>

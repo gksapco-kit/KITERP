@@ -148,7 +148,7 @@ export default function CouponsPage() {
                       <Button variant="ghost" size="sm" title="Copy code" onClick={() => copyCouponCode(c.code as string)}><Copy className="w-4 h-4 text-gray-500" /></Button>
                       <Button variant="ghost" size="sm" title="Share via WhatsApp" onClick={() => shareViaWhatsApp(c)}><MessageCircle className="w-4 h-4 text-green-600" /></Button>
                       <Button variant="ghost" size="sm" title="Share via Email" onClick={() => shareViaEmail(c)}><Mail className="w-4 h-4 text-blue-600" /></Button>
-                      <Button variant="ghost" size="sm" title="Share" onClick={() => shareViaNative(c)}><Share2 className="w-4 h-4 text-purple-600" /></Button>
+                      <Button variant="ghost" size="sm" title="Share" onClick={() => shareViaNative(c)}><Share2 className="w-4 h-4 text-primary" /></Button>
                       <Button variant="ghost" size="sm" title="Edit" onClick={() => setModal({ mode: 'edit', coupon: c })}><Pencil className="w-4 h-4" /></Button>
                       <Button variant="ghost" size="sm" className="text-red-500" title="Delete" onClick={() => { if (confirm('Delete this coupon?')) deleteCoupon.mutate(c.id as string) }}><Trash2 className="w-4 h-4" /></Button>
                     </div>

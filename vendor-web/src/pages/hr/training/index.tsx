@@ -84,7 +84,7 @@ function ProgramsTab() {
                 {p.cover_image_url ? (
                   <img src={p.cover_image_url} alt={p.name} className="w-full h-32 object-cover" />
                 ) : (
-                  <div className="w-full h-32 bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                  <div className="w-full h-32 bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center">
                     <BookOpen className="w-10 h-10 text-white opacity-80" />
                   </div>
                 )}

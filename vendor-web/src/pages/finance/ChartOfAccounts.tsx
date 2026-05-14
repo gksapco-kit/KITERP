@@ -53,7 +53,7 @@ const DEFAULT_CONFIG: AccountTypeConfig[] = [
   },
   {
     type: 'Equity',
-    color: 'bg-purple-100 text-purple-700',
+    color: 'bg-primary/12 text-primary',
     normalBalance: 'Credit',
     statement: 'Balance Sheet',
     codeRangeStart: 3000,
@@ -97,7 +97,7 @@ function saveConfig(cfg: AccountTypeConfig[]) {
 const BADGE_OPTIONS = [
   { label: 'Blue',   value: 'bg-blue-100 text-blue-700' },
   { label: 'Red',    value: 'bg-red-100 text-red-700' },
-  { label: 'Purple', value: 'bg-purple-100 text-purple-700' },
+  { label: 'Brand', value: 'bg-primary/12 text-primary' },
   { label: 'Green',  value: 'bg-green-100 text-green-700' },
   { label: 'Orange', value: 'bg-orange-100 text-orange-700' },
   { label: 'Yellow', value: 'bg-yellow-100 text-yellow-700' },
@@ -427,7 +427,7 @@ function AccountDetailDrawer({
                     {normBal} Normal
                   </span>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                    cfg?.statement === 'Balance Sheet' ? 'bg-purple-50 text-purple-700'
+                    cfg?.statement === 'Balance Sheet' ? 'bg-accent text-primary'
                       : cfg?.statement === 'Income Statement' ? 'bg-green-50 text-green-700'
                       : 'bg-gray-50 text-gray-600'
                   }`}>
@@ -534,7 +534,7 @@ function AccountDetailDrawer({
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-white p-3">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <ArrowDownLeft className="w-3.5 h-3.5 text-purple-500" />
+                      <ArrowDownLeft className="w-3.5 h-3.5 text-primary/80" />
                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Total Credit</span>
                     </div>
                     <p className="font-mono font-bold text-sm text-gray-900">{fmtCcy(totalCredit)}</p>
@@ -581,7 +581,7 @@ function AccountDetailDrawer({
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {ledger.map((row, i) => (
-                        <tr key={i} className={`hover:bg-indigo-50/30 transition-colors ${row.debit > 0 ? '' : 'bg-purple-50/20'}`}>
+                        <tr key={i} className={`hover:bg-indigo-50/30 transition-colors ${row.debit > 0 ? '' : 'bg-accent/20'}`}>
                           <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-[11px]">{row.date}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap">
                             <span className="font-mono font-semibold text-indigo-600">{row.entry_no}</span>

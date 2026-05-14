@@ -125,7 +125,7 @@ export default function CostAllocationsPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="ml-auto flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700 text-sm font-medium"
+          className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
         >
           <Plus className="w-4 h-4" /> New Allocation
         </button>
@@ -143,9 +143,9 @@ export default function CostAllocationsPage() {
             {(allocations as CostAllocationOut[]).filter(a => a.status === 'planned').length}
           </p>
         </div>
-        <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
-          <p className="text-xs text-violet-600 mb-1">Total allocated amount</p>
-          <p className="text-2xl font-bold text-violet-700">{formatCurrency(totalAllocated)}</p>
+        <div className="rounded-xl border border-primary/20 bg-accent p-4">
+          <p className="text-xs text-primary mb-1">Total allocated amount</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(totalAllocated)}</p>
         </div>
       </div>
 
@@ -245,7 +245,7 @@ export default function CostAllocationsPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
             <div className="p-6 border-b border-gray-100">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <GitMerge className="w-5 h-5 text-violet-600" /> New Cost Allocation
+                <GitMerge className="w-5 h-5 text-primary" /> New Cost Allocation
               </h2>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
@@ -307,7 +307,7 @@ export default function CostAllocationsPage() {
                 <button type="button" onClick={() => setShowCreate(false)}
                   className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
                 <button type="submit" disabled={createMut.isPending}
-                  className="flex-1 bg-violet-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
+                  className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                   {createMut.isPending ? 'Saving…' : 'Create Allocation'}
                 </button>
               </div>

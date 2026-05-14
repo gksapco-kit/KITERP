@@ -41,9 +41,9 @@ function renderMarkdown(text: string): React.ReactNode[] {
           if (seg.match(/^\*\*\*(.+?)\*\*\*$/)) return <strong key={i}><em>{seg.slice(3, -3)}</em></strong>
           if (seg.match(/^\*\*(.+?)\*\*$/)) return <strong key={i}>{seg.slice(2, -2)}</strong>
           if (seg.match(/^\*(.+?)\*$/)) return <em key={i}>{seg.slice(1, -1)}</em>
-          if (seg.match(/^`(.+?)`$/)) return <code key={i} className="bg-gray-100 text-violet-700 px-1 py-0.5 rounded text-[0.85em]">{seg.slice(1, -1)}</code>
+          if (seg.match(/^`(.+?)`$/)) return <code key={i} className="bg-gray-100 text-primary px-1 py-0.5 rounded text-[0.85em]">{seg.slice(1, -1)}</code>
           const linkMatch = seg.match(/^\[(.+?)\]\((.+?)\)$/)
-          if (linkMatch) return <a key={i} href={linkMatch[2]} className="text-violet-600 underline hover:text-violet-800" target="_blank" rel="noopener noreferrer">{linkMatch[1]}</a>
+          if (linkMatch) return <a key={i} href={linkMatch[2]} className="text-primary underline hover:text-primary" target="_blank" rel="noopener noreferrer">{linkMatch[1]}</a>
           return seg
         })}
       </>
@@ -55,7 +55,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     if (line.startsWith('## ')) { flushList(); nodes.push(<h2 key={i} className="text-2xl font-bold text-gray-900 mt-5 mb-2">{inlineFormat(line.slice(3))}</h2>); return }
     if (line.startsWith('### ')){ flushList(); nodes.push(<h3 key={i} className="text-xl font-bold text-gray-800 mt-4 mb-2">{inlineFormat(line.slice(4))}</h3>); return }
     if (line.startsWith('#### ')){ flushList(); nodes.push(<h4 key={i} className="text-lg font-semibold text-gray-800 mt-3 mb-1">{inlineFormat(line.slice(5))}</h4>); return }
-    if (line.startsWith('> '))  { flushList(); nodes.push(<blockquote key={i} className="border-l-4 border-violet-300 pl-4 my-3 italic text-gray-600">{inlineFormat(line.slice(2))}</blockquote>); return }
+    if (line.startsWith('> '))  { flushList(); nodes.push(<blockquote key={i} className="border-l-4 border-primary/40 pl-4 my-3 italic text-gray-600">{inlineFormat(line.slice(2))}</blockquote>); return }
     if (line.startsWith('- ') || line.startsWith('* ')) { listBuffer.push(line.slice(2)); return }
     if (/^\d+\. /.test(line)) { listBuffer.push(line.replace(/^\d+\. /, '')); return }
     if (line.startsWith('```')) { flushList(); return } // skip code fence markers (naive)
@@ -75,7 +75,7 @@ function RelatedCard({ post, storePath, primaryColor }: {
   return (
     <Link
       to={storePath(`/blog/${post.slug}`)}
-      className="group flex gap-3 items-start p-3 rounded-xl border border-gray-100 hover:border-violet-200 hover:shadow-sm transition-all"
+      className="group flex gap-3 items-start p-3 rounded-xl border border-gray-100 hover:border-primary/30 hover:shadow-sm transition-all"
     >
       {post.cover_url ? (
         <img src={imgUrl(post.cover_url)} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />
@@ -85,7 +85,7 @@ function RelatedCard({ post, storePath, primaryColor }: {
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-violet-700 transition-colors">{post.title}</p>
+        <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-primary transition-colors">{post.title}</p>
         {post.published_at && (
           <p className="text-xs text-gray-400 mt-1">{fmtDate(post.published_at)}</p>
         )}

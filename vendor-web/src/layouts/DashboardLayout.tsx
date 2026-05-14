@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, type CSSProperties, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
@@ -42,12 +42,16 @@ import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import {
   arrayMove,
@@ -60,11 +64,12 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   loadSectionIds,
   saveSectionIds,
-  loadItemOrders,
-  saveItemOrders,
   clearSavedNavOrder,
-  orderNavItemsByTo,
   orderSectionsById,
+  loadNavPlacementsState,
+  saveNavPlacementsState,
+  buildDefaultPlacementsFromSections,
+  reconcileNavPlacements,
 } from '@/layouts/sidebarNavOrder'
 
 interface NavItem {
@@ -89,17 +94,21 @@ interface NavSection {
   /** Native `title` tooltip on the section header (defaults to `title`) */
   titleTooltip?: string
   /** Shown beside the section title in the sidebar */
-  icon: React.ElementType
+  icon: ElementType
   /** Optional helper line under the title (e.g. My KIT) */
   subtitle?: string
   items: NavItem[]
 }
 
+type NavDragOverlayPayload =
+  | { kind: 'item'; item: NavItem }
+  | { kind: 'section'; title: string; subtitle?: string; Icon: ElementType }
+
 const allSections: NavSection[] = [
   {
     id: 'my-kit',
     title: 'My Kit',
-    titleTooltip: 'My Kit-Personalize your navigation',
+    titleTooltip: 'My Kit',
     icon: Sparkles,
     items: [
       { to: '/', icon: BarChart3, label: 'Dashboard', alwaysShow: true },
@@ -340,16 +349,42 @@ function parseItmDndId(id: string): { sectionId: string; to: string } | null {
   return { sectionId: rest.slice(0, ci), to: decodeURIComponent(rest.slice(ci + 1)) }
 }
 
+/**
+ * Nested module + item `SortableContext`s share one `DndContext`. When dragging a link, consider all link
+ * droppables plus module rows (drop on a module to append there). When dragging a module, only module droppables.
+ */
+const navCollisionDetection: CollisionDetection = (args) => {
+  const activeId = String(args.active.id)
+  const activeItem = parseItmDndId(activeId)
+  if (activeItem) {
+    const filtered = args.droppableContainers.filter((c) => {
+      const id = String(c.id)
+      return parseItmDndId(id) != null || parseSecDndId(id) != null
+    })
+    if (filtered.length === 0) return closestCenter(args)
+    return closestCenter({ ...args, droppableContainers: filtered })
+  }
+  if (parseSecDndId(activeId) != null) {
+    const filtered = args.droppableContainers.filter((c) => parseSecDndId(String(c.id)) != null)
+    if (filtered.length === 0) return closestCenter(args)
+    return closestCenter({ ...args, droppableContainers: filtered })
+  }
+  return closestCenter(args)
+}
+
 function SortableSectionShell({
   sectionId,
   prepend,
   sortDisabled,
+  /** Mint ring while this module is the drop target (reorder modules or drop a link here). */
+  outlineAsDropTarget,
   children,
 }: {
   sectionId: string
   prepend?: ReactNode
   /** When true, section cannot be dragged (e.g. browse mode hides drag handles). */
   sortDisabled?: boolean
+  outlineAsDropTarget?: boolean
   children: (
     listeners: ReturnType<typeof useSortable>['listeners'],
     attributes: ReturnType<typeof useSortable>['attributes'],
@@ -372,6 +407,8 @@ function SortableSectionShell({
       className={cn(
         'mb-0 rounded-md transition-shadow duration-150 motion-reduce:transition-none',
         isDragging && 'opacity-95 shadow-md ring-1 ring-border/40',
+        outlineAsDropTarget &&
+          'ring-2 ring-sidebar-primary ring-offset-2 ring-offset-sidebar shadow-md transition-[box-shadow] duration-100',
       )}
     >
       {prepend}
@@ -384,11 +421,18 @@ function SortableItemShell({
   sectionId,
   itemTo,
   sortDisabled,
+  prepend,
+  outlineDropTarget,
+  hideSourceWhileDragging,
   children,
 }: {
   sectionId: string
   itemTo: string
   sortDisabled?: boolean
+  /** Renders above the link row but inside the sortable node (keeps @dnd-kit/sortable siblings contiguous). */
+  prepend?: ReactNode
+  outlineDropTarget?: boolean
+  hideSourceWhileDragging?: boolean
   children: (
     listeners: ReturnType<typeof useSortable>['listeners'],
     attributes: ReturnType<typeof useSortable>['attributes'],
@@ -403,26 +447,36 @@ function SortableItemShell({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 2 : undefined,
+    opacity: hideSourceWhileDragging && isDragging ? 0 : undefined,
   }
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex min-h-[1.75rem] items-center gap-0 rounded-md transition-opacity duration-150 motion-reduce:transition-none',
-        isDragging && 'opacity-90',
+        'flex w-full flex-col gap-0 rounded-md transition-opacity duration-150 motion-reduce:transition-none',
+        isDragging && !hideSourceWhileDragging && 'opacity-90',
       )}
     >
-      {children(listeners, attributes)}
+      {prepend}
+      <div
+        className={cn(
+          'flex min-h-[1.75rem] w-full items-center gap-0 rounded-md transition-[box-shadow] duration-100',
+          outlineDropTarget &&
+            'ring-2 ring-sidebar-primary ring-offset-2 ring-offset-sidebar shadow-sm',
+        )}
+      >
+        {children(listeners, attributes)}
+      </div>
     </div>
   )
 }
 
-/** Active leaf row: left rail + subtle fill (compact enterprise nav). */
+/** Active leaf — mint fill (sidebar-primary / #64C3A0 palette); light text */
 const navLinkActive =
-  'border-l-2 border-violet-600 bg-violet-500/[0.07] font-medium text-foreground rounded-r-md shadow-none dark:border-violet-400 dark:bg-violet-400/[0.09] dark:text-foreground'
+  'border-l-2 border-transparent bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-sm ring-1 ring-white/25 rounded-lg dark:shadow-md dark:shadow-black/25 dark:ring-white/20'
 const navLinkInactive =
-  'border-l-2 border-transparent font-normal text-muted-foreground rounded-r-md hover:bg-muted/50 hover:text-foreground active:bg-muted/60 dark:hover:bg-zinc-800/55 dark:hover:text-foreground'
+  'border-l-2 border-transparent font-normal text-muted-foreground rounded-lg hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground active:opacity-90 dark:text-sidebar-foreground/72 dark:hover:bg-sidebar-accent dark:hover:text-sidebar-accent-foreground'
 
 const navRowTransition = 'transition-[background-color,color,border-color] duration-150 ease-out motion-reduce:transition-none'
 const navExpandTransition =
@@ -432,6 +486,17 @@ const navExpandTransition =
 const NAV_ICON_COL = 'flex h-5 w-5 shrink-0 items-center justify-center'
 const NAV_DRAG_COL = 'flex h-7 w-5 shrink-0 items-center justify-center'
 const NAV_ROW_PAD_Y = 'py-0.5'
+
+/**
+ * Nested nav tree — mint rail + elbows; stroke ~30% thinner than prior 2px (~1.4px).
+ * Trunk x from panel left = 30px (see SortableSectionShell layout).
+ */
+const NAV_TREE_PANEL_CLASS = '[--tree-x:1.875rem]'
+const navTreeTrunkLine =
+  'pointer-events-none absolute left-[var(--tree-x)] top-0 bottom-2 z-0 w-[1.4px] -translate-x-1/2 rounded-full bg-sidebar-primary dark:bg-sidebar-primary/80'
+/** Rounded elbow toward row content; stroke matches trunk. */
+const navTreeElbowLine =
+  'pointer-events-none absolute left-[var(--tree-x)] top-1/2 z-0 h-[9px] w-[9px] -translate-y-full rounded-bl-[5px] border-b-[1.4px] border-l-[1.4px] border-sidebar-primary dark:border-sidebar-primary/80'
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard — Analytics',
@@ -576,11 +641,16 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   /** Drag handles and section reordering only while this is on (reduces visual noise). */
   const [navReorderMode, setNavReorderMode] = useState(false)
+  /** @dnd-kit drag feedback: cursor overlay + drop highlights */
+  const [navActiveDndId, setNavActiveDndId] = useState<string | null>(null)
+  const [navDndOverId, setNavDndOverId] = useState<string | null>(null)
+  const [navDragOverlay, setNavDragOverlay] = useState<NavDragOverlayPayload | null>(null)
   /** Default: all sections collapsed; only My Kit starts expanded. */
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({ 'My Kit': false })
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
 
   const dark = useThemeStore(s => s.dark)
   const toggleDark = useThemeStore(s => s.toggleDark)
@@ -646,6 +716,18 @@ export default function DashboardLayout() {
       description: only.description ?? undefined,
     })
   }, [stores, selectedStore, setSelectedStore])
+
+  useEffect(() => {
+    if (!profileOpen) return
+    const onPointerDown = (e: PointerEvent) => {
+      const root = profileMenuRef.current
+      const t = e.target
+      if (!root || !(t instanceof Node) || root.contains(t)) return
+      setProfileOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [profileOpen])
 
   const prevUnreadRef = useRef<number | null>(null)
   const { show: showBrowserNotif, permission } = useBrowserNotifications()
@@ -766,37 +848,55 @@ export default function DashboardLayout() {
 
   const financeMode = ((vendor?.settings as Record<string, unknown> | undefined)?.finance_mode as string | undefined) ?? 'advanced'
 
-  const filterItem = (item: NavItem) => {
-    if (item.alwaysShow) return true
-    if (item.requiresOffering && vendor?.offering_type) {
-      if (!item.requiresOffering.includes(vendor.offering_type)) return false
-    }
-    if (item.requiresPermission && vendorRole && !isOwnerOrAdmin) {
-      if (!permissions.includes(item.requiresPermission)) return false
-    }
-    if (item.requiresFinanceMode) {
-      if (item.requiresFinanceMode !== financeMode) return false
-    }
-    return true
-  }
+  const filterItem = useCallback(
+    (item: NavItem) => {
+      if (item.alwaysShow) return true
+      if (item.requiresOffering && vendor?.offering_type) {
+        if (!item.requiresOffering.includes(vendor.offering_type)) return false
+      }
+      if (item.requiresPermission && vendorRole && !isOwnerOrAdmin) {
+        if (!permissions.includes(item.requiresPermission)) return false
+      }
+      if (item.requiresFinanceMode) {
+        if (item.requiresFinanceMode !== financeMode) return false
+      }
+      return true
+    },
+    [vendor, vendor?.offering_type, vendor?.settings, vendorRole, isOwnerOrAdmin, permissions, financeMode],
+  )
 
-  const visibleSections = allSections
-    .map(section => ({ ...section, items: section.items.filter(filterItem) }))
-    .filter(section => section.items.length > 0)
+  const visibleSections = useMemo(
+    () =>
+      allSections
+        .map((section) => ({ ...section, items: section.items.filter(filterItem) }))
+        .filter((section) => section.items.length > 0),
+    [filterItem],
+  )
 
   const [sectionOrder, setSectionOrder] = useState<string[]>(() => loadSectionIds(DEFAULT_SECTION_IDS))
-  const [itemOrders, setItemOrders] = useState<Record<string, string[]>>(() => loadItemOrders())
+  const [itemPlacements, setItemPlacements] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     saveSectionIds(sectionOrder)
   }, [sectionOrder])
 
   useEffect(() => {
-    saveItemOrders(itemOrders)
-  }, [itemOrders])
+    if (!visibleSections.length) return
+    setItemPlacements((prev) =>
+      reconcileNavPlacements(
+        Object.keys(prev).length ? prev : loadNavPlacementsState(visibleSections),
+        visibleSections,
+      ),
+    )
+  }, [visibleSections])
+
+  useEffect(() => {
+    if (!Object.keys(itemPlacements).length) return
+    saveNavPlacementsState(itemPlacements)
+  }, [itemPlacements])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
@@ -805,45 +905,148 @@ export default function DashboardLayout() {
     [visibleSections, sectionOrder],
   )
 
+  const orderedNavItemsBySectionId = useMemo(() => {
+    const byTo = new Map<string, NavItem>()
+    for (const s of visibleSections) {
+      for (const it of s.items) {
+        byTo.set(it.to, it)
+      }
+    }
+    const m = new Map<string, NavItem[]>()
+    for (const s of visibleSections) {
+      const keys = itemPlacements[s.id]
+      const list: NavItem[] = []
+      if (keys?.length) {
+        for (const to of keys) {
+          const it = byTo.get(to)
+          if (it) list.push(it)
+        }
+      } else {
+        list.push(...s.items)
+      }
+      m.set(s.id, list)
+    }
+    return m
+  }, [visibleSections, itemPlacements])
+
   function resetNavOrderToDefaults() {
     clearSavedNavOrder()
     setSectionOrder(loadSectionIds(DEFAULT_SECTION_IDS))
-    setItemOrders(loadItemOrders())
+    setItemPlacements(buildDefaultPlacementsFromSections(visibleSections))
     setNavReorderMode(false)
+    setNavActiveDndId(null)
+    setNavDndOverId(null)
+    setNavDragOverlay(null)
     setSidebarOpen(true)
   }
 
   function handleNavDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const a = String(active.id)
-    const b = String(over.id)
-    const secA = parseSecDndId(a)
-    const secB = parseSecDndId(b)
-    if (secA && secB) {
-      setSectionOrder((prev) => {
-        const oi = prev.indexOf(secA)
-        const ni = prev.indexOf(secB)
-        if (oi < 0 || ni < 0) return prev
-        return arrayMove(prev, oi, ni)
-      })
-      return
-    }
-    const itA = parseItmDndId(a)
-    const itB = parseItmDndId(b)
-    if (itA && itB && itA.sectionId === itB.sectionId) {
-      const sid = itA.sectionId
-      const sec = visibleSections.find((s) => s.id === sid)
-      if (!sec) return
-      const ordered = orderNavItemsByTo(sec.items, itemOrders[sid])
-      const keys = ordered.map((i) => i.to)
-      const oi = keys.indexOf(itA.to)
-      const ni = keys.indexOf(itB.to)
-      if (oi < 0 || ni < 0) return
-      const next = arrayMove(keys, oi, ni)
-      setItemOrders((prev) => ({ ...prev, [sid]: next }))
+    try {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+      const a = String(active.id)
+      const b = String(over.id)
+      const secA = parseSecDndId(a)
+      const secB = parseSecDndId(b)
+      if (secA && secB) {
+        setSectionOrder((prev) => {
+          const oi = prev.indexOf(secA)
+          const ni = prev.indexOf(secB)
+          if (oi < 0 || ni < 0) return prev
+          return arrayMove(prev, oi, ni)
+        })
+        return
+      }
+      const itA = parseItmDndId(a)
+      const itB = parseItmDndId(b)
+      const overSectionId = parseSecDndId(b)
+      if (!itA) return
+
+      if (itB) {
+        if (itA.sectionId === itB.sectionId) {
+          setItemPlacements((prev) => {
+            const sid = itA.sectionId
+            const list = [...(prev[sid] ?? [])]
+            const oi = list.indexOf(itA.to)
+            const ni = list.indexOf(itB.to)
+            if (oi < 0 || ni < 0) return prev
+            return { ...prev, [sid]: arrayMove(list, oi, ni) }
+          })
+          return
+        }
+        setItemPlacements((prev) => {
+          const fromSid = itA.sectionId
+          const toSid = itB.sectionId
+          const fromList = [...(prev[fromSid] ?? [])]
+          const toList = [...(prev[toSid] ?? [])]
+          const fi = fromList.indexOf(itA.to)
+          if (fi < 0) return prev
+          fromList.splice(fi, 1)
+          const ti = toList.indexOf(itB.to)
+          const insertAt = ti >= 0 ? ti : toList.length
+          toList.splice(insertAt, 0, itA.to)
+          return { ...prev, [fromSid]: fromList, [toSid]: toList }
+        })
+        return
+      }
+
+      if (overSectionId) {
+        if (itA.sectionId === overSectionId) return
+        setItemPlacements((prev) => {
+          const fromSid = itA.sectionId
+          const toSid = overSectionId
+          const fromList = [...(prev[fromSid] ?? [])]
+          const toList = [...(prev[toSid] ?? [])]
+          const fi = fromList.indexOf(itA.to)
+          if (fi < 0) return prev
+          fromList.splice(fi, 1)
+          toList.push(itA.to)
+          return { ...prev, [fromSid]: fromList, [toSid]: toList }
+        })
+      }
+    } finally {
+      setNavActiveDndId(null)
+      setNavDndOverId(null)
+      setNavDragOverlay(null)
     }
   }
+
+  const handleNavDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const id = String(event.active.id)
+      setNavActiveDndId(id)
+      setNavDndOverId(null)
+      const it = parseItmDndId(id)
+      if (it) {
+        for (const s of visibleSections) {
+          for (const item of s.items) {
+            if (item.to === it.to) {
+              setNavDragOverlay({ kind: 'item', item })
+              return
+            }
+          }
+        }
+        setNavDragOverlay(null)
+        return
+      }
+      const sid = parseSecDndId(id)
+      if (sid) {
+        const sec = visibleSections.find((s) => s.id === sid)
+        if (sec) {
+          setNavDragOverlay({ kind: 'section', title: sec.title, subtitle: sec.subtitle, Icon: sec.icon })
+        } else {
+          setNavDragOverlay(null)
+        }
+      } else {
+        setNavDragOverlay(null)
+      }
+    },
+    [visibleSections],
+  )
+
+  const handleNavDragOver = useCallback((event: DragOverEvent) => {
+    setNavDndOverId(event.over ? String(event.over.id) : null)
+  }, [])
 
   const toggleSection = (title: string) => {
     setCollapsedSections((prev) => ({ ...prev, [title]: !(prev[title] ?? true) }))
@@ -868,25 +1071,25 @@ export default function DashboardLayout() {
   const sidebarContent = (
     <div className="flex h-full min-h-0 flex-col">
       {/* Store Selector + User Role */}
-      <div className="relative border-b border-border/25 bg-card/40">
+      <div className="relative border-b border-sidebar-border/25 bg-sidebar-accent/40">
         <button
           type="button"
           onClick={openStorePicker}
-          className="flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-info shadow-sm">
             <Store className="h-[1.05rem] w-[1.05rem] text-white" />
           </div>
           <div className="min-w-0 flex-1 text-left">
-            <p className="text-sm font-bold text-foreground truncate leading-tight">
+            <p className="truncate text-sm font-bold leading-tight text-sidebar-foreground">
               {storeHeaderName}
             </p>
-            <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
               {storeHeaderSubtitle}
             </p>
-            <div className="flex items-center gap-0.5 mt-0.5">
-              <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold bg-violet-500/12 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
-                <ShieldCheck className="w-2.5 h-2.5" />
+            <div className="mt-0.5 flex items-center gap-0.5">
+              <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90">
+                <ShieldCheck className="h-2.5 w-2.5" />
                 {roleBadge}
               </span>
             </div>
@@ -907,8 +1110,8 @@ export default function DashboardLayout() {
             />
             <div className="absolute top-full left-0 right-0 z-50 bg-card border border-border shadow-xl rounded-b-xl overflow-hidden">
               {/* Header */}
-              <div className="px-4 py-2.5 bg-muted border-b border-border">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Select Store</p>
+              <div className="border-b border-border bg-muted px-4 py-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Select Store</p>
               </div>
 
               {showAllLocationsOption && (
@@ -917,17 +1120,17 @@ export default function DashboardLayout() {
                   onClick={() => { setSelectedStore(null); setStorePickerOpen(false) }}
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors',
-                    !selectedStore && 'bg-violet-500/10 dark:bg-violet-950/40'
+                    !selectedStore && 'bg-primary/10 dark:bg-primary/20'
                   )}
                 >
-                  <div className="w-7 h-7 rounded-md bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shrink-0">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-primary to-info">
                     <LayoutDashboard className="w-3.5 h-3.5 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-foreground truncate">{vendor?.display_name || 'Business'}</p>
                     <p className="text-[10px] text-muted-foreground">All locations (no store filter)</p>
                   </div>
-                  {!selectedStore && <Check className="w-4 h-4 text-violet-600 shrink-0" />}
+                  {!selectedStore && <Check className="w-4 h-4 text-primary shrink-0" />}
                 </button>
               )}
 
@@ -943,7 +1146,7 @@ export default function DashboardLayout() {
                       }}
                       className={cn(
                         'w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors',
-                        selectedStore?.id === s.id && 'bg-violet-500/10 dark:bg-violet-950/40'
+                        selectedStore?.id === s.id && 'bg-primary/10 dark:bg-primary/20'
                       )}
                     >
                       <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
@@ -953,7 +1156,7 @@ export default function DashboardLayout() {
                         <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{s.description || s.code || 'Store'}</p>
                       </div>
-                      {selectedStore?.id === s.id && <Check className="w-4 h-4 text-violet-600 shrink-0" />}
+                      {selectedStore?.id === s.id && <Check className="w-4 h-4 text-primary shrink-0" />}
                     </button>
                   ))}
                 </div>
@@ -968,7 +1171,7 @@ export default function DashboardLayout() {
                 <Link
                   to="/stores"
                   onClick={() => setStorePickerOpen(false)}
-                  className="flex items-center gap-1.5 text-[11px] text-violet-600 hover:text-violet-800 font-medium transition-colors"
+                  className="flex items-center gap-1.5 text-[11px] text-primary hover:text-primary font-medium transition-colors"
                 >
                   <Settings className="w-3 h-3" />
                   Manage company codes
@@ -981,7 +1184,18 @@ export default function DashboardLayout() {
       </div>
 
       {/* Navigation — reorder mode shows drag handles (order saved in this browser) */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleNavDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={navCollisionDetection}
+        onDragStart={handleNavDragStart}
+        onDragOver={handleNavDragOver}
+        onDragEnd={handleNavDragEnd}
+        onDragCancel={() => {
+          setNavActiveDndId(null)
+          setNavDndOverId(null)
+          setNavDragOverlay(null)
+        }}
+      >
         <nav
           className="sidebar-scroll sidebar-scroll-intent flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-1 pt-0.5"
           aria-label="Main navigation"
@@ -997,7 +1211,7 @@ export default function DashboardLayout() {
                   aria-label="Reset menu order to default and exit reorder mode"
                   onClick={resetNavOrderToDefaults}
                   className={cn(
-                    'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                     'text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground',
                   )}
                 >
@@ -1008,11 +1222,29 @@ export default function DashboardLayout() {
                 type="button"
                 aria-pressed={navReorderMode}
                 aria-label={navReorderMode ? 'Finish customizing menu order' : 'Reorder menu sections and items'}
-                onClick={() => setNavReorderMode((v) => !v)}
+                onClick={() => {
+                  setNavReorderMode((prev) => {
+                    if (!prev) {
+                      setCollapsedSections((old) => {
+                        const next = { ...old }
+                        for (const s of visibleSections) {
+                          next[s.title] = false
+                        }
+                        return next
+                      })
+                      setCollapsedGroups({})
+                    } else {
+                      setNavActiveDndId(null)
+                      setNavDndOverId(null)
+                      setNavDragOverlay(null)
+                    }
+                    return !prev
+                  })
+                }}
                 className={cn(
-                  'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   navReorderMode
-                    ? 'bg-violet-600 text-white shadow-sm hover:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500'
+                    ? 'bg-primary text-white shadow-sm hover:bg-primary/90 dark:bg-primary dark:hover:bg-accent'
                     : 'text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground',
                 )}
               >
@@ -1021,10 +1253,14 @@ export default function DashboardLayout() {
             </div>
           </div>
 
-          <SortableContext items={orderedVisibleSections.map((s) => secDndId(s.id))} strategy={verticalListSortingStrategy}>
+          <SortableContext
+            id="nav-sections-order"
+            items={orderedVisibleSections.map((s) => secDndId(s.id))}
+            strategy={verticalListSortingStrategy}
+          >
             {orderedVisibleSections.map((section, sectionIdx) => {
               const isSectionCollapsed = collapsedSections[section.title] ?? true
-              const orderedItems = orderNavItemsByTo(section.items, itemOrders[section.id])
+              const orderedItems = orderedNavItemsBySectionId.get(section.id) ?? section.items
               const sectionHasActive = orderedItems.some((it) => {
                 const base = it.to.split('?')[0]
                 return (
@@ -1039,12 +1275,20 @@ export default function DashboardLayout() {
               const SectionIcon = section.icon
               const sectionPanelId = `nav-section-${section.id}`
               const sortLocked = !navReorderMode
+              const secDnd = secDndId(section.id)
+              const activeSec = navActiveDndId ? parseSecDndId(navActiveDndId) : null
+              const activeIt = navActiveDndId ? parseItmDndId(navActiveDndId) : null
+              const outlineSectionDrop =
+                navReorderMode &&
+                navDndOverId === secDnd &&
+                ((activeIt != null) || (activeSec != null && navActiveDndId !== secDnd))
 
               return (
                 <SortableSectionShell
                   key={section.id}
                   sectionId={section.id}
                   sortDisabled={sortLocked}
+                  outlineAsDropTarget={outlineSectionDrop}
                   prepend={
                     showRailDivider ? (
                       <div
@@ -1081,28 +1325,33 @@ export default function DashboardLayout() {
                           aria-expanded={!isSectionCollapsed}
                           aria-controls={sectionPanelId}
                           className={cn(
-                            'group/sec flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-0.5 text-left',
+                            'group/sec flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1 py-0.5 text-left',
                             navRowTransition,
                             sectionHasActive && !isSectionCollapsed
-                              ? 'bg-muted/45 text-foreground'
+                              ? 'bg-muted/50 text-foreground'
                               : sectionHasActive
-                                ? 'bg-muted/25 text-foreground'
-                                : 'text-foreground hover:bg-muted/40',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+                                ? 'bg-muted/35 text-foreground'
+                                : 'text-muted-foreground hover:bg-muted/45 hover:text-foreground',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
                           )}
                           onClick={() => toggleSection(section.title)}
                         >
                           <span
                             className={cn(
                               NAV_ICON_COL,
-                              'rounded bg-muted/35 text-muted-foreground ring-1 ring-border/15 dark:bg-zinc-800/45 dark:ring-border/20',
-                              sectionHasActive && 'bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:bg-violet-950/40 dark:text-violet-300',
+                              'rounded-md bg-muted/60 text-muted-foreground ring-1 ring-border/25 dark:bg-zinc-800/50 dark:ring-border/25',
+                              sectionHasActive && 'bg-muted text-foreground ring-border/35 dark:bg-sidebar-accent dark:text-sidebar-accent-foreground',
                             )}
                           >
                             <SectionIcon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
                           </span>
                           <div className="min-w-0 flex-1 py-0.5">
-                            <span className="block truncate text-[11px] font-semibold leading-tight tracking-tight text-foreground">
+                            <span
+                              className={cn(
+                                'block truncate text-[11px] leading-tight tracking-tight',
+                                sectionHasActive ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground',
+                              )}
+                            >
                               {section.title}
                             </span>
                             {section.subtitle ? (
@@ -1115,7 +1364,7 @@ export default function DashboardLayout() {
                             <ChevronDown
                               className={cn(
                                 'h-3.5 w-3.5 text-muted-foreground/70 transition-transform duration-200 ease-out motion-reduce:transition-none',
-                                isSectionCollapsed && '-rotate-90',
+                                isSectionCollapsed ? '-rotate-90' : 'rotate-180',
                               )}
                             />
                           </span>
@@ -1140,143 +1389,157 @@ export default function DashboardLayout() {
                           aria-hidden={isSectionCollapsed}
                         >
                           <div
-                            className="space-y-px py-0.5 pl-1.5 ml-0.5 border-l border-border/[0.08] dark:border-white/[0.06]"
+                            className={cn('relative ml-1 space-y-px py-1', NAV_TREE_PANEL_CLASS)}
                             role="group"
                             aria-label={`${section.title} pages`}
                           >
+                            <span aria-hidden className={navTreeTrunkLine} />
                             <SortableContext
+                              id={`nav-items-${section.id}`}
                               items={orderedItems.map((i) => itmDndId(section.id, i.to))}
                               strategy={verticalListSortingStrategy}
                             >
                               <div className="space-y-px">
-                                {(() => {
-                                  let prevGroupLabel: string | null = null
-                                  const rows: ReactNode[] = []
-                                  for (const item of orderedItems) {
-                                    const gl = item.groupLabel ?? null
-                                    if (gl !== null && gl !== prevGroupLabel) {
-                                      prevGroupLabel = gl
-                                      const grpKey = `${section.title}:${gl}`
-                                      const isGroupCollapsed = collapsedGroups[grpKey] ?? false
-                                      const hasActiveItem = orderedItems.some((it) => {
-                                        if ((it.groupLabel ?? null) !== gl) return false
-                                        const base = it.to.split('?')[0]
-                                        return (
-                                          location.pathname === base ||
-                                          (base !== '/' && location.pathname.startsWith(`${base}/`))
-                                        )
-                                      })
-                                      rows.push(
-                                        <button
-                                          key={`hdr-${grpKey}`}
-                                          type="button"
-                                          tabIndex={isSectionCollapsed ? -1 : undefined}
-                                          onClick={() => toggleGroup(grpKey)}
-                                          aria-expanded={!isGroupCollapsed}
+                                {orderedItems.map((item, itemIdx) => {
+                                  const gl = item.groupLabel ?? null
+                                  const prevGl = itemIdx > 0 ? (orderedItems[itemIdx - 1]?.groupLabel ?? null) : null
+                                  const showGroupHeader = Boolean(gl) && gl !== prevGl
+                                  const grpKey = gl != null ? `${section.title}:${gl}` : ''
+                                  const isGroupCollapsed = grpKey ? (collapsedGroups[grpKey] ?? false) : false
+                                  const subgroupKey = item.groupLabel ? `${section.title}:${item.groupLabel}` : ''
+                                  const inCollapsedSubgroup = Boolean(
+                                    item.groupLabel && (collapsedGroups[subgroupKey] ?? false),
+                                  )
+
+                                  const groupHeader =
+                                    showGroupHeader && gl != null ? (
+                                      <button
+                                        key={`hdr-${grpKey}`}
+                                        type="button"
+                                        tabIndex={isSectionCollapsed ? -1 : undefined}
+                                        onClick={() => toggleGroup(grpKey)}
+                                        aria-expanded={!isGroupCollapsed}
+                                        className={cn(
+                                          'relative flex min-h-[1.625rem] w-full items-center gap-1.5 rounded-md py-0.5 pr-1 pl-[calc(var(--tree-x)+0.5rem)] text-left text-[10px] font-semibold uppercase tracking-wide',
+                                          itemIdx > 0 ? 'mt-0.5' : 'mt-0',
+                                          navRowTransition,
+                                          'text-muted-foreground/80 hover:bg-muted/35 hover:text-foreground',
+                                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+                                          orderedItems.some((it) => {
+                                            if ((it.groupLabel ?? null) !== gl) return false
+                                            const base = it.to.split('?')[0]
+                                            return (
+                                              location.pathname === base ||
+                                              (base !== '/' && location.pathname.startsWith(`${base}/`))
+                                            )
+                                          }) && 'font-semibold text-foreground',
+                                        )}
+                                      >
+                                        <span aria-hidden className={navTreeElbowLine} />
+                                        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                          {orderedItems.some((it) => {
+                                            if ((it.groupLabel ?? null) !== gl) return false
+                                            const base = it.to.split('?')[0]
+                                            return (
+                                              location.pathname === base ||
+                                              (base !== '/' && location.pathname.startsWith(`${base}/`))
+                                            )
+                                          }) && (
+                                            <span className="h-1 w-1 shrink-0 rounded-full bg-accent dark:bg-primary/50" />
+                                          )}
+                                          <span className="truncate">{gl}</span>
+                                        </span>
+                                        <span className="flex h-6 w-5 shrink-0 items-center justify-center pr-1" aria-hidden>
+                                          <ChevronDown
+                                            className={cn(
+                                              'h-3 w-3 text-muted-foreground/65 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                                              isGroupCollapsed ? '-rotate-90' : 'rotate-180',
+                                            )}
+                                          />
+                                        </span>
+                                      </button>
+                                    ) : null
+
+                                  const thisItemDndId = itmDndId(section.id, item.to)
+                                  return (
+                                    <SortableItemShell
+                                      key={item.to + item.label}
+                                      sectionId={section.id}
+                                      itemTo={item.to}
+                                      sortDisabled={sortLocked}
+                                      prepend={groupHeader}
+                                      outlineDropTarget={navReorderMode && navDndOverId === thisItemDndId}
+                                      hideSourceWhileDragging={
+                                        navReorderMode && navActiveDndId === thisItemDndId
+                                      }
+                                    >
+                                      {(itemListeners, itemAttributes) => (
+                                        <div
                                           className={cn(
-                                            'mt-0.5 flex min-h-[1.625rem] w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left text-[10px] font-semibold uppercase tracking-wide first:mt-0',
-                                            navRowTransition,
-                                            'text-muted-foreground/80 hover:bg-muted/35 hover:text-foreground',
-                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-                                            hasActiveItem && 'text-violet-700 dark:text-violet-300',
+                                            'relative flex min-h-[1.75rem] w-full min-w-0 flex-1 items-center gap-0.5',
+                                            inCollapsedSubgroup && 'hidden',
                                           )}
                                         >
-                                          <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                                            {hasActiveItem && (
-                                              <span className="h-1 w-1 shrink-0 rounded-full bg-violet-500 dark:bg-violet-400" />
-                                            )}
-                                            <span className="truncate">{gl}</span>
-                                          </span>
-                                          <span className="flex h-6 w-5 shrink-0 items-center justify-center pr-1" aria-hidden>
-                                            <ChevronDown
+                                          <span aria-hidden className={navTreeElbowLine} />
+                                          {navReorderMode ? (
+                                            <button
+                                              type="button"
+                                              aria-label={`Drag to reorder ${item.label}`}
                                               className={cn(
-                                                'h-3 w-3 text-muted-foreground/65 transition-transform duration-200 ease-out motion-reduce:transition-none',
-                                                hasActiveItem && 'text-violet-600 dark:text-violet-400',
-                                                isGroupCollapsed && '-rotate-90',
+                                                NAV_DRAG_COL,
+                                                'touch-none cursor-grab rounded text-muted-foreground/40 transition-colors hover:bg-muted/40 hover:text-muted-foreground/70 active:cursor-grabbing',
                                               )}
-                                            />
-                                          </span>
-                                        </button>,
-                                      )
-                                    }
-                                    if (gl === null) prevGroupLabel = null
-
-                                    const subgroupKey = gl ? `${section.title}:${gl}` : ''
-                                    const inCollapsedSubgroup = Boolean(gl && (collapsedGroups[subgroupKey] ?? false))
-
-                                    rows.push(
-                                      <SortableItemShell
-                                        key={item.to + item.label}
-                                        sectionId={section.id}
-                                        itemTo={item.to}
-                                        sortDisabled={sortLocked}
-                                      >
-                                        {(itemListeners, itemAttributes) => (
-                                          <div
-                                            className={cn(
-                                              'flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-0.5',
-                                              inCollapsedSubgroup && 'hidden',
-                                            )}
-                                          >
-                                            {navReorderMode ? (
-                                              <button
-                                                type="button"
-                                                tabIndex={isSectionCollapsed ? -1 : undefined}
-                                                aria-label={`Drag to reorder ${item.label}`}
-                                                className={cn(
-                                                  NAV_DRAG_COL,
-                                                  'touch-none cursor-grab rounded text-muted-foreground/35 transition-colors hover:bg-muted/40 hover:text-muted-foreground/65 active:cursor-grabbing',
-                                                )}
-                                                {...itemListeners}
-                                                {...itemAttributes}
-                                              >
-                                                <GripVertical className="h-2.5 w-2.5" strokeWidth={2} aria-hidden />
-                                              </button>
-                                            ) : (
-                                              <span className={NAV_DRAG_COL} aria-hidden />
-                                            )}
-                                            <NavLink
-                                              to={item.to}
-                                              end={item.to === '/' || item.to === '/websites'}
-                                              title={item.label}
-                                              tabIndex={isSectionCollapsed ? -1 : undefined}
-                                              onClick={() => setSidebarOpen(false)}
-                                              className="group/nav flex min-w-0 flex-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-0"
+                                              {...itemListeners}
+                                              {...itemAttributes}
+                                              tabIndex={isSectionCollapsed || inCollapsedSubgroup ? -1 : undefined}
                                             >
-                                              {({ isActive }) => (
+                                              <GripVertical className="h-2.5 w-2.5" strokeWidth={2} aria-hidden />
+                                            </button>
+                                          ) : (
+                                            <span className={NAV_DRAG_COL} aria-hidden />
+                                          )}
+                                          <NavLink
+                                            to={item.to}
+                                            end={item.to === '/' || item.to === '/websites'}
+                                            title={item.label}
+                                            tabIndex={isSectionCollapsed || inCollapsedSubgroup ? -1 : undefined}
+                                            onClick={() => setSidebarOpen(false)}
+                                            className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
+                                          >
+                                            {({ isActive }) => (
+                                              <span
+                                                className={cn(
+                                                  'relative z-[1] flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
+                                                  item.labelSize ?? 'text-[11px]',
+                                                  'leading-snug',
+                                                  navRowTransition,
+                                                  isActive ? navLinkActive : navLinkInactive,
+                                                )}
+                                              >
                                                 <span
                                                   className={cn(
-                                                    'flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-md py-0.5 pl-1 pr-2',
-                                                    item.labelSize ?? 'text-[11px]',
-                                                    'leading-snug',
-                                                    navRowTransition,
-                                                    isActive ? navLinkActive : navLinkInactive,
+                                                    NAV_ICON_COL,
+                                                    isActive
+                                                      ? 'text-sidebar-primary-foreground'
+                                                      : 'text-muted-foreground/80 group-hover/nav:text-foreground',
                                                   )}
                                                 >
-                                                  <span
-                                                    className={cn(
-                                                      NAV_ICON_COL,
-                                                      'text-muted-foreground group-hover/nav:text-foreground/85',
-                                                    )}
-                                                  >
-                                                    <item.icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-                                                  </span>
-                                                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                                                  {item.to === '/notifications' && unreadCount > 0 && (
-                                                    <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white tabular-nums">
-                                                      {unreadCount > 99 ? '99+' : unreadCount}
-                                                    </span>
-                                                  )}
+                                                  <item.icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
                                                 </span>
-                                              )}
-                                            </NavLink>
-                                          </div>
-                                        )}
-                                      </SortableItemShell>,
-                                    )
-                                  }
-                                  return rows
-                                })()}
+                                                <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                                                {item.to === '/notifications' && unreadCount > 0 && (
+                                                  <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white tabular-nums">
+                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                  </span>
+                                                )}
+                                              </span>
+                                            )}
+                                          </NavLink>
+                                        </div>
+                                      )}
+                                    </SortableItemShell>
+                                  )
+                                })}
                               </div>
                             </SortableContext>
                           </div>
@@ -1289,6 +1552,67 @@ export default function DashboardLayout() {
             })}
           </SortableContext>
         </nav>
+        <DragOverlay zIndex={100} dropAnimation={null}>
+          {navReorderMode && navDragOverlay ? (
+            navDragOverlay.kind === 'item' ? (
+              (() => {
+                const item = navDragOverlay.item
+                const OI = item.icon
+                return (
+                  <div
+                    className={cn(
+                      'pointer-events-none flex min-h-[1.75rem] min-w-[13rem] max-w-[17rem] items-center gap-0.5 rounded-lg border border-sidebar-border/80 bg-sidebar py-0.5 pl-1 pr-2 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
+                    )}
+                  >
+                    <span className={NAV_DRAG_COL}>
+                      <GripVertical className="h-2.5 w-2.5 text-muted-foreground" strokeWidth={2} aria-hidden />
+                    </span>
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-0">
+                      <span className={cn(NAV_ICON_COL, 'text-muted-foreground')}>
+                        <OI className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                      </span>
+                      <span
+                        className={cn(
+                          'min-w-0 flex-1 truncate text-left font-medium',
+                          item.labelSize ?? 'text-[11px]',
+                        )}
+                      >
+                        {item.label}
+                      </span>
+                    </span>
+                  </div>
+                )
+              })()
+            ) : (
+              (() => {
+                const pl = navDragOverlay
+                const OI = pl.Icon
+                return (
+                  <div
+                    className={cn(
+                      'pointer-events-none flex min-h-[1.75rem] min-w-[13rem] max-w-[17rem] items-center gap-1.5 rounded-lg border border-sidebar-border/80 bg-sidebar px-2 py-1 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        NAV_ICON_COL,
+                        'rounded-md bg-muted/60 text-muted-foreground ring-1 ring-border/25',
+                      )}
+                    >
+                      <OI className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-[11px] font-semibold leading-tight">{pl.title}</span>
+                      {pl.subtitle ? (
+                        <span className="mt-px block truncate text-[10px] text-muted-foreground">{pl.subtitle}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })()
+            )
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {/* Logout — separated from primary nav */}
@@ -1299,7 +1623,7 @@ export default function DashboardLayout() {
           className={cn(
             'flex min-h-[1.75rem] w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] font-medium text-muted-foreground',
             navRowTransition,
-            'hover:bg-red-500/10 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-0 dark:hover:bg-red-950/30 dark:hover:text-red-300',
+            'hover:bg-red-500/10 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-0 dark:hover:bg-red-950/30 dark:hover:text-red-300',
           )}
         >
           <span className={cn(NAV_ICON_COL, 'text-muted-foreground')}>
@@ -1313,41 +1637,19 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Reorder mode: dark callout with the former My Kit subtitle */}
-      {navReorderMode && (
-        <div
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex justify-center px-4 pb-6 pt-2 lg:justify-start lg:pl-[calc(16rem+1.5rem)] lg:pr-8"
-          role="status"
-          aria-live="polite"
-        >
-          <div
-            className={cn(
-              'pointer-events-auto flex max-w-sm items-start gap-3 rounded-xl border border-zinc-600/50 bg-zinc-950 px-4 py-3 shadow-2xl',
-              'animate-in fade-in slide-in-from-bottom-3 duration-300',
-            )}
-          >
-            <span className="relative mt-1 flex h-2.5 w-2.5 shrink-0 items-center justify-center" aria-hidden>
-              <span className="absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-40 animate-ping" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-400" />
-            </span>
-            <p className="text-[13px] font-medium leading-snug text-zinc-50">Personalize your navigation</p>
-          </div>
-        </div>
-      )}
-
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-40 lg:hidden backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar - desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 min-w-[14rem] max-w-[min(100vw,18rem)] border-r border-border/30 bg-card shadow-sm lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 min-w-[14rem] max-w-[min(100vw,18rem)] rounded-r-2xl border-r border-sidebar-border/40 bg-sidebar text-sidebar-foreground shadow-sm lg:block">
         {sidebarContent}
       </aside>
 
       {/* Sidebar - mobile */}
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 transform border-r border-border/30 bg-card shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none lg:hidden',
+        'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 transform rounded-r-2xl border-r border-sidebar-border/40 bg-sidebar text-sidebar-foreground shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none lg:hidden',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         {sidebarContent}
@@ -1376,7 +1678,7 @@ export default function DashboardLayout() {
                 className={cn(
                   'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
                   storePillActive
-                    ? 'bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-200 hover:bg-violet-700'
+                    ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20 hover:bg-primary/90'
                     : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
                 )}
               >
@@ -1394,16 +1696,16 @@ export default function DashboardLayout() {
                 )}
               </Link>
               {/* Profile dropdown — name + avatar trigger */}
-              <div className="relative ml-2 pl-3 border-l border-border">
+              <div ref={profileMenuRef} className="relative ml-2 pl-3 border-l border-border">
                 <button
                   type="button"
                   onClick={() => setProfileOpen(v => !v)}
                   className={cn(
-                    'flex items-center gap-2 pr-1.5 pl-1 py-1 rounded-full transition-colors',
-                    profileOpen ? 'bg-violet-500/10 dark:bg-violet-950/40' : 'hover:bg-muted',
+                    'flex items-center gap-2 rounded-full py-1 pl-1 pr-1.5 transition-colors',
+                    profileOpen ? 'bg-muted ring-1 ring-border' : 'hover:bg-muted',
                   )}
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-xs font-bold text-white shadow-sm ring-1 ring-black/15">
                     {(user?.full_name || 'U').charAt(0).toUpperCase()}
                   </div>
                   <span className="hidden sm:inline text-sm font-medium text-foreground truncate max-w-[120px]">
@@ -1413,20 +1715,18 @@ export default function DashboardLayout() {
                 </button>
 
                 {profileOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
                     <div className="absolute top-full right-0 mt-2 z-50 w-72 bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
                       {/* User header */}
-                      <div className="px-4 py-3 bg-gradient-to-br from-violet-500/10 to-blue-500/10 dark:from-slate-800 dark:to-slate-900 border-b border-border">
+                      <div className="border-b border-white/10 bg-[linear-gradient(90deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_42%,hsl(var(--hero-to))_100%)] px-4 py-3 text-white">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-white font-bold shrink-0">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-sm font-bold text-white shadow-md ring-1 ring-white/15">
                             {(user?.full_name || 'U').charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-foreground truncate">{user?.full_name}</p>
-                            {user?.email && <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>}
-                            <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-background text-violet-700 border border-violet-200 dark:border-violet-800">
-                              <ShieldCheck className="w-2.5 h-2.5" />
+                            <p className="truncate text-sm font-semibold text-white">{user?.full_name}</p>
+                            {user?.email && <p className="truncate text-[11px] text-emerald-100/85">{user.email}</p>}
+                            <span className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-white/15 text-white ring-1 ring-white/25">
+                              <ShieldCheck className="h-2.5 w-2.5" />
                               {roleBadge}
                             </span>
                           </div>
@@ -1438,7 +1738,7 @@ export default function DashboardLayout() {
                         <ProfileMenuLabel>Account</ProfileMenuLabel>
                         <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border">
                           <div className="flex items-center gap-2 text-sm text-foreground">
-                            {dark ? <Moon className="w-4 h-4 text-violet-400 shrink-0" /> : <Sun className="w-4 h-4 text-amber-500 shrink-0" />}
+                            {dark ? <Moon className="w-4 h-4 text-primary/70 shrink-0" /> : <Sun className="w-4 h-4 text-amber-500 shrink-0" />}
                             <span>Dark mode</span>
                           </div>
                           <button
@@ -1452,7 +1752,7 @@ export default function DashboardLayout() {
                             }}
                             className={cn(
                               'relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                              dark ? 'bg-violet-600 border-violet-500' : 'bg-muted border-border',
+                              dark ? 'bg-primary border-primary' : 'bg-muted border-border',
                             )}
                           >
                             <span
@@ -1544,7 +1844,7 @@ export default function DashboardLayout() {
                             onClick={() => setProfileOpen(false)}
                             className="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
                           >
-                            <Phone className="w-4 h-4 text-violet-600" />
+                            <Phone className="w-4 h-4 text-primary" />
                             <span className="flex-1">Call support</span>
                             <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[110px]">{SUPPORT_PHONE}</span>
                           </a>
@@ -1599,7 +1899,6 @@ export default function DashboardLayout() {
                         </button>
                       </div>
                     </div>
-                  </>
                 )}
               </div>
             </div>

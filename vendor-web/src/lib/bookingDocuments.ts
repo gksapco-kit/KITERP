@@ -8,9 +8,9 @@ export const BOOKING_DOC_TYPES = [
     id: 'booking_confirmation',
     label: 'Booking Confirmation',
     desc: 'Appointment slip for the customer to keep',
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
+    color: 'text-primary',
+    bg: 'bg-accent',
+    border: 'border-primary/30',
   },
   {
     id: 'work_order',
@@ -56,9 +56,9 @@ export const BOOKING_DOC_TYPES = [
     id: 'sop',
     label: 'SOP / Procedure',
     desc: 'Standard Operating Procedure for the service',
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-    border: 'border-purple-200',
+    color: 'text-primary',
+    bg: 'bg-accent',
+    border: 'border-primary/30',
   },
 ] as const
 
@@ -163,28 +163,28 @@ function generateBookingConfirmation(b: BookingInfo): string {
   const fmt = (n: unknown) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Booking Confirmation – ${b.booking_number || ''}</title>${baseStyles()}
 <style>
-  .confirm-card{background:#f5f3ff;border:2px solid #8b5cf6;border-radius:16px;padding:28px;margin:20px 0;text-align:center}
-  .confirm-card .ref{font-size:28px;font-weight:800;color:#5b21b6;letter-spacing:.04em;margin-bottom:4px}
-  .confirm-card .status{display:inline-block;background:#8b5cf6;color:#fff;padding:4px 18px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.05em;margin-bottom:12px}
-  .confirm-meta{font-size:14px;color:#4c1d95;font-weight:600}
+  .confirm-card{background:#f0fdf9;border:2px solid #64C3A0;border-radius:16px;padding:28px;margin:20px 0;text-align:center}
+  .confirm-card .ref{font-size:28px;font-weight:800;color:#13624A;letter-spacing:.04em;margin-bottom:4px}
+  .confirm-card .status{display:inline-block;background:#64C3A0;color:#fff;padding:4px 18px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.05em;margin-bottom:12px}
+  .confirm-meta{font-size:14px;color:#0f5132;font-weight:600}
   .confirm-detail{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:left}
-  .detail-block{background:#fff;border:1px solid #ddd6fe;border-radius:10px;padding:14px}
-  .detail-block .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#7c3aed;margin-bottom:4px;font-weight:700}
-  .detail-block .val{font-size:14px;font-weight:700;color:#1e1b4b}
-  .qr-placeholder{border:2px dashed #ddd6fe;border-radius:10px;width:80px;height:80px;display:flex;align-items:center;justify-content:center;color:#c4b5fd;font-size:10px;text-align:center;margin:12px auto 0}
+  .detail-block{background:#fff;border:1px solid #a7e9d3;border-radius:10px;padding:14px}
+  .detail-block .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#13624A;margin-bottom:4px;font-weight:700}
+  .detail-block .val{font-size:14px;font-weight:700;color:#0f172a}
+  .qr-placeholder{border:2px dashed #a7e9d3;border-radius:10px;width:80px;height:80px;display:flex;align-items:center;justify-content:center;color:#64C3A0;font-size:10px;text-align:center;margin:12px auto 0}
 </style>
 </head>
 <body><div class="page">
   <div style="text-align:center;margin-bottom:24px">
-    <h1 style="font-size:22px;color:#1e1b4b">✓ Appointment Confirmed</h1>
-    <div class="sub" style="color:#7c3aed">Please bring this confirmation slip on the day of your appointment</div>
+    <h1 style="font-size:22px;color:#0f172a">✓ Appointment Confirmed</h1>
+    <div class="sub" style="color:#13624A">Please bring this confirmation slip on the day of your appointment</div>
   </div>
   <div class="confirm-card">
     <div class="status">CONFIRMED</div>
     <div class="ref">${b.booking_number || '—'}</div>
     <div class="confirm-meta">${b.service_name || '—'}</div>
     <div class="confirm-detail">
-      <div class="detail-block"><div class="lbl">Customer</div><div class="val">${b.customer_name || '—'}</div>${b.customer_phone ? `<div style="font-size:12px;color:#6d28d9;margin-top:2px">${b.customer_phone}</div>` : ''}</div>
+      <div class="detail-block"><div class="lbl">Customer</div><div class="val">${b.customer_name || '—'}</div>${b.customer_phone ? `<div style="font-size:12px;color:#13624A;margin-top:2px">${b.customer_phone}</div>` : ''}</div>
       <div class="detail-block"><div class="lbl">Date</div><div class="val">${date}</div></div>
       <div class="detail-block"><div class="lbl">Time</div><div class="val">${time}</div></div>
       <div class="detail-block"><div class="lbl">${b.assigned_staff_name ? 'Service Provider' : 'Amount'}</div><div class="val">${b.assigned_staff_name || fmt(b.total)}</div></div>
@@ -193,7 +193,7 @@ function generateBookingConfirmation(b: BookingInfo): string {
   </div>
   ${b.notes ? `<p style="font-size:12px;color:#555;text-align:center;margin-bottom:16px;font-style:italic">"${b.notes}"</p>` : ''}
   <hr class="divider"/>
-  <p style="font-size:11px;color:#7c3aed;text-align:center;margin-bottom:6px;font-weight:600">CANCELLATION POLICY</p>
+  <p style="font-size:11px;color:#13624A;text-align:center;margin-bottom:6px;font-weight:600">CANCELLATION POLICY</p>
   <p style="font-size:11px;color:#aaa;text-align:center">Please cancel or reschedule at least 24 hours before your appointment to avoid charges.</p>
   <div class="footer">Booking Confirmation · ${b.booking_number || ''} · Keep this for your records</div>
 </div></body></html>`

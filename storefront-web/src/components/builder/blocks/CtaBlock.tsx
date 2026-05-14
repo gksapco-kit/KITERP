@@ -19,7 +19,7 @@ export default function CtaBlock({ style, props }: Props) {
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto text-center bg-gradient-to-br from-violet-600 to-indigo-700 rounded-3xl p-12">
+      <div className="max-w-4xl mx-auto text-center bg-gradient-to-br from-primary to-emerald-800 rounded-3xl p-12">
         <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{headline}</h2>
         {subtitle && <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">{subtitle}</p>}
         <Link

@@ -34,7 +34,7 @@ interface DocTemplateType {
 
 const TEMPLATE_TYPES: DocTemplateType[] = [
   { id: 'prescription',    label: 'Doctor Prescription', desc: 'Rx pads with patient, diagnosis & medication details', icon: Stethoscope,   color: 'text-blue-600',   bg: 'bg-blue-50',   category: 'Healthcare' },
-  { id: 'sop',             label: 'SOP / Procedure',     desc: 'Standard Operating Procedure with steps & approvals',  icon: ClipboardList,  color: 'text-purple-600', bg: 'bg-purple-50', category: 'Operations' },
+  { id: 'sop',             label: 'SOP / Procedure',     desc: 'Standard Operating Procedure with steps & approvals',  icon: ClipboardList,  color: 'text-primary', bg: 'bg-accent', category: 'Operations' },
   { id: 'work_order',      label: 'Work Order',          desc: 'Job card for services, repairs & maintenance tasks',   icon: Wrench,         color: 'text-orange-600', bg: 'bg-orange-50', category: 'Operations' },
   { id: 'delivery_challan',label: 'Delivery Challan',    desc: 'Shipment document listing items being dispatched',     icon: Truck,          color: 'text-teal-600',   bg: 'bg-teal-50',   category: 'Logistics' },
   { id: 'quotation',       label: 'Quotation / Estimate',desc: 'Price quote before a purchase order or invoice',       icon: FileText,       color: 'text-indigo-600', bg: 'bg-indigo-50', category: 'Sales' },
@@ -163,7 +163,7 @@ const DEFAULTS: Record<DocTemplateId, AnyDocSettings> = {
     show_vitals: true, show_allergy_warning: true, rx_layout: 'classic',
   } as PrescriptionSettings,
   sop: {
-    ...BASE_DEFAULTS, theme_color: '#7c3aed',
+    ...BASE_DEFAULTS, theme_color: '#64C3A0',
     show_version: true, show_effective_date: true, show_review_date: true,
     show_approval_table: true, show_references: true, show_revision_history: true,
     step_numbering: 'numeric', sop_layout: 'classic',
@@ -218,7 +218,7 @@ function saveSettings(id: string, s: AnyDocSettings) {
 
 const COLORS = [
   { label: 'Blue',    value: '#1a56db' }, { label: 'Indigo',  value: '#4f46e5' },
-  { label: 'Purple',  value: '#7c3aed' }, { label: 'Sky',     value: '#0ea5e9' },
+  { label: 'Brand',  value: '#64C3A0' }, { label: 'Sky',     value: '#0ea5e9' },
   { label: 'Teal',    value: '#0d9488' }, { label: 'Green',   value: '#16a34a' },
   { label: 'Orange',  value: '#ea580c' }, { label: 'Rose',    value: '#e11d48' },
   { label: 'Cyan',    value: '#0891b2' }, { label: 'Slate',   value: '#475569' },
@@ -322,7 +322,7 @@ function generatePrescriptionHtml(s: PrescriptionSettings): string {
 }
 
 function generateSOPHtml(s: SOPSettings): string {
-  const c = s.theme_color || '#7c3aed'
+  const c = s.theme_color || '#64C3A0'
   const steps = ['Identify the need for the procedure', 'Gather all required materials and tools', 'Follow safety protocols — wear PPE if required', 'Execute each step in sequence as documented', 'Verify output meets quality criteria', 'Record all observations in the log sheet', 'Obtain supervisor sign-off before closing']
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Arial',sans-serif;font-size:12px;color:#1f2937;background:#f9fafb}

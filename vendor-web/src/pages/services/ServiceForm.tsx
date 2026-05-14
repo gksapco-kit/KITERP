@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useService, useCreateService, useUpdateService, useCategoryTree } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
-import { mediaUrl } from '@/lib/utils'
+import { mediaUrl, cn } from '@/lib/utils'
 import { ServiceMediaUpload, getMediaType } from '@/components/common/ImageUpload'
 import {
   ArrowLeft, Loader2, Upload, X, ChevronDown, ChevronUp,
@@ -420,17 +420,39 @@ function Section({ title, icon: Icon, open, onToggle, badge, children }: {
   badge?: React.ReactNode; children: React.ReactNode
 }) {
   return (
-    <Card>
-      <button type="button" onClick={onToggle}
-        className="w-full px-6 py-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors rounded-t-xl">
-        <div className="flex items-center gap-2.5">
-          <Icon className="w-4 h-4 text-gray-500" />
-          <span className="font-semibold text-sm text-gray-900">{title}</span>
-          {badge}
+    <Card className="overflow-hidden shadow-sm">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          'flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left sm:px-5',
+          'transition-colors hover:bg-accent/80 dark:hover:bg-secondary/60',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10',
+              'bg-primary/12 text-primary ring-1 ring-inset ring-primary/20',
+              'dark:bg-primary/25 dark:ring-primary/40',
+            )}
+            aria-hidden
+          >
+            <Icon className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" strokeWidth={2} />
+          </span>
+          <span className="min-w-0 truncate text-sm font-semibold leading-snug text-foreground sm:text-base">{title}</span>
+          {badge ? <span className="shrink-0">{badge}</span> : null}
         </div>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground dark:text-foreground/80">
+          {open ? <ChevronUp className="h-5 w-5" aria-hidden /> : <ChevronDown className="h-5 w-5" aria-hidden />}
+        </span>
       </button>
-      {open && <CardContent className="pt-0 pb-5 border-t">{children}</CardContent>}
+      {open && (
+        <CardContent className="border-t border-border bg-muted/25 px-4 pb-5 pt-0 dark:bg-black/20 sm:px-6">
+          {children}
+        </CardContent>
+      )}
     </Card>
   )
 }
@@ -1291,7 +1313,7 @@ export default function ServiceForm() {
               service.status === 'active' ? 'bg-green-100 text-green-700' :
               service.status === 'archived' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'
             }`}>{service.status}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">{typeLbl}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/12 text-primary font-medium">{typeLbl}</span>
             {!service.is_visible && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Hidden</span>}
           </div>
           <Button size="sm" onClick={() => setViewMode(false)}>
@@ -1344,7 +1366,7 @@ export default function ServiceForm() {
                       ) : (
                         <img src={mediaUrl(img.url)} alt={img.alt_text || service.name} className="w-full h-full object-cover" />
                       )}
-                      {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-purple-600 text-white text-[8px] font-bold px-1 rounded">VID</span>}
+                      {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-primary text-white text-[8px] font-bold px-1 rounded">VID</span>}
                       {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[8px] font-bold px-1 rounded">3D</span>}
                       {img.is_primary && <span className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 text-[8px] px-1 rounded font-bold">Primary</span>}
                     </div>
@@ -1406,10 +1428,10 @@ export default function ServiceForm() {
               </div>
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <Repeat className="w-4 h-4 text-violet-600" />
+                  <Repeat className="w-4 h-4 text-primary" />
                   <p className="text-sm text-gray-700 font-medium">Subscription</p>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(service as any).is_subscription ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(service as any).is_subscription ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-500'}`}>
                   {(service as any).is_subscription ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
@@ -1456,17 +1478,17 @@ export default function ServiceForm() {
                   const priceSuffix = isRec && vPriceType === 'per_cycle' && interval ? `/${interval}` : `/${vuomLbl}`
                   const vModeLbl = SERVICE_MODE_OPTIONS.find(m => m.value === v.service_mode)?.label
                   return (
-                    <div key={v.id} className="rounded-xl border-2 border-violet-100 bg-violet-50/30 p-4 space-y-3">
+                    <div key={v.id} className="rounded-xl border-2 border-primary/20 bg-accent/60 p-4 space-y-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-bold text-gray-900">{v.name}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isRec ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>{isRec ? 'Recurring' : 'One-time'}</span>
-                        {isRec && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${vPriceType === 'per_cycle' ? 'bg-violet-50 text-violet-600' : 'bg-blue-50 text-blue-600'}`}>{vPriceType === 'per_cycle' ? 'Per Cycle' : 'Per UOM'}</span>}
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isRec ? 'bg-primary/10 text-primary' : 'bg-blue-100 text-blue-700'}`}>{isRec ? 'Recurring' : 'One-time'}</span>
+                        {isRec && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${vPriceType === 'per_cycle' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-600'}`}>{vPriceType === 'per_cycle' ? 'Per Cycle' : 'Per UOM'}</span>}
                         {isRec && interval && <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{interval}</span>}
                         {vModeLbl && <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{vModeLbl}</span>}
                       </div>
                       <div className="flex items-baseline gap-2">
                         {v.price != null && (
-                          <span className="text-xl font-bold text-violet-700">{sym}{v.price}<span className="text-xs font-normal text-gray-500">{priceSuffix}</span></span>
+                          <span className="text-xl font-bold text-primary">{sym}{v.price}<span className="text-xs font-normal text-gray-500">{priceSuffix}</span></span>
                         )}
                       </div>
                       <div className="flex gap-2 mt-1 text-xs text-gray-500 flex-wrap">
@@ -1479,7 +1501,7 @@ export default function ServiceForm() {
                       {v.subscription_schedule_modes?.length > 0 && (
                         <div className="flex gap-1 flex-wrap">
                           {v.subscription_schedule_modes.map((m: string) => (
-                            <span key={m} className="text-[9px] bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full font-medium capitalize">{m.replace('_', ' ')}</span>
+                            <span key={m} className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium capitalize">{m.replace('_', ' ')}</span>
                           ))}
                         </div>
                       )}
@@ -1489,7 +1511,7 @@ export default function ServiceForm() {
                         v.tax_rate || v.sac_code || v.gst_rate ||
                         v.requires_booking != null || v.cancellation_policy ||
                         v.availability?.length || v.service_expiry_date || v.validity_period_days || v.renewal_required) && (
-                        <div className="border-t border-violet-200 pt-2 space-y-2">
+                        <div className="border-t border-primary/30 pt-2 space-y-2">
                           {/* Config */}
                           <div className="flex gap-3 text-xs flex-wrap">
                             <span className="font-medium text-blue-600 flex items-center gap-1"><Settings className="w-3 h-3" />Config:</span>
@@ -1807,7 +1829,7 @@ export default function ServiceForm() {
                     ) : (
                       <img src={pendingPreviews[i]} alt="" className="w-full h-full object-cover" />
                     )}
-                    {mt === 'video' && <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
+                    {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
                     {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
                     <button type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>
                     {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
@@ -1893,7 +1915,7 @@ export default function ServiceForm() {
               </div>
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <Repeat className="w-4 h-4 text-violet-600" />
+                  <Repeat className="w-4 h-4 text-primary" />
                   <div>
                     <p className="text-sm font-medium text-gray-800">Subscription</p>
                     <p className="text-xs text-gray-400">Offer recurring plans with billing intervals</p>
@@ -1951,7 +1973,7 @@ export default function ServiceForm() {
           onToggle={() => toggle('subscription')}
           badge={
             plans.length > 0
-              ? <span className="ml-2 text-[10px] bg-violet-100 text-violet-600 rounded-full px-2 py-0.5 font-medium">{plans.length} plan{plans.length !== 1 ? 's' : ''}</span>
+              ? <span className="ml-2 text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">{plans.length} plan{plans.length !== 1 ? 's' : ''}</span>
               : undefined
           }
         >
@@ -1978,23 +2000,23 @@ export default function ServiceForm() {
                       return (
                         <div key={plan._key} className={`rounded-xl shadow-md transition-all duration-200 ${
                           plan.is_active
-                            ? 'border-2 border-violet-200 bg-gradient-to-br from-white to-violet-50/30'
+                            ? 'border-2 border-primary/30 bg-gradient-to-br from-white to-accent/30'
                             : 'border-2 border-gray-300 bg-gray-50 opacity-70'
                         }`}>
                           {/* Collapsible header — matches product variant header */}
                           <div
                             className={`flex items-center justify-between gap-3 px-5 py-3 cursor-pointer select-none rounded-t-xl ${
-                              plan.is_active ? 'hover:bg-violet-50/50' : 'hover:bg-gray-100'
+                              plan.is_active ? 'hover:bg-accent/80' : 'hover:bg-gray-100'
                             }`}
                             onClick={() => setExpandedPlans(p => ({ ...p, [idx]: !p[idx] }))}
                           >
                             <div className="flex items-center gap-2.5">
                               <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold ${
-                                plan.is_active ? 'bg-violet-600 text-white' : 'bg-gray-400 text-white'
+                                plan.is_active ? 'bg-primary text-white' : 'bg-gray-400 text-white'
                               }`}>{idx + 1}</span>
                               <span className={`text-base font-semibold ${plan.is_active ? 'text-gray-800' : 'text-gray-500'}`}>Plan {idx + 1}</span>
                               {plan.name && (
-                                <span className={`text-sm font-medium ${plan.is_active ? 'text-violet-600' : 'text-gray-400'}`}>— {plan.name}</span>
+                                <span className={`text-sm font-medium ${plan.is_active ? 'text-primary' : 'text-gray-400'}`}>— {plan.name}</span>
                               )}
                               {!plan.is_active && (
                                 <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">Inactive</span>
@@ -2009,7 +2031,7 @@ export default function ServiceForm() {
                                   setPlans(p => [...p, clone])
                                   setExpandedPlans(p => ({ ...p, [plans.length]: true }))
                                 }}
-                                className="p-1.5 text-gray-500 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors">
+                                className="p-1.5 text-gray-500 hover:text-primary hover:bg-accent rounded transition-colors">
                                 <Copy className="w-4 h-4" />
                               </button>
                               <button type="button" title="Delete plan" onClick={() => setDeletingPlanIdx(idx)}
@@ -2022,7 +2044,7 @@ export default function ServiceForm() {
 
                           {/* Collapsible body */}
                           {isExpanded && (
-                            <div className={`px-4 pb-4 pt-2 space-y-3 border-t ${plan.is_active ? 'border-violet-100' : 'border-gray-200'}`}>
+                            <div className={`px-4 pb-4 pt-2 space-y-3 border-t ${plan.is_active ? 'border-primary/20' : 'border-gray-200'}`}>
                               {/* Identity */}
                               <div className="grid grid-cols-2 gap-2">
                                 <Field label="Plan Name">
@@ -2038,7 +2060,7 @@ export default function ServiceForm() {
                               </div>
 
                               {/* Service Configuration */}
-                              <div className="pt-2 border-t border-violet-100 space-y-2">
+                              <div className="pt-2 border-t border-primary/20 space-y-2">
                                 <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider flex items-center gap-1">
                                   <Settings className="w-3 h-3" />Service Configuration
                                 </p>
@@ -2051,7 +2073,7 @@ export default function ServiceForm() {
                                       onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_frequency: 'once' } : x))}
                                     >Once</button>
                                     <button type="button"
-                                      className={`px-3.5 py-1.5 font-semibold transition-colors ${plan.service_frequency === 'recurring' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                                      className={`px-3.5 py-1.5 font-semibold transition-colors ${plan.service_frequency === 'recurring' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
                                       onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_frequency: 'recurring' } : x))}
                                     >Recurring</button>
                                   </div>
@@ -2087,18 +2109,18 @@ export default function ServiceForm() {
 
                               {/* Recurrence / Billing — only when frequency = recurring */}
                               {plan.service_frequency === 'recurring' && (
-                                <div className="pt-2 border-t border-violet-100 space-y-2">
+                                <div className="pt-2 border-t border-primary/20 space-y-2">
                                   <div className="flex items-center justify-between">
-                                    <p className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider flex items-center gap-1">
+                                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1">
                                       <Repeat className="w-3 h-3" />Recurrence & Billing
                                     </p>
-                                    <div className="inline-flex rounded border border-violet-200 overflow-hidden text-[11px]">
+                                    <div className="inline-flex rounded border border-primary/30 overflow-hidden text-[11px]">
                                       <button type="button"
-                                        className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_cycle' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-violet-50'}`}
+                                        className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_cycle' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
                                         onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, price_type: 'per_cycle' } : x))}
                                       >Per Cycle</button>
                                       <button type="button"
-                                        className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_unit' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-violet-50'}`}
+                                        className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_unit' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
                                         onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, price_type: 'per_unit' } : x))}
                                       >Per UOM</button>
                                     </div>
@@ -2144,8 +2166,8 @@ export default function ServiceForm() {
                                             }))}
                                             className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
                                               active
-                                                ? 'bg-violet-600 text-white border-violet-600'
-                                                : 'bg-white text-gray-400 border-gray-200 hover:border-violet-300 hover:text-violet-600'
+                                                ? 'bg-primary text-white border-primary'
+                                                : 'bg-white text-gray-400 border-gray-200 hover:border-primary/40 hover:text-primary'
                                             }`}>
                                             {opt.label}
                                           </button>
@@ -2157,8 +2179,8 @@ export default function ServiceForm() {
                               )}
 
                               {/* ── Plan Settings ── */}
-                              <div className="pt-3 border-t border-violet-100 space-y-2">
-                                <p className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider">Plan Settings</p>
+                              <div className="pt-3 border-t border-primary/20 space-y-2">
+                                <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Plan Settings</p>
 
                                 {/* 1. Pricing & Discounts */}
                                 {(() => {
@@ -2597,7 +2619,7 @@ export default function ServiceForm() {
                         setSvcAddonSearch('')
                         setSvcAddonResults([])
                       }}>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${r.item_type === 'service' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${r.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {r.item_type === 'service' ? 'SVC' : 'PRD'}
                       </span>
                       <span className="font-medium text-gray-800">{r.name}</span>
@@ -2618,7 +2640,7 @@ export default function ServiceForm() {
                 {serviceAddons.map((addon, ai) => (
                   <div key={addon.id} className="border border-gray-200 rounded-xl p-3 space-y-3 bg-gray-50/50">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {addon.item_type === 'service' ? 'Service' : 'Product'}
                       </span>
                       <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{addon.name}</span>
@@ -2734,7 +2756,7 @@ export default function ServiceForm() {
           <div className="relative">
             {!showDocPicker ? (
               <button type="button" onClick={() => setShowDocPicker(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 text-xs text-gray-500 hover:border-violet-400 hover:text-violet-600 hover:bg-violet-50 transition-all font-medium">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 text-xs text-gray-500 hover:border-primary/60 hover:text-primary hover:bg-accent transition-all font-medium">
                 <Plus className="w-3.5 h-3.5" /> Add document template
               </button>
             ) : (
@@ -2758,7 +2780,7 @@ export default function ServiceForm() {
                         <p className={`text-xs font-semibold ${doc.color}`}>{doc.label}</p>
                         <p className="text-[10px] text-gray-400">{doc.desc}</p>
                       </div>
-                      <Plus className="w-3.5 h-3.5 text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
+                      <Plus className="w-3.5 h-3.5 text-gray-300 group-hover:text-primary/80 transition-colors shrink-0" />
                     </button>
                   ))}
                   {BOOKING_DOC_TYPES.every(doc => printDocIds.includes(doc.id as BookingDocTypeId)) && (

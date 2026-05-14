@@ -39,7 +39,7 @@ export const BLOCK_CATALOG: BlockDef[] = [
   // Structure
   { type: 'nav', label: 'Navigation', desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'Your Brand', nav_links: [{ label: 'Home', url: '/' }, { label: 'About', url: '/about' }, { label: 'Contact', url: '/contact' }], cta_label: 'Get Started' }, liveResource: 'pages' },
   { type: 'footer', label: 'Footer', desc: 'Site footer with links and copyright', category: 'structure', defaultProps: { copyright: '© 2026 Your Company. All rights reserved.', columns: 4 }, liveResource: 'pages' },
-  { type: 'announcement_bar', label: 'Announcement Bar', desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: '🎉 Free shipping on all orders over $50 — Limited time!', color: '#7c3aed', show_close: true } },
+  { type: 'announcement_bar', label: 'Announcement Bar', desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: '🎉 Free shipping on all orders over $50 — Limited time!', color: '#64C3A0', show_close: true } },
 
   // Hero
   { type: 'hero', label: 'Hero — Centered', desc: 'Full-width hero with CTA buttons', category: 'hero', defaultProps: { headline: 'Build Something Amazing', subtitle: 'The all-in-one platform that helps you create, launch, and grow.', bg_style: 'gradient', cta_primary: 'Get Started Free', cta_secondary: 'Learn More', layout: 'centered' } },
@@ -133,8 +133,8 @@ export interface StyleConfig {
 }
 
 export const DEFAULT_STYLE: StyleConfig = {
-  primary_color: '#7c3aed',
-  secondary_color: '#4c1d95',
+  primary_color: '#64C3A0',
+  secondary_color: '#13624A',
   accent_color: '#f59e0b',
   bg_color: '#ffffff',
   surface_color: '#f9fafb',

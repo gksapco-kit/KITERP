@@ -15,10 +15,10 @@ export function HelpAccordion() {
         onClick={() => setOpen((v) => !v)}
         className={cn(
           'w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 transition-colors',
-          open ? 'bg-violet-50' : 'hover:bg-gray-50',
+          open ? 'bg-accent' : 'hover:bg-gray-50',
         )}
       >
-        <HelpCircle className="w-4 h-4 text-violet-500 shrink-0" />
+        <HelpCircle className="w-4 h-4 text-primary/80 shrink-0" />
         <span className="flex-1 text-left">Help &amp; Support</span>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
@@ -41,7 +41,7 @@ export function HelpAccordion() {
               href={`tel:${SUPPORT_PHONE.replace(/[^\d+]/g, '')}`}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all"
             >
-              <Phone className="w-4 h-4 text-violet-600 shrink-0" />
+              <Phone className="w-4 h-4 text-primary shrink-0" />
               <div>
                 <p className="font-medium leading-tight">Call support</p>
                 <p className="text-[11px] text-gray-500 font-mono">{SUPPORT_PHONE}</p>
@@ -52,7 +52,7 @@ export function HelpAccordion() {
               href="mailto:support@kiterp.com"
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all"
             >
-              <Phone className="w-4 h-4 text-violet-600 shrink-0" />
+              <Phone className="w-4 h-4 text-primary shrink-0" />
               <div>
                 <p className="font-medium leading-tight">Contact support</p>
                 <p className="text-[11px] text-gray-500">support@kiterp.com</p>

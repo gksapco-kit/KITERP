@@ -52,7 +52,7 @@ export default function BalanceSheet() {
               <tbody>
                 <Section title="Current Liabilities" lines={data.current_liabilities || []} total={data.total_current_liabilities || 0} color="bg-red-50" />
                 <Section title="Non-Current Liabilities" lines={data.non_current_liabilities || []} total={data.total_non_current_liabilities || 0} color="bg-red-50" />
-                <Section title="Equity" lines={data.equity || []} total={data.total_equity || 0} color="bg-purple-50" />
+                <Section title="Equity" lines={data.equity || []} total={data.total_equity || 0} color="bg-accent" />
                 <tr className="bg-red-100 border-t-2 border-red-300">
                   <td className="px-4 py-3 font-bold text-red-800">Total Liabilities + Equity</td>
                   <td className="px-4 py-3 text-right font-bold font-mono text-red-800">{fmt((data.total_liabilities || 0) + (data.total_equity || 0))}</td>

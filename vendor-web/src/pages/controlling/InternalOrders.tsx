@@ -94,13 +94,13 @@ function BudgetPanel({ orderId, companyId }: { orderId: string; companyId: strin
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium text-gray-700">Budget Lines</h4>
         <button onClick={() => setShowAdd(true)}
-          className="text-xs text-violet-600 hover:text-violet-800 flex items-center gap-1">
+          className="text-xs text-primary hover:text-primary flex items-center gap-1">
           <Plus className="w-3 h-3" /> Add Line
         </button>
       </div>
 
       {showAdd && (
-        <form onSubmit={handleAdd} className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-2">
+        <form onSubmit={handleAdd} className="rounded-lg border border-primary/30 bg-accent p-3 space-y-2">
           <div className="grid grid-cols-3 gap-2">
             <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
               className="rounded border border-gray-200 px-2 py-1.5 text-xs">
@@ -114,7 +114,7 @@ function BudgetPanel({ orderId, companyId }: { orderId: string; companyId: strin
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowAdd(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-            <button type="submit" disabled={createMut.isPending} className="text-xs text-violet-700 font-medium">
+            <button type="submit" disabled={createMut.isPending} className="text-xs text-primary font-medium">
               {createMut.isPending ? 'Adding…' : 'Add'}
             </button>
           </div>
@@ -224,7 +224,7 @@ export default function InternalOrdersPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="ml-auto flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700 text-sm font-medium"
+          className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
         >
           <Plus className="w-4 h-4" /> New Order
         </button>
@@ -283,13 +283,13 @@ export default function InternalOrdersPage() {
                 className="flex flex-wrap items-center gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50"
                 onClick={() => setExpandedOrder(isExpanded ? null : row.order_id)}
               >
-                <FolderOpen className="w-5 h-5 text-violet-500 shrink-0" />
+                <FolderOpen className="w-5 h-5 text-primary/80 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-gray-900">{row.order_no}</span>
                     {row.title && <span className="text-gray-600 text-sm">— {row.title}</span>}
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(row.status)}`}>{row.status}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">{row.order_kind}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">{row.order_kind}</span>
                   </div>
                   {(row.scheduled_start || row.scheduled_end) && (
                     <p className="text-xs text-gray-400 mt-0.5">
@@ -315,7 +315,7 @@ export default function InternalOrdersPage() {
                   <Link
                     to={`/controlling/orders/${row.order_id}`}
                     onClick={e => e.stopPropagation()}
-                    className="text-violet-600 hover:text-violet-800"
+                    className="text-primary hover:text-primary"
                   >
                     <ExternalLink className="w-4 h-4" />
                   </Link>
@@ -338,7 +338,7 @@ export default function InternalOrdersPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
             <div className="p-6 border-b border-gray-100">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Target className="w-5 h-5 text-violet-600" /> New Internal / Project Order
+                <Target className="w-5 h-5 text-primary" /> New Internal / Project Order
               </h2>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
@@ -401,7 +401,7 @@ export default function InternalOrdersPage() {
                 <button type="button" onClick={() => setShowCreate(false)}
                   className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
                 <button type="submit" disabled={createMut.isPending}
-                  className="flex-1 bg-violet-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
+                  className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                   {createMut.isPending ? 'Creating…' : 'Create Order'}
                 </button>
               </div>

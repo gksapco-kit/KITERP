@@ -750,7 +750,7 @@ function DocumentsTab({ empId }: { empId: string }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {doc.verified_at && <CheckCircle className="w-4 h-4 text-green-500" title="Verified" />}
+                  {doc.verified_at && <CheckCircle className="w-4 h-4 text-green-500" aria-label="Verified" />}
                   {doc.file_url && (
                     <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">View</a>
                   )}
@@ -994,7 +994,7 @@ function CredentialsTab({ emp }: { emp: any }) {
     return (
       <div>
         <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-          <KeyRound className="w-4 h-4 text-violet-600" /> Credentials
+          <KeyRound className="w-4 h-4 text-primary" /> Credentials
         </h3>
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           This employee has no linked login account. Portal passwords apply only to team members who have a user record (the same account used for HR / ESS on the storefront).
@@ -1006,7 +1006,7 @@ function CredentialsTab({ emp }: { emp: any }) {
   return (
     <div>
       <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-        <KeyRound className="w-4 h-4 text-violet-600" /> Credentials — HR / ESS portal
+        <KeyRound className="w-4 h-4 text-primary" /> Credentials — HR / ESS portal
       </h3>
       <p className="text-xs text-gray-500 mb-4 max-w-xl">
         Employees open your storefront <span className="font-mono bg-gray-100 px-1 rounded">/hr/login</span> and sign in with their work email or employee code plus the password you set here. This is separate from the vendor dashboard login.

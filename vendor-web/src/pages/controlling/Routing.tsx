@@ -60,7 +60,7 @@ const statusBadge = (s: string) => {
 const wcTypeBadge = (t: string) => {
   const m: Record<string, string> = {
     machine: 'bg-blue-100 text-blue-700',
-    labor: 'bg-violet-100 text-violet-700',
+    labor: 'bg-primary/10 text-primary',
     outsource: 'bg-amber-100 text-amber-700',
   }
   return m[t] ?? 'bg-gray-100 text-gray-500'
@@ -233,7 +233,7 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
                 <td className="px-4 py-2 text-right tabular-nums text-gray-500">{(+wc.capacity_hours_per_period).toFixed(1)}</td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => edit(wc)} className="p-1 text-gray-400 hover:text-violet-600 rounded"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => edit(wc)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3.5 h-3.5" /></button>
                     <button onClick={() => del(wc.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </td>
@@ -334,8 +334,8 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <Wrench className="w-4 h-4 text-violet-500" />
-          Operations for: <span className="font-mono text-violet-700">{routing.code} v{routing.version}</span>
+          <Wrench className="w-4 h-4 text-primary/80" />
+          Operations for: <span className="font-mono text-primary">{routing.code} v{routing.version}</span>
           <span className="text-gray-400">({routing.lot_size} {routing.uom} lot)</span>
         </h3>
         <Button size="sm" onClick={() => { setEditingOp(null); setOpForm(blankOp); setShowOpForm(v => !v) }}
@@ -345,7 +345,7 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
       </div>
 
       {showOpForm && (
-        <div className="rounded-xl border border-violet-200 bg-violet-50/30 p-4 space-y-3">
+        <div className="rounded-xl border border-primary/30 bg-accent/60 p-4 space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <label className="flex flex-col gap-1 text-gray-600">
               Seq no
@@ -452,7 +452,7 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex gap-1 justify-end">
-                    <button onClick={() => editOp(op)} className="p-1 text-gray-400 hover:text-violet-600 rounded"><Pencil className="w-3 h-3" /></button>
+                    <button onClick={() => editOp(op)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3 h-3" /></button>
                     <button onClick={() => delOp2(op.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3 h-3" /></button>
                   </div>
                 </td>
@@ -565,7 +565,7 @@ export default function RoutingPage() {
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <GitBranch className="w-4 h-4 text-violet-500" />
+            <GitBranch className="w-4 h-4 text-primary/80" />
             <h2 className="text-sm font-semibold text-gray-800">Routings</h2>
           </div>
           <Button size="sm" onClick={() => { setEditingR(null); setRForm(blankR); setShowRForm(v => !v) }}
@@ -575,7 +575,7 @@ export default function RoutingPage() {
         </div>
 
         {showRForm && (
-          <div className="p-4 border-b border-gray-100 bg-violet-50/30 space-y-3">
+          <div className="p-4 border-b border-gray-100 bg-accent/60 space-y-3">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <label className="flex flex-col gap-1 text-gray-600">
                 Code *
@@ -651,10 +651,10 @@ export default function RoutingPage() {
                 const pname = products.find((p: { id: string; name: string }) => p.id === r.product_id)?.name
                 const isSelected = selectedRouting === r.id
                 return (
-                  <tr key={r.id} className={`cursor-pointer ${isSelected ? 'bg-violet-50' : 'hover:bg-gray-50'}`}
+                  <tr key={r.id} className={`cursor-pointer ${isSelected ? 'bg-accent' : 'hover:bg-gray-50'}`}
                     onClick={() => setSelectedRouting(isSelected ? null : r.id)}>
                     <td className="px-4 py-2 text-gray-400">
-                      {isSelected ? <ChevronDown className="w-4 h-4 text-violet-500" /> : <ChevronRight className="w-4 h-4" />}
+                      {isSelected ? <ChevronDown className="w-4 h-4 text-primary/80" /> : <ChevronRight className="w-4 h-4" />}
                     </td>
                     <td className="px-4 py-2">
                       <p className="font-mono text-xs font-bold text-gray-900">{r.code}</p>
@@ -669,7 +669,7 @@ export default function RoutingPage() {
                     <td className="px-4 py-2 text-right text-gray-600 font-medium">{r.operations.length}</td>
                     <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-1 justify-end">
-                        <button onClick={() => editRouting(r)} className="p-1 text-gray-400 hover:text-violet-600 rounded"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => editRouting(r)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3.5 h-3.5" /></button>
                         <button onClick={() => delRouting(r.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
@@ -683,7 +683,7 @@ export default function RoutingPage() {
 
       {/* ── Operations detail ─────────────────────────────────────────── */}
       {activeRouting && (
-        <div className="rounded-xl border border-violet-200 bg-white p-5">
+        <div className="rounded-xl border border-primary/30 bg-white p-5">
           <RoutingOperationsEditor routing={activeRouting} companyId={activeCo} />
         </div>
       )}

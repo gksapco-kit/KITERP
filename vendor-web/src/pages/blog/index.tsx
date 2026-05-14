@@ -123,7 +123,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
           >
             {isPublished ? <><Eye className="w-3.5 h-3.5" /> Published</> : <><EyeOff className="w-3.5 h-3.5" /> Draft</>}
           </button>
-          <Button type="submit" size="sm" disabled={saving} className="gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white">
+          <Button type="submit" size="sm" disabled={saving} className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-white">
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             {saving ? 'Saving…' : 'Save'}
           </Button>
@@ -141,7 +141,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               value={title}
               onChange={e => handleTitleChange(e.target.value)}
               placeholder="Your compelling blog title…"
-              className="w-full text-xl font-bold border-0 border-b-2 border-gray-200 focus:border-violet-500 outline-none py-2 bg-transparent placeholder:text-gray-300"
+              className="w-full text-xl font-bold border-0 border-b-2 border-gray-200 focus:border-primary outline-none py-2 bg-transparent placeholder:text-gray-300"
               required
             />
           </div>
@@ -154,7 +154,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               onChange={e => setExcerpt(e.target.value)}
               placeholder="A short description shown in blog listings…"
               rows={2}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 resize-none"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
             />
           </div>
 
@@ -169,7 +169,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               onChange={e => setContent(e.target.value)}
               placeholder={`Write your blog post here.\n\nYou can use Markdown:\n## Heading\n**bold**, *italic*, [link](url)\n- bullet list`}
               rows={18}
-              className="w-full text-sm font-mono border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 resize-none leading-relaxed"
+              className="w-full text-sm font-mono border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring resize-none leading-relaxed"
             />
           </div>
         </div>
@@ -191,7 +191,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               variant="outline"
               size="sm"
               disabled={coverUploading || saving}
-              className="w-full gap-1.5 text-xs mb-2 h-8 border-violet-200 text-violet-700 hover:bg-violet-50"
+              className="w-full gap-1.5 text-xs mb-2 h-8 border-primary/30 text-primary hover:bg-accent"
               onClick={() => coverFileRef.current?.click()}
             >
               {coverUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -204,7 +204,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
                 value={coverUrl}
                 onChange={e => setCoverUrl(e.target.value)}
                 placeholder="https://…"
-                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-200"
+                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             {coverUrl && (
@@ -224,7 +224,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               value={slug}
               onChange={e => setSlug(e.target.value)}
               placeholder="my-post-slug"
-              className="w-full py-1.5 px-2.5 text-xs font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-200"
+              className="w-full py-1.5 px-2.5 text-xs font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -235,7 +235,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               value={authorName}
               onChange={e => setAuthorName(e.target.value)}
               placeholder="Your Name"
-              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-200"
+              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -246,7 +246,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               value={category}
               onChange={e => setCategory(e.target.value)}
               placeholder="e.g. Product, News"
-              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-200"
+              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -257,12 +257,12 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               value={tagsRaw}
               onChange={e => setTagsRaw(e.target.value)}
               placeholder="tips, guide, product"
-              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-200"
+              className="w-full py-1.5 px-2.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
             />
             {tagsRaw && (
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {tagsRaw.split(',').map(t => t.trim()).filter(Boolean).map(t => (
-                  <span key={t} className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">{t}</span>
+                  <span key={t} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{t}</span>
                 ))}
               </div>
             )}
@@ -324,8 +324,8 @@ export default function BlogManagerPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-            <Newspaper className="w-5 h-5 text-violet-600" />
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Newspaper className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Blog Manager</h1>
@@ -334,7 +334,7 @@ export default function BlogManagerPage() {
         </div>
         <Button
           onClick={() => setEditingPost('new')}
-          className="sm:ml-auto gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+          className="sm:ml-auto gap-2 bg-primary hover:bg-primary/90 text-white"
         >
           <Plus className="w-4 h-4" /> New Post
         </Button>
@@ -348,7 +348,7 @@ export default function BlogManagerPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search posts…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-200"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-2.5">
@@ -363,7 +363,7 @@ export default function BlogManagerPage() {
               onClick={() => setFilterPublished(val)}
               className={cn('px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
                 filterPublished === val
-                  ? 'bg-violet-600 text-white border-violet-600'
+                  ? 'bg-primary text-white border-primary'
                   : 'text-gray-600 border-gray-200 hover:bg-gray-50'
               )}
             >
@@ -376,14 +376,14 @@ export default function BlogManagerPage() {
       {/* List */}
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary/70" />
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-2xl">
           <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <h3 className="text-gray-500 font-medium">No posts yet</h3>
           <p className="text-sm text-gray-400 mt-1 mb-4">Create your first blog post to engage your customers</p>
-          <Button onClick={() => setEditingPost('new')} size="sm" className="gap-2 bg-violet-600 hover:bg-violet-700 text-white">
+          <Button onClick={() => setEditingPost('new')} size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-white">
             <Plus className="w-4 h-4" /> Create Post
           </Button>
         </div>
@@ -395,7 +395,7 @@ export default function BlogManagerPage() {
             return (
             <div
               key={post.id}
-              className="flex gap-4 bg-white rounded-2xl border border-gray-100 hover:border-violet-200 hover:shadow-sm transition-all p-4"
+              className="flex gap-4 bg-white rounded-2xl border border-gray-100 hover:border-primary/30 hover:shadow-sm transition-all p-4"
             >
               {/* Cover thumbnail */}
               {post.cover_url ? (
@@ -482,7 +482,7 @@ export default function BlogManagerPage() {
                 )}
                 <button
                   onClick={() => setEditingPost(post)}
-                  className="p-2 rounded-lg text-gray-400 hover:bg-violet-50 hover:text-violet-600 transition-colors"
+                  className="p-2 rounded-lg text-gray-400 hover:bg-accent hover:text-primary transition-colors"
                   title="Edit post"
                 >
                   <Pencil className="w-4 h-4" />

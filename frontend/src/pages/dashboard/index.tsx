@@ -146,7 +146,7 @@ function VendorDashboard() {
   const stats = [
     { name: 'Total Products', value: '0', icon: Package, color: 'bg-blue-500' },
     { name: 'Total Orders', value: '0', icon: ShoppingCart, color: 'bg-green-500' },
-    { name: 'Customers', value: '0', icon: Users, color: 'bg-purple-500' },
+    { name: 'Customers', value: '0', icon: Users, color: 'bg-primary' },
     { name: 'Revenue', value: '0', icon: IndianRupee, color: 'bg-orange-500' },
   ]
 

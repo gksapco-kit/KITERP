@@ -33,7 +33,7 @@ const statusBadge: Record<string, { bg: string; text: string; label: string }> =
   ordered: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Ordered' },
   partial_received: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Partial' },
   received: { bg: 'bg-green-50', text: 'text-green-700', label: 'Received' },
-  closed: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Closed' },
+  closed: { bg: 'bg-accent', text: 'text-primary', label: 'Closed' },
   cancelled: { bg: 'bg-red-50', text: 'text-red-700', label: 'Cancelled' },
 }
 
@@ -569,7 +569,7 @@ function CreatePOModal({
                         // Save current state hint and navigate to full form
                         navigate('/master-data/new?returnTo=purchase-orders&kind=supplier')
                       }}
-                      className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-800 hover:underline"
+                      className="flex items-center gap-1 text-[11px] text-primary hover:text-primary hover:underline"
                     >
                       <ExternalLink className="w-3 h-3" /> Full Details
                     </button>

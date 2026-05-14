@@ -116,7 +116,7 @@ export default function ManufacturingOrderDetailPage() {
   return (
     <div className="p-6 max-w-6xl space-y-4">
       <div className="flex items-center gap-4">
-        <Link to="/controlling/orders" className="text-sm text-violet-600 hover:underline inline-flex items-center gap-1">
+        <Link to="/controlling/orders" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
           <ArrowLeft className="w-4 h-4" /> All orders
         </Link>
       </div>
@@ -227,7 +227,7 @@ export default function ManufacturingOrderDetailPage() {
             type="button"
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === t.id ? 'border-violet-600 text-violet-700' : 'border-transparent text-gray-500 hover:text-gray-800'
+              tab === t.id ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-800'
             }`}
           >
             {t.label}
@@ -237,7 +237,7 @@ export default function ManufacturingOrderDetailPage() {
 
       {tab === 'summary' && (
         <div className="rounded-xl border border-gray-200 bg-white p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div className="sm:col-span-2 rounded-lg border border-violet-100 bg-violet-50/40 p-4 space-y-3">
+          <div className="sm:col-span-2 rounded-lg border border-primary/20 bg-accent/70 p-4 space-y-3">
             <h3 className="font-semibold text-gray-900">GL settlement</h3>
             <p className="text-xs text-gray-600">
               Configure accounts under Controlling → Setup. Posting uses sum of actual cost lines (production) and
@@ -299,7 +299,7 @@ export default function ManufacturingOrderDetailPage() {
             {'cost_bookings' in order &&
               Array.isArray(order.cost_bookings) &&
               order.cost_bookings.length > 0 && (
-                <div className="border-t border-violet-100 pt-2">
+                <div className="border-t border-primary/20 pt-2">
                   <p className="text-xs font-medium text-gray-600 mb-1">Cost bookings</p>
                   <ul className="text-xs space-y-1 font-mono text-gray-700">
                     {(order.cost_bookings as { id: string; booking_type: string; amount: string; journal_entry_id?: string | null }[]).map(
@@ -541,7 +541,7 @@ export default function ManufacturingOrderDetailPage() {
             <Button size="sm" variant="secondary" onClick={() => setShowBlForm(s => !s)}>+ Add Line</Button>
           </div>
           {showBlForm && (
-            <form onSubmit={handleAddBl} className="rounded-lg border border-violet-200 bg-violet-50 p-4 space-y-3">
+            <form onSubmit={handleAddBl} className="rounded-lg border border-primary/30 bg-accent p-4 space-y-3">
               <div className="grid grid-cols-4 gap-3">
                 <select value={blForm.category} onChange={e => setBlForm(f => ({ ...f, category: e.target.value }))}
                   className="rounded border border-gray-200 px-2 py-1.5 text-sm">
@@ -563,7 +563,7 @@ export default function ManufacturingOrderDetailPage() {
               <div className="flex gap-2">
                 <button type="button" onClick={() => setShowBlForm(false)} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
                 <button type="submit" disabled={createBl.isPending}
-                  className="text-sm text-violet-700 font-medium">
+                  className="text-sm text-primary font-medium">
                   {createBl.isPending ? 'Adding…' : 'Add'}
                 </button>
               </div>
@@ -606,7 +606,7 @@ export default function ManufacturingOrderDetailPage() {
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-medium text-gray-800">Goods Movements</h3>
-            <Link to="/controlling/goods-movements" className="text-xs text-violet-600 hover:underline">View all →</Link>
+            <Link to="/controlling/goods-movements" className="text-xs text-primary hover:underline">View all →</Link>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
@@ -651,7 +651,7 @@ export default function ManufacturingOrderDetailPage() {
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-medium text-gray-800">Activity Confirmations (Time Entries)</h3>
-            <Link to="/controlling/activity-confirmations" className="text-xs text-violet-600 hover:underline">View all →</Link>
+            <Link to="/controlling/activity-confirmations" className="text-xs text-primary hover:underline">View all →</Link>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left">
@@ -717,7 +717,7 @@ export default function ManufacturingOrderDetailPage() {
               <button onClick={() => setShowTransition(false)}
                 className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
               <button onClick={handleTransition} disabled={!transitionStatus || transitionMut.isPending}
-                className="flex-1 bg-violet-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
+                className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                 {transitionMut.isPending ? 'Updating…' : 'Update Status'}
               </button>
             </div>

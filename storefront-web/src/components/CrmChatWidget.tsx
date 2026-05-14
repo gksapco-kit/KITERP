@@ -170,7 +170,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
                     <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
                         mine ? 'text-white' :
-                        bot ? 'bg-violet-100 text-violet-900' :
+                        bot ? 'bg-primary/10 text-primary' :
                         'bg-white border border-gray-200 text-gray-800'
                       }`}
                       style={mine ? { backgroundColor: themeColor } : undefined}>

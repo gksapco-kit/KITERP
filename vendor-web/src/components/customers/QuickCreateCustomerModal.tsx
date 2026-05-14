@@ -151,7 +151,7 @@ export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props)
         {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-gray-900 flex items-center gap-2 text-base">
-            <UserPlus className="w-5 h-5 text-violet-600" />
+            <UserPlus className="w-5 h-5 text-primary" />
             Quick Create Customer
           </h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
@@ -217,7 +217,7 @@ export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props)
               const path = returnTo ? `/customers/new${returnTo.startsWith('?') ? returnTo : `?returnTo=${returnTo}`}` : '/customers'
               navigate(path)
             }}
-            className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 font-medium transition-colors"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary font-medium transition-colors"
           >
             <ExternalLink className="w-3.5 h-3.5" />
             Enter full details
@@ -231,7 +231,7 @@ export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props)
               size="sm"
               onClick={handleCreate}
               disabled={!name.trim() || createCustomerMut.isPending}
-              className="gap-1.5 bg-violet-600 hover:bg-violet-700"
+              className="gap-1.5 bg-primary hover:bg-primary/90"
             >
               {createCustomerMut.isPending
                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

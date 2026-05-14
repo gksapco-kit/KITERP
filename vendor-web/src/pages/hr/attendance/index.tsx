@@ -20,7 +20,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
   late:        { label: 'Late',        color: 'text-orange-700 bg-orange-50 border-orange-200', icon: Clock },
   half_day:    { label: 'Half Day',    color: 'text-yellow-700 bg-yellow-50 border-yellow-200', icon: AlertCircle },
   on_leave:    { label: 'On Leave',    color: 'text-blue-700 bg-blue-50 border-blue-200',       icon: Calendar },
-  holiday:     { label: 'Holiday',     color: 'text-purple-700 bg-purple-50 border-purple-200', icon: Calendar },
+  holiday:     { label: 'Holiday',     color: 'text-primary bg-accent border-primary/30', icon: Calendar },
   week_off:    { label: 'Week Off',    color: 'text-gray-600 bg-gray-100 border-gray-200',      icon: Calendar },
   time:        { label: 'Time Entry',  color: 'text-indigo-700 bg-indigo-50 border-indigo-200', icon: Timer },
   total_hours: { label: 'Total Hours', color: 'text-teal-700 bg-teal-50 border-teal-200',       icon: Clock },

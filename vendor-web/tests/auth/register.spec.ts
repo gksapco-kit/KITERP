@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe('Feature 11: Vendor signup / register page', () => {
-  test('loads with Create your Business heading', async ({ page }) => {
+  test('loads with Create your business heading', async ({ page }) => {
     await page.goto('/register');
     await expect(page.getByRole('heading', { name: /create your business/i })).toBeVisible({
       timeout: 15000,
@@ -45,17 +45,17 @@ test.describe('Feature 11: Vendor signup / register page', () => {
     await page.getByRole('link', { name: /sign in/i }).first().click();
     await page.waitForURL('**/login', { timeout: 15000 });
     await expect(page).toHaveURL(/\/login\/?$/);
-    await expect(page.getByRole('heading', { name: /business user login/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /user login/i })).toBeVisible();
   });
 
-  test('login page Sign Up link navigates to /register', async ({ page }) => {
+  test('login page Create your business link navigates to /register', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.getByRole('heading', { name: /business user login/i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /user login/i })).toBeVisible({
       timeout: 15000,
     });
 
-    await expect(page.getByRole('link', { name: /sign up/i }).first()).toBeVisible();
-    await page.getByRole('link', { name: /sign up/i }).first().click();
+    await expect(page.getByRole('link', { name: /create your business/i }).first()).toBeVisible();
+    await page.getByRole('link', { name: /create your business/i }).first().click();
     await page.waitForURL('**/register', { timeout: 15000 });
     await expect(page).toHaveURL(/\/register\/?$/);
     await expect(page.getByRole('heading', { name: /create your business/i })).toBeVisible();

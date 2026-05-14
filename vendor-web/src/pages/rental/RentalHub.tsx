@@ -12,28 +12,28 @@ export default function RentalHubPage() {
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Link to="/bookings" className="rounded-xl border bg-white p-5 shadow-sm hover:border-violet-300 transition-colors flex gap-3">
-          <Calendar className="w-10 h-10 text-violet-600 shrink-0" />
+        <Link to="/bookings" className="rounded-xl border bg-white p-5 shadow-sm hover:border-primary/40 transition-colors flex gap-3">
+          <Calendar className="w-10 h-10 text-primary shrink-0" />
           <div>
             <p className="font-semibold text-gray-900">Bookings</p>
             <p className="text-xs text-gray-500 mt-1">Schedule rental periods; note pickup and return in booking notes.</p>
           </div>
         </Link>
-        <Link to="/services/new" className="rounded-xl border bg-white p-5 shadow-sm hover:border-violet-300 transition-colors flex gap-3">
-          <Wrench className="w-10 h-10 text-purple-600 shrink-0" />
+        <Link to="/services/new" className="rounded-xl border bg-white p-5 shadow-sm hover:border-primary/40 transition-colors flex gap-3">
+          <Wrench className="w-10 h-10 text-primary shrink-0" />
           <div>
             <p className="font-semibold text-gray-900">Rental service SKU</p>
             <p className="text-xs text-gray-500 mt-1">Create a service titled “Equipment rental” with duration-based pricing.</p>
           </div>
         </Link>
-        <Link to="/products/new" className="rounded-xl border bg-white p-5 shadow-sm hover:border-violet-300 transition-colors flex gap-3">
+        <Link to="/products/new" className="rounded-xl border bg-white p-5 shadow-sm hover:border-primary/40 transition-colors flex gap-3">
           <Package className="w-10 h-10 text-blue-600 shrink-0" />
           <div>
             <p className="font-semibold text-gray-900">Rental product SKU</p>
             <p className="text-xs text-gray-500 mt-1">Track serialized units or deposits as inventory-backed rentals.</p>
           </div>
         </Link>
-        <Link to="/orders" className="rounded-xl border bg-white p-5 shadow-sm hover:border-violet-300 transition-colors flex gap-3">
+        <Link to="/orders" className="rounded-xl border bg-white p-5 shadow-sm hover:border-primary/40 transition-colors flex gap-3">
           <Package className="w-10 h-10 text-amber-600 shrink-0" />
           <div>
             <p className="font-semibold text-gray-900">Orders</p>

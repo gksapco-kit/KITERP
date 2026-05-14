@@ -75,9 +75,9 @@ function CatalogImage({ url, type, size = 'sm' }: {
   const safeUrl = url && url !== 'null' && url !== 'undefined' ? url : null
   if (!safeUrl || failed) {
     return (
-      <div className={`${dim} rounded flex items-center justify-center shrink-0 ${type === 'service' ? 'bg-purple-50' : 'bg-blue-50'}`}>
+      <div className={`${dim} rounded flex items-center justify-center shrink-0 ${type === 'service' ? 'bg-accent' : 'bg-blue-50'}`}>
         {type === 'service'
-          ? <Wrench className="w-4 h-4 text-purple-400" />
+          ? <Wrench className="w-4 h-4 text-primary/70" />
           : <Package className="w-4 h-4 text-blue-400" />}
       </div>
     )
@@ -918,7 +918,7 @@ export default function POS() {
                       const price = item.sale_price ?? item.price ?? 0
                       const isHighlighted = idx === highlightIdx
                       const FIELD_LABELS: Record<string, string> = { name: 'Name', sku: 'SKU', barcode: 'Barcode', hsn: 'HSN', category: 'Category', tag: 'Tag', description: 'Desc' }
-                      const FIELD_COLORS: Record<string, string> = { name: 'bg-blue-50 text-blue-700', sku: 'bg-violet-50 text-violet-700', barcode: 'bg-orange-50 text-orange-700', hsn: 'bg-teal-50 text-teal-700', category: 'bg-emerald-50 text-emerald-700', tag: 'bg-pink-50 text-pink-700', description: 'bg-gray-100 text-gray-600' }
+                      const FIELD_COLORS: Record<string, string> = { name: 'bg-blue-50 text-blue-700', sku: 'bg-accent text-primary', barcode: 'bg-orange-50 text-orange-700', hsn: 'bg-teal-50 text-teal-700', category: 'bg-emerald-50 text-emerald-700', tag: 'bg-pink-50 text-pink-700', description: 'bg-gray-100 text-gray-600' }
                       return (
                         <button
                           key={item.id}
@@ -936,8 +936,8 @@ export default function POS() {
                           {imgUrl ? (
                             <img src={imgUrl} alt="" className="w-9 h-9 rounded object-cover shrink-0 border border-gray-100" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                           ) : (
-                            <div className={`w-9 h-9 rounded flex items-center justify-center shrink-0 ${item.item_type === 'service' ? 'bg-purple-50' : 'bg-blue-50'}`}>
-                              {item.item_type === 'service' ? <Wrench className="w-4 h-4 text-purple-400" /> : <Package className="w-4 h-4 text-blue-400" />}
+                            <div className={`w-9 h-9 rounded flex items-center justify-center shrink-0 ${item.item_type === 'service' ? 'bg-accent' : 'bg-blue-50'}`}>
+                              {item.item_type === 'service' ? <Wrench className="w-4 h-4 text-primary/70" /> : <Package className="w-4 h-4 text-blue-400" />}
                             </div>
                           )}
 
@@ -958,7 +958,7 @@ export default function POS() {
                           {/* Price + type */}
                           <div className="text-right shrink-0">
                             <p className="text-sm font-semibold text-gray-900">₹{price.toLocaleString()}</p>
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-600'}`}>
                               {item.item_type}
                             </span>
                           </div>
@@ -1204,14 +1204,14 @@ export default function POS() {
                 <>
                   {filter === 'all' && (
                     <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-gray-50/90 backdrop-blur-sm rounded text-xs font-semibold text-gray-500 uppercase tracking-wide z-10">
-                      <Wrench className="w-3 h-3 text-purple-500" /> Services
+                      <Wrench className="w-3 h-3 text-primary/80" /> Services
                     </div>
                   )}
                   {services.map((s: any) => {
                     const sImgUrl = s.media?.[0]?.url || s.media?.[0]?.file_url || s.image_url
                     return (
                       <button key={`s-${s.id}`} onClick={() => addToCart({ id: s.id, name: s.name, price: s.sale_price ?? s.price ?? 0, tax_rate: s.tax_rate || s.gst_rate || 0, sac_code: s.sac_code, item_type: 'service', duration_minutes: s.duration_minutes, image_url: sImgUrl })}
-                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-purple-50 hover:border-purple-200 transition-colors text-left">
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <CatalogImage url={sImgUrl} type="service" />
                           <div className="min-w-0">
@@ -1226,13 +1226,13 @@ export default function POS() {
                         <div className="text-right ml-3 shrink-0">
                           {s.sale_price != null && s.sale_price !== s.price ? (
                             <>
-                              <p className="text-sm font-bold text-purple-700">{formatCurrency(s.sale_price)}</p>
+                              <p className="text-sm font-bold text-primary">{formatCurrency(s.sale_price)}</p>
                               <p className="text-[10px] text-gray-400 line-through">{formatCurrency(s.price || 0)}</p>
                             </>
                           ) : (
                             <p className="text-sm font-bold">{formatCurrency(s.sale_price ?? s.price ?? 0)}</p>
                           )}
-                          <Plus className="w-4 h-4 text-purple-500 ml-auto mt-0.5" />
+                          <Plus className="w-4 h-4 text-primary/80 ml-auto mt-0.5" />
                         </div>
                       </button>
                     )
@@ -1413,22 +1413,22 @@ export default function POS() {
                 <div className="ml-5 mt-1">
                   {item.booking_date && item.booking_time ? (
                     /* Slot confirmed — show summary with edit button */
-                    <div className="flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50/70 px-3 py-1.5">
-                      <CalendarDays className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                      <span className="text-xs text-purple-700 font-medium flex-1">
+                    <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-accent/70 px-3 py-1.5">
+                      <CalendarDays className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+                      <span className="text-xs text-primary font-medium flex-1">
                         {new Date(item.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                         {' · '}
                         {item.booking_time}
                         {item.booking_notes?.startsWith('to:') && (
-                          <span className="text-purple-400"> – {item.booking_notes.slice(3)}</span>
+                          <span className="text-primary/70"> – {item.booking_notes.slice(3)}</span>
                         )}
                         {item.duration_minutes && (
-                          <span className="text-purple-400 ml-1">· {item.duration_minutes} min</span>
+                          <span className="text-primary/70 ml-1">· {item.duration_minutes} min</span>
                         )}
                       </span>
                       <button
                         onClick={() => setBookingPanelIdx(idx)}
-                        className="flex items-center gap-1 text-[10px] text-purple-500 hover:text-purple-700 font-medium"
+                        className="flex items-center gap-1 text-[10px] text-primary/80 hover:text-primary font-medium"
                       >
                         <Pencil className="w-3 h-3" /> Change
                       </button>
@@ -1437,11 +1437,11 @@ export default function POS() {
                     /* No slot yet — prompt to open panel */
                     <button
                       onClick={() => setBookingPanelIdx(idx)}
-                      className="w-full flex items-center gap-2 rounded-lg border border-purple-200 border-dashed bg-purple-50/50 px-3 py-1.5 text-xs text-purple-600 hover:bg-purple-100/60 hover:border-purple-300 transition-colors"
+                      className="w-full flex items-center gap-2 rounded-lg border border-primary/30 border-dashed bg-accent/70 px-3 py-1.5 text-xs text-primary hover:bg-primary/12/60 hover:border-primary/40 transition-colors"
                     >
                       <CalendarDays className="w-3.5 h-3.5 shrink-0" />
                       <span className="font-medium">Book Slot</span>
-                      <span className="text-purple-400 ml-auto flex items-center gap-1">
+                      <span className="text-primary/70 ml-auto flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3 text-amber-400" /> Set date &amp; time
                       </span>
                     </button>
@@ -1839,7 +1839,7 @@ function PaymentModal({ total, sessionId, cart, discountType, discountValue, txn
 
   const paymentMethods = [
     { key: 'cash' as const, icon: Banknote, label: 'Cash', color: 'text-green-600' },
-    { key: 'upi' as const, icon: Smartphone, label: 'UPI', color: 'text-purple-600' },
+    { key: 'upi' as const, icon: Smartphone, label: 'UPI', color: 'text-primary' },
     { key: 'card' as const, icon: CreditCard, label: 'Card', color: 'text-blue-600' },
     { key: 'split' as const, icon: FileText, label: 'Split', color: 'text-amber-600' },
   ]
@@ -2158,7 +2158,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
             </p></div>
             {orderNumber && <div><span className="text-gray-500">Order</span><p className="font-semibold text-blue-600">{orderNumber}</p></div>}
             {invoiceNumber && <div><span className="text-gray-500">Invoice</span><p className="font-medium">{invoiceNumber}</p></div>}
-            {bookingNumbers.length > 0 && <div><span className="text-gray-500">Booking</span><p className="font-medium text-purple-600">{bookingNumbers.join(', ')}</p></div>}
+            {bookingNumbers.length > 0 && <div><span className="text-gray-500">Booking</span><p className="font-medium text-primary">{bookingNumbers.join(', ')}</p></div>}
             <div><span className="text-gray-500">Customer</span><p className="font-medium">{customerName}</p></div>
             <div><span className="text-gray-500">Payment</span><p className="font-medium capitalize">{paymentMethod}</p></div>
           </div>
@@ -2180,9 +2180,9 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                 </div>
               )}
               {loyaltyRedeemed > 0 && (
-                <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5">
-                  <Gift className="w-3.5 h-3.5 text-purple-500" />
-                  <span className="text-xs font-medium text-purple-700">{loyaltyRedeemed} points redeemed</span>
+                <div className="flex items-center gap-1.5 bg-accent border border-primary/30 rounded-lg px-3 py-1.5">
+                  <Gift className="w-3.5 h-3.5 text-primary/80" />
+                  <span className="text-xs font-medium text-primary">{loyaltyRedeemed} points redeemed</span>
                 </div>
               )}
             </div>
@@ -2194,9 +2194,9 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                 <thead><tr className="bg-gray-50 text-xs text-gray-500"><th className="px-3 py-1.5 text-left">Item</th><th className="px-3 py-1.5 text-center">Qty</th><th className="px-3 py-1.5 text-right">Amount</th></tr></thead>
                 <tbody className="divide-y">{items.map((it: any, i) => (
                   <tr key={i}><td className="px-3 py-1.5 flex items-center gap-1.5">
-                    {it.item_type === 'service' ? <Wrench className="w-3 h-3 text-purple-400" /> : <Package className="w-3 h-3 text-blue-400" />}
+                    {it.item_type === 'service' ? <Wrench className="w-3 h-3 text-primary/70" /> : <Package className="w-3 h-3 text-blue-400" />}
                     <span className="truncate">{it.name}</span>
-                    {it.booking_number && <span className="text-xs text-purple-600 ml-1">({it.booking_number})</span>}
+                    {it.booking_number && <span className="text-xs text-primary ml-1">({it.booking_number})</span>}
                   </td><td className="px-3 py-1.5 text-center">{it.qty}</td>
                   <td className="px-3 py-1.5 text-right font-medium">{formatCurrency(it.total || it.price * it.qty)}</td></tr>
                 ))}</tbody>
@@ -2206,14 +2206,14 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
 
           {/* ── Booking Details & Actions ── */}
           {bookingNumbers.length > 0 && (
-            <div className="border border-purple-200 rounded-xl overflow-hidden">
-              <div className="bg-purple-50 px-4 py-2.5 flex items-center gap-2 border-b border-purple-100">
-                <Calendar className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-semibold text-purple-800">Booking{bookingNumbers.length > 1 ? 's' : ''} Created</span>
-                <span className="ml-auto text-[10px] font-bold bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">{bookingNumbers.length}</span>
+            <div className="border border-primary/30 rounded-xl overflow-hidden">
+              <div className="bg-accent px-4 py-2.5 flex items-center gap-2 border-b border-primary/20">
+                <Calendar className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-primary">Booking{bookingNumbers.length > 1 ? 's' : ''} Created</span>
+                <span className="ml-auto text-[10px] font-bold bg-primary/12 text-primary px-2 py-0.5 rounded-full">{bookingNumbers.length}</span>
               </div>
 
-              <div className="divide-y divide-purple-50">
+              <div className="divide-y divide-primary/10">
                 {items.filter((it: any) => it.item_type === 'service').map((it: any, idx: number) => {
                   const bNum = bookingNumbers[idx]
                   const bDetail = bNum ? bookingDetails[bNum] : null
@@ -2235,7 +2235,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                       {/* Service name + status + booking ref */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <Wrench className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                          <Wrench className="w-3.5 h-3.5 text-primary/80 shrink-0" />
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate">{it.name}</p>
                             {bNum && <p className="text-[10px] text-gray-400 font-mono">{bNum}</p>}
@@ -2248,13 +2248,13 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                       <div className="flex flex-wrap gap-3">
                         {(bDetail?.booking_date || it.booking_date) && (
                           <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                            <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                            <Calendar className="w-3.5 h-3.5 text-primary/70" />
                             <span className="font-medium">{new Date(bDetail?.booking_date || it.booking_date).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}</span>
                           </div>
                         )}
                         {(bDetail?.booking_time || it.booking_time) && (
                           <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                            <Clock className="w-3.5 h-3.5 text-purple-400" />
+                            <Clock className="w-3.5 h-3.5 text-primary/70" />
                             <span className="font-medium">{bDetail?.booking_time || it.booking_time}</span>
                           </div>
                         )}
@@ -2549,7 +2549,7 @@ function POSTransactionHistory({
                       <td className="px-4 py-2.5">
                         <span className="inline-flex items-center gap-1 text-xs capitalize">
                           {o.payment_method === 'cash' && <Banknote className="w-3.5 h-3.5 text-green-600" />}
-                          {o.payment_method === 'upi' && <Smartphone className="w-3.5 h-3.5 text-purple-600" />}
+                          {o.payment_method === 'upi' && <Smartphone className="w-3.5 h-3.5 text-primary" />}
                           {o.payment_method === 'card' && <CreditCard className="w-3.5 h-3.5 text-blue-600" />}
                           {o.payment_method || '—'}
                         </span>
@@ -2796,10 +2796,10 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
                     <td className="px-4 py-2 text-gray-400">{i + 1}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1.5">
-                        {it.item_type === 'service' ? <Wrench className="w-3 h-3 text-purple-400" /> : <Package className="w-3 h-3 text-blue-400" />}
+                        {it.item_type === 'service' ? <Wrench className="w-3 h-3 text-primary/70" /> : <Package className="w-3 h-3 text-blue-400" />}
                         <span>{it.name}</span>
                       </div>
-                      {it.booking_number && <p className="text-xs text-purple-600 ml-5">Booking: {it.booking_number}</p>}
+                      {it.booking_number && <p className="text-xs text-primary ml-5">Booking: {it.booking_number}</p>}
                     </td>
                     <td className="px-4 py-2 text-center">{it.qty}</td>
                     <td className="px-4 py-2 text-right">{formatCurrency(it.price)}</td>
@@ -3002,8 +3002,8 @@ export const PRINT_FORM_TYPES: PrintFormType[] = [
   { id: 'delivery_note',    label: 'Delivery Note',      description: 'Packing slip accompanying goods dispatched', category: 'Logistics', categoryColor: 'bg-emerald-100 text-emerald-700', icon: '🚚', fields: ['Items', 'Qty', 'Driver', 'Signature box'] },
   { id: 'purchase_order',   label: 'Purchase Order',     description: 'Order issued to a supplier / vendor', category: 'Logistics', categoryColor: 'bg-emerald-100 text-emerald-700', icon: '🏭', fields: ['Items', 'Supplier', 'Expected delivery'] },
   { id: 'prescription',     label: 'Prescription',       description: 'Medical / optical / pharmacy prescription', category: 'Healthcare', categoryColor: 'bg-rose-100 text-rose-700', icon: '💊', fields: ['Medicines', 'Dosage', 'Doctor', 'Patient'] },
-  { id: 'service_agreement',label: 'Service Agreement',  description: 'Terms & conditions for service engagement', category: 'Legal', categoryColor: 'bg-violet-100 text-violet-700', icon: '📜', fields: ['Scope', 'Duration', 'Signatures'] },
-  { id: 'warranty_card',    label: 'Warranty Card',      description: 'Product warranty with serial number & terms', category: 'Legal', categoryColor: 'bg-violet-100 text-violet-700', icon: '🛡️', fields: ['Product', 'Serial no.', 'Expiry date'] },
+  { id: 'service_agreement',label: 'Service Agreement',  description: 'Terms & conditions for service engagement', category: 'Legal', categoryColor: 'bg-primary/10 text-primary', icon: '📜', fields: ['Scope', 'Duration', 'Signatures'] },
+  { id: 'warranty_card',    label: 'Warranty Card',      description: 'Product warranty with serial number & terms', category: 'Legal', categoryColor: 'bg-primary/10 text-primary', icon: '🛡️', fields: ['Product', 'Serial no.', 'Expiry date'] },
   { id: 'work_order',       label: 'Work Order',         description: 'Job card for repair / service tasks', category: 'Service', categoryColor: 'bg-amber-100 text-amber-700', icon: '🔧', fields: ['Job description', 'Technician', 'Status'] },
   { id: 'cash_receipt',     label: 'Cash Receipt',       description: 'Simple cash memo for quick transactions', category: 'Service', categoryColor: 'bg-amber-100 text-amber-700', icon: '💵', fields: ['Amount', 'Payment mode', 'Cashier'] },
   { id: 'credit_note',      label: 'Credit / Return Note', description: 'Document for returns, refunds, or adjustments', category: 'Service', categoryColor: 'bg-amber-100 text-amber-700', icon: '↩️', fields: ['Original ref', 'Reason', 'Refund amount'] },
@@ -3355,7 +3355,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
   const [savingLoyalty, setSavingLoyalty] = useState(false)
 
   const TEMPLATE_COLORS = [
-    '#2563eb', '#7c3aed', '#059669', '#dc2626', '#d97706',
+    '#2563eb', '#64C3A0', '#059669', '#dc2626', '#d97706',
     '#0891b2', '#4f46e5', '#be185d', '#1d4ed8', '#000000',
   ]
 
@@ -3851,8 +3851,8 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                 </div>
 
                 {/* Tier thresholds (lifetime spend) */}
-                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-4">
-                  <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Customer Tiers <span className="font-normal text-purple-500">(lifetime spend thresholds)</span></p>
+                <div className="bg-accent border border-primary/30 rounded-xl p-4 space-y-4">
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wide">Customer Tiers <span className="font-normal text-primary/80">(lifetime spend thresholds)</span></p>
                   <div className="grid grid-cols-3 gap-4">
                     {[
                       { label: '🥉 Bronze from (₹)', value: bronzeThreshold, onChange: setBronzeThreshold, note: 'Usually ₹0 (everyone starts here)' },

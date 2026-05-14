@@ -69,7 +69,7 @@ export function IdChip({
       <button
         type="button"
         onClick={onCopy}
-        className="ml-0.5 p-0.5 rounded hover:bg-white text-gray-400 hover:text-violet-600 transition-colors"
+        className="ml-0.5 p-0.5 rounded hover:bg-white text-gray-400 hover:text-primary transition-colors"
         title={`Copy ${fullValue || code}`}
       >
         {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}

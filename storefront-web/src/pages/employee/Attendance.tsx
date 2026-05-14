@@ -97,9 +97,9 @@ export default function ESSAttendancePage() {
           <p className="text-2xl font-bold text-red-800">{totalAbsent}</p>
           <p className="text-sm text-red-600">Days Absent</p>
         </div>
-        <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 text-center">
-          <p className="text-2xl font-bold text-purple-800">{totalOT.toFixed(1)}h</p>
-          <p className="text-sm text-purple-600">Overtime</p>
+        <div className="bg-accent rounded-xl p-4 border border-primary/20 text-center">
+          <p className="text-2xl font-bold text-primary">{totalOT.toFixed(1)}h</p>
+          <p className="text-sm text-primary">Overtime</p>
         </div>
       </div>
 

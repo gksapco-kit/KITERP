@@ -7,7 +7,7 @@ function fmt(n: number) {
 
 const TYPE_COLORS: Record<string, string> = {
   Asset: 'text-blue-700', Liability: 'text-red-700',
-  Equity: 'text-purple-700', Income: 'text-green-700', Expense: 'text-orange-700',
+  Equity: 'text-primary', Income: 'text-green-700', Expense: 'text-orange-700',
 }
 
 export default function TrialBalance() {

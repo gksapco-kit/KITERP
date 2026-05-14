@@ -31,7 +31,7 @@ TEMPLATE_PRESETS = {
         "description": "Service-first layout with booking and portfolio focus",
         "hero_style": "image",
         "product_layout": "grid-3",
-        "colors": {"primary": "#7c3aed", "secondary": "#5b21b6", "accent": "#10b981", "background": "#faf5ff"},
+        "colors": {"primary": "#64C3A0", "secondary": "#13624A", "accent": "#10b981", "background": "#f3fbf7"},
         "font": "Poppins",
         "sections": {"hero": True, "trust_badges": True, "featured_products": False, "featured_services": True, "offers_banner": False, "testimonials": True, "cta": True},
     },

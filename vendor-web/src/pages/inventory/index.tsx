@@ -49,7 +49,7 @@ const movementBadge: Record<string, { bg: string; text: string; label: string }>
   stock_in: { bg: 'bg-green-50', text: 'text-green-700', label: 'Stock In' },
   stock_out: { bg: 'bg-red-50', text: 'text-red-700', label: 'Stock Out' },
   adjustment: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Adjustment' },
-  sale: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Sale' },
+  sale: { bg: 'bg-accent', text: 'text-primary', label: 'Sale' },
   return: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Return' },
   sale_return: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Sale Return' },
   deduct: { bg: 'bg-red-50', text: 'text-red-700', label: 'Deduct' },
@@ -150,7 +150,7 @@ export default function Inventory() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" className="gap-2" onClick={() => setShowBulkUpload(true)}>
-            <Upload className="w-4 h-4 text-purple-600" />Bulk Upload
+            <Upload className="w-4 h-4 text-primary" />Bulk Upload
           </Button>
           <Button variant="outline" className="gap-2" onClick={() => setShowScanner(true)} disabled={scanLoading}>
             {scanLoading ? <Loader2 className="w-4 h-4 animate-spin text-blue-500" /> : <ScanLine className="w-4 h-4 text-blue-500" />}
@@ -1313,7 +1313,7 @@ function BulkUploadModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-purple-600" />
+            <FileSpreadsheet className="w-5 h-5 text-primary" />
             Bulk Upload Inventory
           </h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>

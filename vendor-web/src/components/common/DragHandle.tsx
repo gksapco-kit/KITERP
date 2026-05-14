@@ -27,13 +27,13 @@ export function DragHandle({ onMouseDown, className = '' }: DragHandleProps) {
     >
       {/* Visible line */}
       <div
-        className="w-px bg-gray-200 group-hover:bg-violet-400 group-active:bg-violet-600 transition-colors"
+        className="w-px bg-gray-200 group-hover:bg-primary/50 group-active:bg-primary transition-colors"
         style={{ height: '100%' }}
       />
       {/* Grip dots (appear on hover) */}
       <div className="absolute flex flex-col gap-0.5 items-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         {[0, 1, 2, 3].map(i => (
-          <div key={i} className="w-1 h-1 rounded-full bg-violet-400" />
+          <div key={i} className="w-1 h-1 rounded-full bg-primary/50" />
         ))}
       </div>
     </div>

@@ -291,13 +291,13 @@ function CellContent({
           <div className="text-xs font-medium text-gray-900 truncate leading-tight">{item.name}</div>
           {variant?.name && <div className="text-[10px] text-blue-600 font-semibold truncate">{variant.name}</div>}
           {item.item_type === 'service' && item.service_type && (
-            <div className="text-[10px] text-purple-500 truncate">{item.service_type}</div>
+            <div className="text-[10px] text-primary/80 truncate">{item.service_type}</div>
           )}
         </div>
       )
     case 'sku':     return <span className="font-mono text-[11px] text-gray-600">{sku || '—'}</span>
     case 'type':    return (
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
         {item.item_type === 'service' ? 'SVC' : 'PRD'}
       </span>
     )

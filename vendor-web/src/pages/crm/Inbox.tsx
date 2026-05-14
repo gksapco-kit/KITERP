@@ -49,8 +49,8 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
         className="flex items-center gap-3 p-4 cursor-pointer bg-white hover:bg-gray-50 transition-colors"
         onClick={() => setExpanded(v => !v)}
       >
-        <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-          <User className="w-4 h-4 text-violet-600" />
+        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <User className="w-4 h-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -72,7 +72,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {sub.crm_lead_id && (
-            <span className="text-[10px] bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-full">CRM Lead</span>
+            <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">CRM Lead</span>
           )}
           <span className="text-xs text-gray-400 flex items-center gap-1">
             <Calendar className="w-3 h-3" />
@@ -94,23 +94,23 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
             }).map(([label, value]) => (
               <div key={label} className={cn(label === 'Message' ? 'sm:col-span-2' : '')}>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{value || '—'}</p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{value != null && value !== '' ? String(value) : '—'}</p>
               </div>
             ))}
           </div>
-          {payload.booking && typeof payload.booking === 'object' && (
+          {payload.booking != null && typeof payload.booking === 'object' ? (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
               <p className="text-xs font-bold text-amber-700 mb-1">Booking Request</p>
               <p className="text-sm text-amber-800">
-                {(payload.booking as any).date} at {(payload.booking as any).time}
+                {(payload.booking as { date?: string; time?: string }).date} at {(payload.booking as { date?: string; time?: string }).time}
               </p>
             </div>
-          )}
+          ) : null}
           <div className="flex items-center justify-between pt-1 border-t border-gray-200">
             <div className="flex items-center gap-3 text-xs text-gray-400">
               {sub.gdpr_consent && <span className="text-emerald-600 font-medium">✓ GDPR Consent</span>}
               {sub.crm_lead_id && (
-                <a href="/crm/leads" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-violet-600 hover:underline">
+                <a href="/crm/leads" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
                   View CRM Lead <ExternalLink className="w-3 h-3" />
                 </a>
               )}
@@ -215,7 +215,7 @@ function FormSubmissionsTab() {
         <div className="text-center py-16 text-gray-400 text-sm">No websites found. Create a website to see form submissions.</div>
       ) : isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-7 h-7 animate-spin text-violet-500" />
+          <Loader2 className="w-7 h-7 animate-spin text-primary/80" />
         </div>
       ) : submissions.length === 0 ? (
         <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
@@ -292,7 +292,7 @@ function ChatsTab() {
               onClick={() => setStatus(s)}
               className={cn(
                 'text-xs px-2.5 py-1 rounded-full font-semibold transition-colors',
-                status === s ? 'bg-violet-100 text-violet-700' : 'text-gray-500 hover:bg-gray-100',
+                status === s ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100',
               )}
             >
               {label}
@@ -311,7 +311,7 @@ function ChatsTab() {
             <button
               key={c.id}
               onClick={() => setSelected(c.id)}
-              className={cn('w-full text-left p-3 hover:bg-gray-50 transition-colors', selected === c.id ? 'bg-violet-50 border-l-2 border-violet-500' : '')}
+              className={cn('w-full text-left p-3 hover:bg-gray-50 transition-colors', selected === c.id ? 'bg-accent border-l-2 border-primary' : '')}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -367,10 +367,10 @@ function ChatsTab() {
                 const bot = m.sender === 'bot'
                 return (
                   <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                    <div className={cn('max-w-[75%] rounded-2xl px-4 py-2.5 text-sm', mine ? 'bg-violet-600 text-white' : bot ? 'bg-violet-100 text-violet-900' : 'bg-white border border-gray-200 text-gray-900 shadow-sm')}>
+                    <div className={cn('max-w-[75%] rounded-2xl px-4 py-2.5 text-sm', mine ? 'bg-primary text-white' : bot ? 'bg-primary/10 text-primary' : 'bg-white border border-gray-200 text-gray-900 shadow-sm')}>
                       {bot && <p className="text-[10px] uppercase font-bold mb-1 opacity-60">Bot</p>}
                       <p className="whitespace-pre-wrap">{m.body}</p>
-                      <p className={cn('text-[10px] mt-1.5', mine ? 'text-violet-200' : 'text-gray-400')}>{formatDateTime(m.created_at)}</p>
+                      <p className={cn('text-[10px] mt-1.5', mine ? 'text-primary-foreground/85' : 'text-gray-400')}>{formatDateTime(m.created_at)}</p>
                     </div>
                   </div>
                 )

@@ -215,10 +215,10 @@ function Section({ title, icon: Icon, open, onToggle, children, surface = 'stand
         type="button"
         onClick={onToggle}
         className={cn(
-          'w-full px-6 py-4 flex items-center justify-between transition-colors rounded-t-xl',
-          !isProduct && !isVariants && 'hover:bg-gray-50',
-          isProduct && 'bg-gradient-to-r from-blue-50/80 via-white to-white hover:from-blue-50',
-          isVariants && 'bg-gradient-to-r from-indigo-50/80 via-white to-white hover:from-indigo-50',
+          'flex w-full items-center justify-between gap-3 rounded-t-xl px-6 py-4 transition-colors',
+          !isProduct && !isVariants && 'hover:bg-accent/80 dark:hover:bg-secondary/60',
+          isProduct && 'bg-gradient-to-r from-blue-50/80 via-white to-white hover:from-blue-50 dark:from-blue-950/40 dark:via-card dark:to-card dark:hover:from-blue-950/60',
+          isVariants && 'bg-gradient-to-r from-indigo-50/80 via-white to-white hover:from-indigo-50 dark:from-indigo-950/40 dark:via-card dark:to-card dark:hover:from-indigo-950/60',
         )}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -227,7 +227,7 @@ function Section({ title, icon: Icon, open, onToggle, children, surface = 'stand
               'w-5 h-5 shrink-0',
               isProduct && 'text-blue-600',
               isVariants && 'text-indigo-600',
-              !isProduct && !isVariants && 'text-gray-500',
+              !isProduct && !isVariants && 'text-muted-foreground',
             )}
           />
           <div className="flex flex-col items-start min-w-0 text-left gap-0.5">
@@ -244,14 +244,15 @@ function Section({ title, icon: Icon, open, onToggle, children, surface = 'stand
             )}
           </div>
         </div>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
+        {open ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground dark:text-foreground/80" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground dark:text-foreground/80" />}
       </button>
       {open && (
         <CardContent
           className={cn(
-            'pt-0 pb-6 border-t',
-            isProduct && 'border-blue-100/60 bg-gradient-to-b from-blue-50/25 to-card',
-            isVariants && 'border-indigo-100/60 bg-gradient-to-b from-indigo-50/25 to-card',
+            'border-t pb-6 pt-0',
+            !isProduct && !isVariants && 'border-border bg-muted/15 dark:bg-black/20',
+            isProduct && 'border-blue-100/60 bg-gradient-to-b from-blue-50/25 to-card dark:border-blue-900/50 dark:from-blue-950/30 dark:to-card',
+            isVariants && 'border-indigo-100/60 bg-gradient-to-b from-indigo-50/25 to-card dark:border-indigo-900/50 dark:from-indigo-950/30 dark:to-card',
           )}
         >
           {children}
@@ -675,7 +676,7 @@ function VariantMediaSection({
                 {item.is_primary && (
                   <span className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 text-[7px] px-1 rounded font-bold">Primary</span>
                 )}
-                {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-purple-600 text-white text-[7px] px-1 rounded">VID</span>}
+                {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-primary text-white text-[7px] px-1 rounded">VID</span>}
                 {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[7px] px-1 rounded">3D</span>}
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                   {!item.is_primary && mt === 'image' && (
@@ -752,7 +753,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                     ) : (
                       <img src={mediaUrl(img.url)} alt={img.alt_text || product.name} className="w-full h-full object-cover" />
                     )}
-                    {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-purple-600 text-white text-[8px] font-bold px-1 rounded">VID</span>}
+                    {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-primary text-white text-[8px] font-bold px-1 rounded">VID</span>}
                     {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[8px] font-bold px-1 rounded">3D</span>}
                     {img.is_primary && <span className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 text-[8px] px-1 rounded font-bold">Primary</span>}
                   </div>
@@ -1172,13 +1173,13 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                 const uomLbl = UOM_OPTIONS.find(u => u.value === vUom)?.label || vUom
                 const priceSuffix = vPriceType === 'per_cycle' && interval ? `/${interval}` : `/${uomLbl}`
                 return (
-                  <div key={v.id} className="rounded-lg border border-violet-200 bg-violet-50/50 p-4">
+                  <div key={v.id} className="rounded-lg border border-primary/30 bg-accent/80 p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-violet-800">{v.name || 'Default Plan'}</span>
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-200 text-violet-700 uppercase">{vPriceType === 'per_cycle' ? 'Per Cycle' : `Per ${uomLbl}`}</span>
+                        <span className="font-semibold text-primary">{v.name || 'Default Plan'}</span>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary/20 text-primary uppercase">{vPriceType === 'per_cycle' ? 'Per Cycle' : `Per ${uomLbl}`}</span>
                       </div>
-                      <span className="text-lg font-bold text-violet-700">{symbol}{(v.price ?? 0).toLocaleString()}{priceSuffix}</span>
+                      <span className="text-lg font-bold text-primary">{symbol}{(v.price ?? 0).toLocaleString()}{priceSuffix}</span>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                       <div><span className="text-gray-500">Interval:</span> <span className="font-medium">{interval ? interval.charAt(0).toUpperCase() + interval.slice(1) : '—'}</span></div>
@@ -1190,7 +1191,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                       <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                         <span className="text-[10px] text-gray-400 uppercase font-medium">Scheduling:</span>
                         {v.subscription_schedule_modes.map(m => (
-                          <span key={m} className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-medium">{
+                          <span key={m} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{
                             ({ dates: 'Date Range', cycles: 'Cycles', pick_dates: 'Pick Dates', weekly: 'Weekly', recurring: 'Recurring' } as Record<string, string>)[m] || m
                           }</span>
                         ))}
@@ -2612,7 +2613,7 @@ export default function ProductForm() {
             {productType && productType !== 'physical' && (
               <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${
                 isDigitalType ? 'bg-blue-50 border-blue-200 text-blue-800' :
-                isSubscriptionType ? 'bg-purple-50 border-purple-200 text-purple-800' :
+                isSubscriptionType ? 'bg-accent border-primary/30 text-primary' :
                 isBundleType ? 'bg-amber-50 border-amber-200 text-amber-800' : ''
               }`}>
                 {isDigitalType && <Download className="w-4 h-4 mt-0.5 shrink-0" />}
@@ -2783,7 +2784,7 @@ export default function ProductForm() {
                         ) : (
                           <img src={pendingPreviews[i]} alt="" className="w-full h-full object-cover" />
                         )}
-                        {mt === 'video' && <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
+                        {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
                         {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
                         <button type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>
                         {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
@@ -3085,18 +3086,18 @@ export default function ProductForm() {
                     </div>
                     {/* ── Subscription Billing + Price basis (compact) ── */}
                     {isSubscriptionType && (
-                      <div className="pt-2 border-t border-violet-100 space-y-2">
+                      <div className="pt-2 border-t border-primary/20 space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider flex items-center gap-1">
+                          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1">
                             <Repeat className="w-3 h-3" />Billing
                           </p>
-                          <div className="inline-flex rounded border border-violet-200 overflow-hidden text-[11px]">
+                          <div className="inline-flex rounded border border-primary/30 overflow-hidden text-[11px]">
                             <button type="button"
-                              className={`px-2.5 py-1 font-medium ${watch(`variants.${index}.price_type`) === 'per_cycle' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-violet-50'}`}
+                              className={`px-2.5 py-1 font-medium ${watch(`variants.${index}.price_type`) === 'per_cycle' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
                               onClick={() => setValue(`variants.${index}.price_type`, 'per_cycle')}
                             >Per Cycle</button>
                             <button type="button"
-                              className={`px-2.5 py-1 font-medium ${watch(`variants.${index}.price_type`) === 'per_unit' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-violet-50'}`}
+                              className={`px-2.5 py-1 font-medium ${watch(`variants.${index}.price_type`) === 'per_unit' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
                               onClick={() => setValue(`variants.${index}.price_type`, 'per_unit')}
                             >Per UOM</button>
                           </div>
@@ -3137,8 +3138,8 @@ export default function ProductForm() {
                                   }}
                                   className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
                                     active
-                                      ? 'bg-violet-600 text-white border-violet-600'
-                                      : 'bg-white text-gray-400 border-gray-200 hover:border-violet-300 hover:text-violet-600'
+                                      ? 'bg-primary text-white border-primary'
+                                      : 'bg-white text-gray-400 border-gray-200 hover:border-primary/40 hover:text-primary'
                                   }`}>
                                   {opt.label}
                                 </button>
@@ -3440,7 +3441,7 @@ export default function ProductForm() {
                                     ) : (
                                       <img src={preview} alt="" className="w-full h-full object-cover" />
                                     )}
-                                    {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-purple-600 text-white text-[7px] px-1 rounded">VID</span>}
+                                    {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-primary text-white text-[7px] px-1 rounded">VID</span>}
                                     {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[7px] px-1 rounded">3D</span>}
                                     {fi === 0 && mt === 'image' && <span className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 text-[7px] px-1 rounded font-bold">Primary</span>}
                                     <button type="button" onClick={() => removeFile(fi)}
@@ -3508,7 +3509,7 @@ export default function ProductForm() {
                 <IndianRupee className="w-4 h-4 text-indigo-500" />
                 Base Pricing
                 {isBundleType && <span className="text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Bundle total price</span>}
-                {isSubscriptionType && <span className="text-xs font-normal text-violet-600 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full">Per-cycle price &amp; billing config are on each plan</span>}
+                {isSubscriptionType && <span className="text-xs font-normal text-primary bg-accent border border-primary/30 px-2 py-0.5 rounded-full">Per-cycle price &amp; billing config are on each plan</span>}
               </h4>
               {(() => {
                 const bPrice     = parseFloat(String(watch('price') || 0))
@@ -4032,7 +4033,7 @@ export default function ProductForm() {
                         setAddonSearch('')
                         setAddonSearchResults([])
                       }}>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${r.item_type === 'service' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${r.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {r.item_type === 'service' ? 'SVC' : 'PRD'}
                       </span>
                       <span className="font-medium text-gray-800">{r.name}</span>
@@ -4054,7 +4055,7 @@ export default function ProductForm() {
                   <div key={addon.id} className="border border-gray-200 rounded-xl p-3 space-y-3 bg-gray-50/50">
                     {/* Header row */}
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {addon.item_type === 'service' ? 'Service' : 'Product'}
                       </span>
                       <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{addon.name}</span>
@@ -4316,10 +4317,10 @@ export default function ProductForm() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {bundles.map(b => (
-                    <span key={b.id} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100 text-violet-700 text-xs font-medium">
+                    <span key={b.id} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
                       {b.name}
                       {b.discount_type !== 'none' && (
-                        <span className="text-violet-500">
+                        <span className="text-primary/80">
                           ({b.discount_type === 'percentage' ? `${b.discount_value}%` : `₹${b.discount_value}`} off)
                         </span>
                       )}

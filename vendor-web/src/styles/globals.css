@@ -13,36 +13,44 @@
     --card-foreground: 222 20% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 20% 12%;
-    --primary: 222 47% 20%;
+    /* #64C3A0 */
+    --primary: 158 44% 58%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 20% 96%;
     --secondary-foreground: 222 47% 15%;
     --muted: 210 20% 96%;
     --muted-foreground: 215 14% 45%;
-    --accent: 210 20% 94%;
-    --accent-foreground: 222 47% 15%;
+    --accent: 158 32% 93%;
+    --accent-foreground: 158 30% 17%;
     --destructive: 0 75% 55%;
     --destructive-foreground: 0 0% 100%;
     --success: 142 65% 38%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 26 60% 12%;
+    --info: 217 91% 60%;
+    --info-foreground: 210 40% 98%;
     --border: 214 22% 90%;
     --input: 214 22% 90%;
-    --ring: 222 47% 20%;
+    --ring: 158 44% 58%;
     --radius: 0.625rem;
-    --canvas: 220 16% 97%;
-    --canvas-grid: 220 14% 92%;
+    --canvas: 158 10% 97%;
+    --canvas-grid: 158 12% 92%;
     --panel: 0 0% 100%;
     --panel-foreground: 222 20% 12%;
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 20% 18%;
-    --sidebar-primary: 222 47% 20%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 210 20% 95%;
-    --sidebar-accent-foreground: 222 47% 15%;
-    --sidebar-border: 214 22% 90%;
-    --sidebar-ring: 222 47% 20%;
+    /* Sidebar — hue aligned to #64C3A0 (158°) */
+    --sidebar-background: 158 12% 96%;
+    --sidebar-foreground: 158 22% 26%;
+    --sidebar-primary: 158 44% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 158 26% 92%;
+    --sidebar-accent-foreground: 158 30% 18%;
+    --sidebar-border: 158 14% 87%;
+    --sidebar-ring: 158 44% 58%;
+    /* Dashboard welcome hero — same hue family as sidebar / primary */
+    --hero-via: 158 52% 24%;
+    --hero-to: 158 40% 10%;
+    --hero-cta: 222 22% 14%;
 
     /* Storefront UI kit — editorial templates (shared home-sections) */
     --retail-bg: 36 38% 95%;
@@ -57,41 +65,46 @@
   }
 
   .dark {
-    --background: 224 71% 5%;
-    --foreground: 213 31% 93%;
-    --card: 224 71% 7%;
-    --card-foreground: 213 31% 93%;
-    --popover: 224 71% 7%;
-    --popover-foreground: 213 31% 93%;
-    --primary: 263 70% 58%;
+    /* Surfaces aligned to spec: #050A14 bg, #0A0F1A cards, #EBEBF5 text, #222A3A accent, #2B3445 borders */
+    --background: 220 61% 5%;
+    --foreground: 240 33% 94%;
+    --card: 221 46% 7%;
+    --card-foreground: 240 33% 94%;
+    --popover: 221 46% 7%;
+    --popover-foreground: 240 33% 94%;
+    --primary: 158 44% 58%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 213 31% 93%;
-    --muted: 215 28% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 215 28% 20%;
-    --accent-foreground: 213 31% 93%;
+    --secondary: 221 24% 17%;
+    --secondary-foreground: 240 33% 94%;
+    --muted: 221 24% 17%;
+    --accent: 158 18% 16%;
+    --accent-foreground: 240 33% 94%;
     --destructive: 0 63% 45%;
     --destructive-foreground: 210 40% 98%;
     --success: 142 55% 42%;
     --success-foreground: 0 0% 100%;
     --warning: 38 85% 48%;
     --warning-foreground: 26 60% 12%;
-    --border: 215 22% 20%;
-    --input: 215 22% 20%;
-    --ring: 263 70% 58%;
-    --canvas: 224 50% 8%;
-    --canvas-grid: 224 40% 12%;
-    --panel: 224 71% 8%;
-    --panel-foreground: 213 31% 93%;
-    --sidebar-background: 224 71% 6%;
-    --sidebar-foreground: 213 28% 90%;
-    --sidebar-primary: 263 70% 58%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 215 28% 17%;
-    --sidebar-accent-foreground: 213 31% 93%;
-    --sidebar-border: 215 22% 18%;
-    --sidebar-ring: 263 70% 58%;
+    --info: 217 91% 60%;
+    --info-foreground: 210 40% 98%;
+    --border: 221 24% 22%;
+    --input: 221 24% 22%;
+    --canvas: 158 20% 8%;
+    --canvas-grid: 158 18% 11%;
+    --panel: 221 46% 8%;
+    --panel-foreground: 240 33% 94%;
+    /* Sidebar — same hue as #64C3A0, lifted slightly from app bg */
+    --sidebar-background: 158 22% 7%;
+    --sidebar-foreground: 158 8% 93%;
+    --sidebar-primary: 158 44% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 158 22% 14%;
+    --sidebar-accent-foreground: 240 33% 94%;
+    --sidebar-border: 158 18% 16%;
+    --sidebar-ring: 158 44% 58%;
+    --hero-via: 158 38% 22%;
+    --hero-to: 158 42% 11%;
+    --hero-cta: 158 22% 12%;
     --retail-bg: 28 32% 12%;
     --retail-ink: 36 28% 92%;
     --retail-accent: 16 76% 56%;
@@ -113,15 +126,15 @@
   /* Smooth focus rings */
   :focus-visible {
     outline: none;
-    @apply ring-2 ring-blue-500 ring-offset-2;
+    @apply ring-2 ring-ring ring-offset-2;
   }
 }
 
 @layer components {
   /* Tiny action link — e.g. "Clear", "View all", inline text actions */
   .btn-link {
-    @apply inline-flex items-center gap-1 text-xs font-medium text-blue-600
-           hover:text-blue-800 hover:underline underline-offset-2
+    @apply inline-flex items-center gap-1 text-xs font-medium text-primary
+           hover:text-primary/90 hover:underline underline-offset-2
            transition-colors duration-150 disabled:opacity-50;
   }
 
@@ -146,10 +159,10 @@
   }
   .chip-default {
     @apply chip border-gray-200 bg-white text-gray-600
-           hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700;
+           hover:border-primary/40 hover:bg-accent hover:text-primary;
   }
   .chip-active {
-    @apply chip border-blue-500 bg-blue-600 text-white;
+    @apply chip border-primary bg-primary text-primary-foreground;
   }
 }
 

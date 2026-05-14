@@ -1457,8 +1457,8 @@ async def ai_generate_theme(
             "suggested_templates": ["Luxury Boutique", "Elite Brand", "Premium Collection"],
         },
         "playful": {
-            "style_config": {"primary_color": "#7c3aed", "secondary_color": "#ec4899", "accent_color": "#f59e0b", "bg_color": "#fdf4ff", "surface_color": "#f3e8ff", "text_color": "#1e1b4b", "font_heading": "Nunito", "font_body": "Nunito", "border_radius": "pill", "spacing": "comfortable", "animation": "expressive", "button_style": "filled"},
-            "color_palette": ["#7c3aed", "#ec4899", "#f59e0b", "#1e1b4b", "#f3e8ff", "#fdf4ff"],
+            "style_config": {"primary_color": "#64C3A0", "secondary_color": "#13624A", "accent_color": "#f59e0b", "bg_color": "#f3fbf7", "surface_color": "#ffffff", "text_color": "#1e1b4b", "font_heading": "Nunito", "font_body": "Nunito", "border_radius": "pill", "spacing": "comfortable", "animation": "expressive", "button_style": "filled"},
+            "color_palette": ["#64C3A0", "#13624A", "#f59e0b", "#1e1b4b", "#def2ea", "#f3fbf7"],
             "font_pairing": {"heading": "Nunito", "body": "Nunito", "reason": "Friendly, rounded font that feels approachable and fun."},
             "mood_description": "Vibrant and energetic. Bold colors and playful shapes create a memorable experience.",
             "suggested_templates": ["Fun & Bold", "Creative Agency", "Startup Vibrant"],

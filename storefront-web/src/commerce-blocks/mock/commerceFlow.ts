@@ -89,7 +89,7 @@ export const mockGiftCards = [
     id: "gc250",
     amount: 250,
     currency: "USD",
-    color: "from-rose-200 to-fuchsia-300",
+    color: "from-rose-200 to-primary/30",
   },
 ];
 

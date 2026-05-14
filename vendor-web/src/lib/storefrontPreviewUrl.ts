@@ -63,4 +63,4 @@ export function buildBuilderDraftPreviewUrl(
 
 /** Shared with WebsiteTemplatePreviewModal "Open in browser" link. */
 export const STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS =
-  'inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 transition-colors'
+  'inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold text-primary bg-accent border border-primary/30 hover:bg-primary/15 transition-colors'

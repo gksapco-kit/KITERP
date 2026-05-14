@@ -32,9 +32,9 @@ export default function WorkspaceHubPage() {
           <Link
             key={t.to}
             to={t.to}
-            className="rounded-xl border bg-white p-4 shadow-sm hover:border-violet-300 hover:bg-violet-50/30 transition-colors flex gap-3"
+            className="rounded-xl border bg-white p-4 shadow-sm hover:border-primary/40 hover:bg-accent/60 transition-colors flex gap-3"
           >
-            <t.icon className="w-8 h-8 text-violet-600 shrink-0" />
+            <t.icon className="w-8 h-8 text-primary shrink-0" />
             <div>
               <p className="font-semibold text-gray-900">{t.title}</p>
               <p className="text-xs text-gray-500 mt-1 leading-snug">{t.desc}</p>

@@ -25,7 +25,7 @@ export default function LiveStockBlock({ style, props, liveItems }: Props) {
             {liveItems.map(item => (
               <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50">
                 <td className="py-2 px-3">
-                  <Link to={item.url ? storePath(item.url) : storePath('/products')} className="font-medium text-gray-900 hover:text-violet-600 flex items-center gap-2">
+                  <Link to={item.url ? storePath(item.url) : storePath('/products')} className="font-medium text-gray-900 hover:text-primary flex items-center gap-2">
                     {item.image_url && <img src={item.image_url} alt="" className="w-8 h-8 rounded-lg object-cover" loading="lazy" />}
                     {item.title}
                   </Link>

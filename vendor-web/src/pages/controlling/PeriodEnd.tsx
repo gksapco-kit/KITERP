@@ -34,7 +34,7 @@ function StatusCard({ icon, label, value, sub, color = 'gray', urgent }: StatusC
     green: 'bg-emerald-50 border-emerald-200',
     amber: 'bg-amber-50 border-amber-200',
     red: 'bg-red-50 border-red-200',
-    violet: 'bg-violet-50 border-violet-200',
+    violet: 'bg-accent border-primary/30',
     blue: 'bg-blue-50 border-blue-200',
   }
   const text: Record<string, string> = {
@@ -42,7 +42,7 @@ function StatusCard({ icon, label, value, sub, color = 'gray', urgent }: StatusC
     green: 'text-emerald-700',
     amber: 'text-amber-700',
     red: 'text-red-700',
-    violet: 'text-violet-700',
+    violet: 'text-primary',
     blue: 'text-blue-700',
   }
   return (
@@ -242,7 +242,7 @@ export default function PeriodEndPage() {
           <h2 className="font-semibold text-gray-800">Variance Runs</h2>
           <button
             onClick={() => setShowCreateRun(true)}
-            className="flex items-center gap-2 bg-violet-600 text-white px-3 py-1.5 rounded-lg hover:bg-violet-700 text-sm font-medium"
+            className="flex items-center gap-2 bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 text-sm font-medium"
           >
             <Play className="w-3.5 h-3.5" /> Run Variance Calculation
           </button>
@@ -295,7 +295,7 @@ export default function PeriodEndPage() {
                       {vr.status === 'open' && (
                         <button
                           onClick={() => setPostRunId(vr.id)}
-                          className="text-xs text-violet-600 hover:text-violet-800 flex items-center gap-1 whitespace-nowrap"
+                          className="text-xs text-primary hover:text-primary flex items-center gap-1 whitespace-nowrap"
                         >
                           <Play className="w-3 h-3" /> Post to GL
                         </button>
@@ -329,7 +329,7 @@ export default function PeriodEndPage() {
               <button onClick={() => setShowCreateRun(false)}
                 className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
               <button onClick={handleCreateRun} disabled={createRunMut.isPending}
-                className="flex-1 bg-violet-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
+                className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                 {createRunMut.isPending ? 'Running…' : 'Calculate Variance'}
               </button>
             </div>
@@ -355,7 +355,7 @@ export default function PeriodEndPage() {
               <button onClick={() => setPostRunId(null)}
                 className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
               <button onClick={handlePostRun} disabled={postRunMut.isPending}
-                className="flex-1 bg-violet-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
+                className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                 {postRunMut.isPending ? 'Posting…' : 'Post to GL'}
               </button>
             </div>

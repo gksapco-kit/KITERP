@@ -73,7 +73,7 @@ export default function BookingSlotPickerBlock({ site, style, props, liveItems }
   const { first, count } = getMonthDays(viewYear, viewMonth)
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
 
-  const primary = style.primary_color || '#7c3aed'
+  const primary = style.primary_color || '#64C3A0'
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8">

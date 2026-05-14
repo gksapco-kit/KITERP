@@ -46,7 +46,7 @@ export default function MyOnboardingPage() {
           <p className="text-2xl font-bold text-blue-600">{pct}%</p>
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all" style={{ width: `${pct}%` }} />
+          <div className="h-full bg-gradient-to-r from-primary to-info transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
 

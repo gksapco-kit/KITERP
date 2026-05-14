@@ -201,7 +201,7 @@ function parseNotesMeta(notes?: string): Record<string, string> {
 
 /** Colour palette for custom / unknown party types (cycles by index). */
 const CUSTOM_TYPE_COLORS = [
-  'bg-purple-50 text-purple-700 border-purple-200',
+  'bg-accent text-primary border-primary/30',
   'bg-teal-50 text-teal-700 border-teal-200',
   'bg-pink-50 text-pink-700 border-pink-200',
   'bg-cyan-50 text-cyan-700 border-cyan-200',
@@ -825,7 +825,7 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
               </div>
 
               {/* On hold notice */}
-              {record.masterStatus === 'on_hold' && sx.hold_until && (
+              {record.masterStatus === 'on_hold' && sx.hold_until != null && String(sx.hold_until) !== '' && (
                 <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   <PauseCircle className="w-3.5 h-3.5 shrink-0" />
                   On hold until {new Date(sx.hold_until as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -1146,8 +1146,8 @@ export default function MasterDataReport() {
       if (af.hasGst === 'yes'   && !r.taxId) return false
       if (af.hasGst === 'no'    &&  r.taxId) return false
       if (af.cityContains) {
-        const rawCity = ((r.raw as Record<string, unknown>).city as string ?? '').toLowerCase()
-        const rawState = ((r.raw as Record<string, unknown>).state as string ?? '').toLowerCase()
+        const rawCity = (((r.raw as unknown) as Record<string, unknown>).city as string ?? '').toLowerCase()
+        const rawState = (((r.raw as unknown) as Record<string, unknown>).state as string ?? '').toLowerCase()
         if (!rawCity.includes(af.cityContains.toLowerCase()) && !rawState.includes(af.cityContains.toLowerCase())) return false
       }
       const bal = r.balance ?? 0
@@ -1158,11 +1158,11 @@ export default function MasterDataReport() {
       if (af.spentMin !== '' && (r.totalSpent ?? 0) < parseFloat(af.spentMin)) return false
       if (af.spentMax !== '' && (r.totalSpent ?? 0) > parseFloat(af.spentMax)) return false
       if (af.creditLimit === 'set') {
-        const cl = (r.raw as Record<string, unknown>).credit_limit as number | null
+        const cl = ((r.raw as unknown) as Record<string, unknown>).credit_limit as number | null
         if (!cl || cl === 0) return false
       }
       if (af.creditLimit === 'none') {
-        const cl = (r.raw as Record<string, unknown>).credit_limit as number | null
+        const cl = ((r.raw as unknown) as Record<string, unknown>).credit_limit as number | null
         if (cl && cl > 0) return false
       }
       // Column-level inline filters
@@ -1179,7 +1179,7 @@ export default function MasterDataReport() {
       if (!match(r.phone, 'phone'))                        return false
       if (!match(r.companyName, 'company'))                return false
       if (!match(r.taxId, 'taxId'))                        return false
-      const rawRec = r.raw as Record<string, unknown>
+      const rawRec = r.raw as unknown as Record<string, unknown>
       if (cf.city?.trim()) {
         const cityState = `${rawRec.city ?? ''} ${rawRec.state ?? ''}`.toLowerCase()
         if (!cityState.includes(cf.city.trim().toLowerCase())) return false
@@ -1713,7 +1713,7 @@ export default function MasterDataReport() {
                       </td>
 
                       {ALL_COL_DEFS.filter(c => visibleCols.has(c.key) && c.key !== 'name').map(col => {
-                        const raw = r.raw as Record<string, unknown>
+                        const raw = r.raw as unknown as Record<string, unknown>
                         switch (col.key) {
                           case 'type': return (
                             <td key="type" className="px-4 py-3">

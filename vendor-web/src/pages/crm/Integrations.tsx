@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useIntegrations, useUpsertIntegration } from '@/hooks/useCrm'
-import { crmApi } from '@/api/crm'
+import { crmApi, type Integration } from '@/api/crm'
 import { Plus, Loader2, Plug, CheckCircle2, AlertTriangle, Trash2 } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
 import { useQueryClient } from '@tanstack/react-query'
@@ -82,8 +82,10 @@ export default function IntegrationsPage() {
     qc.invalidateQueries({ queryKey: ['crm', 'integrations'] })
   }
 
-  const connectedById: Record<string, typeof data extends Array<infer T> ? T : never> = {}
-  data?.forEach(i => { connectedById[i.provider] = i as never })
+  const connectedById: Record<string, Integration> = {}
+  data?.forEach(i => {
+    connectedById[i.provider] = i
+  })
 
   return (
     <div className="space-y-6">

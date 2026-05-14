@@ -13,7 +13,7 @@ import { SmartLoginInput } from '@/components/ui/SmartLoginInput'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  Loader2, Eye, EyeOff, Phone, MessageCircle, HelpCircle, ChevronDown, ChevronUp, ServerOff, RefreshCw, Store,
+  Loader2, Eye, EyeOff, Lock, Phone, MessageCircle, HelpCircle, ChevronDown, ChevronUp, ServerOff, RefreshCw, Store,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { checkBackendReachable, getBackendHealthUrl } from '@/lib/apiHealth'
@@ -147,13 +147,13 @@ export default function Login() {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-xl">User Login</CardTitle>
-        <p className="text-sm text-gray-500">Sign in to manage your business operations</p>
+    <Card className="w-full shadow-lg shadow-gray-200/50">
+      <CardHeader className="space-y-1 pb-4">
+        <CardTitle className="text-2xl font-bold tracking-tight text-gray-900">User Login</CardTitle>
+        <p className="text-base leading-snug text-gray-600">Sign in to manage your business operations</p>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="w-full space-y-5">
         {showOffline && (
           <div
             className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900 space-y-2"
@@ -234,15 +234,16 @@ export default function Login() {
           id="vendor-login-form"
           autoComplete="on"
           onSubmit={handleSubmit(onSubmit)}
-          className="space-y-4"
+          className="w-full space-y-4"
         >
-          <div className="space-y-1.5">
-            <Label htmlFor="login">Email or Phone</Label>
+          <div className="w-full space-y-2">
             <Controller
               name="login"
               control={control}
               render={({ field }) => (
                 <SmartLoginInput
+                  fieldLabel="Email or Phone"
+                  comfortable
                   value={field.value ?? ''}
                   onChange={field.onChange}
                   error={errors.login?.message}
@@ -257,76 +258,101 @@ export default function Login() {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
+          <div className="w-full space-y-2">
+            <div className="flex min-h-8 items-center justify-between gap-2">
+              <Label htmlFor="password" className="text-[0.95rem] font-semibold text-gray-800">
+                Password
+              </Label>
+              <span className="invisible shrink-0 select-none whitespace-nowrap text-[0.95rem] font-semibold" aria-hidden>
+                Use phone instead
+              </span>
+            </div>
+            <div className="relative w-full">
+              <Lock
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                aria-hidden
+              />
               <Input
                 id="password"
                 type={showPw ? 'text' : 'password'}
                 autoComplete="current-password"
                 {...register('password')}
                 placeholder="Enter password"
-                className="pr-10"
+                className="h-[calc(2.75rem*0.95)] min-h-[calc(2.75rem*0.95)] w-full rounded-md border-input pl-10 pr-10 text-[0.95rem]"
               />
               <button
                 type="button"
                 onClick={() => setShowPw((v) => !v)}
                 tabIndex={-1}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                aria-label={showPw ? 'Hide password' : 'Show password'}
               >
-                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
             {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={rememberEmail}
-              onChange={e => setRememberEmail(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-600">Remember my email on this device</span>
-          </label>
-
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 font-semibold"
+            className="h-[calc(2.75rem*0.95)] min-h-[calc(2.75rem*0.95)] w-full rounded-md px-4 text-[0.95rem] font-bold"
             disabled={loginMut.isPending}
           >
             {loginMut.isPending
-              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</>
+              ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                  Signing in…
+                </>
+              )
               : 'Sign In'}
           </Button>
+
+          <div className="flex justify-center pt-1">
+            <label className="flex cursor-pointer select-none items-center gap-2.5 rounded-lg py-1 pr-1">
+              <input
+                type="checkbox"
+                checked={rememberEmail}
+                onChange={e => setRememberEmail(e.target.checked)}
+                className="h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary sm:h-[1.125rem] sm:w-[1.125rem]"
+              />
+              <span className="text-[0.95rem] leading-snug text-gray-700">Remember my email on this device</span>
+            </label>
+          </div>
         </form>
 
-        <p className="text-center text-sm text-gray-500">
-          Want to create a store?{' '}
-          <Link to="/register" className="text-blue-600 hover:underline font-medium">
-            Sign Up
-          </Link>
-        </p>
-        <p className="text-center">
-          <Link
-            to="/forgot-password"
-            className="text-xs text-violet-600 hover:text-violet-800 hover:underline font-medium"
-          >
-            Forgot password?
-          </Link>
-        </p>
+        <div className="space-y-4 border-t border-gray-100 pt-5">
+          <p className="text-center text-sm leading-relaxed text-gray-500">
+            New vendor?{' '}
+            <Link
+              to="/register"
+              className="font-semibold text-primary underline-offset-2 hover:underline"
+            >
+              Create your business
+            </Link>
+          </p>
+
+          <div className="text-center">
+            <Link
+              to="/forgot-password"
+              className="inline-block rounded-md px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5 hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        </div>
 
         {/* Help accordion */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <div className="mt-2 overflow-hidden rounded-xl border border-gray-200">
           <button
             type="button"
             onClick={() => setHelpOpen((v) => !v)}
             className={cn(
               'w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 transition-colors',
-              helpOpen ? 'bg-violet-50' : 'hover:bg-gray-50',
+              helpOpen ? 'bg-accent' : 'hover:bg-gray-50',
             )}
           >
-            <HelpCircle className="w-4 h-4 text-violet-500 shrink-0" />
+            <HelpCircle className="w-4 h-4 text-primary/80 shrink-0" />
             <span className="flex-1 text-left">Help &amp; Support</span>
             {helpOpen
               ? <ChevronUp className="w-4 h-4 text-gray-400" />
@@ -359,7 +385,7 @@ export default function Login() {
                     'text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all',
                   )}
                 >
-                  <Phone className="w-4 h-4 text-violet-600 shrink-0" />
+                  <Phone className="w-4 h-4 text-primary shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium leading-tight">Call support</p>
                     <p className="text-[11px] text-gray-500 font-mono">{SUPPORT_PHONE}</p>
@@ -373,7 +399,7 @@ export default function Login() {
                     'text-sm text-gray-700 hover:bg-white hover:shadow-sm transition-all',
                   )}
                 >
-                  <Phone className="w-4 h-4 text-violet-600 shrink-0" />
+                  <Phone className="w-4 h-4 text-primary shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium leading-tight">Contact support</p>
                     <p className="text-[11px] text-gray-500">support@kiterp.com</p>

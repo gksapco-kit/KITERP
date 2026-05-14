@@ -128,7 +128,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
 
               {isSubscription ? (
                 <div>
-                  <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-3 flex items-center gap-1.5">
                     <Repeat className="w-3.5 h-3.5" /> Choose a Plan
                   </p>
                   <div className="grid grid-cols-1 gap-2">
@@ -142,13 +142,13 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                       return (
                         <button key={v.id} onClick={() => setSelectedVariantId(v.id)}
                           className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                            isSelected ? 'border-violet-600 bg-violet-50/50' : 'border-gray-200 hover:border-violet-300'
+                            isSelected ? 'border-primary bg-accent/80' : 'border-gray-200 hover:border-primary/40'
                           }`}>
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className={`text-sm font-bold ${isSelected ? 'text-violet-800' : 'text-gray-900'}`}>{v.name}</p>
+                              <p className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>{v.name}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isSelected ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'}`}>
+                                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isSelected ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-600'}`}>
                                   {intervalLabel[vInterval] || vInterval}
                                 </span>
                                 {hasTrial && (
@@ -164,7 +164,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className={`text-lg font-extrabold ${isSelected ? 'text-violet-700' : 'text-gray-900'}`}>
+                              <p className={`text-lg font-extrabold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
                                 {formatCurrency(v.price, v.currency)}
                               </p>
                               <p className="text-[11px] text-gray-400">{vShort}</p>
@@ -175,7 +175,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                           )}
                           {isSelected && (
                             <div className="absolute top-3 right-3">
-                              <Check className="w-4 h-4 text-violet-600" />
+                              <Check className="w-4 h-4 text-primary" />
                             </div>
                           )}
                         </button>
@@ -295,7 +295,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                   )}
                   {(warrantyType || warrantyDays) && (
                     <div>
-                      <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-purple-600" /> Warranty</h4>
+                      <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-primary" /> Warranty</h4>
                       <ul className="space-y-2 text-sm text-gray-600">
                         <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 shrink-0" />
                           {warrantyDays ? warrantyDays >= 365 ? `${Math.floor(warrantyDays / 365)} Year Warranty` : `${warrantyDays} Day Warranty` : 'Warranty Included'}

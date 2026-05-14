@@ -120,7 +120,7 @@ export default function ActivityConfirmationsPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="ml-auto flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700 text-sm font-medium"
+          className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
         >
           <Plus className="w-4 h-4" /> Post Confirmation
         </button>
@@ -136,9 +136,9 @@ export default function ActivityConfirmationsPage() {
           <p className="text-xs text-blue-600 mb-1">Total hours confirmed</p>
           <p className="text-2xl font-bold text-blue-700">{totalHours.toFixed(2)} h</p>
         </div>
-        <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
-          <p className="text-xs text-violet-600 mb-1">Total confirmed cost</p>
-          <p className="text-2xl font-bold text-violet-700">{formatCurrency(totalCost)}</p>
+        <div className="rounded-xl border border-primary/20 bg-accent p-4">
+          <p className="text-xs text-primary mb-1">Total confirmed cost</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(totalCost)}</p>
         </div>
       </div>
 
@@ -318,7 +318,7 @@ export default function ActivityConfirmationsPage() {
                   Cancel
                 </button>
                 <button type="submit" disabled={createMut.isPending}
-                  className="flex-1 bg-violet-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-violet-700 disabled:opacity-60">
+                  className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                   {createMut.isPending ? 'Posting…' : 'Post Confirmation'}
                 </button>
               </div>

@@ -104,7 +104,7 @@ function saveActions(list: ActionItem[]) {
 const CHANNEL_META: Record<Channel, { label: string; icon: React.ElementType; color: string; bg: string; border: string }> = {
   email:     { label: 'Email',     icon: Mail,           color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200' },
   whatsapp:  { label: 'WhatsApp',  icon: MessageCircle,  color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-200' },
-  sms:       { label: 'SMS',       icon: Phone,          color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+  sms:       { label: 'SMS',       icon: Phone,          color: 'text-primary', bg: 'bg-accent', border: 'border-primary/30' },
 }
 
 const STATUS_META: Record<RStatus, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'soft'; icon: React.ElementType }> = {
@@ -124,7 +124,7 @@ function fmtDt(iso: string) {
 }
 
 function avatarColor(str: string) {
-  const colors = ['bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500', 'bg-cyan-500', 'bg-indigo-500']
+  const colors = ['bg-blue-500', 'bg-primary', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500', 'bg-cyan-500', 'bg-indigo-500']
   let h = 0
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % colors.length
   return colors[h]

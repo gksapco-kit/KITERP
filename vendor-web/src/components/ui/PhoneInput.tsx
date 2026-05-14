@@ -121,14 +121,14 @@ function CountryDropdown({
                   type="button"
                   onClick={() => { onSelect(c); onClose() }}
                   className={cn(
-                    'w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-violet-50 transition-colors text-sm',
-                    isSelected && 'bg-violet-50',
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-accent transition-colors text-sm',
+                    isSelected && 'bg-accent',
                   )}
                 >
                   <span className="text-base leading-none">{c.flag}</span>
                   <span className="flex-1 truncate">{c.name}</span>
                   <span className="text-xs text-gray-400 font-mono shrink-0">{c.dialCode}</span>
-                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-violet-500 shrink-0" />}
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary/80 shrink-0" />}
                 </button>
                 {isLastPopular && <div className="border-t border-gray-100 my-0.5" />}
               </div>
@@ -163,6 +163,8 @@ export interface PhoneInputProps {
   /** e.g. "login" so password managers pair this with password */
   name?: string
   autoComplete?: string
+  /** Taller row + larger text (e.g. registration). Default keeps compact density. */
+  comfortable?: boolean
 }
 
 export function PhoneInput({
@@ -178,6 +180,7 @@ export function PhoneInput({
   label,
   name = 'username',
   autoComplete = 'username',
+  comfortable = false,
 }: PhoneInputProps) {
   const defaultCountry =
     COUNTRIES.find(c => c.iso === defaultCountryIso) ??
@@ -325,28 +328,31 @@ export function PhoneInput({
   const isFull = localNumber.length === maxDigits && maxDigits <= 12
 
   return (
-    <div className={cn('space-y-1', className)}>
+    <div className={cn('w-full space-y-1', className)}>
       {label && (
         <label htmlFor={id} className="block text-sm font-medium text-gray-700">
           {label}
         </label>
       )}
-      <div ref={wrapRef} className="relative flex items-stretch gap-0">
+      <div ref={wrapRef} className="relative flex w-full items-stretch gap-0">
         {/* Country picker trigger */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
           className={cn(
-            'flex items-center gap-1.5 px-2.5 py-2 rounded-l-md border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0 text-sm',
-            dropOpen ? 'border-violet-500 ring-1 ring-violet-400 z-10' : 'border-input',
+            'flex items-center gap-1.5 rounded-l-md border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0',
+            comfortable
+              ? 'min-h-[calc(2.75rem*0.95)] gap-2 px-3 text-[0.95rem]'
+              : 'px-2.5 py-2 text-sm',
+            dropOpen ? 'border-primary ring-1 ring-ring z-10' : 'border-input',
             error && 'border-red-400',
             disabled && 'opacity-50 cursor-not-allowed',
           )}
         >
           <span className="text-base leading-none">{country.flag}</span>
-          <span className="font-mono text-xs text-gray-700">{country.dialCode}</span>
-          <ChevronDown className={cn('w-3 h-3 text-gray-400 transition-transform', dropOpen && 'rotate-180')} />
+          <span className={cn('font-mono text-gray-700', comfortable ? 'text-sm' : 'text-xs')}>{country.dialCode}</span>
+          <ChevronDown className={cn('text-gray-400 transition-transform', comfortable ? 'w-4 h-4' : 'w-3 h-3', dropOpen && 'rotate-180')} />
         </button>
 
         {/* Number input */}
@@ -364,8 +370,11 @@ export function PhoneInput({
             onBlur={handleBlur}
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
-              'w-full h-full rounded-r-md border px-3 py-2 text-sm outline-none transition-all',
-              'focus:ring-2 focus:ring-violet-400 focus:border-violet-500',
+              'w-full h-full rounded-r-md border outline-none transition-all',
+              comfortable
+                ? 'min-h-[calc(2.75rem*0.95)] px-3 py-2 text-[0.95rem]'
+                : 'px-3 py-2 text-sm',
+              'focus:ring-2 focus:ring-ring focus:border-primary',
               error ? 'border-red-400 bg-red-50/30' : 'border-input',
               isOverLimit && 'border-amber-400 bg-amber-50/20',
               isFull && !error && 'border-green-400 bg-green-50/20',

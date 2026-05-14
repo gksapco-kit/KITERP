@@ -38,7 +38,7 @@ import {
   Headphones,
 } from 'lucide-react'
 import { adminApi, type AdminVendorUpdatePayload } from '@/api/admin.api'
-import { vendorAppBaseUrl } from '@/lib/appUrls'
+import { vendorAppBaseUrl, getCustomerStorefrontBaseUrl } from '@/lib/appUrls'
 
 const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
 
@@ -207,7 +207,7 @@ export default function VendorDetail() {
     )
   }
 
-  const storefrontUrl = `http://localhost:3002/store/${vendor.slug}`
+  const storefrontUrl = getCustomerStorefrontBaseUrl(vendor.slug)
   const hasLocation = vendor.latitude != null && vendor.longitude != null
 
   return (
@@ -459,7 +459,7 @@ export default function VendorDetail() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-1.5">
-                <Headphones className="w-4 h-4 text-violet-600" /> Relationship manager
+                <Headphones className="w-4 h-4 text-primary" /> Relationship manager
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">

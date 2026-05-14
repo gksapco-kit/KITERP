@@ -210,7 +210,7 @@ export default function LeadsPage() {
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="sm" onClick={() => score(l.id)} title="AI score">
-                        <Sparkles className="w-4 h-4 text-violet-500" />
+                        <Sparkles className="w-4 h-4 text-primary/80" />
                       </Button>
                       {l.status !== 'converted' && (
                         <Button variant="ghost" size="sm" onClick={() => setConvertLead(l)} title="Convert">

@@ -12,7 +12,7 @@ const STAGES: { key: JobApplication['current_stage']; label: string; color: stri
   { key: 'screening',    label: 'Screening',    color: 'border-blue-300 bg-blue-50' },
   { key: 'shortlisted',  label: 'Shortlisted',  color: 'border-indigo-300 bg-indigo-50' },
   { key: 'interviewing', label: 'Interviewing', color: 'border-amber-300 bg-amber-50' },
-  { key: 'offer_made',   label: 'Offer Made',   color: 'border-violet-300 bg-violet-50' },
+  { key: 'offer_made',   label: 'Offer Made',   color: 'border-primary/40 bg-accent' },
   { key: 'hired',        label: 'Hired',        color: 'border-green-300 bg-green-50' },
   { key: 'rejected',     label: 'Rejected',     color: 'border-red-300 bg-red-50' },
 ]

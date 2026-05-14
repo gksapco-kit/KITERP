@@ -13,7 +13,7 @@ import { TableSkeleton, EmptyOrders } from '@/kit/states/StateScreens'
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-yellow-50', text: 'text-yellow-700', dot: 'bg-yellow-500' },
   confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-  shipped: { bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
+  shipped: { bg: 'bg-accent', text: 'text-primary', dot: 'bg-primary' },
   delivered: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
   cancelled: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
   return_requested: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -121,7 +121,7 @@ export default function MyOrders() {
                     {order.source && order.source !== 'online' && (
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                         order.source === 'booking' ? 'bg-indigo-100 text-indigo-700' :
-                        order.source === 'quote' ? 'bg-violet-100 text-violet-700' :
+                        order.source === 'quote' ? 'bg-primary/10 text-primary' :
                         'bg-gray-100 text-gray-600'
                       }`}>
                         {sourceIcon[order.source]}

@@ -106,7 +106,7 @@ async def send_verification_code_email(to: str, code: str, purpose: str = "verif
   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#f7f7fb; padding:24px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #ececf5;">
       <tr>
-        <td style="background:linear-gradient(135deg,#7c3aed 0%, #2563eb 100%); padding:20px 24px; color:#fff;">
+        <td style="background:linear-gradient(135deg,#64C3A0 0%, #13624A 100%); padding:20px 24px; color:#fff;">
           <h2 style="margin:0; font-size:18px; font-weight:600;">KITERP</h2>
         </td>
       </tr>

@@ -89,7 +89,7 @@ function downloadInvoicePdf(invoice: Record<string, unknown>, bookingNumber: str
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   pending:     { bg: 'bg-amber-50',  text: 'text-amber-700',  label: 'Pending' },
   confirmed:   { bg: 'bg-blue-50',   text: 'text-blue-700',   label: 'Confirmed' },
-  in_progress: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'In Progress' },
+  in_progress: { bg: 'bg-accent', text: 'text-primary', label: 'In Progress' },
   completed:   { bg: 'bg-green-50',  text: 'text-green-700',  label: 'Completed' },
   cancelled:   { bg: 'bg-red-50',    text: 'text-red-700',    label: 'Cancelled' },
   no_show:     { bg: 'bg-gray-100',  text: 'text-gray-600',   label: 'No Show' },
@@ -352,7 +352,7 @@ export default function BookingDetail() {
                     </>
                   )}
                   {b.status === 'confirmed' && (
-                    <Button size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
+                    <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 text-white"
                       onClick={() => handleStatus('in_progress')} disabled={statusLoading}>
                       <Play className="w-3.5 h-3.5" /> Start Service
                     </Button>
@@ -531,7 +531,7 @@ export default function BookingDetail() {
                     </h3>
                     {serviceId && (
                       <a href={`/services/${serviceId}`} target="_blank" rel="noopener noreferrer"
-                        className="text-[10px] text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1 transition-colors">
+                        className="text-[10px] text-primary hover:text-primary font-medium flex items-center gap-1 transition-colors">
                         <Eye className="w-3 h-3" /> Configure in Service
                       </a>
                     )}
@@ -544,7 +544,7 @@ export default function BookingDetail() {
                         <p className="text-sm font-medium text-gray-500">No templates enabled</p>
                         <p className="text-xs text-gray-400 mt-0.5">
                           {serviceId
-                            ? <><a href={`/services/${serviceId}`} target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">Configure print templates</a> on the service page.</>
+                            ? <><a href={`/services/${serviceId}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Configure print templates</a> on the service page.</>
                             : 'Enable print templates on the service page.'}
                         </p>
                       </div>
@@ -602,7 +602,7 @@ export default function BookingDetail() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => enabledTypes.forEach(doc => printBookingDocument(doc.id as BookingDocTypeId, bookingInfo))}
-                          className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors">
+                          className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-colors">
                           <Printer className="w-4 h-4" /> Print All ({enabledTypes.length})
                         </button>
                         <button

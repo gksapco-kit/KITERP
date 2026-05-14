@@ -61,7 +61,7 @@ export default function SubscriptionsSalesPage() {
       {!loading && rows.length === 0 && (
         <div className="rounded-xl border border-dashed p-8 text-center text-gray-500 text-sm">
           No subscription items yet. Enable subscription fields on a service or variant.&nbsp;
-          <Link className="text-violet-600 font-medium" to="/services/new">Create service</Link>
+          <Link className="text-primary font-medium" to="/services/new">Create service</Link>
         </div>
       )}
 
@@ -85,7 +85,7 @@ export default function SubscriptionsSalesPage() {
                 <td className="px-4 py-3 text-right">{formatCurrency(r.price)}</td>
                 <td className="px-4 py-3 text-right">
                   <Link
-                    className="text-violet-600 text-xs font-medium hover:underline"
+                    className="text-primary text-xs font-medium hover:underline"
                     to={r.kind === 'service' ? `/services/${r.id}` : `/products/${r.id}`}
                   >
                     Edit

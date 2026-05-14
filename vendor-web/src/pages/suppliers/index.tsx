@@ -654,7 +654,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
               </div>
 
               {/* Hold-until info */}
-              {currentStatus === 'on_hold' && sx.hold_until && (
+              {currentStatus === 'on_hold' && sx.hold_until != null && String(sx.hold_until) !== '' && (
                 <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   <PauseCircle className="w-3.5 h-3.5 shrink-0" />
                   On hold until {new Date(sx.hold_until as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}

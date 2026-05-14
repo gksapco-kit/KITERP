@@ -121,12 +121,12 @@ export default function CostBookingsPage() {
             {formatCurrency(totalByType['cogs_issue'] ?? 0)}
           </p>
         </div>
-        <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
+        <div className="rounded-xl border border-primary/20 bg-accent p-4">
           <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="w-4 h-4 text-violet-500" />
-            <span className="text-xs text-violet-600">Grand total posted</span>
+            <DollarSign className="w-4 h-4 text-primary/80" />
+            <span className="text-xs text-primary">Grand total posted</span>
           </div>
-          <p className="text-2xl font-bold text-violet-700">{formatCurrency(grandTotal)}</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</p>
         </div>
       </div>
 
@@ -195,7 +195,7 @@ export default function CostBookingsPage() {
                 <tr key={b.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <Link to={`/controlling/orders/${b.order_id}`}
-                      className="font-mono text-xs text-violet-600 hover:underline flex items-center gap-1">
+                      className="font-mono text-xs text-primary hover:underline flex items-center gap-1">
                       {b.order_no} <ExternalLink className="w-3 h-3" />
                     </Link>
                   </td>

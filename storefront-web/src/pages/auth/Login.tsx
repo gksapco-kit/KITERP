@@ -189,12 +189,12 @@ export default function Login() {
             >
               {/* Email or phone */}
               <div>
-                <label htmlFor="login" className="text-sm font-medium text-gray-700 mb-1.5 block">Email or Phone</label>
                 <Controller
                   name="login"
                   control={control}
                   render={({ field }) => (
                     <SmartLoginInput
+                      fieldLabel="Email or Phone"
                       value={field.value ?? ''}
                       onChange={field.onChange}
                       error={errors.login?.message as string | undefined}
@@ -235,44 +235,45 @@ export default function Login() {
                 )}
               </div>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberEmail}
-                  onChange={e => setRememberEmail(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300"
-                  style={{ accentColor: primaryColor }}
-                />
-                <span className="text-sm text-gray-600">Remember my email on this device</span>
-              </label>
-
               {/* Submit */}
               <Button
                 type="submit"
-                className="w-full h-11 font-bold text-white hover:opacity-90 transition-opacity"
+                className="min-h-12 w-full rounded-xl px-4 py-3 text-lg font-bold text-white transition-opacity hover:opacity-90 sm:min-h-14 sm:px-6 sm:py-3.5 sm:text-xl"
                 style={{ backgroundColor: primaryColor }}
                 disabled={loginMut.isPending}
               >
-                {loginMut.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {loginMut.isPending && (
+                  <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin sm:h-6 sm:w-6" />
+                )}
                 Sign In
               </Button>
+
+              <div className="flex justify-center">
+                <label className="flex cursor-pointer select-none items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={rememberEmail}
+                    onChange={e => setRememberEmail(e.target.checked)}
+                    className="h-4 w-4 shrink-0 rounded border-gray-300"
+                    style={{ accentColor: primaryColor }}
+                  />
+                  <span className="text-sm text-gray-600">Remember my email on this device</span>
+                </label>
+              </div>
             </form>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-xs text-gray-400 font-medium">New Customer?</span>
-              <div className="flex-1 h-px bg-gray-200" />
-            </div>
+            <p className="mt-5 border-t border-gray-100 pt-5 text-center text-sm leading-relaxed text-gray-500">
+              New customer?{' '}
+              <Link
+                to={storePath('/register')}
+                className="font-semibold hover:underline underline-offset-2"
+                style={{ color: primaryColor }}
+              >
+                Create an account
+              </Link>
+            </p>
 
-            {/* Register CTA */}
-            <Link to={storePath('/register')}>
-              <Button variant="outline" className="w-full h-11 font-medium border-gray-300 hover:bg-gray-50">
-                Create your account
-              </Button>
-            </Link>
-
-            <p className="text-center mt-4">
+            <p className="mt-3 text-center">
               <Link
                 to={storePath('/forgot-password')}
                 className="text-xs font-medium hover:underline transition-colors"

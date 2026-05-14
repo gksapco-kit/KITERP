@@ -39,7 +39,7 @@ function StatCard({
     green:  'bg-emerald-50 text-emerald-600',
     amber:  'bg-amber-50 text-amber-600',
     rose:   'bg-rose-50 text-rose-600',
-    violet: 'bg-violet-50 text-violet-600',
+    violet: 'bg-accent text-primary',
   }
   const inner = (
     <Card className="hover:shadow-md transition-shadow">
@@ -178,7 +178,7 @@ export default function CrmDashboard() {
         <Card>
           <CardContent className="p-0">
             <div className="flex items-center justify-between px-5 py-3 border-b">
-              <h2 className="text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-violet-500" /> My pending tasks</h2>
+              <h2 className="text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-primary/80" /> My pending tasks</h2>
               <Link to="/crm/activities" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                 View all <ArrowRight className="w-3 h-3" />
               </Link>

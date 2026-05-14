@@ -9,7 +9,7 @@ import type { CommissionPayoutRun } from '@/types/commission'
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-blue-100 text-blue-700',
   approved: 'bg-green-100 text-green-700',
-  paid: 'bg-purple-100 text-purple-700',
+  paid: 'bg-primary/12 text-primary',
   cancelled: 'bg-gray-100 text-gray-500',
 }
 
@@ -37,7 +37,7 @@ function RunDetail({ runId }: { runId: string }) {
               <td className="py-2 text-right font-medium text-gray-900">{fmtCurrency(item.total_amount)}</td>
               <td className="py-2 text-right text-gray-600">{item.total_points}</td>
               <td className="py-2 text-right">
-                <span className={`px-1.5 py-0.5 rounded text-[10px] ${item.status === 'paid' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] ${item.status === 'paid' ? 'bg-primary/12 text-primary' : 'bg-gray-100 text-gray-500'}`}>
                   {item.status}
                 </span>
               </td>
@@ -144,7 +144,7 @@ export default function PayoutsPage() {
                   )}
                   {run.status === 'approved' && (
                     <button onClick={() => handlePay(run.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-100">
+                      className="flex items-center gap-1 px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-medium hover:bg-primary/12">
                       <DollarSign className="h-3.5 w-3.5" /> Mark Paid
                     </button>
                   )}

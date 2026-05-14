@@ -274,7 +274,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                   </div>
                   <div className="p-4 pb-2">
                     {item.subtitle && <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide">{item.subtitle}</p>}
-                    <h3 className="font-semibold text-gray-900 group-hover:text-violet-600 transition-colors line-clamp-2 mb-2">{item.title}</h3>
+                    <h3 className="font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 mb-2">{item.title}</h3>
                     {item.price_formatted && (
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold" style={{ color: style.primary_color }}>{item.price_formatted}</span>

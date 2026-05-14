@@ -93,10 +93,10 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
   })
 
   return (
-    <div className="border border-violet-200 rounded-2xl bg-gradient-to-br from-violet-50/60 to-fuchsia-50/40 p-4 mt-4">
+    <div className="border border-primary/30 rounded-2xl bg-gradient-to-br from-accent/60 to-accent/60 p-4 mt-4">
       <div className="flex items-center gap-2 mb-3">
-        <Paintbrush className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-        <span className="text-[10px] font-extrabold uppercase tracking-wide text-violet-700">Customize style</span>
+        <Paintbrush className="w-3.5 h-3.5 text-primary shrink-0" />
+        <span className="text-[10px] font-extrabold uppercase tracking-wide text-primary">Customize style</span>
         <span className="text-[10px] text-gray-400 ml-auto">Live preview below</span>
       </div>
 
@@ -137,7 +137,7 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
                   }}
                   maxLength={7}
                   placeholder="#000000"
-                  className="flex-1 min-w-0 font-mono text-[10px] px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-300 text-gray-800"
+                  className="flex-1 min-w-0 font-mono text-[10px] px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-800"
                 />
               </label>
             ))}
@@ -154,7 +154,7 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
                 <select
                   value={displayFont}
                   onChange={e => setDisplayFont(e.target.value)}
-                  className="flex-1 text-[11px] px-2 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-300 text-gray-800"
+                  className="flex-1 text-[11px] px-2 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-800"
                 >
                   {HEADING_FONTS.map(f => (
                     <option key={f} value={f}>{f}</option>
@@ -166,7 +166,7 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
                 <select
                   value={bodyFont}
                   onChange={e => setBodyFont(e.target.value)}
-                  className="flex-1 text-[11px] px-2 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-300 text-gray-800"
+                  className="flex-1 text-[11px] px-2 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-800"
                 >
                   {BODY_FONTS.map(f => (
                     <option key={f} value={f}>{f}</option>
@@ -183,7 +183,7 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
               value={storeName}
               onChange={e => setStoreName(e.target.value)}
               placeholder="My Store"
-              className="w-full text-[11px] px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-violet-300 text-gray-800"
+              className="w-full text-[11px] px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-800"
             />
           </div>
 
@@ -198,7 +198,7 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-violet-100">
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-primary/20">
         <button
           type="button"
           onClick={reset}
@@ -211,7 +211,7 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
           href={previewUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-extrabold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:opacity-90 transition-opacity shadow-sm"
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-extrabold bg-gradient-to-r from-primary to-emerald-700 text-white hover:opacity-90 transition-opacity shadow-sm"
         >
           <ExternalLink className="w-3.5 h-3.5" />
           Preview with this style
@@ -306,17 +306,17 @@ export function WebsiteTemplatePreviewModal({
                   <h2 className="text-lg font-extrabold text-gray-900 truncate">{template.name}</h2>
                   <span className={cn(
                     'text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide',
-                    tier === 'full' ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-gray-100 text-gray-600',
+                    tier === 'full' ? 'bg-accent text-primary' : 'bg-gray-100 text-gray-600',
                   )}>
                     {tier === 'full' ? 'Full site' : 'Lite'}
                   </span>
-                  <span className="text-[10px] bg-violet-100 text-violet-700 rounded-full px-2 py-0.5 font-semibold">
+                  <span className="text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5 font-semibold">
                     {template.category}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1 line-clamp-2">{template.description}</p>
                 {siteLabel && (
-                  <p className="text-[11px] text-violet-700 font-semibold mt-1 truncate">Apply to: {siteLabel}</p>
+                  <p className="text-[11px] text-primary font-semibold mt-1 truncate">Apply to: {siteLabel}</p>
                 )}
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
                   <span className="inline-flex items-center gap-1.5">
@@ -347,8 +347,8 @@ export function WebsiteTemplatePreviewModal({
                     className={cn(
                       'inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-colors',
                       showCustomize
-                        ? 'bg-violet-600 text-white'
-                        : 'text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100',
+                        ? 'bg-primary text-white'
+                        : 'text-primary bg-accent border border-primary/30 hover:bg-primary/15',
                     )}
                     title="Customize template style"
                   >
@@ -391,7 +391,7 @@ export function WebsiteTemplatePreviewModal({
                   return (
                     <div key={p.slug} className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-gray-50 border border-gray-100">
                       <span className={cn('text-[10px] font-extrabold px-1.5 py-0.5 rounded-md',
-                        isHome ? 'bg-emerald-100 text-emerald-700' : inNav ? 'bg-violet-100 text-violet-700' : 'bg-gray-200 text-gray-600'
+                        isHome ? 'bg-emerald-100 text-emerald-700' : inNav ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-600'
                       )}>
                         {isHome ? 'Home' : inNav ? 'Nav' : 'Footer'}
                       </span>
@@ -409,9 +409,9 @@ export function WebsiteTemplatePreviewModal({
             <div className="border border-gray-100 rounded-2xl p-4">
               <div className="text-[10px] font-extrabold uppercase tracking-wide text-gray-400 mb-2">What you get</div>
               <ul className="text-sm text-gray-600 space-y-2">
-                <li className="flex items-start gap-2"><span className="text-violet-600 mt-0.5">•</span>Image-first hero and gallery sections where included.</li>
-                <li className="flex items-start gap-2"><span className="text-violet-600 mt-0.5">•</span>Connect live catalog, services, and bookings from the <b>Data</b> tab on each block after apply.</li>
-                <li className="flex items-start gap-2"><span className="text-violet-600 mt-0.5">•</span>Everything remains editable in the builder.</li>
+                <li className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span>Image-first hero and gallery sections where included.</li>
+                <li className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span>Connect live catalog, services, and bookings from the <b>Data</b> tab on each block after apply.</li>
+                <li className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span>Everything remains editable in the builder.</li>
               </ul>
 
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
@@ -436,7 +436,7 @@ export function WebsiteTemplatePreviewModal({
                     className={cn(
                       'w-full py-2.5 rounded-xl font-extrabold text-sm transition-opacity shadow-sm',
                       canApply
-                        ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:opacity-90'
+                        ? 'bg-gradient-to-r from-primary to-emerald-700 text-white hover:opacity-90'
                         : 'bg-gray-200 text-gray-500 cursor-not-allowed',
                     )}
                   >
@@ -451,7 +451,7 @@ export function WebsiteTemplatePreviewModal({
                       value={applyText}
                       onChange={e => setApplyText(e.target.value)}
                       placeholder="APPLY"
-                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <div className="flex gap-2">
                       <button

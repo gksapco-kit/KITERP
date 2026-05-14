@@ -5,7 +5,8 @@ import type { Holiday } from '@/types'
 
 export default function HolidaysPage() {
   const year = new Date().getFullYear()
-  const { data: holidays = [], isLoading } = useHRHolidays(year)
+  const { data: holidaysRaw = [], isLoading } = useHRHolidays(year)
+  const holidays = holidaysRaw as Holiday[]
   const createHoliday = useCreateHoliday()
   const deleteHoliday = useDeleteHoliday()
   const [showAdd, setShowAdd] = useState(false)

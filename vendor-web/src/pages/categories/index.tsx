@@ -45,7 +45,7 @@ function appliesBadge(v: string) {
   const map: Record<string, { bg: string; text: string; label: string }> = {
     both: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Product & Service' },
     product: { bg: 'bg-green-50', text: 'text-green-700', label: 'Product' },
-    service: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Service' },
+    service: { bg: 'bg-accent', text: 'text-primary', label: 'Service' },
   }
   const s = map[v] || map.both
   return <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${s.bg} ${s.text}`}>{s.label}</span>
@@ -171,7 +171,7 @@ function CatalogueDrawer({ categoryId, onClose }: { categoryId: string; onClose:
             {(data?.service_count ?? 0) > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
-                  <Wrench className="w-4 h-4 text-purple-600" /> Services ({data!.service_count})
+                  <Wrench className="w-4 h-4 text-primary" /> Services ({data!.service_count})
                 </h3>
                 <div className="space-y-2">
                   {data!.services.map((s: any) => (

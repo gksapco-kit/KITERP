@@ -40,7 +40,7 @@ export default function HeroBlock({ site, style, props, blockType }: Props) {
     ? 'inline-flex items-center px-7 h-12 text-sm font-semibold rounded-none border-2 bg-transparent hover:opacity-80 transition-opacity'
     : 'inline-flex items-center px-6 py-3 rounded-xl text-sm font-semibold border-2 bg-transparent hover:bg-gray-50 transition-opacity'
 
-  let bgClass = 'bg-gradient-to-br from-violet-600 to-indigo-700'
+  let bgClass = 'bg-gradient-to-br from-primary to-emerald-800'
   let textClass = 'text-white'
   if (bgStyle === 'minimal' || isMinimal) {
     bgClass = 'bg-white'
@@ -146,8 +146,8 @@ export default function HeroBlock({ site, style, props, blockType }: Props) {
             {imageUrl ? (
               <img src={imageUrl} alt={headline} className="aspect-video max-h-[min(48dvh,280px)] w-full rounded-2xl object-cover object-center shadow-2xl sm:max-h-none" loading="lazy" />
             ) : (
-              <div className="w-full aspect-video rounded-2xl bg-gradient-to-br from-violet-100 to-indigo-200 flex items-center justify-center">
-                <span className="text-violet-400 text-lg font-medium">Hero Image</span>
+              <div className="w-full aspect-video rounded-2xl bg-gradient-to-br from-accent to-primary/25 flex items-center justify-center">
+                <span className="text-primary/70 text-lg font-medium">Hero Image</span>
               </div>
             )}
           </div>

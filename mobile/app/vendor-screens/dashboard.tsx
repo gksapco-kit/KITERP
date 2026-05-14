@@ -35,7 +35,7 @@ export default function VendorDashboard() {
   const navItems = [
     { label: 'Orders', route: '/vendor-screens/orders', color: '#3b82f6' },
     { label: 'Products', route: '/vendor-screens/products', color: '#10b981' },
-    { label: 'Customers', route: '/vendor-screens/customers', color: '#8b5cf6' },
+    { label: 'Customers', route: '/vendor-screens/customers', color: '#64C3A0' },
     { label: 'Settings', route: '/vendor-screens/settings', color: '#f59e0b' },
   ]
 

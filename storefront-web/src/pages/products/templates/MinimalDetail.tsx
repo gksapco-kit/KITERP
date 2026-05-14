@@ -164,7 +164,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
 
           {isSubscription ? (
             <div className="max-w-md mx-auto">
-              <p className="text-xs font-semibold text-violet-500 uppercase tracking-[0.15em] text-center mb-4 flex items-center justify-center gap-1.5">
+              <p className="text-xs font-semibold text-primary/80 uppercase tracking-[0.15em] text-center mb-4 flex items-center justify-center gap-1.5">
                 <Repeat className="w-3.5 h-3.5" /> Choose a Plan
               </p>
               <div className="space-y-2">

@@ -80,7 +80,7 @@ const BLOCK_CATALOG: BlockDef[] = [
       { title: 'Legal', links: ['Terms', 'Privacy', 'Refund'] },
     ],
   } },
-  { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: '🎉 Free shipping on all orders over $50 — Limited time!', color: '#7c3aed', show_close: true } },
+  { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: '🎉 Free shipping on all orders over $50 — Limited time!', color: '#64C3A0', show_close: true } },
   { type: 'marquee_strip', label: 'Marquee strip', icon: Type, desc: 'Scrolling one-line highlights (e.g. shipping, craft)', category: 'structure', defaultProps: { text: 'Made in Portugal,Hand-finished,Free returns,Since 2014' } },
   // Hero
   { type: 'hero', label: 'Hero — Centered', icon: Square, desc: 'Full-width hero with CTA buttons', category: 'hero', defaultProps: { headline: 'Build Something Amazing', subtitle: 'The all-in-one platform that helps you create, launch, and grow.', bg_style: 'gradient', cta_primary: 'Get Started Free', cta_secondary: 'Learn More', layout: 'centered' } },
@@ -259,8 +259,8 @@ const BLOCK_CATEGORIES = [
 ]
 
 const DEFAULT_STYLE: StyleConfig = {
-  primary_color: '#7c3aed',
-  secondary_color: '#4c1d95',
+  primary_color: '#64C3A0',
+  secondary_color: '#13624A',
   accent_color: '#f59e0b',
   bg_color: '#ffffff',
   surface_color: '#f9fafb',
@@ -472,13 +472,13 @@ export interface BlockOverlayItem {
 const OVERLAY_DEFAULTS: Record<string, Partial<BlockOverlayItem>> = {
   text:    { w: 220, h: 60,  text: 'Your text here', fontSize: 18, color: '#111827', bgColor: 'transparent' },
   image:   { w: 300, h: 200, objectFit: 'cover', borderRadius: 8 },
-  button:  { w: 160, h: 44,  text: 'Click Here', bgColor: '#7c3aed', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold' },
+  button:  { w: 160, h: 44,  text: 'Click Here', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold' },
   box:     { w: 280, h: 180, bgColor: 'rgba(255,255,255,0.9)', borderRadius: 12, shadow: true, borderColor: 'rgba(124,58,237,0.2)', borderWidth: 2 },
-  badge:   { w: 90,  h: 32,  text: 'New', bgColor: '#7c3aed', color: '#ffffff', borderRadius: 999, fontSize: 12, fontWeight: 'bold' },
+  badge:   { w: 90,  h: 32,  text: 'New', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 999, fontSize: 12, fontWeight: 'bold' },
   video:   { w: 320, h: 200, bgColor: '#000000', borderRadius: 8 },
   // Insert-helpers: reuse the button overlay shape but seed link fields so the
   // link-editor popup opens pre-focused on the right section (URL vs DB).
-  link:    { w: 160, h: 44, text: 'Open Link', bgColor: '#7c3aed', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'url' },
+  link:    { w: 160, h: 44, text: 'Open Link', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'url' },
   db_link: { w: 180, h: 44, text: 'View Product', bgColor: '#0ea5e9', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'product' },
   store:   { w: 180, h: 44, text: 'Visit Store', bgColor: '#0f766e', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold', linkType: 'store' },
 }
@@ -592,7 +592,7 @@ function TextPromptPopup({
         onMouseDown={e => e.stopPropagation()}
       >
         <div
-          className="px-4 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
+          className="px-4 py-3 bg-gradient-to-r from-primary to-emerald-700 text-white flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
           onMouseDown={headerMouseDown}
           title="Drag to move"
         >
@@ -615,7 +615,7 @@ function TextPromptPopup({
               placeholder={placeholder}
               maxLength={maxLength}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               onKeyDown={e => {
                 if (e.key === 'Escape') onClose()
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit() }
@@ -628,7 +628,7 @@ function TextPromptPopup({
               onChange={e => setVal(e.target.value)}
               placeholder={placeholder}
               maxLength={maxLength}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               onKeyDown={e => {
                 if (e.key === 'Escape') onClose()
                 if (e.key === 'Enter') { e.preventDefault(); commit() }
@@ -642,7 +642,7 @@ function TextPromptPopup({
         </div>
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50">
           <button onClick={onClose} className="flex-1 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100">Cancel</button>
-          <button onClick={commit} className="flex-1 py-2 rounded-lg text-xs font-bold bg-violet-600 text-white hover:bg-violet-700">{confirmLabel}</button>
+          <button onClick={commit} className="flex-1 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary/90">{confirmLabel}</button>
         </div>
       </div>
     </>
@@ -861,7 +861,7 @@ function LinkEditorPopup({
         onMouseDown={e => e.stopPropagation()}
       >
         <div
-          className="px-4 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white flex items-center justify-between shrink-0 cursor-grab active:cursor-grabbing select-none"
+          className="px-4 py-3 bg-gradient-to-r from-primary to-emerald-700 text-white flex items-center justify-between shrink-0 cursor-grab active:cursor-grabbing select-none"
           onMouseDown={headerMouseDown}
           title="Drag to move"
         >
@@ -888,7 +888,7 @@ function LinkEditorPopup({
                 onClick={() => setActiveGroup(g.id)}
                 className={cn(
                   'px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition-colors border-b-2',
-                  active ? 'text-violet-700 border-violet-500 bg-white' : 'text-gray-500 border-transparent hover:text-violet-600 hover:bg-white/60'
+                  active ? 'text-primary border-primary bg-white' : 'text-gray-500 border-transparent hover:text-primary hover:bg-white/60'
                 )}
                 title={g.desc}
               >
@@ -919,10 +919,10 @@ function LinkEditorPopup({
                   }}
                   className={cn(
                     'flex items-start gap-2 px-2.5 py-2 rounded-lg border text-left transition-all',
-                    active ? 'border-violet-400 bg-violet-50 ring-1 ring-violet-300' : 'border-gray-100 hover:border-violet-200 hover:bg-gray-50'
+                    active ? 'border-primary/60 bg-accent ring-1 ring-ring' : 'border-gray-100 hover:border-primary/30 hover:bg-gray-50'
                   )}
                 >
-                  <opt.icon className={cn('w-4 h-4 shrink-0 mt-0.5', active ? 'text-violet-600' : 'text-gray-500')} />
+                  <opt.icon className={cn('w-4 h-4 shrink-0 mt-0.5', active ? 'text-primary' : 'text-gray-500')} />
                   <div className="min-w-0">
                     <div className="text-[11px] font-semibold text-gray-800">{opt.label}</div>
                     <div className="text-[9px] text-gray-400 truncate">{opt.desc}</div>
@@ -954,7 +954,7 @@ function LinkEditorPopup({
                 value={target}
                 onChange={e => setTarget(e.target.value)}
                 placeholder={currentMeta?.inputHint}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           )}
@@ -968,20 +968,20 @@ function LinkEditorPopup({
 
               {/* Selected chips row */}
               {multiSelected.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5 p-2 border border-violet-200 rounded-xl bg-violet-50/40 min-h-[36px]">
+                <div className="flex flex-wrap gap-1.5 p-2 border border-primary/30 rounded-xl bg-accent/70 min-h-[36px]">
                   {multiSelected.map(code => {
                     const item = pickableList.find(it => storeCode(it) === code)
                     return (
                       <span
                         key={code}
-                        className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-white border border-violet-300 text-[11px] font-semibold text-violet-800 shadow-sm"
+                        className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-white border border-primary/40 text-[11px] font-semibold text-primary shadow-sm"
                       >
-                        <StoreIcon className="w-3 h-3 text-violet-400 shrink-0" />
+                        <StoreIcon className="w-3 h-3 text-primary/70 shrink-0" />
                         {item?.title || code}
                         <button
                           type="button"
                           onClick={() => toggleMultiStore(item || { id: code, title: code, subtitle: null, description: null, image_url: null, price: null, price_formatted: null, rating: null, url: null, meta: { code } })}
-                          className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center text-violet-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+                          className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center text-primary/70 hover:bg-red-100 hover:text-red-600 transition-colors"
                         >
                           <X className="w-2.5 h-2.5" />
                         </button>
@@ -999,7 +999,7 @@ function LinkEditorPopup({
               {/* Dropdown selector — styled like the screenshot */}
               {loading ? (
                 <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
+                  <Loader2 className="w-4 h-4 animate-spin text-primary/80" />
                 </div>
               ) : pickableList.length === 0 ? (
                 <div className="text-[11px] text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">
@@ -1013,7 +1013,7 @@ function LinkEditorPopup({
                       value={pickerSearch}
                       onChange={e => setPickerSearch(e.target.value)}
                       placeholder="Search stores…"
-                      className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-[11px] focus:outline-none focus:ring-2 focus:ring-violet-300 bg-white"
+                      className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-[11px] focus:outline-none focus:ring-2 focus:ring-ring bg-white"
                     />
                   </div>
                   <div className="max-h-40 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
@@ -1026,17 +1026,17 @@ function LinkEditorPopup({
                           onClick={() => toggleMultiStore(item)}
                           className={cn(
                             'w-full flex items-center gap-2.5 px-3 py-2 text-left text-[11px] transition-colors',
-                            picked ? 'bg-violet-50' : 'hover:bg-gray-50'
+                            picked ? 'bg-accent' : 'hover:bg-gray-50'
                           )}
                         >
                           <div className={cn(
                             'w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors',
-                            picked ? 'bg-violet-600 border-violet-600' : 'border-gray-300'
+                            picked ? 'bg-primary border-primary' : 'border-gray-300'
                           )}>
                             {picked && <Check className="w-2.5 h-2.5 text-white" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className={cn('font-semibold truncate', picked ? 'text-violet-800' : 'text-gray-800')}>
+                            <div className={cn('font-semibold truncate', picked ? 'text-primary' : 'text-gray-800')}>
                               {item.title}
                             </div>
                             {item.subtitle && <div className="text-[9px] text-gray-400 truncate">{item.subtitle}</div>}
@@ -1058,7 +1058,7 @@ function LinkEditorPopup({
                         setMultiSelected(allCodes)
                         setTarget(`/stores?branch=${allCodes.map(encodeURIComponent).join(',')}`)
                       }}
-                      className="text-[10px] text-violet-600 font-semibold hover:text-violet-800"
+                      className="text-[10px] text-primary font-semibold hover:text-primary"
                     >
                       Select all ({pickableList.length})
                     </button>
@@ -1091,14 +1091,14 @@ function LinkEditorPopup({
                       value={pickerSearch}
                       onChange={e => setPickerSearch(e.target.value)}
                       placeholder="Search…"
-                      className="pl-6 pr-2 py-1 border border-gray-200 rounded-md text-[10px] w-32 focus:outline-none focus:ring-1 focus:ring-violet-300"
+                      className="pl-6 pr-2 py-1 border border-gray-200 rounded-md text-[10px] w-32 focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                 )}
               </div>
               {loading ? (
                 <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
+                  <Loader2 className="w-4 h-4 animate-spin text-primary/80" />
                 </div>
               ) : filteredList.length === 0 ? (
                 <div className="text-[11px] text-gray-400 text-center py-6 border border-dashed border-gray-200 rounded-lg">
@@ -1116,14 +1116,14 @@ function LinkEditorPopup({
                         onClick={() => { setTarget(resolved); setLabel(item.title) }}
                         className={cn(
                           'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-xs bg-white',
-                          picked ? 'ring-1 ring-violet-400 bg-violet-50' : 'hover:bg-violet-50/50'
+                          picked ? 'ring-1 ring-ring bg-accent' : 'hover:bg-accent/80'
                         )}
                       >
                         {item.image_url ? (
                           <img src={mediaUrl(item.image_url)} className="w-8 h-8 rounded object-cover shrink-0 bg-gray-100" alt="" />
                         ) : (
-                          <div className="w-8 h-8 rounded bg-gradient-to-br from-violet-100 to-fuchsia-100 shrink-0 flex items-center justify-center">
-                            {currentMeta && <currentMeta.icon className="w-3.5 h-3.5 text-violet-500" />}
+                          <div className="w-8 h-8 rounded bg-gradient-to-br from-accent to-primary/20 shrink-0 flex items-center justify-center">
+                            {currentMeta && <currentMeta.icon className="w-3.5 h-3.5 text-primary/80" />}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
@@ -1132,8 +1132,8 @@ function LinkEditorPopup({
                             {item.subtitle || <span className="font-mono">{resolved}</span>}
                           </div>
                         </div>
-                        {item.price_formatted && <div className="text-[10px] text-violet-600 font-bold shrink-0">{item.price_formatted}</div>}
-                        {picked && <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />}
+                        {item.price_formatted && <div className="text-[10px] text-primary font-bold shrink-0">{item.price_formatted}</div>}
+                        {picked && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                       </button>
                     )
                   })}
@@ -1149,7 +1149,7 @@ function LinkEditorPopup({
               <input
                 value={target || currentMeta.route}
                 onChange={e => setTarget(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 font-mono"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono"
               />
               <p className="text-[10px] text-gray-400 mt-1">Default route for {currentMeta.label}. Customize if your site uses a different path.</p>
             </div>
@@ -1163,7 +1163,7 @@ function LinkEditorPopup({
                 value={label}
                 onChange={e => setLabel(e.target.value)}
                 placeholder="Leave blank to keep current button text"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-300"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           )}
@@ -1174,7 +1174,7 @@ function LinkEditorPopup({
                 type="checkbox"
                 checked={openNew}
                 onChange={e => setOpenNew(e.target.checked)}
-                className="rounded text-violet-600"
+                className="rounded text-primary"
               />
               <span className="text-xs text-gray-700">Open in new tab</span>
             </label>
@@ -1187,7 +1187,7 @@ function LinkEditorPopup({
             {type === 'none' ? 'No link' : (target || currentMeta?.route || '—')}
           </div>
           <button onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100">Cancel</button>
-          <button onClick={save} className="px-4 py-2 rounded-lg text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 flex items-center gap-1.5">
+          <button onClick={save} className="px-4 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary/90 flex items-center gap-1.5">
             <Link2 className="w-3 h-3" /> Save link
           </button>
         </div>
@@ -1255,7 +1255,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
         }}
         className={cn(
           'w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium rounded-md transition-colors',
-          a.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-violet-50 hover:text-violet-700',
+          a.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-accent hover:text-primary',
           a.disabled && 'opacity-40 cursor-not-allowed hover:bg-transparent',
         )}
       >
@@ -1440,8 +1440,8 @@ function InlineEditableText({
       spellCheck={editing}
       className={cn(
         className,
-        editable && !editing && 'hover:outline hover:outline-1 hover:outline-violet-300 hover:outline-offset-2 cursor-text rounded',
-        editing && 'outline outline-2 outline-violet-500 outline-offset-2 rounded bg-white/40'
+        editable && !editing && 'hover:outline hover:outline-1 hover:outline-ring/50 hover:outline-offset-2 cursor-text rounded',
+        editing && 'outline outline-2 outline-ring outline-offset-2 rounded bg-white/40'
       )}
       style={{
         ...resolvedStyle,
@@ -1537,7 +1537,7 @@ function ItemMenuButton({
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
         className={cn(
           'w-7 h-7 rounded-full flex items-center justify-center shadow-md border text-gray-700 transition-colors',
-          open ? 'bg-violet-600 text-white border-violet-600' : 'bg-white hover:bg-gray-50 border-gray-200',
+          open ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-gray-50 border-gray-200',
         )}
       >
         <MoreVertical className="w-3.5 h-3.5" />
@@ -1602,8 +1602,8 @@ function InlineEditableRichText({
       suppressContentEditableWarning
       className={cn(
         className,
-        editable && !editing && 'hover:outline hover:outline-1 hover:outline-violet-300 hover:outline-offset-2 rounded cursor-text',
-        editing && 'outline outline-2 outline-violet-500 outline-offset-2 rounded bg-white/40'
+        editable && !editing && 'hover:outline hover:outline-1 hover:outline-ring/50 hover:outline-offset-2 rounded cursor-text',
+        editing && 'outline outline-2 outline-ring outline-offset-2 rounded bg-white/40'
       )}
       style={style}
       onClick={(e) => {
@@ -1709,7 +1709,7 @@ function OverlayElement({
               fontStyle: item.italic ? 'italic' : undefined,
               color: item.color || '#111827', textAlign: item.align || 'left',
               padding: '6px 10px', display: 'flex', alignItems: 'center', wordBreak: 'break-word',
-              outline: textEditing ? '2px solid #7c3aed' : 'none', cursor: textEditing ? 'text' : 'move',
+              outline: textEditing ? '2px solid #64C3A0' : 'none', cursor: textEditing ? 'text' : 'move',
             }}
           >
             {item.text || (textEditing ? '' : 'Double-click to edit')}
@@ -1748,7 +1748,7 @@ function OverlayElement({
         const hasLink = item.linkType && item.linkType !== 'none' && (item.linkTarget || item.href)
         return (
           <div
-            style={{ ...commonStyle, backgroundColor: item.bgColor || '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+            style={{ ...commonStyle, backgroundColor: item.bgColor || '#64C3A0', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
             title={item.description || (hasLink ? `Link → ${item.linkLabel || item.linkTarget}` : 'Click to edit')}
           >
             <span style={{ fontSize: item.fontSize || 14, fontWeight: item.fontWeight || 'bold', color: item.color || '#ffffff' }}>
@@ -1774,7 +1774,7 @@ function OverlayElement({
         return <div style={commonStyle} />
       case 'badge':
         return (
-          <div style={{ ...commonStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: item.bgColor || '#7c3aed' }}>
+          <div style={{ ...commonStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: item.bgColor || '#64C3A0' }}>
             <span style={{ fontSize: item.fontSize || 12, fontWeight: 'bold', color: item.color || '#ffffff', whiteSpace: 'nowrap' }}>
               {item.text || 'Badge'}
             </span>
@@ -1815,12 +1815,12 @@ function OverlayElement({
       {isSelected && !textEditing && (
         <>
           {/* Selection ring */}
-          <div style={{ position: 'absolute', inset: -2, border: '2px solid #7c3aed', borderRadius: 3, pointerEvents: 'none', zIndex: 1 }} />
+          <div style={{ position: 'absolute', inset: -2, border: '2px solid #64C3A0', borderRadius: 3, pointerEvents: 'none', zIndex: 1 }} />
           {/* Resize handles */}
           {Object.keys(OVERLAY_HANDLE_POS).map(h => (
             <div key={h} onMouseDown={e => startResize(e, h)} style={{
               position: 'absolute', width: 10, height: 10,
-              backgroundColor: '#7c3aed', border: '2px solid #fff',
+              backgroundColor: '#64C3A0', border: '2px solid #fff',
               borderRadius: 2, cursor: OVERLAY_RESIZE_CURSORS[h], zIndex: 2,
               ...OVERLAY_HANDLE_POS[h],
             }} />
@@ -1875,7 +1875,7 @@ function OverlayElement({
                   })
                 }
               }}
-                style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#7c3aed', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#64C3A0', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 'bold' }}
                 title={item.type === 'text' ? 'Double-click text to edit inline' : 'Edit label'}>
                 {item.type === 'text' ? 'Edit' : 'Text'}
               </button>
@@ -1963,7 +1963,7 @@ function OverlayElement({
                       })
                     }
                   }}
-                  style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#7c3aed', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+                  style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#64C3A0', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
                   URL
                 </button>
               </>
@@ -2309,7 +2309,7 @@ function BlockPreview({
       <button
         type="button"
         onClick={e => { e.stopPropagation(); addItem(arrayKey, template) }}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-violet-300 text-violet-600 hover:border-violet-500 hover:bg-violet-50 text-xs font-semibold transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-primary/40 text-primary hover:border-primary hover:bg-accent text-xs font-semibold transition-colors"
       >
         <Plus className="w-3.5 h-3.5" /> {label}
       </button>
@@ -2587,7 +2587,7 @@ function BlockPreview({
                   <div className="flex items-center gap-2">
                     <InlineEditableText value={brandName} placeholder="Your Brand" editable={canEdit} as="span" onCommit={v => commitProp('brand', v)} />
                     {canEdit && (
-                      <label title="Upload logo" className="cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity p-1 rounded bg-violet-100 text-violet-600 hover:bg-violet-200 flex items-center gap-0.5 text-[9px] font-bold whitespace-nowrap">
+                      <label title="Upload logo" className="cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-0.5 text-[9px] font-bold whitespace-nowrap">
                         <Upload className="w-3 h-3" /> Logo
                         <input type="file" accept="image/*" className="hidden" onChange={async e => {
                           const file = e.target.files?.[0]; e.target.value = ''
@@ -2631,7 +2631,7 @@ function BlockPreview({
                     e.stopPropagation()
                     onNavigatePage?.(navUrl(l))
                   }}
-                  className="relative group/line flex items-center gap-1 rounded px-1 py-0.5 hover:bg-violet-50 transition-colors"
+                  className="relative group/line flex items-center gap-1 rounded px-1 py-0.5 hover:bg-accent transition-colors"
                   title={onNavigatePage ? `Open ${l.label || l}` : undefined}
                 >
                   <InlineEditableText
@@ -2667,7 +2667,7 @@ function BlockPreview({
                     const links = [...(p.nav_links as any[] || []), { label: 'New Link', url: '/' }]
                     commitProp('nav_links', links)
                   }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-violet-600 hover:bg-violet-50 border border-dashed border-violet-300"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-primary hover:bg-accent border border-dashed border-primary/40"
                 ><Plus className="w-3 h-3" /> Link</button>
               )}
             </div>
@@ -3461,7 +3461,7 @@ function BlockPreview({
               {IET('title', 'h2', 'text-2xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Stay in the Loop')}
               {IET('subtitle', 'p', 'text-gray-500 mb-6', {}, 'Get the latest updates delivered to your inbox.')}
               <div className="flex gap-2 max-w-md mx-auto">
-                <input className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" placeholder="your@email.com" readOnly />
+                <input className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="your@email.com" readOnly />
                 {CTABtn('cta_label', 'cta_url', 'Subscribe', 'px-6 py-3 rounded-xl text-white font-semibold text-sm flex items-center gap-2 hover:opacity-90 whitespace-nowrap', { backgroundColor: primary_color })}
               </div>
             </div>
@@ -3547,13 +3547,13 @@ function BlockPreview({
                     ? (
                       <div key={i}>
                         {f.label && <label className="text-xs font-medium text-gray-700 block mb-1">{f.label}</label>}
-                        <textarea readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-violet-200" placeholder={f.placeholder || f.label} />
+                        <textarea readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-ring" placeholder={f.placeholder || f.label} />
                       </div>
                     )
                     : (
                       <div key={i}>
                         {f.label && <label className="text-xs font-medium text-gray-700 block mb-1">{f.label}</label>}
-                        <input readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-200" placeholder={f.placeholder || f.label} type={f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : 'text'} />
+                        <input readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder={f.placeholder || f.label} type={f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : 'text'} />
                       </div>
                     )
                 ))}
@@ -4248,7 +4248,7 @@ function BlockPreview({
                   readOnly
                   placeholder={(p.placeholder as string) || 'Order number...'}
                   style={{ borderRadius: r, borderColor: `${primary_color}44` }}
-                  className="flex-1 px-4 py-2.5 border text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                  className="flex-1 px-4 py-2.5 border text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <button style={{ backgroundColor: primary_color, borderRadius: r, color: '#fff' }} className="px-4 py-2.5 text-sm font-semibold">
                   Track
@@ -4294,7 +4294,7 @@ function BlockPreview({
         return (
           <div className="py-8 px-8 relative" style={{ backgroundColor: bg_color }}>
             <div className="absolute top-2 right-2 flex gap-1">
-              <span className="text-[9px] bg-violet-600 text-white px-2 py-0.5 rounded font-bold">A/B Test</span>
+              <span className="text-[9px] bg-primary text-white px-2 py-0.5 rounded font-bold">A/B Test</span>
               <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">Variant A — {(p as any).split || 50}%</span>
             </div>
             <div className="text-center">
@@ -4640,7 +4640,7 @@ function BlockPreview({
                 <a
                   key={i}
                   href={url || '#'}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-violet-300 transition-colors text-sm font-medium text-gray-600 hover:text-violet-700"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary/40 transition-colors text-sm font-medium text-gray-600 hover:text-primary"
                   onClick={e => { if (url === '#') e.preventDefault() }}
                 >
                   <Globe className="w-4 h-4 shrink-0" />
@@ -4810,7 +4810,7 @@ function BlockPreview({
               <div className="border border-gray-200 rounded-xl p-4 text-left">
                 <div className="text-xs font-semibold text-gray-400 uppercase mb-2">2. Pick a Date</div>
                 <div className="grid grid-cols-7 gap-1">{Array.from({ length: 7 }).map((_, i) => (
-                  <div key={i} className="text-[10px] text-center py-1.5 rounded cursor-pointer hover:bg-violet-50" style={i === 2 ? { backgroundColor: primary_color, color: '#fff', borderRadius: r } : { color: text_color }}>{i + 15}</div>
+                  <div key={i} className="text-[10px] text-center py-1.5 rounded cursor-pointer hover:bg-accent" style={i === 2 ? { backgroundColor: primary_color, color: '#fff', borderRadius: r } : { color: text_color }}>{i + 15}</div>
                 ))}</div>
               </div>
               <div style={{ backgroundColor: primary_color, borderRadius: r }} className="h-11 flex items-center justify-center text-white font-semibold text-sm">
@@ -4970,16 +4970,16 @@ function BlockPreview({
 // ── Gradient & Shadow presets ─────────────────────────────────────────────────
 
 const GRADIENT_PRESETS = [
-  { label: 'Violet Dream',  value: 'linear-gradient(135deg,#7c3aed,#4c1d95)' },
+  { label: 'Mint Spice',  value: 'linear-gradient(135deg,#64C3A0,#13624A)' },
   { label: 'Ocean',         value: 'linear-gradient(135deg,#0ea5e9,#6366f1)' },
   { label: 'Sunset',        value: 'linear-gradient(135deg,#f59e0b,#ef4444)' },
   { label: 'Forest',        value: 'linear-gradient(135deg,#10b981,#065f46)' },
   { label: 'Rose',          value: 'linear-gradient(135deg,#fb7185,#e11d48)' },
   { label: 'Gold',          value: 'linear-gradient(135deg,#fbbf24,#d97706)' },
-  { label: 'Night Sky',     value: 'linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95)' },
-  { label: 'Aurora',        value: 'linear-gradient(135deg,#34d399,#3b82f6,#8b5cf6)' },
+  { label: 'Night Sky',     value: 'linear-gradient(135deg,#1e1b4b,#312e81,#13624A)' },
+  { label: 'Aurora',        value: 'linear-gradient(135deg,#34d399,#3b82f6,#64C3A0)' },
   { label: 'Peach',         value: 'linear-gradient(135deg,#fdba74,#fb923c,#f97316)' },
-  { label: 'Electric',      value: 'linear-gradient(135deg,#06b6d4,#8b5cf6)' },
+  { label: 'Electric',      value: 'linear-gradient(135deg,#06b6d4,#64C3A0)' },
   { label: 'Candy',         value: 'linear-gradient(135deg,#f472b6,#fb7185,#fbbf24)' },
   { label: 'Dusk',          value: 'linear-gradient(160deg,#0f0c29,#302b63,#24243e)' },
   { label: 'Lime Burst',    value: 'linear-gradient(135deg,#84cc16,#10b981)' },
@@ -5126,7 +5126,7 @@ function InlineMediaPicker({
         onClick={() => setOpen(o => !o)}
         className={cn(
           'relative w-full h-24 rounded-xl overflow-hidden border-2 border-dashed cursor-pointer transition-all group',
-          resolved ? 'border-violet-300' : 'border-gray-200 hover:border-violet-300'
+          resolved ? 'border-primary/40' : 'border-gray-200 hover:border-primary/40'
         )}
       >
         {resolved ? (
@@ -5158,7 +5158,7 @@ function InlineMediaPicker({
               <button key={t}
                 onClick={() => setTab(t)}
                 className={cn('flex-1 py-2 text-[10px] font-bold transition-colors',
-                  tab === t ? 'text-violet-700 border-b-2 border-violet-600 bg-violet-50' : 'text-gray-500 hover:text-gray-700')}
+                  tab === t ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-500 hover:text-gray-700')}
               >
                 {t === 'library' ? 'Media Library' : 'Paste URL'}
               </button>
@@ -5173,7 +5173,7 @@ function InlineMediaPicker({
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={uploadMedia.isPending}
-                className="w-full py-1.5 border border-dashed border-violet-300 rounded-lg text-[10px] text-violet-600 font-bold hover:bg-violet-50 flex items-center justify-center gap-1"
+                className="w-full py-1.5 border border-dashed border-primary/40 rounded-lg text-[10px] text-primary font-bold hover:bg-accent flex items-center justify-center gap-1"
               >
                 {uploadMedia.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                 Upload New
@@ -5189,7 +5189,7 @@ function InlineMediaPicker({
                       <button
                         key={m.id}
                         onClick={() => { onChange(m.original_url); setOpen(false) }}
-                        className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-violet-500 transition-all"
+                        className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-all"
                       >
                         <img src={src} className="w-full h-full object-cover" alt={m.filename}
                           onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3' }} />
@@ -5206,11 +5206,11 @@ function InlineMediaPicker({
                 value={urlInput}
                 onChange={e => setUrlInput(e.target.value)}
                 placeholder="https://example.com/image.jpg"
-                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-[10px] focus:outline-none focus:ring-1 focus:ring-violet-400"
+                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <button
                 onClick={() => { if (urlInput) { onChange(urlInput); setOpen(false) } }}
-                className="w-full py-1.5 bg-violet-600 text-white rounded-lg text-[10px] font-bold hover:bg-violet-700"
+                className="w-full py-1.5 bg-primary text-white rounded-lg text-[10px] font-bold hover:bg-primary/90"
               >
                 Use This URL
               </button>
@@ -5289,14 +5289,14 @@ function SubItemEditor({
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium text-gray-600">Columns</span>
-            <span className="text-[10px] font-mono text-violet-700 font-bold">{columns}</span>
+            <span className="text-[10px] font-mono text-primary font-bold">{columns}</span>
           </div>
           <div className="flex gap-1">
             {[1,2,3,4,5,6].map(n => (
               <button key={n}
                 onClick={() => onColumnsChange(n)}
                 className={cn('flex-1 py-1.5 rounded text-[10px] font-bold border transition-colors',
-                  columns === n ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300')}
+                  columns === n ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40')}
               >{n}</button>
             ))}
           </div>
@@ -5311,25 +5311,25 @@ function SubItemEditor({
                 type="number" min={0} max={80} step={4}
                 value={gap}
                 onChange={e => onGapChange(Math.max(0, Number(e.target.value)))}
-                className="w-12 px-1 py-0.5 border border-gray-200 rounded text-[10px] font-mono text-center focus:outline-none focus:ring-1 focus:ring-violet-400"
+                className="w-12 px-1 py-0.5 border border-gray-200 rounded text-[10px] font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <span className="text-[10px] text-gray-400">px</span>
             </div>
           </div>
           <input type="range" min={0} max={80} step={4} value={gap}
             onChange={e => onGapChange(Number(e.target.value))}
-            className="w-full accent-violet-600 h-1.5" />
+            className="w-full accent-primary h-1.5" />
         </div>
 
         {/* Item size */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium text-gray-600">Card size</span>
-            <span className="text-[10px] font-mono text-violet-700 font-bold">{itemSize}px</span>
+            <span className="text-[10px] font-mono text-primary font-bold">{itemSize}px</span>
           </div>
           <input type="range" min={80} max={320} step={8} value={itemSize}
             onChange={e => onItemSizeChange(Number(e.target.value))}
-            className="w-full accent-violet-600 h-1.5" />
+            className="w-full accent-primary h-1.5" />
         </div>
       </div>
 
@@ -5341,7 +5341,7 @@ function SubItemEditor({
           </span>
           <button
             onClick={addItem}
-            className="flex items-center gap-0.5 px-2 py-1 bg-violet-600 text-white text-[10px] font-bold rounded-lg hover:bg-violet-700 transition-colors"
+            className="flex items-center gap-0.5 px-2 py-1 bg-primary text-white text-[10px] font-bold rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-3 h-3" /> Add {schema.itemLabel}
           </button>
@@ -5364,7 +5364,7 @@ function SubItemEditor({
               onDragEnd={() => { setDragging(null); setOver(null) }}
               className={cn(
                 'rounded-xl border-2 overflow-hidden transition-all',
-                isDraggingOver ? 'border-violet-400 bg-violet-50' : 'border-gray-100 bg-white',
+                isDraggingOver ? 'border-primary/60 bg-accent' : 'border-gray-100 bg-white',
                 dragging === idx && 'opacity-40'
               )}
             >
@@ -5382,15 +5382,15 @@ function SubItemEditor({
                 {thumb ? (
                   <img src={thumb} className="w-7 h-7 rounded-lg object-cover shrink-0 border border-gray-100" alt="" />
                 ) : (
-                  <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
-                    <span className="text-violet-600 font-bold text-[10px]">{(title[0] || '?').toUpperCase()}</span>
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-primary font-bold text-[10px]">{(title[0] || '?').toUpperCase()}</span>
                   </div>
                 )}
                 <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{title}</span>
                 <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => duplicateItem(idx)}
-                    className="p-1 text-gray-400 hover:text-violet-600 transition-colors"
+                    className="p-1 text-gray-400 hover:text-primary transition-colors"
                     title="Duplicate"
                   ><Copy className="w-3 h-3" /></button>
                   <button
@@ -5421,7 +5421,7 @@ function SubItemEditor({
                           type="checkbox"
                           checked={!!item[field.key]}
                           onChange={e => updateItem(idx, { [field.key]: e.target.checked })}
-                          className="rounded accent-violet-600 w-4 h-4"
+                          className="rounded accent-primary w-4 h-4"
                         />
                         <span className="text-xs font-semibold text-gray-700">{field.label}</span>
                       </label>
@@ -5434,7 +5434,7 @@ function SubItemEditor({
                             <button key={opt}
                               onClick={() => updateItem(idx, { [field.key]: Number(opt) || opt })}
                               className={cn('flex-1 py-1 rounded border text-[10px] font-bold transition-colors',
-                                String(item[field.key]) === opt ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300')}
+                                String(item[field.key]) === opt ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40')}
                             >{opt}</button>
                           ))}
                         </div>
@@ -5448,13 +5448,13 @@ function SubItemEditor({
                             <button key={e}
                               onClick={() => updateItem(idx, { [field.key]: e })}
                               className={cn('w-8 h-8 rounded-lg text-base border-2 transition-all hover:scale-110',
-                                item[field.key] === e ? 'border-violet-500 bg-violet-50' : 'border-transparent bg-white hover:border-violet-200')}
+                                item[field.key] === e ? 'border-primary bg-accent' : 'border-transparent bg-white hover:border-primary/30')}
                             >{e}</button>
                           ))}
                           <input
                             value={item[field.key] || ''}
                             onChange={e => updateItem(idx, { [field.key]: e.target.value })}
-                            className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-violet-400"
+                            className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring"
                             placeholder="or type"
                           />
                         </div>
@@ -5467,7 +5467,7 @@ function SubItemEditor({
                           value={item[field.key] || ''}
                           onChange={e => updateItem(idx, { [field.key]: e.target.value })}
                           rows={2}
-                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-300 resize-y leading-relaxed"
+                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring resize-y leading-relaxed"
                         />
                       </div>
                     )
@@ -5479,7 +5479,7 @@ function SubItemEditor({
                           type={field.type === 'number' ? 'number' : 'text'}
                           value={item[field.key] || ''}
                           onChange={e => updateItem(idx, { [field.key]: e.target.value })}
-                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-violet-300"
+                          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                     )
@@ -5558,7 +5558,7 @@ function PropsInputRow({
     isEditingRef.current = true
   }
 
-  const inputClass = "w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white text-gray-800 placeholder-gray-400 leading-relaxed"
+  const inputClass = "w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-white text-gray-800 placeholder-gray-400 leading-relaxed"
 
   return (
     <div className="space-y-1.5">
@@ -5584,7 +5584,7 @@ function PropsInputRow({
               'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all border',
               linkTarget
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                : 'bg-white text-gray-500 border-gray-200 hover:text-violet-700 hover:border-violet-300 hover:bg-violet-50',
+                : 'bg-white text-gray-500 border-gray-200 hover:text-primary hover:border-primary/40 hover:bg-accent',
             )}
             title={linkTarget ? `Linked to ${linkTarget}` : 'Insert link'}
           >
@@ -5598,8 +5598,8 @@ function PropsInputRow({
           className={cn(
             'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all',
             queued > 0
-              ? 'bg-violet-600 text-white shadow-sm'
-              : 'text-violet-600 hover:bg-violet-50 border border-violet-200'
+              ? 'bg-primary text-white shadow-sm'
+              : 'text-primary hover:bg-accent border border-primary/30'
           )}
           title={queued > 0 ? `Apply next suggestion (${queued} more queued)` : 'Generate with AI'}
         >
@@ -5728,7 +5728,7 @@ function BlockBreakpointStyles({
             <button
               key={b}
               onClick={() => setBp(b)}
-              className={cn('px-2 py-1 font-medium transition-colors', bp === b ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-gray-50')}
+              className={cn('px-2 py-1 font-medium transition-colors', bp === b ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50')}
             >
               {b === 'desktop' ? '🖥' : b === 'tablet' ? '📱' : '📲'}
             </button>
@@ -5751,7 +5751,7 @@ function BlockBreakpointStyles({
               <input type="range" min={min} max={max} step={step}
                 value={(bpStyle[key] as number) ?? 0}
                 onChange={e => updateBpProp(key, Number(e.target.value))}
-                className="flex-1 accent-violet-600 h-1" />
+                className="flex-1 accent-primary h-1" />
               <span className="text-[10px] text-gray-400 w-8 text-right">{(bpStyle[key] as number) ?? 0}</span>
             </>
           )}
@@ -5813,7 +5813,7 @@ function BranchVisibilitySelector({
     <div className="pt-1">
       <button
         onClick={() => setOpen(o => !o)}
-        className="text-xs text-violet-600 hover:text-violet-800 flex items-center gap-1"
+        className="text-xs text-primary hover:text-primary flex items-center gap-1"
       >
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
         {allSelected ? 'All branches' : `${selectedSet.size} branch${selectedSet.size !== 1 ? 'es' : ''}`}
@@ -5824,14 +5824,14 @@ function BranchVisibilitySelector({
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={allSelected}
               onChange={() => onChange(null)}
-              className="rounded accent-violet-600" />
+              className="rounded accent-primary" />
             <span className="text-xs text-gray-600">All branches</span>
           </label>
           {branches.map(b => (
             <label key={b.code} className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={allSelected || selectedSet.has(b.code)}
                 onChange={() => toggle(b.code)}
-                className="rounded accent-violet-600" />
+                className="rounded accent-primary" />
               <span className="text-xs text-gray-600">{b.name} ({b.code})</span>
             </label>
           ))}
@@ -5932,7 +5932,7 @@ function PropsEditor({
         // Dark with glow
         { bg_style: 'dark', block_shadow: SHADOW_PRESETS[4].value },
         // Colorful split
-        { bg_style: 'split', bg_color: '#faf5ff', block_shadow: SHADOW_PRESETS[1].value },
+        { bg_style: 'split', bg_color: '#f3fbf7', block_shadow: SHADOW_PRESETS[1].value },
       ]
       const picked = designs[Math.floor(Math.random() * designs.length)]
       // Also generate fresh headline/title
@@ -6017,7 +6017,7 @@ function PropsEditor({
             onClick={() => onUpdate({ bg_style: s as any })}
             className={cn(
               'py-1.5 text-[9px] font-bold rounded border transition-colors',
-              p.bg_style === s ? 'bg-violet-600 text-white border-violet-600' : 'text-gray-500 border-gray-200 hover:border-violet-300'
+              p.bg_style === s ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40'
             )}
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -6039,7 +6039,7 @@ function PropsEditor({
             title={g.label}
             className={cn(
               'aspect-square rounded-lg border-2 transition-all',
-              (p as any).gradient_preset === g.value ? 'border-violet-500 scale-105' : 'border-transparent hover:border-violet-300'
+              (p as any).gradient_preset === g.value ? 'border-primary scale-105' : 'border-transparent hover:border-primary/40'
             )}
             style={{ background: g.value }}
           />
@@ -6048,13 +6048,13 @@ function PropsEditor({
       <div className="grid grid-cols-2 gap-1.5">
         <div>
           <label className="text-[10px] text-gray-500">From</label>
-          <input type="color" value={(p as any).gradient_from || '#7c3aed'}
+          <input type="color" value={(p as any).gradient_from || '#64C3A0'}
             onChange={e => onUpdate({ gradient_from: e.target.value } as any)}
             className="w-full h-8 rounded border border-gray-200 cursor-pointer p-0.5" />
         </div>
         <div>
           <label className="text-[10px] text-gray-500">To</label>
-          <input type="color" value={(p as any).gradient_to || '#4c1d95'}
+          <input type="color" value={(p as any).gradient_to || '#13624A'}
             onChange={e => onUpdate({ gradient_to: e.target.value } as any)}
             className="w-full h-8 rounded border border-gray-200 cursor-pointer p-0.5" />
         </div>
@@ -6092,7 +6092,7 @@ function PropsEditor({
           className={cn(
             'relative rounded-xl overflow-hidden border-2 transition-all',
             currentUrl && resolved && imgOk
-              ? 'border-violet-200 bg-gray-100'
+              ? 'border-primary/30 bg-gray-100'
               : 'border-dashed border-gray-200 bg-gray-50 flex items-center justify-center'
           )}
           style={{ minHeight: currentUrl && resolved && imgOk ? undefined : '96px' }}
@@ -6135,7 +6135,7 @@ function PropsEditor({
           defaultValue={currentUrl || ''}
           onBlur={e => { onUpdate({ [fieldKey]: e.target.value }); setImgOk(true) }}
           placeholder="Paste URL or use Media tab →"
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-300 font-mono"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono"
         />
         {hint && <p className="text-[10px] text-gray-400">{hint}</p>}
       </div>
@@ -6175,7 +6175,7 @@ function PropsEditor({
           <button key={l}
             onClick={() => onUpdate({ layout: l })}
             className={cn('py-1.5 text-[10px] font-bold rounded border transition-colors',
-              p.layout === l ? 'bg-violet-600 text-white border-violet-600' : 'text-gray-500 border-gray-200 hover:border-violet-300')}
+              p.layout === l ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40')}
           >{l.charAt(0).toUpperCase() + l.slice(1)}</button>
         ))}
       </div>
@@ -6192,11 +6192,11 @@ function PropsEditor({
     <div className="space-y-4 p-4">
       {/* Header + Smart Design */}
       <div className="flex items-center gap-2">
-        <div className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded text-[10px] font-bold uppercase flex-1">{block.label || block.block_type}</div>
+        <div className="px-2 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase flex-1">{block.label || block.block_type}</div>
         <button
           onClick={handleSmartDesign}
           disabled={smartLoading}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-blue-500 text-white text-[10px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-primary to-info text-white text-[10px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
           title="AI: Generate smart design for this block"
         >
           {smartLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
@@ -6213,9 +6213,9 @@ function PropsEditor({
               <button
                 key={i}
                 onClick={() => { onUpdate(preset.props as any); toast.success(`"${preset.label}" preset applied!`) }}
-                className="py-2 px-3 rounded-xl border border-gray-200 hover:border-violet-300 hover:bg-violet-50 text-left transition-all group"
+                className="py-2 px-3 rounded-xl border border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-all group"
               >
-                <div className="text-[10px] font-bold text-gray-700 group-hover:text-violet-700">{preset.label}</div>
+                <div className="text-[10px] font-bold text-gray-700 group-hover:text-primary">{preset.label}</div>
                 {preset.desc && <div className="text-[9px] text-gray-400 mt-0.5">{preset.desc}</div>}
               </button>
             ))}
@@ -6225,9 +6225,9 @@ function PropsEditor({
 
       {/* Whole-block click target */}
       {onEditPropLink && (
-        <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-3 space-y-2">
+        <div className="rounded-xl border border-primary/20 bg-accent/80 p-3 space-y-2">
           <div className="flex items-start gap-2">
-            <div className="w-7 h-7 rounded-lg bg-white border border-violet-100 flex items-center justify-center text-violet-600 shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-white border border-primary/20 flex items-center justify-center text-primary shrink-0">
               <Link2 className="w-3.5 h-3.5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -6247,7 +6247,7 @@ function PropsEditor({
               'w-full py-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-colors',
               (p as any).block_link_url
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                : 'bg-white text-violet-700 border-violet-200 hover:bg-violet-50',
+                : 'bg-white text-primary border-primary/30 hover:bg-accent',
             )}
             title={(p as any).block_link_url ? `Linked to ${(p as any).block_link_url}` : 'Insert block link'}
           >
@@ -6288,14 +6288,14 @@ function PropsEditor({
                 onUpdate({ nav_links: synced } as any)
                 toast.success('Nav synced with all pages!')
               }}
-              className="flex items-center gap-1 text-[10px] text-violet-600 hover:text-violet-800 font-semibold"
+              className="flex items-center gap-1 text-[10px] text-primary hover:text-primary font-semibold"
             >
               <RefreshCw className="w-3 h-3" /> Sync All
             </button>
             {onAddPage && (
               <button
                 onClick={onAddPage}
-                className="flex items-center gap-1 text-[10px] text-violet-600 hover:text-violet-800 font-semibold"
+                className="flex items-center gap-1 text-[10px] text-primary hover:text-primary font-semibold"
               >
                 <Plus className="w-3 h-3" /> New Page
               </button>
@@ -6323,8 +6323,8 @@ function PropsEditor({
                     className={cn(
                       'shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors',
                       isInNav
-                        ? 'bg-violet-100 text-violet-700 border-violet-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
-                        : 'bg-white text-gray-500 border-gray-200 hover:border-violet-400 hover:bg-violet-50 hover:text-violet-700'
+                        ? 'bg-primary/10 text-primary border-primary/40 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-primary/60 hover:bg-accent hover:text-primary'
                     )}
                   >
                     {isInNav ? '✓ In Nav' : '+ Add'}
@@ -6342,7 +6342,7 @@ function PropsEditor({
         <div className="pb-2 border-b border-gray-100">
           <button
             onClick={onAddPage}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-violet-200 rounded-xl text-xs text-violet-600 font-semibold hover:border-violet-400 hover:bg-violet-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-primary/30 rounded-xl text-xs text-primary font-semibold hover:border-primary/60 hover:bg-accent transition-colors"
           >
             <Plus className="w-4 h-4" /> Add your first page
           </button>
@@ -6388,7 +6388,7 @@ function PropsEditor({
               title={sh.label}
               className={cn(
                 'py-2 rounded-lg border text-[9px] font-bold transition-all text-center',
-                (p as any).block_shadow === sh.value ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500 hover:border-violet-300'
+                (p as any).block_shadow === sh.value ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40'
               )}
               style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
             >
@@ -6418,7 +6418,7 @@ function PropsEditor({
                     set(n)
                     onUpdate({ [key]: n } as any)
                   }}
-                  className="w-14 px-1.5 py-0.5 border border-gray-200 rounded text-[11px] font-mono text-center focus:outline-none focus:ring-1 focus:ring-violet-400"
+                  className="w-14 px-1.5 py-0.5 border border-gray-200 rounded text-[11px] font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 <span className="text-[10px] text-gray-400">px</span>
               </div>
@@ -6432,7 +6432,7 @@ function PropsEditor({
                   set(n)
                   onUpdate({ [key]: n } as any)
                 }}
-                className="w-full accent-violet-600 h-2 rounded-full cursor-pointer"
+                className="w-full accent-primary h-2 rounded-full cursor-pointer"
               />
               {/* Tick marks at key positions */}
               <div className="flex justify-between mt-0.5 px-0.5">
@@ -6448,7 +6448,7 @@ function PropsEditor({
       {/* Origins / Section Shape Dividers */}
       <div className="space-y-3 pt-1 border-t border-gray-100">
         <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
-          <svg viewBox="0 0 20 10" className="w-4 h-4 fill-current text-violet-500"><path d="M0,10 C5,0 10,10 15,3 C17,1 18,5 20,4 L20,10 Z"/></svg>
+          <svg viewBox="0 0 20 10" className="w-4 h-4 fill-current text-primary/80"><path d="M0,10 C5,0 10,10 15,3 C17,1 18,5 20,4 L20,10 Z"/></svg>
           Origins (Section Shapes)
         </label>
         <div className="space-y-2.5">
@@ -6460,8 +6460,8 @@ function PropsEditor({
                   onClick={() => onUpdate({ top_shape: id === 'none' ? null : id } as any)}
                   className={cn('py-1.5 px-1 text-[9px] font-semibold rounded border transition-colors text-center truncate',
                     ((p as any).top_shape || 'none') === id
-                      ? 'bg-violet-600 text-white border-violet-600'
-                      : 'text-gray-500 border-gray-200 hover:border-violet-300')}
+                      ? 'bg-primary text-white border-primary'
+                      : 'text-gray-500 border-gray-200 hover:border-primary/40')}
                 >{label}</button>
               ))}
             </div>
@@ -6474,8 +6474,8 @@ function PropsEditor({
                   onClick={() => onUpdate({ bottom_shape: id === 'none' ? null : id } as any)}
                   className={cn('py-1.5 px-1 text-[9px] font-semibold rounded border transition-colors text-center truncate',
                     ((p as any).bottom_shape || 'none') === id
-                      ? 'bg-violet-600 text-white border-violet-600'
-                      : 'text-gray-500 border-gray-200 hover:border-violet-300')}
+                      ? 'bg-primary text-white border-primary'
+                      : 'text-gray-500 border-gray-200 hover:border-primary/40')}
                 >{label}</button>
               ))}
             </div>
@@ -6571,7 +6571,7 @@ function PropsEditor({
                 className={cn(
                   'w-full text-left px-3 py-2 text-xs transition-colors border-b border-gray-800 last:border-b-0',
                   currentTextCaseMenuId(p as any) === row.id
-                    ? 'bg-violet-600 text-white'
+                    ? 'bg-primary text-white'
                     : 'text-gray-100 hover:bg-gray-800',
                 )}
               >
@@ -6660,7 +6660,7 @@ function PropsEditor({
               type="checkbox"
               checked={(block as any)[key]}
               onChange={e => onUpdate({ [key]: e.target.checked } as any)}
-              className="rounded accent-violet-600"
+              className="rounded accent-primary"
             />
             <span className="text-xs text-gray-600">{label}</span>
           </label>
@@ -6696,7 +6696,7 @@ function PropsEditor({
             <button key={a.id}
               onClick={() => onUpdate({ animation: a.id === 'none' ? null : a.id } as any)}
               className={cn('py-1.5 px-1 text-[9px] font-semibold rounded-lg border transition-colors text-center',
-                (block.animation || 'none') === a.id ? 'bg-violet-600 text-white border-violet-600' : 'text-gray-500 border-gray-200 hover:border-violet-300')}
+                (block.animation || 'none') === a.id ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40')}
             >{a.label}</button>
           ))}
         </div>
@@ -6706,7 +6706,7 @@ function PropsEditor({
               <label className="text-[10px] text-gray-500 w-16 shrink-0">Delay (ms)</label>
               <input type="range" min={0} max={1000} step={100} defaultValue={block.animation_delay || 0}
                 onChange={e => onUpdate({ animation_delay: Number(e.target.value) } as any)}
-                className="flex-1 accent-violet-600 h-1" />
+                className="flex-1 accent-primary h-1" />
               <span className="text-[10px] text-gray-500 w-10 text-right">{block.animation_delay || 0}ms</span>
             </div>
           </div>
@@ -6721,7 +6721,7 @@ function PropsEditor({
 const SITE_THEME_PRESETS = [
   {
     label: 'Violet Pro',
-    colors: { primary_color: '#7c3aed', secondary_color: '#4c1d95', accent_color: '#f59e0b', bg_color: '#faf5ff', surface_color: '#ffffff', text_color: '#1e1b4b' },
+    colors: { primary_color: '#64C3A0', secondary_color: '#13624A', accent_color: '#f59e0b', bg_color: '#f3fbf7', surface_color: '#ffffff', text_color: '#1e1b4b' },
   },
   {
     label: 'Ocean Blue',
@@ -6787,7 +6787,7 @@ function StylePanel({
             onClick={() => setStyleDetailsExpanded(false)}
             className={cn(
               'flex-1 py-2 text-xs font-semibold rounded-lg transition-all',
-              !styleDetailsExpanded ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              !styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
             )}
           >
             Fewer
@@ -6797,7 +6797,7 @@ function StylePanel({
             onClick={() => setStyleDetailsExpanded(true)}
             className={cn(
               'flex-1 py-2 text-xs font-semibold rounded-lg transition-all',
-              styleDetailsExpanded ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
             )}
           >
             Expanded
@@ -6817,7 +6817,7 @@ function StylePanel({
           <button
             onClick={handleAITheme}
             disabled={aiTheme.isPending}
-            className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-bold bg-gradient-to-r from-violet-500 to-blue-500 text-white hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-bold bg-gradient-to-r from-primary to-info text-white hover:opacity-90 disabled:opacity-50"
           >
             {aiTheme.isPending ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Wand2 className="w-2.5 h-2.5" />}
             AI Theme
@@ -6829,7 +6829,7 @@ function StylePanel({
               key={t.label}
               onClick={() => onChange(t.colors as any)}
               title={t.label}
-              className="rounded-lg overflow-hidden border-2 border-transparent hover:border-violet-400 transition-all"
+              className="rounded-lg overflow-hidden border-2 border-transparent hover:border-primary/60 transition-all"
             >
               <div className="h-8 grid grid-cols-3">
                 <div style={{ background: t.colors.primary_color }} />
@@ -6878,7 +6878,7 @@ function StylePanel({
             <button key={t}
               onClick={() => setGradientTab(t)}
               className={cn('flex-1 py-1 text-[10px] font-bold rounded border transition-colors',
-                gradientTab === t ? 'bg-violet-600 text-white border-violet-600' : 'text-gray-500 border-gray-200')}
+                gradientTab === t ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200')}
             >{t === 'presets' ? 'Presets' : 'Custom'}</button>
           ))}
         </div>
@@ -6890,7 +6890,7 @@ function StylePanel({
                 onClick={() => onChange({ site_gradient: g.value } as any)}
                 title={g.label}
                 className={cn('h-10 rounded-lg border-2 transition-all',
-                  (style as any).site_gradient === g.value ? 'border-violet-500 scale-105 shadow-lg' : 'border-transparent hover:border-violet-300')}
+                  (style as any).site_gradient === g.value ? 'border-primary scale-105 shadow-lg' : 'border-transparent hover:border-primary/40')}
                 style={{ background: g.value }}
               />
             ))}
@@ -6900,13 +6900,13 @@ function StylePanel({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] text-gray-500">From Color</label>
-                <input type="color" value={(style as any).gradient_from || '#7c3aed'}
+                <input type="color" value={(style as any).gradient_from || '#64C3A0'}
                   onChange={e => onChange({ gradient_from: e.target.value } as any)}
                   className="w-full h-9 rounded border border-gray-200 cursor-pointer p-0.5" />
               </div>
               <div>
                 <label className="text-[10px] text-gray-500">To Color</label>
-                <input type="color" value={(style as any).gradient_to || '#4c1d95'}
+                <input type="color" value={(style as any).gradient_to || '#13624A'}
                   onChange={e => onChange({ gradient_to: e.target.value } as any)}
                   className="w-full h-9 rounded border border-gray-200 cursor-pointer p-0.5" />
               </div>
@@ -6922,7 +6922,7 @@ function StylePanel({
             </select>
             <div
               className="h-10 rounded-lg border border-gray-200"
-              style={{ background: `linear-gradient(${(style as any).gradient_dir || '135deg'}, ${(style as any).gradient_from || '#7c3aed'}, ${(style as any).gradient_to || '#4c1d95'})` }}
+              style={{ background: `linear-gradient(${(style as any).gradient_dir || '135deg'}, ${(style as any).gradient_from || '#64C3A0'}, ${(style as any).gradient_to || '#13624A'})` }}
             />
           </div>
         )}
@@ -6944,7 +6944,7 @@ function StylePanel({
               onClick={() => onChange({ shadow_style: sh.value } as any)}
               title={sh.label}
               className={cn('py-2 rounded-lg border text-[9px] font-bold transition-all text-center',
-                (style as any).shadow_style === sh.value ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500 hover:border-violet-300'
+                (style as any).shadow_style === sh.value ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40'
               )}
               style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
             >
@@ -6993,7 +6993,7 @@ function StylePanel({
                     key={v}
                     onClick={() => onChange({ [key]: v } as any)}
                     className={cn('py-1.5 text-[9px] font-bold rounded border transition-colors',
-                      (style as any)[key] === v ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
+                      (style as any)[key] === v ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
                     )}
                   >
                     {v.charAt(0).toUpperCase() + v.slice(1)}
@@ -7035,7 +7035,7 @@ function StylePanel({
               <input type="range" min={min} max={max} step={step}
                 value={(style as any)[key] || (min + max) / 2}
                 onChange={e => onChange({ [key]: Number(e.target.value) } as any)}
-                className="flex-1 accent-violet-600 h-1" />
+                className="flex-1 accent-primary h-1" />
               <span className="text-[10px] text-gray-400 w-12 text-right">{(style as any)[key] || (min + max) / 2}{unit}</span>
             </div>
           ))}
@@ -7050,7 +7050,7 @@ function StylePanel({
             type="checkbox"
             checked={(style as any).dark_mode_enabled || false}
             onChange={e => onChange({ dark_mode_enabled: e.target.checked } as any)}
-            className="rounded accent-violet-600"
+            className="rounded accent-primary"
           />
           <span className="text-xs text-gray-600">Enable dark mode toggle for visitors</span>
         </label>
@@ -7137,16 +7137,16 @@ function CheckoutStyleSection({
               className={cn(
                 'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all',
                 current === o.id || (!current && o.id === 'two-column')
-                  ? 'border-violet-500 bg-violet-50'
-                  : 'border-gray-200 hover:border-violet-300 bg-white',
+                  ? 'border-primary bg-accent'
+                  : 'border-gray-200 hover:border-primary/40 bg-white',
               )}
             >
               <div>
-                <div className={cn('text-xs font-semibold', current === o.id || (!current && o.id === 'two-column') ? 'text-violet-700' : 'text-gray-700')}>{o.label}</div>
+                <div className={cn('text-xs font-semibold', current === o.id || (!current && o.id === 'two-column') ? 'text-primary' : 'text-gray-700')}>{o.label}</div>
                 <div className="text-[10px] text-gray-400 mt-0.5">{o.desc}</div>
               </div>
               {(current === o.id || (!current && o.id === 'two-column')) && (
-                <div className="w-3.5 h-3.5 rounded-full bg-violet-600 flex items-center justify-center shrink-0">
+                <div className="w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center shrink-0">
                   <svg className="w-2 h-2 text-white" viewBox="0 0 12 12" fill="none">
                     <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -7181,7 +7181,7 @@ function CheckoutStyleSection({
                   placeholder={`e.g. ${key === '--radius-md' ? '10px' : key.includes('font') ? 'Inter' : '222 47% 11%'}`}
                   value={overrides[key] ?? ''}
                   onChange={e => setTokenOverride(key, e.target.value)}
-                  className="w-full px-2 py-1.5 text-[11px] border border-gray-200 rounded-lg focus:border-violet-400 focus:outline-none font-mono"
+                  className="w-full px-2 py-1.5 text-[11px] border border-gray-200 rounded-lg focus:border-primary/60 focus:outline-none font-mono"
                 />
               </div>
             ))}
@@ -7375,7 +7375,7 @@ function DataSourcePanel({
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-2 mb-1">
-        <Database className="w-4 h-4 text-violet-500" />
+        <Database className="w-4 h-4 text-primary/80" />
         <span className="text-xs font-bold text-gray-700">Data Connections</span>
       </div>
       <p className="text-[10px] text-gray-400">Connect <strong>{block.label || block.block_type}</strong> to live KITERP data or any external API.</p>
@@ -7384,7 +7384,7 @@ function DataSourcePanel({
       {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
         <button
           onClick={handleAutoConnect}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-xs font-bold hover:opacity-90 transition-opacity"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r from-primary to-emerald-700 text-white text-xs font-bold hover:opacity-90 transition-opacity"
         >
           <Zap className="w-3.5 h-3.5" />
           Auto-connect to {DATA_SOURCES.find(s => s.id === BLOCK_AUTO_SOURCE[block.block_type as string])?.label}
@@ -7416,16 +7416,16 @@ function DataSourcePanel({
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all',
                   normalizedDsType === source.id
-                    ? 'border-violet-300 bg-violet-50'
-                    : 'border-emerald-100 hover:border-violet-200 hover:bg-violet-50/40 bg-emerald-50/30'
+                    ? 'border-primary/40 bg-accent'
+                    : 'border-emerald-100 hover:border-primary/30 hover:bg-accent/70 bg-emerald-50/30'
                 )}
               >
-                <source.icon className="w-4 h-4 text-violet-500 shrink-0" />
+                <source.icon className="w-4 h-4 text-primary/80 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-gray-700">{source.label}</div>
                   <div className="text-[10px] text-gray-400">{source.desc}</div>
                 </div>
-                {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-violet-500" />}
+                {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-primary/80" />}
               </button>
             ))}
           </div>
@@ -7443,8 +7443,8 @@ function DataSourcePanel({
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all',
                 normalizedDsType === source.id
-                  ? 'border-violet-300 bg-violet-50'
-                  : 'border-gray-100 hover:border-violet-200 hover:bg-gray-50'
+                  ? 'border-primary/40 bg-accent'
+                  : 'border-gray-100 hover:border-primary/30 hover:bg-gray-50'
               )}
             >
               <source.icon className="w-4 h-4 text-gray-500 shrink-0" />
@@ -7452,7 +7452,7 @@ function DataSourcePanel({
                 <div className="text-xs font-semibold text-gray-700">{source.label}</div>
                 <div className="text-[10px] text-gray-400">{source.desc}</div>
               </div>
-              {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-violet-500" />}
+              {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-primary/80" />}
             </button>
           ))}
         </div>
@@ -7479,13 +7479,13 @@ function DataSourcePanel({
             <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
               Pick Items {(ds?.selected_ids?.length || 0) > 0 ? `(${ds.selected_ids.length})` : '(all)'}
             </div>
-            <button onClick={refreshInternal} className="text-[10px] text-violet-500 flex items-center gap-1">
+            <button onClick={refreshInternal} className="text-[10px] text-primary/80 flex items-center gap-1">
               <RefreshCcw className="w-3 h-3" /> Refresh
             </button>
           </div>
           {loadingInternal ? (
             <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
+              <Loader2 className="w-4 h-4 animate-spin text-primary/80" />
             </div>
           ) : (
             <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-100 rounded-lg p-2">
@@ -7495,7 +7495,7 @@ function DataSourcePanel({
                     type="checkbox"
                     checked={(ds?.selected_ids || []).includes(item.id)}
                     onChange={() => handleToggleItem(item.id)}
-                    className="rounded text-violet-600"
+                    className="rounded text-primary"
                   />
                   {item.image_url && (
                     <img src={mediaUrl(item.image_url)} className="w-7 h-7 rounded object-cover shrink-0" alt="" />
@@ -7521,12 +7521,12 @@ function DataSourcePanel({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Live Preview</div>
-            <button onClick={refreshInternal} className="text-[10px] text-violet-500 flex items-center gap-1">
+            <button onClick={refreshInternal} className="text-[10px] text-primary/80 flex items-center gap-1">
               <RefreshCcw className="w-3 h-3" /> Refresh
             </button>
           </div>
           {loadingInternal ? (
-            <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-violet-500" /></div>
+            <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-primary/80" /></div>
           ) : (
             <div className="max-h-40 overflow-y-auto space-y-1 border border-gray-100 rounded-lg p-2">
               {liveItems.slice(0, 10).map(item => (
@@ -7555,7 +7555,7 @@ function DataSourcePanel({
               value={apiUrl}
               onChange={e => setApiUrl(e.target.value)}
               placeholder="https://api.example.com/products"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-300"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="space-y-1">
@@ -7573,7 +7573,7 @@ function DataSourcePanel({
               <label className="text-xs font-medium text-gray-600">Headers</label>
               <button
                 onClick={() => setApiHeaders(prev => [...prev, { key: '', value: '' }])}
-                className="text-[10px] text-violet-500 hover:text-violet-700"
+                className="text-[10px] text-primary/80 hover:text-primary"
               >
                 + Add
               </button>
@@ -7602,14 +7602,14 @@ function DataSourcePanel({
               value={apiField}
               onChange={e => setApiField(e.target.value)}
               placeholder="e.g. data.items or results"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-300"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleTestApi}
               disabled={!apiUrl || loadingPreview}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-violet-200 text-violet-700 text-xs font-semibold hover:bg-violet-50 disabled:opacity-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/30 text-primary text-xs font-semibold hover:bg-accent disabled:opacity-50 transition-colors"
             >
               {loadingPreview ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plug className="w-3 h-3" />}
               Test
@@ -7617,7 +7617,7 @@ function DataSourcePanel({
             <button
               onClick={handleSaveApi}
               disabled={!apiUrl}
-              className="flex-1 py-2 rounded-lg bg-violet-600 text-white text-xs font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              className="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               Save
             </button>
@@ -7864,7 +7864,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   return (
     <div
       ref={barRef}
-      className="absolute top-0 left-0 right-0 z-[80] flex min-h-[38px] items-center gap-1.5 overflow-x-auto overflow-y-visible border-t-2 border-violet-600 border-b border-violet-200 bg-white px-2 py-1.5 pr-[20rem] shadow-sm"
+      className="absolute top-0 left-0 right-0 z-[80] flex min-h-[38px] items-center gap-1.5 overflow-x-auto overflow-y-visible border-t-2 border-primary border-b border-primary/30 bg-white px-2 py-1.5 pr-[20rem] shadow-sm"
       onClick={e => e.stopPropagation()}
     >
       {/* INSERT ELEMENT — primary action: adds elements WITHIN the block */}
@@ -7873,19 +7873,19 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           onClick={() => { setShowInsert(v => !v); setShowBlocks(false); setShowAnim(false); setShowShapes(false); setShowCase(false) }}
           className={cn(
             'flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors',
-            showInsert ? 'bg-violet-700 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
+            showInsert ? 'bg-primary/90 text-white' : 'bg-primary text-white hover:bg-primary/90'
           )}
         >
           <Plus className="w-3 h-3" /> Insert
           {overlayCount > 0 && (
-            <span className="bg-white text-violet-700 rounded-full px-1 text-[8px] font-black ml-0.5">{overlayCount}</span>
+            <span className="bg-white text-primary rounded-full px-1 text-[8px] font-black ml-0.5">{overlayCount}</span>
           )}
         </button>
         {showInsert && (
           <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden w-56">
-            <div className="px-3 py-2 bg-violet-50 border-b border-violet-100">
-              <div className="text-[10px] font-bold text-violet-700">Insert inside this section</div>
-              <div className="text-[9px] text-violet-500 mt-0.5">Elements are draggable & resizable within the block</div>
+            <div className="px-3 py-2 bg-accent border-b border-primary/20">
+              <div className="text-[10px] font-bold text-primary">Insert inside this section</div>
+              <div className="text-[9px] text-primary/80 mt-0.5">Elements are draggable & resizable within the block</div>
             </div>
             <div className="p-2 space-y-0.5">
               {ELEMENT_INSERT_TYPES.map(({ type, label, desc }) => (
@@ -7895,11 +7895,11 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                     addOverlayElement(type, { x: rect.right + 8, y: rect.top })
                   }}
-                  className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-violet-50 transition-colors group"
+                  className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-accent transition-colors group"
                 >
                   <span className="text-base leading-none mt-0.5">{label.split(' ')[0]}</span>
                   <div>
-                    <div className="text-[10px] font-semibold text-gray-800 group-hover:text-violet-700">{label.slice(label.indexOf(' ') + 1)}</div>
+                    <div className="text-[10px] font-semibold text-gray-800 group-hover:text-primary">{label.slice(label.indexOf(' ') + 1)}</div>
                     <div className="text-[9px] text-gray-400">{desc}</div>
                   </div>
                 </button>
@@ -7922,7 +7922,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       <div className="relative">
         <button
           onClick={() => { setShowBlocks(v => !v); setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowCase(false) }}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300 text-gray-600 text-[10px] font-semibold hover:border-violet-400 hover:bg-violet-50 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300 text-gray-600 text-[10px] font-semibold hover:border-primary/60 hover:bg-accent transition-colors"
           title="Add a new block section after this one"
         >
           <Layers className="w-3 h-3" /> Block
@@ -7933,7 +7933,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             {QUICK_INSERT_TYPES.map(({ type, label }) => (
               <button key={type}
                 onMouseDown={e => { e.stopPropagation(); onInsertAfter(type); setShowBlocks(false) }}
-                className="text-left px-2 py-1.5 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors"
+                className="text-left px-2 py-1.5 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-accent hover:text-primary transition-colors"
               >{label}</button>
             ))}
           </div>
@@ -8006,8 +8006,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           className={cn(
             'flex items-center gap-0.5 h-6 px-1.5 rounded-lg border text-[9px] font-bold transition-colors',
             showCase || currentTextCaseMenuId(typographySource as any) !== 'default'
-              ? 'border-violet-500 bg-violet-50 text-violet-800'
-              : 'border-gray-200 text-gray-600 hover:border-violet-300 hover:bg-violet-50',
+              ? 'border-primary bg-accent text-primary'
+              : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-accent',
           )}
         >
           Aa
@@ -8025,7 +8025,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 className={cn(
                   'w-full text-left px-3 py-2 text-xs transition-colors',
                   currentTextCaseMenuId(typographySource as any) === row.id
-                    ? 'bg-violet-600 text-white'
+                    ? 'bg-primary text-white'
                     : 'text-gray-100 hover:bg-gray-800',
                 )}
                 onMouseDown={e => {
@@ -8096,7 +8096,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors border',
             block.animation && block.animation !== 'none'
               ? 'bg-blue-100 text-blue-700 border-blue-200'
-              : 'text-gray-500 border-gray-200 hover:border-violet-300 hover:bg-violet-50')}
+              : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent')}
         >
           <Zap className="w-3 h-3" />
           {block.animation && block.animation !== 'none' ? block.animation.replace('-', ' ') : 'Anim'}
@@ -8111,8 +8111,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                   title={title}
                   className={cn('w-8 h-8 text-sm rounded-lg border transition-colors flex items-center justify-center',
                     (block.animation || 'none') === id
-                      ? 'bg-violet-600 text-white border-violet-600'
-                      : 'text-gray-600 border-gray-200 hover:border-violet-300 hover:bg-violet-50')}
+                      ? 'bg-primary text-white border-primary'
+                      : 'text-gray-600 border-gray-200 hover:border-primary/40 hover:bg-accent')}
                 >{label}</button>
               ))}
             </div>
@@ -8122,7 +8122,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 <input type="range" min={0} max={1000} step={100}
                   defaultValue={block.animation_delay || 0}
                   onChange={e => onUpdate({ animation_delay: Number(e.target.value) } as any)}
-                  className="flex-1 accent-violet-600 h-1"
+                  className="flex-1 accent-primary h-1"
                 />
                 <span className="text-[9px] text-gray-500 w-10">{block.animation_delay || 0}ms</span>
               </div>
@@ -8141,7 +8141,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors border',
             ((p as any).top_shape && (p as any).top_shape !== 'none') || ((p as any).bottom_shape && (p as any).bottom_shape !== 'none')
               ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-              : 'text-gray-500 border-gray-200 hover:border-violet-300 hover:bg-violet-50')}
+              : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent')}
         >
           <svg viewBox="0 0 20 10" className="w-4 h-3 fill-current"><path d="M0,10 C5,0 10,10 15,3 C17,1 18,5 20,4 L20,10 Z"/></svg>
           Origins
@@ -8156,8 +8156,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     onClick={() => onUpdate({ top_shape: id === 'none' ? null : id } as any)}
                     className={cn('py-1 px-1 text-[9px] font-semibold rounded border transition-colors text-center truncate',
                       ((p as any).top_shape || 'none') === id
-                        ? 'bg-violet-600 text-white border-violet-600'
-                        : 'text-gray-500 border-gray-200 hover:border-violet-300')}
+                        ? 'bg-primary text-white border-primary'
+                        : 'text-gray-500 border-gray-200 hover:border-primary/40')}
                   >{label}</button>
                 ))}
               </div>
@@ -8168,8 +8168,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     onClick={() => onUpdate({ bottom_shape: id === 'none' ? null : id } as any)}
                     className={cn('py-1 px-1 text-[9px] font-semibold rounded border transition-colors text-center truncate',
                       ((p as any).bottom_shape || 'none') === id
-                        ? 'bg-violet-600 text-white border-violet-600'
-                        : 'text-gray-500 border-gray-200 hover:border-violet-300')}
+                        ? 'bg-primary text-white border-primary'
+                        : 'text-gray-500 border-gray-200 hover:border-primary/40')}
                   >{label}</button>
                 ))}
               </div>
@@ -9709,7 +9709,7 @@ export default function WebsiteBuilder() {
           <span className="flex flex-col gap-1">
             <span className="font-semibold">🎉 Site published!</span>
             <span className="text-xs flex items-center gap-1.5">
-              <span className="text-violet-300 font-mono">{siteTestUrl}</span>
+              <span className="text-primary/50 font-mono">{siteTestUrl}</span>
               <button
                 className="underline text-white"
                 onClick={async () => { await navigator.clipboard.writeText(siteTestUrl).catch(() => {}); toast.success('URL copied!') }}
@@ -9940,7 +9940,7 @@ export default function WebsiteBuilder() {
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary/80" />
       </div>
     )
   }
@@ -10143,7 +10143,7 @@ export default function WebsiteBuilder() {
           {/* Preview chrome */}
           <div className="flex items-center gap-3 px-5 h-12 bg-gray-900 border-b border-gray-800 shrink-0">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <Eye className="w-4 h-4 text-violet-400 shrink-0" />
+              <Eye className="w-4 h-4 text-primary/70 shrink-0" />
               <span className="text-sm font-bold text-white truncate">{site.name}</span>
               <span className="text-gray-400 text-xs">—</span>
               <span className="text-gray-400 text-xs font-medium">{activePage?.title || 'Home'}</span>
@@ -10155,7 +10155,7 @@ export default function WebsiteBuilder() {
                   key={d}
                   onClick={() => setDevice(d)}
                   title={label}
-                  className={cn('flex items-center gap-1 px-2.5 py-1.5 rounded text-xs transition-colors', device === d ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white')}
+                  className={cn('flex items-center gap-1 px-2.5 py-1.5 rounded text-xs transition-colors', device === d ? 'bg-primary text-white' : 'text-gray-400 hover:text-white')}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">{label}</span>
@@ -10171,7 +10171,7 @@ export default function WebsiteBuilder() {
                   onClick={() => { setActivePageId(p.id); setSelectedBlockId(null) }}
                   className={cn(
                     'px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all',
-                    activePageId === p.id ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
+                    activePageId === p.id ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                   )}
                 >
                   {p.title}
@@ -10217,7 +10217,7 @@ export default function WebsiteBuilder() {
             >
               {sfOverlayLoading && (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-gray-500 text-sm">
-                  <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+                  <Loader2 className="w-8 h-8 animate-spin text-primary/80" />
                   <span>Loading storefront preview…</span>
                 </div>
               )}
@@ -10265,7 +10265,7 @@ export default function WebsiteBuilder() {
 
           {/* Site name */}
           <div className="flex items-center gap-2 min-w-0">
-            <Globe className="w-4 h-4 text-violet-400 shrink-0" />
+            <Globe className="w-4 h-4 text-primary/70 shrink-0" />
             <span className="text-sm font-bold truncate max-w-[180px]">{site.name}</span>
             {isTemplateMode ? (
               <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold tracking-wide bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40 whitespace-nowrap">
@@ -10296,7 +10296,7 @@ export default function WebsiteBuilder() {
               <button
                 key={d}
                 onClick={() => setDevice(d)}
-                className={cn('p-1.5 rounded transition-colors', device === d ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-400 hover:text-white')}
+                className={cn('p-1.5 rounded transition-colors', device === d ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-white')}
               >
                 <Icon className="w-4 h-4" />
               </button>
@@ -10327,11 +10327,11 @@ export default function WebsiteBuilder() {
             title="Open draft on the storefront in a new tab (same link rules as template gallery — uses VITE_STOREFRONT_URL or :3002 in dev)"
             className={cn(
               STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS,
-              openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-violet-50',
+              openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-accent',
             )}
           >
             {openingBrowserPreview ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-700" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
             ) : (
               <ExternalLink className="w-3.5 h-3.5" />
             )}
@@ -10352,7 +10352,7 @@ export default function WebsiteBuilder() {
           {/* AI */}
           <button
             onClick={() => { setRightPanel('ai'); setRightCollapsed(false) }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-blue-600 text-white text-xs font-bold hover:opacity-90 transition-opacity shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary to-info text-white text-xs font-bold hover:opacity-90 transition-opacity shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5" /> AI Studio
           </button>
@@ -10368,7 +10368,7 @@ export default function WebsiteBuilder() {
                 saveFlash
                   ? 'bg-emerald-500 scale-105 shadow-lg shadow-emerald-500/30'
                   : styleDirty || blocksDirty
-                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-md shadow-violet-500/30 animate-pulse'
+                    ? 'bg-gradient-to-r from-primary to-emerald-700 hover:from-primary/90 hover:to-emerald-800 shadow-md shadow-primary/30 animate-pulse'
                     : 'bg-gray-700 hover:bg-gray-600',
                 isSaving && 'opacity-80 cursor-not-allowed'
               )}
@@ -10440,8 +10440,8 @@ export default function WebsiteBuilder() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3">
-                  <Globe className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-                  <span className="text-xs text-violet-700 font-mono truncate flex-1">{siteTestUrl}</span>
+                  <Globe className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+                  <span className="text-xs text-primary font-mono truncate flex-1">{siteTestUrl}</span>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -10479,7 +10479,7 @@ export default function WebsiteBuilder() {
               className={cn(
                 'flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all',
                 activePageId === page.id
-                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/40'
+                  ? 'bg-primary text-white shadow-sm shadow-primary/40'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/70'
               )}
             >
@@ -10527,7 +10527,7 @@ export default function WebsiteBuilder() {
                       key={id}
                       onClick={() => setLeftPanel(id)}
                       title={label}
-                      className={cn('flex-1 py-2.5 flex flex-col items-center gap-0.5 text-[9px] font-semibold transition-colors', leftPanel === id ? 'text-violet-600 border-b-2 border-violet-600' : 'text-gray-400 hover:text-gray-600')}
+                      className={cn('flex-1 py-2.5 flex flex-col items-center gap-0.5 text-[9px] font-semibold transition-colors', leftPanel === id ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600')}
                     >
                       <Icon className="w-4 h-4" />
                     </button>
@@ -10558,7 +10558,7 @@ export default function WebsiteBuilder() {
                         value={blockSearch}
                         onChange={e => setBlockSearch(e.target.value)}
                         placeholder="Search blocks..."
-                        className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-300"
+                        className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                     <div className="flex flex-wrap gap-1">
@@ -10566,7 +10566,7 @@ export default function WebsiteBuilder() {
                         <button
                           key={cat.id}
                           onClick={() => setBlockCategory(cat.id)}
-                          className={cn('px-2 py-0.5 rounded text-[10px] font-semibold transition-colors', blockCategory === cat.id ? 'bg-violet-100 text-violet-700' : 'text-gray-500 hover:bg-gray-100')}
+                          className={cn('px-2 py-0.5 rounded text-[10px] font-semibold transition-colors', blockCategory === cat.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100')}
                         >
                           {cat.label}
                         </button>
@@ -10583,16 +10583,16 @@ export default function WebsiteBuilder() {
                             onDragStart={() => setDraggingNewBlock(def)}
                             onDragEnd={() => setDraggingNewBlock(null)}
                             onClick={() => handleAddBlock(def)}
-                            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-gray-100 hover:border-violet-200 hover:bg-violet-50 cursor-grab active:cursor-grabbing transition-all group"
+                            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-accent cursor-grab active:cursor-grabbing transition-all group"
                             title={liveLabel ? `Auto-connects to ${liveLabel} on drop` : def.desc}
                           >
                             {/* Thumbnail / emoji preview */}
-                            <div className="w-9 h-9 rounded-lg bg-gray-50 group-hover:bg-violet-100 border border-gray-200 group-hover:border-violet-200 flex items-center justify-center shrink-0 transition-colors text-lg leading-none">
+                            <div className="w-9 h-9 rounded-lg bg-gray-50 group-hover:bg-primary/15 border border-gray-200 group-hover:border-primary/30 flex items-center justify-center shrink-0 transition-colors text-lg leading-none">
                               {BLOCK_THUMBNAILS[def.type as string] || '▭'}
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-semibold text-gray-700 group-hover:text-violet-700 truncate">{def.label}</span>
+                                <span className="text-xs font-semibold text-gray-700 group-hover:text-primary truncate">{def.label}</span>
                                 {liveSource && (
                                   <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-bold bg-emerald-100 text-emerald-700 shrink-0">
                                     <Zap className="w-2 h-2" />LIVE
@@ -10625,13 +10625,13 @@ export default function WebsiteBuilder() {
                         <div
                           key={page.id}
                           onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
-                          className={cn('flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors group', activePageId === page.id ? 'bg-violet-100 text-violet-700' : 'hover:bg-gray-50 text-gray-700')}
+                          className={cn('flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors group', activePageId === page.id ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50 text-gray-700')}
                         >
                           <span className="text-base shrink-0 leading-none" title={page.page_type || 'page'}>{pageTypeLabel}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1">
                               <span className="text-xs font-semibold truncate">{page.title}</span>
-                              {page.is_homepage && <span className="text-[8px] bg-violet-200 text-violet-700 rounded px-1 font-bold shrink-0">HOME</span>}
+                              {page.is_homepage && <span className="text-[8px] bg-primary/20 text-primary rounded px-1 font-bold shrink-0">HOME</span>}
                             </div>
                             <div className="text-[10px] text-gray-400 font-mono">/{page.slug}</div>
                           </div>
@@ -10649,7 +10649,7 @@ export default function WebsiteBuilder() {
                                     })
                                     .catch(() => toast.error('Failed to set homepage'))
                                 }}
-                                className="p-1 hover:bg-violet-100 hover:text-violet-700 rounded text-[9px] font-bold transition-colors"
+                                className="p-1 hover:bg-primary/15 hover:text-primary rounded text-[9px] font-bold transition-colors"
                               >
                                 🏠
                               </button>
@@ -10668,7 +10668,7 @@ export default function WebsiteBuilder() {
                                 className={cn('text-[8px] font-bold px-1.5 py-0.5 rounded border transition-colors',
                                   isInNav
                                     ? 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
-                                    : 'text-gray-400 border-gray-200 hover:bg-violet-50 hover:text-violet-700 hover:border-violet-300'
+                                    : 'text-gray-400 border-gray-200 hover:bg-accent hover:text-primary hover:border-primary/40'
                                 )}
                               >
                                 {isInNav ? '✓ Nav' : '+ Nav'}
@@ -10710,7 +10710,7 @@ export default function WebsiteBuilder() {
                         </div>
                       )
                     })}
-                    <button onClick={handleAddPage} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-violet-200 text-xs text-violet-600 font-semibold hover:bg-violet-50 hover:border-violet-400 transition-colors mt-1">
+                    <button onClick={handleAddPage} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-xs text-primary font-semibold hover:bg-accent hover:border-primary/60 transition-colors mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add New Page
                     </button>
                     <p className="text-[10px] text-gray-400 text-center pt-1">
@@ -10731,7 +10731,7 @@ export default function WebsiteBuilder() {
                       <div
                         key={block.id}
                         onClick={() => { setSelectedBlockId(block.id); setRightPanel('props'); setRightCollapsed(false) }}
-                        className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors group text-xs', selectedBlockId === block.id ? 'bg-violet-100 text-violet-700 font-semibold' : 'hover:bg-gray-50 text-gray-600')}
+                        className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors group text-xs', selectedBlockId === block.id ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-gray-50 text-gray-600')}
                       >
                         <GripVertical className="w-3 h-3 text-gray-300 shrink-0" />
                         <div className="flex-1 truncate">{catalogBlockLabel(block)}</div>
@@ -10770,7 +10770,7 @@ export default function WebsiteBuilder() {
                       )}
                     </div>
                     <p className="text-[10px] text-gray-500 leading-snug">
-                      Click a template to load it on the canvas. Edit freely, then click <strong className="text-violet-700">Apply</strong> in the toolbar to publish it live.
+                      Click a template to load it on the canvas. Edit freely, then click <strong className="text-primary">Apply</strong> in the toolbar to publish it live.
                     </p>
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
@@ -10778,7 +10778,7 @@ export default function WebsiteBuilder() {
                         value={templateListSearch}
                         onChange={e => setTemplateListSearch(e.target.value)}
                         placeholder="Search templates…"
-                        className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-300"
+                        className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                     <div className="space-y-1.5 pt-1">
@@ -10811,8 +10811,8 @@ export default function WebsiteBuilder() {
                               className={cn(
                                 'w-full text-left flex gap-2 p-2 rounded-xl border transition-colors',
                                 sel
-                                  ? 'border-violet-500 bg-violet-50/70 ring-1 ring-violet-200'
-                                  : 'border-gray-100 hover:border-violet-200 hover:bg-violet-50/40',
+                                  ? 'border-primary bg-accent/70 ring-1 ring-primary/25'
+                                  : 'border-gray-100 hover:border-primary/30 hover:bg-accent/70',
                                 (!siteId || tplBusy) && 'opacity-60 cursor-not-allowed',
                               )}
                               title="Click to load this template on the canvas"
@@ -10821,11 +10821,11 @@ export default function WebsiteBuilder() {
                                 {tpl.thumbnail ? (
                                   <img src={tpl.thumbnail} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                  <div className="w-full h-full bg-gradient-to-br from-violet-100 to-fuchsia-100" />
+                                  <div className="w-full h-full bg-gradient-to-br from-accent to-primary/20" />
                                 )}
                                 {isLoadingThis && (
                                   <div className="absolute inset-0 flex items-center justify-center bg-white/70">
-                                    <Loader2 className="w-4 h-4 animate-spin text-violet-600" />
+                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
                                   </div>
                                 )}
                               </div>
@@ -10833,12 +10833,12 @@ export default function WebsiteBuilder() {
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-xs font-semibold text-gray-800 truncate">{tpl.name}</span>
                                   {sel && !isLoadingThis && (
-                                    <span className="shrink-0 text-[8px] px-1.5 py-0.5 rounded-full bg-violet-600 text-white font-bold leading-none">Loaded</span>
+                                    <span className="shrink-0 text-[8px] px-1.5 py-0.5 rounded-full bg-primary text-white font-bold leading-none">Loaded</span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                   {tpl.category && (
-                                    <span className="text-[9px] text-violet-600 font-medium truncate">{tpl.category}</span>
+                                    <span className="text-[9px] text-primary font-medium truncate">{tpl.category}</span>
                                   )}
                                   <span className="text-[9px] text-gray-400">{pageCount} pg</span>
                                 </div>
@@ -10867,7 +10867,7 @@ export default function WebsiteBuilder() {
         {/* ── LEFT RESIZE HANDLE ──────────────────────────────────────── */}
         {!leftCollapsed && (
           <div
-            className="w-1 shrink-0 bg-transparent hover:bg-violet-400 active:bg-violet-500 cursor-col-resize transition-colors group relative z-20"
+            className="w-1 shrink-0 bg-transparent hover:bg-primary/50 active:bg-accent cursor-col-resize transition-colors group relative z-20"
             onMouseDown={e => {
               e.preventDefault()
               isResizingLeft.current = true
@@ -10876,7 +10876,7 @@ export default function WebsiteBuilder() {
             }}
             title="Drag to resize panel"
           >
-            <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-violet-400/30" />
+            <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-primary/50/30" />
           </div>
         )}
 
@@ -10915,7 +10915,7 @@ export default function WebsiteBuilder() {
                           })
                           toast.success(`Connected ${disconnected.length} block${disconnected.length !== 1 ? 's' : ''} to live data`)
                         }}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold text-[10px] hover:opacity-90 transition-opacity shadow-sm"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-primary to-emerald-700 text-white font-bold text-[10px] hover:opacity-90 transition-opacity shadow-sm"
                         title="Auto-connect remaining blocks to KITERP live data"
                       >
                         <Zap className="w-2.5 h-2.5" />
@@ -10928,7 +10928,7 @@ export default function WebsiteBuilder() {
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               {device !== 'desktop' && (
-                <span className="text-violet-600 font-medium">{device === 'mobile' ? '390px' : '768px'}</span>
+                <span className="text-primary font-medium">{device === 'mobile' ? '390px' : '768px'}</span>
               )}
               <button
                 type="button"
@@ -10943,7 +10943,7 @@ export default function WebsiteBuilder() {
                 className={cn(
                   'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors',
                   siteId && !applyingTemplateInline && !clearingTemplateSandbox && !resettingCanvasFromServer
-                    ? 'border-violet-200 text-violet-700 bg-violet-50/80 hover:bg-violet-50'
+                    ? 'border-primary/30 text-primary bg-accent/80 hover:bg-accent'
                     : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
                 )}
               >
@@ -10999,7 +10999,7 @@ export default function WebsiteBuilder() {
           <div className="px-4 py-2 bg-white border-b border-gray-200 hidden">
             <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
               <div className="shrink-0 flex items-center gap-1.5 pr-1 text-[10px] font-bold text-gray-500">
-                <CheckCircle2 className="w-3.5 h-3.5 text-violet-500" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-primary/80" />
                 Setup {completedSetup}/{setupItems.length}
               </div>
               {setupItems.map(item => (
@@ -11047,12 +11047,12 @@ export default function WebsiteBuilder() {
                 </div>
               ) : activeBlocks.length === 0 ? (
                 <div
-                  className="flex items-center justify-center py-20 border-2 border-dashed border-violet-200 m-8 rounded-2xl"
+                  className="flex items-center justify-center py-20 border-2 border-dashed border-primary/30 m-8 rounded-2xl"
                   onDragOver={e => e.preventDefault()}
                   onDrop={handleDropOnCanvas}
                 >
                   <div className="text-center max-w-md">
-                    <Plus className="w-12 h-12 mx-auto mb-3 text-violet-300" />
+                    <Plus className="w-12 h-12 mx-auto mb-3 text-primary/50" />
                     <p className="text-sm text-gray-500 font-medium">Drop blocks here or click to add</p>
                     <p className="text-xs text-gray-400 mt-1">Drag from the left panel</p>
                     <div className="flex flex-col items-center gap-2 mt-5">
@@ -11068,7 +11068,7 @@ export default function WebsiteBuilder() {
                           }
                           toast.success('Live ERP Starter Pack added — all blocks auto-connected to your KITERP data!')
                         }}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-violet-600 text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
                       >
                         <Zap className="w-4 h-4" />
                         Add Live ERP Starter Pack
@@ -11078,7 +11078,7 @@ export default function WebsiteBuilder() {
                       </p>
                       <button
                         onClick={() => setLeftPanel('blocks')}
-                        className="mt-2 px-4 py-2 border border-violet-300 text-violet-700 text-xs font-semibold rounded-lg hover:bg-violet-50 transition-colors"
+                        className="mt-2 px-4 py-2 border border-primary/40 text-primary text-xs font-semibold rounded-lg hover:bg-accent transition-colors"
                       >
                         Or browse all blocks
                       </button>
@@ -11102,9 +11102,9 @@ export default function WebsiteBuilder() {
                         selectedBlockId === block.id
                           ? savingBlockId === block.id
                             ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-gray-100'
-                            : 'ring-2 ring-violet-500 ring-offset-1 ring-offset-gray-100'
-                          : 'hover:ring-1 hover:ring-violet-300 hover:ring-offset-1',
-                        isDraggingOver === block.id && 'border-t-4 border-violet-400',
+                            : 'ring-2 ring-ring ring-offset-1 ring-offset-gray-100'
+                          : 'hover:ring-1 hover:ring-ring hover:ring-offset-1',
+                        isDraggingOver === block.id && 'border-t-4 border-primary/60',
                         !block.visible && 'opacity-40'
                       )}
                       style={{
@@ -11163,7 +11163,7 @@ export default function WebsiteBuilder() {
                                   handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as any)
                                   toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`)
                                 }}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/30 text-violet-200 hover:bg-violet-500/50 transition-colors text-[9px] font-bold"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/30 text-primary-foreground/85 hover:bg-accent/50 transition-colors text-[9px] font-bold"
                                 title={`One-click connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`}
                               >
                                 <Zap className="w-2.5 h-2.5" />
@@ -11204,7 +11204,7 @@ export default function WebsiteBuilder() {
 
                       {/* Block label chip + saving indicator */}
                       <div className={cn(
-                        'absolute bottom-1 left-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-600/80 text-white transition-opacity pointer-events-none',
+                        'absolute bottom-1 left-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary/80 text-white transition-opacity pointer-events-none',
                         selectedBlockId === block.id ? 'opacity-0' : 'opacity-0 group-hover:opacity-70'
                       )}>
                         {catalogBlockLabel(block)}
@@ -11266,7 +11266,7 @@ export default function WebsiteBuilder() {
                       {selectedBlockId === block.id && (
                         <div
                           title="Drag to resize section height"
-                          className="absolute bottom-0 left-0 right-0 h-3 z-20 flex items-center justify-center cursor-ns-resize group/resize hover:bg-violet-500/10 transition-colors"
+                          className="absolute bottom-0 left-0 right-0 h-3 z-20 flex items-center justify-center cursor-ns-resize group/resize hover:bg-primary/10 transition-colors"
                           onMouseDown={e => {
                             e.preventDefault()
                             e.stopPropagation()
@@ -11286,7 +11286,7 @@ export default function WebsiteBuilder() {
                             document.addEventListener('mouseup', onUp)
                           }}
                         >
-                          <div className="w-12 h-1 rounded-full bg-violet-400/60 group-hover/resize:bg-violet-500 group-hover/resize:w-20 transition-all" />
+                          <div className="w-12 h-1 rounded-full bg-primary/50/60 group-hover/resize:bg-accent group-hover/resize:w-20 transition-all" />
                         </div>
                       )}
                     </div>
@@ -11295,7 +11295,7 @@ export default function WebsiteBuilder() {
                   {/* Drop zone at end — omit when page ends with footer so the footer isn’t visually stacked under a dashed “slot” */}
                   {activeBlocks[activeBlocks.length - 1]?.block_type !== 'footer' && (
                     <div
-                      className="flex items-center justify-center py-6 border-2 border-dashed border-gray-200 hover:border-violet-300 m-4 rounded-xl transition-colors cursor-pointer"
+                      className="flex items-center justify-center py-6 border-2 border-dashed border-gray-200 hover:border-primary/40 m-4 rounded-xl transition-colors cursor-pointer"
                       onClick={() => setLeftPanel('blocks')}
                       onDragOver={e => e.preventDefault()}
                       onDrop={handleDropOnCanvas}
@@ -11314,7 +11314,7 @@ export default function WebsiteBuilder() {
         {/* ── RIGHT RESIZE HANDLE ─────────────────────────────────────── */}
         {!rightCollapsed && (
           <div
-            className="w-1 shrink-0 bg-transparent hover:bg-violet-400 active:bg-violet-500 cursor-col-resize transition-colors group relative z-20"
+            className="w-1 shrink-0 bg-transparent hover:bg-primary/50 active:bg-accent cursor-col-resize transition-colors group relative z-20"
             onMouseDown={e => {
               e.preventDefault()
               isResizingRight.current = true
@@ -11323,7 +11323,7 @@ export default function WebsiteBuilder() {
             }}
             title="Drag to resize panel"
           >
-            <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-violet-400/30" />
+            <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-primary/50/30" />
           </div>
         )}
 
@@ -11356,7 +11356,7 @@ export default function WebsiteBuilder() {
                     key={id}
                     onClick={() => setRightPanel(id)}
                     title={label}
-                    className={cn('flex-1 py-2 flex flex-col items-center gap-0.5 text-[9px] font-semibold transition-colors', rightPanel === id ? 'text-violet-600 border-b-2 border-violet-600 bg-violet-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50')}
+                    className={cn('flex-1 py-2 flex flex-col items-center gap-0.5 text-[9px] font-semibold transition-colors', rightPanel === id ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50')}
                   >
                     <Icon className="w-4 h-4" />
                     <span className="leading-none">{label}</span>
@@ -11387,7 +11387,7 @@ export default function WebsiteBuilder() {
                         <button
                           type="button"
                           onClick={() => { setRightPanel('ai'); setRightCollapsed(false) }}
-                          className="w-full py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-xs font-semibold text-white flex items-center justify-center gap-1"
+                          className="w-full py-2 rounded-xl bg-primary hover:bg-primary/90 text-xs font-semibold text-white flex items-center justify-center gap-1"
                         >
                           <Sparkles className="w-3.5 h-3.5" /> AI Help
                         </button>
@@ -11416,7 +11416,7 @@ export default function WebsiteBuilder() {
                           saveFlash
                             ? 'bg-emerald-500 scale-[1.02]'
                             : styleDirty || blocksDirty
-                              ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-md'
+                              ? 'bg-gradient-to-r from-primary to-emerald-700 hover:from-primary/90 hover:to-emerald-800 shadow-md'
                               : 'bg-gray-300 text-gray-600 cursor-default'
                         )}
                       >
@@ -11605,7 +11605,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
           { id: 'headless', label: 'Headless API' },
         ] as const).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={cn('flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-colors', tab === t.id ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-gray-100')}>
+            className={cn('flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-colors', tab === t.id ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100')}>
             {t.label}
           </button>
         ))}
@@ -11659,7 +11659,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                 <strong>{currPos === 'before' ? `${currSymbol}1,000` : `1,000${currSymbol}`}</strong>
               </p>
             </div>
-            <button onClick={handleSaveI18n} disabled={savingI18n} className="w-full py-2 bg-violet-600 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-violet-700">
+            <button onClick={handleSaveI18n} disabled={savingI18n} className="w-full py-2 bg-primary text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90">
               {savingI18n ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Save Settings
             </button>
@@ -11767,7 +11767,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
             <button
               onClick={handleSaveAnalytics}
               disabled={savingAnalytics}
-              className="w-full py-2 bg-violet-600 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-violet-700"
+              className="w-full py-2 bg-primary text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90"
             >
               {savingAnalytics ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Save Branding & Analytics
@@ -11796,7 +11796,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                     <option value={302}>302 Temporary</option>
                   </select>
                 </div>
-                <button onClick={handleAddRedirect} disabled={createRedirect.isPending} className="px-3 py-2 bg-violet-600 text-white text-xs font-bold rounded-xl flex items-center gap-1">
+                <button onClick={handleAddRedirect} disabled={createRedirect.isPending} className="px-3 py-2 bg-primary text-white text-xs font-bold rounded-xl flex items-center gap-1">
                   <Plus className="w-3 h-3" /> Add
                 </button>
               </div>
@@ -11829,7 +11829,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                   <p className="text-xs font-bold text-gray-700">Headless API Mode</p>
                   <p className="text-[10px] text-gray-500">Expose your site content as a JSON API for custom frontends (Next.js, Vue, mobile).</p>
                 </div>
-                <div className={cn('w-8 h-5 rounded-full shrink-0 transition-colors cursor-pointer flex items-center', siteHeadless ? 'bg-violet-600' : 'bg-gray-300')}
+                <div className={cn('w-8 h-5 rounded-full shrink-0 transition-colors cursor-pointer flex items-center', siteHeadless ? 'bg-primary' : 'bg-gray-300')}
                   onClick={() => siteHeadless ? disableHeadless.mutateAsync().catch(() => {}) : enableHeadless.mutateAsync().catch(() => {})}>
                   <div className={cn('w-4 h-4 bg-white rounded-full shadow transition-transform mx-0.5', siteHeadless ? 'translate-x-3' : 'translate-x-0')} />
                 </div>
@@ -11839,7 +11839,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                   <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">API Token</div>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-[9px] bg-white border border-gray-200 px-2 py-1.5 rounded-lg font-mono truncate">{headlessToken}</code>
-                    <button onClick={() => { navigator.clipboard.writeText(headlessToken); toast.success('Token copied!') }} className="shrink-0 p-1.5 bg-violet-100 text-violet-600 rounded-lg hover:bg-violet-200">
+                    <button onClick={() => { navigator.clipboard.writeText(headlessToken); toast.success('Token copied!') }} className="shrink-0 p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20">
                       <Copy className="w-3 h-3" />
                     </button>
                   </div>
@@ -11918,12 +11918,12 @@ function RobotsTxtEditor({ siteId, site }: { siteId: string; site: WebsiteSite }
             value={value || defaultRobots}
             onChange={e => setValue(e.target.value)}
             placeholder={defaultRobots}
-            className="w-full text-[11px] font-mono border border-gray-200 rounded-lg p-2 resize-y focus:ring-1 focus:ring-violet-400 focus:border-violet-400 outline-none"
+            className="w-full text-[11px] font-mono border border-gray-200 rounded-lg p-2 resize-y focus:ring-1 focus:ring-ring focus:border-primary/60 outline-none"
           />
           <button
             onClick={save}
             disabled={saving}
-            className="w-full py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50"
+            className="w-full py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save robots.txt'}
           </button>
@@ -12022,7 +12022,7 @@ function SEOPanel({
           <button
             onClick={handleAIGenerate}
             disabled={aiSEO.isPending}
-            className="w-full py-2 bg-gradient-to-r from-violet-600 to-blue-600 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+            className="w-full py-2 bg-gradient-to-r from-primary to-info text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
           >
             {aiSEO.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             Generate SEO with AI
@@ -12030,15 +12030,15 @@ function SEOPanel({
 
           {/* AI result preview */}
           {aiResult && (
-            <div className="p-3 bg-violet-50 border border-violet-200 rounded-xl space-y-2">
-              <div className="text-[10px] font-bold text-violet-600 uppercase tracking-wide">AI Suggestion</div>
+            <div className="p-3 bg-accent border border-primary/30 rounded-xl space-y-2">
+              <div className="text-[10px] font-bold text-primary uppercase tracking-wide">AI Suggestion</div>
               <div className="space-y-1">
                 <p className="text-[10px] font-semibold text-gray-700">Title: {aiResult.seo_title}</p>
                 <p className="text-[10px] text-gray-600 line-clamp-2">{aiResult.seo_description}</p>
-                <p className="text-[10px] text-violet-600">Focus: <strong>{aiResult.focus_keyword}</strong></p>
+                <p className="text-[10px] text-primary">Focus: <strong>{aiResult.focus_keyword}</strong></p>
               </div>
               <div className="flex gap-2">
-                <button onClick={applyAI} className="flex-1 py-1.5 bg-violet-600 text-white text-[10px] font-bold rounded-lg">Apply</button>
+                <button onClick={applyAI} className="flex-1 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg">Apply</button>
                 <button onClick={() => setAiResult(null)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-500 text-[10px] rounded-lg">Dismiss</button>
               </div>
             </div>
@@ -12049,7 +12049,7 @@ function SEOPanel({
               <label className="text-xs font-semibold text-gray-700">SEO Title</label>
               <span className={cn('text-[10px]', titleLen > 60 ? 'text-red-500' : titleLen > 50 ? 'text-amber-500' : 'text-gray-400')}>{titleLen}/60</span>
             </div>
-            <input value={seoTitle} onChange={e => setSeoTitle(e.target.value)} placeholder={`${activePage.title} | ${site.name}`} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-violet-300" />
+            <input value={seoTitle} onChange={e => setSeoTitle(e.target.value)} placeholder={`${activePage.title} | ${site.name}`} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
 
           <div className="space-y-1">
@@ -12057,12 +12057,12 @@ function SEOPanel({
               <label className="text-xs font-semibold text-gray-700">Meta Description</label>
               <span className={cn('text-[10px]', descLen > 160 ? 'text-red-500' : descLen > 140 ? 'text-amber-500' : 'text-gray-400')}>{descLen}/160</span>
             </div>
-            <textarea value={seoDesc} onChange={e => setSeoDesc(e.target.value)} placeholder="Describe this page in 150-160 characters..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-violet-300" />
+            <textarea value={seoDesc} onChange={e => setSeoDesc(e.target.value)} placeholder="Describe this page in 150-160 characters..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-700">OG / Social Image URL</label>
-            <input value={ogImage} onChange={e => setOgImage(e.target.value)} placeholder="https://... or /uploads/..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-violet-300" />
+            <input value={ogImage} onChange={e => setOgImage(e.target.value)} placeholder="https://... or /uploads/..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
             {ogImage && <img src={mediaUrl(ogImage)} className="w-full h-20 object-cover rounded-xl border border-gray-100 mt-1" alt="OG preview" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
           </div>
 
@@ -12084,9 +12084,9 @@ function SEOPanel({
           {/* AI Block Suggestions */}
           <div className="border-t border-gray-100 pt-3 space-y-2">
             <div className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-violet-500" /> AI Layout Suggestions
+              <Zap className="w-3.5 h-3.5 text-primary/80" /> AI Layout Suggestions
             </div>
-            <button onClick={handleSuggestBlocks} disabled={suggestBlocks.isPending} className="w-full py-2 border border-violet-200 text-violet-600 text-xs font-semibold rounded-xl hover:bg-violet-50 flex items-center justify-center gap-2">
+            <button onClick={handleSuggestBlocks} disabled={suggestBlocks.isPending} className="w-full py-2 border border-primary/30 text-primary text-xs font-semibold rounded-xl hover:bg-accent flex items-center justify-center gap-2">
               {suggestBlocks.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Suggest Blocks for this Page
             </button>
@@ -12096,7 +12096,7 @@ function SEOPanel({
                 <div className="space-y-1">
                   {suggestResult.blocks?.map((b: any, i: number) => (
                     <div key={i} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-                      <span className="text-[10px] font-bold text-violet-600 shrink-0">{i + 1}.</span>
+                      <span className="text-[10px] font-bold text-primary shrink-0">{i + 1}.</span>
                       <div>
                         <div className="text-[10px] font-semibold text-gray-700">{b.label}</div>
                         <div className="text-[9px] text-gray-400">{b.reason}</div>
@@ -12114,15 +12114,15 @@ function SEOPanel({
         <div className="space-y-3">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-700">Site SEO Title</label>
-            <input value={siteTitle} onChange={e => setSiteTitle(e.target.value)} placeholder={site.name} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-violet-300" />
+            <input value={siteTitle} onChange={e => setSiteTitle(e.target.value)} placeholder={site.name} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-700">Site Meta Description</label>
-            <textarea value={siteDesc} onChange={e => setSiteDesc(e.target.value)} placeholder="Overall site description for search engines..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-violet-300" />
+            <textarea value={siteDesc} onChange={e => setSiteDesc(e.target.value)} placeholder="Overall site description for search engines..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-700">Keywords (comma-separated)</label>
-            <input value={siteKw} onChange={e => setSiteKw(e.target.value)} placeholder="keyword1, keyword2, keyword3..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-violet-300" />
+            <input value={siteKw} onChange={e => setSiteKw(e.target.value)} placeholder="keyword1, keyword2, keyword3..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <button
             onClick={() => onSaveSite({ seo_title: siteTitle, seo_description: siteDesc, seo_keywords: siteKw })}
@@ -12221,7 +12221,7 @@ function AIStudioPanel({
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={cn('px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors', tab === t.id ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
+            className={cn('px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors', tab === t.id ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
           >
             {t.label}
           </button>
@@ -12232,9 +12232,9 @@ function AIStudioPanel({
         {/* GENERATE SITE */}
         {tab === 'generate' && (
           <>
-            <div className="p-3 bg-gradient-to-r from-violet-50 to-blue-50 border border-violet-100 rounded-xl">
-              <p className="text-xs font-semibold text-violet-700 mb-0.5">One-Prompt Site Generator</p>
-              <p className="text-[10px] text-violet-600">Describe your business and AI builds the full site structure, copy, and theme instantly.</p>
+            <div className="p-3 bg-gradient-to-r from-accent to-info/15 border border-primary/20 rounded-xl">
+              <p className="text-xs font-semibold text-primary mb-0.5">One-Prompt Site Generator</p>
+              <p className="text-[10px] text-primary">Describe your business and AI builds the full site structure, copy, and theme instantly.</p>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-600">Business Description *</label>
@@ -12242,7 +12242,7 @@ function AIStudioPanel({
                 value={genBizDesc}
                 onChange={e => setGenBizDesc(e.target.value)}
                 placeholder="E.g. We are a boutique law firm in Dubai specialising in corporate and IP law for tech startups..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs h-24 resize-none focus:outline-none focus:ring-2 focus:ring-violet-300"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs h-24 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -12268,11 +12268,11 @@ function AIStudioPanel({
             </div>
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-                <input type="checkbox" checked={genIncludePricing} onChange={e => setGenIncludePricing(e.target.checked)} className="rounded text-violet-600" />
+                <input type="checkbox" checked={genIncludePricing} onChange={e => setGenIncludePricing(e.target.checked)} className="rounded text-primary" />
                 Include Pricing page
               </label>
               <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-                <input type="checkbox" checked={genIncludeBlog} onChange={e => setGenIncludeBlog(e.target.checked)} className="rounded text-violet-600" />
+                <input type="checkbox" checked={genIncludeBlog} onChange={e => setGenIncludeBlog(e.target.checked)} className="rounded text-primary" />
                 Include Blog page
               </label>
             </div>
@@ -12292,7 +12292,7 @@ function AIStudioPanel({
                 } catch { toast.error('Site generation failed') }
               }}
               disabled={!genBizDesc || isLoading}
-              className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-blue-600 text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-gradient-to-r from-primary to-info text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {aiGenSite.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               {aiGenSite.isPending ? 'Generating your site...' : 'Generate Full Site with AI'}
@@ -12336,7 +12336,7 @@ function AIStudioPanel({
                     })
                   }}
                   disabled={aiApplyGenSite.isPending}
-                  className="w-full py-2.5 bg-violet-600 text-white text-xs font-bold rounded-xl hover:bg-violet-700 flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary/90 flex items-center justify-center gap-2"
                 >
                   {aiApplyGenSite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   Apply to Site (replaces pages)
@@ -12375,7 +12375,7 @@ function AIStudioPanel({
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
                 placeholder="E.g. A catchy headline for a SaaS product landing page..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs h-20 resize-none focus:outline-none focus:ring-2 focus:ring-violet-300"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs h-20 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <button
@@ -12387,21 +12387,21 @@ function AIStudioPanel({
                 } catch { toast.error('AI text generation failed') }
               }}
               disabled={!prompt || isLoading}
-              className="w-full py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Generate Text
             </button>
             {result && (
               <div className="space-y-2">
-                <div className="p-3 bg-violet-50 border border-violet-100 rounded-lg">
+                <div className="p-3 bg-accent border border-primary/20 rounded-lg">
                   <p className="text-xs text-gray-700">{result}</p>
-                  <button onClick={() => { navigator.clipboard.writeText(result); toast.success('Copied!') }} className="mt-2 text-[10px] text-violet-600 hover:underline">Copy</button>
+                  <button onClick={() => { navigator.clipboard.writeText(result); toast.success('Copied!') }} className="mt-2 text-[10px] text-primary hover:underline">Copy</button>
                 </div>
                 {alternatives.map((alt, i) => (
                   <div key={i} className="p-3 bg-gray-50 border border-gray-100 rounded-lg">
                     <p className="text-xs text-gray-600">{alt}</p>
-                    <button onClick={() => { navigator.clipboard.writeText(alt); toast.success('Copied!') }} className="mt-2 text-[10px] text-violet-600 hover:underline">Copy</button>
+                    <button onClick={() => { navigator.clipboard.writeText(alt); toast.success('Copied!') }} className="mt-2 text-[10px] text-primary hover:underline">Copy</button>
                   </div>
                 ))}
               </div>
@@ -12434,7 +12434,7 @@ function AIStudioPanel({
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
-              className="w-full py-8 border-2 border-dashed border-violet-200 rounded-xl flex flex-col items-center gap-2 text-violet-500 hover:bg-violet-50 transition-colors disabled:opacity-50"
+              className="w-full py-8 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center gap-2 text-primary/80 hover:bg-accent transition-colors disabled:opacity-50"
             >
               {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
               <span className="text-xs font-semibold">{isLoading ? 'Analyzing...' : 'Upload Screenshot'}</span>
@@ -12455,7 +12455,7 @@ function AIStudioPanel({
                 <div className="text-[10px] text-gray-500">{screenshotResult.detected_sections?.join(', ')}</div>
                 <button
                   onClick={() => { onAddBlocks(screenshotResult.suggested_blocks); toast.success(`${screenshotResult.suggested_blocks.length} blocks added!`) }}
-                  className="w-full py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg"
+                  className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg"
                 >
                   Apply {screenshotResult.suggested_blocks?.length} Blocks to Page
                 </button>
@@ -12476,7 +12476,7 @@ function AIStudioPanel({
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 placeholder="https://example.com"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-300"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <button
@@ -12488,7 +12488,7 @@ function AIStudioPanel({
                 } catch { toast.error('Clone analysis failed') }
               }}
               disabled={!url || isLoading}
-              className="w-full py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
               Analyze & Clone Style
@@ -12507,7 +12507,7 @@ function AIStudioPanel({
                 <button onClick={() => onApplyStyle(cloneResult.style_config)} className="w-full py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg">
                   Apply Style to Site
                 </button>
-                <button onClick={() => onAddBlocks(cloneResult.detected_blocks)} className="w-full py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg">
+                <button onClick={() => onAddBlocks(cloneResult.detected_blocks)} className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg">
                   Add Detected Blocks
                 </button>
               </div>
@@ -12527,7 +12527,7 @@ function AIStudioPanel({
                 } catch { toast.error('Review failed') }
               }}
               disabled={isLoading}
-              className="w-full py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Run AI UX Review
@@ -12624,7 +12624,7 @@ function AIStudioPanel({
                 } catch { toast.error('Theme generation failed') }
               }}
               disabled={!brandDesc || isLoading}
-              className="w-full py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
               Generate Theme
@@ -12644,7 +12644,7 @@ function AIStudioPanel({
                   <span className="font-semibold">Heading:</span> {themeResult.font_pairing?.heading} &nbsp;|&nbsp;
                   <span className="font-semibold">Body:</span> {themeResult.font_pairing?.body}
                 </div>
-                <button onClick={() => onApplyStyle(themeResult.style_config)} className="w-full py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700">
+                <button onClick={() => onApplyStyle(themeResult.style_config)} className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90">
                   Apply This Theme
                 </button>
               </div>
@@ -12849,9 +12849,9 @@ function ImageGenPanel({
     <div className="space-y-3">
       {/* Context hint */}
       {blockCtx && (
-        <div className="px-3 py-2 bg-violet-50 border border-violet-100 rounded-lg flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-          <span className="text-[10px] text-violet-700">
+        <div className="px-3 py-2 bg-accent border border-primary/20 rounded-lg flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+          <span className="text-[10px] text-primary">
             Showing suggestions for <strong>{selectedBlock?.block_type?.replace(/_/g, ' ')}</strong> block
           </span>
         </div>
@@ -12874,7 +12874,7 @@ function ImageGenPanel({
           value={prompt}
           onChange={e => { setPrompt(e.target.value); setEnhancedPrompt('') }}
           placeholder="Describe the image… e.g. 'Professional woman in a modern office with natural lighting'"
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs h-[72px] resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent"
+          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs h-[72px] resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
         />
         {/* Enhanced prompt preview */}
         {enhancedPrompt && (
@@ -12906,7 +12906,7 @@ function ImageGenPanel({
             <button
               key={cat}
               onClick={() => setPromptCat(cat === 'Context' ? 'Popular' : cat as any)}
-              className={cn('px-2 py-0.5 rounded-full text-[9px] font-bold transition-colors', (cat === 'Context' && blockCtx) || promptCat === cat ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}
+              className={cn('px-2 py-0.5 rounded-full text-[9px] font-bold transition-colors', (cat === 'Context' && blockCtx) || promptCat === cat ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}
             >
               {cat}
             </button>
@@ -12917,7 +12917,7 @@ function ImageGenPanel({
             <button
               key={i}
               onClick={() => { setPrompt(qp); setEnhancedPrompt('') }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-violet-50 hover:text-violet-700 text-[10px] text-gray-600 transition-colors border border-transparent hover:border-violet-200 truncate"
+              className="w-full text-left px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-accent hover:text-primary text-[10px] text-gray-600 transition-colors border border-transparent hover:border-primary/30 truncate"
             >
               {qp}
             </button>
@@ -12937,8 +12937,8 @@ function ImageGenPanel({
               className={cn(
                 'py-2 px-1 rounded-xl border text-[9px] font-bold transition-all flex flex-col items-center gap-0.5',
                 style === s.id
-                  ? 'bg-violet-600 text-white border-violet-600 shadow-md'
-                  : 'text-gray-500 border-gray-200 hover:border-violet-300 hover:bg-violet-50'
+                  ? 'bg-primary text-white border-primary shadow-md'
+                  : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent'
               )}
             >
               <span className="text-sm leading-none">{s.emoji}</span>
@@ -12959,11 +12959,11 @@ function ImageGenPanel({
               title={ar.hint}
               className={cn(
                 'py-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-0.5',
-                ratio === ar.id ? 'bg-violet-600 text-white border-violet-600' : 'text-gray-500 border-gray-200 hover:border-violet-300'
+                ratio === ar.id ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40'
               )}
             >
               <span>{ar.id}</span>
-              <span className={cn('text-[8px] font-normal', ratio === ar.id ? 'text-violet-200' : 'text-gray-400')}>{ar.hint}</span>
+              <span className={cn('text-[8px] font-normal', ratio === ar.id ? 'text-primary-foreground/85' : 'text-gray-400')}>{ar.hint}</span>
             </button>
           ))}
         </div>
@@ -12981,7 +12981,7 @@ function ImageGenPanel({
               value={negativePrompt}
               onChange={e => setNegativePrompt(e.target.value)}
               placeholder="blurry, low quality, watermark, text..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[10px] focus:outline-none focus:ring-2 focus:ring-violet-300"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[10px] focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         )}
@@ -12991,7 +12991,7 @@ function ImageGenPanel({
       <button
         onClick={() => handleGenerate(false)}
         disabled={!prompt.trim() || aiImage.isPending}
-        className="w-full py-3 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white text-sm font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-violet-200 hover:shadow-violet-300"
+        className="w-full py-3 bg-gradient-to-r from-primary via-primary to-info text-white text-sm font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40"
       >
         {aiImage.isPending ? (
           <><Loader2 className="w-4 h-4 animate-spin" /> Generating… (15-30s)</>
@@ -13002,7 +13002,7 @@ function ImageGenPanel({
 
       {/* Result preview */}
       {activeResult && (
-        <div className="rounded-2xl border-2 border-violet-200 overflow-hidden bg-white shadow-lg">
+        <div className="rounded-2xl border-2 border-primary/30 overflow-hidden bg-white shadow-lg">
           <div className="relative">
             <img
               src={activeResult.url}
@@ -13025,7 +13025,7 @@ function ImageGenPanel({
             <div className="flex gap-2">
               <button
                 onClick={() => onApplyImage(activeResult.url)}
-                className="flex-1 py-2 bg-violet-600 text-white text-xs font-bold rounded-xl hover:bg-violet-700 flex items-center justify-center gap-1.5 transition-colors"
+                className="flex-1 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary/90 flex items-center justify-center gap-1.5 transition-colors"
               >
                 <Check className="w-3.5 h-3.5" />
                 {!selectedBlock ? 'Select a Block First' : applyToImageLayer ? 'Apply to Image Layer' : 'Apply to Block'}
@@ -13075,13 +13075,13 @@ function ImageGenPanel({
                 key={i}
                 className={cn(
                   'group relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-pointer',
-                  activeResult?.url === img.url ? 'border-violet-500 shadow-md' : 'border-transparent hover:border-violet-300'
+                  activeResult?.url === img.url ? 'border-primary shadow-md' : 'border-transparent hover:border-primary/40'
                 )}
                 onClick={() => setActiveResult(img)}
               >
                 <img src={img.url} className="w-full h-full object-cover" alt="" />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 p-1">
-                  <button onClick={e => { e.stopPropagation(); onApplyImage(img.url) }} className="px-2 py-1 bg-violet-600 rounded text-[9px] font-bold text-white">Use</button>
+                  <button onClick={e => { e.stopPropagation(); onApplyImage(img.url) }} className="px-2 py-1 bg-primary rounded text-[9px] font-bold text-white">Use</button>
                   {!img.saved && <button onClick={e => { e.stopPropagation(); handleSaveToLibrary(img.url, img.prompt) }} className="px-2 py-1 bg-white rounded text-[9px] font-bold text-gray-700">Save</button>}
                 </div>
                 {img.saved && <div className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></div>}

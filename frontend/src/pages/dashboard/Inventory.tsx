@@ -21,7 +21,7 @@ const MOVEMENT_LABELS: Record<string, { label: string; color: string }> = {
   stock_out: { label: 'Stock Out', color: 'text-red-600 bg-red-50' },
   adjustment: { label: 'Adjustment', color: 'text-blue-600 bg-blue-50' },
   sale: { label: 'Sale', color: 'text-orange-600 bg-orange-50' },
-  sale_return: { label: 'Return', color: 'text-purple-600 bg-purple-50' },
+  sale_return: { label: 'Return', color: 'text-primary bg-accent' },
   order_cancel: { label: 'Cancelled', color: 'text-gray-600 bg-gray-100' },
   initial: { label: 'Initial', color: 'text-gray-600 bg-gray-100' },
 }
@@ -143,8 +143,8 @@ export default function Inventory() {
         </div>
         <div className="bg-white rounded-xl border p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-              <History className="w-5 h-5 text-purple-600" />
+            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
+              <History className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Movements Today</p>

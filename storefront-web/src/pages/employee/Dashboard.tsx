@@ -41,7 +41,7 @@ export default function ESSDashboard() {
     { label: 'Pending Policies', value: profile?.pending_policies?.length ?? 0, icon: ShieldCheck, color: 'from-amber-500 to-orange-500', path: '/policies' },
     { label: 'Open Tickets', value: profile?.ticket_summary?.open ?? 0, icon: LifeBuoy, color: 'from-blue-500 to-cyan-500', path: '/helpdesk' },
     { label: 'Expense Claims', value: profile?.expense_summary?.submitted ?? 0, icon: Receipt, color: 'from-green-500 to-emerald-500', path: '/expenses' },
-    { label: 'Active Trainings', value: profile?.training_summary?.enrolled ?? 0, icon: GraduationCap, color: 'from-purple-500 to-pink-500', path: '/training' },
+    { label: 'Active Trainings', value: profile?.training_summary?.enrolled ?? 0, icon: GraduationCap, color: 'from-primary to-emerald-600', path: '/training' },
   ]
 
   const quickLinks = [
