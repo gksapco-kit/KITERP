@@ -38,7 +38,7 @@ export default function TrialBalance() {
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <button onClick={() => setApplied({ from_date: from, to_date: to })}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Apply</button>
+          className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">Apply</button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

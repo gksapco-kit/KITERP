@@ -179,7 +179,7 @@ export default function ReviewDetailPage() {
               className="w-20 px-2 py-1 text-sm border rounded disabled:bg-gray-50" />
             {isSelfStage && (
               <button onClick={handleSelfSubmit} disabled={submitSelf.isPending}
-                className="ml-auto flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                className="ml-auto flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 <Save className="w-4 h-4" /> Submit Self Review
               </button>
             )}
@@ -240,7 +240,7 @@ export default function ReviewDetailPage() {
             {isMgrStage && (
               <div className="flex justify-end pt-2">
                 <button onClick={handleMgrSubmit} disabled={submitMgr.isPending}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                   <Save className="w-4 h-4" /> Submit Manager Review
                 </button>
               </div>

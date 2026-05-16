@@ -201,7 +201,7 @@ export default function CostCenters() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Layers className="w-6 h-6 text-indigo-600" />
+            <Layers className="w-6 h-6 text-primary" />
             Cost Centers
           </h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -210,7 +210,7 @@ export default function CostCenters() {
         </div>
         <button
           onClick={openNewCC}
-          className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" /> New Cost Center
         </button>
@@ -226,7 +226,7 @@ export default function CostCenters() {
           </h2>
           <Link
             to="/stores"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/10 transition-colors"
           >
             <ExternalLink className="w-3 h-3" /> Manage in Company Codes
           </Link>
@@ -241,8 +241,8 @@ export default function CostCenters() {
               onClick={() => setSelectedCompanyId('')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                 !selectedCompanyId
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
               }`}
             >
               All Companies
@@ -253,7 +253,7 @@ export default function CostCenters() {
                 onClick={() => setSelectedCompanyId(co.id === activeCompanyId && selectedCompanyId ? '' : co.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                   co.id === activeCompanyId && selectedCompanyId
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
+                    ? 'bg-primary/10 text-primary border-primary/40'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -288,7 +288,7 @@ export default function CostCenters() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search cost centers…"
-            className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -300,7 +300,7 @@ export default function CostCenters() {
         <select
           value={filterGroup}
           onChange={e => setFilterGroup(e.target.value)}
-          className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="">All Groups</option>
           {usedGroups.map(g => <option key={g} value={g}>{g}</option>)}
@@ -327,14 +327,14 @@ export default function CostCenters() {
       {/* Empty state */}
       {!ccLoading && filtered.length === 0 && (
         <div className="rounded-xl border-2 border-dashed border-gray-200 py-14 text-center">
-          <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-3">
-            <Layers className="w-6 h-6 text-indigo-400" />
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+            <Layers className="w-6 h-6 text-primary/60" />
           </div>
           <p className="text-sm font-medium text-gray-600 mb-1">
             {search || filterGroup ? 'No cost centers match your filter' : 'No cost centers yet'}
           </p>
           {!search && !filterGroup && (
-            <button onClick={openNewCC} className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+            <button onClick={openNewCC} className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90">
               <Plus className="w-4 h-4" /> Create first cost center
             </button>
           )}
@@ -421,7 +421,7 @@ export default function CostCenters() {
                   onClick={() => setDialogTab(tab.id)}
                   className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
                     dialogTab === tab.id
-                      ? 'border-indigo-600 text-indigo-600'
+                      ? 'border-primary text-primary'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -451,7 +451,7 @@ export default function CostCenters() {
                           onChange={e => setCcForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                           maxLength={20}
                           placeholder="e.g. OPS-01"
-                          className="w-full h-10 pl-8 pr-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
+                          className="w-full h-10 pl-8 pr-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono"
                         />
                       </div>
                     </div>
@@ -462,7 +462,7 @@ export default function CostCenters() {
                       <select
                         value={ccForm.cc_group}
                         onChange={e => setCcForm(f => ({ ...f, cc_group: e.target.value }))}
-                        className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="">— No group —</option>
                         {CC_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
@@ -479,7 +479,7 @@ export default function CostCenters() {
                       value={ccForm.name}
                       onChange={e => setCcForm(f => ({ ...f, name: e.target.value }))}
                       placeholder="e.g. Operations — North Region"
-                      className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>
 
@@ -493,7 +493,7 @@ export default function CostCenters() {
                       onChange={e => setCcForm(f => ({ ...f, description: e.target.value }))}
                       rows={3}
                       placeholder="Optional — purpose, scope, or responsible team…"
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                     />
                   </div>
 
@@ -506,7 +506,7 @@ export default function CostCenters() {
                     <select
                       value={ccForm.company_id}
                       onChange={e => setCcForm(f => ({ ...f, company_id: e.target.value }))}
-                      className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                     >
                       <option value="">— Auto (uses default company) —</option>
                       {companies.map(co => (
@@ -587,7 +587,7 @@ export default function CostCenters() {
                           label: 'Created',
                           date: ccDialog.editing.created_at,
                           icon: Calendar,
-                          color: 'bg-indigo-100 text-indigo-600',
+                          color: 'bg-primary/15 text-primary',
                         },
                         {
                           label: 'Last Modified',
@@ -641,7 +641,7 @@ export default function CostCenters() {
               <button
                 onClick={saveCC}
                 disabled={isSaving}
-                className="flex items-center gap-1.5 px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
+                className="flex items-center gap-1.5 px-5 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium transition-colors"
               >
                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {ccDialog.editing ? 'Update' : 'Create'}
@@ -673,7 +673,7 @@ function CCRow({
     <div className="group flex items-center gap-4 px-5 py-3 hover:bg-gray-50/50 transition-colors">
       {/* Code pill */}
       <div className="w-28 shrink-0">
-        <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg">
+        <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded-lg">
           {cc.code}
         </span>
       </div>
@@ -708,7 +708,7 @@ function CCRow({
         <button
           type="button"
           onClick={() => onEdit(cc)}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
           title="Edit"
         >
           <Pencil className="w-3.5 h-3.5" />

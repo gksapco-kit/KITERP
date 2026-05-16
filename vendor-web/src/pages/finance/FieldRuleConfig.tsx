@@ -90,7 +90,7 @@ export default function FieldRuleConfig() {
     <div className="p-6 max-w-5xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ListChecks className="w-7 h-7 text-indigo-600" />
+          <ListChecks className="w-7 h-7 text-primary" />
           GL field configuration
         </h1>
         <p className="text-sm text-gray-500 mt-1 max-w-2xl">
@@ -99,7 +99,7 @@ export default function FieldRuleConfig() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 flex gap-3 text-sm text-indigo-900 mb-4">
+      <div className="rounded-xl border border-primary/20 bg-primary/10/50 p-4 flex gap-3 text-sm text-primary/90 mb-4">
         <Info className="w-5 h-5 shrink-0" />
         <p>
           Scope <strong>GL</strong> applies to all users until overridden. <strong>Company</strong> refines the rule when posting to that company.
@@ -121,7 +121,7 @@ export default function FieldRuleConfig() {
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90"
         >
           <Plus className="w-4 h-4" /> Add rule
         </button>
@@ -253,7 +253,7 @@ export default function FieldRuleConfig() {
                 type="button"
                 onClick={submit}
                 disabled={createMut.isPending}
-                className="px-3 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+                className="px-3 py-2 text-sm font-semibold bg-primary text-white rounded-lg disabled:opacity-50"
               >
                 {createMut.isPending ? 'Saving…' : 'Save rule'}
               </button>

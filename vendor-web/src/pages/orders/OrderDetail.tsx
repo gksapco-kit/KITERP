@@ -182,14 +182,14 @@ export default function OrderDetail() {
           ) : (
             <div className="flex items-center justify-between relative">
               <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 z-0">
-                <div className={`h-full transition-all duration-500 ${isBooking ? 'bg-indigo-500' : 'bg-blue-600'}`}
+                <div className={`h-full transition-all duration-500 ${isBooking ? 'bg-indigo-500' : 'bg-primary'}`}
                   style={{ width: `${currentStepIdx >= 0 ? (currentStepIdx / (activeTimeline.length - 1)) * 100 : 0}%` }} />
               </div>
               {activeTimeline.map((step, i) => (
                 <div key={step.key} className="flex flex-col items-center z-10 relative">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                     i <= currentStepIdx
-                      ? isBooking ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+                      ? isBooking ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-primary text-white shadow-lg shadow-blue-200'
                       : 'bg-white border-2 border-gray-200 text-gray-400'
                   }`}>
                     <step.icon className="w-5 h-5" />

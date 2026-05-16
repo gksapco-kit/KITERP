@@ -32,7 +32,7 @@ export default function HolidaysPage() {
           <h1 className="text-2xl font-bold text-gray-900">Holiday Calendar {year}</h1>
           <p className="text-sm text-gray-500 mt-1">{holidays.length} holidays configured</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+        <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> Add Holiday
         </button>
       </div>
@@ -56,7 +56,7 @@ export default function HolidaysPage() {
           </label>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
-            <button type="submit" disabled={createHoliday.isPending} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50">Add</button>
+            <button type="submit" disabled={createHoliday.isPending} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg disabled:opacity-50">Add</button>
           </div>
         </form>
       )}

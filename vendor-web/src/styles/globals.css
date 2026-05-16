@@ -164,6 +164,15 @@
   .chip-active {
     @apply chip border-primary bg-primary text-primary-foreground;
   }
+
+  /* Explicit brand green — avoids CSS-variable / HMR issues on native <button> */
+  .btn-brand {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:pointer-events-none;
+    background-color: #64c3a0;
+  }
+  .btn-brand:hover:not(:disabled) {
+    background-color: #52b38f;
+  }
 }
 
 @layer utilities {

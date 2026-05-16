@@ -7,7 +7,7 @@ import {
 import type { CommissionPayoutRun } from '@/types/commission'
 
 const STATUS_COLORS: Record<string, string> = {
-  open: 'bg-blue-100 text-blue-700',
+  open: 'bg-primary/15 text-primary',
   approved: 'bg-green-100 text-green-700',
   paid: 'bg-primary/12 text-primary',
   cancelled: 'bg-gray-100 text-gray-500',
@@ -102,7 +102,7 @@ export default function PayoutsPage() {
           <h1 className="text-xl font-semibold text-gray-900">Payout Runs</h1>
           <p className="text-sm text-gray-500 mt-0.5">Batch approved accruals into payable runs</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90">
           <Plus className="h-4 w-4" /> New Run
         </button>
       </div>
@@ -197,7 +197,7 @@ export default function PayoutsPage() {
             <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
               <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={handleCreate} disabled={create.isPending}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {create.isPending ? 'Creating…' : 'Create Run'}
               </button>
             </div>

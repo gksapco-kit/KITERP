@@ -97,7 +97,7 @@ function AccountCombobox({
           onChange={e => { setQ(e.target.value); setSelected(null); onChange(''); setOpen(true) }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="w-full border border-gray-200 rounded-lg pl-6 pr-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full border border-gray-200 rounded-lg pl-6 pr-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
       {open && results.length > 0 && (
@@ -106,7 +106,7 @@ function AccountCombobox({
             <button
               key={acc.id}
               onClick={() => select(acc)}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 text-left transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-primary/10 text-left transition-colors"
             >
               <span className="font-mono text-xs text-gray-400 w-12 shrink-0">{acc.code}</span>
               <span className="flex-1 text-xs text-gray-800 truncate">{acc.name}</span>
@@ -156,13 +156,13 @@ function RefDocSearch({
         onChange={e => { setQ(e.target.value); onChange('', ''); setOpen(true) }}
         onFocus={() => setOpen(true)}
         placeholder="Doc number…"
-        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
       />
       {open && results.length > 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-40 overflow-y-auto">
           {results.map(r => (
             <button key={r.id} onClick={() => { onChange(r.id, r.no); setQ(r.label); setOpen(false) }}
-              className="w-full px-3 py-2 text-left text-xs hover:bg-indigo-50">
+              className="w-full px-3 py-2 text-left text-xs hover:bg-primary/10">
               {r.label}
             </button>
           ))}
@@ -400,7 +400,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
         {/* ── Drawer header bar ── */}
         <div className="flex items-center justify-between px-6 py-4 bg-white border-b">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -456,7 +456,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                       <select
                         value={companyId}
                         onChange={e => setCompanyId(e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="">— Select —</option>
                         {(companies as Company[]).map(c => (
@@ -471,7 +471,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                       <select
                         value={docType}
                         onChange={e => setDocType(e.target.value as DocType)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         {DOC_TYPES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
                       </select>
@@ -483,7 +483,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                       <select
                         value={currency}
                         onChange={e => setCurrency(e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="Default">Default ({defaultCompany?.currency || 'INR'})</option>
                         {['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD'].map(c => (
@@ -501,7 +501,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         type="date"
                         value={entryDate}
                         onChange={e => setEntryDate(e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
 
@@ -515,7 +515,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         type="date"
                         value={documentDate}
                         onChange={e => setDocumentDate(e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     )}
@@ -526,7 +526,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                       <select
                         value={fiscalYearId}
                         onChange={e => { setFiscalYearId(e.target.value); setPeriodId('') }}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                       >
                         <option value="">— Select —</option>
                         {(fiscalYears as any[]).map((fy: any) => (
@@ -540,7 +540,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         value={periodId}
                         onChange={e => setPeriodId(e.target.value)}
                         disabled={!fiscalYearId}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white disabled:bg-gray-50 disabled:text-gray-400"
                       >
                         <option value="">— Select —</option>
                         {(periods as any[]).map((p: any) => (
@@ -562,7 +562,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         value={reference}
                         onChange={e => setReference(e.target.value)}
                         placeholder="External ref / cheque no."
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     )}
@@ -577,7 +577,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         value={narration}
                         onChange={e => setNarration(e.target.value)}
                         placeholder="Header narration — describe the transaction"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     )}
@@ -593,7 +593,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         onChange={e => setHeaderText(e.target.value)}
                         rows={2}
                         placeholder="Internal notes for approvers / auditors…"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     )}
@@ -617,7 +617,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                 </div>
                 <button
                   onClick={addLine}
-                  className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2.5 py-1.5 rounded-lg hover:bg-indigo-50"
+                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium px-2.5 py-1.5 rounded-lg hover:bg-primary/10"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Line
                 </button>
@@ -655,7 +655,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         value={ln.description || ''}
                         onChange={e => setLine(ln._key, { description: e.target.value })}
                         placeholder="Line description"
-                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs w-full focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs w-full focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                       <input
                         type="number"
@@ -663,7 +663,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         value={ln.debit || ''}
                         onChange={e => setLine(ln._key, { debit: Number(e.target.value), credit: 0 })}
                         placeholder="0.00"
-                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right w-full focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right w-full focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                       <input
                         type="number"
@@ -671,7 +671,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                         value={ln.credit || ''}
                         onChange={e => setLine(ln._key, { credit: Number(e.target.value), debit: 0 })}
                         placeholder="0.00"
-                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right w-full focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right w-full focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                       <button
                         onClick={() => setExpandedLine(expandedLine === ln._key ? null : ln._key)}
@@ -686,7 +686,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                     {/* Expanded extra fields */}
                     {expandedLine === ln._key && (
-                      <div className="px-4 pb-3 pt-1 bg-indigo-50/30 border-t border-indigo-100/60 space-y-3">
+                      <div className="px-4 pb-3 pt-1 bg-primary/10/30 border-t border-primary/20/60 space-y-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
 
                           {/* Cost Centre */}
@@ -695,7 +695,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                             <select
                               value={ln.cost_center_id || ''}
                               onChange={e => setLine(ln._key, { cost_center_id: e.target.value })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             >
                               <option value="">— None —</option>
                               {(costCenters as CostCenter[]).map(cc => (
@@ -710,7 +710,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                             <select
                               value={ln.project_id || ''}
                               onChange={e => setLine(ln._key, { project_id: e.target.value })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             >
                               <option value="">— None —</option>
                               {(projects as Project[]).map(p => (
@@ -725,7 +725,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                             <select
                               value={ln.intercompany_partner_id || ''}
                               onChange={e => setLine(ln._key, { intercompany_partner_id: e.target.value })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             >
                               <option value="">— None —</option>
                               {(icPartners as any[]).map((ip: any) => (
@@ -741,7 +741,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                               type="date"
                               value={ln.value_date || ''}
                               onChange={e => setLine(ln._key, { value_date: e.target.value })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             />
                           </div>
 
@@ -751,7 +751,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                             <select
                               value={ln.party_type || ''}
                               onChange={e => setLine(ln._key, { party_type: (e.target.value as any) || undefined })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             >
                               <option value="">— None —</option>
                               <option value="customer">Customer</option>
@@ -765,7 +765,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                             <select
                               value={ln.ref_doc_type || ''}
                               onChange={e => setLine(ln._key, { ref_doc_type: (e.target.value as RefDocType) || undefined, ref_doc_id: '', ref_doc_no: '' })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             >
                               <option value="">— None —</option>
                               {REF_DOC_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -789,7 +789,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                               value={ln.tax_code || ''}
                               onChange={e => setLine(ln._key, { tax_code: e.target.value })}
                               placeholder="e.g. GST18"
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             />
                           </div>
 
@@ -802,7 +802,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                               value={ln.tax_amount || ''}
                               onChange={e => setLine(ln._key, { tax_amount: Number(e.target.value) })}
                               placeholder="0.00"
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             />
                           </div>
 
@@ -813,7 +813,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                               value={ln.assignment || ''}
                               onChange={e => setLine(ln._key, { assignment: e.target.value })}
                               placeholder="Clearing reference"
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             />
                           </div>
 
@@ -826,7 +826,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                               min={0}
                               value={ln.fx_rate || 1}
                               onChange={e => setLine(ln._key, { fx_rate: Number(e.target.value) })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                             />
                           </div>
                         </div>
@@ -962,7 +962,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                 isBalanced
                   ? needsApproval
                     ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    : 'bg-primary hover:bg-primary/90 text-white'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               )}
             >
@@ -1060,7 +1060,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
             <button
               type="button"
               onClick={() => { setSavePreview(null); onClose() }}
-              className="px-5 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+              className="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary/90"
             >
               OK
             </button>
@@ -1204,7 +1204,7 @@ export default function JournalEntries() {
         </div>
         <button
           onClick={() => setShowNew(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 font-medium"
+          className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 font-medium"
         >
           <Plus className="w-4 h-4" /> New Entry
         </button>
@@ -1219,7 +1219,7 @@ export default function JournalEntries() {
             className={cn(
               'px-3 py-1.5 rounded-lg text-sm border transition-colors',
               filter.status === s
-                ? 'bg-indigo-600 text-white border-indigo-600'
+                ? 'bg-primary text-white border-primary'
                 : 'border-gray-300 text-gray-600 hover:bg-gray-50'
             )}
           >
@@ -1245,7 +1245,7 @@ export default function JournalEntries() {
               <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">No journal entries found.</td></tr>
             ) : entries.map((e) => (
               <tr key={e.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setDetailId(e.id)}>
-                <td className="px-4 py-3 font-mono text-xs text-indigo-600 font-semibold">{e.entry_no}</td>
+                <td className="px-4 py-3 font-mono text-xs text-primary font-semibold">{e.entry_no}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs truncate max-w-[100px]">{e.company_name || '—'}</td>
                 <td className="px-4 py-3 text-gray-700 text-xs">{e.entry_date}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{e.document_date || '—'}</td>
@@ -1268,7 +1268,7 @@ export default function JournalEntries() {
                     {e.status === 'draft' && (
                       <>
                         <button onClick={() => { setEditId(e.id); setShowNew(false) }} title="Edit"
-                          className="p-1 text-gray-400 hover:text-indigo-600"><Pencil className="w-4 h-4" /></button>
+                          className="p-1 text-gray-400 hover:text-primary"><Pencil className="w-4 h-4" /></button>
                         <button onClick={() => handlePost(e.id)} title="Post"
                           className="p-1 text-green-600 hover:text-green-800"><CheckCircle className="w-4 h-4" /></button>
                       </>

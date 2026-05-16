@@ -159,7 +159,7 @@ export default function LeadsPage() {
         {['', ...STATUSES].map(s => (
           <button key={s || 'all'}
             onClick={() => { setStatus(s); setPage(1) }}
-            className={`text-xs px-3 py-1.5 rounded-full border ${status === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            className={`text-xs px-3 py-1.5 rounded-full border ${status === s ? 'bg-primary text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
             {s || 'all'}
           </button>
         ))}

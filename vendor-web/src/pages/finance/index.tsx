@@ -38,7 +38,7 @@ export default function FinanceDashboard() {
           <button
             onClick={() => seedMutation.mutate(undefined)}
             disabled={seedMutation.isPending}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+            className="btn-brand disabled:opacity-50"
           >
             {seedMutation.isPending ? 'Setting up…' : 'Set Up Finance (Seed COA)'}
           </button>
@@ -56,7 +56,7 @@ export default function FinanceDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard label="Revenue MTD" value={fmt(data?.total_revenue || 0)} icon={TrendingUp} color="bg-green-500" />
         <KpiCard label="Expenses MTD" value={fmt(data?.total_expenses || 0)} icon={TrendingDown} color="bg-red-500" />
-        <KpiCard label="Net Profit" value={fmt(data?.net_profit || 0)} icon={TrendingUp} color="bg-indigo-500" />
+        <KpiCard label="Net Profit" value={fmt(data?.net_profit || 0)} icon={TrendingUp} color="bg-primary" />
         <KpiCard label="Cash Position" value={fmt(data?.cash_position || 0)} icon={Coins} color="bg-blue-500" />
         <KpiCard label="AR Outstanding" value={fmt(data?.total_ar_outstanding || 0)} icon={ArrowLeftRight} color="bg-orange-500" />
         <KpiCard label="AP Outstanding" value={fmt(data?.total_ap_outstanding || 0)} icon={Banknote} color="bg-rose-500" />
@@ -77,7 +77,7 @@ export default function FinanceDashboard() {
               ['AP Bills', '/finance/ap'],
             ].map(([label, href]) => (
               <a key={href} href={href}
-                className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">
+                className="text-sm text-primary hover:text-primary/80 hover:underline py-1">
                 → {label}
               </a>
             ))}

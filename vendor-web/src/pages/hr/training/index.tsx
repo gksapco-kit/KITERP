@@ -64,7 +64,7 @@ function ProgramsTab() {
     <div>
       <div className="flex justify-end mb-3">
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Program
         </button>
       </div>
@@ -220,7 +220,7 @@ function ProgramModal({ program, onClose }: { program: TrainingProgram | null; o
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
           <button onClick={submit} disabled={!form.name.trim() || create.isPending || update.isPending}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
             {program ? 'Save' : 'Create'}
           </button>
         </div>
@@ -238,7 +238,7 @@ function EnrollmentsTab() {
     <div>
       <div className="flex justify-end mb-3">
         <button onClick={() => setShowEnroll(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Send className="w-4 h-4" /> Enroll Employees
         </button>
       </div>
@@ -352,7 +352,7 @@ function EnrollModal({ onClose }: { onClose: () => void }) {
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
           <button onClick={submit} disabled={!programId || employeeIds.length === 0 || enroll.isPending}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
             Enroll {employeeIds.length} {employeeIds.length === 1 ? 'employee' : 'employees'}
           </button>
         </div>

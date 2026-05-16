@@ -32,7 +32,7 @@ export default function FixedAssets() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Fixed Assets</h1>
-        <button onClick={() => setShowNew(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+        <button onClick={() => setShowNew(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
           <Plus className="w-4 h-4" /> Add Asset
         </button>
       </div>
@@ -40,7 +40,7 @@ export default function FixedAssets() {
       <div className="flex gap-2">
         {(['assets', 'categories'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm border capitalize ${tab === t ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm border capitalize ${tab === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
             {t}
           </button>
         ))}
@@ -147,7 +147,7 @@ export default function FixedAssets() {
               <button onClick={() => setShowNew(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
               <button onClick={() => createMut.mutate({ ...form, purchase_cost: Number(form.purchase_cost), salvage_value: Number(form.salvage_value), useful_life_years: Number(form.useful_life_years) }, { onSuccess: () => setShowNew(false) })}
                 disabled={createMut.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createMut.isPending ? 'Saving…' : 'Register Asset'}
               </button>
             </div>

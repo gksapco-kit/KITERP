@@ -36,7 +36,7 @@ export default function AccountsPayable() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Accounts Payable</h1>
         {tab === 'Bills' && (
-          <button onClick={() => setShowNewBill(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+          <button onClick={() => setShowNewBill(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
             <Plus className="w-4 h-4" /> New Bill
           </button>
         )}
@@ -45,7 +45,7 @@ export default function AccountsPayable() {
       <div className="flex gap-2">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
             {t}
           </button>
         ))}
@@ -169,14 +169,14 @@ export default function AccountsPayable() {
                 <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
                 <input type={type || 'text'} value={(billForm as any)[key]}
                   onChange={e => setBillForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
             ))}
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowNewBill(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={() => createBillMut.mutate(billForm, { onSuccess: () => setShowNewBill(false) })}
                 disabled={createBillMut.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createBillMut.isPending ? 'Saving…' : 'Save Bill'}
               </button>
             </div>

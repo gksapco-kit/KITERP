@@ -27,7 +27,7 @@ export default function CostAnalysis() {
           <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
           <input type="date" value={to} onChange={e => setTo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
-        <button onClick={() => setApplied({ from_date: from, to_date: to })} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Apply</button>
+        <button onClick={() => setApplied({ from_date: from, to_date: to })} className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">Apply</button>
       </div>
 
       {isLoading ? <p className="text-gray-500">Loading…</p> : !data ? <p className="text-gray-500">No data.</p> : (
@@ -36,7 +36,7 @@ export default function CostAnalysis() {
             {[
               { label: 'Total Revenue', value: data.total_revenue || 0, color: 'bg-green-50 border-green-200 text-green-800' },
               { label: 'Total Costs', value: data.total_costs || 0, color: 'bg-red-50 border-red-200 text-red-800' },
-              { label: 'Gross Margin', value: data.gross_margin_pct || 0, suffix: '%', color: 'bg-indigo-50 border-indigo-200 text-indigo-800' },
+              { label: 'Gross Margin', value: data.gross_margin_pct || 0, suffix: '%', color: 'bg-primary/10 border-primary/30 text-primary/80' },
             ].map(({ label, value, suffix, color }) => (
               <div key={label} className={`rounded-xl border p-4 ${color}`}>
                 <p className="text-xs font-medium">{label}</p>

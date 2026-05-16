@@ -54,7 +54,7 @@ export function DesigModal({ desig, onClose, onCreated }: DesigModalProps) {
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={busy} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button type="submit" disabled={busy} className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {busy ? 'Saving…' : desig ? 'Update' : 'Create'}
             </button>
           </div>

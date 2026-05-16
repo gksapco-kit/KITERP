@@ -474,7 +474,7 @@ function AddEmployeeModal({
                 type="submit"
                 form="add-employee-form"
                 disabled={createEmployee.isPending || inviteMember.isPending || (createMode === 'select' && !vendorUserId) || (createMode === 'new' && (!newMemberEmail || !newMemberName || !newMemberPassword))}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
               >
                 {(createEmployee.isPending || inviteMember.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {createEmployee.isPending || inviteMember.isPending ? 'Creating…' : 'Create Profile'}
@@ -678,7 +678,7 @@ function AddEmployeeModal({
                           onChange={e => setNewEmpTypeLabel(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmpType() } if (e.key === 'Escape') setShowNewEmpType(false) }}
                         />
-                        <button type="button" onClick={addEmpType} className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button>
+                        <button type="button" onClick={addEmpType} className="px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Add</button>
                         <button type="button" onClick={() => setShowNewEmpType(false)} className="px-2 py-2 border rounded-lg hover:bg-gray-50"><X className="w-3.5 h-3.5 text-gray-400" /></button>
                       </div>
                     ) : (
@@ -992,7 +992,7 @@ function AddEmployeeModal({
                           type="button"
                           onClick={addDocument}
                           disabled={!docFile}
-                          className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                          className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors"
                         >
                           <Plus className="w-3.5 h-3.5" /> Save
                         </button>
@@ -1110,7 +1110,7 @@ export default function EmployeesPage() {
           </button>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium"
           >
             <Plus className="w-4 h-4" /> Add Employee
           </button>

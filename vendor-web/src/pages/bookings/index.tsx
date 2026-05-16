@@ -1312,7 +1312,7 @@ export default function BookingsPage() {
                 Cancel
               </Button>
               <Button
-                className="flex-1 h-9 text-sm gap-1.5 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 h-9 text-sm gap-1.5 bg-primary hover:bg-primary/90"
                 disabled={!rescheduleDate || rescheduling}
                 onClick={handleRescheduleConfirm}
               >

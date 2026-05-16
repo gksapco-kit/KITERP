@@ -28,12 +28,12 @@ export default function Capital() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Capital Management</h1>
         {tab === 'Loans' && (
-          <button onClick={() => setShowNewLoan(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+          <button onClick={() => setShowNewLoan(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
             <Plus className="w-4 h-4" /> New Loan
           </button>
         )}
         {tab === 'Investments' && (
-          <button onClick={() => setShowNewInv(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+          <button onClick={() => setShowNewInv(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
             <Plus className="w-4 h-4" /> New Investment
           </button>
         )}
@@ -42,7 +42,7 @@ export default function Capital() {
       <div className="flex gap-2">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
             {t}
           </button>
         ))}
@@ -75,7 +75,7 @@ export default function Capital() {
                   <td className="px-4 py-2">
                     {!l.schedule_generated && (
                       <button onClick={() => genScheduleMut.mutate(l.id)} disabled={genScheduleMut.isPending}
-                        className="text-xs text-indigo-600 hover:underline disabled:opacity-50">Generate Schedule</button>
+                        className="text-xs text-primary hover:underline disabled:opacity-50">Generate Schedule</button>
                     )}
                   </td>
                 </tr>
@@ -88,9 +88,9 @@ export default function Capital() {
       {tab === 'Investments' && (
         <div className="space-y-4">
           {selectedInv && roi && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 grid grid-cols-3 gap-4">
-              <div><p className="text-xs text-indigo-500">Invested</p><p className="font-bold text-indigo-800">{fmt(roi.invested_amount || 0)}</p></div>
-              <div><p className="text-xs text-indigo-500">Current Value</p><p className="font-bold text-indigo-800">{fmt(roi.current_value || 0)}</p></div>
+            <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 grid grid-cols-3 gap-4">
+              <div><p className="text-xs text-indigo-500">Invested</p><p className="font-bold text-primary/80">{fmt(roi.invested_amount || 0)}</p></div>
+              <div><p className="text-xs text-indigo-500">Current Value</p><p className="font-bold text-primary/80">{fmt(roi.current_value || 0)}</p></div>
               <div><p className="text-xs text-indigo-500">ROI</p><p className={`font-bold text-xl ${(roi.roi_pct || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(roi.roi_pct || 0).toFixed(2)}%</p></div>
             </div>
           )}
@@ -100,13 +100,13 @@ export default function Capital() {
               <div className="col-span-3 text-center py-12 text-gray-500 text-sm bg-white rounded-xl border border-gray-200">No investments recorded.</div>
             ) : (investments as any[]).map((inv: any) => (
               <div key={inv.id} onClick={() => setSelectedInv(inv.id)}
-                className={`bg-white rounded-xl border p-4 cursor-pointer hover:border-indigo-300 ${selectedInv === inv.id ? 'border-indigo-400 shadow-sm' : 'border-gray-200'}`}>
+                className={`bg-white rounded-xl border p-4 cursor-pointer hover:border-primary/40 ${selectedInv === inv.id ? 'border-primary/60 shadow-sm' : 'border-gray-200'}`}>
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-gray-800">{inv.name}</p>
                   <BarChart3 className="w-4 h-4 text-gray-400" />
                 </div>
                 <p className="text-xs text-gray-500 capitalize mt-1">{inv.investment_type} · {inv.status}</p>
-                <p className="text-xl font-bold text-indigo-700 mt-2">{fmt(inv.current_value || inv.invested_amount)}</p>
+                <p className="text-xl font-bold text-primary mt-2">{fmt(inv.current_value || inv.invested_amount)}</p>
                 <p className="text-xs text-gray-400">Invested: {fmt(inv.invested_amount)}</p>
               </div>
             ))}
@@ -143,7 +143,7 @@ export default function Capital() {
               <button onClick={() => setShowNewLoan(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
               <button onClick={() => createLoanMut.mutate({ ...loanForm, principal: Number(loanForm.principal), interest_rate: Number(loanForm.interest_rate), tenure_months: Number(loanForm.tenure_months) }, { onSuccess: () => setShowNewLoan(false) })}
                 disabled={createLoanMut.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createLoanMut.isPending ? 'Saving…' : 'Save'}
               </button>
             </div>
@@ -178,7 +178,7 @@ export default function Capital() {
               <button onClick={() => setShowNewInv(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
               <button onClick={() => createInvMut.mutate({ ...invForm, invested_amount: Number(invForm.invested_amount) }, { onSuccess: () => setShowNewInv(false) })}
                 disabled={createInvMut.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createInvMut.isPending ? 'Saving…' : 'Save'}
               </button>
             </div>

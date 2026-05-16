@@ -124,7 +124,7 @@ function fmtDt(iso: string) {
 }
 
 function avatarColor(str: string) {
-  const colors = ['bg-blue-500', 'bg-primary', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500', 'bg-cyan-500', 'bg-indigo-500']
+  const colors = ['bg-blue-500', 'bg-primary', 'bg-emerald-500', 'bg-primary', 'bg-amber-500', 'bg-cyan-500', 'bg-indigo-500']
   let h = 0
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % colors.length
   return colors[h]
@@ -181,7 +181,7 @@ function ComposeModal({ onClose, onSave, editing }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <div className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-rose-500" />
+            <Heart className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">{editing ? 'Edit Reminder' : 'New Care & Reminder'}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
@@ -192,7 +192,7 @@ function ComposeModal({ onClose, onSave, editing }: {
           <div className="flex items-center gap-2">
             {(['customer', 'compose', 'schedule'] as const).map((s, i) => (
               <div key={s} className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full transition-colors ${step === s ? 'bg-rose-100 text-rose-700' : (
+                <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full transition-colors ${step === s ? 'bg-primary/15 text-primary' : (
                   (s === 'compose' && selectedCustomer) || (s === 'schedule' && message.trim()) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'
                 )}`}>
                   <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold bg-white/50">{i + 1}</span>
@@ -217,13 +217,13 @@ function ComposeModal({ onClose, onSave, editing }: {
               <div className="space-y-2 max-h-72 overflow-y-auto">
                 {filteredCustomers.map(c => (
                   <button key={c.id} onClick={() => setSelectedCustomer(c)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selectedCustomer?.id === c.id ? 'border-rose-400 bg-rose-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selectedCustomer?.id === c.id ? 'border-primary/60 bg-primary/10' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${avatarColor(c.avatar)}`}>{c.avatar}</div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900">{c.name}</p>
                       <p className="text-xs text-gray-500 truncate">{c.email} {c.phone ? `· ${c.phone}` : ''}</p>
                     </div>
-                    {selectedCustomer?.id === c.id && <CheckCircle2 className="w-4 h-4 text-rose-500 ml-auto shrink-0" />}
+                    {selectedCustomer?.id === c.id && <CheckCircle2 className="w-4 h-4 text-primary ml-auto shrink-0" />}
                   </button>
                 ))}
                 {!filteredCustomers.length && (
@@ -295,31 +295,31 @@ function ComposeModal({ onClose, onSave, editing }: {
                   </div>
                 )}
                 <textarea
-                  className="w-full text-sm border border-input rounded-xl px-3 py-2.5 min-h-[120px] resize-y focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  className="w-full text-sm border border-input rounded-xl px-3 py-2.5 min-h-[120px] resize-y focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder={`Type your ${CHANNEL_META[channel].label} message… Use {name} for customer name.`}
                   value={message} onChange={e => setMessage(e.target.value)} />
                 <p className="text-right text-[10px] text-gray-400 mt-0.5">{message.length} chars</p>
               </div>
 
               {/* Reach Me Back toggle */}
-              <div className={`rounded-xl border-2 p-4 transition-all ${includeReachBack ? 'border-rose-300 bg-rose-50' : 'border-gray-200 bg-gray-50'}`}>
+              <div className={`rounded-xl border-2 p-4 transition-all ${includeReachBack ? 'border-primary/40 bg-primary/10' : 'border-gray-200 bg-gray-50'}`}>
                 <label className="flex items-start gap-3 cursor-pointer">
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                      <PhoneIncoming className="w-4 h-4 text-rose-500" />
+                      <PhoneIncoming className="w-4 h-4 text-primary" />
                       Include "Reach Me Back" Request
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       A call-to-action button will be added to the message. When the customer taps it, a follow-up action item is created in your CRM for your team to call back.
                     </p>
                     {includeReachBack && (
-                      <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full">
+                      <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium bg-primary/15 text-primary px-2.5 py-1 rounded-full">
                         <Bell className="w-3 h-3" /> CRM action will be auto-created on response
                       </div>
                     )}
                   </div>
                   <button type="button" onClick={() => setIncludeReachBack(!includeReachBack)}
-                    className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors mt-0.5 ${includeReachBack ? 'bg-rose-500' : 'bg-gray-300'}`}>
+                    className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors mt-0.5 ${includeReachBack ? 'bg-primary' : 'bg-gray-300'}`}>
                     <span className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
                       style={{ transform: includeReachBack ? 'translateX(18px)' : 'translateX(2px)' }} />
                   </button>
@@ -345,7 +345,7 @@ function ComposeModal({ onClose, onSave, editing }: {
                 <input type="datetime-local" value={scheduledAt}
                   min={new Date().toISOString().slice(0, 16)}
                   onChange={e => setScheduledAt(e.target.value)}
-                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" />
+                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
 
               <div>
@@ -360,7 +360,7 @@ function ComposeModal({ onClose, onSave, editing }: {
                     const FIcon = f.icon
                     return (
                       <button key={f.id} onClick={() => setFrequency(f.id)}
-                        className={`flex items-center gap-2 py-2.5 px-3 rounded-xl border-2 text-xs font-semibold transition-all ${frequency === f.id ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                        className={`flex items-center gap-2 py-2.5 px-3 rounded-xl border-2 text-xs font-semibold transition-all ${frequency === f.id ? 'border-primary/60 bg-primary/10 text-primary' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                         <FIcon className="w-3.5 h-3.5" />{f.label}
                       </button>
                     )
@@ -376,7 +376,7 @@ function ComposeModal({ onClose, onSave, editing }: {
                   <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{message}</p>
                   {includeReachBack && (
                     <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
-                      <button className="flex items-center gap-2 bg-rose-500 text-white text-xs font-semibold px-4 py-2 rounded-lg pointer-events-none">
+                      <button className="flex items-center gap-2 bg-primary text-white text-xs font-semibold px-4 py-2 rounded-lg pointer-events-none">
                         <PhoneIncoming className="w-3.5 h-3.5" /> Please call me back
                       </button>
                       <p className="text-[10px] text-gray-400 mt-1.5">Tapping this creates a follow-up in your CRM</p>
@@ -386,7 +386,7 @@ function ComposeModal({ onClose, onSave, editing }: {
                 <div className="flex items-center gap-2 mt-3 text-xs text-gray-500">
                   <AlarmClock className="w-3.5 h-3.5" />
                   {scheduledAt ? `Sends on ${fmtDt(scheduledAt)}` : 'No schedule set yet'}
-                  {frequency !== 'once' && <span className="font-medium text-rose-600">· then {frequency}</span>}
+                  {frequency !== 'once' && <span className="font-medium text-primary">· then {frequency}</span>}
                 </div>
               </div>
             </div>
@@ -400,11 +400,11 @@ function ComposeModal({ onClose, onSave, editing }: {
           </Button>
           {step !== 'schedule' ? (
             <Button disabled={!canNext()} onClick={() => setStep(step === 'customer' ? 'compose' : 'schedule')}
-              className="bg-rose-600 hover:bg-rose-700 gap-2">
+              className="bg-primary hover:bg-primary/90 gap-2">
               Next <ArrowRight className="w-4 h-4" />
             </Button>
           ) : (
-            <Button disabled={!canNext()} onClick={handleSave} className="bg-rose-600 hover:bg-rose-700 gap-2">
+            <Button disabled={!canNext()} onClick={handleSave} className="bg-primary hover:bg-primary/90 gap-2">
               <Bell className="w-4 h-4" /> {editing ? 'Update Reminder' : 'Schedule Reminder'}
             </Button>
           )}
@@ -451,7 +451,7 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
               <SIcon className="w-3 h-3 mr-1" />{sMeta.label}
             </Badge>
             {r.include_reach_back && (
-              <span className="text-[10px] font-semibold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+              <span className="text-[10px] font-semibold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-1">
                 <PhoneIncoming className="w-2.5 h-2.5" /> Reach-back
               </span>
             )}
@@ -488,7 +488,7 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
               {r.message}
               {r.include_reach_back && (
                 <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
-                  <span className="inline-flex items-center gap-2 bg-rose-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                  <span className="inline-flex items-center gap-2 bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
                     <PhoneIncoming className="w-3.5 h-3.5" /> Please call me back
                   </span>
                 </div>
@@ -506,7 +506,7 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
                 {r.action_items.map(a => (
                   <div key={a.id} className={`flex items-start gap-3 p-3 rounded-xl border bg-white ${a.done ? 'opacity-60' : ''}`}>
                     <button onClick={() => onToggleAction(a.id)}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${a.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 hover:border-rose-400'}`}>
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${a.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 hover:border-primary/60'}`}>
                       {a.done && <CheckCircle2 className="w-3 h-3 text-white" />}
                     </button>
                     <div className="flex-1 min-w-0">
@@ -654,12 +654,12 @@ export default function CareReminderPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
-            <Heart className="w-5 h-5 text-rose-500" />
+            <Heart className="w-5 h-5 text-primary" />
             <h1 className="text-2xl font-bold text-gray-900">Care & Reminders</h1>
           </div>
           <p className="text-sm text-gray-500">Schedule personalised messages for customers via Email, WhatsApp or SMS. Enable reach-back to auto-create CRM follow-up actions.</p>
         </div>
-        <Button onClick={() => { setEditing(null); setShowCompose(true) }} className="bg-rose-600 hover:bg-rose-700 gap-2">
+        <Button onClick={() => { setEditing(null); setShowCompose(true) }} className="bg-primary hover:bg-primary/90 gap-2">
           <Plus className="w-4 h-4" /> New Reminder
         </Button>
       </div>
@@ -675,7 +675,7 @@ export default function CareReminderPage() {
           const Icon = s.icon
           return (
             <button key={s.label} onClick={() => setFilterStatus(s.filter === filterStatus ? 'all' : s.filter as any)}
-              className={`bg-white border rounded-2xl p-4 flex items-start justify-between text-left hover:shadow-md transition-shadow ${filterStatus === s.filter && s.filter !== 'all' ? 'ring-2 ring-rose-300' : ''}`}>
+              className={`bg-white border rounded-2xl p-4 flex items-start justify-between text-left hover:shadow-md transition-shadow ${filterStatus === s.filter && s.filter !== 'all' ? 'ring-2 ring-primary/40' : ''}`}>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{s.label}</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{s.value}</p>
@@ -700,7 +700,7 @@ export default function CareReminderPage() {
             <Filter className="w-3.5 h-3.5 text-gray-400" />
             {(['all', 'scheduled', 'sent', 'responded', 'cancelled'] as const).map(s => (
               <button key={s} onClick={() => setFilterStatus(s === filterStatus ? 'all' : s)}
-                className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-colors ${filterStatus === s ? 'bg-rose-100 text-rose-700 border-rose-300' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-colors ${filterStatus === s ? 'bg-primary/15 text-primary border-primary/40' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                 {s === 'all' ? 'All' : STATUS_META[s as RStatus]?.label ?? s}
               </button>
             ))}
@@ -730,12 +730,12 @@ export default function CareReminderPage() {
       <div className="space-y-3">
         {filtered.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border">
-            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Heart className="w-8 h-8 text-rose-300" />
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Heart className="w-8 h-8 text-primary/40" />
             </div>
             <p className="text-gray-500 text-sm font-medium mb-1">No reminders found</p>
             <p className="text-gray-400 text-xs mb-4">Schedule your first care message to a customer.</p>
-            <Button size="sm" onClick={() => { setEditing(null); setShowCompose(true) }} className="bg-rose-600 hover:bg-rose-700 gap-1.5">
+            <Button size="sm" onClick={() => { setEditing(null); setShowCompose(true) }} className="bg-primary hover:bg-primary/90 gap-1.5">
               <Plus className="w-4 h-4" /> New Reminder
             </Button>
           </div>
@@ -763,7 +763,7 @@ export default function CareReminderPage() {
             <div className="space-y-2">
               {actions.filter(a => !a.done).map(a => (
                 <div key={a.id} className="flex items-center gap-3 bg-white rounded-xl border border-amber-200 px-3 py-2.5">
-                  <PhoneIncoming className="w-4 h-4 text-rose-500 shrink-0" />
+                  <PhoneIncoming className="w-4 h-4 text-primary shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-800 font-medium">{a.note}</p>
                     <p className="text-xs text-gray-400">{fmtDt(a.created_at)}</p>

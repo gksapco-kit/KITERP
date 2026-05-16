@@ -70,7 +70,7 @@ function CyclesTab() {
     <div>
       <div className="flex items-center justify-end mb-3">
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Cycle
         </button>
       </div>
@@ -289,7 +289,7 @@ function CycleModal({ existing, onClose }: { existing?: ReviewCycle | null; onCl
           <div className="flex justify-end gap-2 pt-3 border-t">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {create.isPending || update.isPending ? 'Saving…' : (existing ? 'Save changes' : 'Create cycle')}
             </button>
           </div>
@@ -319,7 +319,7 @@ function GoalsTab() {
           ))}
         </select>
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Goal
         </button>
       </div>
@@ -481,7 +481,7 @@ function GoalModal({ existing, onClose }: { existing?: PerformanceGoal | null; o
           <div className="flex justify-end gap-2 pt-3 border-t">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {create.isPending || update.isPending ? 'Saving…' : 'Save'}
             </button>
           </div>

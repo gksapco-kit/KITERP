@@ -59,7 +59,7 @@ export default function LeaveRequestsPage() {
           <button
             key={s}
             onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100'}`}
           >
             {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>

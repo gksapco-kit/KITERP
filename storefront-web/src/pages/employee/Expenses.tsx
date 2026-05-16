@@ -103,7 +103,7 @@ function ExpenseModal({ claim, onClose }: { claim: any | null; onClose: () => vo
             Save draft
           </button>
           <button onClick={() => submit('submitted')} disabled={!form.title || !form.amount}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+            className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1">
             <Send className="w-4 h-4" /> Submit
           </button>
         </div>
@@ -127,7 +127,7 @@ export default function ESSExpensesPage() {
           <p className="text-sm text-gray-500 mt-1">Submit and track expense reimbursements</p>
         </div>
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Claim
         </button>
       </div>

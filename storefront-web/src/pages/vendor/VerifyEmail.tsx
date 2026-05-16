@@ -125,7 +125,7 @@ export default function VerifyEmail() {
               </p>
               <Button
                 onClick={handleGoToDashboard}
-                className="w-full h-12 font-bold text-base bg-blue-600 hover:bg-blue-700"
+                className="w-full h-12 font-bold text-base bg-primary hover:bg-primary/90"
               >
                 Go to Vendor Dashboard <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
@@ -177,7 +177,7 @@ export default function VerifyEmail() {
 
               <Button
                 onClick={handleVerify}
-                className="w-full h-12 font-bold text-base bg-blue-600 hover:bg-blue-700 mb-3"
+                className="w-full h-12 font-bold text-base bg-primary hover:bg-primary/90 mb-3"
                 disabled={loading || code.join('').length !== 6}
               >
                 {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}

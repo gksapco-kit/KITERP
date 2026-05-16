@@ -1211,13 +1211,13 @@ export default function ReportsPage() {
           <div className="flex items-center gap-1 flex-wrap">
             <button
               onClick={() => setSelectedStoreId('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === 'all' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === 'all' ? 'bg-primary text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
               All Stores
             </button>
             {reportStores.map(s => (
               <button key={s.id}
                 onClick={() => setSelectedStoreId(s.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === s.id ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === s.id ? 'bg-primary text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
                 {s.name}{s.code ? ` · ${s.code}` : ''}
               </button>
             ))}
@@ -2413,7 +2413,7 @@ export default function ReportsPage() {
                                 {isShortage ? (
                                   <div className="flex items-center gap-1 flex-wrap">
                                     <button onClick={() => { setMrpSelected(new Set([row.product_id])); setPoModal(true) }}
-                                      className="flex items-center gap-1 text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-lg transition-colors">
+                                      className="flex items-center gap-1 text-[10px] font-bold bg-primary hover:bg-primary/90 text-white px-2 py-1 rounded-lg transition-colors">
                                       <Truck className="w-2.5 h-2.5" /> PO
                                     </button>
                                     <button onClick={() => { setMrpSelected(new Set([row.product_id])); setProdTab('new'); setProdModal(true) }}
@@ -2629,7 +2629,7 @@ export default function ReportsPage() {
                   Cancel
                 </button>
                 <button onClick={createPO}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-sm font-bold transition-colors flex items-center justify-center gap-2">
+                  className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-xl py-2.5 text-sm font-bold transition-colors flex items-center justify-center gap-2">
                   <Truck className="w-4 h-4" /> Create PO &amp; Download
                 </button>
               </div>

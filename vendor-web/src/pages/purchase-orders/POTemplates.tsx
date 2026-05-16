@@ -142,7 +142,7 @@ function ToggleRow({ label, hint, checked, onChange }: {
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}
+        className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-gray-300'}`}
       >
         <span
           className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
@@ -239,7 +239,7 @@ function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; 
         <Button type="button" variant="outline" size="sm" className="flex-1 gap-1.5" onClick={clearCanvas}>
           <Eraser className="w-3.5 h-3.5" /> Clear
         </Button>
-        <Button type="button" size="sm" className="flex-1 gap-1.5 bg-blue-600 hover:bg-blue-700" onClick={saveSignature}>
+        <Button type="button" size="sm" className="flex-1 gap-1.5 bg-primary hover:bg-primary/90" onClick={saveSignature}>
           <Check className="w-3.5 h-3.5" /> Use This Signature
         </Button>
       </div>
@@ -399,7 +399,7 @@ export default function POTemplatesPage() {
             <p className="text-xs text-gray-500">Customise layout, parties, tax details & signature for printed Purchase Orders</p>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-blue-600 hover:bg-blue-700">
+        <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-primary hover:bg-primary/90">
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
           Save Settings
         </Button>
@@ -702,7 +702,7 @@ export default function POTemplatesPage() {
 
           {/* ── Always-visible save buttons ── */}
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} disabled={isSaving} className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleSave} disabled={isSaving} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Save Settings
             </Button>

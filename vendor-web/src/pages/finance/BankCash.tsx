@@ -36,7 +36,7 @@ export default function BankCash() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Bank & Cash</h1>
         {tab === 'Accounts' && (
-          <button onClick={() => setShowNewAccount(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+          <button onClick={() => setShowNewAccount(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
             <Plus className="w-4 h-4" /> Add Account
           </button>
         )}
@@ -44,7 +44,7 @@ export default function BankCash() {
           <>
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleUpload} />
             <button onClick={() => fileRef.current?.click()} disabled={uploadMut.isPending}
-              className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50">
+              className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50">
               <Upload className="w-4 h-4" /> {uploadMut.isPending ? 'Uploading…' : 'Upload CSV'}
             </button>
           </>
@@ -54,7 +54,7 @@ export default function BankCash() {
       <div className="flex gap-2">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
             {t}
           </button>
         ))}
@@ -64,7 +64,7 @@ export default function BankCash() {
         <div className="flex gap-2 flex-wrap">
           {(accounts as any[]).map((a: any) => (
             <button key={a.id} onClick={() => setSelectedBankId(a.id)}
-              className={`px-3 py-1.5 rounded-full text-xs border ${selectedBankId === a.id ? 'bg-indigo-100 border-indigo-400 text-indigo-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-3 py-1.5 rounded-full text-xs border ${selectedBankId === a.id ? 'bg-primary/15 border-primary/60 text-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
               {a.name}
             </button>
           ))}
@@ -160,7 +160,7 @@ export default function BankCash() {
                       {r.status === 'open' && (
                         <button onClick={() => autoMatchMut.mutate({ id: r.id, data: { bank_account_id: selectedBankId } })}
                           disabled={autoMatchMut.isPending}
-                          className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 disabled:opacity-50">
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 disabled:opacity-50">
                           <Shuffle className="w-3 h-3" /> Auto-Match
                         </button>
                       )}
@@ -202,7 +202,7 @@ export default function BankCash() {
               <button onClick={() => setShowNewAccount(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={() => createAccountMut.mutate(accountForm, { onSuccess: () => setShowNewAccount(false) })}
                 disabled={createAccountMut.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createAccountMut.isPending ? 'Saving…' : 'Save'}
               </button>
             </div>

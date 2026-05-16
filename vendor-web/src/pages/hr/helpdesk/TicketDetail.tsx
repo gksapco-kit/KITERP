@@ -89,7 +89,7 @@ export default function TicketDetailPage() {
               Internal note (not visible to employee)
             </label>
             <button onClick={post} disabled={!body.trim() || comment.isPending}
-              className="flex items-center gap-1 px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50">
+              className="flex items-center gap-1 px-4 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm disabled:opacity-50">
               <Send className="w-4 h-4" /> Send
             </button>
           </div>

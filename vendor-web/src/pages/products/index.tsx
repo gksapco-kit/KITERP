@@ -194,7 +194,7 @@ export default function Products() {
             </form>
             <Button type="button" variant="outline" className="gap-2" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-4 h-4" />Filters
-              {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none font-bold bg-blue-600 text-white rounded-full">{activeFilterCount}</span>}
+              {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none font-bold bg-primary text-white rounded-full">{activeFilterCount}</span>}
             </Button>
           </div>
 

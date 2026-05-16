@@ -576,7 +576,7 @@ function CreatePOModal({
                     <Button
                       type="button"
                       size="sm"
-                      className="h-7 text-xs gap-1 bg-blue-600 hover:bg-blue-700"
+                      className="h-7 text-xs gap-1 bg-primary hover:bg-primary/90"
                       disabled={!qsName.trim() || createSupplierMut.isPending}
                       onClick={handleQuickCreateSupplier}
                     >

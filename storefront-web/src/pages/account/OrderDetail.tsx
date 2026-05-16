@@ -237,14 +237,14 @@ export default function OrderDetail() {
                 return (
                   <>
                     <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 z-0">
-                      <div className="h-full bg-blue-600 transition-all duration-500"
+                      <div className="h-full bg-primary transition-all duration-500"
                         style={{ width: `${currentStep >= 0 ? (currentStep / (stepCount - 1)) * 100 : 0}%` }} />
                     </div>
                     {steps.map((step, i) => (
                       <div key={step.key} className="flex flex-col items-center z-10 relative">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                           i <= currentStep
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+                            ? 'bg-primary text-white shadow-lg shadow-blue-200'
                             : 'bg-white border-2 border-gray-200 text-gray-400'
                         }`}>
                           <step.icon className="w-5 h-5" />
@@ -469,7 +469,7 @@ export default function OrderDetail() {
               </div>
               <Button
                 size="sm"
-                className="mt-3 w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                className="mt-3 w-full gap-2 bg-primary hover:bg-primary/90 text-white"
                 onClick={() => downloadInvoice(invoice as Record<string, unknown>, {
                   ...order,
                   booking_number: isBooking ? (order.items?.[0] as unknown as Record<string, unknown>)?.booking_number as string | undefined : undefined,
@@ -710,7 +710,7 @@ export default function OrderDetail() {
                 Cancel
               </Button>
               <Button
-                className={`flex-1 gap-2 ${returnType === 'exchange' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+                className={`flex-1 gap-2 ${returnType === 'exchange' ? 'bg-primary hover:bg-primary/90' : 'bg-orange-600 hover:bg-orange-700'}`}
                 disabled={returnReason.trim().length < 5 || returnMut.isPending || returnUploading}
                 onClick={() => {
                   returnMut.mutate(

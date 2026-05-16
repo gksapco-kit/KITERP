@@ -67,7 +67,7 @@ function PoliciesTab() {
           <option value="archived">Archived</option>
         </select>
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Policy
         </button>
       </div>
@@ -238,7 +238,7 @@ function PolicyModal({ existing, onClose }: { existing?: Policy | null; onClose:
           <div className="flex justify-end gap-2 pt-3 border-t">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {create.isPending || update.isPending ? 'Saving…' : 'Save'}
             </button>
           </div>
@@ -279,7 +279,7 @@ function CertificationsTab() {
           </select>
         </div>
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Certification
         </button>
       </div>
@@ -446,7 +446,7 @@ function CertModal({ existing, onClose }: { existing?: ComplianceCertification |
           <div className="flex justify-end gap-2 pt-3 border-t">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {create.isPending || update.isPending ? 'Saving…' : 'Save'}
             </button>
           </div>

@@ -255,7 +255,7 @@ function ToggleRow({ label, hint, checked, onChange }: {
         {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
       </div>
       <button type="button" onClick={() => onChange(!checked)}
-        className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}>
+        className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-gray-300'}`}>
         <span className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
           style={{ transform: checked ? 'translateX(18px)' : 'translateX(2px)' }} />
       </button>

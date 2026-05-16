@@ -6,7 +6,7 @@ import type { CommissionAccrual, AccrualStatus } from '@/types/commission'
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
-  accrued: 'bg-blue-100 text-blue-700',
+  accrued: 'bg-primary/15 text-primary',
   approved: 'bg-green-100 text-green-700',
   paid: 'bg-primary/12 text-primary',
   reversed: 'bg-red-100 text-red-700',
@@ -164,7 +164,7 @@ export default function AccrualsPage() {
         <div className="flex justify-center gap-2 mt-4">
           {Array.from({ length: Math.min(pages, 10) }, (_, i) => (
             <button key={i} onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded text-sm ${page === i + 1 ? 'bg-blue-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>
+              className={`px-3 py-1 rounded text-sm ${page === i + 1 ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>
               {i + 1}
             </button>
           ))}

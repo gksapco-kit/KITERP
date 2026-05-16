@@ -35,7 +35,7 @@ export default function Approvals() {
       <div className="flex gap-2">
         {(['approvals', 'policies'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm border capitalize ${tab === t ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm border capitalize ${tab === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
             {t === 'approvals' ? 'Approval Requests' : 'Approval Policies'}
           </button>
         ))}
@@ -46,7 +46,7 @@ export default function Approvals() {
           <div className="flex gap-2">
             {['', 'pending', 'approved', 'rejected'].map(s => (
               <button key={s} onClick={() => setFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-sm border ${filter === s ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                className={`px-3 py-1.5 rounded-lg text-sm border ${filter === s ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
                 {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
               </button>
             ))}

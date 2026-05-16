@@ -155,7 +155,7 @@ function MatchRow({
           <button
             type="button"
             onClick={() => onSelectExisting(match)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary hover:bg-primary/90 text-white text-[10px] font-semibold transition-colors"
           >
             <UserCheck className="w-3 h-3" />
             Use

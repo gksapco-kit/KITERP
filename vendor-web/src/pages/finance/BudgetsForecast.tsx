@@ -26,7 +26,7 @@ export default function BudgetsForecast() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Budgets & Forecasts</h1>
         {tab === 'Budgets' && (
-          <button onClick={() => setShowNewBudget(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+          <button onClick={() => setShowNewBudget(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
             <Plus className="w-4 h-4" /> New Budget
           </button>
         )}
@@ -35,7 +35,7 @@ export default function BudgetsForecast() {
       <div className="flex gap-2">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
             {t}
           </button>
         ))}
@@ -47,7 +47,7 @@ export default function BudgetsForecast() {
            (budgets as any[]).length === 0 ? (
             <div className="text-center py-12 text-gray-500 text-sm bg-white rounded-xl border border-gray-200">No budgets yet.</div>
           ) : (budgets as any[]).map((b: any) => (
-            <div key={b.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between hover:border-indigo-300 cursor-pointer"
+            <div key={b.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between hover:border-primary/40 cursor-pointer"
               onClick={() => { setSelectedBudgetId(b.id); setTab('Variance') }}>
               <div>
                 <p className="font-semibold text-gray-800">{b.name}</p>
@@ -68,7 +68,7 @@ export default function BudgetsForecast() {
           <div className="flex gap-2 flex-wrap">
             {(budgets as any[]).map((b: any) => (
               <button key={b.id} onClick={() => setSelectedBudgetId(b.id)}
-                className={`px-3 py-1.5 rounded-full text-xs border ${selectedBudgetId === b.id ? 'bg-indigo-100 border-indigo-400 text-indigo-700' : 'border-gray-300 text-gray-600'}`}>
+                className={`px-3 py-1.5 rounded-full text-xs border ${selectedBudgetId === b.id ? 'bg-primary/15 border-primary/60 text-primary' : 'border-gray-300 text-gray-600'}`}>
                 {b.name}
               </button>
             ))}
@@ -149,7 +149,7 @@ export default function BudgetsForecast() {
               <button onClick={() => setShowNewBudget(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
               <button onClick={() => createBudgetMut.mutate(budgetForm, { onSuccess: () => setShowNewBudget(false) })}
                 disabled={createBudgetMut.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createBudgetMut.isPending ? 'Saving…' : 'Save'}
               </button>
             </div>

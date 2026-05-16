@@ -19,7 +19,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
   absent:      { label: 'Absent',      color: 'text-red-700 bg-red-50 border-red-200',          icon: XCircle },
   late:        { label: 'Late',        color: 'text-orange-700 bg-orange-50 border-orange-200', icon: Clock },
   half_day:    { label: 'Half Day',    color: 'text-yellow-700 bg-yellow-50 border-yellow-200', icon: AlertCircle },
-  on_leave:    { label: 'On Leave',    color: 'text-blue-700 bg-blue-50 border-blue-200',       icon: Calendar },
+  on_leave:    { label: 'On Leave',    color: 'text-primary bg-primary/10 border-primary/30',       icon: Calendar },
   holiday:     { label: 'Holiday',     color: 'text-primary bg-accent border-primary/30', icon: Calendar },
   week_off:    { label: 'Week Off',    color: 'text-gray-600 bg-gray-100 border-gray-200',      icon: Calendar },
   time:        { label: 'Time Entry',  color: 'text-indigo-700 bg-indigo-50 border-indigo-200', icon: Timer },
@@ -116,7 +116,7 @@ function AttendanceModal({ employees, record, defaultDate, onClose }: MarkModalP
           {!isEdit && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Employee *</label>
-              <select required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.employee_id} onChange={e => set('employee_id', e.target.value)}>
+              <select required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={form.employee_id} onChange={e => set('employee_id', e.target.value)}>
                 <option value="">— Select Employee —</option>
                 {employees.map(e => <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
               </select>
@@ -191,7 +191,7 @@ function AttendanceModal({ employees, record, defaultDate, onClose }: MarkModalP
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={isPending} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700">
+            <button type="submit" disabled={isPending} className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50 hover:bg-primary/90">
               <Save className="w-4 h-4" />
               {isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Mark'}
             </button>
@@ -364,7 +364,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
 
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <div className="flex items-center gap-2">
-            <CalendarRange className="w-5 h-5 text-blue-600" />
+            <CalendarRange className="w-5 h-5 text-primary" />
             <div>
               <h2 className="text-base font-semibold text-gray-900">Mark Attendance — Date Range</h2>
               <p className="text-xs text-gray-400">Step 1 of 2 · Set range &amp; defaults</p>
@@ -382,7 +382,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 w-7">From</span>
                 <input type="date"
-                  className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
                   value={fromDate}
                   onChange={e => { setFromDate(e.target.value); if (e.target.value > toDate) setToDate(e.target.value) }}
                 />
@@ -390,14 +390,14 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 w-4">To</span>
                 <input type="date" min={fromDate}
-                  className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
                   value={toDate}
                   onChange={e => setToDate(e.target.value)}
                 />
               </div>
               {visibleDays.length > 0 && (
                 <div className="flex gap-1.5 text-xs">
-                  <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
+                  <span className="bg-primary/10 text-primary border border-primary/30 px-2.5 py-1 rounded-full font-medium">
                     {allDays.length} day{allDays.length !== 1 ? 's' : ''}
                   </span>
                   {skipWeekends && allDays.length !== visibleDays.length && (
@@ -450,11 +450,11 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
           {/* Options */}
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} className="rounded text-blue-600" />
+              <input type="checkbox" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} className="rounded text-primary" />
               <span className="text-sm text-gray-700">Skip weekends (Sat &amp; Sun)</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={skipExisting} onChange={e => setSkipExisting(e.target.checked)} className="rounded text-blue-600" />
+              <input type="checkbox" checked={skipExisting} onChange={e => setSkipExisting(e.target.checked)} className="rounded text-primary" />
               <span className="text-sm text-gray-700">Skip days already marked</span>
             </label>
           </div>
@@ -468,14 +468,14 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
                   {selected.length === 0 ? '(all active)' : `(${selected.length} selected)`}
                 </span>
               </p>
-              <button type="button" onClick={toggleAll} className="text-xs text-blue-600 hover:underline">
+              <button type="button" onClick={toggleAll} className="text-xs text-primary hover:underline">
                 {selected.length === employees.length ? 'Deselect all' : 'Select all'}
               </button>
             </div>
             <div className="relative mb-2">
               <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input
-                className="w-full pl-8 pr-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-8 pr-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
                 placeholder="Search employees…"
                 value={searchEmp}
                 onChange={e => setSearchEmp(e.target.value)}
@@ -489,9 +489,9 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
                 const isSel = selected.includes(emp.id)
                 return (
                   <label key={emp.id}
-                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${isSel ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                    <input type="checkbox" checked={isSel} onChange={() => toggleEmployee(emp.id)} className="rounded text-blue-600" />
-                    <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-xs shrink-0">
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${isSel ? 'bg-primary/10' : 'hover:bg-gray-50'}`}>
+                    <input type="checkbox" checked={isSel} onChange={() => toggleEmployee(emp.id)} className="rounded text-primary" />
+                    <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-primary font-semibold text-xs shrink-0">
                       {name[0]?.toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -514,7 +514,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-white">Cancel</button>
             <button type="button" disabled={visibleDays.length === 0} onClick={goToStep2}
-              className="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="flex items-center gap-2 px-5 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               Add Day Details →
             </button>
           </div>
@@ -544,7 +544,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
           : <>
               <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-white">Cancel</button>
               <button type="button" onClick={submitAll} disabled={bulkBusy || includedCount === 0}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                 {bulkBusy ? 'Saving…' : 'Save All'}
               </button>
@@ -624,7 +624,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
                       <label className="flex items-center gap-1 cursor-pointer">
                         <input type="checkbox" checked={entry.included} disabled={isSaved}
                           onChange={e => setDayField(date, 'included', e.target.checked)}
-                          className="rounded text-blue-600 w-3 h-3" />
+                          className="rounded text-primary w-3 h-3" />
                         <span className="text-gray-300">{idx + 1}</span>
                       </label>
                     </td>
@@ -644,7 +644,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
                           <select value={entry.status}
                             onChange={e => setDayField(date, 'status', e.target.value)}
                             disabled={isSkipped}
-                            className="w-full border rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white">
+                            className="w-full border rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary outline-none bg-white">
                             {STATUS_OPTS.map(s => (
                               <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>
                             ))}
@@ -660,7 +660,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
                           <select value={entry.work_from}
                             onChange={e => setDayField(date, 'work_from', e.target.value)}
                             disabled={isSkipped}
-                            className="w-full border rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white">
+                            className="w-full border rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary outline-none bg-white">
                             {WORK_FROM_OPTS.map(({ value, label: wl }) => (
                               <option key={value} value={value}>{wl}</option>
                             ))}
@@ -720,7 +720,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
                             onChange={e => setDayField(date, 'comment', e.target.value)}
                             disabled={isSkipped}
                             placeholder="Comment…"
-                            className="w-full border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-300"
+                            className="w-full border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary outline-none placeholder-gray-300"
                           />
                         )}
                     </td>
@@ -820,11 +820,11 @@ export default function AttendancePage() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowRange(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-blue-300 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 text-sm font-medium transition-colors">
+            className="flex items-center gap-2 px-4 py-2 border border-primary/40 text-primary bg-primary/10 rounded-lg hover:bg-primary/15 text-sm font-medium transition-colors">
             <CalendarRange className="w-4 h-4" /> Mark Range
           </button>
           <button onClick={() => setShowMark(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
             <CheckCircle className="w-4 h-4" /> Mark Single
           </button>
         </div>
@@ -835,7 +835,7 @@ export default function AttendancePage() {
         {[
           { label: 'Present / Late',  value: presentCount,    cls: 'bg-green-50 border-green-100 text-green-800 text-green-600' },
           { label: 'Absent',          value: absentCount,     cls: 'bg-red-50 border-red-100 text-red-800 text-red-600' },
-          { label: 'On Leave',        value: onLeaveCount,    cls: 'bg-blue-50 border-blue-100 text-blue-800 text-blue-600' },
+          { label: 'On Leave',        value: onLeaveCount,    cls: 'bg-primary/10 border-primary/20 text-primary text-primary' },
           { label: 'Pending Approval',value: pendingApproval, cls: 'bg-amber-50 border-amber-100 text-amber-800 text-amber-600' },
         ].map(({ label, value, cls }) => {
           const [bg, border, numCls, lblCls] = cls.split(' ')
@@ -854,7 +854,7 @@ export default function AttendancePage() {
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-500 whitespace-nowrap">From</label>
             <input type="date"
-              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
               value={fromDate}
               onChange={e => { setFromDate(e.target.value); if (e.target.value > toDate) setToDate(e.target.value) }}
             />
@@ -862,7 +862,7 @@ export default function AttendancePage() {
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-500 whitespace-nowrap">To</label>
             <input type="date" min={fromDate}
-              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
               value={toDate}
               onChange={e => setToDate(e.target.value)}
             />
@@ -870,7 +870,7 @@ export default function AttendancePage() {
           <div className="flex gap-1">
             {(['today', 'week', 'month'] as const).map(p => (
               <button key={p} onClick={() => setPreset(p)}
-                className="px-2.5 py-1.5 text-xs rounded-md border hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors">
+                className="px-2.5 py-1.5 text-xs rounded-md border hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors">
                 {p === 'today' ? 'Today' : p === 'week' ? 'This Week' : 'This Month'}
               </button>
             ))}
@@ -882,19 +882,19 @@ export default function AttendancePage() {
         </div>
         {showFilters && (
           <div className="flex flex-wrap gap-3 pt-3 border-t">
-            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
+            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
               <option value="">All Departments</option>
               {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
-            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={empFilter} onChange={e => setEmpFilter(e.target.value)}>
+            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={empFilter} onChange={e => setEmpFilter(e.target.value)}>
               <option value="">All Employees</option>
               {employees.map((e: any) => <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
             </select>
-            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
               {STATUS_OPTS.map(s => <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>)}
             </select>
-            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)}>
+            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)}>
               <option value="">All Approval</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
@@ -919,7 +919,7 @@ export default function AttendancePage() {
             <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 mb-3">No attendance records found for this range.</p>
             <button onClick={() => setShowRange(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50">
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-primary/40 text-primary rounded-lg hover:bg-primary/10">
               <CalendarRange className="w-4 h-4" /> Mark Attendance Range
             </button>
           </div>
@@ -950,7 +950,7 @@ export default function AttendancePage() {
                       <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
                         {r.work_hours != null ? `${Number(r.work_hours).toFixed(1)}h` : '—'}
                         {r.overtime_hours != null && Number(r.overtime_hours) > 0 && (
-                          <span className="text-xs text-orange-600 ml-1">+{Number(r.overtime_hours).toFixed(1)}OT</span>
+                          <span className="text-xs text-primary/70 ml-1">+{Number(r.overtime_hours).toFixed(1)}OT</span>
                         )}
                       </td>
                       <td className="py-3 px-4"><StatusBadge status={r.status} /></td>
@@ -965,7 +965,7 @@ export default function AttendancePage() {
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1">
                           <button onClick={() => setEditRecord(r)} title="Edit"
-                            className="p-1.5 rounded-md hover:bg-blue-50 text-blue-600">
+                            className="p-1.5 rounded-md hover:bg-primary/10 text-primary">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           {approvalStatus === 'pending' && <QuickApproval record={r} />}

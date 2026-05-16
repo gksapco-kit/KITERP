@@ -169,7 +169,7 @@ function PlanCard({
           ) : (
             <Button
               variant={isUpgrade ? 'default' : 'outline'}
-              className={`w-full gap-2 ${isUpgrade ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
+              className={`w-full gap-2 ${isUpgrade ? 'bg-primary hover:bg-primary/90 text-white' : ''}`}
               onClick={handleClick}
               disabled={isLoading}
             >

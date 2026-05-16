@@ -48,7 +48,7 @@ export default function CashFlow() {
         </div>
         <button
           onClick={() => setApplied({ from_date: from, to_date: to })}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
+          className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90"
         >
           Apply
         </button>
@@ -80,9 +80,9 @@ export default function CashFlow() {
                   <td className={`px-4 py-3 text-right font-mono font-bold ${net < 0 ? 'text-red-700' : netColor}`}>{fmt(net)}</td>
                 </tr>
               ))}
-              <tr className="bg-indigo-200 border-t-2 border-indigo-500">
-                <td colSpan={3} className="px-4 py-3 font-bold text-indigo-900 text-base">Net Change in Cash</td>
-                <td className={`px-4 py-3 text-right font-bold font-mono text-base ${(data.net_change || 0) < 0 ? 'text-red-700' : 'text-indigo-900'}`}>
+              <tr className="bg-primary/25 border-t-2 border-primary">
+                <td colSpan={3} className="px-4 py-3 font-bold text-primary/90 text-base">Net Change in Cash</td>
+                <td className={`px-4 py-3 text-right font-bold font-mono text-base ${(data.net_change || 0) < 0 ? 'text-red-700' : 'text-primary/90'}`}>
                   {fmt(data.net_change || 0)}
                 </td>
               </tr>

@@ -309,7 +309,7 @@ export default function ProductAuditReport() {
   const versionColors = useMemo(() => {
     const palette = [
       { bg: 'bg-emerald-50', border: 'border-l-emerald-500', badge: 'bg-emerald-600' },
-      { bg: 'bg-blue-50', border: 'border-l-blue-500', badge: 'bg-blue-600' },
+      { bg: 'bg-blue-50', border: 'border-l-blue-500', badge: 'bg-primary' },
       { bg: 'bg-accent', border: 'border-l-primary', badge: 'bg-primary' },
       { bg: 'bg-amber-50', border: 'border-l-amber-500', badge: 'bg-amber-600' },
       { bg: 'bg-rose-50', border: 'border-l-rose-500', badge: 'bg-rose-600' },

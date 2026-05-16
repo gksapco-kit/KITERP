@@ -476,7 +476,7 @@ function Toggle({ label, checked, onChange, small }: {
     <label className="flex items-center gap-2 cursor-pointer select-none">
       <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
         className={`relative inline-flex shrink-0 rounded-full border-2 border-transparent transition-colors
-          ${small ? 'h-5 w-9' : 'h-6 w-11'} ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}>
+          ${small ? 'h-5 w-9' : 'h-6 w-11'} ${checked ? 'bg-primary' : 'bg-gray-200'}`}>
         <span className={`pointer-events-none inline-block rounded-full bg-white shadow-sm transform transition-transform
           ${small ? 'h-4 w-4' : 'h-5 w-5'} ${checked ? (small ? 'translate-x-4' : 'translate-x-5') : 'translate-x-0'}`} />
       </button>
@@ -584,7 +584,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
         }`}>
           <div className="flex items-center gap-2 px-3 py-2.5">
             <button type="button" onClick={() => onChange(fields.map(x => x.key === f.key ? { ...x, enabled: !x.enabled } : x))}
-              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${f.enabled ? 'bg-blue-600' : 'bg-gray-200'}`}>
+              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${f.enabled ? 'bg-primary' : 'bg-gray-200'}`}>
               <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${f.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
             </button>
 
@@ -658,7 +658,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
                         placeholder="Option text..." autoFocus
                         className="flex-1 h-7 rounded border border-gray-200 bg-white px-2 text-xs outline-none focus:ring-1 focus:ring-blue-400" />
                       <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => addOption(f.key)}
-                        className="h-7 px-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Add</button>
+                        className="h-7 px-2 bg-primary text-white text-xs rounded hover:bg-primary/90">Add</button>
                       <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => { setEditingOptions(null); setNewOption('') }}
                         className="h-7 px-1.5 text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /></button>
                     </div>
@@ -747,7 +747,7 @@ function AvailabilityEditor({ availability, onChange }: {
           <div key={day} className={`rounded-lg border px-3 py-2 transition-colors ${isOn ? 'border-blue-100 bg-blue-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => toggleDay(day)}
-                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${isOn ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${isOn ? 'bg-primary' : 'bg-gray-200'}`}>
                 <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${isOn ? 'translate-x-4' : 'translate-x-0'}`} />
               </button>
               <span className={`w-8 text-xs font-semibold ${isOn ? 'text-gray-700' : 'text-gray-300'}`}>{dayLabel}</span>
@@ -2069,7 +2069,7 @@ export default function ServiceForm() {
                                   <span className="text-xs font-medium text-gray-600">Frequency:</span>
                                   <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
                                     <button type="button"
-                                      className={`px-3.5 py-1.5 font-semibold transition-colors ${plan.service_frequency === 'once' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                                      className={`px-3.5 py-1.5 font-semibold transition-colors ${plan.service_frequency === 'once' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
                                       onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_frequency: 'once' } : x))}
                                     >Once</button>
                                     <button type="button"

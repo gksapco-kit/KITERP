@@ -149,7 +149,7 @@ export function DateRangePicker({ fromDate, toDate, maxDate, onChange }: Props) 
           let dotCls = 'w-8 h-8 flex items-center justify-center rounded-full text-xs font-medium z-10 '
 
           if (isFrom || isTo) {
-            dotCls += 'bg-blue-600 text-white font-semibold '
+            dotCls += 'bg-primary text-white font-semibold '
           } else if (isInRange) {
             dotCls += 'text-blue-800 hover:bg-blue-200 '
           } else if (!cur) {

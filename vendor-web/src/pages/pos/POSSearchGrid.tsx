@@ -235,7 +235,7 @@ function ConfigPanel({
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer group">
             <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab group-hover:text-gray-400 shrink-0" />
             <button type="button" onClick={() => toggleFilter(f.key)}
-              className={`shrink-0 relative inline-flex h-4.5 w-8 h-4 items-center rounded-full transition-colors ${f.enabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
+              className={`shrink-0 relative inline-flex h-4.5 w-8 h-4 items-center rounded-full transition-colors ${f.enabled ? 'bg-primary' : 'bg-gray-300'}`}>
               <span className="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
                 style={{ transform: f.enabled ? 'translateX(17px)' : 'translateX(2px)' }} />
             </button>
@@ -252,7 +252,7 @@ function ConfigPanel({
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer group">
             <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab group-hover:text-gray-400 shrink-0" />
             <button type="button" onClick={() => toggleColumn(c.key)}
-              className={`shrink-0 relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${c.enabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
+              className={`shrink-0 relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${c.enabled ? 'bg-primary' : 'bg-gray-300'}`}>
               <span className="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
                 style={{ transform: c.enabled ? 'translateX(17px)' : 'translateX(2px)' }} />
             </button>
@@ -320,7 +320,7 @@ function CellContent({
     case 'duration':return <span className="text-[11px] text-gray-500">{item.duration_minutes ? `${item.duration_minutes}min` : '—'}</span>
     case 'action':  return (
       <button onClick={e => { e.stopPropagation(); onAdd() }}
-        className="w-7 h-7 rounded-lg bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors">
+        className="w-7 h-7 rounded-lg bg-blue-500 hover:bg-primary flex items-center justify-center transition-colors">
         <Plus className="w-3.5 h-3.5 text-white" />
       </button>
     )
@@ -508,7 +508,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
         <div className="relative shrink-0" ref={configRef}>
           <button onClick={() => setShowConfig(v => !v)}
             title="Configure filter fields and table columns"
-            className={`flex items-center gap-1 px-2.5 h-8 rounded-lg border text-xs font-medium transition-colors relative ${showConfig ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-blue-50 hover:border-blue-300'}`}>
+            className={`flex items-center gap-1 px-2.5 h-8 rounded-lg border text-xs font-medium transition-colors relative ${showConfig ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-blue-50 hover:border-blue-300'}`}>
             <Settings2 className="w-3.5 h-3.5" />
             {activeFilterCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center">
@@ -620,7 +620,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
                             </button>
                           )}
                           <button onClick={e => { e.stopPropagation(); makeAddFn(item, variant)() }}
-                            className="w-6 h-6 rounded-lg bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors">
+                            className="w-6 h-6 rounded-lg bg-blue-500 hover:bg-primary flex items-center justify-center transition-colors">
                             <Plus className="w-3.5 h-3.5 text-white" />
                           </button>
                         </div>

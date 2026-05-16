@@ -42,7 +42,7 @@ export default function ProfitLoss() {
           <input type="date" value={to} onChange={e => setTo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <button onClick={() => setApplied({ from_date: from, to_date: to })}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Apply</button>
+          className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">Apply</button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -69,7 +69,7 @@ export default function ProfitLoss() {
               <tr className="bg-orange-50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-orange-700 uppercase">Operating Expenses</td></tr>
               {(data.opex_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total Operating Expenses" value={data.total_opex || 0} bold />
-              <tr className="bg-indigo-50 border-t-2 border-indigo-300"><td className="px-4 py-2 font-bold text-indigo-700">Operating Profit (EBIT)</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.operating_profit || 0) < 0 ? 'text-red-600' : 'text-indigo-700'}`}>{fmt(data.operating_profit || 0)}</td></tr>
+              <tr className="bg-primary/10 border-t-2 border-primary/40"><td className="px-4 py-2 font-bold text-primary">Operating Profit (EBIT)</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.operating_profit || 0) < 0 ? 'text-red-600' : 'text-primary'}`}>{fmt(data.operating_profit || 0)}</td></tr>
               {(data.other_income_lines || []).length > 0 && <>
                 <tr className="bg-teal-50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-teal-700 uppercase">Other Income / Expenses</td></tr>
                 {data.other_income_lines.map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}

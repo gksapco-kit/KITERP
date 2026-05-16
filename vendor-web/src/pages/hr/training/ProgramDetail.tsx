@@ -39,7 +39,7 @@ export default function ProgramDetailPage() {
           {p.description && <p className="text-sm text-gray-600 mt-2 max-w-2xl">{p.description}</p>}
         </div>
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> Add Course
         </button>
       </div>
@@ -269,7 +269,7 @@ function CourseModal({
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50 sticky bottom-0">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
           <button onClick={submit} disabled={!form.title.trim() || create.isPending || update.isPending}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
             {course ? 'Save' : 'Add'}
           </button>
         </div>

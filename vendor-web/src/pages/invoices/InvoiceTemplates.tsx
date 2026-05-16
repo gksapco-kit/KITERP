@@ -454,7 +454,7 @@ function ToggleRow({ label, hint, checked, onChange }: {
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors mt-0.5 ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors mt-0.5 ${checked ? 'bg-primary' : 'bg-gray-300'}`}
       >
         <span className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform" style={{ transform: checked ? 'translateX(18px)' : 'translateX(2px)' }} />
       </button>
@@ -546,7 +546,7 @@ function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; 
         <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleClear}>
           <Eraser className="w-3.5 h-3.5" /> Clear
         </Button>
-        <Button size="sm" className="flex-1 gap-1.5 bg-blue-600 hover:bg-blue-700" onClick={handleSave}>
+        <Button size="sm" className="flex-1 gap-1.5 bg-primary hover:bg-primary/90" onClick={handleSave}>
           <Check className="w-3.5 h-3.5" /> Use Signature
         </Button>
       </div>
@@ -754,7 +754,7 @@ export default function InvoiceSettingsPage() {
           </div>
 
           {activeTab === 'invoice' ? (
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-primary hover:bg-primary/90">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Save Settings
             </Button>
@@ -763,7 +763,7 @@ export default function InvoiceSettingsPage() {
               <Button variant="outline" size="sm" onClick={handlePosReset} className="gap-1.5 text-xs">
                 <RotateCcw className="w-3.5 h-3.5" /> Reset
               </Button>
-              <Button onClick={handlePosSave} className="gap-2 bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handlePosSave} className="gap-2 bg-primary hover:bg-primary/90">
                 <Check className="w-4 h-4" /> Save POS Template
               </Button>
             </div>
@@ -1016,7 +1016,7 @@ export default function InvoiceSettingsPage() {
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {['', 'ORIGINAL', 'DUPLICATE', 'COPY', 'DRAFT', 'CANCELLED'].map(w => (
                   <button key={w} onClick={() => setPos('watermark', w)}
-                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${(posMerged().watermark ?? '') === w ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${(posMerged().watermark ?? '') === w ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                     {w === '' ? 'None' : w}
                   </button>
                 ))}
@@ -1035,7 +1035,7 @@ export default function InvoiceSettingsPage() {
                         { id: 'diagonal', label: '⤢ Diagonal' },
                       ] as { id: 'top' | 'bottom' | 'diagonal'; label: string }[]).map(p => (
                         <button key={p.id} onClick={() => setPos('watermark_position', p.id)}
-                          className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(posMerged().watermark_position ?? 'diagonal') === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                          className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(posMerged().watermark_position ?? 'diagonal') === p.id ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                           {p.label}
                         </button>
                       ))}
@@ -1046,7 +1046,7 @@ export default function InvoiceSettingsPage() {
                     <div className="flex gap-1.5">
                       {([{ id: 'sm', label: 'Small' }, { id: 'md', label: 'Medium' }, { id: 'lg', label: 'Large' }] as { id: 'sm' | 'md' | 'lg'; label: string }[]).map(s => (
                         <button key={s.id} onClick={() => setPos('watermark_size', s.id)}
-                          className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(posMerged().watermark_size ?? 'md') === s.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                          className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(posMerged().watermark_size ?? 'md') === s.id ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                           {s.label}
                         </button>
                       ))}
@@ -1064,7 +1064,7 @@ export default function InvoiceSettingsPage() {
                         { label: 'Normal', val: (posMerged().watermark_position ?? 'diagonal') === 'diagonal' ? 0.07 : 0.18 },
                         { label: 'Bold',   val: (posMerged().watermark_position ?? 'diagonal') === 'diagonal' ? 0.15 : 0.35 }].map(o => (
                         <button key={o.label} onClick={() => setPos('watermark_opacity', o.val)}
-                          className={`flex-1 text-[10px] py-0.5 rounded border transition-colors ${(posMerged().watermark_opacity ?? -1) === o.val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                          className={`flex-1 text-[10px] py-0.5 rounded border transition-colors ${(posMerged().watermark_opacity ?? -1) === o.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                           {o.label}
                         </button>
                       ))}
@@ -1153,7 +1153,7 @@ export default function InvoiceSettingsPage() {
                         onClick={() => setPos('qr_code_position', p.id)}
                         className={`flex-1 text-xs py-1.5 rounded border transition-colors ${
                           (posMerged().qr_code_position ?? 'footer') === p.id
-                            ? 'bg-blue-600 text-white border-blue-600'
+                            ? 'bg-primary text-white border-blue-600'
                             : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
                         }`}
                       >
@@ -1204,7 +1204,7 @@ export default function InvoiceSettingsPage() {
                     className={`flex items-center justify-between px-3 py-2 text-left transition-colors bg-white hover:bg-gray-50 ${val ? '' : 'opacity-60'}`}
                   >
                     <span className="text-xs text-gray-700 leading-tight">{label}</span>
-                    <span className={`ml-2 shrink-0 w-8 h-4 rounded-full relative transition-colors ${val ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                    <span className={`ml-2 shrink-0 w-8 h-4 rounded-full relative transition-colors ${val ? 'bg-primary' : 'bg-gray-200'}`}>
                       <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${val ? 'left-4' : 'left-0.5'}`} />
                     </span>
                   </button>
@@ -1229,7 +1229,7 @@ export default function InvoiceSettingsPage() {
                     <div className="flex gap-1 flex-wrap">
                       {[{ label: 'None', val: 0 }, { label: 'Compact', val: 3 }, { label: 'Standard', val: 5 }, { label: 'Relaxed', val: 10 }, { label: 'Wide', val: 15 }].map(p => (
                         <button key={p.val} onClick={() => setPos('pdf_margin', p.val)}
-                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(posMerged().pdf_margin ?? 5) === p.val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(posMerged().pdf_margin ?? 5) === p.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                           {p.label}
                         </button>
                       ))}
@@ -1243,7 +1243,7 @@ export default function InvoiceSettingsPage() {
                   <div className="flex gap-2">
                     {(['portrait', 'landscape'] as const).map(o => (
                       <button key={o} onClick={() => setPos('pdf_orientation', o)}
-                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${(posMerged().pdf_orientation ?? 'portrait') === o ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${(posMerged().pdf_orientation ?? 'portrait') === o ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         <span>{o === 'portrait' ? '📄' : '📋'}</span>
                         <span className="capitalize">{o}</span>
                       </button>
@@ -1258,7 +1258,7 @@ export default function InvoiceSettingsPage() {
                   <div className="flex gap-1">
                     {[{ label: 'Low', val: 0.7 }, { label: 'Medium', val: 0.85 }, { label: 'High', val: 0.98 }].map(q => (
                       <button key={q.val} onClick={() => setPos('pdf_image_quality', q.val)}
-                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(posMerged().pdf_image_quality ?? 0.98) === q.val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(posMerged().pdf_image_quality ?? 0.98) === q.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {q.label}
                       </button>
                     ))}
@@ -1276,7 +1276,7 @@ export default function InvoiceSettingsPage() {
               <Button variant="outline" size="sm" onClick={handlePosReset} className="gap-1.5 text-gray-600">
                 <RotateCcw className="w-4 h-4" /> Reset
               </Button>
-              <Button onClick={handlePosSave} className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handlePosSave} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
                 <Check className="w-4 h-4" /> Save POS Template
               </Button>
             </div>
@@ -1648,7 +1648,7 @@ export default function InvoiceSettingsPage() {
                       onClick={() => set('qr_code_position', p.id)}
                       className={`flex-1 text-xs py-1.5 rounded border transition-colors ${
                         (settings.qr_code_position ?? 'footer') === p.id
-                          ? 'bg-blue-600 text-white border-blue-600'
+                          ? 'bg-primary text-white border-blue-600'
                           : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
                       }`}
                     >
@@ -1670,7 +1670,7 @@ export default function InvoiceSettingsPage() {
             <div className="flex flex-wrap gap-1.5 mb-2">
               {['', 'ORIGINAL', 'DUPLICATE', 'COPY', 'DRAFT', 'CANCELLED'].map(w => (
                 <button key={w} onClick={() => set('watermark', w)}
-                  className={`text-xs px-2 py-0.5 rounded border transition-colors ${(settings.watermark ?? '') === w ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                  className={`text-xs px-2 py-0.5 rounded border transition-colors ${(settings.watermark ?? '') === w ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                   {w === '' ? 'None' : w}
                 </button>
               ))}
@@ -1691,7 +1691,7 @@ export default function InvoiceSettingsPage() {
                     ] as { id: 'top' | 'bottom' | 'diagonal'; label: string; hint: string }[]).map(p => (
                       <button key={p.id} title={p.hint}
                         onClick={() => set('watermark_position', p.id)}
-                        className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(settings.watermark_position ?? 'diagonal') === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(settings.watermark_position ?? 'diagonal') === p.id ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {p.label}
                       </button>
                     ))}
@@ -1704,7 +1704,7 @@ export default function InvoiceSettingsPage() {
                   <div className="flex gap-1.5">
                     {([{ id: 'sm', label: 'Small' }, { id: 'md', label: 'Medium' }, { id: 'lg', label: 'Large' }] as { id: 'sm' | 'md' | 'lg'; label: string }[]).map(s => (
                       <button key={s.id} onClick={() => set('watermark_size', s.id)}
-                        className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(settings.watermark_size ?? 'md') === s.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(settings.watermark_size ?? 'md') === s.id ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {s.label}
                       </button>
                     ))}
@@ -1724,7 +1724,7 @@ export default function InvoiceSettingsPage() {
                       { label: 'Normal', val: (settings.watermark_position ?? 'diagonal') === 'diagonal' ? 0.07 : 0.18 },
                       { label: 'Bold',   val: (settings.watermark_position ?? 'diagonal') === 'diagonal' ? 0.15 : 0.35 }].map(o => (
                       <button key={o.label} onClick={() => set('watermark_opacity', o.val)}
-                        className={`flex-1 text-[10px] py-0.5 rounded border transition-colors ${(settings.watermark_opacity ?? -1) === o.val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`flex-1 text-[10px] py-0.5 rounded border transition-colors ${(settings.watermark_opacity ?? -1) === o.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {o.label}
                       </button>
                     ))}
@@ -1930,7 +1930,7 @@ export default function InvoiceSettingsPage() {
                   className={`flex items-center justify-between px-3 py-2 text-left transition-colors bg-white hover:bg-gray-50 ${val ? '' : 'opacity-60'}`}
                 >
                   <span className="text-xs text-gray-700 leading-tight">{label}</span>
-                  <span className={`ml-2 shrink-0 w-8 h-4 rounded-full relative transition-colors ${val ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                  <span className={`ml-2 shrink-0 w-8 h-4 rounded-full relative transition-colors ${val ? 'bg-primary' : 'bg-gray-200'}`}>
                     <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${val ? 'left-4' : 'left-0.5'}`} />
                   </span>
                 </button>
@@ -1955,7 +1955,7 @@ export default function InvoiceSettingsPage() {
                   <div className="flex gap-1 flex-wrap">
                     {[{ label: 'None', val: 0 }, { label: 'Compact', val: 3 }, { label: 'Standard', val: 5 }, { label: 'Relaxed', val: 10 }, { label: 'Wide', val: 15 }].map(p => (
                       <button key={p.val} onClick={() => set('pdf_margin', p.val)}
-                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(settings.pdf_margin ?? 5) === p.val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(settings.pdf_margin ?? 5) === p.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {p.label}
                       </button>
                     ))}
@@ -1969,7 +1969,7 @@ export default function InvoiceSettingsPage() {
                 <div className="flex gap-2">
                   {(['portrait', 'landscape'] as const).map(o => (
                     <button key={o} onClick={() => set('pdf_orientation', o)}
-                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${(settings.pdf_orientation ?? 'portrait') === o ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${(settings.pdf_orientation ?? 'portrait') === o ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                       <span>{o === 'portrait' ? '📄' : '📋'}</span>
                       <span className="capitalize">{o}</span>
                     </button>
@@ -1984,7 +1984,7 @@ export default function InvoiceSettingsPage() {
                 <div className="flex gap-1 flex-wrap">
                   {[{ label: 'Low', val: 0.7 }, { label: 'Medium', val: 0.85 }, { label: 'High', val: 0.98 }].map(q => (
                     <button key={q.val} onClick={() => set('pdf_image_quality', q.val)}
-                      className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(settings.pdf_image_quality ?? 0.98) === q.val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                      className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(settings.pdf_image_quality ?? 0.98) === q.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                       {q.label}
                     </button>
                   ))}
@@ -2003,7 +2003,7 @@ export default function InvoiceSettingsPage() {
               className="gap-1.5 text-gray-600" title="Reset all settings to defaults">
               <RotateCcw className="w-4 h-4" /> Reset
             </Button>
-            <Button onClick={handleSave} disabled={isSaving} className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleSave} disabled={isSaving} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Save Invoice Settings
             </Button>

@@ -44,11 +44,11 @@ export default function MyAttendancePage() {
             ) : (
               <div className="mt-2 space-y-1">
                 <p className="text-sm text-gray-700">
-                  <Clock className="inline w-4 h-4 mr-1 text-blue-500" />
+                  <Clock className="inline w-4 h-4 mr-1 text-primary" />
                   Clock In: {rec?.clock_in ? new Date(rec.clock_in).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </p>
                 <p className="text-sm text-gray-700">
-                  <Clock className="inline w-4 h-4 mr-1 text-orange-500" />
+                  <Clock className="inline w-4 h-4 mr-1 text-primary" />
                   Clock Out: {rec?.clock_out ? new Date(rec.clock_out).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </p>
                 {rec?.work_hours != null && (
@@ -73,7 +73,7 @@ export default function MyAttendancePage() {
               <button
                 onClick={handleClockOut}
                 disabled={clockOut.isPending}
-                className="flex items-center gap-2 px-5 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-medium disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 font-medium disabled:opacity-50"
               >
                 <LogOut className="w-5 h-5" /> Clock Out
               </button>
@@ -130,7 +130,7 @@ export default function MyAttendancePage() {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     r.status === 'present' ? 'bg-green-100 text-green-700' :
                     r.status === 'absent' ? 'bg-red-100 text-red-700' :
-                    r.status === 'late' ? 'bg-orange-100 text-orange-700' :
+                    r.status === 'late' ? 'bg-primary/15 text-primary' :
                     'bg-gray-100 text-gray-600'
                   }`}>{r.status.replace('_', ' ')}</span>
                 </div>

@@ -25,7 +25,7 @@ export default function AnnouncementsPage() {
           <p className="text-sm text-gray-500 mt-1">Broadcast company news, updates and notices</p>
         </div>
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Announcement
         </button>
       </div>
@@ -183,7 +183,7 @@ function AnnouncementModal({ item, onClose }: { item: Announcement | null; onClo
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
           <button onClick={submit} disabled={!form.title.trim() || !form.body.trim() || create.isPending || update.isPending}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
             {item ? 'Save' : 'Publish'}
           </button>
         </div>

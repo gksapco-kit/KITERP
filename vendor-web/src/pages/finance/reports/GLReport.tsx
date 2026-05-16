@@ -57,7 +57,7 @@ const DIMENSIONS: Dimension[] = [
     id: 'gl_account',
     label: 'GL Account',
     icon: BookOpen,
-    color: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    color: 'bg-primary/15 text-primary border-primary/30',
     description: 'All posted lines by general ledger account code',
   },
   {
@@ -221,7 +221,7 @@ function MasterSearch({
           onChange={e => handleInput(e.target.value)}
           onFocus={() => { setOpen(true); if (!results.length) search(q) }}
           placeholder={`Search ${dim.label}…`}
-          className="w-full border border-gray-300 rounded-xl pl-9 pr-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full border border-gray-300 rounded-xl pl-9 pr-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
         {(selected || q) && (
           <button onClick={() => { onSelect(null); setQ(''); setResults([]) }}
@@ -237,7 +237,7 @@ function MasterSearch({
             <button
               key={r.id}
               onClick={() => select(r)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 text-left transition-colors border-b border-gray-50 last:border-0"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-primary/10 text-left transition-colors border-b border-gray-50 last:border-0"
             >
               {r.code && <span className="font-mono text-xs text-gray-400 w-16 shrink-0">{r.code}</span>}
               <span className="flex-1 text-sm text-gray-800">{r.name}</span>
@@ -316,13 +316,13 @@ function LedgerTable({
             <tr
               key={i}
               className={cn(
-                'transition-colors hover:bg-indigo-50/30 group',
+                'transition-colors hover:bg-primary/10/30 group',
                 row.debit > 0 ? '' : 'bg-accent/10',
               )}
             >
               <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px]">{row.date}</td>
               <td className="px-3 py-2.5">
-                <span className="font-mono font-semibold text-indigo-600">{row.entry_no}</span>
+                <span className="font-mono font-semibold text-primary">{row.entry_no}</span>
               </td>
               {showAccount && (
                 <td className="px-3 py-2.5">
@@ -421,7 +421,7 @@ function SummaryView({ fromDate, toDate }: { fromDate: string; toDate: string })
             onClick={() => setTypeFilter(t)}
             className={cn(
               'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-              typeFilter === t ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              typeFilter === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
             )}
           >
             {t}
@@ -584,7 +584,7 @@ export default function GLReport() {
                   onClick={() => setView(v.id as any)}
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors',
-                    view === v.id ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50',
+                    view === v.id ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50',
                   )}
                 >
                   <v.icon className="w-3.5 h-3.5" /> {v.label}
@@ -610,11 +610,11 @@ export default function GLReport() {
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm transition-all',
                   activeDim === d.id
-                    ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                    ? 'bg-primary/10 text-primary font-semibold'
                     : 'text-gray-600 hover:bg-gray-50',
                 )}
               >
-                <d.icon className={cn('w-4 h-4 shrink-0', activeDim === d.id ? 'text-indigo-600' : 'text-gray-400')} />
+                <d.icon className={cn('w-4 h-4 shrink-0', activeDim === d.id ? 'text-primary' : 'text-gray-400')} />
                 {d.label}
               </button>
             ))}
@@ -645,13 +645,13 @@ export default function GLReport() {
               <input
                 type="date" value={fromDate}
                 onChange={e => setFromDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <span className="text-gray-400 text-xs">→</span>
               <input
                 type="date" value={toDate}
                 onChange={e => setToDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
@@ -700,7 +700,7 @@ export default function GLReport() {
             {rows.length > 0 && (
               <button
                 onClick={exportCSV}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90"
               >
                 <Download className="w-3 h-3" /> Export CSV
               </button>
@@ -715,7 +715,7 @@ export default function GLReport() {
                 value={fmt(totalDebit)}
                 sub={`${rows.filter(r => r.debit > 0).length} entries`}
                 icon={ArrowUpRight}
-                color="bg-indigo-100 text-indigo-700"
+                color="bg-primary/15 text-primary"
               />
               <KPI
                 label="Total Credit"

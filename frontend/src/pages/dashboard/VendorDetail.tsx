@@ -233,7 +233,7 @@ export default function VendorDetail() {
                 <X className="w-4 h-4 mr-1" /> Cancel
               </Button>
               <Button size="sm" onClick={handleSave} disabled={updateVendor.isPending}
-                className="bg-blue-600 hover:bg-blue-700 text-white gap-1">
+                className="bg-primary hover:bg-primary/90 text-white gap-1">
                 {updateVendor.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (

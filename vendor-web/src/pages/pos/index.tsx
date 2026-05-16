@@ -964,7 +964,7 @@ export default function POS() {
                           </div>
 
                           {/* Add indicator */}
-                          <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${isHighlighted ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                          <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${isHighlighted ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'}`}>
                             <Plus className="w-3.5 h-3.5" />
                           </div>
                         </button>
@@ -989,12 +989,12 @@ export default function POS() {
           <div className="flex border rounded-lg overflow-hidden shrink-0">
             <button title="Card view"
               onClick={() => { setCatalogView('cards'); localStorage.setItem('pos_catalog_view', 'cards') }}
-              className={`px-2 h-9 flex items-center transition-colors ${catalogView === 'cards' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              className={`px-2 h-9 flex items-center transition-colors ${catalogView === 'cards' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
               <LayoutList className="w-4 h-4" />
             </button>
             <button title="Grid / table view with configurable filters"
               onClick={() => { setCatalogView('grid'); localStorage.setItem('pos_catalog_view', 'grid') }}
-              className={`px-2 h-9 flex items-center border-l transition-colors ${catalogView === 'grid' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              className={`px-2 h-9 flex items-center border-l transition-colors ${catalogView === 'grid' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
@@ -2415,7 +2415,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                             const html = generatePrintFormHtml(form.id, data, vendor)
                             openPrintWindow(html)
                           }}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors shrink-0"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-medium transition-colors shrink-0"
                         >
                           <Printer className="w-3.5 h-3.5" />
                           Print
@@ -2917,7 +2917,7 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
                               const html = generatePrintFormHtml(form.id, buildTxnInvoiceData(), vendor)
                               openPrintWindow(html)
                             }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors shrink-0"
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-medium transition-colors shrink-0"
                           >
                             <Printer className="w-3.5 h-3.5" /> Print
                           </button>
@@ -3893,7 +3893,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             {activeTab === 'template' && (
-              <Button size="sm" onClick={handleApply} className="gap-1.5 bg-blue-600 hover:bg-blue-700">
+              <Button size="sm" onClick={handleApply} className="gap-1.5 bg-primary hover:bg-primary/90">
                 <Check className="w-3.5 h-3.5" /> Save & Apply
               </Button>
             )}

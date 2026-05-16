@@ -22,9 +22,9 @@ export default function CommissionLayout() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to}
-              className="group bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-sm transition-all">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100">
-                <Icon className="h-6 w-6 text-blue-600" />
+              className="group bg-white border border-gray-200 rounded-xl p-6 hover:border-primary/40 hover:shadow-sm transition-all">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20">
+                <Icon className="h-6 w-6 text-primary" />
               </div>
               <h3 className="font-semibold text-gray-900">{label}</h3>
             </NavLink>
@@ -36,7 +36,6 @@ export default function CommissionLayout() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Sub-nav strip */}
       <div className="border-b border-gray-200 bg-white px-6">
         <div className="flex gap-1 overflow-x-auto">
           {NAV.map(({ to, label, icon: Icon }) => (
@@ -46,7 +45,7 @@ export default function CommissionLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                   isActive
-                    ? 'border-blue-600 text-blue-600'
+                    ? 'border-[#64c3a0] text-[#64c3a0]'
                     : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
                 }`
               }

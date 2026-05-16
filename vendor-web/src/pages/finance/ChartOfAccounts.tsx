@@ -122,7 +122,7 @@ function AccountRow({
   return (
     <div>
       <div
-        className="flex items-center gap-2 px-3 py-2.5 hover:bg-indigo-50/40 rounded-lg cursor-pointer group transition-colors"
+        className="flex items-center gap-2 px-3 py-2.5 hover:bg-primary/10/40 rounded-lg cursor-pointer group transition-colors"
         style={{ paddingLeft: `${12 + depth * 20}px` }}
         onClick={() => onView(acc)}
       >
@@ -150,14 +150,14 @@ function AccountRow({
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
           <button
             onClick={e => { e.stopPropagation(); onView(acc) }}
-            className="p-1 text-gray-400 hover:text-indigo-600 rounded"
+            className="p-1 text-gray-400 hover:text-primary rounded"
             title="View details"
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); onEdit(acc) }}
-            className="p-1 text-gray-400 hover:text-indigo-600 rounded"
+            className="p-1 text-gray-400 hover:text-primary rounded"
             title="Edit"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -302,7 +302,7 @@ function AccountDetailDrawer({
           <div className="flex gap-1.5 shrink-0">
             <button
               onClick={() => { onEdit(account); onClose() }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90"
             >
               <Pencil className="w-3 h-3" /> Edit
             </button>
@@ -323,7 +323,7 @@ function AccountDetailDrawer({
               onClick={() => setTab(t.id as any)}
               className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
                 tab === t.id
-                  ? 'border-indigo-600 text-indigo-600'
+                  ? 'border-primary text-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-800'
               }`}
             >
@@ -494,7 +494,7 @@ function AccountDetailDrawer({
                   <input
                     type="date" value={fromDate}
                     onChange={e => setFromDate(e.target.value)}
-                    className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                    className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -502,7 +502,7 @@ function AccountDetailDrawer({
                   <input
                     type="date" value={toDate}
                     onChange={e => setToDate(e.target.value)}
-                    className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                    className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                   />
                 </div>
                 <button
@@ -581,10 +581,10 @@ function AccountDetailDrawer({
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {ledger.map((row, i) => (
-                        <tr key={i} className={`hover:bg-indigo-50/30 transition-colors ${row.debit > 0 ? '' : 'bg-accent/20'}`}>
+                        <tr key={i} className={`hover:bg-primary/10/30 transition-colors ${row.debit > 0 ? '' : 'bg-accent/20'}`}>
                           <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-[11px]">{row.date}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap">
-                            <span className="font-mono font-semibold text-indigo-600">{row.entry_no}</span>
+                            <span className="font-mono font-semibold text-primary">{row.entry_no}</span>
                           </td>
                           <td className="px-3 py-2.5 text-gray-700 max-w-[160px]">
                             <span className="line-clamp-2 leading-snug">{row.narration || '—'}</span>
@@ -722,7 +722,7 @@ function ConfigPanel({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
           <div className="flex items-center gap-2">
-            <Settings2 className="w-5 h-5 text-indigo-600" />
+            <Settings2 className="w-5 h-5 text-primary" />
             <div>
               <h2 className="font-semibold text-gray-900">Account Type Configuration</h2>
               <p className="text-xs text-gray-500 mt-0.5">Define subtypes, code ranges and accounting rules per type</p>
@@ -737,9 +737,9 @@ function ConfigPanel({
         <div className="flex-1 overflow-y-auto p-5 space-y-3">
 
           {/* Info banner */}
-          <div className="flex items-start gap-2.5 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+          <div className="flex items-start gap-2.5 p-3 bg-primary/10 rounded-xl border border-primary/20">
             <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-indigo-700 leading-snug">
+            <p className="text-xs text-primary leading-snug">
               Configuration is saved locally. Changes affect badge colours, available subtypes when creating
               accounts, and how types appear in the tree. Code ranges are for reference only.
             </p>
@@ -792,7 +792,7 @@ function ConfigPanel({
                           type="number"
                           value={cfg.codeRangeStart}
                           onChange={e => update(cfg.type, { codeRangeStart: Number(e.target.value) })}
-                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${overlapErrors[cfg.type] ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-gray-200 focus:ring-indigo-400'}`}
+                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${overlapErrors[cfg.type] ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-gray-200 focus:ring-primary'}`}
                         />
                       </div>
                       <div>
@@ -801,7 +801,7 @@ function ConfigPanel({
                           type="number"
                           value={cfg.codeRangeEnd}
                           onChange={e => update(cfg.type, { codeRangeEnd: Number(e.target.value) })}
-                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${overlapErrors[cfg.type] ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-gray-200 focus:ring-indigo-400'}`}
+                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${overlapErrors[cfg.type] ? 'border-red-300 focus:ring-red-300 bg-red-50' : 'border-gray-200 focus:ring-primary'}`}
                         />
                       </div>
                       <div>
@@ -809,7 +809,7 @@ function ConfigPanel({
                         <select
                           value={cfg.normalBalance}
                           onChange={e => update(cfg.type, { normalBalance: e.target.value as NormalBalance })}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                           <option>Debit</option>
                           <option>Credit</option>
@@ -820,7 +820,7 @@ function ConfigPanel({
                         <select
                           value={cfg.statement}
                           onChange={e => update(cfg.type, { statement: e.target.value as Statement })}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                           <option>Balance Sheet</option>
                           <option>Income Statement</option>
@@ -851,7 +851,7 @@ function ConfigPanel({
                         <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Subtypes</label>
                         <button
                           onClick={() => addSubtype(cfg.type)}
-                          className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
                         >
                           <PlusCircle className="w-3.5 h-3.5" /> Add subtype
                         </button>
@@ -882,7 +882,7 @@ function ConfigPanel({
                             <input
                               value={st}
                               onChange={e => updateSubtype(cfg.type, idx, e.target.value)}
-                              className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                              className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                               placeholder="Subtype name"
                             />
                             <button
@@ -930,7 +930,7 @@ function ConfigPanel({
                 className={`px-4 py-2 text-sm rounded-lg font-medium transition-all ${
                   hasErrors
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    : 'bg-primary text-white hover:bg-primary/90'
                 }`}
               >
                 Save Configuration
@@ -1044,7 +1044,7 @@ export default function ChartOfAccounts() {
           </button>
           <button
             onClick={openNew}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 font-medium"
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 font-medium"
           >
             <Plus className="w-4 h-4" /> Add Account
           </button>
@@ -1059,7 +1059,7 @@ export default function ChartOfAccounts() {
             onClick={() => { setTypeFilter(typeFilter === c.type ? 'All' : c.type); setSubtypeFilter('All') }}
             className={`rounded-xl border p-3 text-left transition-all ${
               typeFilter === c.type
-                ? 'border-indigo-400 bg-indigo-50 shadow-sm'
+                ? 'border-primary/60 bg-primary/10 shadow-sm'
                 : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -1078,7 +1078,7 @@ export default function ChartOfAccounts() {
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search by name or code…"
-              className="w-full border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {search && (
               <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -1094,7 +1094,7 @@ export default function ChartOfAccounts() {
                 onClick={() => { setTypeFilter(t); setSubtypeFilter('All') }}
                 className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                   typeFilter === t
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-primary text-white'
                     : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1107,14 +1107,14 @@ export default function ChartOfAccounts() {
             onClick={() => setShowAdvancedFilter(x => !x)}
             className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-colors ${
               showAdvancedFilter || activeFilters > 0
-                ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                ? 'border-primary/60 bg-primary/10 text-primary'
                 : 'border-gray-300 text-gray-600 hover:bg-gray-50'
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" />
             Filters
             {activeFilters > 0 && (
-              <span className="bg-indigo-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {activeFilters}
               </span>
             )}
@@ -1132,7 +1132,7 @@ export default function ChartOfAccounts() {
               <select
                 value={subtypeFilter}
                 onChange={e => setSubtypeFilter(e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
               >
                 <option value="All">All subtypes</option>
                 {availableSubtypes.map(st => <option key={st} value={st}>{st}</option>)}
@@ -1145,7 +1145,7 @@ export default function ChartOfAccounts() {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value as any)}
-                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
               >
                 <option value="All">All</option>
                 <option value="Active">Active</option>
@@ -1159,7 +1159,7 @@ export default function ChartOfAccounts() {
               <select
                 value={statementFilter}
                 onChange={e => setStatementFilter(e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
               >
                 <option value="All">All</option>
                 <option value="BS">Balance Sheet</option>
@@ -1205,7 +1205,7 @@ export default function ChartOfAccounts() {
                   {activeFilters > 0 && (
                     <button
                       onClick={() => { setSubtypeFilter('All'); setStatusFilter('All'); setStatementFilter('All'); setSearch('') }}
-                      className="mt-2 text-xs text-indigo-600 hover:underline"
+                      className="mt-2 text-xs text-primary hover:underline"
                     >
                       Clear all filters
                     </button>
@@ -1251,7 +1251,7 @@ export default function ChartOfAccounts() {
               <select
                 value={form.account_subtype}
                 onChange={e => setForm(f => ({ ...f, account_subtype: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="">— None —</option>
                 {activeSubtypes.map(st => <option key={st} value={st}>{st}</option>)}
@@ -1270,7 +1270,7 @@ export default function ChartOfAccounts() {
                   value={(form as Record<string, string>)[key]}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                   placeholder={placeholder}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             ))}
@@ -1292,7 +1292,7 @@ export default function ChartOfAccounts() {
               <button
                 onClick={save}
                 disabled={createMut.isPending || updateMut.isPending}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium"
               >
                 {createMut.isPending || updateMut.isPending ? 'Saving…' : 'Save'}
               </button>

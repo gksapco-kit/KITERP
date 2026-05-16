@@ -233,7 +233,7 @@ function TypeDropdown({
                 >
                   <span className={cn(
                     'w-6 h-6 rounded-lg flex items-center justify-center shrink-0',
-                    value === v ? 'bg-blue-600' : 'bg-gray-100',
+                    value === v ? 'bg-primary' : 'bg-gray-100',
                   )}>
                     <ItemIcon className={cn('w-3 h-3', value === v ? 'text-white' : 'text-gray-500')} />
                   </span>
@@ -636,7 +636,7 @@ export default function Register() {
 
                   <Button
                     type="submit"
-                    className="mt-2 w-full min-h-12 rounded-xl bg-blue-600 px-4 py-3 text-lg font-bold hover:bg-blue-700 sm:min-h-14 sm:px-6 sm:py-3.5 sm:text-xl"
+                    className="mt-2 w-full min-h-12 rounded-xl bg-primary px-4 py-3 text-lg font-bold hover:bg-primary/90 sm:min-h-14 sm:px-6 sm:py-3.5 sm:text-xl"
                     disabled={signupMut.isPending || otpModalOpen || checkingContact}
                   >
                     {checkingContact ? (
@@ -736,7 +736,7 @@ export default function Register() {
                 <div className="mt-5 flex flex-col gap-3">
                   <Button
                     type="button"
-                    className="w-full min-h-12 rounded-xl bg-blue-600 px-4 py-3 text-lg font-bold hover:bg-blue-700 sm:min-h-14 sm:text-xl"
+                    className="w-full min-h-12 rounded-xl bg-primary px-4 py-3 text-lg font-bold hover:bg-primary/90 sm:min-h-14 sm:text-xl"
                     disabled={signupMut.isPending || modalOtp.replace(/\D/g, '').length !== 6}
                     onClick={submitPhoneSignupWithOtp}
                   >

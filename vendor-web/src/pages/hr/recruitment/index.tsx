@@ -174,7 +174,7 @@ function JobModal({ existing, onClose }: { existing?: JobPosting | null; onClose
           <div className="flex justify-end gap-2 pt-3 border-t">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {create.isPending || update.isPending ? 'Saving…' : (existing ? 'Save changes' : 'Create job')}
             </button>
           </div>
@@ -308,7 +308,7 @@ function CandidateModal({ onClose }: { onClose: () => void }) {
           <div className="flex justify-end gap-2 pt-3 border-t">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={create.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {create.isPending ? 'Saving…' : 'Add candidate'}
             </button>
           </div>
@@ -374,7 +374,7 @@ function JobsTab() {
           <option value="closed">Closed</option>
         </select>
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Job
         </button>
       </div>
@@ -463,7 +463,7 @@ function CandidatesTab() {
             className="pl-9 pr-3 py-2 border rounded-lg text-sm w-72" />
         </div>
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> Add Candidate
         </button>
       </div>
@@ -537,11 +537,11 @@ function InterviewsTab() {
     <div>
       <div className="flex items-center gap-2 mb-3">
         <button onClick={() => setUpcoming(true)}
-          className={`px-3 py-1.5 text-sm rounded-lg ${upcoming ? 'bg-blue-600 text-white' : 'bg-white border text-gray-600'}`}>
+          className={`px-3 py-1.5 text-sm rounded-lg ${upcoming ? 'bg-primary text-white' : 'bg-white border text-gray-600'}`}>
           Upcoming
         </button>
         <button onClick={() => setUpcoming(false)}
-          className={`px-3 py-1.5 text-sm rounded-lg ${!upcoming ? 'bg-blue-600 text-white' : 'bg-white border text-gray-600'}`}>
+          className={`px-3 py-1.5 text-sm rounded-lg ${!upcoming ? 'bg-primary text-white' : 'bg-white border text-gray-600'}`}>
           All
         </button>
       </div>

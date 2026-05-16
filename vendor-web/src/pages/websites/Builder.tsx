@@ -10421,7 +10421,7 @@ export default function WebsiteBuilder() {
             <button
               onClick={handleViewStore}
               title={siteTestUrl ?? 'Set a subdomain to get a test link'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-500 text-white text-xs font-bold transition-colors shadow-sm"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               {siteTestUrl ? 'View Store' : 'Get Link'}
@@ -10456,7 +10456,7 @@ export default function WebsiteBuilder() {
                   </button>
                   <button
                     onClick={() => { window.open(siteTestUrl, '_blank'); setStorePopover(false) }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" /> Open ↗
                   </button>
@@ -12504,7 +12504,7 @@ function AIStudioPanel({
                   </div>
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-600">{cloneResult.layout_notes}</div>
-                <button onClick={() => onApplyStyle(cloneResult.style_config)} className="w-full py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg">
+                <button onClick={() => onApplyStyle(cloneResult.style_config)} className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg">
                   Apply Style to Site
                 </button>
                 <button onClick={() => onAddBlocks(cloneResult.detected_blocks)} className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg">

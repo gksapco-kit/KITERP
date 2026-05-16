@@ -1007,7 +1007,7 @@ function StockModal({ type, prefillProductId, prefillProductName, prefillVariant
                         onClick={() => { setShowAllPOs(v => !v); setPurchaseOrderId('') }}
                         className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
                           showAllPOs
-                            ? 'bg-blue-600 text-white border-blue-600'
+                            ? 'bg-primary text-white border-blue-600'
                             : 'text-blue-600 border-blue-300 hover:bg-blue-50'
                         }`}
                       >

@@ -273,7 +273,7 @@ export default function PayeesPage() {
           <h1 className="text-xl font-semibold text-gray-900">Commission Payees</h1>
           <p className="text-sm text-gray-500 mt-0.5">Manage earners — staff, agents, contractors, partners, customers</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+        <button onClick={openCreate} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90">
           <Plus className="h-4 w-4" /> Add Payee
         </button>
       </div>
@@ -283,7 +283,7 @@ export default function PayeesPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by name, phone, or ID…"
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
       </div>
 
       {/* Table */}
@@ -305,8 +305,8 @@ export default function PayeesPage() {
               <tr key={p.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <UserCheck className="h-4 w-4 text-blue-600" />
+                    <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                      <UserCheck className="h-4 w-4 text-primary" />
                     </div>
                     <div>
                       <div className="font-medium text-gray-900">{p.display_name}</div>
@@ -319,7 +319,7 @@ export default function PayeesPage() {
                   {p.email && <div className="text-xs text-gray-400">{p.email}</div>}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">
+                  <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">
                     {LINK_LABELS[p.link_type as LinkType] || p.link_type}
                   </span>
                 </td>
@@ -333,7 +333,7 @@ export default function PayeesPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 justify-end">
-                    <button onClick={() => openEdit(p)} className="text-gray-400 hover:text-blue-600"><Edit2 className="h-4 w-4" /></button>
+                    <button onClick={() => openEdit(p)} className="text-gray-400 hover:text-primary"><Edit2 className="h-4 w-4" /></button>
                     <button onClick={() => handleDelete(p.id)} className="text-gray-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </td>
@@ -348,7 +348,7 @@ export default function PayeesPage() {
         <div className="flex justify-center gap-2 mt-4">
           {Array.from({ length: pages }, (_, i) => (
             <button key={i} onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded text-sm ${page === i + 1 ? 'bg-blue-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>
+              className={`px-3 py-1 rounded text-sm ${page === i + 1 ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>
               {i + 1}
             </button>
           ))}
@@ -374,8 +374,8 @@ export default function PayeesPage() {
                     <button key={lt} type="button" onClick={() => onLinkTypeChange(lt)}
                       className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                         form.link_type === lt
-                          ? 'border-blue-500 bg-blue-50 text-blue-800'
-                          : 'border-gray-200 hover:border-blue-300 text-gray-700'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-gray-200 hover:border-primary/40 text-gray-700'
                       }`}>
                       <div className="font-medium">{LINK_LABELS[lt]}</div>
                       <div className="text-xs text-gray-400 mt-0.5 leading-tight">{LINK_DESCRIPTIONS[lt]}</div>
@@ -411,26 +411,26 @@ export default function PayeesPage() {
                 </label>
                 <input value={form.display_name} onChange={e => set('display_name', e.target.value)}
                   placeholder="Name shown on payout reports"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
                   <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="9xxxxxxxxx"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
                   <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="name@example.com"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
                 <select value={form.status} onChange={e => set('status', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="suspended">Suspended</option>
@@ -457,8 +457,8 @@ export default function PayeesPage() {
                         onClick={() => setBank(p => ({ ...p, bank_source: 'master' }))}
                         className={`px-3 py-2.5 rounded-lg border text-sm text-left transition-colors ${
                           bank.bank_source === 'master'
-                            ? 'border-blue-500 bg-blue-50 text-blue-800'
-                            : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-gray-200 text-gray-600 hover:border-primary/40'
                         }`}>
                         <div className="font-medium">Use master bank</div>
                         <div className="text-xs text-gray-400 mt-0.5">
@@ -469,8 +469,8 @@ export default function PayeesPage() {
                         onClick={() => setBank(p => ({ ...p, bank_source: 'custom' }))}
                         className={`px-3 py-2.5 rounded-lg border text-sm text-left transition-colors ${
                           bank.bank_source === 'custom'
-                            ? 'border-blue-500 bg-blue-50 text-blue-800'
-                            : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-gray-200 text-gray-600 hover:border-primary/40'
                         }`}>
                         <div className="font-medium">Different account</div>
                         <div className="text-xs text-gray-400 mt-0.5">Use a separate account for commission payouts</div>
@@ -485,7 +485,7 @@ export default function PayeesPage() {
                         <p className="text-sm text-gray-400">Loading bank details…</p>
                       )}
                       {previewBank && Object.keys(previewBank).length > 0 && (
-                        <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 space-y-1.5">
+                        <div className="rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 space-y-1.5">
                           {previewBank.bank_name && (
                             <div className="flex gap-2 text-sm">
                               <span className="text-gray-500 w-28 flex-shrink-0">Bank</span>
@@ -519,7 +519,7 @@ export default function PayeesPage() {
                               <span className="font-medium text-gray-800 capitalize">{previewBank.account_type}</span>
                             </div>
                           )}
-                          <p className="text-xs text-blue-500 pt-1">From the linked master record. Edit there to update.</p>
+                          <p className="text-xs text-primary pt-1">From the linked master record. Edit there to update.</p>
                         </div>
                       )}
                     </>
@@ -536,8 +536,8 @@ export default function PayeesPage() {
                             <button key={m.value} type="button" onClick={() => set('default_payout_method', m.value)}
                               className={`py-2 rounded-lg border text-xs font-medium transition-colors ${
                                 form.default_payout_method === m.value
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                  : 'border-gray-200 text-gray-600 hover:border-blue-300'
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-gray-200 text-gray-600 hover:border-primary/40'
                               }`}>
                               {m.label}
                             </button>
@@ -553,26 +553,26 @@ export default function PayeesPage() {
                               <label className="block text-xs font-medium text-gray-700 mb-1">Bank Name</label>
                               <input value={bank.bank_name} onChange={e => setB('bank_name', e.target.value)}
                                 placeholder="e.g. HDFC Bank"
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                             </div>
                             <div>
                               <label className="block text-xs font-medium text-gray-700 mb-1">IFSC Code</label>
                               <input value={bank.ifsc_code} onChange={e => setB('ifsc_code', e.target.value.toUpperCase())}
                                 placeholder="HDFC0001234"
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                             </div>
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-700 mb-1">Account Number</label>
                             <input value={bank.account_number} onChange={e => setB('account_number', e.target.value)}
                               placeholder="Enter account number"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-700 mb-1">Account Holder Name</label>
                             <input value={bank.account_holder_name} onChange={e => setB('account_holder_name', e.target.value)}
                               placeholder="As per bank records"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                           </div>
                         </div>
                       )}
@@ -583,7 +583,7 @@ export default function PayeesPage() {
                           <label className="block text-xs font-medium text-gray-700 mb-1">UPI ID</label>
                           <input value={bank.upi_id} onChange={e => setB('upi_id', e.target.value)}
                             placeholder="name@upi or 9xxxxxxx@paytm"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                         </div>
                       )}
 
@@ -593,7 +593,7 @@ export default function PayeesPage() {
                           <div>
                             <label className="block text-xs font-medium text-gray-700 mb-1">Wallet Provider</label>
                             <select value={bank.wallet_provider} onChange={e => setB('wallet_provider', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                               {WALLET_PROVIDERS.map(w => <option key={w} value={w}>{w}</option>)}
                             </select>
                           </div>
@@ -601,7 +601,7 @@ export default function PayeesPage() {
                             <label className="block text-xs font-medium text-gray-700 mb-1">Wallet ID / Phone</label>
                             <input value={bank.wallet_id} onChange={e => setB('wallet_id', e.target.value)}
                               placeholder="Registered phone or wallet ID"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                           </div>
                         </div>
                       )}
@@ -626,7 +626,7 @@ export default function PayeesPage() {
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Code (optional)</label>
                   <input value={form.code} onChange={e => set('code', e.target.value)} placeholder="e.g. AGT-001"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                   <p className="text-xs text-gray-400 mt-1">Short reference printed on payout statements.</p>
                 </div>
                 <div>
@@ -638,7 +638,7 @@ export default function PayeesPage() {
                     onChange={e => set('external_user_id', e.target.value)}
                     placeholder={form.link_type === 'external' ? 'Phone number or partner ID' : 'Auto-filled from master data'}
                     readOnly={form.link_type !== 'external'}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary ${
                       form.link_type !== 'external'
                         ? 'border-gray-100 bg-gray-50 text-gray-500 cursor-default'
                         : 'border-gray-200'
@@ -651,7 +651,7 @@ export default function PayeesPage() {
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Currency</label>
                   <input value={form.currency} onChange={e => set('currency', e.target.value)} maxLength={3}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
               </CollapsibleSection>
             </div>
@@ -659,7 +659,7 @@ export default function PayeesPage() {
             <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={handleSave} disabled={create.isPending || update.isPending}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}
               </button>
             </div>

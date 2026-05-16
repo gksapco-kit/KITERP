@@ -824,7 +824,7 @@ export default function NotificationSettingsPage() {
                       onClick={() => set('tone_duration_sec', sec)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                         prefs.tone_duration_sec === sec
-                          ? 'bg-blue-600 text-white border-blue-600'
+                          ? 'bg-primary text-white border-blue-600'
                           : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400'
                       }`}
                     >

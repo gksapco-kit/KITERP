@@ -370,7 +370,7 @@ const GROUP_PALETTE = [
   'bg-teal-100 text-teal-700 border-teal-200',
   'bg-yellow-100 text-yellow-700 border-yellow-200',
   'bg-red-100 text-red-700 border-red-200',
-  'bg-indigo-100 text-indigo-700 border-indigo-200',
+  'bg-primary/15 text-primary border-primary/30',
   'bg-cyan-100 text-cyan-700 border-cyan-200',
 ]
 function groupColor(name: string) {
@@ -480,7 +480,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
       {/* Input box — chips live inline with the input */}
       <div className="relative">
         <div
-          className="flex flex-wrap items-center gap-1.5 border rounded-lg px-2 py-1.5 min-h-[38px] cursor-text focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-indigo-400 bg-white"
+          className="flex flex-wrap items-center gap-1.5 border rounded-lg px-2 py-1.5 min-h-[38px] cursor-text focus-within:ring-2 focus-within:ring-primary focus-within:border-primary/60 bg-white"
           onClick={() => { setOpen(true); inputRef.current?.focus() }}
         >
           {/* Selected chips — inline before the text input */}
@@ -505,7 +505,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
           <button
             type="button"
             onClick={e => { e.stopPropagation(); setOpen(true); inputRef.current?.focus() }}
-            className="shrink-0 flex items-center gap-0.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-2 py-0.5 hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+            className="shrink-0 flex items-center gap-0.5 text-xs font-semibold text-primary bg-primary/10 border border-primary/30 rounded-full px-2 py-0.5 hover:bg-primary/15 hover:border-primary/40 transition-colors"
           >
             <Plus className="w-3 h-3" /> Add
           </button>
@@ -523,7 +523,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
             <button
               type="button"
               onClick={() => addNew(inputVal)}
-              className="shrink-0 text-xs text-indigo-600 font-semibold hover:text-indigo-800 flex items-center gap-0.5"
+              className="shrink-0 text-xs text-primary font-semibold hover:text-primary/80 flex items-center gap-0.5"
             >
               <Plus className="w-3 h-3" /> Add
             </button>
@@ -539,7 +539,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
               <button
                 type="button"
                 onClick={() => addNew(inputVal)}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-indigo-700 hover:bg-indigo-50"
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-primary hover:bg-primary/10"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Create group &ldquo;<strong>{inputVal.trim()}</strong>&rdquo;
@@ -565,7 +565,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
                   <button
                     type="button"
                     onClick={() => addNew(inputVal)}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-indigo-700 hover:bg-indigo-50 border-t"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-primary hover:bg-primary/10 border-t"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Create &ldquo;<strong>{inputVal.trim()}</strong>&rdquo;
@@ -689,7 +689,7 @@ function CountryPicker({ value, onChange, mode, className = '' }: CountryPickerP
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1 text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 hover:bg-gray-100 transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        className="flex items-center gap-1 text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 hover:bg-gray-100 transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary"
       >
         <span className="text-base leading-none">{currentEntry?.flag}</span>
         {mode === 'dialCode' && <span className="font-medium text-gray-700">{currentEntry?.dialCode}</span>}
@@ -705,7 +705,7 @@ function CountryPicker({ value, onChange, mode, className = '' }: CountryPickerP
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search country…"
-              className="w-full text-sm px-3 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full text-sm px-3 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           <div className="max-h-52 overflow-y-auto">
@@ -719,14 +719,14 @@ function CountryPicker({ value, onChange, mode, className = '' }: CountryPickerP
                   <button
                     type="button"
                     onClick={() => { onChange(c); setOpen(false) }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-indigo-50 transition-colors text-left ${
-                      isSelected ? 'bg-indigo-50 font-medium text-indigo-700' : 'text-gray-700'
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-primary/10 transition-colors text-left ${
+                      isSelected ? 'bg-primary/10 font-medium text-primary' : 'text-gray-700'
                     }`}
                   >
                     <span className="text-base">{c.flag}</span>
                     <span className="flex-1 truncate">{c.name}</span>
                     {mode === 'dialCode' && <span className="text-xs text-gray-400 font-mono">{c.dialCode}</span>}
-                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary/70 shrink-0" />}
                   </button>
                   {isLastPopular && <div className="border-t mx-2 my-0.5" />}
                 </div>
@@ -787,8 +787,8 @@ function RelationPicker({ value, onChange }: { value: string; onChange: (v: stri
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
           {results.map(r => (
             <button key={r.id} type="button" onClick={() => pick(r)}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 text-left">
-              <Users className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-primary/10 text-left">
+              <Users className="w-3.5 h-3.5 text-primary/60 shrink-0" />
               <span className="flex-1 text-sm font-medium text-gray-800 truncate">{r.label}</span>
               <span className="text-[10px] text-gray-400 shrink-0">{r.sub}</span>
             </button>
@@ -1495,7 +1495,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-indigo-600" />
+            <User className="w-5 h-5 text-primary" />
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
                 {isEditMode ? `Edit — ${name || 'Record'}` : 'Master Data'}
@@ -1514,7 +1514,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
               form="add-party-form"
               size="sm"
               disabled={isLoading}
-              className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700"
+              className="h-8 text-xs bg-primary hover:bg-primary/90"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
               {submitLabel}
@@ -1571,19 +1571,19 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
             {/* Profile picture — compact, top-left */}
             <div className="relative shrink-0">
               {/* Avatar — display only, not a click target */}
-              <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-indigo-100 to-blue-100 border-2 border-indigo-200 flex items-center justify-center overflow-hidden select-none">
+              <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-indigo-100 to-blue-100 border-2 border-primary/30 flex items-center justify-center overflow-hidden select-none">
                 {profilePreview
                   ? <img src={profilePreview} alt="Profile" className="w-full h-full object-cover" />
                   : name.trim()
-                    ? <span className="text-xl font-bold text-indigo-600 leading-none">{name.trim()[0].toUpperCase()}</span>
-                    : <User className="w-6 h-6 text-indigo-400" />}
+                    ? <span className="text-xl font-bold text-primary leading-none">{name.trim()[0].toUpperCase()}</span>
+                    : <User className="w-6 h-6 text-primary/60" />}
               </div>
               {/* Camera badge — only this triggers file picker */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 title="Upload profile picture"
-                className="absolute -bottom-0.5 -right-0.5 w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center shadow hover:bg-indigo-700 transition-colors"
+                className="absolute -bottom-0.5 -right-0.5 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow hover:bg-primary/90 transition-colors"
               >
                 <Camera className="w-3.5 h-3.5 text-white" />
               </button>
@@ -1743,8 +1743,8 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                   key={value} type="button" onClick={() => handlePartyType(value)}
                   className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
                     partyType === value
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-primary/60 hover:text-primary'
                   }`}
                 >
                   {label}
@@ -1784,12 +1784,12 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                 <button
                   type="button"
                   onClick={() => setShowCustomTypeInput(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border border-dashed border-indigo-300 text-indigo-500 hover:border-indigo-500 hover:bg-indigo-50 transition-all"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border border-dashed border-primary/40 text-primary/70 hover:border-primary hover:bg-primary/10 transition-all"
                 >
                   <Plus className="w-3 h-3" /> Custom
                 </button>
               ) : (
-                <div className="flex items-center gap-1 bg-indigo-50 border border-indigo-300 rounded-full px-2 py-1">
+                <div className="flex items-center gap-1 bg-primary/10 border border-primary/40 rounded-full px-2 py-1">
                   <input
                     autoFocus
                     value={customTypeInput}
@@ -1805,7 +1805,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     type="button"
                     onMouseDown={e => e.preventDefault()}
                     onClick={addCustomPartyType}
-                    className="text-xs font-semibold bg-indigo-600 text-white px-2.5 py-0.5 rounded-full hover:bg-indigo-700 transition-colors whitespace-nowrap"
+                    className="text-xs font-semibold bg-primary text-white px-2.5 py-0.5 rounded-full hover:bg-primary/90 transition-colors whitespace-nowrap"
                   >
                     Add
                   </button>
@@ -1926,7 +1926,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                 <div>
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
                     <span
-                      className="inline-flex items-center justify-center rounded px-1 py-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100"
+                      className="inline-flex items-center justify-center rounded px-1 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20"
                     >{partyCountry.iso}</span>
                     Tax &amp; Registration IDs
                   </p>
@@ -1976,7 +1976,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     <Label className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" /> Addresses</Label>
                     <button
                       type="button" onClick={addAddr}
-                      className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-full px-2.5 py-1 transition-colors"
+                      className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-full px-2.5 py-1 transition-colors"
                     >
                       <Plus className="w-3 h-3" /> Add Address
                     </button>
@@ -1989,7 +1989,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                         <select
                           value={addr.type}
                           onChange={e => updateAddr(addr.id, { type: e.target.value as AddrType, customName: '' })}
-                          className="shrink-0 text-xs font-medium border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-700"
+                          className="shrink-0 text-xs font-medium border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary text-gray-700"
                         >
                           {ADDR_TYPE_OPTS.map(o => (
                             <option key={o.value} value={o.value}>{o.label}</option>
@@ -2082,7 +2082,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                           className="flex-1 text-sm h-9"
                         />
                         <Button type="button" size="sm" onMouseDown={e => e.preventDefault()} onClick={addCustomTerm}
-                          className="h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white shrink-0">Add</Button>
+                          className="h-9 px-3 bg-primary hover:bg-primary/90 text-white shrink-0">Add</Button>
                         <Button type="button" size="sm" variant="ghost" onMouseDown={e => e.preventDefault()}
                           onClick={() => { setShowTermsInput(false); setTermsInput('') }}
                           className="h-9 px-2 shrink-0 text-gray-400 hover:text-gray-700">
@@ -2095,7 +2095,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                         <select
                           value={paymentTerms}
                           onChange={e => setPaymentTerms(e.target.value)}
-                          className="flex-1 text-sm border rounded-lg px-3 h-9 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
+                          className="flex-1 text-sm border rounded-lg px-3 h-9 focus:outline-none focus:ring-2 focus:ring-primary bg-white text-gray-700"
                         >
                           <option value="">Select terms…</option>
                           <optgroup label="Standard">
@@ -2110,7 +2110,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                         <button
                           type="button"
                           onClick={() => setShowTermsInput(true)}
-                          className="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg px-2.5 h-9 transition-colors whitespace-nowrap"
+                          className="shrink-0 flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-lg px-2.5 h-9 transition-colors whitespace-nowrap"
                         >
                           <Plus className="w-3 h-3" /> Custom
                         </button>
@@ -2120,11 +2120,11 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     {/* Selected term badge */}
                     {paymentTerms && !showTermsInput && (
                       <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold rounded-md px-2.5 py-1">
-                          <CheckCircle2 className="w-3 h-3 text-indigo-400" />
+                        <span className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/30 text-primary text-xs font-semibold rounded-md px-2.5 py-1">
+                          <CheckCircle2 className="w-3 h-3 text-primary/60" />
                           {paymentTerms}
                           <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setPaymentTerms('')}
-                            className="ml-0.5 text-indigo-300 hover:text-indigo-600 transition-colors">
+                            className="ml-0.5 text-primary/40 hover:text-primary transition-colors">
                             <X className="w-3 h-3" />
                           </button>
                         </span>
@@ -2181,13 +2181,13 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                   <Label className="text-xs">Notes</Label>
                   <textarea value={notes} onChange={e => setNotes(e.target.value)}
                     placeholder="Internal notes…" rows={2}
-                    className="mt-1 w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="mt-1 w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
 
                 {/* Bank Details */}
                 <div className="border rounded-xl overflow-hidden">
                   <div className="px-4 py-2.5 bg-gray-50 border-b flex items-center gap-2">
-                    <Landmark className="w-3.5 h-3.5 text-indigo-500" />
+                    <Landmark className="w-3.5 h-3.5 text-primary/70" />
                     <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Bank Details</span>
                   </div>
                   <div className="p-3 grid grid-cols-2 gap-3">
@@ -2199,7 +2199,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     <div>
                       <Label className="text-xs">Account Type</Label>
                       <select value={accountType} onChange={e => setAccountType(e.target.value)}
-                        className="mt-1 w-full text-sm border rounded-lg px-3 h-9 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700">
+                        className="mt-1 w-full text-sm border rounded-lg px-3 h-9 focus:outline-none focus:ring-2 focus:ring-primary bg-white text-gray-700">
                         <option value="savings">Savings</option>
                         <option value="current">Current</option>
                       </select>
@@ -2327,7 +2327,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     <button
                       type="button" role="switch" aria-checked={enablePortal}
                       onClick={() => setEnablePortal(v => !v)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${enablePortal ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${enablePortal ? 'bg-primary' : 'bg-gray-300'}`}
                     >
                       <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
                         enablePortal ? 'translate-x-[18px]' : 'translate-x-[2px]'
@@ -2361,7 +2361,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
           {/* Actions */}
           <div className="flex gap-3 pt-1">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700" disabled={isLoading}>
+            <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90" disabled={isLoading}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {submitLabel}
             </Button>
@@ -2400,9 +2400,9 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
               <button
                 key={i} type="button"
                 onClick={() => applySuggestion(item)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50 transition-colors text-left border-b last:border-b-0"
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-primary/10 transition-colors text-left border-b last:border-b-0"
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${isC ? 'bg-indigo-100 text-indigo-600' : 'bg-blue-100 text-blue-600'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${isC ? 'bg-primary/15 text-primary' : 'bg-blue-100 text-blue-600'}`}>
                   {initial}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -2410,14 +2410,14 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     {sub && <p className="text-xs text-gray-400 truncate max-w-[200px]">{sub}</p>}
                     {matched.length > 0 && (
-                      <span className="text-[9px] font-semibold uppercase tracking-wide text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded">
+                      <span className="text-[9px] font-semibold uppercase tracking-wide text-primary/60 bg-primary/10 px-1.5 py-0.5 rounded">
                         via {matched.join(', ')}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isC ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>{bdg}</span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isC ? 'bg-primary/15 text-primary' : 'bg-blue-100 text-blue-700'}`}>{bdg}</span>
                   <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
                 </div>
               </button>

@@ -95,7 +95,7 @@ function PersonalTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, 
         {editing ? (
           <div className="flex gap-2">
             <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button onClick={() => { onSave(form); setEditing(false) }} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+            <button onClick={() => { onSave(form); setEditing(false) }} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Save</button>
           </div>
         ) : (
           <button onClick={() => setEditing(true)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Edit</button>
@@ -174,7 +174,7 @@ function FamilyMembersSection({ emp, editing, onSave }: { emp: any; editing: boo
           <Heart className="w-4 h-4 text-red-400" /> Family Members
         </h4>
         {dirty && (
-          <button onClick={saveMembers} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button onClick={saveMembers} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
             Save Members
           </button>
         )}
@@ -294,7 +294,7 @@ function EmploymentTab({ emp, departments, designations, onSave }: { emp: any; d
         {editing ? (
           <div className="flex gap-2">
             <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button onClick={() => { onSave(form); setEditing(false) }} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+            <button onClick={() => { onSave(form); setEditing(false) }} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Save</button>
           </div>
         ) : (
           <button onClick={() => setEditing(true)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Edit</button>
@@ -542,7 +542,7 @@ function DocumentsTab({ empId }: { empId: string }) {
           </button>
           <button
             onClick={() => setShowAdd(v => !v)}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90"
           >
             <Plus className="w-3.5 h-3.5" /> Upload
           </button>
@@ -576,7 +576,7 @@ function DocumentsTab({ empId }: { empId: string }) {
               onChange={e => setNewTypeName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomType() } }}
             />
-            <button onClick={addCustomType} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <button onClick={addCustomType} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
               + Add Type
             </button>
           </div>
@@ -667,7 +667,7 @@ function DocumentsTab({ empId }: { empId: string }) {
 
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => { setShowAdd(false); setSelectedFile(null); setPreview(null) }} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={uploading} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button type="submit" disabled={uploading} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {uploading && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               {uploading ? 'Uploading…' : 'Save Document'}
             </button>
@@ -784,7 +784,7 @@ function LeavesTab({ empId }: { empId: string }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-gray-900">Leave Balances</h3>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
           <Plus className="w-3.5 h-3.5" /> Apply Leave
         </button>
       </div>
@@ -828,7 +828,7 @@ function LeavesTab({ empId }: { empId: string }) {
           </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setShowForm(false)} className="px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
-            <button type="submit" disabled={submit.isPending} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50">Submit</button>
+            <button type="submit" disabled={submit.isPending} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg disabled:opacity-50">Submit</button>
           </div>
         </form>
       )}
@@ -855,7 +855,7 @@ function SalaryTab({ empId }: { empId: string }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-gray-900">Salary Structure</h3>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
           <Plus className="w-3.5 h-3.5" /> {active ? 'Revise' : 'Create'}
         </button>
       </div>
@@ -923,7 +923,7 @@ function SalaryTab({ empId }: { empId: string }) {
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
-            <button onClick={handleSave} disabled={createStructure.isPending} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50">Save Structure</button>
+            <button onClick={handleSave} disabled={createStructure.isPending} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg disabled:opacity-50">Save Structure</button>
           </div>
         </div>
       )}
@@ -1049,7 +1049,7 @@ function CredentialsTab({ emp }: { emp: any }) {
         <button
           type="submit"
           disabled={setPortalPw.isPending || !password || !confirmPassword}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
         >
           {setPortalPw.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
           Update portal password
@@ -1174,7 +1174,7 @@ function AssigneeInput({
               className={`flex items-center gap-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
                 notified
                   ? 'bg-green-50 border-green-300 text-green-700'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40'
+                  : 'bg-primary text-white hover:bg-primary/90 disabled:opacity-40'
               }`}
             >
               {notified ? <CheckCircle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
@@ -1434,7 +1434,7 @@ function TaskCard({
               </div>
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={cancelEdit} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-                <button type="button" onClick={saveEdit} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Changes</button>
+                <button type="button" onClick={saveEdit} className="px-4 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Save Changes</button>
               </div>
             </div>
           ) : (
@@ -1554,7 +1554,7 @@ function TaskCard({
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addComment() } }}
           />
           <button type="button" onClick={addComment} disabled={!newComment.trim()}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors whitespace-nowrap">
+            className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors whitespace-nowrap">
             Post
           </button>
         </div>
@@ -1574,7 +1574,7 @@ function TaskCard({
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addComment() } }}
           />
           <button type="button" onClick={addComment} disabled={!newComment.trim()}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors whitespace-nowrap">
+            className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors whitespace-nowrap">
             Post
           </button>
         </div>
@@ -1684,7 +1684,7 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
         {editing ? (
           <div className="flex gap-2">
             <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button onClick={handleSave} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+            <button onClick={handleSave} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Save</button>
           </div>
         ) : (
           <button onClick={() => setEditing(true)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Edit</button>
@@ -1814,7 +1814,7 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
           <button
             type="button"
             onClick={() => setShowTaskForm(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" /> Add Task
           </button>
@@ -1886,7 +1886,7 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
                 type="button"
                 onClick={addTask}
                 disabled={!taskForm.title.trim()}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-40"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Task
               </button>

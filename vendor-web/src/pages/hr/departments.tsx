@@ -67,7 +67,7 @@ export default function DepartmentsPage() {
         </div>
         <button
           onClick={() => setModal({ open: true, dept: null })}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium"
         >
           <Plus className="w-4 h-4" /> Add Department
         </button>

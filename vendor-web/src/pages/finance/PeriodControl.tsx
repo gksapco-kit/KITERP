@@ -73,7 +73,7 @@ export default function PeriodControl() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Calendar className="w-7 h-7 text-indigo-600" />
+            <Calendar className="w-7 h-7 text-primary" />
             GL posting periods
           </h1>
           <p className="text-sm text-slate-500 mt-1 max-w-2xl">
@@ -95,7 +95,7 @@ export default function PeriodControl() {
           <button
             type="button"
             onClick={() => { setCreateOpen(true) }}
-            className="inline-flex items-center gap-2 text-sm font-medium bg-indigo-600 text-white rounded-lg px-4 py-2.5 hover:bg-indigo-700 shadow-sm"
+            className="inline-flex items-center gap-2 text-sm font-medium bg-primary text-white rounded-lg px-4 py-2.5 hover:bg-primary/90 shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Add calendar

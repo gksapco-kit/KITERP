@@ -37,7 +37,7 @@ export function BarcodeNotFoundToast({ toastId, barcode, onCreateProduct }: Barc
             onCreateProduct()
             toast.dismiss(toastId)
           }}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md bg-primary hover:bg-primary/90 text-white text-xs font-medium transition-colors"
         >
           <PackagePlus className="w-3.5 h-3.5" />
           Create Product

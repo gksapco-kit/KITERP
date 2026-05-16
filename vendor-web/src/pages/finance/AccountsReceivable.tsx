@@ -41,7 +41,7 @@ export default function AccountsReceivable() {
         <div className="flex gap-2">
           {(['aging', 'apply'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-lg text-sm ${tab === t ? 'bg-indigo-600 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-4 py-2 rounded-lg text-sm ${tab === t ? 'bg-primary text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
               {t === 'aging' ? 'AR Aging' : 'Apply Payment'}
             </button>
           ))}
@@ -114,7 +114,7 @@ export default function AccountsReceivable() {
             </div>
           ))}
           <button onClick={() => applyMut.mutate(payForm)} disabled={applyMut.isPending}
-            className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50">
+            className="w-full py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50">
             {applyMut.isPending ? 'Applying…' : 'Apply Payment'}
           </button>
         </div>

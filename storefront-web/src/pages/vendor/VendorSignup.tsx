@@ -620,7 +620,7 @@ export default function VendorSignup() {
 
                   <Button
                     type="submit"
-                    className="w-full h-11 font-bold text-sm bg-blue-600 hover:bg-blue-700 mt-1"
+                    className="w-full h-11 font-bold text-sm bg-primary hover:bg-primary/90 mt-1"
                     disabled={loading || otpModalOpen || checkingContact}
                   >
                     {checkingContact ? (
@@ -703,7 +703,7 @@ export default function VendorSignup() {
                 <div className="flex flex-col gap-2 mt-5">
                   <Button
                     type="button"
-                    className="w-full h-11 font-bold bg-blue-600 hover:bg-blue-700"
+                    className="w-full h-11 font-bold bg-primary hover:bg-primary/90"
                     disabled={loading || modalOtp.replace(/\D/g, '').length !== 6}
                     onClick={() => void submitPhoneWithOtp()}
                   >

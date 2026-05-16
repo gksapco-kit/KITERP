@@ -665,7 +665,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                       <button onClick={() => setSelectedVariantId(v.id)}
                         className={`text-xs font-medium px-3 py-1 rounded-md transition-colors ${
                           isSelected
-                            ? (isSubscription ? 'bg-primary text-white' : 'bg-blue-600 text-white')
+                            ? (isSubscription ? 'bg-primary text-white' : 'bg-primary text-white')
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}>
                         {isSelected ? 'Selected' : 'Select'}

@@ -142,12 +142,12 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
         <div className="flex gap-1">
           <button
             onClick={() => setTab('steps')}
-            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors ${tab === 'steps' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
+            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors ${tab === 'steps' ? 'bg-primary text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
             <ListChecks className="w-3 h-3" /> Steps
           </button>
           <button
             onClick={() => setTab('video')}
-            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors ${tab === 'video' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
+            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors ${tab === 'video' ? 'bg-primary text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
             <Video className="w-3 h-3" /> Video
           </button>
         </div>
@@ -161,7 +161,7 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
         <div className="px-3 py-2 space-y-2 max-h-60 overflow-y-auto">
           {GUIDE_STEPS.map(step => (
             <div key={step.n} className="flex gap-2">
-              <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center mt-0.5">
+              <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center mt-0.5">
                 {step.n}
               </div>
               <div>
@@ -194,7 +194,7 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
                 <button
                   onClick={saveVideo}
                   disabled={!draft.trim()}
-                  className="px-2 py-1 text-[11px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40">
+                  className="px-2 py-1 text-[11px] bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-40">
                   Save
                 </button>
               </div>
@@ -383,7 +383,7 @@ export default function OfferTemplatesPage() {
             <BookOpen className="w-3.5 h-3.5" />
           </button>
           <button onClick={startNew}
-            className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90">
             <Plus className="w-3.5 h-3.5" /> New
           </button>
         </div>
@@ -442,7 +442,7 @@ export default function OfferTemplatesPage() {
             <FileText className="w-12 h-12 mx-auto mb-3 text-gray-200" />
             <p className="text-sm">Select a template to edit, or create a new one.</p>
             <button onClick={startNew}
-              className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
               <Plus className="w-4 h-4" /> New Template
             </button>
           </div>
@@ -473,7 +473,7 @@ export default function OfferTemplatesPage() {
               </>
             )}
             <button onClick={handleSave} disabled={isBusy || !form.name || !form.body_html}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               <Save className="w-3.5 h-3.5" />
               {isBusy ? 'Saving…' : 'Save'}
             </button>

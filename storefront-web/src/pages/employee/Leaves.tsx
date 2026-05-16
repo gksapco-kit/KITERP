@@ -40,7 +40,7 @@ export default function ESSLeavesPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium"
         >
           <Plus className="w-4 h-4" /> Apply Leave
         </button>
@@ -132,7 +132,7 @@ export default function ESSLeavesPage() {
               Cancel
             </button>
             <button type="submit" disabled={submit.isPending}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700">
+              className="px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50 hover:bg-primary/90">
               {submit.isPending ? 'Submitting…' : 'Submit Request'}
             </button>
           </div>

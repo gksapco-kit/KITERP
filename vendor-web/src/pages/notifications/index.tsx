@@ -326,7 +326,7 @@ export default function NotificationsPage() {
                   onClick={() => setUnreadOnly(false)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 select-none ${
                     !unreadOnly
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      ? 'bg-primary text-white border-blue-600 shadow-sm'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
                   }`}
                 >
@@ -337,7 +337,7 @@ export default function NotificationsPage() {
                   onClick={() => setUnreadOnly(true)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 select-none ${
                     unreadOnly
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      ? 'bg-primary text-white border-blue-600 shadow-sm'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
                   }`}
                 >

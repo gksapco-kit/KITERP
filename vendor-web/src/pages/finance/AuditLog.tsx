@@ -6,7 +6,7 @@ const ACTION_COLORS: Record<string, string> = {
   create: 'bg-green-100 text-green-700',
   update: 'bg-blue-100 text-blue-700',
   delete: 'bg-red-100 text-red-600',
-  post: 'bg-indigo-100 text-indigo-700',
+  post: 'bg-primary/15 text-primary',
   void: 'bg-orange-100 text-orange-700',
   approve: 'bg-teal-100 text-teal-700',
   reject: 'bg-rose-100 text-rose-700',
@@ -23,7 +23,7 @@ export default function AuditLog() {
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center gap-3">
-        <Shield className="w-7 h-7 text-indigo-600" />
+        <Shield className="w-7 h-7 text-primary" />
         <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
         <span className="text-sm text-gray-500">{total} total entries</span>
       </div>
@@ -75,7 +75,7 @@ export default function AuditLog() {
           <div className="px-4 py-3 border-t bg-gray-50 flex justify-between items-center">
             <span className="text-xs text-gray-500">Showing 100 of {total} entries</span>
             <button onClick={() => setParams(p => ({ ...p, skip: Number(p.skip || 0) + 100 }))}
-              className="text-xs text-indigo-600 hover:underline">Load more</button>
+              className="text-xs text-primary hover:underline">Load more</button>
           </div>
         )}
       </div>

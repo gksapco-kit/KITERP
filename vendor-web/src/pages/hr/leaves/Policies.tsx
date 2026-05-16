@@ -61,7 +61,7 @@ function PolicyModal({ policy, onClose }: { policy?: LeavePolicy | null; onClose
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={busy} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button type="submit" disabled={busy} className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {busy ? 'Saving…' : policy ? 'Update' : 'Create'}
             </button>
           </div>
@@ -82,7 +82,7 @@ export default function LeavePoliciesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Leave Policies</h1>
           <p className="text-sm text-gray-500 mt-1">Configure leave types and rules</p>
         </div>
-        <button onClick={() => setModal({ open: true, policy: null })} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+        <button onClick={() => setModal({ open: true, policy: null })} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> Add Policy
         </button>
       </div>

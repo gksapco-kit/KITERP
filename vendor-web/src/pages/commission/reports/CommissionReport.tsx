@@ -64,7 +64,7 @@ export default function CommissionReportPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <KPICard title="Total Accrued" value={fmtCurrency(summary?.total_accrued || 0)} icon={TrendingUp} color="bg-blue-500" />
+        <KPICard title="Total Accrued" value={fmtCurrency(summary?.total_accrued || 0)} icon={TrendingUp} color="bg-primary/100" />
         <KPICard title="Total Paid" value={fmtCurrency(summary?.total_paid || 0)} icon={DollarSign} color="bg-green-500" />
         <KPICard title="Pending Approval" value={fmtCurrency(summary?.pending_approval || 0)} icon={Clock} color="bg-yellow-500" />
         <KPICard title="Avg per Sale" value={fmtCurrencyFull(summary?.avg_per_sale || 0)} sub={`${summary?.sale_count || 0} sales`} icon={Award} color="bg-primary" />
@@ -78,7 +78,7 @@ export default function CommissionReportPage() {
           <div className="flex gap-1">
             {BUCKET_OPTIONS.map(b => (
               <button key={b} onClick={() => setBucket(b)}
-                className={`px-3 py-1 rounded text-xs font-medium capitalize ${bucket === b ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                className={`px-3 py-1 rounded text-xs font-medium capitalize ${bucket === b ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
                 {b}
               </button>
             ))}

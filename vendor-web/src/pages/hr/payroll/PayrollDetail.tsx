@@ -106,7 +106,7 @@ export default function PayrollDetailPage() {
             </button>
           )}
           {run.status === 'draft' && (
-            <button onClick={() => finalize.mutate(run.id)} disabled={finalize.isPending} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button onClick={() => finalize.mutate(run.id)} disabled={finalize.isPending} className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               <CheckCircle className="w-4 h-4" /> Finalize
             </button>
           )}

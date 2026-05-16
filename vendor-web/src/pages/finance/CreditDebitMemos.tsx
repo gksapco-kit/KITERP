@@ -1596,7 +1596,7 @@ export default function CreditDebitMemos() {
           <div className="px-6 sm:px-8 py-4 bg-slate-50/60 border-t border-slate-200/80">
             <Button
               type="button"
-              className={`w-full gap-2 h-11 text-base ${memoMode === 'credit_memo' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+              className={`w-full gap-2 h-11 text-base ${memoMode === 'credit_memo' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-primary hover:bg-primary/90'}`}
               size="lg"
               disabled={memoLinesInvalid}
               onClick={() => setPaymentModal(true)}
@@ -1889,7 +1889,7 @@ function MemoPaymentModal({ total, sessionId, editTxnId, cart, discountType, dis
           </div>
 
           <Button
-            className={`w-full gap-2 ${isCredit ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+            className={`w-full gap-2 ${isCredit ? 'bg-orange-600 hover:bg-orange-700' : 'bg-primary hover:bg-primary/90'}`}
             size="lg" onClick={handleSubmit} disabled={loading}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isCredit ? <FilePlus className="w-5 h-5" /> : <FileMinus className="w-5 h-5" />}

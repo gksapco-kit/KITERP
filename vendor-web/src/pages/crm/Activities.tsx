@@ -110,7 +110,7 @@ export default function ActivitiesPage() {
       <div className="flex flex-wrap gap-2">
         {['', ...TYPES.map(t => t.id)].map(t => (
           <button key={t || 'all'} onClick={() => { setType(t); setPage(1) }}
-            className={`text-xs px-3 py-1.5 rounded-full border ${type === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            className={`text-xs px-3 py-1.5 rounded-full border ${type === t ? 'bg-primary text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
             {t || 'all types'}
           </button>
         ))}

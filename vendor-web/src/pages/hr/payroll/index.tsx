@@ -51,7 +51,7 @@ function ProcessWizard({ onClose }: { onClose: () => void }) {
             </div>
             <div className="flex justify-end gap-3">
               <button onClick={onClose} className="px-4 py-2 text-sm border rounded-lg">Cancel</button>
-              <button onClick={handleProcess} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button onClick={handleProcess} className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
                 <Play className="w-4 h-4" /> Process
               </button>
             </div>
@@ -69,7 +69,7 @@ function ProcessWizard({ onClose }: { onClose: () => void }) {
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
             <p className="font-semibold text-gray-900">Payroll Processed!</p>
             <p className="text-sm text-gray-500 mt-1">All payslips have been generated.</p>
-            <button onClick={onClose} className="mt-4 px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Done</button>
+            <button onClick={onClose} className="mt-4 px-5 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Done</button>
           </div>
         )}
       </div>
@@ -134,7 +134,7 @@ export default function PayrollPage() {
         </div>
         <button
           onClick={() => setShowWizard(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium"
         >
           <Play className="w-4 h-4" /> Process Payroll
         </button>

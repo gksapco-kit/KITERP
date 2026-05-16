@@ -324,7 +324,7 @@ export default function BookingDetail() {
                   ].map((step, i) => (
                     <div key={step.key} className="flex flex-col items-center z-10">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all text-sm ${
-                        i <= timelineIdx ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white border-2 border-gray-200 text-gray-400'
+                        i <= timelineIdx ? 'bg-primary text-white shadow-md shadow-blue-200' : 'bg-white border-2 border-gray-200 text-gray-400'
                       }`}>
                         <step.Icon className="w-4 h-4" />
                       </div>
@@ -341,7 +341,7 @@ export default function BookingDetail() {
                 <div className="flex flex-wrap gap-2 pt-2 border-t">
                   {b.status === 'pending' && (
                     <>
-                      <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                      <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 text-white"
                         onClick={() => handleStatus('confirmed')} disabled={statusLoading}>
                         <Check className="w-3.5 h-3.5" /> Confirm
                       </Button>
@@ -803,7 +803,7 @@ export default function BookingDetail() {
               </h3>
               {b.assigned_staff_name ? (
                 <div className="flex items-center gap-2 bg-blue-50 rounded-lg p-2.5 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
+                  <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
                     {(b.assigned_staff_name as string)[0].toUpperCase()}
                   </div>
                   <div>

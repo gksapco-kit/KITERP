@@ -169,7 +169,7 @@ export default function AssignmentsPage() {
           >
             <Filter className="h-4 w-4" /> Filters <ChevronDown className="h-3 w-3" />
           </button>
-          <button onClick={openCreate} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+          <button type="button" onClick={openCreate} className="btn-brand">
             <Plus className="h-4 w-4" /> Assign
           </button>
         </div>
@@ -291,7 +291,7 @@ export default function AssignmentsPage() {
             <button
               type="button"
               onClick={clearFilters}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              className="text-sm text-primary hover:text-primary/80 font-medium"
             >
               Clear all filters
             </button>
@@ -358,7 +358,7 @@ export default function AssignmentsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2 justify-end">
-                      <button type="button" onClick={() => openEdit(a)} className="text-gray-400 hover:text-blue-600"><Edit2 className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => openEdit(a)} className="text-gray-400 hover:text-primary"><Edit2 className="h-4 w-4" /></button>
                       <button type="button" onClick={() => handleDeactivate(a.id)} className="text-gray-400 hover:text-red-600"><X className="h-4 w-4" /></button>
                     </div>
                   </td>
@@ -376,7 +376,7 @@ export default function AssignmentsPage() {
               key={i}
               type="button"
               onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded text-sm ${page === i + 1 ? 'bg-blue-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+              className={`px-3 py-1 rounded text-sm ${page === i + 1 ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
             >
               {i + 1}
             </button>
@@ -405,7 +405,7 @@ export default function AssignmentsPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Commission Plan <span className="text-red-500">*</span></label>
                 <select value={String(form.plan_id)} onChange={e => set('plan_id', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                   <option value="">Select plan…</option>
                   {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -416,7 +416,7 @@ export default function AssignmentsPage() {
                 <input type="number" min="0" max="100" step="0.01"
                   value={Number(form.weight_percent)}
                   onChange={e => set('weight_percent', parseFloat(e.target.value) || 100)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 <p className="text-xs text-gray-400 mt-1">100% means this payee earns the full commission. Split assignments should sum to 100.</p>
               </div>
 
@@ -433,7 +433,7 @@ export default function AssignmentsPage() {
                     <div key={f.k}>
                       <label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</label>
                       <input type="date" value={String(form[f.k] || '')} onChange={e => set(f.k, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                   ))}
                 </div>
@@ -441,7 +441,7 @@ export default function AssignmentsPage() {
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Store / Branch</label>
                   <select value={String(form.store_id || '')} onChange={e => set('store_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="">All stores (no restriction)</option>
                     {stores.map(s => <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>)}
                   </select>
@@ -451,7 +451,7 @@ export default function AssignmentsPage() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Team ID</label>
                   <input value={String(form.team_id || '')} onChange={e => set('team_id', e.target.value)}
                     placeholder="Team UUID (optional)"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -459,7 +459,7 @@ export default function AssignmentsPage() {
                     <div key={f.k}>
                       <label className="block text-xs font-medium text-gray-700 mb-1">{f.l}</label>
                       <input value={String(form[f.k] || '')} onChange={e => set(f.k, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                   ))}
                 </div>
@@ -467,7 +467,7 @@ export default function AssignmentsPage() {
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
                   <textarea rows={2} value={String(form.notes || '')} onChange={e => set('notes', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
               </CollapsibleSection>
             </div>
@@ -475,7 +475,7 @@ export default function AssignmentsPage() {
             <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
               <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
               <button type="button" onClick={handleSave} disabled={create.isPending || update.isPending}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                className="btn-brand disabled:opacity-50">
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}
               </button>
             </div>
