@@ -89,20 +89,20 @@ function CountryDropdown({
     : orderedCountries
 
   return (
-    <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-xl w-64 overflow-hidden">
+    <div className="absolute top-full left-0 mt-1 z-50 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl w-64 overflow-hidden">
       {/* Search */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-        <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <input
           ref={inputRef}
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search country or code…"
-          className="flex-1 text-sm outline-none bg-transparent"
+          className="flex-1 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground"
         />
         {search && (
           <button type="button" onClick={() => setSearch('')} className="p-0.5">
-            <X className="w-3 h-3 text-gray-400" />
+            <X className="w-3 h-3 text-muted-foreground" />
           </button>
         )}
       </div>
@@ -110,7 +110,7 @@ function CountryDropdown({
       {/* List */}
       <div className="max-h-56 overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-4">No results</p>
+          <p className="text-xs text-muted-foreground text-center py-4">No results</p>
         ) : (
           filtered.map((c, i) => {
             const isSelected = c.iso === selected.iso
@@ -121,16 +121,16 @@ function CountryDropdown({
                   type="button"
                   onClick={() => { onSelect(c); onClose() }}
                   className={cn(
-                    'w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-accent transition-colors text-sm',
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-accent transition-colors text-sm text-foreground',
                     isSelected && 'bg-accent',
                   )}
                 >
                   <span className="text-base leading-none">{c.flag}</span>
                   <span className="flex-1 truncate">{c.name}</span>
-                  <span className="text-xs text-gray-400 font-mono shrink-0">{c.dialCode}</span>
+                  <span className="text-xs text-muted-foreground font-mono shrink-0">{c.dialCode}</span>
                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary/80 shrink-0" />}
                 </button>
-                {isLastPopular && <div className="border-t border-gray-100 my-0.5" />}
+                {isLastPopular && <div className="border-t border-border my-0.5" />}
               </div>
             )
           })
@@ -165,6 +165,8 @@ export interface PhoneInputProps {
   autoComplete?: string
   /** Taller row + larger text (e.g. registration). Default keeps compact density. */
   comfortable?: boolean
+  /** With `comfortable`, match SmartLoginInput dense (~20% smaller) layout. */
+  dense?: boolean
 }
 
 export function PhoneInput({
@@ -181,6 +183,7 @@ export function PhoneInput({
   name = 'username',
   autoComplete = 'username',
   comfortable = false,
+  dense = false,
 }: PhoneInputProps) {
   const defaultCountry =
     COUNTRIES.find(c => c.iso === defaultCountryIso) ??
@@ -330,7 +333,7 @@ export function PhoneInput({
   return (
     <div className={cn('w-full space-y-1', className)}>
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+        <label htmlFor={id} className="block text-sm font-medium text-foreground">
           {label}
         </label>
       )}
@@ -341,18 +344,35 @@ export function PhoneInput({
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
           className={cn(
-            'flex items-center gap-1.5 rounded-l-md border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0',
+            'flex items-center gap-1.5 rounded-l-md border border-r-0 bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0',
             comfortable
-              ? 'min-h-[calc(2.75rem*0.95)] gap-2 px-3 text-[0.95rem]'
+              ? (
+                  dense
+                    ? 'min-h-[calc(2.75rem*0.95*0.76)] gap-1.5 px-2.5 text-xs'
+                    : 'min-h-[calc(2.75rem*0.95)] gap-2 px-3 text-[0.95rem]'
+                )
               : 'px-2.5 py-2 text-sm',
             dropOpen ? 'border-primary ring-1 ring-ring z-10' : 'border-input',
-            error && 'border-red-400',
+            error && 'border-destructive',
             disabled && 'opacity-50 cursor-not-allowed',
           )}
         >
-          <span className="text-base leading-none">{country.flag}</span>
-          <span className={cn('font-mono text-gray-700', comfortable ? 'text-sm' : 'text-xs')}>{country.dialCode}</span>
-          <ChevronDown className={cn('text-gray-400 transition-transform', comfortable ? 'w-4 h-4' : 'w-3 h-3', dropOpen && 'rotate-180')} />
+          <span className={cn('leading-none', comfortable ? (dense ? 'text-sm' : 'text-base') : 'text-base')}>{country.flag}</span>
+          <span
+            className={cn(
+              'font-mono text-foreground',
+              comfortable ? (dense ? 'text-xs' : 'text-sm') : 'text-xs',
+            )}
+          >
+            {country.dialCode}
+          </span>
+          <ChevronDown
+            className={cn(
+              'text-muted-foreground transition-transform',
+              comfortable ? (dense ? 'w-3.5 h-3.5' : 'w-4 h-4') : 'w-3 h-3',
+              dropOpen && 'rotate-180',
+            )}
+          />
         </button>
 
         {/* Number input */}
@@ -370,15 +390,19 @@ export function PhoneInput({
             onBlur={handleBlur}
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
-              'w-full h-full rounded-r-md border outline-none transition-all',
+              'w-full h-full rounded-r-md border outline-none transition-all bg-background text-foreground placeholder:text-muted-foreground',
               comfortable
-                ? 'min-h-[calc(2.75rem*0.95)] px-3 py-2 text-[0.95rem]'
+                ? (
+                    dense
+                      ? 'min-h-[calc(2.75rem*0.95*0.76)] px-2.5 py-1 text-xs'
+                      : 'min-h-[calc(2.75rem*0.95)] px-3 py-2 text-[0.95rem]'
+                  )
                 : 'px-3 py-2 text-sm',
               'focus:ring-2 focus:ring-ring focus:border-primary',
-              error ? 'border-red-400 bg-red-50/30' : 'border-input',
-              isOverLimit && 'border-amber-400 bg-amber-50/20',
-              isFull && !error && 'border-green-400 bg-green-50/20',
-              disabled && 'opacity-50 cursor-not-allowed bg-gray-50',
+              error ? 'border-destructive bg-destructive/10' : 'border-input',
+              isOverLimit && 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15',
+              isFull && !error && 'border-green-600 bg-green-500/10 dark:border-green-500 dark:bg-green-500/15',
+              disabled && 'opacity-50 cursor-not-allowed bg-muted',
             )}
           />
           {/* Counter: shows overflow in amber, normal progress in gray */}
@@ -389,7 +413,7 @@ export function PhoneInput({
                 ? 'text-amber-500'
                 : localNumber.length >= maxDigits - 2
                   ? 'text-amber-500'
-                  : 'text-gray-300',
+                  : 'text-muted-foreground/60',
             )}>
               {localNumber.length}/{maxDigits}
             </span>
@@ -408,13 +432,13 @@ export function PhoneInput({
 
       {/* Error / hint */}
       {error ? (
-        <p className="text-xs text-red-500">{error}</p>
+        <p className="text-xs text-destructive">{error}</p>
       ) : isOverLimit ? (
-        <p className="text-[11px] text-amber-600">
+        <p className="text-[11px] text-amber-700 dark:text-amber-400">
           Will save last {maxDigits} digits: <span className="font-mono font-semibold">{localNumber.slice(-maxDigits)}</span>
         </p>
       ) : isFull ? (
-        <p className="text-[11px] text-green-600">✓ {maxDigits}-digit number entered</p>
+        <p className="text-[11px] text-green-700 dark:text-green-400">✓ {maxDigits}-digit number entered</p>
       ) : null}
     </div>
   )

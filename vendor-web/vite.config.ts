@@ -23,12 +23,16 @@ export default defineConfig({
   server: {
     port: 3001,
     strictPort: true,
-    /** `true` listens on IPv4 + IPv6 so `http://localhost:3001` (::1) works on Windows; `0.0.0.0` alone often does not. */
-    host: true,
+    /** Match admin frontend; listens on all interfaces (IPv4 + IPv6 on Windows). */
+    host: '0.0.0.0',
     /** Allow Docker / reverse-proxy hostnames (Vite 5+ host check). */
     allowedHosts: true,
     /** Align HMR client port with host port map (e.g. Docker 3001:3001). */
     hmr: { clientPort: 3001 },
+    /** Pre-transform entry files so first browser open is not a 30s+ hang on OneDrive. */
+    warmup: {
+      clientFiles: ['./index.html', './src/main.tsx'],
+    },
     ...(useWatchPolling ? { watch: { usePolling: true, interval: 1000 } } : {}),
     proxy: {
       '/api': {

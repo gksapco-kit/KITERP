@@ -16,9 +16,11 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3002,
       strictPort: true,
-      /** Dual-stack so `http://localhost:3002` (::1) works on Windows. */
-      host: true,
+      host: '0.0.0.0',
       allowedHosts: true,
+      warmup: {
+        clientFiles: ['./index.html', './src/main.tsx'],
+      },
       ...(useWatchPolling ? { watch: { usePolling: true, interval: 1000 } } : {}),
       // Local dev: localhost. Docker Compose can set BACKEND_URL=http://backend:8000
       proxy: { '/api': { target: backendUrl, changeOrigin: true } },
@@ -26,7 +28,7 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: 3002,
       strictPort: true,
-      host: true,
+      host: '0.0.0.0',
       allowedHosts: true,
       proxy: { '/api': { target: backendUrl, changeOrigin: true } },
     },

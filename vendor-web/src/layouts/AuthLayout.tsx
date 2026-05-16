@@ -9,6 +9,8 @@ export default function AuthLayout() {
   // Admin → vendor SSO always uses /auth/handoff?token=… — must run even when a session
   // already exists (e.g. switching to another business). Never redirect away before redeem.
   const isVendorHandoffRoute = location.pathname.replace(/\/+$/, '') === '/auth/handoff'
+  /** Vendor login card: ~15% narrower than standard auth column (28rem → 23.8rem). */
+  const narrowLoginColumn = location.pathname.replace(/\/+$/, '') === '/login'
   // Require a real access token so stale `isAuthenticated` from persisted state alone cannot
   // bounce /login ↔ / with ProtectedRoute (blank thrash after localStorage was cleared elsewhere).
   if (isAuthenticated && accessToken && !isVendorHandoffRoute) return <Navigate to="/" replace />
@@ -31,8 +33,8 @@ export default function AuthLayout() {
           </p>
         </div>
       </div>
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+        <div className={narrowLoginColumn ? 'w-full max-w-[min(100%,19.05rem)]' : 'w-full max-w-md'}>
           <Outlet />
         </div>
       </div>

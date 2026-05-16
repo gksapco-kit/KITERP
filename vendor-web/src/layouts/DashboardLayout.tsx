@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
@@ -651,6 +651,9 @@ export default function DashboardLayout() {
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
+  const navScrollRef = useRef<HTMLElement>(null)
+  const sectionScrollAnchors = useRef<Map<string, HTMLDivElement>>(new Map())
+  const pendingScrollSectionId = useRef<string | null>(null)
 
   const dark = useThemeStore(s => s.dark)
   const toggleDark = useThemeStore(s => s.toggleDark)
@@ -1048,9 +1051,50 @@ export default function DashboardLayout() {
     setNavDndOverId(event.over ? String(event.over.id) : null)
   }, [])
 
-  const toggleSection = (title: string) => {
-    setCollapsedSections((prev) => ({ ...prev, [title]: !(prev[title] ?? true) }))
-  }
+  const registerSectionScrollAnchor = useCallback((sectionId: string, node: HTMLDivElement | null) => {
+    if (node) sectionScrollAnchors.current.set(sectionId, node)
+    else sectionScrollAnchors.current.delete(sectionId)
+  }, [])
+
+  const toggleSection = useCallback((title: string, sectionId: string) => {
+    setCollapsedSections((prev) => {
+      const wasCollapsed = prev[title] ?? true
+      if (!wasCollapsed) {
+        return { ...prev, [title]: true }
+      }
+      pendingScrollSectionId.current = sectionId
+      return { ...prev, [title]: false }
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    const sectionId = pendingScrollSectionId.current
+    if (!sectionId) return
+    pendingScrollSectionId.current = null
+
+    const ensureSectionVisibleInNav = () => {
+      const nav = navScrollRef.current
+      const anchor = sectionScrollAnchors.current.get(sectionId)
+      if (!nav || !anchor) return
+
+      const pad = 4
+      const navRect = nav.getBoundingClientRect()
+      const anchorRect = anchor.getBoundingClientRect()
+
+      const headerAboveTop = anchorRect.top < navRect.top + pad
+      const bottomCutOff = anchorRect.bottom > navRect.bottom - pad
+
+      // Always scroll so the section header aligns with the top of the nav
+      // whenever the section doesn't fully fit, or the header is hidden
+      if (headerAboveTop || bottomCutOff) {
+        nav.scrollTop = Math.max(0, nav.scrollTop + (anchorRect.top - navRect.top) - pad)
+      }
+    }
+
+    ensureSectionVisibleInNav()
+    const afterExpand = window.setTimeout(ensureSectionVisibleInNav, 220)
+    return () => window.clearTimeout(afterExpand)
+  }, [collapsedSections])
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }))
@@ -1197,6 +1241,7 @@ export default function DashboardLayout() {
         }}
       >
         <nav
+          ref={navScrollRef}
           className="sidebar-scroll sidebar-scroll-intent flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-1 pt-0.5"
           aria-label="Main navigation"
         >
@@ -1284,8 +1329,11 @@ export default function DashboardLayout() {
                 ((activeIt != null) || (activeSec != null && navActiveDndId !== secDnd))
 
               return (
-                <SortableSectionShell
+                <div
                   key={section.id}
+                  ref={(node) => registerSectionScrollAnchor(section.id, node)}
+                >
+                <SortableSectionShell
                   sectionId={section.id}
                   sortDisabled={sortLocked}
                   outlineAsDropTarget={outlineSectionDrop}
@@ -1334,7 +1382,7 @@ export default function DashboardLayout() {
                                 : 'text-muted-foreground hover:bg-muted/45 hover:text-foreground',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
                           )}
-                          onClick={() => toggleSection(section.title)}
+                          onClick={() => toggleSection(section.title, section.id)}
                         >
                           <span
                             className={cn(
@@ -1548,6 +1596,7 @@ export default function DashboardLayout() {
                     </>
                   )}
                 </SortableSectionShell>
+                </div>
               )
             })}
           </SortableContext>
@@ -1642,16 +1691,14 @@ export default function DashboardLayout() {
         <div className="fixed inset-0 bg-black/30 z-40 lg:hidden backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar - desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 min-w-[14rem] max-w-[min(100vw,18rem)] rounded-r-2xl border-r border-sidebar-border/40 bg-sidebar text-sidebar-foreground shadow-sm lg:block">
-        {sidebarContent}
-      </aside>
-
-      {/* Sidebar - mobile */}
-      <aside className={cn(
-        'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 transform rounded-r-2xl border-r border-sidebar-border/40 bg-sidebar text-sidebar-foreground shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none lg:hidden',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      )}>
+      {/* Sidebar — single instance so nav scroll ref targets the visible panel */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 max-w-[min(100vw,18rem)] rounded-r-2xl border-r border-sidebar-border/40 bg-sidebar text-sidebar-foreground shadow-sm lg:z-30 lg:w-64 lg:min-w-[14rem]',
+          'transition-transform duration-200 ease-out motion-reduce:transition-none lg:translate-x-0 lg:transition-none',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
         {sidebarContent}
       </aside>
 

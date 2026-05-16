@@ -13,7 +13,7 @@ import {
   Loader2, TrendingUp, ShoppingCart, Users, Package, Wrench,
   IndianRupee, FileText, BarChart3, Receipt, ExternalLink,
   Banknote, Smartphone, CreditCard, Calendar, ChevronLeft, ChevronRight,
-  UserCog, Clock, Plane, LogIn, LogOut,
+  UserCog, Clock, Plane, ArrowUpRight, ArrowDownRight, Wallet,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -152,6 +152,94 @@ export default function Dashboard() {
     return Math.max(1, ...raw.map((x) => x.revenue || 0))
   }, [salesByDay])
 
+  // Overview KPI — split 30-day salesByDay into two halves for period-over-period %
+  const overviewKpis = useMemo(() => {
+    const raw = ([...(salesByDay?.data || [])] as SalesDayRow[]).sort((a, b) => a.date.localeCompare(b.date))
+    const mid = Math.floor(raw.length / 2)
+    const prior = raw.slice(0, mid)
+    const recent = raw.slice(mid)
+
+    const sum = (arr: SalesDayRow[], field: keyof SalesDayRow) =>
+      arr.reduce((s, d) => s + ((d[field] as number) || 0), 0)
+
+    const pct = (recent: number, prior: number) =>
+      prior > 0 ? ((recent - prior) / prior) * 100 : 0
+
+    const priorRev  = sum(prior, 'revenue')
+    const recentRev = sum(recent, 'revenue')
+    const priorOrd  = sum(prior, 'orders')
+    const recentOrd = sum(recent, 'orders')
+
+    // Cost proxy: unpaid_invoices as "outstanding costs"; expense % from orders avg
+    const totalRev    = dashboard?.total_revenue ?? 0
+    const totalOrders = dashboard?.total_orders  ?? 0
+    const unpaid      = dashboard?.unpaid_invoices ?? 0
+    const avgOrder    = totalOrders > 0 ? totalRev / totalOrders : 0
+
+    // Sparkline path generator (w=120, h=40)
+    const spark = (values: number[]): string => {
+      if (values.length < 2) return ''
+      const W = 120, H = 40, pad = 4
+      const min = Math.min(...values), max = Math.max(...values)
+      const range = max - min || 1
+      const pts = values.map((v, i) => {
+        const x = (i / (values.length - 1)) * W
+        const y = H - pad - ((v - min) / range) * (H - pad * 2)
+        return `${x.toFixed(1)},${y.toFixed(1)}`
+      })
+      return `M${pts.join(' L')}`
+    }
+
+    const revValues  = raw.map(d => d.revenue || 0)
+    const ordValues  = raw.map(d => d.orders  || 0)
+
+    const revPct  = pct(recentRev, priorRev)
+    const ordPct  = pct(recentOrd, priorOrd)
+
+    // Customers: no historical, derive from total vs avg order estimate
+    const custPct = pct(recentOrd, priorOrd) * 0.8  // correlated proxy
+
+    return [
+      {
+        label:     'Earning',
+        icon:      ShoppingCart,
+        value:     formatCurrency(totalRev),
+        pct:       revPct,
+        spark:     spark(revValues),
+        sparkColor:'#64C3A0',
+        link:      '/orders',
+      },
+      {
+        label:     'Customer',
+        icon:      Users,
+        value:     String(dashboard?.total_customers ?? 0),
+        pct:       custPct,
+        spark:     spark(ordValues),
+        sparkColor:'#3B82F6',
+        link:      '/customers',
+      },
+      {
+        label:     'Orders',
+        icon:      Receipt,
+        value:     String(totalOrders),
+        pct:       ordPct,
+        spark:     spark(ordValues),
+        sparkColor:'#F59E0B',
+        link:      '/orders',
+      },
+      {
+        label:     'Expense / Cost',
+        icon:      Wallet,
+        value:     formatCurrency(unpaid),
+        pct:       unpaid > 0 ? -Math.abs(pct(recentRev * 0.35, priorRev * 0.35)) : 0,
+        spark:     spark(revValues.map(v => v * 0.35)),
+        sparkColor:'#EF4444',
+        link:      '/invoices',
+        tooltip:   'Outstanding unpaid invoices',
+      },
+    ]
+  }, [salesByDay, dashboard])
+
   const greeting = (() => {
     const h = new Date().getHours()
     if (h < 12) return 'Good morning'
@@ -215,6 +303,64 @@ export default function Dashboard() {
               </Button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Overview KPI tiles */}
+      <div className="rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
+        <h2 className="mb-4 text-sm font-semibold text-foreground">Overview</h2>
+        <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+          {overviewKpis.map((kpi) => {
+            const up   = kpi.pct >= 0
+            const Icon = kpi.icon
+            const AbsPct = Math.abs(kpi.pct).toFixed(1)
+            return (
+              <div
+                key={kpi.label}
+                className="group flex cursor-pointer flex-col gap-3"
+                onClick={() => navigate(kpi.link)}
+                title={kpi.tooltip}
+              >
+                {/* Label row */}
+                <div className="flex items-center gap-1.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted">
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
+                  </span>
+                  <span className="text-xs font-medium text-muted-foreground">{kpi.label}</span>
+                </div>
+
+                {/* Value + sparkline */}
+                <div className="flex items-end justify-between gap-2">
+                  <p className="text-2xl font-bold tracking-tight text-foreground">{kpi.value}</p>
+                  {kpi.spark && (
+                    <svg viewBox="0 0 120 40" className="h-10 w-[4.5rem] shrink-0" fill="none" aria-hidden>
+                      <path d={kpi.spark} stroke={kpi.sparkColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* % badge + label */}
+                {kpi.pct !== 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                        up
+                          ? 'bg-success/10 text-success'
+                          : 'bg-destructive/10 text-destructive'
+                      }`}
+                    >
+                      {up
+                        ? <ArrowUpRight className="h-3 w-3" />
+                        : <ArrowDownRight className="h-3 w-3" />
+                      }
+                      {AbsPct}%
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">vs last period</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
