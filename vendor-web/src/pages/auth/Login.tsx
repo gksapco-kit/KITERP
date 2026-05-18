@@ -336,8 +336,14 @@ export default function Login() {
             No account yet?{' '}
             <Link
               to="/register"
-              className={cn('font-semibold', LOGIN_LINK_COLOR)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold transition-all',
+                'bg-gradient-to-r from-sky-50 to-blue-50 text-[hsl(204.42deg_94.86%_48.34%)]',
+                'underline-offset-2 ring-1 ring-sky-200/60',
+                'hover:from-sky-100 hover:to-blue-100 hover:ring-sky-300/80 hover:underline',
+              )}
             >
+              <Store className="h-3.5 w-3.5 shrink-0" />
               Create your business
             </Link>
           </p>
