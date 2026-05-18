@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  Plus, Store, MapPin, Phone, Mail, Users, Package,
+  Plus, Store, MapPin, Phone, Mail, Users, Package, Search,
   Edit2, Trash2, Star, StarOff, X, Loader2,
   ChevronRight, ArrowLeftRight, Link2, Copy, ExternalLink, Check,
   Building2, Heart, Briefcase, Dumbbell, ShoppingBag, Hotel, UtensilsCrossed,
@@ -140,11 +140,13 @@ function StoreModal({
   onClose,
   onSave,
   saving,
+  defaultCountry = 'India',
 }: {
   store?: StoreRecord | null
   onClose: () => void
   onSave: (data: Record<string, unknown>) => void
   saving: boolean
+  defaultCountry?: string
 }) {
   const existingType = (store?.settings as Record<string, string> | undefined)?.company_type ?? ''
   const isPreset = COMPANY_TYPES.some(t => t.value === existingType)
@@ -227,18 +229,26 @@ function StoreModal({
       address: {
         street: form.street || undefined, city: form.city || undefined,
         state: form.state || undefined, pincode: form.pincode || undefined,
-        country: 'India',
+        country: store?.address?.country || defaultCountry,
       },
       settings: { company_type: form.company_type || undefined },
     })
   }
 
   return (
+<<<<<<< Updated upstream
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b">
           <h2 className="text-lg font-semibold">{store ? 'Edit Store' : 'Create New Store'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+=======
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="text-lg font-semibold">{store ? 'Edit company code' : 'New company code'}</h2>
+          <button type="button" onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="w-5 h-5" /></button>
+>>>>>>> Stashed changes
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
 
@@ -542,8 +552,8 @@ function StoreCard({
     )}>
       {/* Selected badge */}
       {isSelected && (
-        <span className="absolute top-3 right-3 bg-primary text-white text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
-          <Check className="w-2.5 h-2.5" /> Active
+        <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
+          <Check className="w-2.5 h-2.5" /> In use
         </span>
       )}
       {!isSelected && store.is_default && (
@@ -654,7 +664,7 @@ function StoreCard({
             className={cn('h-8 text-xs flex-1', isSelected && 'bg-primary hover:bg-primary/90 text-white')}
             onClick={onSelect}
           >
-            {isSelected ? <><Check className="w-3 h-3 mr-1" />Selected</> : 'Select'}
+            {isSelected ? <><Check className="w-3 h-3 mr-1" />Clear filter</> : 'Use in app'}
           </Button>
           <Button size="sm" variant="ghost" className="h-8 text-xs px-2" onClick={onView}>
             View <ChevronRight className="w-3 h-3 ml-0.5" />
@@ -663,11 +673,11 @@ function StoreCard({
             <Edit2 className="w-3.5 h-3.5" />
           </Button>
           {!store.is_default && (
-            <Button size="sm" variant="ghost" className="h-8 px-2" onClick={onSetDefault} title="Set as default">
+            <Button size="sm" variant="ghost" className="h-8 px-2" onClick={onSetDefault} title="Use as default branch for new sessions">
               <StarOff className="w-3.5 h-3.5" />
             </Button>
           )}
-          <Button size="sm" variant="ghost" className="h-8 px-2 text-red-500 hover:bg-red-50 hover:text-red-600" onClick={onDelete} title="Delete" disabled={store.is_default}>
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-red-500 hover:bg-red-50 hover:text-red-600" onClick={onDelete} title={store.is_default ? 'Default branch cannot be deleted' : 'Delete company code'} disabled={store.is_default}>
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -716,7 +726,7 @@ function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onBack}>← Back to Stores</Button>
+        <Button variant="outline" size="sm" onClick={onBack}>← Back to Company Codes</Button>
         <h2 className="text-xl font-semibold">{store.name}</h2>
         {store.is_default && (
           <span className="bg-indigo-100 text-indigo-700 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -880,6 +890,7 @@ export default function StoresPage() {
   const [editingStore, setEditingStore] = useState<StoreRecord | null>(null)
   const [viewingStore, setViewingStore] = useState<StoreRecord | null>(null)
   const [showTransfer, setShowTransfer] = useState(false)
+  const [listSearch, setListSearch] = useState('')
 
   const { data, isLoading } = useStores()
 
@@ -910,6 +921,27 @@ export default function StoresPage() {
 
   const stores = data?.stores ?? []
   const products = productsData?.items ?? []
+  const defaultCountry = vendor?.country || 'India'
+
+  const searchNorm = listSearch.trim().toLowerCase()
+  const filteredStores = searchNorm
+    ? stores.filter((s) => {
+        const hay = [
+          s.name,
+          s.code,
+          s.description,
+          s.phone,
+          s.email,
+          s.address?.city,
+          s.address?.state,
+          (s.settings as Record<string, string> | undefined)?.company_type,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return hay.includes(searchNorm)
+      })
+    : stores
 
   function handleSelectStore(store: StoreRecord) {
     if (selectedStore?.id === store.id) {
@@ -944,12 +976,12 @@ export default function StoresPage() {
             <ChevronRight className="w-4 h-4 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
             Back to Settings
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Stores</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Manage your physical locations, inventory per store, and staff assignments.
+          <h1 className="text-2xl font-bold text-foreground">Company Codes</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Branches and locations for inventory, staff, and storefront links. &ldquo;Use in app&rdquo; filters the dashboard; the default star marks your primary branch.
             {selectedStore && (
               <span className="ml-2 inline-flex items-center gap-1 text-primary font-medium">
-                <Check className="w-3 h-3" /> Viewing: {selectedStore.name}
+                <Check className="w-3 h-3" /> Filter: {selectedStore.name}
               </span>
             )}
           </p>
@@ -966,7 +998,7 @@ export default function StoresPage() {
             </Button>
           )}
           <Button onClick={() => { setEditingStore(null); setModal('create') }}>
-            <Plus className="w-4 h-4 mr-2" />New Store
+            <Plus className="w-4 h-4 mr-2" />New company code
           </Button>
         </div>
       </div>
@@ -977,7 +1009,7 @@ export default function StoresPage() {
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-indigo-600">{stores.length}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Total Stores</p>
+              <p className="text-xs text-gray-500 mt-0.5">Company codes</p>
             </CardContent>
           </Card>
           <Card>
@@ -995,7 +1027,19 @@ export default function StoresPage() {
         </div>
       )}
 
-      {/* Store grid */}
+      {stores.length > 0 && (
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={listSearch}
+            onChange={(e) => setListSearch(e.target.value)}
+            placeholder="Search by name, code, city, type…"
+            className="pl-9"
+          />
+        </div>
+      )}
+
+      {/* Company code grid */}
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
@@ -1003,15 +1047,20 @@ export default function StoresPage() {
       ) : stores.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-xl text-center">
           <Store className="w-12 h-12 text-gray-300 mb-3" />
-          <p className="font-medium text-gray-600">No stores yet</p>
-          <p className="text-sm text-gray-400 mt-1">Create your first store or location to get started</p>
+          <p className="font-medium text-gray-600">No company codes yet</p>
+          <p className="text-sm text-gray-400 mt-1">Add your first branch or location to get started</p>
           <Button className="mt-4" onClick={() => { setEditingStore(null); setModal('create') }}>
-            <Plus className="w-4 h-4 mr-2" />Create First Store
+            <Plus className="w-4 h-4 mr-2" />Add first company code
           </Button>
+        </div>
+      ) : filteredStores.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-48 border border-dashed rounded-xl text-center text-muted-foreground">
+          <p className="font-medium">No matches for &ldquo;{listSearch.trim()}&rdquo;</p>
+          <Button variant="link" className="mt-2" onClick={() => setListSearch('')}>Clear search</Button>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stores.map(store => (
+          {filteredStores.map(store => (
             <StoreCard
               key={store.id}
               store={store}
@@ -1020,19 +1069,30 @@ export default function StoresPage() {
               isSelected={selectedStore?.id === store.id}
               onSelect={() => handleSelectStore(store)}
               onEdit={() => { setEditingStore(store); setModal('edit') }}
-              onDelete={() => { if (window.confirm(`Delete "${store.name}"?`)) deleteMutation.mutate(store.id) }}
-              onSetDefault={() => setDefaultMutation.mutate(store.id)}
+              onDelete={() => {
+                if (store.is_default) {
+                  toast.error('Set another branch as default before deleting this one.')
+                  return
+                }
+                const msg = `Delete company code "${store.name}"? This cannot be undone. Inventory and staff links for this branch will be removed.`
+                if (window.confirm(msg)) deleteMutation.mutate(store.id)
+              }}
+              onSetDefault={() => {
+                if (window.confirm(`Use "${store.name}" as the default branch?`)) setDefaultMutation.mutate(store.id)
+              }}
               onView={() => setViewingStore(store)}
             />
           ))}
-          {/* Add more card */}
+          {!searchNorm && (
           <button
+            type="button"
             onClick={() => { setEditingStore(null); setModal('create') }}
             className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center h-52 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-gray-400 hover:text-indigo-500"
           >
             <Plus className="w-8 h-8 mb-2" />
-            <span className="text-sm font-medium">Add Store</span>
+            <span className="text-sm font-medium">Add company code</span>
           </button>
+          )}
         </div>
       )}
 
@@ -1043,6 +1103,7 @@ export default function StoresPage() {
           onClose={() => { setModal(null); setEditingStore(null) }}
           onSave={d => modal === 'edit' ? updateMutation.mutate(d) : createMutation.mutate(d)}
           saving={createMutation.isPending || updateMutation.isPending}
+          defaultCountry={defaultCountry}
         />
       )}
 

@@ -15,7 +15,7 @@ import {
   Shuffle, ClipboardCheck, Wand2, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
-  GripVertical, SlidersHorizontal, Database,
+  GripVertical, SlidersHorizontal, Database, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -40,6 +40,8 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
+import { UniversalSearch } from '@/components/UniversalSearch'
+import { buildNavIndex, type NavSearchEntry } from '@/lib/appSearchIndex'
 import {
   DndContext,
   DragOverlay,
@@ -140,7 +142,7 @@ const allSections: NavSection[] = [
     icon: Sparkles,
     items: [
       { to: '/', icon: BarChart3, label: 'Dashboard', alwaysShow: true },
-      { to: '/settings', icon: SlidersHorizontal, label: 'Menu & preferences', alwaysShow: true },
+      { to: '/settings', icon: Settings, label: 'Settings', alwaysShow: true },
       { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/workspace', icon: LayoutGrid, label: 'Workspace apps', alwaysShow: true },
@@ -327,12 +329,16 @@ const allSections: NavSection[] = [
       { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Website templates', alwaysShow: true },
       { to: '/storefront-builder', icon: Wand2, label: 'Storefront Builder', alwaysShow: true },
+      { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Storefront Display', alwaysShow: true },
+      { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
+      { to: '/invoices/templates', icon: FileText, label: 'Invoice Templates', alwaysShow: true },
+      { to: '/purchase-orders/templates', icon: ClipboardList, label: 'PO Templates', alwaysShow: true },
+      { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
       { to: '/team', icon: UsersRound, label: 'Team', requiresPermission: 'team.view' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
       { to: '/plans', icon: CreditCard, label: 'Plans & Billing', alwaysShow: true },
-      { to: '/settings', icon: Settings, label: 'Settings', requiresPermission: 'settings.view' },
     ],
   },
 ]
@@ -554,6 +560,8 @@ const pageTitles: Record<string, string> = {
   '/reports': 'Reports',
   '/template': 'Template',
   '/document-templates': 'Document Templates',
+  '/invoices/templates': 'Invoice Templates',
+  '/purchase-orders/templates': 'PO Templates',
   '/websites': 'Website Builder',
   '/websites/templates': 'Website templates',
   '/storefront-builder': 'Storefront Builder',
@@ -565,6 +573,9 @@ const pageTitles: Record<string, string> = {
   '/roles': 'Roles',
   '/plans': 'Plans & Billing',
   '/settings': 'Settings',
+  '/system/modules': 'Module Settings',
+  '/system/storefront-display': 'Storefront Display',
+  '/system/social-links': 'Social & Web Links',
 
   '/crm': 'CRM Dashboard',
   '/crm/contacts': 'Contacts',
@@ -935,6 +946,26 @@ export default function DashboardLayout() {
     () => orderSectionsById(visibleSections, sectionOrder),
     [visibleSections, sectionOrder],
   )
+
+  // ── Universal Search ───────────────────────────────────────────────────────
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const navSearchIndex = useMemo<NavSearchEntry[]>(
+    () => buildNavIndex(orderedVisibleSections as Parameters<typeof buildNavIndex>[0]),
+    [orderedVisibleSections],
+  )
+
+  useEffect(() => {
+    function onKeyDown(e: globalThis.KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+  // ──────────────────────────────────────────────────────────────────────────
 
   const orderedNavItemsBySectionId = useMemo(() => {
     const byTo = new Map<string, NavItem>()
@@ -1726,8 +1757,9 @@ export default function DashboardLayout() {
       <div className="lg:ml-64">
         {/* Top bar */}
         <header className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border">
-          <div className="flex items-center justify-between h-14 px-4 lg:px-8">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center h-14 gap-3 px-4 lg:px-8">
+            {/* Left: hamburger + page title */}
+            <div className="flex items-center gap-3 shrink-0">
               <button
                 type="button"
                 className="lg:hidden p-2 -ml-2 rounded-lg text-muted-foreground hover:bg-muted"
@@ -1737,7 +1769,32 @@ export default function DashboardLayout() {
               </button>
               <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Center: universal search bar */}
+            <div className="flex-1 flex justify-center px-2">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="hidden sm:flex items-center gap-2 w-full max-w-sm rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:border-primary/30 hover:text-foreground transition-all"
+              >
+                <Search className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-left text-xs">Search pages, records…</span>
+                <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">
+                  ⌘K
+                </kbd>
+              </button>
+              {/* Mobile: icon only */}
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="sm:hidden p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+                aria-label="Open search"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
               {/* Active store pill */}
               <button
                 type="button"
@@ -1972,6 +2029,13 @@ export default function DashboardLayout() {
           </div>
 
         </header>
+
+        {/* Universal Search palette */}
+        <UniversalSearch
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          navEntries={navSearchIndex}
+        />
 
         {/* Page content */}
         <main className="p-4 lg:p-8 bg-background">

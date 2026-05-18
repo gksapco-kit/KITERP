@@ -1,19 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+﻿import { useState, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useUpdateVendor, useStores } from '@/hooks/useVendor'
+import { useUpdateVendor } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import {
   Save, Loader2, Store, MapPin, FileText, Globe,
   Clock, ChevronDown, ChevronUp, Building2, Phone,
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
-  Palette,   ClipboardList, ChevronRight, Check, Settings2,
-  Info, CheckCircle2, Landmark, HelpCircle,
+  ChevronRight, Check, Settings2,
+  Info, CheckCircle2, Landmark, HelpCircle, SlidersHorizontal, Layers,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -24,7 +25,22 @@ import { IdChip, VerifiedBadge, vendorVerificationLevel, formatStoreCode, format
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 
-type Section = 'profile' | 'contact' | 'address' | 'tax' | 'hours' | 'order-acceptance' | 'social' | 'display' | 'modules' | 'about'
+type Section = 'profile' | 'contact' | 'address' | 'tax' | 'hours-availability' | 'order-acceptance' | 'about'
+
+function vendorStatusLabel(status?: string | null): string {
+  switch (status) {
+    case 'approved':
+      return 'Approved'
+    case 'pending':
+      return 'Pending review'
+    case 'rejected':
+      return 'Rejected'
+    case 'suspended':
+      return 'Suspended'
+    default:
+      return status ? status.replace(/_/g, ' ') : 'Unknown'
+  }
+}
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
 
@@ -42,15 +58,29 @@ const OFFERING_OPTIONS = [
 ]
 
 export default function SettingsPage() {
-  const { vendor, selectedStore, setSelectedStore } = useVendorStore()
+  const { vendor, selectedStore } = useVendorStore()
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const updateVendor = useUpdateVendor()
-  const [openSection, setOpenSection] = useState<Section | null>('profile')
-  const [storeDropOpen, setStoreDropOpen] = useState(false)
 
-  const { data: storesData } = useStores()
-  const stores = storesData?.stores ?? []
+  // Deep-link: /settings?section=order-acceptance opens that accordion automatically
+  const VALID_SECTIONS: Section[] = ['profile', 'contact', 'address', 'tax', 'hours-availability', 'order-acceptance', 'about']
+  const rawSection = searchParams.get('section')
+  const sectionParam = (rawSection && VALID_SECTIONS.includes(rawSection as Section) ? rawSection as Section : null)
+  const [openSection, setOpenSection] = useState<Section | null>(sectionParam ?? 'profile')
+
+  // If the URL ?section= changes (e.g. navigating from universal search), update state + scroll
+  useEffect(() => {
+    if (sectionParam) {
+      setOpenSection(sectionParam)
+      // Give React a tick to expand the section before scrolling
+      setTimeout(() => {
+        const el = document.getElementById(`settings-section-${sectionParam}`)
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
+  }, [sectionParam])
 
   const showSupportAuditLink =
     !!vendor?.id &&
@@ -62,9 +92,12 @@ export default function SettingsPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className={`w-2 h-2 rounded-full ${vendor?.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'}`} />
-          {vendor?.status}
+        <div
+          className="flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 text-sm text-muted-foreground"
+          title={vendor?.status ?? undefined}
+        >
+          <span className={`h-2 w-2 shrink-0 rounded-full ${vendor?.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'}`} />
+          {vendorStatusLabel(vendor?.status)}
         </div>
       </div>
 
@@ -203,213 +236,130 @@ export default function SettingsPage() {
               </div>
             </CardContent>
 
-            {/* Divider */}
-            <div className="mx-4 mt-3 border-t border-border" />
-
-            {/* Store selector dropdown trigger */}
-            <CardContent className="pt-3 pb-4">
-              <div className="relative">
+            <CardContent className="border-t border-border pt-3 pb-4">
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                To filter orders and reports by branch, use the{' '}
+                <strong className="font-medium text-foreground">store selector in the left sidebar</strong>.
+                {' '}
                 <button
                   type="button"
-                  onClick={() => setStoreDropOpen(v => !v)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-all',
-                    storeDropOpen
-                      ? 'border-primary/60 bg-accent/70'
-                      : 'border-border hover:border-primary/40 hover:bg-accent/30 dark:hover:bg-secondary/40',
-                  )}
+                  onClick={() => navigate('/stores')}
+                  className="font-medium text-primary hover:underline"
                 >
-                  <div className={cn(
-                    'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
-                    selectedStore ? 'bg-primary' : 'bg-gradient-to-br from-primary to-info'
-                  )}>
-                    {selectedStore ? <Check className="w-4 h-4 text-white" /> : <Store className="w-4 h-4 text-white" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {selectedStore?.name || vendor?.display_name || 'All Stores'}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {selectedStore
-                        ? selectedStore.description || selectedStore.code || 'Active store'
-                        : `${stores.length} store${stores.length !== 1 ? 's' : ''} · click to switch`}
-                    </p>
-                  </div>
-                  <ChevronDown className={cn(
-                    'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-                    storeDropOpen && 'rotate-180',
-                  )}
-                  />
+                  Manage company codes
                 </button>
-
-                {storeDropOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setStoreDropOpen(false)} />
-                    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-xl">
-                      {/* All stores option */}
-                      <button
-                        type="button"
-                        onClick={() => { setSelectedStore(null); setStoreDropOpen(false) }}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors',
-                          !selectedStore && 'bg-accent'
-                        )}
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-info flex items-center justify-center shrink-0">
-                          <Building2 className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground">{vendor?.display_name || 'All Stores'}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {vendor?.slug?.trim()
-                              ? `${getCustomerStorefrontBaseUrl(vendor.slug.trim()).replace(/^https?:\/\//, '')} · all branches`
-                              : 'Store URL'}
-                          </p>
-                        </div>
-                        {!selectedStore && <Check className="w-4 h-4 text-primary shrink-0" />}
-                      </button>
-
-                      {stores.length > 0 && <div className="border-t border-border" />}
-
-                      {stores.map((s) => {
-                        const branchKey = s.code || s.id
-                        const vs = vendor?.slug?.trim()
-                        const branchLink = vs
-                          ? `${getCustomerStorefrontBaseUrl(vs).replace(/^https?:\/\//, '')}?branch=${branchKey}`
-                          : ''
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedStore({ id: s.id, name: s.name, code: s.code, description: s.description })
-                              setStoreDropOpen(false)
-                              toast.success(`Switched to ${s.name}`)
-                            }}
-                            className={cn(
-                              'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors',
-                              selectedStore?.id === s.id && 'bg-accent'
-                            )}
-                          >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                              <Store className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
-                              <p className="truncate font-mono text-[11px] text-muted-foreground">{branchLink}</p>
-                            </div>
-                            {selectedStore?.id === s.id && <Check className="w-4 h-4 text-primary shrink-0" />}
-                          </button>
-                        )
-                      })}
-
-                      {stores.length === 0 && (
-                        <p className="px-4 py-4 text-center text-sm text-muted-foreground">No branches configured yet</p>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+              </p>
             </CardContent>
           </Card>
         )
       })()}
 
-      {/* Document Templates quick links */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <Palette className="w-4 h-4 text-blue-500" /> Document Templates
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-2">
-          <button
-            onClick={() => navigate('/invoices/templates')}
-            className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50"
-          >
-            <div className="flex items-center gap-3">
-              <FileText className="w-5 h-5 text-gray-400" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Invoice Templates</p>
-                <p className="text-xs text-gray-500">Customise your invoice appearance, logo & colours</p>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-          </button>
-          <button
-            onClick={() => navigate('/purchase-orders/templates')}
-            className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50"
-          >
-            <div className="flex items-center gap-3">
-              <ClipboardList className="w-5 h-5 text-gray-400" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Purchase Order Templates</p>
-                <p className="text-xs text-gray-500">Choose layout, colour & content for your POs</p>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-          </button>
-        </CardContent>
-      </Card>
 
-      <ProfileSection
-        vendor={vendor}
-        open={openSection === 'profile'}
-        toggle={() => setOpenSection(openSection === 'profile' ? null : 'profile')}
-        onSave={updateVendor}
-      />
-      <ContactSection
-        vendor={vendor}
-        open={openSection === 'contact'}
-        toggle={() => setOpenSection(openSection === 'contact' ? null : 'contact')}
-        onSave={updateVendor}
-      />
-      <AddressSection
-        vendor={vendor}
-        open={openSection === 'address'}
-        toggle={() => setOpenSection(openSection === 'address' ? null : 'address')}
-        onSave={updateVendor}
-      />
-      <TaxSection
-        vendor={vendor}
-        open={openSection === 'tax'}
-        toggle={() => setOpenSection(openSection === 'tax' ? null : 'tax')}
-        onSave={updateVendor}
-      />
-      <BusinessHoursSection
-        vendor={vendor}
-        open={openSection === 'hours'}
-        toggle={() => setOpenSection(openSection === 'hours' ? null : 'hours')}
-        onSave={updateVendor}
-      />
-      <OrderAcceptanceSection
-        vendor={vendor}
-        open={openSection === 'order-acceptance'}
-        toggle={() => setOpenSection(openSection === 'order-acceptance' ? null : 'order-acceptance')}
-        onSave={updateVendor}
-      />
-      <SocialLinksSection
-        vendor={vendor}
-        open={openSection === 'social'}
-        toggle={() => setOpenSection(openSection === 'social' ? null : 'social')}
-        onSave={updateVendor}
-      />
-      <DisplayFieldsSection
-        vendor={vendor}
-        open={openSection === 'display'}
-        toggle={() => setOpenSection(openSection === 'display' ? null : 'display')}
-        onSave={updateVendor}
-      />
-      <ModulesSection
-        vendor={vendor}
-        open={openSection === 'modules'}
-        toggle={() => setOpenSection(openSection === 'modules' ? null : 'modules')}
-        onSave={updateVendor}
-      />
-      <AboutSection
-        open={openSection === 'about'}
-        toggle={() => setOpenSection(openSection === 'about' ? null : 'about')}
-      />
+      <div id="settings-section-profile">
+        <ProfileSection
+          vendor={vendor}
+          open={openSection === 'profile'}
+          toggle={() => setOpenSection(openSection === 'profile' ? null : 'profile')}
+          onSave={updateVendor}
+        />
+      </div>
+      <div id="settings-section-contact">
+        <ContactSection
+          vendor={vendor}
+          open={openSection === 'contact'}
+          toggle={() => setOpenSection(openSection === 'contact' ? null : 'contact')}
+          onSave={updateVendor}
+        />
+      </div>
+      <div id="settings-section-address">
+        <AddressSection
+          vendor={vendor}
+          open={openSection === 'address'}
+          toggle={() => setOpenSection(openSection === 'address' ? null : 'address')}
+          onSave={updateVendor}
+        />
+      </div>
+      <div id="settings-section-tax">
+        <TaxSection
+          vendor={vendor}
+          open={openSection === 'tax'}
+          toggle={() => setOpenSection(openSection === 'tax' ? null : 'tax')}
+          onSave={updateVendor}
+        />
+      </div>
+      <div id="settings-section-hours-availability">
+        <BusinessHoursSection
+          vendor={vendor}
+          open={openSection === 'hours-availability'}
+          toggle={() => setOpenSection(openSection === 'hours-availability' ? null : 'hours-availability')}
+          onSave={updateVendor}
+        />
+      </div>
+      <div id="settings-section-order-acceptance">
+        <OrderAcceptanceSection
+          vendor={vendor}
+          open={openSection === 'order-acceptance'}
+          toggle={() => setOpenSection(openSection === 'order-acceptance' ? null : 'order-acceptance')}
+          onSave={updateVendor}
+        />
+      </div>
+      {/* Moved to System Configuration — shown as shortcut cards */}
+      <SystemConfigShortcuts />
+
+      <div id="settings-section-about">
+        <AboutSection
+          open={openSection === 'about'}
+          toggle={() => setOpenSection(openSection === 'about' ? null : 'about')}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── System Config Shortcuts ────────────────────────────────────────────────
+
+function SystemConfigShortcuts() {
+  const shortcuts = [
+    {
+      to: '/system/social-links',
+      icon: Globe,
+      label: 'Social & Web Links',
+      desc: 'Instagram, Facebook, WhatsApp, website URL',
+    },
+    {
+      to: '/system/storefront-display',
+      icon: Eye,
+      label: 'Storefront Display',
+      desc: 'Choose which product and service fields show to customers',
+    },
+    {
+      to: '/system/modules',
+      icon: Layers,
+      label: 'Module Settings',
+      desc: 'Finance mode, offering type, capability toggles',
+    },
+  ]
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
+        System Configuration
+      </p>
+      {shortcuts.map(({ to, icon: Icon, label, desc }) => (
+        <Link
+          key={to}
+          to={to}
+          className="group flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/60"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20 group-hover:bg-primary/20 transition-colors">
+            <Icon className="h-5 w-5" strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">{label}</p>
+            <p className="text-xs text-muted-foreground truncate">{desc}</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+        </Link>
+      ))}
     </div>
   )
 }
@@ -479,7 +429,7 @@ function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-muted p-2 text-muted-foreground"><Globe className="h-4 w-4" /></div>
             <div>
-              <p className="text-sm font-medium text-foreground">Vendor Admin — KITERP</p>
+              <p className="text-sm font-medium text-foreground">Vendor Admin â€” KITERP</p>
               <p className="text-xs text-muted-foreground">Build {APP_BUILD}</p>
             </div>
           </div>
@@ -550,9 +500,11 @@ function SaveButton({ loading }: { loading: boolean }) {
   )
 }
 
-// ── Profile Section ──────────────────────────────────────────────────
+// â”€â”€ Profile Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
+  const qc = useQueryClient()
+  const setVendor = useVendorStore((s) => s.setVendor)
   const [form, setForm] = useState({
     business_name: '',
     display_name: '',
@@ -605,8 +557,10 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
     if (target === 'logo') {
       setLogoUploading(true)
       try {
-        await vendorApi.uploadVendorLogo(croppedFile)
-        window.location.reload()
+        const { logo_url } = await vendorApi.uploadVendorLogo(croppedFile)
+        if (vendor) setVendor({ ...vendor, logo_url })
+        await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+        toast.success('Logo updated')
       } catch {
         toast.error('Could not upload logo — use a PNG or JPG file under 2MB')
       }
@@ -614,8 +568,10 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
     } else if (target === 'banner') {
       setBannerUploading(true)
       try {
-        await vendorApi.uploadVendorBanner(croppedFile)
-        window.location.reload()
+        const { banner_url } = await vendorApi.uploadVendorBanner(croppedFile)
+        if (vendor) setVendor({ ...vendor, banner_url })
+        await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+        toast.success('Banner updated')
       } catch {
         toast.error('Could not upload banner — use a PNG or JPG file under 5MB')
       }
@@ -634,7 +590,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   return (
-    <SectionWrapper title="Store Profile" icon={Store} open={open} toggle={toggle}>
+    <SectionWrapper title="Business profile" icon={Store} open={open} toggle={toggle}>
       {/* Image crop modal */}
       {cropFile && cropTarget && (
         <ImageCropModal
@@ -647,9 +603,6 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
         {/* Logo & Banner */}
         <div className="space-y-2">
           <Label className="text-sm font-semibold">Store Branding</Label>
@@ -762,7 +715,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
   )
 }
 
-// ── Contact Section ──────────────────────────────────────────────────
+// â”€â”€ Contact Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [form, setForm] = useState({
@@ -790,9 +743,6 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Contact Information" icon={Phone} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label>Primary Email</Label>
@@ -830,7 +780,7 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
   )
 }
 
-// ── Address Section ──────────────────────────────────────────────────
+// â”€â”€ Address Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AddressSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [form, setForm] = useState({
@@ -875,11 +825,8 @@ function AddressSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   return (
-    <SectionWrapper title="Address & Location" icon={MapPin} open={open} toggle={toggle}>
+    <SectionWrapper title="Business address (HQ)" icon={MapPin} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
         <div className="space-y-1.5">
           <Label>Street Address</Label>
           <Input
@@ -942,7 +889,7 @@ function AddressSection({ vendor, open, toggle, onSave }: SectionProps) {
   )
 }
 
-// ── Tax Section ──────────────────────────────────────────────────────
+// â”€â”€ Tax Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [form, setForm] = useState({
@@ -976,9 +923,6 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper title="Tax & Compliance" icon={FileText} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -1033,7 +977,7 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
   )
 }
 
-// ── Business Hours Section ───────────────────────────────────────────
+// â”€â”€ Business Hours Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
@@ -1067,11 +1011,11 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   return (
-    <SectionWrapper title="Business Hours" icon={Clock} open={open} toggle={toggle}>
+    <SectionWrapper title="Hours & ordering" icon={Clock} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-3 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
+        <p className="text-sm text-muted-foreground">
+          <strong className="font-medium text-foreground">Opening hours</strong> — shown on your storefront (when you are open for visitors).
+        </p>
         {DAYS.map((day) => (
           <div key={day} className="flex items-center gap-4 py-1">
             <div className="w-24">
@@ -1113,7 +1057,7 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   )
 }
 
-// ── Order Acceptance Section ─────────────────────────────────────────
+// â”€â”€ Order Acceptance Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [enabled, setEnabled] = useState(true)
@@ -1154,12 +1098,31 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }))
   }
 
+  const copyFromOpeningHours = () => {
+    if (!vendor?.business_hours) {
+      toast.error('Save opening hours first')
+      return
+    }
+    const h: Record<string, { open: string; close: string; closed: boolean }> = {}
+    for (const day of DAYS) {
+      const existing = vendor.business_hours?.[day]
+      h[day] = {
+        open: existing?.open || '09:00',
+        close: existing?.close || '18:00',
+        closed: existing?.closed ?? day === 'sunday',
+      }
+    }
+    setHours(h)
+    setUseCustomHours(true)
+    toast.success('Copied opening hours')
+  }
+
   return (
-    <SectionWrapper title="Order Acceptance" icon={ShoppingBag} open={open} toggle={toggle}>
+    <SectionWrapper title="Online orders" icon={ShoppingBag} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Controls when customers can place orders. If custom hours are off, the storefront uses your opening hours from the section above.
+        </p>
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -1182,8 +1145,13 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
                 onChange={(e) => setUseCustomHours(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-blue-600"
               />
-              <span className="text-sm font-medium text-gray-700">Set custom order acceptance hours</span>
+              <span className="text-sm font-medium text-foreground">Use custom order hours (different from opening hours)</span>
             </label>
+            {useCustomHours && (
+              <Button type="button" variant="outline" size="sm" onClick={copyFromOpeningHours}>
+                Copy from opening hours
+              </Button>
+            )}
 
             {useCustomHours && (
               <div className="space-y-3 pl-7">
@@ -1233,309 +1201,6 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
   )
 }
 
-// ── Social Links Section ─────────────────────────────────────────────
 
-const SOCIAL_FIELDS = [
-  { key: 'website', label: 'Website', placeholder: 'https://yourstore.com' },
-  { key: 'whatsapp', label: 'WhatsApp', placeholder: '+919876543210' },
-  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/yourstore' },
-  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/yourstore' },
-  { key: 'twitter', label: 'Twitter / X', placeholder: 'https://x.com/yourstore' },
-  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@yourstore' },
-]
-
-function SocialLinksSection({ vendor, open, toggle, onSave }: SectionProps) {
-  const [links, setLinks] = useState<Record<string, string>>({})
-  const savingRef = useRef(false)
-
-  useEffect(() => {
-    if (vendor && !savingRef.current) {
-      const l: Record<string, string> = {}
-      for (const f of SOCIAL_FIELDS) {
-        l[f.key] = vendor.social_links?.[f.key] || ''
-      }
-      setLinks(l)
-    }
-  }, [vendor])
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const cleaned: Record<string, string> = {}
-    for (const [k, v] of Object.entries(links)) {
-      if (v.trim()) cleaned[k] = v.trim()
-    }
-    savingRef.current = true
-    onSave.mutate({ social_links: cleaned } as Partial<Vendor>, {
-      onSettled: () => { savingRef.current = false },
-    })
-  }
-
-  return (
-    <SectionWrapper title="Social & Web Links" icon={Globe} open={open} toggle={toggle}>
-      <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {SOCIAL_FIELDS.map((f) => (
-            <div key={f.key} className="space-y-1.5">
-              <Label>{f.label}</Label>
-              {f.key === 'whatsapp' ? (
-                <PhoneInput
-                  value={links[f.key] || ''}
-                  onChange={(v) => setLinks({ ...links, [f.key]: v })}
-                  defaultCountryIso="IN"
-                />
-              ) : (
-                <Input
-                  value={links[f.key] || ''}
-                  onChange={(e) => setLinks({ ...links, [f.key]: e.target.value })}
-                  placeholder={f.placeholder}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-end pt-2">
-          <SaveButton loading={onSave.isPending} />
-        </div>
-      </form>
-    </SectionWrapper>
-  )
-}
-
-// ── Storefront Display Section ──────────────────────────────────────
-
-const PRODUCT_DISPLAY_FIELDS = [
-  { key: 'brand', label: 'Brand' },
-  { key: 'short_description', label: 'Short Description' },
-  { key: 'specifications', label: 'Specifications' },
-  { key: 'warranty', label: 'Warranty Info' },
-  { key: 'return_policy', label: 'Return Policy' },
-  { key: 'shipping_info', label: 'Shipping Info' },
-  { key: 'offer_label', label: 'Offer / Sale Label' },
-  { key: 'sku', label: 'SKU / Barcode' },
-  { key: 'stock_status', label: 'Stock Status' },
-  { key: 'tags', label: 'Tags' },
-]
-
-const SERVICE_DISPLAY_FIELDS = [
-  { key: 'brand', label: 'Brand' },
-  { key: 'short_description', label: 'Short Description' },
-  { key: 'whats_included', label: "What's Included" },
-  { key: 'whats_not_included', label: "What's Not Included" },
-  { key: 'prerequisites', label: 'Prerequisites' },
-  { key: 'service_areas', label: 'Service Areas' },
-  { key: 'cancellation_policy', label: 'Cancellation Policy' },
-  { key: 'offer_label', label: 'Offer / Sale Label' },
-  { key: 'service_mode', label: 'Service Mode' },
-  { key: 'tags', label: 'Tags' },
-]
-
-// ── Modules & Features Section ───────────────────────────────────────────────
-
-const FINANCE_MODE_OPTIONS = [
-  {
-    value: 'basic',
-    label: 'Basic Finance',
-    description: 'Simple income, expense, salary and transfer tracking. Perfect for small businesses.',
-  },
-  {
-    value: 'advanced',
-    label: 'Advanced Finance (Full ERP)',
-    description: 'Full chart of accounts, journal entries, AR/AP, budgets, reports and more.',
-  },
-]
-
-function ModulesSection({ vendor, open, toggle, onSave }: SectionProps) {
-  const [financeMode, setFinanceMode] = useState<string>('advanced')
-  const savingRef = useRef(false)
-
-  useEffect(() => {
-    if (vendor && !savingRef.current) {
-      const mode = (vendor.settings as Record<string, unknown>)?.finance_mode as string | undefined
-      setFinanceMode(mode ?? 'advanced')
-    }
-  }, [vendor])
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const existingSettings = (vendor?.settings || {}) as Record<string, unknown>
-    savingRef.current = true
-    onSave.mutate({
-      settings: {
-        ...existingSettings,
-        finance_mode: financeMode,
-      },
-    } as Partial<Vendor>, {
-      onSettled: () => { savingRef.current = false },
-    })
-  }
-
-  return (
-    <SectionWrapper title="Module Settings" icon={Landmark} open={open} toggle={toggle}>
-      <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
-
-        {/* Finance Mode */}
-        <div>
-          <label className="text-sm font-semibold text-gray-900 block mb-1">Finance Module</label>
-          <p className="text-xs text-gray-500 mb-3">
-            Choose how the Finance section appears in the sidebar and which features are available.
-          </p>
-          <div className="space-y-2">
-            {FINANCE_MODE_OPTIONS.map(opt => (
-              <label
-                key={opt.value}
-                className={cn(
-                  'flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all',
-                  financeMode === opt.value
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                )}
-              >
-                <input
-                  type="radio"
-                  name="finance_mode"
-                  value={opt.value}
-                  checked={financeMode === opt.value}
-                  onChange={() => setFinanceMode(opt.value)}
-                  className="mt-0.5 w-4 h-4 text-blue-600"
-                />
-                <div>
-                  <p className={cn('text-sm font-semibold', financeMode === opt.value ? 'text-blue-900' : 'text-gray-900')}>
-                    {opt.label}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <SaveButton loading={onSave.isPending} />
-        </div>
-      </form>
-    </SectionWrapper>
-  )
-}
-
-function DisplayFieldsSection({ vendor, open, toggle, onSave }: SectionProps) {
-  const [productFields, setProductFields] = useState<Record<string, boolean>>({})
-  const [serviceFields, setServiceFields] = useState<Record<string, boolean>>({})
-  const savingRef = useRef(false)
-
-  useEffect(() => {
-    if (vendor && !savingRef.current) {
-      const df = (vendor.settings as Record<string, unknown>)?.display_fields as Record<string, Record<string, boolean>> | undefined
-      const pf: Record<string, boolean> = {}
-      for (const f of PRODUCT_DISPLAY_FIELDS) {
-        pf[f.key] = df?.product?.[f.key] ?? true
-      }
-      setProductFields(pf)
-
-      const sf: Record<string, boolean> = {}
-      for (const f of SERVICE_DISPLAY_FIELDS) {
-        sf[f.key] = df?.service?.[f.key] ?? true
-      }
-      setServiceFields(sf)
-    }
-  }, [vendor])
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const existingSettings = (vendor?.settings || {}) as Record<string, unknown>
-    savingRef.current = true
-    onSave.mutate({
-      settings: {
-        ...existingSettings,
-        display_fields: {
-          product: productFields,
-          service: serviceFields,
-        },
-      },
-    } as Partial<Vendor>, {
-      onSettled: () => { savingRef.current = false },
-    })
-  }
-
-  const toggleAll = (type: 'product' | 'service', value: boolean) => {
-    if (type === 'product') {
-      const updated: Record<string, boolean> = {}
-      for (const f of PRODUCT_DISPLAY_FIELDS) updated[f.key] = value
-      setProductFields(updated)
-    } else {
-      const updated: Record<string, boolean> = {}
-      for (const f of SERVICE_DISPLAY_FIELDS) updated[f.key] = value
-      setServiceFields(updated)
-    }
-  }
-
-  return (
-    <SectionWrapper title="Storefront Display" icon={Eye} open={open} toggle={toggle}>
-      <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-        <div className="flex justify-end border-b border-border pb-3 -mt-1">
-          <SaveButton loading={onSave.isPending} />
-        </div>
-        <p className="text-sm text-gray-500">
-          Control which fields are shown to customers on your storefront product and service pages.
-        </p>
-
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <Label className="text-sm font-semibold">Product Fields</Label>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => toggleAll('product', true)} className="text-xs text-blue-600 hover:underline">Show All</button>
-              <span className="text-gray-300">|</span>
-              <button type="button" onClick={() => toggleAll('product', false)} className="text-xs text-blue-600 hover:underline">Hide All</button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {PRODUCT_DISPLAY_FIELDS.map((f) => (
-              <label key={f.key} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50">
-                <input
-                  type="checkbox"
-                  checked={productFields[f.key] ?? true}
-                  onChange={(e) => setProductFields({ ...productFields, [f.key]: e.target.checked })}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600"
-                />
-                <span className="text-sm text-gray-700">{f.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="border-t pt-4">
-          <div className="flex items-center justify-between mb-3">
-            <Label className="text-sm font-semibold">Service Fields</Label>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => toggleAll('service', true)} className="text-xs text-blue-600 hover:underline">Show All</button>
-              <span className="text-gray-300">|</span>
-              <button type="button" onClick={() => toggleAll('service', false)} className="text-xs text-blue-600 hover:underline">Hide All</button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {SERVICE_DISPLAY_FIELDS.map((f) => (
-              <label key={f.key} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50">
-                <input
-                  type="checkbox"
-                  checked={serviceFields[f.key] ?? true}
-                  onChange={(e) => setServiceFields({ ...serviceFields, [f.key]: e.target.checked })}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600"
-                />
-                <span className="text-sm text-gray-700">{f.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <SaveButton loading={onSave.isPending} />
-        </div>
-      </form>
-    </SectionWrapper>
-  )
-}
+// Social, Display, and Module settings live in System Configuration:
+// /system/social-links | /system/storefront-display | /system/modules

@@ -156,6 +156,9 @@ import CrmKnowledgeBase from '@/pages/crm/KnowledgeBase'
 import CrmSegments from '@/pages/crm/Segments'
 import CrmTemplates from '@/pages/crm/Templates'
 import DocumentTemplatesPage from '@/pages/document-templates/index'
+import SystemModulesPage from '@/pages/system/Modules'
+import SystemStorefrontDisplayPage from '@/pages/system/StorefrontDisplay'
+import SystemSocialLinksPage from '@/pages/system/SocialLinks'
 import CrmCampaigns from '@/pages/crm/Campaigns'
 import CrmWorkflows from '@/pages/crm/Workflows'
 import CrmAIInsights from '@/pages/crm/AIInsights'
@@ -271,6 +274,9 @@ export const router = createBrowserRouter([
       { path: 'roles', element: <RolesPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'settings/support-activity', element: <SupportActivityPage /> },
+      { path: 'system/modules', element: <SystemModulesPage /> },
+      { path: 'system/storefront-display', element: <SystemStorefrontDisplayPage /> },
+      { path: 'system/social-links', element: <SystemSocialLinksPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'relationship-manager', element: <RelationshipManagerPage /> },
       { path: 'plans', element: <PlansPage /> },
