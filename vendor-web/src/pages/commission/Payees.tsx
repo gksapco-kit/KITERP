@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   usePayees, useCreatePayee, useUpdatePayee, useDeletePayee, usePayeeMasterBank,
@@ -136,6 +136,8 @@ export default function PayeesPage() {
   })()
 
   // ── open forms ───────────────────────────────────────────────────────────
+
+  const closeForm = () => setShowForm(false)
 
   const openCreate = () => {
     setEditing(null)
@@ -357,11 +359,27 @@ export default function PayeesPage() {
 
       {/* ── Dialog ── */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl my-auto">
-            <div className="p-5 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">{editing ? 'Edit Payee' : 'Add Payee'}</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto"
+          onClick={closeForm}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-lg shadow-xl my-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-semibold text-gray-900">{editing ? 'Edit Payee' : 'Add Payee'}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
@@ -657,7 +675,7 @@ export default function PayeesPage() {
             </div>
 
             <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
-              <button onClick={() => setShowForm(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
+              <button onClick={closeForm} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
               <button onClick={handleSave} disabled={create.isPending || update.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}

@@ -224,8 +224,8 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
               <p className="text-primary-foreground/85 text-xs mt-0.5">Fill in the details below to confirm the appointment</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors">
-            <X className="w-4 h-4 text-white" />
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors">
+                <X className="w-4 h-4 text-white" />
           </button>
         </div>
 
@@ -252,9 +252,9 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
                       className="p-1 rounded hover:bg-primary/15" title="Open" onClick={e => e.stopPropagation()}>
                       <ExternalLink className="w-3 h-3 text-primary/70" />
                     </a>
-                    <button onClick={() => { setSelectedCustomer(null); setCustSearch('') }}
+                    <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustSearch('') }}
                       className="p-1 rounded hover:bg-primary/15" title="Remove">
-                      <X className="w-3 h-3 text-primary/70" />
+                <X className="w-3 h-3 text-primary/70" />
                     </button>
                   </div>
                 </div>

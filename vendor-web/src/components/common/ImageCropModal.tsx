@@ -202,8 +202,8 @@ export function ImageCropModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
           <h2 className="font-semibold text-gray-900">{title}</h2>
-          <button onClick={onCancel} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+          <button type="button" aria-label="Close" onClick={onCancel} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 

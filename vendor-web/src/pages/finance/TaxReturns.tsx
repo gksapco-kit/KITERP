@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTaxReturns, useCreateTaxReturn, useComputeTaxReturn, useFileTaxReturn, useTaxCodes, useCreateTaxCode } from '@/hooks/useFinance'
-import { Plus, Calculator, Send } from 'lucide-react'
+import { Plus, Calculator, Send, X } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
@@ -134,9 +134,23 @@ export default function TaxReturns() {
       )}
 
       {showNew && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-lg">New Tax Return</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowNew(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+
+            <div className="flex items-start justify-between gap-3 mb-4">
+
+              <div className="min-w-0"><h2 className="font-semibold text-lg">New Tax Return</h2></div>
+
+              <button type="button" aria-label="Close"
+                type="button"
+                onClick={() => setShowNew(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+            </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Return Type</label>
               <select value={returnForm.return_type} onChange={e => setReturnForm(f => ({ ...f, return_type: e.target.value }))}
@@ -170,9 +184,23 @@ export default function TaxReturns() {
       )}
 
       {showNewCode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-lg">New Tax Code</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowNewCode(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+
+            <div className="flex items-start justify-between gap-3 mb-4">
+
+              <div className="min-w-0"><h2 className="font-semibold text-lg">New Tax Code</h2></div>
+
+              <button type="button" aria-label="Close"
+                type="button"
+                onClick={() => setShowNewCode(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+            </div>
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'Code', key: 'code' }, { label: 'Name', key: 'name' }, { label: 'Rate %', key: 'rate', type: 'number' },

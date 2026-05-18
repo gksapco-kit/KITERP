@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useBills, useApAging, useCreateBill, usePostBill, useRecordVendorPayment, usePaymentRuns } from '@/hooks/useFinance'
-import { Plus, CheckCircle } from 'lucide-react'
+import { Plus, CheckCircle, X } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
@@ -30,6 +30,8 @@ export default function AccountsPayable() {
   const paymentMut = useRecordVendorPayment()
 
   const bills = Array.isArray(billsData) ? billsData : (billsData?.items || [])
+
+  const closeNewBill = () => setShowNewBill(false)
 
   return (
     <div className="p-6 space-y-4">
@@ -152,9 +154,25 @@ export default function AccountsPayable() {
       )}
 
       {showNewBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-lg">New Vendor Bill</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeNewBill}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-semibold text-lg">New Vendor Bill</h2>
+              <button
+                type="button"
+                onClick={closeNewBill}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             {[
               { label: 'Supplier ID', key: 'supplier_id' },
               { label: 'Bill Number', key: 'bill_no' },
@@ -173,8 +191,8 @@ export default function AccountsPayable() {
               </div>
             ))}
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowNewBill(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
-              <button onClick={() => createBillMut.mutate(billForm, { onSuccess: () => setShowNewBill(false) })}
+              <button onClick={closeNewBill} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={() => createBillMut.mutate(billForm, { onSuccess: closeNewBill })}
                 disabled={createBillMut.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createBillMut.isPending ? 'Saving…' : 'Save Bill'}

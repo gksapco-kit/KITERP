@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { Plus, Send, ExternalLink, Trash2, FileText, Settings2, Loader2 } from 'lucide-react'
+import { Plus, Send, ExternalLink, Trash2, FileText, Settings2, Loader2, X } from 'lucide-react'
 import {
   useHROffers, useCreateHROffer, useDeleteHROffer, useSendHROffer,
   useHRDepartments, useHRDesignations, useHROfferTemplates, useStores,
@@ -108,9 +108,19 @@ function CreateOfferModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">New Offer Letter</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 mb-3">
+              <h2 className="text-lg font-semibold mb-4">New Offer Letter</h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
         <form onSubmit={handleSubmit} className="space-y-4">
 
           {/* Template picker */}

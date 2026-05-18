@@ -227,7 +227,7 @@ export default function OrderDetail() {
                   Customer requested a quote for: <strong>{order.items?.[0]?.name || 'Service'}</strong>
                 </p>
                 {order.notes && (
-                  <div className="mt-3 bg-white/70 rounded-lg p-3 border border-primary/30">
+                  <div className="mt-3 bg-white/70 rounded-lg p-3 border border-primary/30" onClick={e => e.stopPropagation()}>
                     <p className="text-xs font-medium text-primary mb-1">Customer Message</p>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{order.notes}</p>
                   </div>
@@ -661,7 +661,8 @@ export default function OrderDetail() {
               <h2 className="text-lg font-semibold">
                 {showResolveModal === 'approve' ? 'Approve' : 'Reject'} {order.return_type === 'exchange' ? 'Exchange' : 'Return'}
               </h2>
-              <button onClick={() => setShowResolveModal(null)} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+              <button type="button" aria-label="Close" onClick={() => setShowResolveModal(null)} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-5 space-y-4">
               <div className="bg-gray-50 rounded-lg p-3 text-sm">
@@ -733,7 +734,7 @@ export default function OrderDetail() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-semibold">Initiate Return/Exchange</h2>
-              <button
+              <button type="button" aria-label="Close"
                 type="button"
                 onClick={() => { setShowInitiateModal(false); setInitiateReason(''); setInitiateAttachments([]) }}
                 className="p-1 rounded-lg hover:bg-gray-100"
@@ -897,7 +898,7 @@ function ShipModal({ onClose, onSubmit, isPending }: {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Mark as Shipped</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="space-y-1.5">

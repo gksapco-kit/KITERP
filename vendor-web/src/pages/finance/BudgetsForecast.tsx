@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useBudgets, useCreateBudget, useBudgetVariance, useForecasts, useCreateForecast } from '@/hooks/useFinance'
-import { Plus, BarChart3 } from 'lucide-react'
+import { Plus, BarChart3, X } from 'lucide-react'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
@@ -20,6 +20,8 @@ export default function BudgetsForecast() {
   const { data: forecasts = [], isLoading: forecastsLoading } = useForecasts()
   const createBudgetMut = useCreateBudget()
   const createForecastMut = useCreateForecast()
+
+  const closeNewBudget = () => setShowNewBudget(false)
 
   return (
     <div className="p-6 space-y-4">
@@ -124,9 +126,25 @@ export default function BudgetsForecast() {
       )}
 
       {showNewBudget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-lg">New Budget</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeNewBudget}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-semibold text-lg">New Budget</h2>
+              <button
+                type="button"
+                onClick={closeNewBudget}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             {[
               { label: 'Budget Name', key: 'name' },
               { label: 'Fiscal Year ID', key: 'fiscal_year_id' },
@@ -146,8 +164,8 @@ export default function BudgetsForecast() {
               </select>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowNewBudget(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
-              <button onClick={() => createBudgetMut.mutate(budgetForm, { onSuccess: () => setShowNewBudget(false) })}
+              <button onClick={closeNewBudget} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={() => createBudgetMut.mutate(budgetForm, { onSuccess: closeNewBudget })}
                 disabled={createBudgetMut.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createBudgetMut.isPending ? 'Saving…' : 'Save'}

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Play, CheckCircle, AlertTriangle, Clock, TrendingUp, BarChart2 } from 'lucide-react'
+import { ArrowLeft, Play, CheckCircle, AlertTriangle, Clock, TrendingUp, BarChart2, X } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
   usePeriodEndReport,
@@ -311,9 +311,23 @@ export default function PeriodEndPage() {
 
       {/* Create variance run modal */}
       {showCreateRun && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Run Variance Calculation</h2>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowCreateRun(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+
+            <div className="flex items-start justify-between gap-3 mb-4">
+
+              <div className="min-w-0"><h2 className="text-lg font-semibold text-gray-900">Run Variance Calculation</h2></div>
+
+              <button type="button" aria-label="Close"
+                type="button"
+                onClick={() => setShowCreateRun(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+            </div>
             <p className="text-sm text-gray-500">
               Calculates planned vs actual variances across all completed orders for {MONTHS[month - 1]} {year}.
             </p>

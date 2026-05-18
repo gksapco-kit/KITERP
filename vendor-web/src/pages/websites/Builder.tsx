@@ -601,8 +601,8 @@ function TextPromptPopup({
             <Pencil className="w-4 h-4 shrink-0" />
             <span className="text-sm font-bold truncate">{title}</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-white/20 shrink-0">
-            <X className="w-4 h-4" />
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-white/20 shrink-0">
+                <X className="w-4 h-4" />
           </button>
         </div>
         <div className="p-4 space-y-3">
@@ -873,8 +873,8 @@ function LinkEditorPopup({
               <span className="ml-1 px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-semibold">{currentMeta.label}</span>
             )}
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-white/20 shrink-0">
-            <X className="w-4 h-4" />
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-white/20 shrink-0">
+                <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -978,12 +978,12 @@ function LinkEditorPopup({
                       >
                         <StoreIcon className="w-3 h-3 text-primary/70 shrink-0" />
                         {item?.title || code}
-                        <button
+                        <button type="button" aria-label="Close"
                           type="button"
                           onClick={() => toggleMultiStore(item || { id: code, title: code, subtitle: null, description: null, image_url: null, price: null, price_formatted: null, rating: null, url: null, meta: { code } })}
                           className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center text-primary/70 hover:bg-red-100 hover:text-red-600 transition-colors"
                         >
-                          <X className="w-2.5 h-2.5" />
+                <X className="w-2.5 h-2.5" />
                         </button>
                       </span>
                     )
@@ -2576,8 +2576,8 @@ function BlockPreview({
                             } catch { toast.error('Upload failed') }
                           }} />
                         </label>
-                        <button title="Remove logo" type="button" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-[9px] font-bold text-red-600 hover:bg-white">
-                          <X className="w-3 h-3" />
+                        <button type="button" aria-label="Close" title="Remove logo" type="button" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-[9px] font-bold text-red-600 hover:bg-white">
+                <X className="w-3 h-3" />
                         </button>
                       </div>
                     )}
@@ -5163,7 +5163,8 @@ function InlineMediaPicker({
                 {t === 'library' ? 'Media Library' : 'Paste URL'}
               </button>
             ))}
-            <button onClick={() => setOpen(false)} className="px-2 text-gray-400 hover:text-gray-700"><X className="w-3 h-3" /></button>
+            <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="px-2 text-gray-400 hover:text-gray-700">
+                <X className="w-3 h-3" /></button>
           </div>
 
           {tab === 'library' ? (
@@ -10139,7 +10140,7 @@ export default function WebsiteBuilder() {
 
       {/* ── Full Page Preview Overlay ─────────────────────────────────── */}
       {showFullPreview && (
-        <div className="fixed inset-0 z-[300] flex flex-col bg-gray-950">
+        <div className="fixed inset-0 z-[300] flex flex-col bg-gray-950" onClick={() => setShowFullPreview(false)}>
           {/* Preview chrome */}
           <div className="flex items-center gap-3 px-5 h-12 bg-gray-900 border-b border-gray-800 shrink-0">
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -10197,11 +10198,11 @@ export default function WebsiteBuilder() {
               Refresh
             </button>
             <div className="w-px h-5 bg-gray-700" />
-            <button
+            <button type="button" aria-label="Close"
               onClick={() => setShowFullPreview(false)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold transition-colors"
             >
-              <X className="w-3.5 h-3.5" /> Exit Preview
+                <X className="w-3.5 h-3.5" /> Exit Preview
             </button>
           </div>
 
@@ -10214,7 +10215,7 @@ export default function WebsiteBuilder() {
                 maxWidth: '100%',
                 minHeight: 'min(100%, calc(100vh - 3rem))',
               }}
-            >
+             onClick={e => e.stopPropagation()}>
               {sfOverlayLoading && (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-gray-500 text-sm">
                   <Loader2 className="w-8 h-8 animate-spin text-primary/80" />
@@ -10988,8 +10989,8 @@ export default function WebsiteBuilder() {
                 Reset
               </button>
               {selectedBlockId && (
-                <button onClick={() => setSelectedBlockId(null)} className="flex items-center gap-1 px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors">
-                  <X className="w-3 h-3" /> Deselect
+                <button type="button" aria-label="Close" onClick={() => setSelectedBlockId(null)} className="flex items-center gap-1 px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors">
+                <X className="w-3 h-3" /> Deselect
                 </button>
               )}
             </div>

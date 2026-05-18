@@ -46,7 +46,7 @@ export default function ProgramDetailPage() {
 
       <div className="space-y-3">
         {courses.length === 0 ? (
-          <div className="bg-white border rounded-xl p-12 text-center">
+          <div className="bg-white border rounded-xl p-12 text-center" onClick={e => e.stopPropagation()}>
             <BookOpen className="w-10 h-10 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No courses yet. Add the first lesson or quiz.</p>
           </div>
@@ -146,11 +146,11 @@ function CourseModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
           <h2 className="text-lg font-bold">{course ? 'Edit Course' : 'Add Course'}</h2>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+          <button type="button" aria-label="Close" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <div className="p-4 space-y-3">
           <Field label="Title *">
@@ -251,9 +251,10 @@ function CourseModal({
                             value={opt.text} onChange={e => setQuestions(questions.map(x => x.id === q.id
                               ? { ...x, options: (x.options ?? []).map((o, i) => i === oi ? { ...o, text: e.target.value } : o) }
                               : x))} />
-                          <button onClick={() => setQuestions(questions.map(x => x.id === q.id
+                          <button type="button" aria-label="Close" onClick={() => setQuestions(questions.map(x => x.id === q.id
                             ? { ...x, options: (x.options ?? []).filter((_, i) => i !== oi) } : x))}
-                            className="text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button>
+                            className="text-red-400 hover:text-red-600">
+                <X className="w-3 h-3" /></button>
                         </div>
                       ))}
                       <button onClick={() => setQuestions(questions.map(x => x.id === q.id

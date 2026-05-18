@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle, XCircle, Clock, Filter } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Filter, X } from 'lucide-react'
 import { useHRLeaveRequests, useApproveLeave, useRejectLeave, useHREmployees } from '@/hooks/useVendor'
 import type { LeaveRequest } from '@/types'
 
@@ -19,9 +19,19 @@ function RejectModal({ reqId, onClose }: { reqId: string; onClose: () => void })
     onClose()
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
-        <h2 className="text-lg font-semibold mb-3">Reject Leave Request</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 mb-3">
+              <h2 className="text-lg font-semibold mb-3">Reject Leave Request</h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Reason</label>

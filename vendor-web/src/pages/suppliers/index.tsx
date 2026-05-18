@@ -346,7 +346,8 @@ function SupplierModal({ mode, supplier, onClose }: {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">{mode === 'create' ? 'Add Supplier' : 'Edit Supplier'}</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* GSTIN */}
@@ -510,8 +511,8 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onEdit(supplier)}>
               <Pencil className="w-3.5 h-3.5" /> Edit
             </Button>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
-              <X className="w-5 h-5" />
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
             </button>
           </div>
         </div>

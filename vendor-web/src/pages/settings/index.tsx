@@ -676,8 +676,8 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
                 )}
               </button>
               {vendor?.logo_url && (
-                <button type="button" onClick={removeLogo} className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-0.5">
-                  <X className="w-2.5 h-2.5" /> Remove
+                <button type="button" aria-label="Close" type="button" onClick={removeLogo} className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-0.5">
+                <X className="w-2.5 h-2.5" /> Remove
                 </button>
               )}
               <span className="text-[10px] text-gray-400">Logo</span>
@@ -705,8 +705,8 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
                 )}
               </button>
               {vendor?.banner_url && (
-                <button type="button" onClick={removeBanner} className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-0.5 self-start">
-                  <X className="w-2.5 h-2.5" /> Remove
+                <button type="button" aria-label="Close" type="button" onClick={removeBanner} className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-0.5 self-start">
+                <X className="w-2.5 h-2.5" /> Remove
                 </button>
               )}
               <span className="text-[10px] text-gray-400">Store Banner</span>

@@ -134,7 +134,7 @@ function CatalogueDrawer({ categoryId, onClose }: { categoryId: string; onClose:
             <h2 className="text-lg font-semibold">Catalogue</h2>
             {data?.category && <p className="text-sm text-gray-500">{data.category.name}</p>}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
 
         {isLoading ? (
@@ -248,8 +248,8 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
             <input type="checkbox" checked={f.required || false} onChange={e => updateField(i, { required: e.target.checked })} className="rounded" />
             Req
           </label>
-          <button type="button" onClick={() => removeField(i)} className="p-1 text-red-400 hover:text-red-600 shrink-0 mt-0.5">
-            <X className="w-4 h-4" />
+          <button type="button" aria-label="Close" type="button" onClick={() => removeField(i)} className="p-1 text-red-400 hover:text-red-600 shrink-0 mt-0.5">
+                <X className="w-4 h-4" />
           </button>
         </div>
       ))}

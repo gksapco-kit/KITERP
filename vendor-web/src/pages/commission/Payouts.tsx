@@ -65,6 +65,8 @@ export default function PayoutsPage() {
   const runs = data?.items || []
   const fmtCurrency = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
 
+  const closeCreate = () => setShowCreate(false)
+
   const handleCreate = async () => {
     try {
       await create.mutateAsync({
@@ -149,9 +151,9 @@ export default function PayoutsPage() {
                     </button>
                   )}
                   {['open', 'approved'].includes(run.status) && (
-                    <button onClick={() => handleCancel(run.id)}
+                    <button type="button" aria-label="Close" onClick={() => handleCancel(run.id)}
                       className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
-                      <X className="h-4 w-4" />
+                <X className="h-4 w-4" />
                     </button>
                   )}
                 </div>
@@ -164,11 +166,27 @@ export default function PayoutsPage() {
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
-            <div className="p-5 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">New Payout Run</h2>
-              <p className="text-xs text-gray-500 mt-1">Will batch all approved accruals in the selected period</p>
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={closeCreate}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-md shadow-xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-semibold text-gray-900">New Payout Run</h2>
+                <p className="text-xs text-gray-500 mt-1">Will batch all approved accruals in the selected period</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreate}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -195,7 +213,7 @@ export default function PayoutsPage() {
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
-              <button onClick={() => setShowCreate(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
+              <button onClick={closeCreate} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
               <button onClick={handleCreate} disabled={create.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {create.isPending ? 'Creating…' : 'Create Run'}

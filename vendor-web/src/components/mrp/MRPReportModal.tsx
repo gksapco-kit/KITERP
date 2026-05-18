@@ -197,7 +197,7 @@ export function MRPReportModal({ orderId, orderType, orderRef, items, onClose }:
               }
               Recalculate
             </Button>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
               <X className="w-5 h-5" />
             </button>
           </div>

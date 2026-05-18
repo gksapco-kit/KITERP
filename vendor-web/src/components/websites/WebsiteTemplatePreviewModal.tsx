@@ -365,13 +365,13 @@ export function WebsiteTemplatePreviewModal({
                   <ExternalLink className="w-3.5 h-3.5" />
                   Open in browser
                 </a>
-                <button
+                <button type="button" aria-label="Close"
                   type="button"
                   onClick={handleClose}
                   className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600"
                   aria-label="Close preview"
                 >
-                  <X className="w-4 h-4" />
+                <X className="w-4 h-4" />
                 </button>
               </div>
             </div>

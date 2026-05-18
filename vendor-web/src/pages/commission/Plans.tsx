@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Edit2, ChevronDown, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Edit2, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useCommission'
 import { RuleBuilder } from '@/components/commission/RuleBuilder'
@@ -39,6 +39,8 @@ export default function PlansPage() {
     setRules([])
     setShowForm(true)
   }
+
+  const closeForm = () => setShowForm(false)
 
   const openEdit = (plan: CommissionPlan) => {
     setEditing(plan)
@@ -183,10 +185,24 @@ export default function PlansPage() {
 
       {/* Plan Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl my-8">
-            <div className="p-5 border-b border-gray-100">
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto"
+          onClick={closeForm}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-2xl shadow-xl my-8"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
               <h2 className="font-semibold text-gray-900">{editing ? 'Edit Plan' : 'New Commission Plan'}</h2>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
@@ -242,7 +258,7 @@ export default function PlansPage() {
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
-              <button onClick={() => setShowForm(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
+              <button onClick={closeForm} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
               <button onClick={handleSave} disabled={create.isPending || update.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {create.isPending || update.isPending ? 'Saving…' : 'Save Plan'}

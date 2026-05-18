@@ -487,11 +487,11 @@ export default function BookingDetail() {
                         </a>
                       )}
                       <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
+                        <button type="button" aria-label="Close"
                           className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow"
                           onClick={() => handleDeleteAttachment(a.id as string)}
                         >
-                          <X className="w-3 h-3" />
+                <X className="w-3 h-3" />
                         </button>
                       </div>
                       <div className="px-2 py-1.5">

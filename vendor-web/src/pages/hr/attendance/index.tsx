@@ -106,11 +106,11 @@ function AttendanceModal({ employees, record, defaultDate, onClose }: MarkModalP
   const isPending = mark.isPending || update.isPending
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-base font-semibold text-gray-900">{isEdit ? 'Edit Attendance Record' : 'Mark Attendance'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {!isEdit && (
@@ -370,7 +370,8 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
               <p className="text-xs text-gray-400">Step 1 of 2 · Set range &amp; defaults</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" /></button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-6 space-y-5">
@@ -570,7 +571,8 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
               <p className="text-xs text-gray-400">{fromDate} → {toDate} · {visibleDays.length} days</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          <button type="button" aria-label="Close" type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" /></button>
         </div>
 
         {/* Save bar — top */}
@@ -901,7 +903,7 @@ export default function AttendancePage() {
               <option value="rejected">Rejected</option>
             </select>
             {(deptFilter || empFilter || statusFilter || approvalFilter) && (
-              <button onClick={() => { setDeptFilter(''); setEmpFilter(''); setStatusFilter(''); setApprovalFilter('') }}
+              <button type="button" aria-label="Close" onClick={() => { setDeptFilter(''); setEmpFilter(''); setStatusFilter(''); setApprovalFilter('') }}
                 className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
                 <X className="w-3 h-3" /> Clear
               </button>

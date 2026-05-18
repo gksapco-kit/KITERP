@@ -454,8 +454,8 @@ function AddEmployeeModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[960px] flex flex-col">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[960px] flex flex-col" onClick={e => e.stopPropagation()}>
 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
@@ -477,7 +477,7 @@ function AddEmployeeModal({
                 {(createEmployee.isPending || inviteMember.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {createEmployee.isPending || inviteMember.isPending ? 'Creating…' : 'Create Profile'}
               </button>
-              <button type="button" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg ml-1">
+              <button type="button" aria-label="Close" type="button" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg ml-1">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -677,7 +677,8 @@ function AddEmployeeModal({
                           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmpType() } if (e.key === 'Escape') setShowNewEmpType(false) }}
                         />
                         <button type="button" onClick={addEmpType} className="px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Add</button>
-                        <button type="button" onClick={() => setShowNewEmpType(false)} className="px-2 py-2 border rounded-lg hover:bg-gray-50"><X className="w-3.5 h-3.5 text-gray-400" /></button>
+                        <button type="button" aria-label="Close" type="button" onClick={() => setShowNewEmpType(false)} className="px-2 py-2 border rounded-lg hover:bg-gray-50">
+                <X className="w-3.5 h-3.5 text-gray-400" /></button>
                       </div>
                     ) : (
                       <div className="flex gap-1">

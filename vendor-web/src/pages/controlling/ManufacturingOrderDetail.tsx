@@ -21,7 +21,7 @@ import {
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
+import { ArrowLeft, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 type Tab = 'summary' | 'routing' | 'costs' | 'variance' | 'budget' | 'movements' | 'confirmations'
@@ -694,9 +694,23 @@ export default function ManufacturingOrderDetailPage() {
 
       {/* Status transition modal */}
       {showTransition && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Change Order Status</h2>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowTransition(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+
+            <div className="flex items-start justify-between gap-3 mb-4">
+
+              <div className="min-w-0"><h2 className="text-lg font-semibold text-gray-900">Change Order Status</h2></div>
+
+              <button type="button" aria-label="Close"
+                type="button"
+                onClick={() => setShowTransition(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+            </div>
             <p className="text-sm text-gray-500">Current status: <strong>{order.status}</strong></p>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">New Status</label>

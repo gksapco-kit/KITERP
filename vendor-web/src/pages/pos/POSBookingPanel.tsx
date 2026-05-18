@@ -255,11 +255,11 @@ export function POSBookingPanel({
               <p className="text-primary-foreground/85 text-xs mt-0.5 truncate max-w-xs">{serviceName}</p>
             </div>
           </div>
-          <button
+          <button type="button" aria-label="Close"
             onClick={onClose}
             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors ml-4 shrink-0"
           >
-            <X className="w-4 h-4 text-white" />
+                <X className="w-4 h-4 text-white" />
           </button>
         </div>
 
@@ -619,8 +619,8 @@ export function POSBookingPanel({
 
       {/* ── Over-duration confirmation popup ── */}
       {showConfirm && overriddenPrice !== null && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-start gap-4">
               <div className="w-11 h-11 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-6 h-6 text-amber-500" />

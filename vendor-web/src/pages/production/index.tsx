@@ -742,7 +742,8 @@ export default function ProductionOrdersPage() {
             <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by ref, product, customer…"
               className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
-            {search && <button onClick={() => setSearch('')}><X className="w-3 h-3 text-gray-400" /></button>}
+            {search && <button type="button" aria-label="Close" onClick={() => setSearch('')}>
+                <X className="w-3 h-3 text-gray-400" /></button>}
           </div>
 
           {/* Type filter */}
@@ -761,9 +762,9 @@ export default function ProductionOrdersPage() {
           </button>
 
           {(typeFilter !== 'all' || statusFilter !== 'all' || priorityFilter !== 'all') && (
-            <button onClick={() => { setTypeFilter('all'); setStatusFilter('all'); setPriorityFilter('all') }}
+            <button type="button" aria-label="Close" onClick={() => { setTypeFilter('all'); setStatusFilter('all'); setPriorityFilter('all') }}
               className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1">
-              <X className="w-3 h-3" /> Clear filters
+                <X className="w-3 h-3" /> Clear filters
             </button>
           )}
         </div>
@@ -858,8 +859,9 @@ export default function ProductionOrdersPage() {
                       className="p-1.5 hover:bg-white/70 rounded-lg text-gray-500 transition-colors"><Download className="w-4 h-4" /></button>
                     <button onClick={() => deleteOrder(order.id)} title="Delete"
                       className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                    <button onClick={() => setViewOrder(null)}
-                      className="p-1.5 hover:bg-white/70 rounded-lg text-gray-400 transition-colors"><X className="w-4 h-4" /></button>
+                    <button type="button" aria-label="Close" onClick={() => setViewOrder(null)}
+                      className="p-1.5 hover:bg-white/70 rounded-lg text-gray-400 transition-colors">
+                <X className="w-4 h-4" /></button>
                   </div>
                 </div>
 
@@ -1053,8 +1055,8 @@ export default function ProductionOrdersPage() {
                                   <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
                                     {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
                                     {a.name} <span className="opacity-60 text-[10px]">({a.role})</span>
-                                    <button onClick={() => removeDetailAssignee(a.id)} className="ml-0.5 opacity-60 hover:opacity-100">
-                                      <X className="w-3 h-3" />
+                                    <button type="button" aria-label="Close" onClick={() => removeDetailAssignee(a.id)} className="ml-0.5 opacity-60 hover:opacity-100">
+                <X className="w-3 h-3" />
                                     </button>
                                   </div>
                                 ))}
@@ -1415,7 +1417,8 @@ export default function ProductionOrdersPage() {
                 <div className="flex items-center gap-3 px-6 py-5 border-b bg-gradient-to-r from-accent to-primary/10">
                   <div className="p-2 bg-primary/12 rounded-xl"><Factory className="w-5 h-5 text-primary" /></div>
                   <div className="flex-1"><h2 className="font-bold text-gray-900">New Production Order</h2><p className="text-xs text-gray-500">Choose the production type</p></div>
-                  <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-primary/12 rounded-xl"><X className="w-4 h-4 text-gray-500" /></button>
+                  <button type="button" aria-label="Close" onClick={() => setShowCreate(false)} className="p-2 hover:bg-primary/12 rounded-xl">
+                <X className="w-4 h-4 text-gray-500" /></button>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1463,7 +1466,8 @@ export default function ProductionOrdersPage() {
                     <p className="text-xs text-gray-500">{createType === 'mto' ? 'Customer-specific production' : 'Stock replenishment production'}</p>
                   </div>
                   <button onClick={() => setCreateType(null)} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 mr-2"><ChevronDown className="w-3 h-3 rotate-90" /> Back</button>
-                  <button onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }} className="p-2 hover:bg-white/70 rounded-xl"><X className="w-4 h-4 text-gray-500" /></button>
+                  <button type="button" aria-label="Close" onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }} className="p-2 hover:bg-white/70 rounded-xl">
+                <X className="w-4 h-4 text-gray-500" /></button>
                 </div>
                 <div className="p-6 space-y-5">
 
@@ -1527,8 +1531,8 @@ export default function ProductionOrdersPage() {
                           />
                           {selectedCustomerId && <CheckCircle className="w-4 h-4 text-green-500 mr-2 shrink-0" />}
                           {customerSearch && !selectedCustomerId && (
-                            <button onClick={() => { setCustomerSearch(''); setSelectedCustomerId(''); setFormCustomerName(''); setFormCustomerPhone(''); setFormCustomerEmail('') }} className="pr-2">
-                              <X className="w-3.5 h-3.5 text-gray-400" />
+                            <button type="button" aria-label="Close" onClick={() => { setCustomerSearch(''); setSelectedCustomerId(''); setFormCustomerName(''); setFormCustomerPhone(''); setFormCustomerEmail('') }} className="pr-2">
+                <X className="w-3.5 h-3.5 text-gray-400" />
                             </button>
                           )}
                         </div>
@@ -1569,8 +1573,9 @@ export default function ProductionOrdersPage() {
                             <p className="text-sm font-semibold text-gray-800">{formCustomerName}</p>
                             <p className="text-xs text-gray-500">{formCustomerPhone}{formCustomerPhone && formCustomerEmail ? ' · ' : ''}{formCustomerEmail}</p>
                           </div>
-                          <button onClick={() => { setSelectedCustomerId(''); setCustomerSearch(''); setFormCustomerName(''); setFormCustomerPhone(''); setFormCustomerEmail('') }}
-                            className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-3.5 h-3.5 text-gray-400" /></button>
+                          <button type="button" aria-label="Close" onClick={() => { setSelectedCustomerId(''); setCustomerSearch(''); setFormCustomerName(''); setFormCustomerPhone(''); setFormCustomerEmail('') }}
+                            className="p-1 hover:bg-gray-100 rounded-lg">
+                <X className="w-3.5 h-3.5 text-gray-400" /></button>
                         </div>
                       )}
 
@@ -1649,7 +1654,8 @@ export default function ProductionOrdersPage() {
                         <input value={itemSearch} onChange={e => setItemSearch(e.target.value)}
                           placeholder={itemTab === 'product' ? 'Search product name or SKU…' : 'Search service name…'}
                           className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                        {itemSearch && <button onClick={() => setItemSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2"><X className="w-3 h-3 text-gray-400" /></button>}
+                        {itemSearch && <button type="button" aria-label="Close" onClick={() => setItemSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                <X className="w-3 h-3 text-gray-400" /></button>}
                       </div>
                       <input type="number" min={1} value={itemQty} onChange={e => setItemQty(e.target.value)} placeholder="Qty"
                         className="w-16 border border-gray-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-ring" />
@@ -1738,10 +1744,10 @@ export default function ProductionOrdersPage() {
                                       className="w-16 border border-gray-200 rounded-lg px-2 py-0.5 text-right text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
                                   </td>
                                   <td className="py-2 px-2">
-                                    <button onClick={() => setFormItems(prev => prev.filter(i =>
+                                    <button type="button" aria-label="Close" onClick={() => setFormItems(prev => prev.filter(i =>
                                       !(i.product_id === item.product_id && (i.variant_id ?? '') === (item.variant_id ?? '')),
                                     ))}>
-                                      <X className="w-3.5 h-3.5 text-red-400 hover:text-red-600" />
+                <X className="w-3.5 h-3.5 text-red-400 hover:text-red-600" />
                                     </button>
                                   </td>
                                 </tr>
@@ -1806,7 +1812,8 @@ export default function ProductionOrdersPage() {
                             {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
                             {a.name}
                             <span className="text-[10px] opacity-60 ml-0.5">({a.role})</span>
-                            <button onClick={() => removeAssignee(a.id)} className="ml-0.5 opacity-60 hover:opacity-100"><X className="w-3 h-3" /></button>
+                            <button type="button" aria-label="Close" onClick={() => removeAssignee(a.id)} className="ml-0.5 opacity-60 hover:opacity-100">
+                <X className="w-3 h-3" /></button>
                           </div>
                         ))}
                       </div>
@@ -1829,7 +1836,8 @@ export default function ProductionOrdersPage() {
                         {formAttachments.map((a, i) => (
                           <div key={i} className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2.5 py-1.5 text-xs text-gray-700">
                             {a.type.startsWith('image/') ? '🖼' : '📄'} {a.name}
-                            <button onClick={() => setFormAttachments(prev => prev.filter((_, j) => j !== i))}><X className="w-3 h-3 text-red-400" /></button>
+                            <button type="button" aria-label="Close" onClick={() => setFormAttachments(prev => prev.filter((_, j) => j !== i))}>
+                <X className="w-3 h-3 text-red-400" /></button>
                           </div>
                         ))}
                       </div>
@@ -1864,7 +1872,7 @@ export default function ProductionOrdersPage() {
                 <h3 className="font-semibold text-gray-900 text-sm">{variantPickerProduct.name}</h3>
                 <p className="text-xs text-gray-500 mt-0.5">Select a variant to add to the order</p>
               </div>
-              <button onClick={() => setVariantPickerProduct(null)} className="p-1 rounded hover:bg-gray-100">
+              <button type="button" aria-label="Close" onClick={() => setVariantPickerProduct(null)} className="p-1 rounded hover:bg-gray-100">
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>

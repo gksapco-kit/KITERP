@@ -234,11 +234,11 @@ function StoreModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b">
           <h2 className="text-lg font-semibold">{store ? 'Edit Store' : 'Create New Store'}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
 
@@ -338,12 +338,12 @@ function StoreModal({
                       <Button type="button" size="sm" className="h-8 px-3 shrink-0" onClick={addCustomType}>
                         Add
                       </Button>
-                      <button
+                      <button type="button" aria-label="Close"
                         type="button"
                         onClick={() => { setShowCustomInput(false); setCustomTypeInput('') }}
                         className="p-1 rounded hover:bg-gray-100 shrink-0"
                       >
-                        <X className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-gray-400" />
                       </button>
                     </div>
                   )}
@@ -452,7 +452,8 @@ function TransferModal({
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-5 border-b">
           <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5" />Stock Transfer</h2>
-          <button onClick={onClose}><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose}>
+                <X className="w-5 h-5" /></button>
         </div>
         <div className="p-5 space-y-4">
           {transfer.error && (

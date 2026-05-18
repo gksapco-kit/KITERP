@@ -1489,7 +1489,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[92vh] overflow-y-auto">
 
         {/* Header */}
@@ -1519,7 +1519,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
               {submitLabel}
             </Button>
-            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors ml-1">
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors ml-1">
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -1554,12 +1554,12 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     </div>
                   )}
                 </div>
-                <button
+                <button type="button" aria-label="Close"
                   type="button"
                   onClick={() => { setDuplicateError(null); setErrors({}) }}
                   className="shrink-0 p-0.5 rounded hover:bg-black/5"
                 >
-                  <X className={`w-3.5 h-3.5 ${isWarn ? 'text-amber-400' : 'text-red-400'}`} />
+                <X className={`w-3.5 h-3.5 ${isWarn ? 'text-amber-400' : 'text-red-400'}`} />
                 </button>
               </div>
             )
@@ -1589,13 +1589,13 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
               </button>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePick} />
               {profilePreview && (
-                <button
+                <button type="button" aria-label="Close"
                   type="button"
                   onClick={() => { setProfilePreview(null); setProfileFile(null) }}
                   title="Remove photo"
                   className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                 >
-                  <X className="w-3 h-3 text-white" />
+                <X className="w-3 h-3 text-white" />
                 </button>
               )}
             </div>
@@ -1768,13 +1768,13 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                   >
                     {ct}
                   </button>
-                  <button
+                  <button type="button" aria-label="Close"
                     type="button"
                     onClick={() => removeCustomPartyType(ct)}
                     title={`Remove ${ct}`}
                     className={`pr-2 py-1.5 opacity-60 hover:opacity-100 transition-opacity`}
                   >
-                    <X className="w-3 h-3" />
+                <X className="w-3 h-3" />
                   </button>
                 </span>
               ))}
@@ -2010,12 +2010,12 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                         {addr.type !== 'other' && <span className="flex-1" />}
 
                         {addresses.length > 1 && (
-                          <button
+                          <button type="button" aria-label="Close"
                             type="button" onClick={() => removeAddr(addr.id)}
                             className="shrink-0 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                             title="Remove this address"
                           >
-                            <X className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" />
                           </button>
                         )}
                         {idx === 0 && addresses.length === 1 && addr.type !== 'other' && (
@@ -2306,12 +2306,12 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                       </div>
 
                       {/* Remove */}
-                      <button
+                      <button type="button" aria-label="Close"
                         type="button" onClick={() => removeCustomField(cf.id)}
                         className="shrink-0 mt-0.5 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                         title="Remove field"
                       >
-                        <X className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
@@ -2382,8 +2382,8 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
           <p className="text-[11px] font-semibold text-amber-700">
             {suggestions.length} existing record{suggestions.length !== 1 ? 's' : ''} found — click to pre-fill
           </p>
-          <button type="button" className="ml-auto p-0.5 hover:bg-amber-100 rounded" onClick={() => setShowSuggestions(false)}>
-            <X className="w-3 h-3 text-amber-400 hover:text-amber-600" />
+          <button type="button" className="ml-auto p-0.5 hover:bg-amber-100 rounded" onClick={() => setShowSuggestions(false)} aria-label="Dismiss suggestions">
+                <X className="w-3 h-3 text-amber-400 hover:text-amber-600" />
           </button>
         </div>
         <div className="max-h-56 overflow-y-auto">

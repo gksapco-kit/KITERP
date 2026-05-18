@@ -961,7 +961,7 @@ export default function CreditDebitMemos() {
         <div
           className="bg-white border border-slate-200/90 shadow-sm text-slate-900"
           style={{ boxShadow: '0 1px 0 rgba(0,0,0,.06), 0 12px 32px -12px rgba(15,23,42,.12)' }}
-        >
+         onClick={e => e.stopPropagation()}>
           <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-slate-200/80">
             <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-500">Document</p>
             <div className="mt-1 flex flex-wrap items-start justify-between gap-4">
@@ -1216,12 +1216,12 @@ export default function CreditDebitMemos() {
                     Link to original sale or invoice
                   </p>
                   {originalTxn && (
-                    <button
+                    <button type="button" aria-label="Close"
                       type="button"
                       onClick={() => { setOriginalTxn(null); setRefLookup(''); setCart([]) }}
                       className="text-[10px] text-red-600 hover:text-red-800 flex items-center gap-0.5"
                     >
-                      <X className="w-3 h-3" /> Clear
+                <X className="w-3 h-3" /> Clear
                     </button>
                   )}
                 </div>
@@ -1322,8 +1322,8 @@ export default function CreditDebitMemos() {
                   <span className="font-medium text-slate-900 truncate">{selectedCustomer.full_name}</span>
                   {selectedCustomer.phone && <span className="text-xs text-slate-500 hidden sm:inline">{selectedCustomer.phone}</span>}
                 </div>
-                <button type="button" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="p-1 text-slate-400 hover:text-slate-700">
-                  <X className="w-4 h-4" />
+                <button type="button" aria-label="Close" type="button" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="p-1 text-slate-400 hover:text-slate-700">
+                <X className="w-4 h-4" />
                 </button>
               </div>
             ) : (
@@ -1705,7 +1705,8 @@ export default function CreditDebitMemos() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="font-semibold flex items-center gap-2"><UserPlus className="w-5 h-5 text-emerald-600" /> New customer</h3>
-              <button type="button" onClick={() => setShowQuickCreate(false)} className="p-1 rounded hover:bg-slate-100"><X className="w-4 h-4" /></button>
+              <button type="button" aria-label="Close" type="button" onClick={() => setShowQuickCreate(false)} className="p-1 rounded hover:bg-slate-100">
+                <X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">
               <div><Label className="text-xs">Full name *</Label><Input className="mt-1 h-9" value={newCustName} onChange={e => setNewCustName(e.target.value)} placeholder="Name" /></div>
@@ -1861,7 +1862,7 @@ function MemoPaymentModal({ total, sessionId, editTxnId, cart, discountType, dis
             </h2>
             <p className="text-sm text-gray-500">Amount: <span className="font-bold">{formatCurrency(total)}</span></p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
           <div>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLoans, useCreateLoan, useGenerateLoanSchedule, useInvestments, useCreateInvestment, useInvestmentROI } from '@/hooks/useFinance'
-import { Plus, BarChart3 } from 'lucide-react'
+import { Plus, BarChart3, X } from 'lucide-react'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
@@ -115,9 +115,23 @@ export default function Capital() {
       )}
 
       {showNewLoan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-lg">Record New Loan</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowNewLoan(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+
+            <div className="flex items-start justify-between gap-3 mb-4">
+
+              <div className="min-w-0"><h2 className="font-semibold text-lg">Record New Loan</h2></div>
+
+              <button type="button" aria-label="Close"
+                type="button"
+                onClick={() => setShowNewLoan(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+            </div>
             {[
               { label: 'Lender Name', key: 'lender_name' },
               { label: 'Principal Amount', key: 'principal', type: 'number' },
@@ -152,9 +166,23 @@ export default function Capital() {
       )}
 
       {showNewInv && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-lg">New Investment</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowNewInv(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+
+            <div className="flex items-start justify-between gap-3 mb-4">
+
+              <div className="min-w-0"><h2 className="font-semibold text-lg">New Investment</h2></div>
+
+              <button type="button" aria-label="Close"
+                type="button"
+                onClick={() => setShowNewInv(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+            </div>
             {[
               { label: 'Name', key: 'name' },
               { label: 'Invested Amount', key: 'invested_amount', type: 'number' },

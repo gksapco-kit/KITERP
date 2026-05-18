@@ -200,7 +200,7 @@ function CouponModal({ mode, coupon, onClose, onSaved }: { mode: 'create' | 'edi
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{mode === 'create' ? 'New Coupon' : 'Edit Coupon'}</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">

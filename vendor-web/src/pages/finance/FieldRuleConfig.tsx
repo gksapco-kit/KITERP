@@ -6,7 +6,7 @@ import { JOURNAL_FIELD_OPTIONS, fieldLabelForKey } from '@/lib/glFieldCatalog'
 import type { Company } from '@/types/finance'
 import { vendorApi } from '@/api/vendor'
 import { useQuery } from '@tanstack/react-query'
-import { ListChecks, Plus, Trash2, Building2, User, LayoutGrid, Loader2, Info } from 'lucide-react'
+import { ListChecks, Plus, Trash2, Building2, User, LayoutGrid, Loader2, Info, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -184,7 +184,21 @@ export default function FieldRuleConfig() {
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setShowAdd(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <h2 className="font-semibold text-lg">Add field rule</h2>
+
+            <div className="flex items-start justify-between gap-3 mb-4">
+
+              <div className="min-w-0"><h2 className="font-semibold text-lg">Add field rule</h2></div>
+
+              <button type="button" aria-label="Close"
+                type="button"
+                onClick={() => setShowAdd(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+            </div>
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase">Scope</label>
               <select

@@ -31,7 +31,7 @@ export default function AnnouncementsPage() {
       </div>
 
       {isLoading ? (
-        <div className="bg-white border rounded-xl p-8 text-center text-gray-400">Loading…</div>
+        <div className="bg-white border rounded-xl p-8 text-center text-gray-400" onClick={e => e.stopPropagation()}>Loading…</div>
       ) : (list as Announcement[]).length === 0 ? (
         <div className="bg-white border rounded-xl p-12 text-center">
           <Megaphone className="w-10 h-10 text-gray-300 mx-auto mb-3" />
@@ -111,11 +111,11 @@ function AnnouncementModal({ item, onClose }: { item: Announcement | null; onClo
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">{item ? 'Edit Announcement' : 'New Announcement'}</h2>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+          <button type="button" aria-label="Close" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <div className="p-4 space-y-3">
           <Field label="Title *">

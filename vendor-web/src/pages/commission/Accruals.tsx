@@ -73,7 +73,7 @@ export default function AccrualsPage() {
             <Filter className="h-4 w-4" /> Filters <ChevronDown className="h-3 w-3" />
           </button>
           <button onClick={handleBulkApprove} disabled={bulkApprove.isPending}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+            className="flex items-center gap-2 bg-[#64C3A0] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#64C3A0]/90 disabled:opacity-50">
             <CheckCircle className="h-4 w-4" /> Bulk Approve
           </button>
         </div>

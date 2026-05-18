@@ -416,7 +416,7 @@ function ItemSearchRow({
         </div>
 
         {open && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Tabs */}
             <div className="flex border-b bg-gray-50 px-2 pt-1.5 gap-1">
               {(['all', 'product', 'service'] as const).map(t => (
@@ -425,7 +425,8 @@ function ItemSearchRow({
                   {t === 'all' ? 'All' : t === 'product' ? '📦 Products' : '⚙️ Services'}
                 </button>
               ))}
-              <button onClick={() => setOpen(false)} className="ml-auto p-1 text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /></button>
+              <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="ml-auto p-1 text-gray-400 hover:text-gray-600">
+                <X className="w-3.5 h-3.5" /></button>
             </div>
 
             {filtered.length === 0 ? (
@@ -571,7 +572,7 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
       <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Create Invoice</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
           {/* Customer picker */}

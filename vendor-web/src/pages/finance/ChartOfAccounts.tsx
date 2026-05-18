@@ -306,8 +306,8 @@ function AccountDetailDrawer({
             >
               <Pencil className="w-3 h-3" /> Edit
             </button>
-            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-              <X className="w-4 h-4" />
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -728,8 +728,8 @@ function ConfigPanel({
               <p className="text-xs text-gray-500 mt-0.5">Define subtypes, code ranges and accounting rules per type</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-            <X className="w-5 h-5" />
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -1079,7 +1079,7 @@ export default function ChartOfAccounts() {
               className="w-full border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <button type="button" aria-label="Close" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
@@ -1216,11 +1216,11 @@ export default function ChartOfAccounts() {
 
       {/* ── Add / Edit modal ── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-lg">{editing ? 'Edit Account' : 'New Account'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
+              <button type="button" aria-label="Close" onClick={() => setShowModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
                 <X className="w-4 h-4" />
               </button>
             </div>

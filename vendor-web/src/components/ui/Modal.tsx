@@ -1,0 +1,92 @@
+import type { MouseEvent, ReactNode } from 'react'
+import { X } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+export function ModalCloseButton({
+  onClose,
+  className,
+}: {
+  onClose: () => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClose}
+      className={cn(
+        'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0',
+        className,
+      )}
+      aria-label="Close"
+    >
+      <X className="w-5 h-5" />
+    </button>
+  )
+}
+
+export function ModalOverlay({
+  onClose,
+  children,
+  className,
+}: {
+  onClose: () => void
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto',
+        className,
+      )}
+      onClick={onClose}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function ModalPanel({
+  children,
+  className,
+  onClick,
+}: {
+  children: ReactNode
+  className?: string
+  onClick?: (e: MouseEvent<HTMLDivElement>) => void
+}) {
+  return (
+    <div
+      className={cn('bg-white rounded-xl shadow-xl w-full my-auto', className)}
+      onClick={onClick ?? (e => e.stopPropagation())}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function ModalHeader({
+  title,
+  subtitle,
+  onClose,
+  className,
+}: {
+  title: ReactNode
+  subtitle?: ReactNode
+  onClose: () => void
+  className?: string
+}) {
+  return (
+    <div className={cn('flex items-start justify-between gap-3', className)}>
+      <div className="min-w-0">
+        {typeof title === 'string' ? (
+          <h2 className="font-semibold text-lg text-gray-900">{title}</h2>
+        ) : (
+          title
+        )}
+        {subtitle}
+      </div>
+      <ModalCloseButton onClose={onClose} />
+    </div>
+  )
+}

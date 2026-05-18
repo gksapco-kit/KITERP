@@ -402,11 +402,11 @@ export default function TeamPage() {
 
       {/* Invite Modal */}
       {showInvite && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowInvite(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Add Team Member</h2>
-              <button onClick={() => setShowInvite(false)} className="p-1 rounded hover:bg-gray-100">
+              <button type="button" aria-label="Close" onClick={() => setShowInvite(false)} className="p-1 rounded hover:bg-gray-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -546,7 +546,7 @@ export default function TeamPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Enter OTP</h2>
-              <button onClick={() => { setVerifyModal(null); setVerifyOtpInput('') }} className="p-1 rounded hover:bg-gray-100">
+              <button type="button" aria-label="Close" onClick={() => { setVerifyModal(null); setVerifyOtpInput('') }} className="p-1 rounded hover:bg-gray-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -638,8 +638,8 @@ function EditRoleModal({
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Edit Member Role</h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100">
-            <X className="w-5 h-5" />
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-gray-100">
+                <X className="w-5 h-5" />
           </button>
         </div>
         <div className="p-6 space-y-4">

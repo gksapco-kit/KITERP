@@ -365,7 +365,8 @@ function SupplierEditModal({ supplier, onClose }: { supplier: Supplier; onClose:
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">Edit Supplier / Vendor</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* GSTIN */}
@@ -496,7 +497,8 @@ function CustomerEditModal({ customer, onClose }: { customer: Customer; onClose:
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">Edit Customer</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* Name + Company */}
@@ -648,8 +650,8 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
             <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
               <Pencil className="w-3.5 h-3.5" /> Edit
             </Button>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
-              <X className="w-5 h-5" />
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -1642,9 +1644,9 @@ export default function MasterDataReport() {
                   <tr className="bg-amber-50/60 border-b border-amber-100">
                     <td className="pl-4 pr-2 py-2">
                       {colFilterActive && (
-                        <button onClick={() => { setColFilters({}); setPage(1) }} title="Clear column filters"
+                        <button type="button" aria-label="Close" onClick={() => { setColFilters({}); setPage(1) }} title="Clear column filters"
                           className="text-amber-500 hover:text-amber-700">
-                          <X className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </td>
@@ -1666,9 +1668,9 @@ export default function MasterDataReport() {
                                 }`}
                               />
                               {colFilters[col.key]?.trim() && (
-                                <button onClick={() => setColFilter(col.key, '')}
+                                <button type="button" aria-label="Close" onClick={() => setColFilter(col.key, '')}
                                   className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
-                                  <X className="w-3 h-3" />
+                <X className="w-3 h-3" />
                                 </button>
                               )}
                             </div>

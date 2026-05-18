@@ -634,7 +634,7 @@ export default function PurchaseOrderDetail() {
 
 function InfoCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="bg-white rounded-xl border p-4">
+    <div className="bg-white rounded-xl border p-4" onClick={e => e.stopPropagation()}>
       <div className="flex items-center gap-2 text-gray-500 mb-1">
         <Icon className="w-4 h-4" />
         <span className="text-xs font-medium">{label}</span>
@@ -1033,7 +1033,7 @@ function ReceiveModal({ po_id, items, onClose }: {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">Receive Items</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <p className="text-xs text-gray-500">Enter quantities received for each item. Leave blank to skip.</p>

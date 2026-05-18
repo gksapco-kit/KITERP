@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, CheckCircle, CreditCard, ExternalLink, Download, Loader2, Trash2, AlertTriangle, Info } from 'lucide-react'
+import { ArrowLeft, CheckCircle, CreditCard, ExternalLink, Download, Loader2, Trash2, AlertTriangle, Info, X } from 'lucide-react'
 import { useHRPayrollRun, useFinalizePayroll, useMarkPayrollPaid, useDeletePayrollRun } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { useNavigate } from 'react-router-dom'
@@ -17,9 +17,17 @@ function DeleteConfirmModal({ runId, label, onClose }: { runId: string; label: s
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
-        <div className="flex items-center gap-3 mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-3 mb-4 pr-8">
           <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
             <AlertTriangle className="w-5 h-5 text-red-600" />
           </div>

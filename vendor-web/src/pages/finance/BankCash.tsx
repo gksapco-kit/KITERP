@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useBankAccounts, useCreateBankAccount, useStatements, useUploadStatementCSV, useReconciliations, useCreateReconciliation, useAutoMatch } from '@/hooks/useFinance'
-import { Plus, Upload, Shuffle } from 'lucide-react'
+import { Plus, Upload, Shuffle, X } from 'lucide-react'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
@@ -30,6 +30,8 @@ export default function BankCash() {
     if (!file || !selectedBankId) return
     uploadMut.mutate({ bankAccountId: selectedBankId, file })
   }
+
+  const closeNewAccount = () => setShowNewAccount(false)
 
   return (
     <div className="p-6 space-y-4">
@@ -174,9 +176,25 @@ export default function BankCash() {
       )}
 
       {showNewAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-lg">Add Bank Account</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeNewAccount}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-semibold text-lg">Add Bank Account</h2>
+              <button
+                type="button"
+                onClick={closeNewAccount}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             {[
               { label: 'Account Name', key: 'name' },
               { label: 'Bank Name', key: 'bank_name' },
@@ -199,8 +217,8 @@ export default function BankCash() {
               </select>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowNewAccount(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
-              <button onClick={() => createAccountMut.mutate(accountForm, { onSuccess: () => setShowNewAccount(false) })}
+              <button onClick={closeNewAccount} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={() => createAccountMut.mutate(accountForm, { onSuccess: closeNewAccount })}
                 disabled={createAccountMut.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {createAccountMut.isPending ? 'Saving…' : 'Save'}

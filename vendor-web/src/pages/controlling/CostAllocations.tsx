@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Plus, SendHorizonal, Trash2, GitMerge } from 'lucide-react'
+import { ArrowLeft, Plus, SendHorizonal, Trash2, GitMerge, X } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
   useCostAllocations,
@@ -241,12 +241,20 @@ export default function CostAllocationsPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowCreate(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 flex items-start justify-between gap-3">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <GitMerge className="w-5 h-5 text-primary" /> New Cost Allocation
               </h2>
+              <button
+                type="button"
+                onClick={() => setShowCreate(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>

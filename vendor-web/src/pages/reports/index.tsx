@@ -541,7 +541,8 @@ function ReportToolbar({ search, onSearch, filterLabel, filterValue, filterOptio
         <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
         <input value={search} onChange={e => onSearch(e.target.value)} placeholder={placeholder || 'Search…'}
           className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
-        {search && <button onClick={() => onSearch('')}><X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" /></button>}
+        {search && <button type="button" aria-label="Close" onClick={() => onSearch('')}>
+                <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" /></button>}
       </div>
       {filterOptions && filterOptions.length > 0 && (
         <div className="flex items-center gap-1.5">
@@ -1247,7 +1248,8 @@ export default function ReportsPage() {
                   <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <input value={selectorSearch} onChange={e => setSelectorSearch(e.target.value)} placeholder="Search reports…"
                     className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" autoFocus />
-                  {selectorSearch && <button onClick={() => setSelectorSearch('')}><X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" /></button>}
+                  {selectorSearch && <button type="button" aria-label="Close" onClick={() => setSelectorSearch('')}>
+                <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" /></button>}
                 </div>
               </div>
               <div className="max-h-80 overflow-y-auto p-2 space-y-0.5">
@@ -1305,8 +1307,8 @@ export default function ReportsPage() {
                 <p className="text-[11px] text-gray-500">Each contact has its own report selection, triggers & schedule</p>
               </div>
             </div>
-            <button onClick={() => setWaOpen(false)} className="p-1.5 rounded-lg hover:bg-green-100 transition-colors">
-              <X className="w-4 h-4 text-gray-400" />
+            <button type="button" aria-label="Close" onClick={() => setWaOpen(false)} className="p-1.5 rounded-lg hover:bg-green-100 transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
             </button>
           </div>
 
@@ -2157,7 +2159,8 @@ export default function ReportsPage() {
                   <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <input value={mrpSearch} onChange={e => setMrpSearch(e.target.value)} placeholder="Search product, SKU, order…"
                     className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
-                  {mrpSearch && <button onClick={() => setMrpSearch('')}><X className="w-3 h-3 text-gray-400" /></button>}
+                  {mrpSearch && <button type="button" aria-label="Close" onClick={() => setMrpSearch('')}>
+                <X className="w-3 h-3 text-gray-400" /></button>}
                 </div>
 
                 {/* Order number filter */}
@@ -2168,8 +2171,8 @@ export default function ReportsPage() {
                     {mrpOrderRefs.map(ref => <option key={ref} value={ref}>{ref}</option>)}
                   </select>
                   {mrpOrderFilter && (
-                    <button onClick={() => setMrpOrderFilter('')} className="absolute right-6 top-1/2 -translate-y-1/2">
-                      <X className="w-3 h-3 text-primary/80" />
+                    <button type="button" aria-label="Close" onClick={() => setMrpOrderFilter('')} className="absolute right-6 top-1/2 -translate-y-1/2">
+                <X className="w-3 h-3 text-primary/80" />
                     </button>
                   )}
                 </div>
@@ -2268,19 +2271,22 @@ export default function ReportsPage() {
                   {mrpOrderFilter && (
                     <span className="inline-flex items-center gap-1 text-[11px] bg-primary/12 text-primary px-2.5 py-1 rounded-full font-semibold">
                       Order: {mrpOrderFilter}
-                      <button onClick={() => setMrpOrderFilter('')}><X className="w-2.5 h-2.5" /></button>
+                      <button type="button" aria-label="Close" onClick={() => setMrpOrderFilter('')}>
+                <X className="w-2.5 h-2.5" /></button>
                     </span>
                   )}
                   {mrpStatusFilter !== 'all' && (
                     <span className="inline-flex items-center gap-1 text-[11px] bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-semibold capitalize">
                       {mrpStatusFilter} only
-                      <button onClick={() => setMrpStatusFilter('all')}><X className="w-2.5 h-2.5" /></button>
+                      <button type="button" aria-label="Close" onClick={() => setMrpStatusFilter('all')}>
+                <X className="w-2.5 h-2.5" /></button>
                     </span>
                   )}
                   {mrpActionFilter !== 'all' && (
                     <span className="inline-flex items-center gap-1 text-[11px] bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full font-semibold capitalize">
                       Action: {mrpActionFilter}
-                      <button onClick={() => setMrpActionFilter('all')}><X className="w-2.5 h-2.5" /></button>
+                      <button type="button" aria-label="Close" onClick={() => setMrpActionFilter('all')}>
+                <X className="w-2.5 h-2.5" /></button>
                     </span>
                   )}
                 </div>
@@ -2300,8 +2306,8 @@ export default function ReportsPage() {
                     className="flex items-center gap-1.5 bg-primary hover:bg-primary/80 text-white px-4 py-1.5 rounded-xl text-xs font-bold transition-colors border border-primary/60">
                     <Factory className="w-3.5 h-3.5" /> Plan Production
                   </button>
-                  <button onClick={() => setMrpSelected(new Set())} className="p-1.5 rounded-lg hover:bg-primary/90 transition-colors ml-1">
-                    <X className="w-3.5 h-3.5" />
+                  <button type="button" aria-label="Close" onClick={() => setMrpSelected(new Set())} className="p-1.5 rounded-lg hover:bg-primary/90 transition-colors ml-1">
+                <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
@@ -2518,12 +2524,27 @@ export default function ReportsPage() {
               <div className="p-2 bg-blue-100 rounded-xl"><Truck className="w-5 h-5 text-blue-600" /></div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-bold text-gray-900">Create Purchase Order</h2>
+
+                  <div className="flex items-start justify-between gap-3 mb-4">
+
+                    <div className="min-w-0"><h2 className="font-bold text-gray-900">Create Purchase Order</h2></div>
+
+                    <button type="button" aria-label="Close"
+                type="button"
+                onClick={() => setPoModal(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+                  </div>
                   <span className="text-xs font-mono bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg">{poRef}</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">{poLines.length} line item{poLines.length !== 1 ? 's' : ''} · {formatCurrency(poLines.reduce((s, l) => s + l.qty * l.unit_price, 0))} total</p>
               </div>
-              <button onClick={() => setPoModal(false)} className="p-2 hover:bg-blue-100 rounded-xl transition-colors"><X className="w-4 h-4 text-gray-500" /></button>
+              <button type="button" aria-label="Close" onClick={() => setPoModal(false)} className="p-2 hover:bg-blue-100 rounded-xl transition-colors">
+                <X className="w-4 h-4 text-gray-500" /></button>
             </div>
             <div className="p-6 space-y-5">
               {/* Supplier with autocomplete */}
@@ -2540,7 +2561,8 @@ export default function ReportsPage() {
                       className="flex-1 px-3 py-2 text-sm outline-none"
                       list="supplier-list"
                     />
-                    {poSupplier && <button onClick={() => setPoSupplier('')} className="pr-3"><X className="w-3 h-3 text-gray-400" /></button>}
+                    {poSupplier && <button type="button" aria-label="Close" onClick={() => setPoSupplier('')} className="pr-3">
+                <X className="w-3 h-3 text-gray-400" /></button>}
                   </div>
                   <datalist id="supplier-list">
                     {savedSuppliers.map(s => <option key={s} value={s} />)}
@@ -2660,7 +2682,8 @@ export default function ReportsPage() {
                   </button>
                 ))}
               </div>
-              <button onClick={() => setProdModal(false)} className="p-2 hover:bg-primary/12 rounded-xl transition-colors ml-2"><X className="w-4 h-4 text-gray-500" /></button>
+              <button type="button" aria-label="Close" onClick={() => setProdModal(false)} className="p-2 hover:bg-primary/12 rounded-xl transition-colors ml-2">
+                <X className="w-4 h-4 text-gray-500" /></button>
             </div>
 
             {prodTab === 'new' ? (
@@ -2783,8 +2806,8 @@ export default function ReportsPage() {
                               <td className="py-2 px-3 text-gray-600">{d.dispatchedBy || '—'}</td>
                               <td className="py-2 px-3 text-gray-500">{d.notes || '—'}</td>
                               <td className="py-2 px-2">
-                                <button onClick={() => setStockDispatches(prev => prev.filter(x => x.id !== d.id))}>
-                                  <X className="w-3 h-3 text-red-400 hover:text-red-600" />
+                                <button type="button" aria-label="Close" onClick={() => setStockDispatches(prev => prev.filter(x => x.id !== d.id))}>
+                <X className="w-3 h-3 text-red-400 hover:text-red-600" />
                                 </button>
                               </td>
                             </tr>
@@ -2832,8 +2855,8 @@ export default function ReportsPage() {
                             <p className="font-medium text-gray-800 truncate max-w-[120px]">{a.name}</p>
                             <p className="text-gray-400">{(a.size / 1024).toFixed(1)} KB</p>
                           </div>
-                          <button onClick={() => setProdAttachments(prev => prev.filter((_, j) => j !== i))}>
-                            <X className="w-3 h-3 text-red-400 hover:text-red-600" />
+                          <button type="button" aria-label="Close" onClick={() => setProdAttachments(prev => prev.filter((_, j) => j !== i))}>
+                <X className="w-3 h-3 text-red-400 hover:text-red-600" />
                           </button>
                         </div>
                       ))}

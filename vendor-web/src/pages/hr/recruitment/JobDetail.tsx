@@ -30,11 +30,11 @@ function AddCandidateToJobModal({ jobId, onClose }: { jobId: string; onClose: ()
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Add Candidate to Pipeline</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-4 border-b">
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search candidates…"
@@ -88,7 +88,8 @@ function ScheduleInterviewModal({ application, onClose }: { application: JobAppl
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Schedule Interview</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-4 h-4" /></button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-3">
           <div>

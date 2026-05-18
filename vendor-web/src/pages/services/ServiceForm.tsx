@@ -647,7 +647,8 @@ function QuoteFormConfigurator({ fields, onChange }: {
                     {(f.options || []).map((opt, i) => (
                       <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-[11px] pl-2 pr-1 py-0.5 rounded-full">
                         {opt}
-                        <button type="button" onClick={() => removeOption(f.key, i)} className="hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
+                        <button type="button" aria-label="Close" type="button" onClick={() => removeOption(f.key, i)} className="hover:text-red-500 transition-colors">
+                <X className="w-3 h-3" /></button>
                       </span>
                     ))}
                   </div>
@@ -764,9 +765,9 @@ function AvailabilityEditor({ availability, onChange }: {
                         onChange={e => updateSlotTime(day, si, 'end_time', e.target.value)}
                         className={timeCls} />
                       {daySlots.filter(s => s.is_available).length > 1 && (
-                        <button type="button" onClick={() => removeSlot(day, si)}
+                        <button type="button" aria-label="Close" type="button" onClick={() => removeSlot(day, si)}
                           className="p-0.5 text-gray-300 hover:text-red-500 transition-colors">
-                          <X className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -1831,7 +1832,8 @@ export default function ServiceForm() {
                     )}
                     {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
                     {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
-                    <button type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>
+                    <button type="button" aria-label="Close" type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <X className="w-3 h-3" /></button>
                     {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
                   </div>
                 )
@@ -2648,9 +2650,9 @@ export default function ServiceForm() {
                         <input type="checkbox" checked={addon.optional} onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, optional: e.target.checked } : a))} className="rounded" />
                         Optional
                       </label>
-                      <button type="button" onClick={() => setServiceAddons(p => p.filter((_, i) => i !== ai))}
+                      <button type="button" aria-label="Close" type="button" onClick={() => setServiceAddons(p => p.filter((_, i) => i !== ai))}
                         className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0">
-                        <X className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
@@ -2743,9 +2745,9 @@ export default function ServiceForm() {
                 <span key={docId}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${doc.bg} ${doc.border} ${doc.color}`}>
                   {doc.label}
-                  <button type="button" onClick={() => removePrintDoc(docId as BookingDocTypeId)}
+                  <button type="button" aria-label="Close" type="button" onClick={() => removePrintDoc(docId as BookingDocTypeId)}
                     className="hover:opacity-70 transition-opacity" title="Remove">
-                    <X className="w-3 h-3" />
+                <X className="w-3 h-3" />
                   </button>
                 </span>
               )
@@ -2763,9 +2765,9 @@ export default function ServiceForm() {
               <div className="rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
                   <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide">Select a template</p>
-                  <button type="button" onClick={() => setShowDocPicker(false)}
+                  <button type="button" aria-label="Close" type="button" onClick={() => setShowDocPicker(false)}
                     className="p-0.5 rounded hover:bg-gray-200 transition-colors">
-                    <X className="w-3.5 h-3.5 text-gray-400" />
+                <X className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                 </div>
                 <div className="divide-y divide-gray-50">

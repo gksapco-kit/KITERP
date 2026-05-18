@@ -9,6 +9,7 @@ import {
   CheckCircle2, AlertCircle, Sparkles, Rocket, Copy, Check,
   Image as ImageIcon, Globe2, Wand2, ChevronRight, Link2,
   Pencil,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSiteList, useCreateSite, useDeleteSite, usePublishSite, useUnpublishSite, useUpdateSite } from '@/hooks/useWebsites'
@@ -229,12 +230,22 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
   const isLoading = createSite.isPending
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary to-info px-6 py-5 text-white">
-          <h2 className="text-xl font-bold">Create Website</h2>
-          <p className="text-primary-foreground/85 text-sm mt-1">Use a ready-made store setup first. Advanced editing stays available after creation.</p>
+        <div className="bg-gradient-to-r from-primary to-info px-6 py-5 text-white flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold">Create Website</h2>
+            <p className="text-primary-foreground/85 text-sm mt-1">Use a ready-made store setup first. Advanced editing stays available after creation.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors shrink-0"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
         </div>
 
         {/* Mode toggle */}

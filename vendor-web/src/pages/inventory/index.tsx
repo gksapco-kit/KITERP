@@ -295,7 +295,7 @@ export default function Inventory() {
 
 function StatCard({ label, value, loading, warn }: { label: string; value: string | number; loading: boolean; warn?: boolean }) {
   return (
-    <div className="bg-white rounded-xl border p-5">
+    <div className="bg-white rounded-xl border p-5" onClick={e => e.stopPropagation()}>
       <p className="text-sm font-medium text-gray-500">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${warn ? 'text-amber-600' : 'text-gray-900'}`}>
         {loading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : value}
@@ -568,8 +568,8 @@ function HistoryTab({ data, loading, page, setPage, productFilter, onClearFilter
         <div className="flex items-center gap-2 px-1 py-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
             Filtered by product
-            <button onClick={onClearFilter} className="hover:text-blue-900">
-              <X className="w-3 h-3" />
+            <button type="button" aria-label="Close" onClick={onClearFilter} className="hover:text-blue-900">
+                <X className="w-3 h-3" />
             </button>
           </span>
         </div>
@@ -909,7 +909,7 @@ function StockModal({ type, prefillProductId, prefillProductName, prefillVariant
       >
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
 
@@ -1316,7 +1316,8 @@ function BulkUploadModal({ onClose }: { onClose: () => void }) {
             <FileSpreadsheet className="w-5 h-5 text-primary" />
             Bulk Upload Inventory
           </h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" /></button>
         </div>
 
         <div className="px-6 py-5 overflow-y-auto flex-1 space-y-4">

@@ -209,8 +209,8 @@ export function BarcodeScannerModal({ open, onClose, onScan, title = 'Scan Barco
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
@@ -218,7 +218,7 @@ export function BarcodeScannerModal({ open, onClose, onScan, title = 'Scan Barco
             <ScanLine className="w-5 h-5 text-blue-600" />
             <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
           </div>
-          <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-200 transition-colors">
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded-full p-1 hover:bg-gray-200 transition-colors">
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>

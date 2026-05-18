@@ -30,7 +30,7 @@ export default function MyExpensesPage() {
         </button>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden" onClick={e => e.stopPropagation()}>
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (claims as ExpenseClaim[]).length === 0 ? (
@@ -123,11 +123,11 @@ function ExpenseModal({ claim, onClose }: { claim: ExpenseClaim | null; onClose:
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">{claim ? 'Edit Claim' : 'New Claim'}</h2>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+          <button type="button" aria-label="Close" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <div className="p-4 space-y-3">
           <Field label="Title *">

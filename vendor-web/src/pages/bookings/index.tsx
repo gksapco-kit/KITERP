@@ -256,7 +256,7 @@ function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, select
               {date} {staffId ? '· Filtered by staff' : '· All staff'}{duration > 0 ? ` · ${fmtDur(duration)} slots` : ''}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors">
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors">
             <X className="w-4 h-4 text-white" />
           </button>
         </div>
@@ -732,7 +732,7 @@ export default function BookingsPage() {
                   <p className="text-primary-foreground/85 text-[11px]">Fill in the details and pick a time slot</p>
                 </div>
               </div>
-              <button
+              <button type="button" aria-label="Close"
                 onClick={() => { setShowCreate(false); resetCreateForm() }}
                 className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors"
               >
@@ -778,9 +778,9 @@ export default function BookingsPage() {
                             className="p-1 rounded hover:bg-primary/15 transition-colors" title="Open customer" onClick={e => e.stopPropagation()}>
                             <ExternalLink className="w-3 h-3 text-primary/80" />
                           </a>
-                          <button onClick={() => { setSelectedCustomer(null); setCustSearch('') }}
+                          <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustSearch('') }}
                             className="p-1 rounded hover:bg-primary/15 transition-colors" title="Remove">
-                            <X className="w-3 h-3 text-primary/70" />
+                <X className="w-3 h-3 text-primary/70" />
                           </button>
                         </div>
                       </div>
@@ -1281,7 +1281,7 @@ export default function BookingsPage() {
                 <RotateCcw className="w-4 h-4 text-blue-600" />
                 Reschedule #{rescheduleTarget.number || '—'}
               </h3>
-              <button onClick={() => { setRescheduleTarget(null); setRescheduleDate(''); setRescheduleTime('') }}
+              <button type="button" aria-label="Close" onClick={() => { setRescheduleTarget(null); setRescheduleDate(''); setRescheduleTime('') }}
                 className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                 <X className="w-4 h-4 text-gray-400" />
               </button>

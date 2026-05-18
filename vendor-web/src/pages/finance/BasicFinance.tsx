@@ -106,8 +106,8 @@ function TransactionModal({
   const selectedMeta = getTxnMeta(form.txn_type)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className={cn('px-6 py-4 flex items-center justify-between', selectedMeta.bg)}>
           <div className="flex items-center gap-2">
@@ -116,8 +116,8 @@ function TransactionModal({
               {initial?.txn_type ? 'Edit' : 'New'} {selectedMeta.label}
             </span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-black/10 transition-colors">
-            <X className="w-4 h-4 text-gray-600" />
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-black/10 transition-colors">
+                <X className="w-4 h-4 text-gray-600" />
           </button>
         </div>
 

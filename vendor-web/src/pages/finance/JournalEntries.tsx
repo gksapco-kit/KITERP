@@ -417,8 +417,8 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                 Requires approval ≥ {fmt(jePolicy.threshold_amount ?? 0)}
               </div>
             )}
-            <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-              <X className="w-5 h-5" />
+            <button type="button" aria-label="Close" onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -976,8 +976,8 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
     </div>
 
     {savePreview && (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
           <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
@@ -994,13 +994,13 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                 </p>
               </div>
             </div>
-            <button
+            <button type="button" aria-label="Close"
               type="button"
               onClick={() => { setSavePreview(null); onClose() }}
               className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
               aria-label="Close"
             >
-              <X className="w-5 h-5" />
+                <X className="w-5 h-5" />
             </button>
           </div>
           <div className="px-6 py-4 overflow-y-auto space-y-3 text-sm">
@@ -1096,7 +1096,8 @@ function JEDetail({ jeId, onClose }: { jeId: string; onClose: () => void }) {
               {jed.company_name && <span className="text-xs text-gray-400">· {jed.company_name}</span>}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* Header summary */}

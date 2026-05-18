@@ -813,14 +813,15 @@ export default function POS() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
             <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">Return / Refund</p>
             {originalTxn ? (
-              <div className="flex items-center justify-between text-xs bg-white rounded-lg p-2.5 border border-green-200">
+              <div className="flex items-center justify-between text-xs bg-white rounded-lg p-2.5 border border-green-200" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-green-600" />
                   <span className="font-semibold">{originalTxn.transaction_number as string}</span>
                   <span className="text-gray-500">{formatCurrency(originalTxn.total as number)}</span>
                   <span className="text-gray-400">{(originalTxn.item_count as number)} items</span>
                 </div>
-                <button onClick={() => { setOriginalTxn(null); setCart([]); setSelectedSalesPerson(null) }} className="text-gray-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                <button type="button" aria-label="Close" onClick={() => { setOriginalTxn(null); setCart([]); setSelectedSalesPerson(null) }} className="text-gray-400 hover:text-red-500">
+                <X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
               <div className="space-y-2">
@@ -895,7 +896,7 @@ export default function POS() {
               className="pl-10"
             />
             {search && (
-              <button onClick={() => { setSearch(''); setShowSuggestions(false) }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+              <button type="button" aria-label="Close" onClick={() => { setSearch(''); setShowSuggestions(false) }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
                 <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
               </button>
             )}
@@ -1081,12 +1082,12 @@ export default function POS() {
                   >
                     <RefreshCw className="w-3 h-3" />
                   </button>
-                  <button
+                  <button type="button" aria-label="Close"
                     title="Dismiss"
                     onClick={() => removeScanReport(entry.id)}
                     className="shrink-0 text-gray-300 hover:text-red-400"
                   >
-                    <X className="w-3 h-3" />
+                <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
@@ -1295,8 +1296,8 @@ export default function POS() {
                     <Award className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="text-blue-400 hover:text-blue-600">
-                  <X className="w-4 h-4" />
+                <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="text-blue-400 hover:text-blue-600">
+                <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1462,7 +1463,8 @@ export default function POS() {
                   <span className="font-semibold text-green-700">{couponApplied.code}</span>
                   <span className="text-green-600">-{formatCurrency(couponApplied.discount)}</span>
                 </div>
-                <button onClick={removeCoupon} className="text-green-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                <button type="button" aria-label="Close" onClick={removeCoupon} className="text-green-400 hover:text-red-500">
+                <X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
               <div className="flex gap-1.5">
@@ -1618,7 +1620,7 @@ export default function POS() {
                 <h3 className="font-semibold text-gray-900 text-sm">{variantPickerProduct.name}</h3>
                 <p className="text-xs text-gray-500 mt-0.5">Select a variant to add to cart</p>
               </div>
-              <button onClick={() => setVariantPickerProduct(null)} className="p-1 rounded hover:bg-gray-100">
+              <button type="button" aria-label="Close" onClick={() => setVariantPickerProduct(null)} className="p-1 rounded hover:bg-gray-100">
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
@@ -1854,7 +1856,7 @@ function PaymentModal({ total, sessionId, cart, discountType, discountValue, txn
             <h2 className="text-lg font-semibold">{isRefund ? 'Refund' : 'Payment'}</h2>
             <p className="text-sm text-gray-500">Amount: <span className="font-bold">{formatCurrency(total)}</span></p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
           <div>
@@ -3445,7 +3447,8 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
             <Button variant="outline" size="sm" onClick={() => window.open('/invoices/templates', '_blank')} className="gap-1.5 text-xs">
               <ExternalLink className="w-3.5 h-3.5" /> Full Template Editor
             </Button>
-            <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-gray-100">
+                <X className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -3657,9 +3660,9 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                     </p>
                   </div>
                   {pendingDefault && (
-                    <button onClick={() => setPendingDefault(null)}
+                    <button type="button" aria-label="Close" onClick={() => setPendingDefault(null)}
                       className="text-blue-300 hover:text-red-500 p-1 rounded">
-                      <X className="w-4 h-4" />
+                <X className="w-4 h-4" />
                     </button>
                   )}
                 </div>
