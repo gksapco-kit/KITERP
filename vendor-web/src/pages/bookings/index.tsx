@@ -1258,9 +1258,7 @@ export default function BookingsPage() {
                 className="text-[10px] text-gray-400 hover:text-primary font-medium transition-colors px-1">
                 ⊟ Reset layout
               </button>
-              <Button variant="outline" className="h-9 px-4 text-sm" onClick={() => { setShowCreate(false); resetCreateForm() }}>
-                Cancel
-              </Button>
+              <Button variant="cancel" className="h-9 px-4 text-sm" onClick={() => { setShowCreate(false); resetCreateForm() }}>Cancel</Button>
               <Button
                 className="h-9 px-5 gap-2 bg-primary hover:bg-primary/90 font-semibold text-sm"
                 onClick={handleCreate}
@@ -1307,10 +1305,8 @@ export default function BookingsPage() {
               </div>
             </div>
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1 h-9 text-sm"
-                onClick={() => { setRescheduleTarget(null); setRescheduleDate(''); setRescheduleTime('') }}>
-                Cancel
-              </Button>
+              <Button variant="cancel" className="flex-1 h-9 text-sm"
+                onClick={() => { setRescheduleTarget(null); setRescheduleDate(''); setRescheduleTime('') }}>Cancel</Button>
               <Button
                 className="flex-1 h-9 text-sm gap-1.5 bg-primary hover:bg-primary/90"
                 disabled={!rescheduleDate || rescheduling}

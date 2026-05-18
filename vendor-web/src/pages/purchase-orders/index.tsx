@@ -741,7 +741,7 @@ function CreatePOModal({
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={createMut.isPending || !canSubmit}>
               {createMut.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Create Draft PO

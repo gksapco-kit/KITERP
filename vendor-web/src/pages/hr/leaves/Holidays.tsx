@@ -55,7 +55,7 @@ export default function HolidaysPage() {
             Optional Holiday
           </label>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
+            <button type="button" onClick={() => setShowAdd(false)} className="btn-cancel px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={createHoliday.isPending} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg disabled:opacity-50">Add</button>
           </div>
         </form>

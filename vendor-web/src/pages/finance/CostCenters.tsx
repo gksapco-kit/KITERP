@@ -634,7 +634,7 @@ export default function CostCenters() {
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl shrink-0">
               <button
                 onClick={() => setCcDialog({ open: false })}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                className="btn-cancel px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg transition-colors"
               >
                 Cancel
               </button>

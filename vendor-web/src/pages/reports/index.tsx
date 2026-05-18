@@ -2625,7 +2625,7 @@ export default function ReportsPage() {
 
               <div className="flex gap-3 pt-1">
                 <button onClick={() => setPoModal(false)}
-                  className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+                  className="btn-cancel flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-600 transition-colors">
                   Cancel
                 </button>
                 <button onClick={createPO}
@@ -2857,7 +2857,7 @@ export default function ReportsPage() {
                 {/* Actions */}
                 <div className="flex gap-3 pt-1">
                   <button onClick={() => setProdModal(false)}
-                    className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+                    className="btn-cancel flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-600 transition-colors">
                     Cancel
                   </button>
                   <button onClick={saveProdHistoryEntry}

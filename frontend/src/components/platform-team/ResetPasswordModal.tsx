@@ -87,9 +87,7 @@ export function ResetPasswordModal({ member, onClose }: Props) {
           />
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button type="button" variant="cancel" onClick={onClose}>Cancel</Button>
           <Button type="button" onClick={submit} disabled={resetPassword.isPending}>
             {resetPassword.isPending ? (
               <>

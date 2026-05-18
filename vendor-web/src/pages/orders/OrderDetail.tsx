@@ -699,7 +699,7 @@ export default function OrderDetail() {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => setShowResolveModal(null)}>Cancel</Button>
+                <Button variant="cancel" className="flex-1" onClick={() => setShowResolveModal(null)}>Cancel</Button>
                 <Button
                   className={`flex-1 gap-2 ${showResolveModal === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
                   disabled={resolveReturn.isPending}
@@ -828,12 +828,10 @@ export default function OrderDetail() {
 
               <div className="flex gap-3 pt-2">
                 <Button
-                  variant="outline"
+                  variant="cancel"
                   className="flex-1"
                   onClick={() => { setShowInitiateModal(false); setInitiateReason(''); setInitiateAttachments([]) }}
-                >
-                  Cancel
-                </Button>
+                >Cancel</Button>
                 <Button
                   className="flex-1 gap-2"
                   disabled={
@@ -911,7 +909,7 @@ function ShipModal({ onClose, onSubmit, isPending }: {
             <Input value={trackingUrl} onChange={(e) => setTrackingUrl(e.target.value)} placeholder="https://..." />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button className="flex-1 gap-2" disabled={isPending} onClick={() => onSubmit(trackingNumber, trackingUrl)}>
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               <Truck className="w-4 h-4" /> Confirm Shipment

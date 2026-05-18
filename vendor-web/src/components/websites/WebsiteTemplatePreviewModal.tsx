@@ -457,7 +457,7 @@ export function WebsiteTemplatePreviewModal({
                       <button
                         type="button"
                         onClick={() => { setApplyArmed(false); setApplyText('') }}
-                        className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-extrabold text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="btn-cancel flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-extrabold text-gray-700 transition-colors"
                       >
                         Cancel
                       </button>

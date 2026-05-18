@@ -307,7 +307,7 @@ function BookingModal({
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button type="button" variant="outline" className="flex-1 h-11 rounded-xl" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1 h-11 rounded-xl" onClick={onClose}>Cancel</Button>
             <Button type="submit" className={`flex-1 h-11 rounded-xl font-bold ${themeUi.btnSolid}`}
               disabled={!bookingDate || createBooking.isPending}>
               {createBooking.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CalendarDays className="w-4 h-4 mr-2" />}

@@ -130,3 +130,13 @@
 .ticker {
   animation: ticker var(--ticker-duration, 30s) linear infinite;
 }
+
+@layer components {
+  .btn-cancel {
+    @apply border border-[#ffc954] bg-[#ffc954] text-gray-700 shadow-sm
+           transition-colors duration-150
+           hover:bg-[#ffc954]/90 hover:border-[#ffc954]/90 hover:text-gray-900
+           active:bg-[#ffc954]/85
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+}

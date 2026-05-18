@@ -295,7 +295,7 @@ function CreateCustomerModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700" disabled={createCustomer.isPending}>
               {createCustomer.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
               Add Customer

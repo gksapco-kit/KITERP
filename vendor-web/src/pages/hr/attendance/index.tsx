@@ -190,7 +190,7 @@ function AttendanceModal({ employees, record, defaultDate, onClose }: MarkModalP
             <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes…" />
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={isPending} className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50 hover:bg-primary/90">
               <Save className="w-4 h-4" />
               {isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Mark'}
@@ -512,7 +512,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
               : 'Select a date range to continue'}
           </p>
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-white">Cancel</button>
+            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="button" disabled={visibleDays.length === 0} onClick={goToStep2}
               className="flex items-center gap-2 px-5 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               Add Day Details →
@@ -542,7 +542,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
         {allDone
           ? <button type="button" onClick={onClose} className="px-4 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700">Done ✓</button>
           : <>
-              <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-white">Cancel</button>
+              <button type="button" onClick={onClose} className="btn-cancel px-3 py-1.5 text-xs border rounded-lg">Cancel</button>
               <button type="button" onClick={submitAll} disabled={bulkBusy || includedCount === 0}
                 className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
                 {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}

@@ -324,10 +324,9 @@ export default function PurchaseOrderDetail() {
               <Button variant="outline" className="gap-2" disabled={actionLoading} onClick={() => sendMut.mutate(po.id)}>
                 <Send className="w-4 h-4" /> Send to Supplier
               </Button>
-              <Button variant="outline" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
+              <Button variant="cancel" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
                 onClick={() => { if (confirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
-                <XCircle className="w-4 h-4" /> Cancel
-              </Button>
+                <XCircle className="w-4 h-4" />Cancel</Button>
             </>
           )}
           {canReceive && (
@@ -336,10 +335,9 @@ export default function PurchaseOrderDetail() {
                 <PackageCheck className="w-4 h-4" /> Receive Items
               </Button>
               {po.status === 'sent' && (
-                <Button variant="outline" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
+                <Button variant="cancel" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
                   onClick={() => { if (confirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
-                  <XCircle className="w-4 h-4" /> Cancel
-                </Button>
+                  <XCircle className="w-4 h-4" />Cancel</Button>
               )}
             </>
           )}
@@ -1067,7 +1065,7 @@ function ReceiveModal({ po_id, items, onClose }: {
               placeholder="e.g. Invoice #, delivery challan ref..." />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1 gap-2" disabled={receiveMut.isPending || !hasAny}>
               {receiveMut.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               <PackageCheck className="w-4 h-4" /> Confirm Receipt

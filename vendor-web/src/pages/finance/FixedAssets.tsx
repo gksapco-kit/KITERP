@@ -144,7 +144,7 @@ export default function FixedAssets() {
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowNew(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={() => setShowNew(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
               <button onClick={() => createMut.mutate({ ...form, purchase_cost: Number(form.purchase_cost), salvage_value: Number(form.salvage_value), useful_life_years: Number(form.useful_life_years) }, { onSuccess: () => setShowNew(false) })}
                 disabled={createMut.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">

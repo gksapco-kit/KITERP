@@ -168,7 +168,7 @@ export default function ControllingManufacturingOrdersPage() {
           </div>
           <div className="flex gap-2">
             <Button type="button" onClick={onCreate} disabled={createMo.isPending}>Create</Button>
-            <Button type="button" variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
+            <Button type="button" variant="cancel" onClick={() => setShowNew(false)}>Cancel</Button>
           </div>
         </div>
       )}

@@ -190,9 +190,8 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
             <Button size="sm" onClick={save} disabled={createWc.isPending || updateWc.isPending}>
               <Check className="w-3 h-3 mr-1" /> {editing ? 'Update' : 'Save'}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setEditing(null); setForm(blank) }}>
-              <X className="w-3 h-3 mr-1" /> Cancel
-            </Button>
+            <Button size="sm" variant="cancel" onClick={() => { setShowForm(false); setEditing(null); setForm(blank) }}>
+              <X className="w-3 h-3 mr-1" />Cancel</Button>
           </div>
         </div>
       )}
@@ -409,9 +408,8 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
           </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={saveOp}><Check className="w-3 h-3 mr-1" />{editingOp ? 'Update' : 'Add'}</Button>
-            <Button size="sm" variant="outline" onClick={() => { setShowOpForm(false); setEditingOp(null) }}>
-              <X className="w-3 h-3 mr-1" />Cancel
-            </Button>
+            <Button size="sm" variant="cancel" onClick={() => { setShowOpForm(false); setEditingOp(null) }}>
+              <X className="w-3 h-3 mr-1" />Cancel</Button>
           </div>
         </div>
       )}
@@ -619,9 +617,8 @@ export default function RoutingPage() {
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={saveRouting}><Check className="w-3 h-3 mr-1" />{editingR ? 'Update' : 'Create'}</Button>
-              <Button size="sm" variant="outline" onClick={() => { setShowRForm(false); setEditingR(null) }}>
-                <X className="w-3 h-3 mr-1" />Cancel
-              </Button>
+              <Button size="sm" variant="cancel" onClick={() => { setShowRForm(false); setEditingR(null) }}>
+                <X className="w-3 h-3 mr-1" />Cancel</Button>
             </div>
           </div>
         )}

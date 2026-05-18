@@ -916,7 +916,7 @@ export default function BookingDetail() {
               placeholder="e.g. Service completed successfully, customer was satisfied…"
             />
             <div className="flex gap-3 mt-4">
-              <Button variant="outline" className="flex-1" onClick={() => setShowCompleteModal(false)}>Cancel</Button>
+              <Button variant="cancel" className="flex-1" onClick={() => setShowCompleteModal(false)}>Cancel</Button>
               <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={statusLoading}
                 onClick={() => {
                   handleStatus('completed', { delivery_notes: deliveryNotes || undefined })

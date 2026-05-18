@@ -230,7 +230,7 @@ function CouponModal({ mode, coupon, onClose, onSaved }: { mode: 'create' | 'edi
           </div>
         </div>
         <div className="px-6 py-4 border-t flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={loading || !form.code} className="gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />}{mode === 'create' ? 'Create' : 'Save'}
           </Button>

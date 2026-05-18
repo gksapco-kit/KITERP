@@ -473,7 +473,7 @@ export default function AssignmentsPage() {
             </div>
 
             <div className="p-4 border-t border-gray-100 flex gap-3 justify-end">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button type="button" onClick={() => setShowForm(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-200 rounded-lg">Cancel</button>
               <button type="button" onClick={handleSave} disabled={create.isPending || update.isPending}
                 className="btn-brand disabled:opacity-50">
                 {create.isPending || update.isPending ? 'Saving…' : 'Save'}

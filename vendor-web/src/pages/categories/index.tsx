@@ -398,7 +398,7 @@ export default function CategoriesPage() {
               <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                <Button type="button" variant="cancel" onClick={resetForm}>Cancel</Button>
                 <Button type="submit" disabled={createCategory.isPending || updateCategory.isPending}>
                   {(createCategory.isPending || updateCategory.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {editing ? 'Update' : 'Create'}

@@ -224,7 +224,7 @@ export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props)
           </button>
 
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>
+            <Button variant="cancel" size="sm" onClick={onClose}>
               Cancel
             </Button>
             <Button

@@ -86,7 +86,7 @@ export default function PeriodControl() {
           <button
             type="button"
             onClick={savePendingAuditForms}
-            className="inline-flex items-center gap-2 text-sm font-medium bg-slate-800 text-white rounded-lg px-4 py-2.5 hover:bg-slate-900 shadow-sm"
+            className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-4 py-2.5 hover:bg-[#64C3A0]/90 shadow-sm"
             title="Save completed audit / adjustment forms in expanded company sections"
           >
             <Save className="w-4 h-4" />
@@ -139,7 +139,7 @@ export default function PeriodControl() {
         <button
           type="button"
           onClick={savePendingAuditForms}
-          className="inline-flex items-center gap-2 text-sm font-medium bg-slate-800 text-white rounded-lg px-4 py-2.5 hover:bg-slate-900 shadow-sm"
+          className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-4 py-2.5 hover:bg-[#64C3A0]/90 shadow-sm"
           title="Save completed audit / adjustment forms in expanded company sections"
         >
           <Save className="w-4 h-4" />

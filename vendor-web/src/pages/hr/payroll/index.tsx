@@ -50,7 +50,7 @@ function ProcessWizard({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <div className="flex justify-end gap-3">
-              <button onClick={onClose} className="px-4 py-2 text-sm border rounded-lg">Cancel</button>
+              <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
               <button onClick={handleProcess} className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
                 <Play className="w-4 h-4" /> Process
               </button>
@@ -102,7 +102,7 @@ function DeleteConfirmModal({ run, onClose }: { run: PayrollRun; onClose: () => 
           This will permanently delete all payslip entries for this run. This action cannot be undone.
         </p>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+          <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
           <button
             onClick={handleDelete}
             disabled={deleteRun.isPending}

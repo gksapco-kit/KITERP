@@ -256,7 +256,7 @@ export default function Inventory() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={resetModal}>Cancel</Button>
+              <Button variant="cancel" onClick={resetModal}>Cancel</Button>
               <Button onClick={handleSubmit} disabled={!selectedProduct || !quantity || isMutating}>
                 {isMutating ? 'Processing…' : 'Confirm'}
               </Button>

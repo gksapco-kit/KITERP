@@ -28,6 +28,12 @@ const buttonVariants = cva(
           'hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 ' +
           'active:bg-gray-100 active:scale-[0.98]',
 
+        // Dismiss / cancel — amber (#ffc954)
+        cancel:
+          'border border-[#ffc954] bg-[#ffc954] text-gray-700 shadow-sm ' +
+          'hover:bg-[#ffc954]/90 hover:border-[#ffc954]/90 hover:text-gray-900 ' +
+          'active:bg-[#ffc954]/85 active:scale-[0.98]',
+
         // Neutral fill
         secondary:
           'bg-gray-100 text-gray-700 ' +

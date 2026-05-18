@@ -181,7 +181,7 @@ function AnnouncementModal({ item, onClose }: { item: Announcement | null; onClo
           </div>
         </div>
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+          <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg text-gray-700">Cancel</button>
           <button onClick={submit} disabled={!form.title.trim() || !form.body.trim() || create.isPending || update.isPending}
             className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
             {item ? 'Save' : 'Publish'}

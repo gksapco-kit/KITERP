@@ -140,7 +140,7 @@ export default function Capital() {
               </select>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowNewLoan(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={() => setShowNewLoan(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
               <button onClick={() => createLoanMut.mutate({ ...loanForm, principal: Number(loanForm.principal), interest_rate: Number(loanForm.interest_rate), tenure_months: Number(loanForm.tenure_months) }, { onSuccess: () => setShowNewLoan(false) })}
                 disabled={createLoanMut.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
@@ -175,7 +175,7 @@ export default function Capital() {
               </select>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowNewInv(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={() => setShowNewInv(false)} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
               <button onClick={() => createInvMut.mutate({ ...invForm, invested_amount: Number(invForm.invested_amount) }, { onSuccess: () => setShowNewInv(false) })}
                 disabled={createInvMut.isPending}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">

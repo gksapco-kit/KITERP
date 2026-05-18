@@ -480,9 +480,7 @@ export default function Plans() {
                       {updatePlan.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
                       Save changes
                     </Button>
-                    <Button type="button" variant="outline" onClick={closeEdit} disabled={updatePlan.isPending}>
-                      Cancel
-                    </Button>
+                    <Button type="button" variant="cancel" onClick={closeEdit} disabled={updatePlan.isPending}>Cancel</Button>
                   </div>
                 </div>
               )}

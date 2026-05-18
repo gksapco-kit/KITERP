@@ -59,7 +59,7 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
         </Field>
         <Field label="Tags (comma separated)"><Input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} /></Field>
         <div className="flex gap-3 pt-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button type="submit" className="flex-1" disabled={save.isPending}>
             {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
             Save

@@ -1506,7 +1506,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} className="h-8 text-xs">
+            <Button type="button" variant="cancel" size="sm" onClick={onClose} className="h-8 text-xs">
               Cancel
             </Button>
             <Button
@@ -2360,7 +2360,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
 
           {/* Actions */}
           <div className="flex gap-3 pt-1">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90" disabled={isLoading}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {submitLabel}

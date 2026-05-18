@@ -659,7 +659,7 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
           <div><Label>Notes</Label><textarea className="w-full mt-1 text-sm border rounded-lg px-3 py-2 min-h-[60px]" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
         </div>
         <div className="px-6 py-4 border-t flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button onClick={handleCreate} disabled={loading || !items.some(i => i.name && i.rate > 0)} className="gap-2">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}Create
           </Button>

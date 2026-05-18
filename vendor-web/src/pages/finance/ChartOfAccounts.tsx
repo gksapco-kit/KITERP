@@ -920,9 +920,7 @@ function ConfigPanel({
               Reset to defaults
             </button>
             <div className="flex gap-2">
-              <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">
-                Cancel
-              </button>
+              <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600">Cancel</button>
               <button
                 onClick={handleSave}
                 disabled={hasErrors}
@@ -1286,7 +1284,7 @@ export default function ChartOfAccounts() {
             })()}
 
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+              <button onClick={() => setShowModal(false)} className="btn-cancel px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg">
                 Cancel
               </button>
               <button

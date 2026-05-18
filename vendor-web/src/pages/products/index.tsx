@@ -80,7 +80,7 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
                   onClick={() => { onDelete(); setOpen(false); setConfirmDelete(false) }}>
                   Yes, Delete
                 </button>
-                <button className="flex-1 px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                <button className="btn-cancel flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors"
                   onClick={() => setConfirmDelete(false)}>
                   Cancel
                 </button>

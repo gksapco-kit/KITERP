@@ -326,7 +326,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <div className="flex items-center justify-end gap-3">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button variant="cancel" onClick={onClose}>Cancel</Button>
               <Button onClick={handleGuidedCreate} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
                 Build Ready-Made Website
@@ -367,7 +367,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <div className="flex items-center justify-end gap-3">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button variant="cancel" onClick={onClose}>Cancel</Button>
               <Button onClick={handleAICreate} disabled={!aiDesc.trim() || isLoading}
                 className="bg-gradient-to-r from-primary to-info hover:opacity-90 text-white">
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
@@ -393,7 +393,7 @@ function CreateSiteModal({ onClose }: { onClose: () => void }) {
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
             <div className="flex items-center justify-end gap-3">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button variant="cancel" onClick={onClose}>Cancel</Button>
               <Button onClick={handleBlankCreate} disabled={isLoading} className="bg-gray-900 hover:bg-gray-800 text-white">
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
                 Create Blank Site

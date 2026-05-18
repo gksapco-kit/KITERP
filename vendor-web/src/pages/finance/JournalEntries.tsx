@@ -950,9 +950,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
         {/* ── Footer actions ── */}
         <div className="px-6 py-4 border-t bg-white flex items-center justify-between">
-          <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">
-            Cancel
-          </button>
+          <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600">Cancel</button>
           <div className="flex items-center gap-2">
             <button
               onClick={save}

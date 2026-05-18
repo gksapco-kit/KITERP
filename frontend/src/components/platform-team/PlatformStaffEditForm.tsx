@@ -227,9 +227,7 @@ export function PlatformStaffEditForm({ member, teamManagers }: Props) {
                   'Save changes'
                 )}
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={handleCancel} disabled={updateStaff.isPending}>
-                Cancel
-              </Button>
+              <Button type="button" variant="cancel" size="sm" onClick={handleCancel} disabled={updateStaff.isPending}>Cancel</Button>
             </div>
           </>
         )}

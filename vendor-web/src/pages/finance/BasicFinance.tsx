@@ -237,10 +237,8 @@ function TransactionModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
+              className="btn-cancel flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 transition-colors"
+            >Cancel</button>
             <button
               type="submit"
               disabled={saving}

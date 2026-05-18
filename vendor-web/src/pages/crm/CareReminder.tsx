@@ -395,7 +395,10 @@ function ComposeModal({ onClose, onSave, editing }: {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t bg-gray-50 flex justify-between shrink-0">
-          <Button variant="ghost" onClick={step === 'customer' ? onClose : () => setStep(step === 'schedule' ? 'compose' : 'customer')}>
+          <Button
+            variant={step === 'customer' ? 'cancel' : 'ghost'}
+            onClick={step === 'customer' ? onClose : () => setStep(step === 'schedule' ? 'compose' : 'customer')}
+          >
             {step === 'customer' ? 'Cancel' : '← Back'}
           </Button>
           {step !== 'schedule' ? (
@@ -532,7 +535,7 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
                 <Button size="sm" variant="outline" onClick={onEdit} className="gap-1.5 text-xs">
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </Button>
-                <Button size="sm" variant="outline" onClick={onCancel} className="gap-1.5 text-xs text-red-500 hover:text-red-600">
+                <Button size="sm" variant="cancel" onClick={onCancel} className="gap-1.5 text-xs text-red-500 hover:text-red-600">
                   <X className="w-3.5 h-3.5" /> Cancel
                 </Button>
               </>

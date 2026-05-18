@@ -327,7 +327,7 @@ export default function PeriodEndPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-3">
               <button onClick={() => setShowCreateRun(false)}
-                className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
+                className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
               <button onClick={handleCreateRun} disabled={createRunMut.isPending}
                 className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                 {createRunMut.isPending ? 'Running…' : 'Calculate Variance'}
@@ -353,7 +353,7 @@ export default function PeriodEndPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-3">
               <button onClick={() => setPostRunId(null)}
-                className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
+                className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
               <button onClick={handlePostRun} disabled={postRunMut.isPending}
                 className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                 {postRunMut.isPending ? 'Posting…' : 'Post to GL'}

@@ -314,7 +314,7 @@ export default function ActivityConfirmationsPage() {
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowCreate(false)}
-                  className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">
+                  className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">
                   Cancel
                 </button>
                 <button type="submit" disabled={createMut.isPending}

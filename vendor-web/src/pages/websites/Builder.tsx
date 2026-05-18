@@ -641,7 +641,7 @@ function TextPromptPopup({
           )}
         </div>
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50">
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100">Cancel</button>
+          <button onClick={onClose} className="btn-cancel flex-1 py-2 rounded-lg text-xs font-semibold text-gray-600 border border-[#ffc954]">Cancel</button>
           <button onClick={commit} className="flex-1 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary/90">{confirmLabel}</button>
         </div>
       </div>
@@ -1186,7 +1186,7 @@ function LinkEditorPopup({
           <div className="flex-1 text-[10px] text-gray-500 truncate font-mono">
             {type === 'none' ? 'No link' : (target || currentMeta?.route || '—')}
           </div>
-          <button onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100">Cancel</button>
+          <button onClick={onClose} className="btn-cancel px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 border border-[#ffc954]">Cancel</button>
           <button onClick={save} className="px-4 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary/90 flex items-center gap-1.5">
             <Link2 className="w-3 h-3" /> Save link
           </button>

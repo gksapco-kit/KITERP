@@ -4413,7 +4413,7 @@ export default function ProductForm() {
 
         {/* Submit */}
         <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => navigate('/products')}>Cancel</Button>
+          <Button type="button" variant="cancel" size="sm" onClick={() => navigate('/products')}>Cancel</Button>
           <Button type="submit" disabled={isSaving} size="sm">
             {isSaving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
             {isEdit ? 'Save Product' : 'Create Product'}

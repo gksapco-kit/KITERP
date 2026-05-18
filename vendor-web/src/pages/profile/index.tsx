@@ -378,7 +378,7 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t">
           {dirty && (
-            <Button variant="outline" size="sm" onClick={onReset} disabled={update.isPending}>
+            <Button variant="cancel" size="sm" onClick={onReset} disabled={update.isPending}>
               Cancel
             </Button>
           )}

@@ -216,7 +216,7 @@ export default function Services() {
 
           {/* Save */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowForm(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={!form.name || !form.price || isSaving}>
               {isSaving ? 'Saving…' : editingId ? 'Update Service' : 'Create Service'}
             </Button>

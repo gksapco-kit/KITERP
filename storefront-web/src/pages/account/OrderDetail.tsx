@@ -706,9 +706,7 @@ export default function OrderDetail() {
             </div>
 
             <div className="flex gap-3 mt-4">
-              <Button variant="outline" className="flex-1" onClick={() => { setShowReturn(false); setReturnReason(''); setReturnAttachments([]) }}>
-                Cancel
-              </Button>
+              <Button variant="cancel" className="flex-1" onClick={() => { setShowReturn(false); setReturnReason(''); setReturnAttachments([]) }}>Cancel</Button>
               <Button
                 className={`flex-1 gap-2 ${returnType === 'exchange' ? 'bg-primary hover:bg-primary/90' : 'bg-orange-600 hover:bg-orange-700'}`}
                 disabled={returnReason.trim().length < 5 || returnMut.isPending || returnUploading}

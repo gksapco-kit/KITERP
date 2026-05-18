@@ -443,7 +443,7 @@ function SupplierModal({ mode, supplier, onClose }: {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={isLoading || !name.trim()}>
               {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {mode === 'create' ? 'Add Supplier' : 'Save Changes'}
@@ -841,7 +841,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
               <strong>{supplier.name}</strong> will be deactivated and hidden from active operations.
             </p>
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setConfirmSoftDel(false)}>Cancel</Button>
+              <Button variant="cancel" className="flex-1" onClick={() => setConfirmSoftDel(false)}>Cancel</Button>
               <Button
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                 disabled={statusBusy}
@@ -877,7 +877,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
               onChange={e => setHardDelInput(e.target.value)}
             />
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>Cancel</Button>
+              <Button variant="cancel" className="flex-1" onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>Cancel</Button>
               <Button
                 className="flex-1 bg-red-700 hover:bg-red-800 text-white"
                 disabled={hardDelInput !== supplier.name || deleteMut2.isPending}

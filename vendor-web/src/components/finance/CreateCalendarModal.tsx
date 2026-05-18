@@ -160,15 +160,13 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50"
-            >
-              Cancel
-            </button>
+              className="btn-cancel px-3 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg"
+            >Cancel</button>
             <button
               type="submit"
               form={formId}
               disabled={createFyMut.isPending}
-              className="inline-flex items-center gap-2 text-sm font-medium bg-indigo-600 text-white rounded-lg px-3 py-2 hover:bg-indigo-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-3 py-2 hover:bg-[#64C3A0]/90 disabled:opacity-50"
             >
               {createFyMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {createFyMut.isPending ? 'Saving…' : 'Save'}
@@ -351,14 +349,12 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-white"
-            >
-              Cancel
-            </button>
+              className="btn-cancel px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg"
+            >Cancel</button>
             <button
               type="submit"
               disabled={createFyMut.isPending}
-              className="inline-flex items-center gap-2 text-sm font-medium bg-indigo-600 text-white rounded-lg px-4 py-2 hover:bg-indigo-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-4 py-2 hover:bg-[#64C3A0]/90 disabled:opacity-50"
               aria-label="Save fiscal calendar and link to selected company codes"
             >
               {createFyMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

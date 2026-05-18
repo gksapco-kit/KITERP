@@ -442,7 +442,7 @@ function SupplierEditModal({ supplier, onClose }: { supplier: Supplier; onClose:
               value={notes} onChange={e => setNotes(e.target.value)} placeholder="Payment terms, lead times, etc." />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={updateMut.isPending || !name.trim()}>
               {updateMut.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Save Changes
             </Button>
@@ -555,7 +555,7 @@ function CustomerEditModal({ customer, onClose }: { customer: Customer; onClose:
             </div>
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={updateMut.isPending || !fullName.trim()}>
               {updateMut.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Save Changes
             </Button>
@@ -941,7 +941,7 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
               <strong>{record.name}</strong> will be deactivated and hidden from active operations.
             </p>
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setConfirmSoftDel(false)}>Cancel</Button>
+              <Button variant="cancel" className="flex-1" onClick={() => setConfirmSoftDel(false)}>Cancel</Button>
               <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" disabled={statusBusy}
                 onClick={() => { applyStatus({ is_active: false }); setConfirmSoftDel(false) }}>
                 {statusBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Deactivate'}
@@ -972,7 +972,7 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
               className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-red-400"
               placeholder={record.name} value={hardDelInput} onChange={e => setHardDelInput(e.target.value)} />
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>Cancel</Button>
+              <Button variant="cancel" className="flex-1" onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>Cancel</Button>
               <Button className="flex-1 bg-red-700 hover:bg-red-800 text-white"
                 disabled={hardDelInput !== record.name || deleteSupplier.isPending}
                 onClick={() => { deleteSupplier.mutate(record.id); onClose() }}>

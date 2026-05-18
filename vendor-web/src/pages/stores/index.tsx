@@ -409,7 +409,7 @@ function StoreModal({
           </label>
 
           <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={saving}>
               {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : store ? 'Update' : 'Create'}
             </Button>
@@ -493,7 +493,7 @@ function TransferModal({
             <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Restock from main warehouse" className="mt-1" />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button
               className="flex-1"
               disabled={!fromStore || !toStore || !product || qty < 1 || transfer.isPending}

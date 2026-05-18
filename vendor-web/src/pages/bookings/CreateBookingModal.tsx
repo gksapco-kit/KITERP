@@ -545,7 +545,7 @@ export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookin
 
         {/* Footer */}
         <div className="border-t bg-gray-50 px-6 py-4 flex items-center gap-3 shrink-0">
-          <Button variant="outline" className="h-10 px-5" onClick={onClose} disabled={creating}>
+          <Button variant="cancel" className="h-10 px-5" onClick={onClose} disabled={creating}>
             Cancel
           </Button>
           <div className="flex-1" />

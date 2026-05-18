@@ -28,7 +28,7 @@ function RejectModal({ reqId, onClose }: { reqId: string; onClose: () => void })
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={reason} onChange={e => setReason(e.target.value)} required />
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg">Cancel</button>
+            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={reject.isPending} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg disabled:opacity-50">Reject</button>
           </div>
         </form>

@@ -478,9 +478,7 @@ export default function AddVendor() {
 
         {/* Submit */}
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/dashboard/vendors')}>
-            Cancel
-          </Button>
+          <Button type="button" variant="cancel" onClick={() => navigate('/dashboard/vendors')}>Cancel</Button>
           <Button type="submit" disabled={createVendor.isPending} className="min-w-[160px]">
             {createVendor.isPending ? (
               <>

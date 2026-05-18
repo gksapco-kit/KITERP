@@ -266,16 +266,14 @@ export default function Settings() {
                 </Suspense>
                 <div className="flex gap-3 justify-end">
                   <Button
-                    variant="outline"
+                    variant="cancel"
                     onClick={() => {
                       setEditingLocation(false)
                       setLat(vendor?.latitude ?? undefined)
                       setLng(vendor?.longitude ?? undefined)
                       setRadius(vendor?.service_radius_km ?? 10)
                     }}
-                  >
-                    Cancel
-                  </Button>
+                  >Cancel</Button>
                   <Button
                     onClick={handleSaveLocation}
                     disabled={updateVendor.isPending}

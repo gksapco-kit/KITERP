@@ -32,7 +32,7 @@ function DeleteConfirmModal({ runId, label, onClose }: { runId: string; label: s
           This will permanently delete all payslip entries for this run. This action cannot be undone.
         </p>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+          <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
           <button
             onClick={handleDelete}
             disabled={deleteRun.isPending}

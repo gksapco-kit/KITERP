@@ -715,7 +715,7 @@ export default function ManufacturingOrderDetailPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowTransition(false)}
-                className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
+                className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
               <button onClick={handleTransition} disabled={!transitionStatus || transitionMut.isPending}
                 className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                 {transitionMut.isPending ? 'Updating…' : 'Update Status'}

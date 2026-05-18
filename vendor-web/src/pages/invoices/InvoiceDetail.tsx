@@ -308,7 +308,7 @@ export default function InvoiceDetail() {
         <div className="flex gap-2">
           {isEditing ? (
             <>
-              <Button variant="outline" size="sm" onClick={cancelEditing} disabled={updateInvoice.isPending}>
+              <Button variant="cancel" size="sm" onClick={cancelEditing} disabled={updateInvoice.isPending}>
                 <X className="w-4 h-4 mr-1.5" /> Cancel
               </Button>
               <Button size="sm" onClick={handleSave} disabled={updateInvoice.isPending}>

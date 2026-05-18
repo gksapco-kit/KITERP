@@ -1070,7 +1070,7 @@ export default function ProductionOrdersPage() {
                                 <Check className="w-3.5 h-3.5" /> Save
                               </button>
                               <button onClick={() => setEditAssigneesMode(false)}
-                                className="px-3 py-1.5 text-xs text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
+                                className="btn-cancel px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg transition-colors">
                                 Cancel
                               </button>
                             </div>
@@ -1119,7 +1119,7 @@ export default function ProductionOrdersPage() {
                                 <Check className="w-3.5 h-3.5" /> Save
                               </button>
                               <button onClick={() => setEditNotesMode(false)}
-                                className="px-3 py-1.5 text-xs text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
+                                className="btn-cancel px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg transition-colors">
                                 Cancel
                               </button>
                             </div>
@@ -1598,7 +1598,7 @@ export default function ProductionOrdersPage() {
                                 className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50">
                                 {createCustomer.isPending ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />} Create &amp; Link
                               </button>
-                              <button onClick={() => setShowNewCustomer(false)} className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Cancel</button>
+                              <button onClick={() => setShowNewCustomer(false)} className="btn-cancel px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg">Cancel</button>
                             </div>
                           </div>
                         </div>
@@ -1842,7 +1842,7 @@ export default function ProductionOrdersPage() {
 
                   <div className="flex gap-3 pt-1">
                     <button onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }}
-                      className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+                      className="btn-cancel flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-600 transition-colors">Cancel</button>
                     <button onClick={submitCreate}
                       className={`flex-1 text-white rounded-xl py-2.5 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${createType === 'mto' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-teal-600 hover:bg-teal-700'}`}>
                       <Factory className="w-4 h-4" /> Create {createType.toUpperCase()} Order

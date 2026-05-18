@@ -271,7 +271,7 @@ export default function Products() {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setView('list')}>Cancel</Button>
+          <Button variant="cancel" onClick={() => setView('list')}>Cancel</Button>
           <Button onClick={handleSave} disabled={isSaving || !form.name || !form.price} className="min-w-[140px]">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
             {view === 'create' ? 'Create Product' : 'Save Changes'}

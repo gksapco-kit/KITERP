@@ -438,9 +438,7 @@ export function AssignRmToAccountsModal({
         </div>
 
         <div className="p-4 border-t flex flex-wrap justify-end gap-2 shrink-0">
-          <Button type="button" variant="outline" onClick={onClose} disabled={assigning}>
-            Cancel
-          </Button>
+          <Button type="button" variant="cancel" onClick={onClose} disabled={assigning}>Cancel</Button>
           <Button type="button" onClick={handleApply} disabled={applyDisabled}>
             {assigning ? (
               <>

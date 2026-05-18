@@ -71,7 +71,7 @@ function CampaignForm({ onClose }: { onClose: () => void }) {
         </Field>
         <Field label="Scheduled at (optional)"><Input type="datetime-local" value={form.scheduled_at} onChange={e => setForm(p => ({ ...p, scheduled_at: e.target.value }))} /></Field>
         <div className="flex gap-3 pt-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button type="submit" className="flex-1" disabled={save.isPending}>
             {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
             Create

@@ -335,7 +335,7 @@ export function ImageCropModal({
               Use original
             </Button>
             <div className="flex-1" />
-            <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+            <Button type="button" variant="cancel" size="sm" onClick={onCancel}>
               Cancel
             </Button>
             <Button

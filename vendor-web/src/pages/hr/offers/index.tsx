@@ -216,7 +216,7 @@ function CreateOfferModal({
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg">Cancel</button>
+            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={create.isPending}
               className="px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50 hover:bg-primary/90">
               {create.isPending ? 'Creating…' : 'Create Draft'}

@@ -145,6 +145,15 @@
            transition-colors duration-150;
   }
 
+  /* Modal dismiss — matches Button variant="cancel" (#ffc954) */
+  .btn-cancel {
+    @apply border border-[#ffc954] bg-[#ffc954] text-gray-700 shadow-sm
+           transition-all duration-150 ease-out
+           hover:bg-[#ffc954]/90 hover:border-[#ffc954]/90 hover:text-gray-900
+           active:bg-[#ffc954]/85 active:scale-[0.98]
+           disabled:pointer-events-none disabled:opacity-50;
+  }
+
   /* Icon-only round button — e.g. close × trash in chips */
   .btn-icon-xs {
     @apply inline-flex items-center justify-center w-5 h-5 rounded-full

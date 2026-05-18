@@ -2814,7 +2814,7 @@ export default function ServiceForm() {
 
         {/* Submit */}
         <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => isEdit ? setViewMode(true) : navigate('/services')}>Cancel</Button>
+          <Button type="button" variant="cancel" size="sm" onClick={() => isEdit ? setViewMode(true) : navigate('/services')}>Cancel</Button>
           <Button type="submit" disabled={isSaving} size="sm">
             {isSaving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
             {isEdit ? 'Save Service' : 'Create Service'}
@@ -2837,7 +2837,7 @@ export default function ServiceForm() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDeletingPlanIdx(null)}>Cancel</Button>
+              <Button type="button" variant="cancel" size="sm" onClick={() => setDeletingPlanIdx(null)}>Cancel</Button>
               <Button type="button" size="sm" className="bg-red-600 hover:bg-red-700 text-white"
                 onClick={() => { setPlans(p => p.filter((_, i) => i !== deletingPlanIdx)); setDeletingPlanIdx(null) }}>
                 Delete

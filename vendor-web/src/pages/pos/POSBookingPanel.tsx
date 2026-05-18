@@ -572,7 +572,7 @@ export function POSBookingPanel({
         {/* ── Footer ── */}
         <div className="border-t bg-gray-50 px-6 py-4 flex items-center gap-3">
           <Button
-            variant="outline"
+            variant="cancel"
             className="h-10 px-5 text-sm font-medium"
             onClick={onClose}
           >

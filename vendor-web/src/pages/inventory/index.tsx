@@ -1130,7 +1130,7 @@ function StockModal({ type, prefillProductId, prefillProductName, prefillVariant
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={isLoading || !productId || !quantity}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {title}
@@ -1454,7 +1454,7 @@ function BulkUploadModal({ onClose }: { onClose: () => void }) {
 
         <div className="flex gap-3 px-6 py-4 border-t shrink-0">
           {step === 'upload' && (
-            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
           )}
           {step === 'preview' && (
             <>

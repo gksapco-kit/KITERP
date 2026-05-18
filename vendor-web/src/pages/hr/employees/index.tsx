@@ -467,9 +467,7 @@ function AddEmployeeModal({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">
-                Cancel
-              </button>
+              <button type="button" onClick={onClose} className="btn-cancel px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
               <button
                 type="submit"
                 form="add-employee-form"
@@ -969,7 +967,7 @@ function AddEmployeeModal({
                       <button
                         type="button"
                         onClick={() => { setShowDocForm(false); setDocFile(null); setDocLabel('') }}
-                        className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 text-gray-600"
+                        className="btn-cancel px-3 py-1.5 text-sm border rounded-lg text-gray-600"
                       >
                         Cancel
                       </button>

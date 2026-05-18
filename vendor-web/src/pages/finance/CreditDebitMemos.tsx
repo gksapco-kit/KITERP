@@ -1713,7 +1713,7 @@ export default function CreditDebitMemos() {
               <div><Label className="text-xs">Email</Label><Input className="mt-1 h-9" value={newCustEmail} onChange={e => setNewCustEmail(e.target.value)} placeholder="email@…" /></div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowQuickCreate(false)}>Cancel</Button>
+              <Button type="button" variant="cancel" size="sm" onClick={() => setShowQuickCreate(false)}>Cancel</Button>
               <Button type="button" size="sm" onClick={handleQuickCreate} disabled={!newCustName || createCustomerMut.isPending} className="gap-1.5">
                 {createCustomerMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 Create
