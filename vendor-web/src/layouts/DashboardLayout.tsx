@@ -87,6 +87,34 @@ interface NavItem {
   requiresFinanceMode?: 'basic' | 'advanced'
 }
 
+/** Path without query string, no trailing slash (except root). */
+function navItemPath(to: string): string {
+  const base = to.split('?')[0]
+  if (base.length > 1 && base.endsWith('/')) return base.slice(0, -1)
+  return base
+}
+
+function pathnameMatchesNavItem(pathname: string, navPath: string): boolean {
+  if (navPath === '/') return pathname === '/'
+  if (pathname === navPath) return true
+  return pathname.startsWith(`${navPath}/`)
+}
+
+/** Pick the single best-matching nav item (longest path wins — avoids parent + child both active). */
+function resolveActiveNavTo(pathname: string, items: NavItem[]): string | null {
+  let bestTo: string | null = null
+  let bestLen = -1
+  for (const item of items) {
+    const path = navItemPath(item.to)
+    if (!pathnameMatchesNavItem(pathname, path)) continue
+    if (path.length > bestLen) {
+      bestLen = path.length
+      bestTo = item.to
+    }
+  }
+  return bestTo
+}
+
 interface NavSection {
   /** Stable id for ordering / localStorage */
   id: string
@@ -932,6 +960,16 @@ export default function DashboardLayout() {
     return m
   }, [visibleSections, itemPlacements])
 
+  const flatVisibleNavItems = useMemo(
+    () => visibleSections.flatMap((s) => orderedNavItemsBySectionId.get(s.id) ?? s.items),
+    [visibleSections, orderedNavItemsBySectionId],
+  )
+
+  const activeNavTo = useMemo(
+    () => resolveActiveNavTo(location.pathname, flatVisibleNavItems),
+    [location.pathname, flatVisibleNavItems],
+  )
+
   function resetNavOrderToDefaults() {
     clearSavedNavOrder()
     setSectionOrder(loadSectionIds(DEFAULT_SECTION_IDS))
@@ -1306,13 +1344,7 @@ export default function DashboardLayout() {
             {orderedVisibleSections.map((section, sectionIdx) => {
               const isSectionCollapsed = collapsedSections[section.title] ?? true
               const orderedItems = orderedNavItemsBySectionId.get(section.id) ?? section.items
-              const sectionHasActive = orderedItems.some((it) => {
-                const base = it.to.split('?')[0]
-                return (
-                  location.pathname === base ||
-                  (base !== '/' && location.pathname.startsWith(`${base}/`))
-                )
-              })
+              const sectionHasActive = orderedItems.some((it) => activeNavTo === it.to)
               const prevSectionId = sectionIdx > 0 ? orderedVisibleSections[sectionIdx - 1]?.id : null
               const showRailDivider =
                 prevSectionId != null && railGroupForSection(section.id) !== railGroupForSection(prevSectionId)
@@ -1340,7 +1372,7 @@ export default function DashboardLayout() {
                   prepend={
                     showRailDivider ? (
                       <div
-                        className="mx-2 my-1 h-px bg-border/[0.1] dark:bg-white/[0.06]"
+                        className="mx-2 my-1 h-px bg-border/[0.1] dark:hidden"
                         role="separator"
                         aria-hidden
                       />
@@ -1473,26 +1505,12 @@ export default function DashboardLayout() {
                                           navRowTransition,
                                           'text-muted-foreground/80 hover:bg-muted/35 hover:text-foreground',
                                           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-                                          orderedItems.some((it) => {
-                                            if ((it.groupLabel ?? null) !== gl) return false
-                                            const base = it.to.split('?')[0]
-                                            return (
-                                              location.pathname === base ||
-                                              (base !== '/' && location.pathname.startsWith(`${base}/`))
-                                            )
-                                          }) && 'font-semibold text-foreground',
+                                          orderedItems.some((it) => (it.groupLabel ?? null) === gl && activeNavTo === it.to) && 'font-semibold text-foreground',
                                         )}
                                       >
                                         <span aria-hidden className={navTreeElbowLine} />
                                         <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                                          {orderedItems.some((it) => {
-                                            if ((it.groupLabel ?? null) !== gl) return false
-                                            const base = it.to.split('?')[0]
-                                            return (
-                                              location.pathname === base ||
-                                              (base !== '/' && location.pathname.startsWith(`${base}/`))
-                                            )
-                                          }) && (
+                                          {orderedItems.some((it) => (it.groupLabel ?? null) === gl && activeNavTo === it.to) && (
                                             <span className="h-1 w-1 shrink-0 rounded-full bg-accent dark:bg-primary/50" />
                                           )}
                                           <span className="truncate">{gl}</span>
@@ -1548,13 +1566,14 @@ export default function DashboardLayout() {
                                           )}
                                           <NavLink
                                             to={item.to}
-                                            end={item.to === '/' || item.to === '/websites'}
                                             title={item.label}
                                             tabIndex={isSectionCollapsed || inCollapsedSubgroup ? -1 : undefined}
                                             onClick={() => setSidebarOpen(false)}
                                             className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
                                           >
-                                            {({ isActive }) => (
+                                            {() => {
+                                              const isActive = activeNavTo === item.to
+                                              return (
                                               <span
                                                 className={cn(
                                                   'relative z-[1] flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
@@ -1581,7 +1600,8 @@ export default function DashboardLayout() {
                                                   </span>
                                                 )}
                                               </span>
-                                            )}
+                                              )
+                                            }}
                                           </NavLink>
                                         </div>
                                       )}
