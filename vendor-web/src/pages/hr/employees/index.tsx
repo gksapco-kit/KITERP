@@ -9,7 +9,7 @@ import {
 import {
   useHREmployees, useHRDepartments, useCreateHREmployee,
   useHRDesignations, useTeamMembers, useStores, useInviteTeamMember,
-  useHRNextEmployeeCode, useHRSeedTestData,
+  useHRNextEmployeeCode, useHRSeedTestData, useRoles,
 } from '@/hooks/useVendor'
 import { DeptModal } from '@/components/hr/DeptModal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
@@ -210,14 +210,21 @@ function AddEmployeeModal({
   const { data: designations = [] } = useHRDesignations()
   const { data: teamData } = useTeamMembers()
   const { data: storesData } = useStores()
+  const { data: rolesData } = useRoles()
   const createEmployee = useCreateHREmployee()
   const inviteMember = useInviteTeamMember()
+
+  const allRoles = rolesData?.roles ?? []
+  const SYSTEM_ROLES_HR = ['admin', 'manager', 'sales', 'staff']
 
   const teamMembers: TeamMember[] = (teamData as any)?.items ?? []
   const stores = storesData?.stores ?? []
 
   // ── Identity & Assignment ──────────────────────────────────────
   const [vendorUserId, setVendorUserId] = useState('')
+
+  // Role for new team member
+  const [newMemberRoleValue, setNewMemberRoleValue] = useState('staff')
 
   // New team member inline creation
   const [createMode, setCreateMode] = useState<'select' | 'new'>('new')
@@ -374,11 +381,13 @@ function AddEmployeeModal({
     // If creating a new team member, invite them first and use their vendor_user id
     if (createMode === 'new') {
       if (!newMemberEmail || !newMemberName || !newMemberPassword) return
+      const isCustomRole = allRoles.some((r: any) => r.id === newMemberRoleValue)
       const invited = await inviteMember.mutateAsync({
         email: newMemberEmail,
         full_name: newMemberName,
         phone: newMemberPhone || undefined,
-        role: 'staff',
+        role: isCustomRole ? 'custom' : newMemberRoleValue,
+        role_id: isCustomRole ? newMemberRoleValue : undefined,
         password: newMemberPassword,
       }) as any
       resolvedUserId = invited?.vendor_user_id ?? invited?.id ?? invited?.vendor_user?.id ?? ''
@@ -598,6 +607,27 @@ function AddEmployeeModal({
                               {showNewMemberPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
                           </div>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-600 mb-0.5">Role</label>
+                          <select
+                            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                            value={newMemberRoleValue}
+                            onChange={e => setNewMemberRoleValue(e.target.value)}
+                          >
+                            <optgroup label="Built-in roles">
+                              {SYSTEM_ROLES_HR.map(r => (
+                                <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                              ))}
+                            </optgroup>
+                            {allRoles.filter((r: any) => r.is_active).length > 0 && (
+                              <optgroup label="Custom roles">
+                                {allRoles.filter((r: any) => r.is_active).map((r: any) => (
+                                  <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </select>
                         </div>
                       </div>
                     </div>

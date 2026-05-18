@@ -5,16 +5,26 @@ import {
   Users, Plus, Shield, Mail, UserCheck,
   UserX, Pencil, Trash2, X, Phone,
   CheckCircle2, AlertCircle, RefreshCw, KeyRound, Store, UserCog,
+  ExternalLink, Calendar, ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import {
   useTeamMembers, useInviteTeamMember, useUpdateTeamMember,
-  useRemoveTeamMember, useRoles, useSendTeamVerification, useVerifyTeamMember,
+  useRemoveTeamMember, useAssignableTeamRoles, useSendTeamVerification, useVerifyTeamMember,
   useHREmployees,
   useStores,
   vendorKeys,
 } from '@/hooks/useVendor'
+import {
+  AccessWindowFields,
+  TeamRoleSelect,
+  parseRoleSelectValue,
+  roleSelectValue,
+  toDateInputValue,
+  type AssignableTeamRoles,
+} from '@/pages/team/teamRoleHelpers'
+import type { EmployeeProfile } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
 import type { TeamMember } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -38,7 +48,10 @@ export default function TeamPage() {
   const { user } = useAuthStore()
   const qc = useQueryClient()
   const { data: teamData, isLoading } = useTeamMembers()
-  const { data: rolesData } = useRoles()
+  const { data: assignableData } = useAssignableTeamRoles()
+  const assignableRoles: AssignableTeamRoles | undefined = assignableData
+    ? { builtin_roles: assignableData.builtin_roles, custom_roles: assignableData.custom_roles }
+    : undefined
   const { data: empData } = useHREmployees({ limit: 200 })
   const employeesByUserId = useMemo(() => {
     const map: Record<string, any> = {}
@@ -68,6 +81,7 @@ export default function TeamPage() {
 
   const [showInvite, setShowInvite] = useState(false)
   const [editMember, setEditMember] = useState<TeamMember | null>(null)
+  const [viewMember, setViewMember] = useState<TeamMember | null>(null)
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -93,10 +107,29 @@ export default function TeamPage() {
   // Invite form state
   const [inviteForm, setInviteForm] = useState({
     email: '', full_name: '', phone: '', role: 'staff', role_id: '', password: '',
+    access_starts_at: '', access_ends_at: '',
   })
+  // Pre-fill from HR employee
+  const [selectedEmpId, setSelectedEmpId] = useState('')
+
+  const hrEmployees = empData?.items ?? []
+  // HR employees not yet linked to any team member
+  const unlinkedEmployees = useMemo(
+    () => hrEmployees.filter((e: any) => !e.vendor_user_id),
+    [hrEmployees],
+  )
 
   const members = teamData?.items || []
-  const customRoles = rolesData?.roles || []
+  const customRoles = assignableRoles?.custom_roles ?? []
+
+  type MemberUpdatePayload = {
+    role?: string
+    role_id?: string
+    is_active?: boolean
+    access_starts_at?: string | null
+    access_ends_at?: string | null
+    clear_access_ends_at?: boolean
+  }
 
   const displayMembers = useMemo(
     () =>
@@ -134,10 +167,16 @@ export default function TeamPage() {
       role: inviteForm.role,
       role_id: inviteForm.role === 'custom' ? inviteForm.role_id : undefined,
       password: inviteForm.password,
+      access_starts_at: inviteForm.access_starts_at || undefined,
+      access_ends_at: inviteForm.access_ends_at || undefined,
     }, {
       onSuccess: (data) => {
         setShowInvite(false)
-        setInviteForm({ email: '', full_name: '', phone: '', role: 'staff', role_id: '', password: '' })
+        setSelectedEmpId('')
+        setInviteForm({
+          email: '', full_name: '', phone: '', role: 'staff', role_id: '', password: '',
+          access_starts_at: '', access_ends_at: '',
+        })
         // Show OTP to admin so they can share with the new member
         if (data._otp) {
           const channel: 'email' | 'phone' = (data.user?.phone && inviteForm.phone) ? 'phone' : 'email'
@@ -180,7 +219,7 @@ export default function TeamPage() {
     })
   }
 
-  const handleUpdate = (memberId: string, data: { role?: string; role_id?: string; is_active?: boolean }) => {
+  const handleUpdate = (memberId: string, data: MemberUpdatePayload) => {
     updateMutation.mutate({ id: memberId, data })
     setEditMember(null)
   }
@@ -198,10 +237,10 @@ export default function TeamPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Users className="w-7 h-7 text-primary" />
-            Team Management
+            Staff Access Control
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage your team members and their access levels
+            Manage users, roles, and permissions for your workspace
           </p>
         </div>
         {canInvite && (
@@ -270,7 +309,11 @@ export default function TeamPage() {
                   const phoneVerified = member.user?.is_phone_verified
                   const needsVerification = !emailVerified || (member.user?.phone && !phoneVerified)
                   return (
-                  <tr key={member.id} className="hover:bg-gray-50">
+                  <tr
+                    key={member.id}
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => setViewMember(member)}
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
@@ -314,7 +357,7 @@ export default function TeamPage() {
                         {member.role_name}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
                       {stores.length > 0 ? (
                         <select
                           value={(member as TeamMember & { store_id?: string }).store_id ?? ''}
@@ -350,7 +393,7 @@ export default function TeamPage() {
                       {member.created_at ? new Date(member.created_at).toLocaleDateString() : '-'}
                     </td>
                     {canManageTeam && (
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {needsVerification && (
                             <button
@@ -411,6 +454,42 @@ export default function TeamPage() {
               </button>
             </div>
             <div className="p-6 space-y-4">
+
+              {/* Pre-fill from HR employee */}
+              {unlinkedEmployees.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <UserCog className="w-3.5 h-3.5 text-primary" /> Pre-fill from Employee
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-primary/5"
+                    value={selectedEmpId}
+                    onChange={(e) => {
+                      const emp = unlinkedEmployees.find((x: any) => x.id === e.target.value) as any
+                      setSelectedEmpId(e.target.value)
+                      if (emp) {
+                        setInviteForm(f => ({
+                          ...f,
+                          full_name: emp.vendor_user?.user?.full_name ?? emp.full_name ?? f.full_name,
+                          email: emp.vendor_user?.user?.email ?? emp.work_email ?? emp.personal_email ?? f.email,
+                          phone: emp.vendor_user?.user?.phone ?? emp.work_phone ?? emp.personal_phone ?? f.phone,
+                        }))
+                      } else {
+                        setInviteForm(f => ({ ...f, full_name: '', email: '', phone: '' }))
+                      }
+                    }}
+                  >
+                    <option value="">— Select an employee to prefill —</option>
+                    {unlinkedEmployees.map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.vendor_user?.user?.full_name ?? emp.employee_code ?? emp.id.slice(0, 8)}
+                        {emp.vendor_user?.user?.email ? ` · ${emp.vendor_user.user.email}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                 <input
@@ -454,32 +533,28 @@ export default function TeamPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  value={inviteForm.role}
-                  onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value, role_id: '' })}
-                >
-                  {SYSTEM_ROLES.filter((r) => r !== 'owner').map((r) => (
-                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                  ))}
-                  {customRoles.length > 0 && <option value="custom">Custom Role...</option>}
-                </select>
+                <TeamRoleSelect
+                  assignable={assignableRoles}
+                  value={inviteForm.role === 'custom' ? inviteForm.role_id : inviteForm.role}
+                  onChange={(val) => {
+                    const parsed = parseRoleSelectValue(val, customRoles)
+                    setInviteForm(f => ({
+                      ...f,
+                      role: parsed.role,
+                      role_id: parsed.role_id,
+                    }))
+                  }}
+                />
               </div>
-              {inviteForm.role === 'custom' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Custom Role</label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    value={inviteForm.role_id}
-                    onChange={(e) => setInviteForm({ ...inviteForm, role_id: e.target.value })}
-                  >
-                    <option value="">Select a custom role...</option>
-                    {customRoles.filter((r) => r.is_active).map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Access window</p>
+                <AccessWindowFields
+                  accessStartsAt={inviteForm.access_starts_at}
+                  accessEndsAt={inviteForm.access_ends_at}
+                  onAccessStartsAtChange={(v) => setInviteForm(f => ({ ...f, access_starts_at: v }))}
+                  onAccessEndsAtChange={(v) => setInviteForm(f => ({ ...f, access_ends_at: v }))}
+                />
+              </div>
               <p className="text-xs text-gray-500 bg-blue-50 rounded-lg p-3">
                 A 6-digit verification OTP will be generated after creation. Share it with the member to verify their contact.
               </p>
@@ -606,32 +681,379 @@ export default function TeamPage() {
       {editMember && (
         <EditRoleModal
           member={editMember}
-          customRoles={customRoles}
+          assignableRoles={assignableRoles}
           onSave={(data) => handleUpdate(editMember.id, data)}
           onClose={() => setEditMember(null)}
           isPending={updateMutation.isPending}
+        />
+      )}
+
+      {/* Member Detail Drawer */}
+      {viewMember && (
+        <MemberDetailDrawer
+          member={viewMember}
+          assignableRoles={assignableRoles}
+          hrEmployee={employeesByUserId[viewMember.id] as EmployeeProfile | undefined}
+          stores={stores}
+          canManage={!!canManageTeam}
+          isSelf={viewMember.user_id === user?.id}
+          employeeId={employeesByUserId[viewMember.id]?.id ?? null}
+          onClose={() => setViewMember(null)}
+          onSave={(data) => { handleUpdate(viewMember.id, data); setViewMember(null) }}
+          onRemove={() => { handleRemove(viewMember.id); setViewMember(null) }}
+          onSendOtp={() => handleSendOtp(viewMember)}
+          onStoreChange={(storeId) => assignStoreMutation.mutate({ staffId: viewMember.id, storeId })}
+          isSaving={updateMutation.isPending}
         />
       )}
     </div>
   )
 }
 
+function MemberDetailDrawer({
+  member,
+  assignableRoles,
+  hrEmployee,
+  stores,
+  canManage,
+  isSelf,
+  employeeId,
+  onClose,
+  onSave,
+  onRemove,
+  onSendOtp,
+  onStoreChange,
+  isSaving,
+}: {
+  member: TeamMember
+  assignableRoles: AssignableTeamRoles | undefined
+  hrEmployee?: EmployeeProfile
+  stores: { id: string; name: string; code?: string }[]
+  canManage: boolean
+  isSelf: boolean
+  employeeId: string | null
+  onClose: () => void
+  onSave: (data: {
+    role?: string
+    role_id?: string
+    is_active?: boolean
+    access_starts_at?: string | null
+    access_ends_at?: string | null
+    clear_access_ends_at?: boolean
+  }) => void
+  onRemove: () => void
+  onSendOtp: () => void
+  onStoreChange: (storeId: string | null) => void
+  isSaving: boolean
+}) {
+  const customRoles = assignableRoles?.custom_roles ?? []
+  const initValue = roleSelectValue(member)
+  const [selectValue, setSelectValue] = useState(initValue)
+  const [isActive, setIsActive] = useState(member.is_active)
+  const [accessStartsAt, setAccessStartsAt] = useState(toDateInputValue(member.access_starts_at))
+  const [accessEndsAt, setAccessEndsAt] = useState(toDateInputValue(member.access_ends_at))
+  const [endSource, setEndSource] = useState(member.access_end_source ?? null)
+
+  const hrLwd = hrEmployee?.lwd ? toDateInputValue(hrEmployee.lwd) : null
+  const parsed = parseRoleSelectValue(selectValue, customRoles)
+  const role = parsed.role
+  const roleId = parsed.role_id
+
+  const emailVerified = member.user?.is_email_verified
+  const phoneVerified = member.user?.is_phone_verified
+  const needsVerification = !emailVerified || (member.user?.phone && !phoneVerified)
+  const isOwner = member.role === 'owner'
+  const canEdit = canManage && !isOwner && !isSelf
+  const isDirty =
+    selectValue !== initValue
+    || isActive !== member.is_active
+    || accessStartsAt !== toDateInputValue(member.access_starts_at)
+    || accessEndsAt !== toDateInputValue(member.access_ends_at)
+
+  const buildSavePayload = () => {
+    const payload: Parameters<typeof onSave>[0] = {
+      role,
+      role_id: roleId || undefined,
+      is_active: isActive,
+    }
+    if (accessStartsAt !== toDateInputValue(member.access_starts_at)) {
+      payload.access_starts_at = accessStartsAt || null
+    }
+    const prevEnd = toDateInputValue(member.access_ends_at)
+    if (accessEndsAt !== prevEnd) {
+      if (!accessEndsAt) {
+        payload.clear_access_ends_at = true
+      } else {
+        payload.access_ends_at = accessEndsAt
+      }
+    }
+    return payload
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      {/* Drawer */}
+      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white shrink-0">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" />
+            Member Details
+          </h2>
+          <button type="button" onClick={onClose} className="p-1.5 rounded hover:bg-gray-100" aria-label="Close">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+          {/* Avatar + Name */}
+          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl shrink-0">
+              {member.user?.full_name?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 text-base truncate">{member.user?.full_name || 'Unknown'}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${roleColors[member.role] || roleColors.custom}`}>
+                  <Shield className="w-3 h-3" />
+                  {member.role_name}
+                </span>
+                {isActive ? (
+                  <span className="inline-flex items-center gap-0.5 text-xs text-green-600 font-medium">
+                    <UserCheck className="w-3 h-3" /> Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-0.5 text-xs text-red-500 font-medium">
+                    <UserX className="w-3 h-3" /> Inactive
+                  </span>
+                )}
+              </div>
+              {needsVerification && (
+                <span className="inline-flex items-center gap-0.5 text-xs text-amber-600 font-medium mt-0.5">
+                  <AlertCircle className="w-3 h-3" /> Unverified
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Contact */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contact</p>
+            <div className="space-y-2 bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                  <span className="truncate max-w-[220px]">{member.user?.email || '—'}</span>
+                </div>
+                {emailVerified
+                  ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                  : <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                }
+              </div>
+              {member.user?.phone && (
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span>{member.user.phone}</span>
+                  </div>
+                  {phoneVerified
+                    ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                    : <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  }
+                </div>
+              )}
+              {member.created_at && (
+                <div className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-600">
+                  <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                  Joined {new Date(member.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Store Assignment */}
+          {stores.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Store Assignment</p>
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl">
+                <Store className="w-4 h-4 text-gray-400 shrink-0" />
+                <select
+                  value={(member as TeamMember & { store_id?: string }).store_id ?? ''}
+                  onChange={e => onStoreChange(e.target.value || null)}
+                  className="flex-1 text-sm bg-transparent focus:outline-none text-gray-700"
+                >
+                  <option value="">All stores</option>
+                  {stores.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}{s.code ? ` · ${s.code}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Role & Access */}
+          {canEdit ? (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Role & Access</p>
+              <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <TeamRoleSelect
+                    assignable={assignableRoles}
+                    value={selectValue}
+                    onChange={setSelectValue}
+                  />
+                  <AccessWindowFields
+                    accessStartsAt={accessStartsAt}
+                    accessEndsAt={accessEndsAt}
+                    onAccessStartsAtChange={setAccessStartsAt}
+                    onAccessEndsAtChange={(v) => {
+                      setAccessEndsAt(v)
+                      setEndSource('manual')
+                    }}
+                    hrLwd={hrLwd}
+                    accessEndSource={endSource ?? member.access_end_source}
+                    accessSyncNote={member.access_sync_note}
+                    onApplyHrLwd={hrLwd ? () => {
+                      setAccessEndsAt(hrLwd)
+                      setEndSource('hr_lwd')
+                    } : undefined}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={(e) => setIsActive(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary" />
+                  </label>
+                  <span className="text-sm text-gray-700">Active</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Role & Access</p>
+              <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium">Role:</span> {member.role_name}
+                </p>
+                <AccessWindowFields
+                  accessStartsAt={toDateInputValue(member.access_starts_at)}
+                  accessEndsAt={toDateInputValue(member.access_ends_at)}
+                  onAccessStartsAtChange={() => {}}
+                  onAccessEndsAtChange={() => {}}
+                  hrLwd={hrLwd}
+                  accessEndSource={member.access_end_source}
+                  accessSyncNote={member.access_sync_note}
+                  disabled
+                />
+              </div>
+            </div>
+          )}
+
+          {/* HR Profile Link */}
+          {employeeId && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">HR Profile</p>
+              <Link
+                to={`/hr/employees/${employeeId}`}
+                onClick={onClose}
+                className="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors"
+              >
+                <div className="flex items-center gap-2 text-sm text-blue-700 font-medium">
+                  <UserCog className="w-4 h-4" />
+                  View Full HR Employee Profile
+                </div>
+                <ExternalLink className="w-4 h-4 text-blue-500" />
+              </Link>
+            </div>
+          )}
+
+          {/* Verification */}
+          {needsVerification && canManage && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Verification</p>
+              <button
+                type="button"
+                onClick={() => { onSendOtp(); onClose() }}
+                className="w-full flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition-colors text-sm text-amber-700 font-medium"
+              >
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4" />
+                  Send Verification OTP
+                </div>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center gap-3">
+          {canEdit && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors border border-red-100"
+            >
+              <Trash2 className="w-4 h-4" />
+              Remove
+            </button>
+          )}
+          <div className="flex-1" />
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+          {canEdit && (
+            <Button
+              onClick={() => onSave(buildSavePayload())}
+              disabled={isSaving || !isDirty}
+            >
+              {isSaving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 function EditRoleModal({
   member,
-  customRoles,
+  assignableRoles,
   onSave,
   onClose,
   isPending,
 }: {
   member: TeamMember
-  customRoles: { id: string; name: string; is_active: boolean }[]
-  onSave: (data: { role?: string; role_id?: string; is_active?: boolean }) => void
+  assignableRoles: AssignableTeamRoles | undefined
+  onSave: (data: {
+    role?: string
+    role_id?: string
+    is_active?: boolean
+    access_starts_at?: string | null
+    access_ends_at?: string | null
+    clear_access_ends_at?: boolean
+  }) => void
   onClose: () => void
   isPending: boolean
 }) {
-  const [role, setRole] = useState(member.role)
-  const [roleId, setRoleId] = useState(member.role_id || '')
+  const customRoles = assignableRoles?.custom_roles ?? []
+  const initValue = roleSelectValue(member)
+  const [selectValue, setSelectValue] = useState(initValue)
   const [isActive, setIsActive] = useState(member.is_active)
+  const [accessStartsAt, setAccessStartsAt] = useState(toDateInputValue(member.access_starts_at))
+  const [accessEndsAt, setAccessEndsAt] = useState(toDateInputValue(member.access_ends_at))
+
+  const parsed = parseRoleSelectValue(selectValue, customRoles)
+  const role = parsed.role
+  const roleId = parsed.role_id
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -639,7 +1061,7 @@ function EditRoleModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Edit Member Role</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-gray-100">
-                <X className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
         <div className="p-6 space-y-4">
@@ -654,32 +1076,20 @@ function EditRoleModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-              value={role}
-              onChange={(e) => { setRole(e.target.value); setRoleId('') }}
-            >
-              {SYSTEM_ROLES.filter((r) => r !== 'owner').map((r) => (
-                <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-              ))}
-              {customRoles.length > 0 && <option value="custom">Custom Role...</option>}
-            </select>
+            <TeamRoleSelect
+              assignable={assignableRoles}
+              value={selectValue}
+              onChange={setSelectValue}
+            />
           </div>
-          {role === 'custom' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Custom Role</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                value={roleId}
-                onChange={(e) => setRoleId(e.target.value)}
-              >
-                <option value="">Select...</option>
-                {customRoles.filter((r) => r.is_active).map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
+          <AccessWindowFields
+            accessStartsAt={accessStartsAt}
+            accessEndsAt={accessEndsAt}
+            onAccessStartsAtChange={setAccessStartsAt}
+            onAccessEndsAtChange={setAccessEndsAt}
+            accessSyncNote={member.access_sync_note}
+            accessEndSource={member.access_end_source}
+          />
           <div className="flex items-center gap-3">
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -696,7 +1106,14 @@ function EditRoleModal({
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button
-            onClick={() => onSave({ role, role_id: role === 'custom' ? roleId : undefined, is_active: isActive })}
+            onClick={() => onSave({
+              role,
+              role_id: roleId || undefined,
+              is_active: isActive,
+              access_starts_at: accessStartsAt || null,
+              access_ends_at: accessEndsAt || null,
+              clear_access_ends_at: !accessEndsAt && !!member.access_ends_at,
+            })}
             disabled={isPending}
           >
             {isPending ? 'Saving...' : 'Save Changes'}

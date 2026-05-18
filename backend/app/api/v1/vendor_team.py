@@ -2,7 +2,7 @@
 """Vendor Team Management API - Invite, manage, and remove team members."""
 from typing import Optional, List
 from uuid import UUID
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 import random
 import string
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -36,6 +36,12 @@ def _generate_otp() -> str:
 
 router = APIRouter()
 
+# Built-in roles that may be assigned when inviting/editing (excludes owner, platform_staff)
+ASSIGNABLE_BUILTIN_ROLES = [
+    k for k in DEFAULT_ROLE_PERMISSIONS.keys()
+    if k not in ("owner", "platform_staff")
+]
+
 
 # ── Schemas ─────────────────────────────────────────────────────
 
@@ -46,12 +52,17 @@ class InviteTeamMember(BaseModel):
     role: str = Field(default="staff")
     role_id: Optional[str] = None
     password: str = Field(..., min_length=6, max_length=100)
+    access_starts_at: Optional[date] = None
+    access_ends_at: Optional[date] = None
 
 
 class UpdateTeamMember(BaseModel):
     role: Optional[str] = None
     role_id: Optional[str] = None
     is_active: Optional[bool] = None
+    access_starts_at: Optional[date] = None
+    access_ends_at: Optional[date] = None
+    clear_access_ends_at: Optional[bool] = None
 
 
 # ── Helpers ─────────────────────────────────────────────────────
@@ -71,6 +82,10 @@ def _member_to_dict(vu: VendorUser) -> dict:
         "invited_at": vu.invited_at.isoformat() if vu.invited_at else None,
         "accepted_at": vu.accepted_at.isoformat() if vu.accepted_at else None,
         "created_at": vu.created_at.isoformat() if vu.created_at else None,
+        "access_starts_at": vu.access_starts_at.isoformat() if vu.access_starts_at else None,
+        "access_ends_at": vu.access_ends_at.isoformat() if vu.access_ends_at else None,
+        "access_end_source": vu.access_end_source,
+        "access_sync_note": vu.access_sync_note,
         "user": {
             "id": str(user.id),
             "email": user.email,
@@ -107,6 +122,25 @@ async def list_team_members(
     })
 
 
+@router.get("/assignable-roles")
+async def list_assignable_roles(
+    vu: VendorUser = Depends(require_permission("team.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Built-in + custom roles for team invite/edit (does not require roles.view)."""
+    role_repo = VendorRoleRepository(db)
+    custom = await role_repo.list_by_vendor(vu.vendor_id, include_inactive=True)
+    from app.api.v1.vendor_roles import _role_to_dict
+
+    return JSONResponse({
+        "builtin_roles": [
+            {"slug": slug, "name": slug.replace("_", " ").title()}
+            for slug in ASSIGNABLE_BUILTIN_ROLES
+        ],
+        "custom_roles": [_role_to_dict(r) for r in custom],
+    })
+
+
 @router.get("/me")
 async def get_my_membership(
     vu: VendorUser = Depends(get_current_vendor_user),
@@ -134,7 +168,7 @@ async def invite_team_member(
     vu_repo = VendorUserRepository(db)
 
     # Validate role
-    valid_roles = list(DEFAULT_ROLE_PERMISSIONS.keys()) + ["custom"]
+    valid_roles = ASSIGNABLE_BUILTIN_ROLES + ["custom"]
     if data.role not in valid_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role: {data.role}")
     if data.role == "platform_staff":
@@ -216,6 +250,9 @@ async def invite_team_member(
         invited_by=vu.user_id,
         invited_at=now,
         accepted_at=now,
+        access_starts_at=data.access_starts_at,
+        access_ends_at=data.access_ends_at,
+        access_end_source="manual" if data.access_ends_at else None,
     )
     db.add(new_vu)
     await db.commit()
@@ -264,7 +301,7 @@ async def update_team_member(
         raise HTTPException(status_code=400, detail="Cannot modify your own membership. Ask another admin.")
 
     if data.role is not None:
-        valid_roles = list(DEFAULT_ROLE_PERMISSIONS.keys()) + ["custom"]
+        valid_roles = ASSIGNABLE_BUILTIN_ROLES + ["custom"]
         if data.role not in valid_roles:
             raise HTTPException(status_code=400, detail=f"Invalid role: {data.role}")
         if data.role == "owner":
@@ -283,6 +320,18 @@ async def update_team_member(
 
     if data.is_active is not None:
         member.is_active = data.is_active
+
+    if data.access_starts_at is not None:
+        member.access_starts_at = data.access_starts_at
+
+    if data.clear_access_ends_at:
+        member.access_ends_at = None
+        member.access_end_source = None
+        member.access_sync_note = None
+    elif data.access_ends_at is not None:
+        member.access_ends_at = data.access_ends_at
+        member.access_end_source = "manual"
+        member.access_sync_note = None
 
     await db.commit()
     await db.refresh(member)

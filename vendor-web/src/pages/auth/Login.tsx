@@ -156,12 +156,12 @@ export default function Login() {
 
   return (
     <Card className="w-full shadow-lg shadow-black/5 dark:shadow-black/40">
-      <CardHeader className="space-y-0.5 px-5 pt-[1.1875rem] pb-2.5">
+      <CardHeader className="space-y-0.5 px-5 pt-[1.2475rem] pb-[0.65625rem]">
         <CardTitle className="text-xl font-bold tracking-tight text-foreground">User Login</CardTitle>
         <p className="text-sm leading-snug text-muted-foreground">Sign in to manage your business operations</p>
       </CardHeader>
 
-      <CardContent className="w-full space-y-[0.95rem] px-5 pb-[1.1875rem] pt-0">
+      <CardContent className="w-full space-y-[0.9975rem] px-5 pb-[1.2475rem] pt-0">
         {showOffline && (
           <div
             className="rounded-lg border border-red-500/40 bg-red-500/10 px-2.5 py-2 text-xs text-foreground space-y-1.5 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-50"
@@ -242,7 +242,7 @@ export default function Login() {
           id="vendor-login-form"
           autoComplete="on"
           onSubmit={handleSubmit(onSubmit)}
-          className="w-full space-y-[0.7125rem]"
+          className="w-full space-y-[0.748125rem]"
         >
           <div className="w-full space-y-1">
             <Controller
@@ -269,7 +269,7 @@ export default function Login() {
           </div>
 
           <div className="w-full space-y-1">
-            <div className="flex min-h-[1.6625rem] items-center justify-between gap-2">
+            <div className="flex min-h-[1.745625rem] items-center justify-between gap-2">
               <Label htmlFor="password" className="text-xs font-semibold text-foreground">
                 Password
               </Label>
@@ -288,7 +288,7 @@ export default function Login() {
                 autoComplete="current-password"
                 {...register('password')}
                 placeholder="Enter password"
-                className="h-[calc(2.75rem*0.95*0.76)] min-h-[calc(2.75rem*0.95*0.76)] w-full rounded-md border-input pl-9 pr-9 text-xs"
+                className="h-[calc(2.75rem*0.95*0.76*1.05)] min-h-[calc(2.75rem*0.95*0.76*1.05)] w-full rounded-md border-input pl-9 pr-9 text-xs"
               />
               <button
                 type="button"
@@ -305,7 +305,7 @@ export default function Login() {
 
           <Button
             type="submit"
-            className="h-[calc(2.75rem*0.95*0.76)] min-h-[calc(2.75rem*0.95*0.76)] w-full rounded-md px-3 text-xs font-bold"
+            className="h-[calc(2.75rem*0.95*0.76*1.05)] min-h-[calc(2.75rem*0.95*0.76*1.05)] w-full rounded-md px-3 text-xs font-bold"
             disabled={loginMut.isPending}
           >
             {loginMut.isPending
@@ -331,7 +331,7 @@ export default function Login() {
           </div>
         </form>
 
-        <div className="space-y-[0.7125rem] border-t border-border pt-[0.95rem]">
+        <div className="space-y-[0.748125rem] border-t border-border pt-[0.9975rem]">
           <p className="text-center text-xs leading-relaxed text-muted-foreground">
             No account yet?{' '}
             <Link

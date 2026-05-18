@@ -32,7 +32,7 @@ const MODULE_LABELS: Record<string, string> = {
   customers: 'Customers',
   reviews: 'Reviews',
   settings: 'Settings',
-  team: 'Team',
+  team: 'Staff Access Control',
   roles: 'Roles',
   hr: 'Human Resources',
 }

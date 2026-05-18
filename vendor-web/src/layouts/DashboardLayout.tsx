@@ -336,7 +336,7 @@ const allSections: NavSection[] = [
       { to: '/invoices/templates', icon: FileText, label: 'Invoice Templates', alwaysShow: true },
       { to: '/purchase-orders/templates', icon: ClipboardList, label: 'PO Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
-      { to: '/team', icon: UsersRound, label: 'Team', requiresPermission: 'team.view' },
+      { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
       { to: '/plans', icon: CreditCard, label: 'Plans & Billing', alwaysShow: true },
     ],
@@ -568,7 +568,7 @@ const pageTitles: Record<string, string> = {
   '/blog': 'Blog Manager',
   '/finance/basic': 'Finance',
   '/stores': 'Company Codes',
-  '/team': 'Team',
+  '/team': 'Staff Access Control',
 
   '/roles': 'Roles',
   '/plans': 'Plans & Billing',
@@ -1944,7 +1944,7 @@ export default function DashboardLayout() {
                             className="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
                           >
                             <UsersRound className="w-4 h-4 text-muted-foreground" />
-                            <span className="flex-1">Team members</span>
+                            <span className="flex-1">Staff Access Control</span>
                           </Link>
                         )}
                         {(isOwnerOrAdmin || permissions.includes('roles.view')) && (

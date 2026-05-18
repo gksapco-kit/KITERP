@@ -496,6 +496,14 @@ export const vendorApi = {
     return response.data
   },
 
+  listAssignableTeamRoles: async (): Promise<{
+    builtin_roles: { slug: string; name: string }[]
+    custom_roles: VendorRole[]
+  }> => {
+    const response = await apiClient.get('/vendors/me/team/assignable-roles')
+    return response.data
+  },
+
   inviteTeamMember: async (data: {
     email: string
     full_name: string
@@ -503,6 +511,8 @@ export const vendorApi = {
     role: string
     role_id?: string
     password: string
+    access_starts_at?: string
+    access_ends_at?: string
   }): Promise<TeamMember & { _otp?: string }> => {
     const response = await apiClient.post('/vendors/me/team', data)
     return response.data
@@ -527,6 +537,9 @@ export const vendorApi = {
     role?: string
     role_id?: string
     is_active?: boolean
+    access_starts_at?: string | null
+    access_ends_at?: string | null
+    clear_access_ends_at?: boolean
   }): Promise<TeamMember> => {
     const response = await apiClient.put(`/vendors/me/team/${id}`, data)
     return response.data

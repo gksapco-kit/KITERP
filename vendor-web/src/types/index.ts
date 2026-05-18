@@ -76,6 +76,10 @@ export interface TeamMember {
   is_active: boolean
   invited_at?: string | null
   accepted_at?: string | null
+  access_starts_at?: string | null
+  access_ends_at?: string | null
+  access_end_source?: 'manual' | 'hr_lwd' | null
+  access_sync_note?: string | null
   created_at: string
   user?: {
     id: string

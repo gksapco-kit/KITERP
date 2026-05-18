@@ -1,5 +1,5 @@
 # app/models/vendor_user.py
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Index
+from sqlalchemy import Column, String, Boolean, DateTime, Date, ForeignKey, Index, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -25,6 +25,13 @@ class VendorUser(Base):
     permissions = Column(JSONB, default=[])
 
     is_active = Column(Boolean, default=True)
+
+    # Access window (optional); access_ends_at may be synced from HR employee LWD
+    access_starts_at = Column(Date, nullable=True)
+    access_ends_at = Column(Date, nullable=True)
+    access_end_source = Column(String(20), nullable=True)  # manual | hr_lwd
+    access_sync_note = Column(Text, nullable=True)
+
     invited_by = Column(UUID(as_uuid=True), ForeignKey("user.id"))
     invited_at = Column(DateTime(timezone=True))
     accepted_at = Column(DateTime(timezone=True))

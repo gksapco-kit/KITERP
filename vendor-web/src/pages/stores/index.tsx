@@ -236,19 +236,16 @@ function StoreModal({
   }
 
   return (
-<<<<<<< Updated upstream
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-5 border-b">
-          <h2 className="text-lg font-semibold">{store ? 'Edit Store' : 'Create New Store'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
-=======
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div
+        className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 className="text-lg font-semibold">{store ? 'Edit company code' : 'New company code'}</h2>
-          <button type="button" onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="w-5 h-5" /></button>
->>>>>>> Stashed changes
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-muted">
+            <X className="w-5 h-5" />
+          </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
 
@@ -348,8 +345,9 @@ function StoreModal({
                       <Button type="button" size="sm" className="h-8 px-3 shrink-0" onClick={addCustomType}>
                         Add
                       </Button>
-                      <button type="button" aria-label="Close"
+                      <button
                         type="button"
+                        aria-label="Close"
                         onClick={() => { setShowCustomInput(false); setCustomTypeInput('') }}
                         className="p-1 rounded hover:bg-gray-100 shrink-0"
                       >

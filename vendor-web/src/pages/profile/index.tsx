@@ -773,7 +773,7 @@ function ActivitySection({ open, toggle }: { open: boolean; toggle: () => void }
 function QuickLinks() {
   const items: { to: string; icon: ElementType; label: string; desc: string }[] = [
     { to: '/notifications/settings', icon: Bell, label: 'Notification preferences', desc: 'Channels, schedule, sounds' },
-    { to: '/team', icon: UsersRound, label: 'Team members', desc: 'Invite & manage your team' },
+    { to: '/team', icon: UsersRound, label: 'Staff Access Control', desc: 'Users, roles, and permissions' },
     { to: '/stores', icon: StoreIcon, label: 'Stores & locations', desc: 'Switch or manage stores' },
     { to: '/plans', icon: CreditCard, label: 'Plans & billing', desc: 'Subscription and invoices' },
   ]

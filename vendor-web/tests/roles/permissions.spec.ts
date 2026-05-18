@@ -24,7 +24,7 @@ test.describe('Feature 5: Roles — detailed permissions breakdown', () => {
 
     // Wait for expansion - permission module labels should appear
     // Module labels are: Dashboard, Products, Services, Orders, Customers, Reviews, Settings, Team, Roles
-    const moduleLabels = ['Dashboard', 'Products', 'Services', 'Orders', 'Customers', 'Reviews', 'Settings', 'Team', 'Roles'];
+    const moduleLabels = ['Dashboard', 'Products', 'Services', 'Orders', 'Customers', 'Reviews', 'Settings', 'Staff Access Control', 'Roles'];
     let sawModule = false;
     for (const label of moduleLabels) {
       const loc = page.getByText(label, { exact: true });

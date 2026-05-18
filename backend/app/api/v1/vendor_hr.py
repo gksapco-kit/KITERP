@@ -455,6 +455,9 @@ async def create_employee(
         ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
         data["pos_pin_hash"] = ctx.hash(data.pop("pos_pin"))
     emp = await svc.create_employee(vu.vendor_id, data)
+    if data.get("lwd") is not None:
+        from app.services.hr_access_sync import sync_lwd_to_vendor_user_access
+        await sync_lwd_to_vendor_user_access(db, emp, lwd=emp.lwd, previous_lwd=None)
     await db.commit()
     return _d(emp)
 
@@ -472,7 +475,14 @@ async def update_employee(
     if "pos_pin" in data:
         ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
         data["pos_pin_hash"] = ctx.hash(data.pop("pos_pin"))
+    prev_emp = await svc.get_employee(emp_id, vu.vendor_id)
+    previous_lwd = prev_emp.lwd if prev_emp else None
     emp = await svc.update_employee(emp_id, vu.vendor_id, data)
+    if "lwd" in data:
+        from app.services.hr_access_sync import sync_lwd_to_vendor_user_access
+        await sync_lwd_to_vendor_user_access(
+            db, emp, lwd=emp.lwd, previous_lwd=previous_lwd,
+        )
     await db.commit()
     return _d(emp)
 

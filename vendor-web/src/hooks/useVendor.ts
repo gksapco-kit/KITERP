@@ -23,6 +23,7 @@ export const vendorKeys = {
   reviews: (params?: Record<string, unknown>) => [...vendorKeys.all, 'reviews', params] as const,
   review: (id: string) => [...vendorKeys.all, 'review', id] as const,
   team: (params?: Record<string, unknown>) => [...vendorKeys.all, 'team', params] as const,
+  assignableTeamRoles: () => [...vendorKeys.all, 'assignable-team-roles'] as const,
   teamMember: (id: string) => [...vendorKeys.all, 'team-member', id] as const,
   myMembership: () => [...vendorKeys.all, 'my-membership'] as const,
   roles: () => [...vendorKeys.all, 'roles'] as const,
@@ -473,10 +474,27 @@ export function useMyMembership() {
   })
 }
 
+export function useAssignableTeamRoles() {
+  return useQuery({
+    queryKey: vendorKeys.assignableTeamRoles(),
+    queryFn: () => vendorApi.listAssignableTeamRoles(),
+    staleTime: 60_000,
+  })
+}
+
 export function useInviteTeamMember() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { email: string; full_name: string; phone?: string; role: string; role_id?: string; password: string }) =>
+    mutationFn: (data: {
+      email: string
+      full_name: string
+      phone?: string
+      role: string
+      role_id?: string
+      password: string
+      access_starts_at?: string
+      access_ends_at?: string
+    }) =>
       vendorApi.inviteTeamMember(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor', 'team'] })
@@ -508,7 +526,17 @@ export function useVerifyTeamMember() {
 export function useUpdateTeamMember() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { role?: string; role_id?: string; is_active?: boolean } }) =>
+    mutationFn: ({ id, data }: {
+      id: string
+      data: {
+        role?: string
+        role_id?: string
+        is_active?: boolean
+        access_starts_at?: string | null
+        access_ends_at?: string | null
+        clear_access_ends_at?: boolean
+      }
+    }) =>
       vendorApi.updateTeamMember(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor', 'team'] })
@@ -1261,6 +1289,7 @@ export function useUpdateHREmployee() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: vendorKeys.hrEmployee(vars.id) })
       qc.invalidateQueries({ queryKey: vendorKeys.hrEmployees() })
+      qc.invalidateQueries({ queryKey: ['vendor', 'team'] })
       toast.success('Employee updated')
     },
     onError: apiError('Could not update employee'),
