@@ -36,11 +36,11 @@ export function TableToolbar({
   extra,
 }: Props) {
   const selectCls =
-    'h-9 rounded-md border border-gray-200 bg-white px-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[8rem]'
+    'h-9 rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[8rem]'
 
   return (
     <div
-      className={`flex flex-col sm:flex-row gap-3 flex-wrap items-stretch sm:items-center border-b border-gray-100 bg-gray-50/90 px-4 py-3 ${className}`}
+      className={`flex flex-col sm:flex-row gap-3 flex-wrap items-stretch sm:items-center border-b border-border bg-muted/40 px-4 py-3 ${className}`}
     >
       {!hideSearch && (
         <div className="relative flex-1 min-w-[200px] max-w-md">
@@ -55,8 +55,8 @@ export function TableToolbar({
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-        {hint && <span className="text-[11px] text-gray-400 hidden md:inline max-w-[14rem]">{hint}</span>}
-        <span className="text-xs font-medium text-gray-500">Sort</span>
+        {hint && <span className="text-[11px] text-muted-foreground hidden md:inline max-w-[14rem]">{hint}</span>}
+        <span className="text-xs font-medium text-muted-foreground">Sort</span>
         <select
           value={sortKey}
           onChange={(e) => onSortKeyChange(e.target.value)}

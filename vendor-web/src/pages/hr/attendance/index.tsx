@@ -10,20 +10,21 @@ import {
   useHRMarkAttendance, useHRUpdateAttendance, useHRMarkAttendanceRange,
 } from '@/hooks/useVendor'
 import type { AttendanceRecord } from '@/types'
+import { cn } from '@/lib/utils'
 
 // ── Config ───────────────────────────────────────────────────────────────────────
 const STATUS_OPTS = ['present', 'absent', 'late', 'half_day', 'on_leave', 'holiday', 'week_off', 'time', 'total_hours']
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  present:     { label: 'Present',     color: 'text-green-700 bg-green-50 border-green-200',    icon: CheckCircle },
-  absent:      { label: 'Absent',      color: 'text-red-700 bg-red-50 border-red-200',          icon: XCircle },
-  late:        { label: 'Late',        color: 'text-orange-700 bg-orange-50 border-orange-200', icon: Clock },
-  half_day:    { label: 'Half Day',    color: 'text-yellow-700 bg-yellow-50 border-yellow-200', icon: AlertCircle },
-  on_leave:    { label: 'On Leave',    color: 'text-primary bg-primary/10 border-primary/30',       icon: Calendar },
+  present:     { label: 'Present',     color: 'text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-500/15 dark:border-green-500/30', icon: CheckCircle },
+  absent:      { label: 'Absent',      color: 'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-500/15 dark:border-red-500/30', icon: XCircle },
+  late:        { label: 'Late',        color: 'text-orange-700 bg-orange-50 border-orange-200 dark:text-orange-300 dark:bg-orange-500/15 dark:border-orange-500/30', icon: Clock },
+  half_day:    { label: 'Half Day',    color: 'text-yellow-700 bg-yellow-50 border-yellow-200 dark:text-yellow-300 dark:bg-yellow-500/15 dark:border-yellow-500/30', icon: AlertCircle },
+  on_leave:    { label: 'On Leave',    color: 'text-primary bg-primary/10 border-primary/30', icon: Calendar },
   holiday:     { label: 'Holiday',     color: 'text-primary bg-accent border-primary/30', icon: Calendar },
-  week_off:    { label: 'Week Off',    color: 'text-gray-600 bg-gray-100 border-gray-200',      icon: Calendar },
-  time:        { label: 'Time Entry',  color: 'text-indigo-700 bg-indigo-50 border-indigo-200', icon: Timer },
-  total_hours: { label: 'Total Hours', color: 'text-teal-700 bg-teal-50 border-teal-200',       icon: Clock },
+  week_off:    { label: 'Week Off',    color: 'text-muted-foreground bg-muted border-border', icon: Calendar },
+  time:        { label: 'Time Entry',  color: 'text-indigo-700 bg-indigo-50 border-indigo-200 dark:text-indigo-300 dark:bg-indigo-500/15 dark:border-indigo-500/30', icon: Timer },
+  total_hours: { label: 'Total Hours', color: 'text-teal-700 bg-teal-50 border-teal-200 dark:text-teal-300 dark:bg-teal-500/15 dark:border-teal-500/30', icon: Clock },
 }
 
 function calcHours(start: string, end: string): number {
@@ -35,14 +36,14 @@ function calcHours(start: string, end: string): number {
 }
 
 const APPROVAL_CONFIG: Record<string, { label: string; color: string }> = {
-  pending:  { label: 'Pending',  color: 'text-amber-700 bg-amber-50 border border-amber-200' },
-  approved: { label: 'Approved', color: 'text-green-700 bg-green-50 border border-green-200' },
-  rejected: { label: 'Rejected', color: 'text-red-700 bg-red-50 border border-red-200' },
+  pending:  { label: 'Pending',  color: 'text-amber-700 bg-amber-50 border border-amber-200 dark:text-amber-300 dark:bg-amber-500/15 dark:border-amber-500/30' },
+  approved: { label: 'Approved', color: 'text-green-700 bg-green-50 border border-green-200 dark:text-green-300 dark:bg-green-500/15 dark:border-green-500/30' },
+  rejected: { label: 'Rejected', color: 'text-red-700 bg-red-50 border border-red-200 dark:text-red-300 dark:bg-red-500/15 dark:border-red-500/30' },
 }
 
 // ── Badges ───────────────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, color: 'text-gray-600 bg-gray-100 border-gray-200', icon: Clock }
+  const cfg = STATUS_CONFIG[status] ?? { label: status, color: 'text-muted-foreground bg-muted border-border', icon: Clock }
   return (
     <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border ${cfg.color}`}>
       <cfg.icon className="w-3 h-3" />{cfg.label}
@@ -383,7 +384,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 w-7">From</span>
                 <input type="date"
-                  className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
+                  className="form-select"
                   value={fromDate}
                   onChange={e => { setFromDate(e.target.value); if (e.target.value > toDate) setToDate(e.target.value) }}
                 />
@@ -391,7 +392,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 w-4">To</span>
                 <input type="date" min={fromDate}
-                  className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
+                  className="form-select"
                   value={toDate}
                   onChange={e => setToDate(e.target.value)}
                 />
@@ -815,8 +816,8 @@ export default function AttendancePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Attendance</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Attendance</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {isRange ? `${fromDate} → ${toDate}` : `Daily — ${fromDate}`}
           </p>
         </div>
@@ -851,20 +852,20 @@ export default function AttendancePage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-4">
+      <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 mb-4">
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-500 whitespace-nowrap">From</label>
+            <label className="text-xs text-muted-foreground whitespace-nowrap">From</label>
             <input type="date"
-              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
+              className="form-select"
               value={fromDate}
               onChange={e => { setFromDate(e.target.value); if (e.target.value > toDate) setToDate(e.target.value) }}
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-500 whitespace-nowrap">To</label>
+            <label className="text-xs text-muted-foreground whitespace-nowrap">To</label>
             <input type="date" min={fromDate}
-              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
+              className="form-select"
               value={toDate}
               onChange={e => setToDate(e.target.value)}
             />
@@ -878,25 +879,25 @@ export default function AttendancePage() {
             ))}
           </div>
           <button onClick={() => setShowFilters(v => !v)}
-            className="ml-auto flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
+            className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
             More Filters <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </button>
         </div>
         {showFilters && (
           <div className="flex flex-wrap gap-3 pt-3 border-t">
-            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
+            <select className="form-select" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
               <option value="">All Departments</option>
               {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
-            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={empFilter} onChange={e => setEmpFilter(e.target.value)}>
+            <select className="form-select" value={empFilter} onChange={e => setEmpFilter(e.target.value)}>
               <option value="">All Employees</option>
               {employees.map((e: any) => <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
             </select>
-            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
               {STATUS_OPTS.map(s => <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>)}
             </select>
-            <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)}>
+            <select className="form-select" value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)}>
               <option value="">All Approval</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
@@ -913,13 +914,13 @@ export default function AttendancePage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Loading…</div>
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : records.length === 0 ? (
           <div className="p-12 text-center">
-            <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 mb-3">No attendance records found for this range.</p>
+            <Calendar className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
+            <p className="text-muted-foreground mb-3">No attendance records found for this range.</p>
             <button onClick={() => setShowRange(true)}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm border border-primary/40 text-primary rounded-lg hover:bg-primary/10">
               <CalendarRange className="w-4 h-4" /> Mark Attendance Range
@@ -928,28 +929,28 @@ export default function AttendancePage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-muted/60 border-b border-border">
                 <tr>
                   {['Employee', 'Date', 'Clock In', 'Clock Out', 'Hours', 'Status', 'Approval', 'Actions'].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">{h}</th>
+                    <th key={h} className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-border">
                 {records.map(r => {
                   const name = (r.employee as any)?.vendor_user?.user?.full_name ?? (r.employee as any)?.employee_code ?? '—'
                   const approvalStatus = r.approval_status ?? 'pending'
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4 font-medium text-gray-900 whitespace-nowrap">{name}</td>
-                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap">{r.date}</td>
-                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                    <tr key={r.id} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-3 px-4 font-medium text-foreground whitespace-nowrap">{name}</td>
+                      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">{r.date}</td>
+                      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
                         {r.clock_in ? new Date(r.clock_in).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
-                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
                         {r.clock_out ? new Date(r.clock_out).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
-                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
                         {r.work_hours != null ? `${Number(r.work_hours).toFixed(1)}h` : '—'}
                         {r.overtime_hours != null && Number(r.overtime_hours) > 0 && (
                           <span className="text-xs text-primary/70 ml-1">+{Number(r.overtime_hours).toFixed(1)}OT</span>
@@ -978,7 +979,7 @@ export default function AttendancePage() {
                 })}
               </tbody>
             </table>
-            <div className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-500">
+            <div className="px-4 py-2 border-t border-border bg-muted/40 text-xs text-muted-foreground">
               {records.length} record{records.length !== 1 ? 's' : ''} · {attData?.total ?? records.length} total
             </div>
           </div>

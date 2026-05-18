@@ -22,8 +22,8 @@ export default function WorkspaceHubPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Workspace apps</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-xl font-bold text-foreground">Workspace apps</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Shortcuts to capabilities across finance, sales, marketing, services, and HR — without duplicating full Odoo-style standalone apps.
         </p>
       </div>
@@ -32,12 +32,12 @@ export default function WorkspaceHubPage() {
           <Link
             key={t.to}
             to={t.to}
-            className="rounded-xl border bg-white p-4 shadow-sm hover:border-primary/40 hover:bg-accent/60 transition-colors flex gap-3"
+            className="rounded-xl border border-border bg-card text-card-foreground p-4 shadow-sm hover:border-primary/40 hover:bg-accent/60 transition-colors flex gap-3"
           >
             <t.icon className="w-8 h-8 text-primary shrink-0" />
             <div>
-              <p className="font-semibold text-gray-900">{t.title}</p>
-              <p className="text-xs text-gray-500 mt-1 leading-snug">{t.desc}</p>
+              <p className="font-semibold text-foreground">{t.title}</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-snug">{t.desc}</p>
             </div>
           </Link>
         ))}

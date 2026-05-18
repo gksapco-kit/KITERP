@@ -807,7 +807,7 @@ export default function CreditDebitMemos() {
             <select
               value={histTypeFilter}
               onChange={(e) => setHistTypeFilter(e.target.value)}
-              className="text-xs border rounded-md px-2 py-1.5 h-9"
+              className="form-select text-xs min-w-[8rem]"
             >
               <option value="">All Memos</option>
               <option value="credit_memo">Credit Memos</option>

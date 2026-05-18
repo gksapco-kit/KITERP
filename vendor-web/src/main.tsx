@@ -75,7 +75,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <ThemeSync />
         <RouterProvider router={router} />
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-right" richColors closeButton />
       </QueryClientProvider>
     </RootErrorBoundary>
   </React.StrictMode>,

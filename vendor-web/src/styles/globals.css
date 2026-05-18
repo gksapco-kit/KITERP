@@ -157,8 +157,14 @@
   /* Icon-only round button — e.g. close × trash in chips */
   .btn-icon-xs {
     @apply inline-flex items-center justify-center w-5 h-5 rounded-full
-           text-gray-400 hover:text-gray-600 hover:bg-gray-100
+           text-muted-foreground hover:text-foreground hover:bg-muted
            transition-all duration-150;
+  }
+
+  /* Native selects — use on pages that still use raw <select> */
+  .form-select {
+    @apply h-9 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground
+           focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* Pill toggle chip — day selectors, filter chips */
@@ -167,7 +173,7 @@
            border transition-all duration-150 cursor-pointer select-none;
   }
   .chip-default {
-    @apply chip border-gray-200 bg-white text-gray-600
+    @apply chip border-border bg-card text-muted-foreground
            hover:border-primary/40 hover:bg-accent hover:text-primary;
   }
   .chip-active {
@@ -182,6 +188,150 @@
   .btn-brand:hover:not(:disabled) {
     background-color: #52b38f;
   }
+}
+
+/*
+ * Dark mode — remap legacy light-only Tailwind classes (bg-white, text-gray-*, etc.)
+ * so pages match dashboard Card styling without editing every file.
+ */
+.dark {
+  color-scheme: dark;
+}
+
+.dark .bg-white {
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.dark .bg-gray-50\/90,
+.dark .bg-gray-50\/80 {
+  background-color: hsl(var(--muted) / 0.9) !important;
+}
+
+.dark .text-gray-900,
+.dark .text-slate-900,
+.dark .text-gray-800,
+.dark .text-slate-800 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark .text-gray-700,
+.dark .text-slate-700,
+.dark .text-gray-600,
+.dark .text-slate-600 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.dark .text-gray-500,
+.dark .text-slate-500,
+.dark .text-gray-400,
+.dark .text-slate-400 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.dark .border-gray-200,
+.dark .border-gray-100,
+.dark .border-slate-200,
+.dark .border-slate-100,
+.dark .border-slate-200\/90 {
+  border-color: hsl(var(--border)) !important;
+}
+
+.dark select:not([class*='bg-']),
+.dark textarea:not([class*='bg-']) {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.dark select option {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.dark .hover\:bg-white:hover,
+.dark .hover\:bg-gray-50:hover {
+  background-color: hsl(var(--accent)) !important;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.dark .disabled\:bg-slate-50:disabled {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: hsl(var(--border));
+}
+
+.dark .bg-blue-50 {
+  background-color: hsl(217 45% 14%) !important;
+}
+
+.dark .bg-amber-50 {
+  background-color: hsl(38 40% 14%) !important;
+}
+
+.dark .bg-red-50 {
+  background-color: hsl(0 40% 14%) !important;
+}
+
+.dark .bg-emerald-50 {
+  background-color: hsl(152 35% 12%) !important;
+}
+
+.dark .bg-green-50 {
+  background-color: hsl(152 35% 12%) !important;
+}
+
+.dark .border-green-100 {
+  border-color: hsl(152 35% 28%) !important;
+}
+
+.dark .border-red-100 {
+  border-color: hsl(0 40% 28%) !important;
+}
+
+.dark .border-amber-100 {
+  border-color: hsl(38 40% 28%) !important;
+}
+
+.dark .text-green-800,
+.dark .text-green-700 {
+  color: hsl(142 70% 78%) !important;
+}
+
+.dark .text-green-600 {
+  color: hsl(142 55% 68%) !important;
+}
+
+.dark .text-red-800,
+.dark .text-red-700 {
+  color: hsl(0 75% 78%) !important;
+}
+
+.dark .text-red-600 {
+  color: hsl(0 65% 68%) !important;
+}
+
+.dark .text-amber-800,
+.dark .text-amber-700 {
+  color: hsl(38 85% 78%) !important;
+}
+
+.dark .text-amber-600 {
+  color: hsl(38 75% 68%) !important;
+}
+
+.dark .bg-gray-50\/80 {
+  background-color: hsl(var(--muted) / 0.8) !important;
 }
 
 @layer utilities {
@@ -370,4 +520,119 @@
   --hosp-bg: 150 28% 96%;
   --hosp-ink: 165 35% 14%;
   --hosp-accent: 162 52% 38%;
+}
+
+/* Sonner — reference layout: left accent, title/message, close on right center */
+html[dir='ltr'],
+[data-sonner-toaster][dir='ltr'] {
+  --toast-close-button-start: unset;
+  --toast-close-button-end: 14px;
+  --toast-close-button-transform: translateY(-50%);
+}
+
+html[dir='rtl'],
+[data-sonner-toaster][dir='rtl'] {
+  --toast-close-button-start: 14px;
+  --toast-close-button-end: unset;
+  --toast-close-button-transform: translateY(-50%);
+}
+
+[data-sonner-toast][data-styled='true'] {
+  min-height: 3.5rem;
+  padding: 0.875rem 2.75rem 0.875rem 1rem;
+  border-radius: 6px;
+  border-width: 1px;
+  border-style: solid;
+  border-left-width: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  align-items: center;
+}
+
+html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button]) {
+  padding-right: 1rem;
+  padding-left: 2.75rem;
+}
+
+[data-sonner-toast][data-styled='true'] [data-content] {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-sonner-toast][data-styled='true'] [data-title] {
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+[data-sonner-toast][data-styled='true'] [data-description] {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #6b7280;
+}
+
+[data-sonner-toast][data-styled='true'] [data-close-button] {
+  top: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 4px;
+  box-shadow: none;
+  opacity: 0.45;
+  color: #6b7280;
+}
+
+[data-sonner-toast][data-styled='true'] [data-close-button]:hover {
+  opacity: 0.9;
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-rich-colors='true'][data-sonner-toast][data-type='success'] {
+  background: #fff !important;
+  border-color: #e5e7eb !important;
+  border-left-color: #22c55e !important;
+  color: #111827 !important;
+}
+
+[data-rich-colors='true'][data-sonner-toast][data-type='success'] [data-description] {
+  color: #6b7280;
+}
+
+[data-rich-colors='true'][data-sonner-toast][data-type='error'] {
+  background: #fff !important;
+  border-color: #e5e7eb !important;
+  border-left-color: #ef4444 !important;
+  color: #111827 !important;
+}
+
+[data-rich-colors='true'][data-sonner-toast][data-type='warning'] {
+  background: #fff !important;
+  border-color: #e5e7eb !important;
+  border-left-color: #f59e0b !important;
+  color: #111827 !important;
+}
+
+[data-rich-colors='true'][data-sonner-toast][data-type='info'] {
+  background: #fff !important;
+  border-color: #e5e7eb !important;
+  border-left-color: #3b82f6 !important;
+  color: #111827 !important;
+}
+
+[data-sonner-toaster][data-sonner-theme='dark'] [data-rich-colors='true'][data-sonner-toast][data-styled='true'] {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+[data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast][data-styled='true'] [data-description] {
+  color: hsl(var(--muted-foreground));
+}
+
+[data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast][data-styled='true'] [data-close-button] {
+  color: hsl(var(--muted-foreground));
+}
+
+[data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast][data-styled='true'] [data-close-button]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
 }

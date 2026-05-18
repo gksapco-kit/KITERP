@@ -2,12 +2,13 @@
  * VarianceAnalysis — cross-order variance analysis with price/usage/overhead
  * breakdown, filterable by order kind, status, company.
  */
-import { useState, useMemo } from 'react'
+import { Fragment, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, TrendingDown, TrendingUp, Minus } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import { useManufacturingOrders } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 const ORDER_KINDS = ['', 'assembly', 'process', 'project', 'internal']
 const STATUSES = ['', 'draft', 'released', 'in_progress', 'completed', 'closed']
@@ -57,14 +58,22 @@ function computeVariance(lines: CostLine[]) {
 }
 
 function VariancePill({ value }: { value: number }) {
-  if (value === 0) return <span className="text-gray-400 flex items-center gap-1"><Minus className="w-3 h-3" /> 0</span>
-  if (value > 0) return (
-    <span className="text-red-600 font-semibold flex items-center gap-1">
-      <TrendingUp className="w-3 h-3" /> +{formatCurrency(value)}
-    </span>
-  )
+  if (value === 0) {
+    return (
+      <span className="text-muted-foreground flex items-center gap-1 justify-end">
+        <Minus className="w-3 h-3" /> 0
+      </span>
+    )
+  }
+  if (value > 0) {
+    return (
+      <span className="text-red-500 dark:text-red-400 font-semibold flex items-center gap-1 justify-end">
+        <TrendingUp className="w-3 h-3" /> +{formatCurrency(value)}
+      </span>
+    )
+  }
   return (
-    <span className="text-emerald-600 font-semibold flex items-center gap-1">
+    <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 justify-end">
       <TrendingDown className="w-3 h-3" /> {formatCurrency(value)}
     </span>
   )
@@ -72,15 +81,17 @@ function VariancePill({ value }: { value: number }) {
 
 const statusColor = (s: string) => {
   const m: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-500',
-    released: 'bg-blue-100 text-blue-600',
-    in_progress: 'bg-amber-100 text-amber-700',
-    completed: 'bg-emerald-100 text-emerald-700',
-    closed: 'bg-gray-200 text-gray-500',
-    cancelled: 'bg-red-100 text-red-600',
+    draft: 'bg-muted text-muted-foreground',
+    released: 'bg-blue-500/15 text-blue-600 dark:text-blue-300',
+    in_progress: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+    completed: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+    closed: 'bg-muted text-muted-foreground',
+    cancelled: 'bg-red-500/15 text-red-600 dark:text-red-300',
   }
-  return m[s] ?? 'bg-gray-100 text-gray-500'
+  return m[s] ?? 'bg-muted text-muted-foreground'
 }
+
+const filterSelectCls = 'form-select min-w-[10rem]'
 
 export default function VarianceAnalysisPage() {
   const { data: companies = [] } = useCompanies()
@@ -103,8 +114,8 @@ export default function VarianceAnalysisPage() {
 
   const orders = ordersRaw as OrderRow[]
 
-  const analyzed = useMemo(() =>
-    orders.map(o => ({ ...o, ...computeVariance(o.cost_lines ?? []) })),
+  const analyzed = useMemo(
+    () => orders.map(o => ({ ...o, ...computeVariance(o.cost_lines ?? []) })),
     [orders],
   )
 
@@ -135,36 +146,57 @@ export default function VarianceAnalysisPage() {
   return (
     <div className="p-6 max-w-7xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Variance Analysis</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Variance Analysis</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Cross-order planned vs actual cost analysis with price, usage, overhead and scrap variance breakdown.
         </p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-xs text-gray-500 mb-1">Orders analyzed</p>
-          <p className="text-2xl font-bold text-gray-900">{analyzed.length}</p>
-          <p className="text-xs text-gray-400 mt-1">
-            <span className="text-red-500 font-medium">{unfavorableCount} unfavorable</span>
+        <div className="rounded-xl border border-border bg-card p-4 text-card-foreground">
+          <p className="text-xs text-muted-foreground mb-1">Orders analyzed</p>
+          <p className="text-2xl font-bold text-foreground">{analyzed.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="text-red-500 dark:text-red-400 font-medium">{unfavorableCount} unfavorable</span>
             {' · '}
-            <span className="text-emerald-500 font-medium">{favorableCount} favorable</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-medium">{favorableCount} favorable</span>
           </p>
         </div>
-        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-          <p className="text-xs text-blue-600 mb-1">Total planned</p>
-          <p className="text-2xl font-bold text-blue-700">{formatCurrency(totals.planned)}</p>
+        <div className="rounded-xl border border-blue-200/80 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 p-4">
+          <p className="text-xs text-blue-600 dark:text-blue-300 mb-1">Total planned</p>
+          <p className="text-2xl font-bold text-blue-700 dark:text-blue-200">{formatCurrency(totals.planned)}</p>
         </div>
-        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-          <p className="text-xs text-amber-600 mb-1">Total actual</p>
-          <p className="text-2xl font-bold text-amber-700">{formatCurrency(totals.actual)}</p>
+        <div className="rounded-xl border border-amber-200/80 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-4">
+          <p className="text-xs text-amber-600 dark:text-amber-300 mb-1">Total actual</p>
+          <p className="text-2xl font-bold text-amber-700 dark:text-amber-200">{formatCurrency(totals.actual)}</p>
         </div>
-        <div className={`rounded-xl border p-4 ${totals.variance > 0 ? 'bg-red-50 border-red-100' : totals.variance < 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-200'}`}>
-          <p className={`text-xs mb-1 ${totals.variance > 0 ? 'text-red-600' : totals.variance < 0 ? 'text-emerald-600' : 'text-gray-500'}`}>
+        <div
+          className={cn(
+            'rounded-xl border p-4',
+            totals.variance > 0 && 'bg-red-50 dark:bg-red-500/10 border-red-200/80 dark:border-red-500/30',
+            totals.variance < 0 && 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200/80 dark:border-emerald-500/30',
+            totals.variance === 0 && 'bg-card border-border',
+          )}
+        >
+          <p
+            className={cn(
+              'text-xs mb-1',
+              totals.variance > 0 && 'text-red-600 dark:text-red-300',
+              totals.variance < 0 && 'text-emerald-600 dark:text-emerald-300',
+              totals.variance === 0 && 'text-muted-foreground',
+            )}
+          >
             Net variance {totals.variance > 0 ? '(unfavorable)' : totals.variance < 0 ? '(favorable)' : ''}
           </p>
-          <p className={`text-2xl font-bold ${totals.variance > 0 ? 'text-red-700' : totals.variance < 0 ? 'text-emerald-700' : 'text-gray-700'}`}>
+          <p
+            className={cn(
+              'text-2xl font-bold',
+              totals.variance > 0 && 'text-red-700 dark:text-red-200',
+              totals.variance < 0 && 'text-emerald-700 dark:text-emerald-200',
+              totals.variance === 0 && 'text-foreground',
+            )}
+          >
             {totals.variance >= 0 ? '+' : ''}{formatCurrency(totals.variance)}
           </p>
         </div>
@@ -178,8 +210,8 @@ export default function VarianceAnalysisPage() {
           { label: 'Overhead variance', value: totals.overhead, help: 'Overhead actual − overhead planned' },
           { label: 'Scrap variance', value: totals.scrap, help: 'Scrap cost deviation from plan' },
         ].map(({ label, value, help }) => (
-          <div key={label} className="rounded-lg border border-gray-200 bg-white p-3" title={help}>
-            <p className="text-[11px] text-gray-500 mb-1">{label}</p>
+          <div key={label} className="rounded-lg border border-border bg-card p-3 text-card-foreground" title={help}>
+            <p className="text-[11px] text-muted-foreground mb-1">{label}</p>
             <VariancePill value={value} />
           </div>
         ))}
@@ -188,158 +220,216 @@ export default function VarianceAnalysisPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
+          <select value={activeCo} onChange={e => setCompanyId(e.target.value)} className={filterSelectCls}>
             {companies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
           </select>
         )}
-        <select value={kindFilter} onChange={e => setKindFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
+        <select value={kindFilter} onChange={e => setKindFilter(e.target.value)} className={filterSelectCls}>
           {ORDER_KINDS.map(k => <option key={k} value={k}>{k || 'All kinds'}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={filterSelectCls}>
           {STATUSES.map(s => <option key={s} value={s}>{s || 'All statuses'}</option>)}
         </select>
-        <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
+        <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className={filterSelectCls}>
           <option value="variance">Sort: largest variance first</option>
           <option value="actual">Sort: highest actual cost</option>
           <option value="order_no">Sort: order number</option>
         </select>
       </div>
 
-      {/* Main table */}
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-[12px]">
-            <tr>
-              <th className="px-4 py-3 font-medium text-gray-600">Order</th>
-              <th className="px-4 py-3 font-medium text-gray-600">Kind / Status</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Planned</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Actual</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Variance</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Price Var</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">Usage Var</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-right">OH Var</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {isLoading && (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400">Loading…</td></tr>
-            )}
-            {!isLoading && sorted.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400">No orders with cost data.</td></tr>
-            )}
-            {sorted.map(o => {
-              const varColor = o.variance > 0 ? 'text-red-600' : o.variance < 0 ? 'text-emerald-600' : 'text-gray-500'
-              const isExpanded = expandedId === o.id
-              return (
-                <>
-                  <tr
-                    key={o.id}
-                    className={`hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-accent/60' : ''}`}
-                    onClick={() => setExpandedId(isExpanded ? null : o.id)}
-                  >
-                    <td className="px-4 py-3">
-                      <p className="font-mono text-xs font-semibold text-gray-900">{o.order_no}</p>
-                      {o.title && <p className="text-[11px] text-gray-500 truncate max-w-[180px]">{o.title}</p>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-medium text-gray-600">{o.order_kind}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium w-fit ${statusColor(o.status)}`}>{o.status}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-700">{formatCurrency(o.totalP)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-700">{formatCurrency(o.totalA)}</td>
-                    <td className={`px-4 py-3 text-right tabular-nums font-semibold ${varColor}`}>
-                      {o.variance >= 0 ? '+' : ''}{formatCurrency(o.variance)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-600 text-xs">
-                      <VariancePill value={o.priceVar} />
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-600 text-xs">
-                      <VariancePill value={o.usageVar} />
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-600 text-xs">
-                      <VariancePill value={o.overheadVar} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        to={`/controlling/orders/${o.id}`}
-                        onClick={e => e.stopPropagation()}
-                        className="text-primary/80 hover:text-primary"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Link>
-                    </td>
-                  </tr>
-                  {isExpanded && (o.cost_lines ?? []).length > 0 && (
-                    <tr key={`${o.id}-detail`} className="bg-gray-50/80">
-                      <td colSpan={9} className="px-6 py-3">
-                        <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
-                          <table className="w-full text-xs">
-                            <thead className="bg-gray-100 text-gray-600">
-                              <tr>
-                                <th className="px-3 py-2 text-left">Category</th>
-                                <th className="px-3 py-2 text-left">Description</th>
-                                <th className="px-3 py-2 text-right">Qty Plan</th>
-                                <th className="px-3 py-2 text-right">Qty Act</th>
-                                <th className="px-3 py-2 text-right">Rate Plan</th>
-                                <th className="px-3 py-2 text-right">Rate Act</th>
-                                <th className="px-3 py-2 text-right">Amt Plan</th>
-                                <th className="px-3 py-2 text-right">Amt Act</th>
-                                <th className="px-3 py-2 text-right">Variance</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                              {(o.cost_lines ?? []).map(ln => {
-                                const lineVar = parseFloat(ln.amount_actual) - parseFloat(ln.amount_planned)
-                                return (
-                                  <tr key={ln.id}>
-                                    <td className="px-3 py-1.5 font-medium text-gray-700">{ln.category}</td>
-                                    <td className="px-3 py-1.5 text-gray-500">{ln.description ?? '—'}</td>
-                                    <td className="px-3 py-1.5 text-right tabular-nums">{parseFloat(ln.qty_planned).toFixed(2)}</td>
-                                    <td className="px-3 py-1.5 text-right tabular-nums">{parseFloat(ln.qty_actual).toFixed(2)}</td>
-                                    <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(parseFloat(ln.rate_planned))}</td>
-                                    <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(parseFloat(ln.rate_actual))}</td>
-                                    <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(parseFloat(ln.amount_planned))}</td>
-                                    <td className="px-3 py-1.5 text-right tabular-nums">{formatCurrency(parseFloat(ln.amount_actual))}</td>
-                                    <td className={`px-3 py-1.5 text-right tabular-nums font-semibold ${lineVar > 0 ? 'text-red-600' : lineVar < 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                      {lineVar >= 0 ? '+' : ''}{formatCurrency(lineVar)}
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
+      {/* Orders grid */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+        <div className="px-4 py-3 border-b border-border bg-muted/40">
+          <h2 className="text-sm font-semibold text-foreground">Orders — variance summary</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Click a row to expand cost line detail.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/60 text-left text-[12px] border-b border-border">
+              <tr>
+                <th className="px-4 py-3 font-medium text-muted-foreground">Order</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground">Kind / Status</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Planned</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Actual</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Variance</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Price Var</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right">Usage Var</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground text-right">OH Var</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading && (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">Loading…</td>
+                </tr>
+              )}
+              {!isLoading && sorted.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                    No orders with cost data.
+                  </td>
+                </tr>
+              )}
+              {sorted.map(o => {
+                const varColor =
+                  o.variance > 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : o.variance < 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-muted-foreground'
+                const isExpanded = expandedId === o.id
+                return (
+                  <Fragment key={o.id}>
+                    <tr
+                      className={cn(
+                        'hover:bg-muted/40 cursor-pointer transition-colors',
+                        isExpanded && 'bg-accent/50',
+                      )}
+                      onClick={() => setExpandedId(isExpanded ? null : o.id)}
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-mono text-xs font-semibold text-foreground">{o.order_no}</p>
+                        {o.title && (
+                          <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">{o.title}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-medium text-muted-foreground">{o.order_kind}</span>
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium w-fit', statusColor(o.status))}>
+                            {o.status}
+                          </span>
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatCurrency(o.totalP)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatCurrency(o.totalA)}</td>
+                      <td className={cn('px-4 py-3 text-right tabular-nums font-semibold', varColor)}>
+                        {o.variance >= 0 ? '+' : ''}{formatCurrency(o.variance)}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-xs">
+                        <VariancePill value={o.priceVar} />
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-xs">
+                        <VariancePill value={o.usageVar} />
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-xs">
+                        <VariancePill value={o.overheadVar} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Link
+                          to={`/controlling/orders/${o.id}`}
+                          onClick={e => e.stopPropagation()}
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
+                      </td>
                     </tr>
-                  )}
-                </>
-              )
-            })}
-          </tbody>
-          {sorted.length > 0 && (
-            <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-semibold text-sm">
-              <tr>
-                <td colSpan={2} className="px-4 py-3 text-gray-700">Totals ({sorted.length} orders)</td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-900">{formatCurrency(totals.planned)}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-900">{formatCurrency(totals.actual)}</td>
-                <td className={`px-4 py-3 text-right tabular-nums ${totals.variance > 0 ? 'text-red-700' : totals.variance < 0 ? 'text-emerald-700' : 'text-gray-700'}`}>
-                  {totals.variance >= 0 ? '+' : ''}{formatCurrency(totals.variance)}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-600 text-xs"><VariancePill value={totals.price} /></td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-600 text-xs"><VariancePill value={totals.usage} /></td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-600 text-xs"><VariancePill value={totals.overhead} /></td>
-                <td />
-              </tr>
-            </tfoot>
-          )}
-        </table>
+                    {isExpanded && (o.cost_lines ?? []).length > 0 && (
+                      <tr className="bg-muted/30">
+                        <td colSpan={9} className="px-4 py-4">
+                          <div className="rounded-lg border border-border bg-card overflow-hidden">
+                            <div className="px-3 py-2 border-b border-border bg-muted/40">
+                              <h3 className="text-xs font-semibold text-foreground">
+                                Cost lines — {o.order_no}
+                              </h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead className="bg-muted/50 text-muted-foreground border-b border-border">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left font-medium">Category</th>
+                                    <th className="px-3 py-2 text-left font-medium">Description</th>
+                                    <th className="px-3 py-2 text-right font-medium">Qty Plan</th>
+                                    <th className="px-3 py-2 text-right font-medium">Qty Act</th>
+                                    <th className="px-3 py-2 text-right font-medium">Rate Plan</th>
+                                    <th className="px-3 py-2 text-right font-medium">Rate Act</th>
+                                    <th className="px-3 py-2 text-right font-medium">Amt Plan</th>
+                                    <th className="px-3 py-2 text-right font-medium">Amt Act</th>
+                                    <th className="px-3 py-2 text-right font-medium">Variance</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                  {(o.cost_lines ?? []).map(ln => {
+                                    const lineVar = parseFloat(ln.amount_actual) - parseFloat(ln.amount_planned)
+                                    return (
+                                      <tr key={ln.id} className="hover:bg-muted/30">
+                                        <td className="px-3 py-1.5 font-medium text-foreground">{ln.category}</td>
+                                        <td className="px-3 py-1.5 text-muted-foreground">{ln.description ?? '—'}</td>
+                                        <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
+                                          {parseFloat(ln.qty_planned).toFixed(2)}
+                                        </td>
+                                        <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
+                                          {parseFloat(ln.qty_actual).toFixed(2)}
+                                        </td>
+                                        <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
+                                          {formatCurrency(parseFloat(ln.rate_planned))}
+                                        </td>
+                                        <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
+                                          {formatCurrency(parseFloat(ln.rate_actual))}
+                                        </td>
+                                        <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
+                                          {formatCurrency(parseFloat(ln.amount_planned))}
+                                        </td>
+                                        <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
+                                          {formatCurrency(parseFloat(ln.amount_actual))}
+                                        </td>
+                                        <td
+                                          className={cn(
+                                            'px-3 py-1.5 text-right tabular-nums font-semibold',
+                                            lineVar > 0 && 'text-red-600 dark:text-red-400',
+                                            lineVar < 0 && 'text-emerald-600 dark:text-emerald-400',
+                                            lineVar === 0 && 'text-muted-foreground',
+                                          )}
+                                        >
+                                          {lineVar >= 0 ? '+' : ''}{formatCurrency(lineVar)}
+                                        </td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+            {sorted.length > 0 && (
+              <tfoot className="bg-muted/50 border-t-2 border-border font-semibold text-sm">
+                <tr>
+                  <td colSpan={2} className="px-4 py-3 text-foreground">Totals ({sorted.length} orders)</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatCurrency(totals.planned)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatCurrency(totals.actual)}</td>
+                  <td
+                    className={cn(
+                      'px-4 py-3 text-right tabular-nums',
+                      totals.variance > 0 && 'text-red-700 dark:text-red-300',
+                      totals.variance < 0 && 'text-emerald-700 dark:text-emerald-300',
+                      totals.variance === 0 && 'text-foreground',
+                    )}
+                  >
+                    {totals.variance >= 0 ? '+' : ''}{formatCurrency(totals.variance)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-xs">
+                    <VariancePill value={totals.price} />
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-xs">
+                    <VariancePill value={totals.usage} />
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-xs">
+                    <VariancePill value={totals.overhead} />
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
       </div>
     </div>
   )
