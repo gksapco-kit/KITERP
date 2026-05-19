@@ -15,7 +15,7 @@ const tiles: { to: string; title: string; desc: string; icon: typeof BarChart3 }
   { to: '/hr/attendance', title: 'Timesheets (attendance)', desc: 'Clock-based attendance; CO shop-floor time uses manufacturing.', icon: ClipboardList },
   { to: '/crm/tickets', title: 'Field & support', desc: 'Tickets and knowledge base as service hub.', icon: Truck },
   { to: '/crm/inbox', title: 'Discuss / inbox', desc: 'CRM inbox for customer conversations.', icon: MessageSquare },
-  { to: '/hr/my-training', title: 'eLearning', desc: 'Training & courses (ESS / HR).', icon: GraduationCap },
+  { to: '/hr/training', title: 'eLearning', desc: 'Training programs & enrollments (employee self-service uses Employee portal).', icon: GraduationCap },
 ]
 
 export default function WorkspaceHubPage() {

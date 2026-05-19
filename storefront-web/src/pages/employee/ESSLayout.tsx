@@ -3,13 +3,14 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useHrAuthStore } from '@/stores/hrAuthStore'
 import {
   LayoutDashboard, Clock, Plane, CreditCard, GraduationCap,
-  Target, Receipt, LifeBuoy, Megaphone, ListChecks, ChevronLeft, ShieldCheck, Store,
+  Target, Receipt, LifeBuoy, Megaphone, ListChecks, ShieldCheck, Store, UserCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useESSProfile } from '@/hooks/useESS'
 
 const NAV = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '' },
+  { label: 'My Profile', icon: UserCircle, path: '/profile' },
   { label: 'Attendance', icon: Clock, path: '/attendance' },
   { label: 'My Leaves', icon: Plane, path: '/leaves' },
   { label: 'Payslips', icon: CreditCard, path: '/payslips' },
@@ -81,14 +82,8 @@ export default function ESSLayout() {
           ))}
         </nav>
 
-        {/* Back to store */}
-        <div className="border-t p-3 space-y-1">
-          <button
-            onClick={() => navigate(storePath('/'))}
-            className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 w-full py-1.5 px-2 rounded hover:bg-gray-50"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" /> Back to Store
-          </button>
+        {/* Sign out */}
+        <div className="border-t p-3">
           <button
             type="button"
             onClick={() => {

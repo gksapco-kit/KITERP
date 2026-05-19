@@ -19,13 +19,11 @@ import { cn } from '@/lib/utils'
 import { checkBackendReachable, getBackendHealthUrl } from '@/lib/apiHealth'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
 import { extractApiError, parseAmbiguousVendorLogin, type AmbiguousVendorOption } from '@/lib/errorMessages'
+import type { AxiosError } from 'axios'
 import { toast } from 'sonner'
 
 const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE as string | undefined
 const SUPPORT_CHAT_URL = import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined
-/** Localhost vendor-web: same email on multiple businesses — must match backend VENDOR_LOGIN_DEFAULT_SLUG or ?vendor= */
-const ENV_VENDOR_LOGIN_SLUG = (import.meta.env.VITE_VENDOR_LOGIN_SLUG as string | undefined)?.trim()
-
 /** Hyperlink color on vendor login (matches design spec). */
 const LOGIN_LINK_COLOR =
   'text-[hsl(204.42deg_94.86%_48.34%)] underline-offset-2 hover:underline hover:opacity-90'
@@ -57,9 +55,9 @@ function readSavedLogin(): string {
 
 export default function Login() {
   const [searchParams] = useSearchParams()
+  /** Only scope login when the user picks a business (?vendor= / ambiguous picker). Env slug is a hint only. */
   const vendorSlugForLogin = useMemo(() => {
-    const q = (searchParams.get('vendor') || searchParams.get('slug') || '').trim()
-    return q || ENV_VENDOR_LOGIN_SLUG || undefined
+    return (searchParams.get('vendor') || searchParams.get('slug') || '').trim() || undefined
   }, [searchParams])
 
   const savedLogin = useMemo(() => readSavedLogin(), [])
@@ -98,6 +96,20 @@ export default function Login() {
       const amb = parseAmbiguousVendorLogin(err)
       if (amb) {
         setAmbiguousVendors(amb.vendors)
+        return
+      }
+      const ax = err as AxiosError
+      const status = ax.response?.status
+      const backendUnreachable =
+        apiOk === false ||
+        !ax.response ||
+        status === 502 ||
+        status === 503 ||
+        ax.code === 'ERR_NETWORK'
+      if (backendUnreachable) {
+        toast.error(
+          'Cannot sign in — the API on port 8000 is not reachable. Start Docker Desktop, then run: docker compose up -d postgres redis backend (or .\\start-dev.ps1).',
+        )
         return
       }
       toast.error(extractApiError(err, 'Login failed — check your email/phone and password'))
@@ -332,21 +344,22 @@ export default function Login() {
         </form>
 
         <div className="space-y-[0.748125rem] border-t border-border pt-[0.9975rem]">
-          <p className="text-center text-xs leading-relaxed text-muted-foreground">
-            No account yet?{' '}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="text-[0.8625rem] font-semibold text-muted-foreground">No account yet?</span>
             <Link
               to="/register"
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold transition-all',
+                'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
                 'bg-gradient-to-r from-sky-50 to-blue-50 text-[hsl(204.42deg_94.86%_48.34%)]',
-                'underline-offset-2 ring-1 ring-sky-200/60',
-                'hover:from-sky-100 hover:to-blue-100 hover:ring-sky-300/80 hover:underline',
+                'border border-sky-200/60',
+                'hover:from-sky-100 hover:to-blue-100 hover:border-sky-300/80 hover:underline',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
               )}
             >
-              <Store className="h-3.5 w-3.5 shrink-0" />
+              <Store className="h-3.5 w-3.5 shrink-0" aria-hidden />
               Create your business
             </Link>
-          </p>
+          </div>
 
           <div className="text-center">
             <Link
@@ -355,6 +368,7 @@ export default function Login() {
                 'inline-block rounded-md px-2 py-1 text-xs font-medium transition-colors',
                 LOGIN_LINK_COLOR,
                 'hover:bg-[hsl(204.42deg_94.86%_48.34%_/_0.08)]',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
               )}
             >
               Forgot password?

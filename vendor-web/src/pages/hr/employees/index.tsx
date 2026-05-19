@@ -1,20 +1,22 @@
 import { useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Users, UserCheck, UserX, Clock, Eye, EyeOff,
   ChevronDown, ChevronUp, Loader2, X, UserPlus, Building2, Award,
   MapPin, Landmark, ShieldCheck, Lock, Briefcase, Heart, Tag, Trash2,
-  FileText, LogOut, Upload, File, Paperclip,
+  FileText, LogOut, LogIn, KeyRound, Upload, File, Paperclip,
 } from 'lucide-react'
 import {
   useHREmployees, useHRDepartments, useCreateHREmployee,
-  useHRDesignations, useTeamMembers, useStores, useInviteTeamMember,
-  useHRNextEmployeeCode, useHRSeedTestData, useRoles,
+  useHRDesignations, useStores,
+  useHRNextEmployeeCode, useHRSeedTestData,
 } from '@/hooks/useVendor'
+import { employeeDisplayName } from '@/lib/hrEmployeeDisplay'
 import { DeptModal } from '@/components/hr/DeptModal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { DesigModal } from '@/components/hr/DesigModal'
-import type { EmployeeProfile, HRDepartment, HRDesignation, TeamMember, FamilyMember } from '@/types'
+import type { EmployeeProfile, HRDepartment, HRDesignation, FamilyMember } from '@/types'
+import { EMPLOYEE_MASTER_TABS, type EmployeeMasterTabId } from './employeeMasterTabs'
 
 // ── Status / type helpers ────────────────────────────────────────
 
@@ -208,32 +210,14 @@ function AddEmployeeModal({
   onClose: () => void
 }) {
   const { data: designations = [] } = useHRDesignations()
-  const { data: teamData } = useTeamMembers()
   const { data: storesData } = useStores()
-  const { data: rolesData } = useRoles()
   const createEmployee = useCreateHREmployee()
-  const inviteMember = useInviteTeamMember()
 
-  const allRoles = rolesData?.roles ?? []
-  const SYSTEM_ROLES_HR = ['admin', 'manager', 'sales', 'staff']
-
-  const teamMembers: TeamMember[] = (teamData as any)?.items ?? []
   const stores = storesData?.stores ?? []
 
   // ── Identity & Assignment ──────────────────────────────────────
-  const [vendorUserId, setVendorUserId] = useState('')
+  const [employeeFullName, setEmployeeFullName] = useState('')
 
-  // Role for new team member
-  const [newMemberRoleValue, setNewMemberRoleValue] = useState('staff')
-
-  // New team member inline creation
-  const [createMode, setCreateMode] = useState<'select' | 'new'>('new')
-  const [newMemberName, setNewMemberName] = useState('')
-  const [newMemberEmail, setNewMemberEmail] = useState('')
-  const [newMemberPhone, setNewMemberPhone] = useState('')
-  const [newMemberPassword, setNewMemberPassword] = useState('')
-  const [showNewMemberPwd, setShowNewMemberPwd] = useState(false)
-  const [employeeCodeCustom, setEmployeeCodeCustom] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [designationId, setDesignationId] = useState('')
 
@@ -339,19 +323,7 @@ function AddEmployeeModal({
   const [showDesigModal, setShowDesigModal] = useState(false)
 
   // ── Tabs ──────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('identity')
-
-  const TABS = [
-    { id: 'identity',     label: 'Identity',     icon: Briefcase  },
-    { id: 'credentials',  label: 'Credentials',  icon: Lock       },
-    { id: 'addresses',    label: 'Addresses',    icon: MapPin     },
-    { id: 'bank',         label: 'Bank Details', icon: Landmark   },
-    { id: 'kyc',          label: 'KYC & Legal',  icon: ShieldCheck},
-    { id: 'personal',     label: 'Personal',     icon: Users      },
-    { id: 'family',       label: 'Family',       icon: Heart      },
-    { id: 'documents',    label: 'Documents',    icon: Paperclip  },
-    { id: 'notes',        label: 'Notes',        icon: FileText   },
-  ]
+  const [activeTab, setActiveTab] = useState<EmployeeMasterTabId>('identity')
 
   function addEmpType() {
     const label = newEmpTypeLabel.trim()
@@ -376,29 +348,13 @@ function AddEmployeeModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    let resolvedUserId = vendorUserId
-
-    // If creating a new team member, invite them first and use their vendor_user id
-    if (createMode === 'new') {
-      if (!newMemberEmail || !newMemberName || !newMemberPassword) return
-      const isCustomRole = allRoles.some((r: any) => r.id === newMemberRoleValue)
-      const invited = await inviteMember.mutateAsync({
-        email: newMemberEmail,
-        full_name: newMemberName,
-        phone: newMemberPhone || undefined,
-        role: isCustomRole ? 'custom' : newMemberRoleValue,
-        role_id: isCustomRole ? newMemberRoleValue : undefined,
-        password: newMemberPassword,
-      }) as any
-      resolvedUserId = invited?.vendor_user_id ?? invited?.id ?? invited?.vendor_user?.id ?? ''
-    }
-
-    if (!resolvedUserId) return
+    const name = employeeFullName.trim()
+    if (!name) return
+    if (!personalEmail.trim() && !personalPhone.trim()) return
 
     const payload: Record<string, unknown> = {
-      vendor_user_id: resolvedUserId,
+      full_name: name,
     }
-    if (employeeCodeCustom) payload.employee_code_custom = employeeCodeCustom
     if (departmentId) payload.department_id = departmentId
     if (designationId) payload.designation_id = designationId
     if (employmentType) payload.employment_type = employmentType
@@ -408,9 +364,10 @@ function AddEmployeeModal({
 
     // Employer
     if (employerStoreId) payload.store_id = employerStoreId
-    // Employee ID: use manual override, or leave blank so backend auto-generates
-    const finalEmpCode = employeeIdManual ? employeeIdOverride : (employeeCodeCustom || undefined)
-    if (finalEmpCode) payload.employee_code_custom = finalEmpCode
+    // Employee ID: manual override goes as custom code; auto → backend assigns
+    if (employeeIdManual && employeeIdOverride.trim()) {
+      payload.employee_code_custom = employeeIdOverride.trim()
+    }
 
     const currentAddrFilled = currentAddr.street || currentAddr.city
     if (currentAddrFilled) payload.current_address = currentAddr
@@ -480,13 +437,13 @@ function AddEmployeeModal({
               <button
                 type="submit"
                 form="add-employee-form"
-                disabled={createEmployee.isPending || inviteMember.isPending || (createMode === 'select' && !vendorUserId) || (createMode === 'new' && (!newMemberEmail || !newMemberName || !newMemberPassword))}
+                disabled={createEmployee.isPending || !employeeFullName.trim() || (!personalEmail.trim() && !personalPhone.trim())}
                 className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
               >
-                {(createEmployee.isPending || inviteMember.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {createEmployee.isPending || inviteMember.isPending ? 'Creating…' : 'Create Profile'}
+                {createEmployee.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {createEmployee.isPending ? 'Creating…' : 'Create Profile'}
               </button>
-              <button type="button" aria-label="Close" type="button" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg ml-1">
+              <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg ml-1">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -494,7 +451,7 @@ function AddEmployeeModal({
 
           {/* Tab bar */}
           <div className="flex shrink-0 border-b">
-            {TABS.map(tab => {
+            {EMPLOYEE_MASTER_TABS.map(tab => {
               const isActive = activeTab === tab.id
               return (
                 <button
@@ -520,120 +477,40 @@ function AddEmployeeModal({
             {/* Tab: Identity & Assignment */}
             {activeTab === 'identity' && (
               <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-gray-600">
-                      Team Member <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex bg-gray-100 rounded-md p-0.5 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setCreateMode('new')}
-                        className={`px-2 py-1 rounded transition-colors ${createMode === 'new' ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                        + Create new
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCreateMode('select')}
-                        className={`px-2 py-1 rounded transition-colors ${createMode === 'select' ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                        Select existing
-                      </button>
-                    </div>
-                  </div>
-
-                  {createMode === 'select' ? (
-                    teamMembers.length > 0 ? (
-                      <select
-                        required
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={vendorUserId}
-                        onChange={e => setVendorUserId(e.target.value)}
-                      >
-                        <option value="">— Select team member —</option>
-                        {teamMembers.map(m => (
-                          <option key={m.id} value={m.id}>
-                            {(m as any).user?.full_name ?? m.id} {(m as any).user?.email ? `· ${(m as any).user.email}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <p className="text-xs text-gray-400 py-2">No team members yet.
-                        <button type="button" className="ml-1 text-blue-500 underline" onClick={() => setCreateMode('new')}>Create one →</button>
-                      </p>
-                    )
-                  ) : (
-                    <div className="border rounded-lg p-3 bg-blue-50/50 space-y-2">
-                      <p className="text-xs text-blue-700 font-medium mb-1">New team member account will be created</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-0.5">Full Name *</label>
-                          <input
-                            required={createMode === 'new'}
-                            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                            placeholder="John Smith"
-                            value={newMemberName}
-                            onChange={e => setNewMemberName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-0.5">Phone</label>
-                          <PhoneInput value={newMemberPhone} onChange={setNewMemberPhone} />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-0.5">Email *</label>
-                          <input
-                            type="email"
-                            required={createMode === 'new'}
-                            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                            placeholder="email@company.com"
-                            value={newMemberEmail}
-                            onChange={e => setNewMemberEmail(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-0.5">Password *</label>
-                          <div className="relative">
-                            <input
-                              type={showNewMemberPwd ? 'text' : 'password'}
-                              required={createMode === 'new'}
-                              className="w-full border rounded-md px-2 py-1.5 pr-8 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                              placeholder="Min 8 characters"
-                              value={newMemberPassword}
-                              onChange={e => setNewMemberPassword(e.target.value)}
-                            />
-                            <button type="button" onClick={() => setShowNewMemberPwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
-                              {showNewMemberPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs text-gray-600 mb-0.5">Role</label>
-                          <select
-                            className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                            value={newMemberRoleValue}
-                            onChange={e => setNewMemberRoleValue(e.target.value)}
-                          >
-                            <optgroup label="Built-in roles">
-                              {SYSTEM_ROLES_HR.map(r => (
-                                <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                              ))}
-                            </optgroup>
-                            {allRoles.filter((r: any) => r.is_active).length > 0 && (
-                              <optgroup label="Custom roles">
-                                {allRoles.filter((r: any) => r.is_active).map((r: any) => (
-                                  <option key={r.id} value={r.id}>{r.name}</option>
-                                ))}
-                              </optgroup>
-                            )}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-blue-800">
+                  HR records payroll and employment data only. Grant portal login and roles from
+                  <strong className="mx-1">Staff Access Control</strong> when the employee needs system access.
                 </div>
-
+                <div>
+                  <label className="text-xs font-medium text-gray-600">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    required
+                    className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="John Smith"
+                    value={employeeFullName}
+                    onChange={e => setEmployeeFullName(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Personal Email <span className="text-gray-400 font-normal">(email or phone required)</span>
+                    </label>
+                    <input
+                      type="email"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="personal@email.com"
+                      value={personalEmail}
+                      onChange={e => setPersonalEmail(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Personal Phone</label>
+                    <PhoneInput value={personalPhone} onChange={setPersonalPhone} placeholder="Personal mobile" />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
@@ -653,19 +530,43 @@ function AddEmployeeModal({
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-medium text-gray-600">Employee ID</label>
-                      {employeeIdManual && (
-                        <button type="button" className="text-xs text-blue-500 hover:underline" onClick={() => { setEmployeeIdManual(false); setEmployeeIdOverride('') }}>Auto</button>
-                      )}
+                      {/* Toggle between auto and manual */}
+                      <div className="flex bg-gray-100 rounded-md p-0.5 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => { setEmployeeIdManual(false); setEmployeeIdOverride('') }}
+                          className={`px-2 py-0.5 rounded transition-colors ${!employeeIdManual ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          Auto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEmployeeIdManual(true)}
+                          className={`px-2 py-0.5 rounded transition-colors ${employeeIdManual ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          Manual
+                        </button>
+                      </div>
                     </div>
-                    <input
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
-                      placeholder={nextCodeData?.next_code ?? 'e.g. EMP-001'}
-                      value={employeeIdManual ? employeeIdOverride : ''}
-                      onChange={e => { setEmployeeIdManual(true); setEmployeeIdOverride(e.target.value) }}
-                    />
-                    {!employeeIdManual && nextCodeData?.next_code && (
-                      <p className="text-xs text-gray-400 mt-0.5">Will auto-assign: <span className="font-mono text-gray-600">{nextCodeData.next_code}</span></p>
+                    {employeeIdManual ? (
+                      <input
+                        autoFocus
+                        className="w-full border border-blue-400 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                        placeholder="e.g. Hyd001"
+                        value={employeeIdOverride}
+                        onChange={e => setEmployeeIdOverride(e.target.value)}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-mono text-gray-500 select-none">
+                        <span className="text-gray-400 text-xs">System</span>
+                        <span className="font-medium text-gray-700">{nextCodeData?.next_code ?? '—'}</span>
+                      </div>
                     )}
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {employeeIdManual
+                        ? 'You are entering a custom ID. System will still assign an internal code.'
+                        : `Will auto-assign: ${nextCodeData?.next_code ?? '…'}`}
+                    </p>
                   </div>
                 </div>
 
@@ -707,7 +608,7 @@ function AddEmployeeModal({
                           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmpType() } if (e.key === 'Escape') setShowNewEmpType(false) }}
                         />
                         <button type="button" onClick={addEmpType} className="px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Add</button>
-                        <button type="button" aria-label="Close" type="button" onClick={() => setShowNewEmpType(false)} className="px-2 py-2 border rounded-lg hover:bg-gray-50">
+                        <button type="button" aria-label="Close" onClick={() => setShowNewEmpType(false)} className="px-2 py-2 border rounded-lg hover:bg-gray-50">
                 <X className="w-3.5 h-3.5 text-gray-400" /></button>
                       </div>
                     ) : (
@@ -735,11 +636,13 @@ function AddEmployeeModal({
 
             {/* Tab: Credentials */}
             {activeTab === 'credentials' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    POS PIN <span className="text-gray-400 font-normal">(4–6 digits, for quick POS login)</span>
-                  </label>
+              <div className="space-y-6">
+                {/* POS PIN */}
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <KeyRound className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-gray-900">POS PIN</h3>
+                  </div>
                   <div className="relative w-48">
                     <input
                       type={showPin ? 'text' : 'password'}
@@ -755,8 +658,18 @@ function AddEmployeeModal({
                       {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Stored securely — the employee will use this at POS terminals.</p>
-                </div>
+                  <p className="text-xs text-gray-400 mt-1.5">4–6 digits. Used at POS terminals for quick login.</p>
+                </section>
+                {/* Portal note */}
+                <section className="pt-4 border-t">
+                  <div className="flex items-center gap-2 mb-2">
+                    <LogIn className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-gray-900">HR / ESS portal</h3>
+                  </div>
+                  <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-sm text-blue-800 max-w-lg">
+                    Portal access (login email + password) is managed separately under <strong>Staff Access Control</strong> after the profile is created. The employee code you assign will also work as a login username.
+                  </div>
+                </section>
               </div>
             )}
 
@@ -861,14 +774,6 @@ function AddEmployeeModal({
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Nationality</label>
                     <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={nationality} onChange={e => setNationality(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Personal Email</label>
-                    <input type="email" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="personal@email.com" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Personal Phone</label>
-                    <PhoneInput value={personalPhone} onChange={setPersonalPhone} placeholder="Personal mobile" />
                   </div>
                 </div>
                 <div className="border-t pt-4">
@@ -1087,6 +992,7 @@ function AddEmployeeModal({
 // ── Page ─────────────────────────────────────────────────────────
 
 export default function EmployeesPage() {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [deptFilter, setDeptFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -1215,16 +1121,20 @@ export default function EmployeesPage() {
             </thead>
             <tbody>
               {employees.map(emp => {
-                const user = emp.vendor_user?.user
+                const name = employeeDisplayName(emp)
                 return (
-                  <tr key={emp.id} className="border-b hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={emp.id}
+                    className="border-b hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/hr/employees/${emp.id}`)}
+                  >
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
-                          {user?.full_name?.[0]?.toUpperCase() ?? emp.employee_code?.[0]}
+                          {name[0]?.toUpperCase() ?? emp.employee_code?.[0]}
                         </div>
                         <div>
-                          <p className="font-medium text-sm text-gray-900">{user?.full_name ?? 'Unknown'}</p>
+                          <p className="font-medium text-sm text-gray-900">{name}</p>
                           <p className="text-xs text-gray-500">{emp.employee_code_custom ?? emp.employee_code}</p>
                         </div>
                       </div>
@@ -1241,7 +1151,7 @@ export default function EmployeesPage() {
                         {emp.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-3">
                         {emp.status !== 'exited' && (
                           <Link

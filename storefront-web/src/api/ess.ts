@@ -7,6 +7,10 @@ export const essApi = {
     const res = await hrApiClient.get(`${base}/profile`)
     return res.data
   },
+  updateProfile: async (data: Record<string, unknown>) => {
+    const res = await hrApiClient.patch(`${base}/profile`, data)
+    return res.data
+  },
 
   getTodayAttendance: async () => {
     const res = await hrApiClient.get(`${base}/attendance/today`)
@@ -113,6 +117,46 @@ export const essApi = {
 
   acknowledgePolicy: async (policyId: string) => {
     const res = await hrApiClient.post(`${base}/policies/${policyId}/acknowledge`, {})
+    return res.data
+  },
+  getPolicy: async (id: string) => {
+    const res = await hrApiClient.get(`${base}/policies/${id}`)
+    return res.data
+  },
+
+  getHolidays: async (year?: number) => {
+    const res = await hrApiClient.get(`${base}/holidays`, { params: year ? { year } : {} })
+    return res.data
+  },
+
+  getEnrollment: async (id: string) => {
+    const res = await hrApiClient.get(`${base}/training/enrollments/${id}`)
+    return res.data
+  },
+  completeCourse: async (enrollmentId: string, data: Record<string, unknown>) => {
+    const res = await hrApiClient.post(`${base}/training/enrollments/${enrollmentId}/complete-course`, data)
+    return res.data
+  },
+
+  getTicket: async (id: string) => {
+    const res = await hrApiClient.get(`${base}/helpdesk/${id}`)
+    return res.data
+  },
+  addTicketComment: async (id: string, body: { body: string }) => {
+    const res = await hrApiClient.post(`${base}/helpdesk/${id}/comments`, body)
+    return res.data
+  },
+
+  getReview: async (id: string) => {
+    const res = await hrApiClient.get(`${base}/performance/reviews/${id}`)
+    return res.data
+  },
+  submitSelfReview: async (id: string, data: Record<string, unknown>) => {
+    const res = await hrApiClient.put(`${base}/performance/reviews/${id}/self`, data)
+    return res.data
+  },
+  acknowledgeReview: async (id: string, note?: string) => {
+    const res = await hrApiClient.put(`${base}/performance/reviews/${id}/acknowledge`, { note })
     return res.data
   },
 }

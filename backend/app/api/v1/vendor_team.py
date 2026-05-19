@@ -54,6 +54,7 @@ class InviteTeamMember(BaseModel):
     password: str = Field(..., min_length=6, max_length=100)
     access_starts_at: Optional[date] = None
     access_ends_at: Optional[date] = None
+    employee_profile_id: Optional[UUID] = None
 
 
 class UpdateTeamMember(BaseModel):
@@ -199,9 +200,6 @@ async def invite_team_member(
         if not existing_vu:
             raise HTTPException(status_code=500, detail="Inconsistent team membership for this email.")
         if existing_vu.is_active:
-            # Idempotent invite: user is already on this vendor (e.g. HR "Add employee" used
-            # "New team member" while they were already invited). Return membership so the client
-            # can create an employee profile without a duplicate invite.
             member = await vu_repo.get_with_details(existing_vu.id)
             result = _member_to_dict(member)
             result["_otp"] = None
@@ -255,6 +253,31 @@ async def invite_team_member(
         access_end_source="manual" if data.access_ends_at else None,
     )
     db.add(new_vu)
+    await db.flush()
+
+    if data.employee_profile_id:
+        from app.models.hr import EmployeeProfile
+        from sqlalchemy import select
+
+        emp_row = await db.execute(
+            select(EmployeeProfile).where(
+                EmployeeProfile.id == data.employee_profile_id,
+                EmployeeProfile.vendor_id == vu.vendor_id,
+            )
+        )
+        emp = emp_row.scalar_one_or_none()
+        if not emp:
+            raise HTTPException(status_code=404, detail="Employee profile not found")
+        if emp.vendor_user_id:
+            raise HTTPException(
+                status_code=400,
+                detail="This employee already has portal access",
+            )
+        emp.vendor_user_id = new_vu.id
+        if not (emp.full_name or "").strip():
+            emp.full_name = data.full_name
+        db.add(emp)
+
     await db.commit()
     await db.refresh(new_vu)
 

@@ -54,7 +54,10 @@ class EmployeeProfile(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
-    vendor_user_id = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="CASCADE"), nullable=False, unique=True)
+    vendor_user_id = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="CASCADE"), nullable=True, unique=True)
+
+    # Display name when no portal login (vendor_user) is linked yet
+    full_name = Column(String(200))
 
     # Auto-generated employee code (EMP-001 per vendor)
     employee_code = Column(String(30))

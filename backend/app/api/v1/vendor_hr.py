@@ -46,7 +46,8 @@ class DesigUpdate(BaseModel):
 
 
 class EmployeeIn(BaseModel):
-    vendor_user_id: UUID
+    vendor_user_id: Optional[UUID] = None
+    full_name: Optional[str] = Field(None, min_length=2, max_length=200)
     employee_code_custom: Optional[str] = Field(None, max_length=50)
     pos_pin: Optional[str] = Field(None, min_length=4, max_length=6, pattern=r"^\d+$")
     store_id: Optional[UUID] = None
@@ -92,6 +93,7 @@ class EmployeePortalPasswordIn(BaseModel):
 
 
 class EmployeeUpdate(BaseModel):
+    full_name: Optional[str] = Field(None, min_length=2, max_length=200)
     employee_code_custom: Optional[str] = Field(None, max_length=50)
     pos_pin: Optional[str] = Field(None, min_length=4, max_length=6, pattern=r"^\d+$")
     store_id: Optional[UUID] = None
@@ -380,6 +382,34 @@ async def delete_designation(
 # Employees
 # ═══════════════════════════════════════════════════════════════════
 
+@router.get("/employees/eligible-for-access")
+async def list_employees_eligible_for_access(
+    search: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=200),
+    vu: VendorUser = Depends(require_permission("team.invite")),
+    db: AsyncSession = Depends(get_db),
+):
+    """HR employees not yet granted portal access — for Staff Access Control invite."""
+    svc = HRService(db)
+    items = await svc.list_employees_without_portal_access(
+        vu.vendor_id, search=search, limit=limit
+    )
+    return {
+        "items": [
+            {
+                "id": str(e.id),
+                "full_name": e.full_name,
+                "employee_code": e.employee_code,
+                "personal_email": e.personal_email,
+                "personal_phone": e.personal_phone,
+                "department": e.department.name if e.department else None,
+                "designation": e.designation.name if e.designation else None,
+            }
+            for e in items
+        ],
+    }
+
+
 @router.get("/employees")
 async def list_employees(
     department_id: Optional[UUID] = None,
@@ -458,7 +488,15 @@ async def create_employee(
     if data.get("lwd") is not None:
         from app.services.hr_access_sync import sync_lwd_to_vendor_user_access
         await sync_lwd_to_vendor_user_access(db, emp, lwd=emp.lwd, previous_lwd=None)
+
+    # Auto-provision portal access + initial OTP so admin can share credentials immediately
+    try:
+        await _provision_portal_otp(db, emp, vu.vendor_id, vu.user_id)
+    except HTTPException:
+        pass  # Employee has no code/email yet — admin can generate OTP later from Credentials tab
+
     await db.commit()
+    await db.refresh(emp)
     return _d(emp)
 
 
@@ -499,6 +537,101 @@ async def set_employee_portal_password(
     await svc.set_employee_portal_password(emp_id, vu.vendor_id, body.password)
     await db.commit()
     return {"success": True, "message": "Employee portal password updated"}
+
+
+OTP_VALIDITY_HOURS = 72
+
+
+async def _provision_portal_otp(db, emp, vendor_id, invited_by_user_id):
+    """
+    Internal helper: generate a 10-char OTP for an employee's portal login.
+    Auto-creates a User + VendorUser if the employee has no portal account yet.
+    Returns (otp, login_identifier).
+    """
+    import secrets
+    import string
+    from datetime import datetime, timezone, timedelta
+    from app.core.security import get_password_hash
+    from app.models.user import User
+    from app.models.vendor_user import VendorUser as VU
+
+    alphabet = string.ascii_letters + string.digits
+    otp = ''.join(secrets.choice(alphabet) for _ in range(10))
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=OTP_VALIDITY_HOURS)
+
+    vu_link = emp.vendor_user
+    if not vu_link or not vu_link.user:
+        login_email = (emp.personal_email or "").strip() or None
+        code = (emp.employee_code_custom or emp.employee_code or "").strip()
+        if not login_email and code:
+            login_email = f"{code.lower().replace(' ', '')}@portal.local"
+        if not login_email:
+            raise HTTPException(
+                status_code=400,
+                detail="Employee has no email or employee code. Add one before generating portal access.",
+            )
+
+        new_user = User(
+            email=login_email,
+            full_name=emp.full_name or code,
+            password_hash=get_password_hash(otp),
+            portal_temp_password=otp,
+            portal_temp_password_expires_at=expires_at,
+            is_active=True,
+            is_email_verified=False,
+            is_phone_verified=False,
+        )
+        db.add(new_user)
+        await db.flush()
+
+        now = datetime.now(timezone.utc)
+        new_vu = VU(
+            vendor_id=vendor_id,
+            user_id=new_user.id,
+            role="staff",
+            is_active=True,
+            invited_by=invited_by_user_id,
+            invited_at=now,
+            accepted_at=now,
+        )
+        db.add(new_vu)
+        await db.flush()
+
+        emp.vendor_user_id = new_vu.id
+        db.add(emp)
+        return otp, login_email, expires_at
+
+    user = vu_link.user
+    from app.core.security import get_password_hash as _hash
+    user.password_hash = _hash(otp)
+    user.portal_temp_password = otp
+    user.portal_temp_password_expires_at = expires_at
+    db.add(user)
+    login = user.email or emp.employee_code_custom or emp.employee_code or ""
+    return otp, login, expires_at
+
+
+@router.post("/employees/{emp_id}/portal-otp")
+async def generate_employee_portal_otp(
+    emp_id: UUID,
+    vu: VendorUser = Depends(require_permission("hr.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Generate / regenerate a one-time temporary password (valid {OTP_VALIDITY_HOURS}h).
+    Auto-provisions a portal user if the employee has none yet.
+    """
+    svc = HRService(db)
+    emp = await svc.get_employee(emp_id, vu.vendor_id)
+    otp, login, expires_at = await _provision_portal_otp(db, emp, vu.vendor_id, vu.user_id)
+    await db.commit()
+    await db.refresh(emp)
+    return {
+        "otp": otp,
+        "login": login,
+        "expires_at": expires_at.isoformat(),
+        "employee_name": emp.full_name or login,
+    }
 
 
 @router.get("/employees/{emp_id}/documents")

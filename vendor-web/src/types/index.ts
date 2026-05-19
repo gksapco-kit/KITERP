@@ -919,7 +919,8 @@ export interface FamilyMember {
 export interface EmployeeProfile {
   id: string
   vendor_id: string
-  vendor_user_id: string
+  vendor_user_id?: string | null
+  full_name?: string | null
   employee_code: string
   // Credentials
   employee_code_custom?: string | null

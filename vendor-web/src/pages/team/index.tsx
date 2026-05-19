@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import {
   Users, Plus, Shield, Mail, UserCheck,
@@ -13,6 +13,7 @@ import {
   useTeamMembers, useInviteTeamMember, useUpdateTeamMember,
   useRemoveTeamMember, useAssignableTeamRoles, useSendTeamVerification, useVerifyTeamMember,
   useHREmployees,
+  useHREmployeesEligibleForAccess,
   useStores,
   vendorKeys,
 } from '@/hooks/useVendor'
@@ -29,6 +30,7 @@ import { useAuthStore } from '@/stores/authStore'
 import type { TeamMember } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { employeeContactEmail, employeeContactPhone, employeeDisplayName } from '@/lib/hrEmployeeDisplay'
 import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -46,6 +48,7 @@ const roleColors: Record<string, string> = {
 
 export default function TeamPage() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const { data: teamData, isLoading } = useTeamMembers()
   const { data: assignableData } = useAssignableTeamRoles()
@@ -80,6 +83,10 @@ export default function TeamPage() {
   })
 
   const [showInvite, setShowInvite] = useState(false)
+  const { data: eligibleEmpData } = useHREmployeesEligibleForAccess(
+    { limit: 200 },
+    { enabled: showInvite },
+  )
   const [editMember, setEditMember] = useState<TeamMember | null>(null)
   const [viewMember, setViewMember] = useState<TeamMember | null>(null)
   const [search, setSearch] = useState('')
@@ -112,12 +119,7 @@ export default function TeamPage() {
   // Pre-fill from HR employee
   const [selectedEmpId, setSelectedEmpId] = useState('')
 
-  const hrEmployees = empData?.items ?? []
-  // HR employees not yet linked to any team member
-  const unlinkedEmployees = useMemo(
-    () => hrEmployees.filter((e: any) => !e.vendor_user_id),
-    [hrEmployees],
-  )
+  const hrEmployeesForAccess = eligibleEmpData?.items ?? []
 
   const members = teamData?.items || []
   const customRoles = assignableRoles?.custom_roles ?? []
@@ -169,6 +171,7 @@ export default function TeamPage() {
       password: inviteForm.password,
       access_starts_at: inviteForm.access_starts_at || undefined,
       access_ends_at: inviteForm.access_ends_at || undefined,
+      employee_profile_id: selectedEmpId || undefined,
     }, {
       onSuccess: (data) => {
         setShowInvite(false)
@@ -351,11 +354,24 @@ export default function TeamPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${roleColors[member.role] || roleColors.custom}`}>
+                    <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        title="View role permissions"
+                        onClick={() => {
+                          const isBuiltIn = SYSTEM_ROLES.includes(member.role)
+                          const dest = isBuiltIn
+                            ? `/roles?builtin=${member.role}&from=team`
+                            : member.role_id
+                              ? `/roles?roleId=${member.role_id}&from=team`
+                              : '/roles?from=team'
+                          navigate(dest)
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-75 ${roleColors[member.role] || roleColors.custom}`}
+                      >
                         <Shield className="w-3 h-3" />
                         {member.role_name}
-                      </span>
+                      </button>
                     </td>
                     <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
                       {stores.length > 0 ? (
@@ -455,40 +471,43 @@ export default function TeamPage() {
             </div>
             <div className="p-6 space-y-4">
 
-              {/* Pre-fill from HR employee */}
-              {unlinkedEmployees.length > 0 && (
-                <div>
+              <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                    <UserCog className="w-3.5 h-3.5 text-primary" /> Pre-fill from Employee
+                    <UserCog className="w-3.5 h-3.5 text-primary" /> Load from HR employee master
                   </label>
                   <select
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-primary/5"
                     value={selectedEmpId}
                     onChange={(e) => {
-                      const emp = unlinkedEmployees.find((x: any) => x.id === e.target.value) as any
+                      const emp = hrEmployeesForAccess.find((x) => x.id === e.target.value)
                       setSelectedEmpId(e.target.value)
                       if (emp) {
                         setInviteForm(f => ({
                           ...f,
-                          full_name: emp.vendor_user?.user?.full_name ?? emp.full_name ?? f.full_name,
-                          email: emp.vendor_user?.user?.email ?? emp.work_email ?? emp.personal_email ?? f.email,
-                          phone: emp.vendor_user?.user?.phone ?? emp.work_phone ?? emp.personal_phone ?? f.phone,
+                          full_name: employeeDisplayName(emp),
+                          email: employeeContactEmail(emp) || f.email,
+                          phone: employeeContactPhone(emp) || f.phone,
                         }))
                       } else {
                         setInviteForm(f => ({ ...f, full_name: '', email: '', phone: '' }))
                       }
                     }}
                   >
-                    <option value="">— Select an employee to prefill —</option>
-                    {unlinkedEmployees.map((emp: any) => (
+                    <option value="">— Manual entry (no HR profile) —</option>
+                    {hrEmployeesForAccess.map((emp: any) => (
                       <option key={emp.id} value={emp.id}>
-                        {emp.vendor_user?.user?.full_name ?? emp.employee_code ?? emp.id.slice(0, 8)}
-                        {emp.vendor_user?.user?.email ? ` · ${emp.vendor_user.user.email}` : ''}
+                        {employeeDisplayName(emp)}
+                        {emp.employee_code ? ` · ${emp.employee_code}` : ''}
+                        {employeeContactEmail(emp) ? ` · ${employeeContactEmail(emp)}` : ''}
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
+                {hrEmployeesForAccess.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    No HR employees without portal access. Add them under HR → Employees first, or enter details manually.
+                  </p>
+                )}
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>

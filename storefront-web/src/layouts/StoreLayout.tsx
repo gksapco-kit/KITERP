@@ -371,6 +371,7 @@ function StoreContent() {
   const isEmployeeHrArea =
     !!vendorSlug &&
     (pathname === `/store/${vendorSlug}/hr/login` ||
+      pathname === `/store/${vendorSlug}/hr/change-password` ||
       pathname === `/store/${vendorSlug}/hr` ||
       pathname.startsWith(`/store/${vendorSlug}/hr/`))
 
@@ -491,6 +492,17 @@ function StoreContent() {
     : footerStyle === 'full'
       ? <FooterFull vendor={vendor} storePath={storePath} theme={theme} />
       : <FooterStandard vendor={vendor} storePath={storePath} theme={theme} />
+
+  // HR / ESS portal — render without store nav/footer/cart
+  if (isEmployeeHrArea) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
+    )
+  }
 
   if (catalogHomeLayout || builderOwnedLayout || isBuilderPreview) {
     return (

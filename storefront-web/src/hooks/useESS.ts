@@ -16,10 +16,27 @@ const K = {
   tickets:       ['ess-tickets'] as const,
   announcements: ['ess-announcements'] as const,
   onboarding:    ['ess-onboarding'] as const,
+  holidays:      (y?: number) => ['ess-holidays', y] as const,
+  policy:        (id: string) => ['ess-policy', id] as const,
+  enrollment:    (id: string) => ['ess-enrollment', id] as const,
+  ticket:        (id: string) => ['ess-ticket', id] as const,
+  review:        (id: string) => ['ess-review', id] as const,
 }
 
 export function useESSProfile() {
   return useQuery({ queryKey: K.profile, queryFn: essApi.getProfile, staleTime: 2 * 60 * 1000 })
+}
+
+export function useESSUpdateProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => essApi.updateProfile(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: K.profile })
+      toast.success('Profile updated')
+    },
+    onError: () => toast.error('Could not update profile'),
+  })
 }
 
 // ── Attendance ────────────────────────────────────────────────────────────────
@@ -106,10 +123,66 @@ export function useESSTraining() {
   return useQuery({ queryKey: K.training, queryFn: essApi.getTraining })
 }
 
+export function useESSEnrollment(id: string | null) {
+  return useQuery({
+    queryKey: K.enrollment(id ?? ''),
+    queryFn: () => essApi.getEnrollment(id!),
+    enabled: !!id,
+  })
+}
+
+export function useESSCompleteCourse() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ eid, ...rest }: { eid: string; course_id: string; score_pct?: number; passed?: boolean; answers?: Record<string, unknown> }) =>
+      essApi.completeCourse(eid, rest),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: K.enrollment(v.eid) })
+      qc.invalidateQueries({ queryKey: K.training })
+    },
+    onError: () => toast.error('Could not save course progress'),
+  })
+}
+
 // ── Performance ───────────────────────────────────────────────────────────────
 
 export function useESSPerformance() {
   return useQuery({ queryKey: K.performance, queryFn: essApi.getPerformance })
+}
+
+export function useESSReview(id: string | null) {
+  return useQuery({
+    queryKey: K.review(id ?? ''),
+    queryFn: () => essApi.getReview(id!),
+    enabled: !!id,
+  })
+}
+
+export function useESSSubmitSelfReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      essApi.submitSelfReview(id, data),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: K.review(v.id) })
+      qc.invalidateQueries({ queryKey: K.performance })
+      toast.success('Self-review submitted')
+    },
+    onError: () => toast.error('Could not submit self-review'),
+  })
+}
+
+export function useESSAcknowledgeReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string }) => essApi.acknowledgeReview(id, note),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: K.review(v.id) })
+      qc.invalidateQueries({ queryKey: K.performance })
+      toast.success('Review acknowledged')
+    },
+    onError: () => toast.error('Could not acknowledge review'),
+  })
 }
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
@@ -156,15 +229,32 @@ export function useESSDeleteExpense() {
 
 // ── Compliance policies (ESS hub parity) ─────────────────────────────────────
 
+export function useESSPolicy(id: string | null) {
+  return useQuery({
+    queryKey: K.policy(id ?? ''),
+    queryFn: () => essApi.getPolicy(id!),
+    enabled: !!id,
+  })
+}
+
 export function useESSAcknowledgePolicy() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (policyId: string) => essApi.acknowledgePolicy(policyId),
-    onSuccess: () => {
+    onSuccess: (_d, policyId) => {
       qc.invalidateQueries({ queryKey: K.profile })
+      qc.invalidateQueries({ queryKey: K.policy(policyId) })
       toast.success('Policy acknowledged')
     },
     onError: () => toast.error('Could not acknowledge policy'),
+  })
+}
+
+export function useESSHolidays(year?: number) {
+  return useQuery({
+    queryKey: K.holidays(year),
+    queryFn: () => essApi.getHolidays(year),
+    staleTime: 10 * 60 * 1000,
   })
 }
 
@@ -183,6 +273,27 @@ export function useESSCreateTicket() {
       toast.success('Ticket raised successfully')
     },
     onError: () => toast.error('Could not raise ticket'),
+  })
+}
+
+export function useESSTicket(id: string | null) {
+  return useQuery({
+    queryKey: K.ticket(id ?? ''),
+    queryFn: () => essApi.getTicket(id!),
+    enabled: !!id,
+  })
+}
+
+export function useESSAddTicketComment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) =>
+      essApi.addTicketComment(id, { body }),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: K.ticket(v.id) })
+      qc.invalidateQueries({ queryKey: K.tickets })
+    },
+    onError: () => toast.error('Could not post comment'),
   })
 }
 

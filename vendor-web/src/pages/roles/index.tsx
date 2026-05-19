@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
 import {
   ShieldCheck, Plus, Pencil, Trash2, X, Check, ChevronDown, ChevronRight,
   Lock, Eye, Package, Wrench, ShoppingCart, Users as UsersIcon,
-  MessageSquare, Settings, UserPlus, Shield, UserCog,
+  MessageSquare, Settings, UserPlus, Shield, UserCog, ArrowLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -63,6 +64,7 @@ const MODULE_LABELS: Record<string, string> = {
 
 export default function RolesPage() {
   const { user } = useAuthStore()
+  const [searchParams] = useSearchParams()
   const { data: rolesData, isLoading } = useRoles()
   const { data: permData } = useAllPermissions()
   const { data: defaultsData } = useDefaultRoles()
@@ -70,10 +72,26 @@ export default function RolesPage() {
   const updateMutation = useUpdateRole()
   const deleteMutation = useDeleteRole()
 
+  const fromTeam = searchParams.get('from') === 'team'
+
   const [showForm, setShowForm] = useState(false)
   const [editRole, setEditRole] = useState<VendorRole | null>(null)
   const [expandedRole, setExpandedRole] = useState<string | null>(null)
   const [expandedBuiltIn, setExpandedBuiltIn] = useState<string | null>(null)
+
+  // Auto-expand built-in roles — runs whenever the URL params change (handles
+  // navigating from team page to the same /roles route without remounting).
+  useEffect(() => {
+    const builtin = searchParams.get('builtin')
+    if (builtin) setExpandedBuiltIn(builtin)
+  }, [searchParams])
+
+  // Auto-expand custom roles — runs once data is loaded so the role id is available.
+  useEffect(() => {
+    const roleId = searchParams.get('roleId')
+    if (!roleId || !rolesData) return
+    setExpandedRole(roleId)
+  }, [searchParams, rolesData])
 
   // Form state
   const [formName, setFormName] = useState('')
@@ -141,6 +159,17 @@ export default function RolesPage() {
 
   return (
     <div className="space-y-6">
+      {/* Back button when arriving from Staff Access Control */}
+      {fromTeam && (
+        <Link
+          to="/team"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Staff Access Control
+        </Link>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

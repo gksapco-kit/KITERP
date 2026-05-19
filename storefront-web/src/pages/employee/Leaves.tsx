@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Plane } from 'lucide-react'
-import { useESSLeaves, useESSLeavePolicies, useESSSubmitLeave, useESSCancelLeave } from '@/hooks/useESS'
+import { useESSLeaves, useESSLeavePolicies, useESSSubmitLeave, useESSCancelLeave, useESSHolidays } from '@/hooks/useESS'
 
 const STATUS_COLORS: Record<string, string> = {
   pending:   'bg-yellow-100 text-yellow-700',
@@ -10,7 +10,9 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function ESSLeavesPage() {
+  const year = new Date().getFullYear()
   const { data, isLoading } = useESSLeaves()
+  const { data: holidays = [] } = useESSHolidays(year)
   const { data: policies = [] } = useESSLeavePolicies()
   const submit = useESSSubmitLeave()
   const cancel = useESSCancelLeave()
@@ -45,6 +47,21 @@ export default function ESSLeavesPage() {
           <Plus className="w-4 h-4" /> Apply Leave
         </button>
       </div>
+
+
+      {(holidays as Record<string, unknown>[]).length > 0 && (
+        <section className="mb-6">
+          <h2 className="text-sm font-semibold text-gray-700 mb-2">Company holidays ({year})</h2>
+          <ul className="bg-white border rounded-xl divide-y text-sm">
+            {(holidays as Record<string, unknown>[]).map((h) => (
+              <li key={String(h.id)} className="px-4 py-2 flex justify-between gap-2">
+                <span className="font-medium text-gray-900">{String(h.name)}</span>
+                <span className="text-gray-500">{String(h.date)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Balances */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

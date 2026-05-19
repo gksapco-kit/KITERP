@@ -41,9 +41,11 @@ class AuthService:
                 detail="Phone number already registered",
             )
 
+        email = str(data.email).strip().lower() if data.email else None
+        phone = (data.phone or "").strip() or None
         user = User(
-            email=data.email,
-            phone=data.phone,
+            email=email,
+            phone=phone,
             password_hash=get_password_hash(data.password),
             full_name=data.full_name,
         )

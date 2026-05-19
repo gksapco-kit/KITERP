@@ -34,6 +34,9 @@ class User(Base):
     # OTP verification (used by both email-resend and phone-OTP flows)
     verification_code = Column(String(6), nullable=True)
     verification_code_expires_at = Column(DateTime(timezone=True), nullable=True)
+    # HR portal one-time / temporary password shown to admin until employee logs in
+    portal_temp_password = Column(String(100), nullable=True)
+    portal_temp_password_expires_at = Column(DateTime(timezone=True), nullable=True)
     # Email-change flow (separate so an in-flight change doesn't clobber a normal
     # email/phone verification request)
     pending_email = Column(String(255), nullable=True)

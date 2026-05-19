@@ -1,10 +1,13 @@
 import { useESSProfile, useESSAcknowledgePolicy } from '@/hooks/useESS'
-import { ShieldCheck, Loader2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ShieldCheck, Loader2, ExternalLink } from 'lucide-react'
+import { useVendor } from '@/contexts/VendorContext'
 import { Button } from '@/components/ui/button'
 
 type PendingPolicy = { id?: string; title?: string; name?: string; version?: number }
 
 export default function ESSPolicies() {
+  const { storePath } = useVendor()
   const { data: profile, isLoading } = useESSProfile()
   const ack = useESSAcknowledgePolicy()
 
@@ -46,7 +49,12 @@ export default function ESSPolicies() {
                   <p className="font-medium text-gray-900">{title}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{ver.trim() || 'Published policy'}</p>
                 </div>
-                <Button
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <Link to={storePath(`/hr/policies/${id}`)}
+                    className="flex items-center gap-1 text-sm text-blue-600 hover:underline shrink-0">
+                    <ExternalLink className="w-4 h-4" /> Read
+                  </Link>
+                  <Button
                   size="sm"
                   disabled={ack.isPending}
                   onClick={() => ack.mutate(id)}
@@ -54,6 +62,7 @@ export default function ESSPolicies() {
                 >
                   {ack.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'I have read & acknowledge'}
                 </Button>
+                </div>
               </li>
             )
           })}

@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { LifeBuoy, Plus, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { LifeBuoy, Plus, X, ExternalLink } from 'lucide-react'
+import { useVendor } from '@/contexts/VendorContext'
 import { useESSTickets, useESSCreateTicket } from '@/hooks/useESS'
 
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -90,6 +92,7 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function ESSHelpdeskPage() {
+  const { storePath } = useVendor()
   const { data: tickets = [], isLoading } = useESSTickets()
   const [showNew, setShowNew] = useState(false)
   const list: any[] = (tickets as any)?.items ?? tickets
@@ -141,6 +144,12 @@ export default function ESSHelpdeskPage() {
                         <p className="text-xs text-gray-600 mt-1 line-clamp-2">{t.description}</p>
                       )}
                     </div>
+                    <Link
+                      to={storePath(`/hr/helpdesk/${t.id}`)}
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:underline shrink-0"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Open
+                    </Link>
                   </div>
                 </li>
               )

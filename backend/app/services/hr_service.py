@@ -82,6 +82,13 @@ class HRService:
         employees, total = await self.emp_repo.list(vendor_id, **filters)
         return {"items": employees, "total": total}
 
+    async def list_employees_without_portal_access(
+        self, vendor_id: UUID, *, search: Optional[str] = None, limit: int = 100
+    ) -> List[EmployeeProfile]:
+        return await self.emp_repo.list_without_portal_access(
+            vendor_id, search=search, limit=limit
+        )
+
     async def get_employee(self, emp_id: UUID, vendor_id: UUID) -> EmployeeProfile:
         emp = await self.emp_repo.get(emp_id, vendor_id)
         if not emp:
@@ -89,10 +96,23 @@ class HRService:
         return emp
 
     async def create_employee(self, vendor_id: UUID, data: dict) -> EmployeeProfile:
-        # Check vendor_user_id uniqueness
-        existing = await self.emp_repo.get_by_vendor_user(data.get("vendor_user_id"))
-        if existing:
-            raise HTTPException(status_code=400, detail="This team member already has an employee profile")
+        vu_id = data.get("vendor_user_id")
+        if vu_id:
+            existing = await self.emp_repo.get_by_vendor_user(vu_id)
+            if existing:
+                raise HTTPException(status_code=400, detail="This team member already has an employee profile")
+        else:
+            name = (data.get("full_name") or "").strip()
+            if not name:
+                raise HTTPException(
+                    status_code=422,
+                    detail="full_name is required when creating an employee without portal access",
+                )
+            if not (data.get("personal_email") or data.get("personal_phone")):
+                raise HTTPException(
+                    status_code=422,
+                    detail="personal_email or personal_phone is required for HR-only employees",
+                )
         return await self.emp_repo.create(vendor_id, data)
 
     async def update_employee(self, emp_id: UUID, vendor_id: UUID, data: dict) -> EmployeeProfile:

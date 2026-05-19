@@ -14,7 +14,7 @@ import {
   Clock, ChevronDown, ChevronUp, Building2, Phone,
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
   ChevronRight, Check, Settings2,
-  Info, CheckCircle2, Landmark, HelpCircle, SlidersHorizontal, Layers,
+  Info, CheckCircle2, Landmark, HelpCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -303,63 +303,12 @@ export default function SettingsPage() {
           onSave={updateVendor}
         />
       </div>
-      {/* Moved to System Configuration — shown as shortcut cards */}
-      <SystemConfigShortcuts />
-
       <div id="settings-section-about">
         <AboutSection
           open={openSection === 'about'}
           toggle={() => setOpenSection(openSection === 'about' ? null : 'about')}
         />
       </div>
-    </div>
-  )
-}
-
-// ── System Config Shortcuts ────────────────────────────────────────────────
-
-function SystemConfigShortcuts() {
-  const shortcuts = [
-    {
-      to: '/system/social-links',
-      icon: Globe,
-      label: 'Social & Web Links',
-      desc: 'Instagram, Facebook, WhatsApp, website URL',
-    },
-    {
-      to: '/system/storefront-display',
-      icon: Eye,
-      label: 'Storefront Display',
-      desc: 'Choose which product and service fields show to customers',
-    },
-    {
-      to: '/system/modules',
-      icon: Layers,
-      label: 'Module Settings',
-      desc: 'Finance mode, offering type, capability toggles',
-    },
-  ]
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-        System Configuration
-      </p>
-      {shortcuts.map(({ to, icon: Icon, label, desc }) => (
-        <Link
-          key={to}
-          to={to}
-          className="group flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/60"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20 group-hover:bg-primary/20 transition-colors">
-            <Icon className="h-5 w-5" strokeWidth={2} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">{label}</p>
-            <p className="text-xs text-muted-foreground truncate">{desc}</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
-        </Link>
-      ))}
     </div>
   )
 }

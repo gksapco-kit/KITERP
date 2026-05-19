@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom'
 import { Target, ClipboardList, MessageCircle } from 'lucide-react'
+import { useVendor } from '@/contexts/VendorContext'
 import { useESSPerformance } from '@/hooks/useESS'
 
 const REVIEW_STATUS: Record<string, { label: string; color: string }> = {
@@ -12,6 +14,7 @@ const REVIEW_STATUS: Record<string, { label: string; color: string }> = {
 }
 
 export default function ESSPerformancePage() {
+  const { storePath } = useVendor()
   const { data, isLoading } = useESSPerformance()
   if (isLoading) return <div className="p-6 text-gray-400">Loading…</div>
 
@@ -85,7 +88,7 @@ export default function ESSPerformancePage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
                 <tr>
-                  {['Cycle', 'Status', 'Self Rating', 'Overall Rating'].map((h) => (
+                  {['Cycle', 'Status', 'Self Rating', 'Overall', 'Action'].map((h) => (
                     <th key={h} className="text-left py-2 px-4 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -105,6 +108,10 @@ export default function ESSPerformancePage() {
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-600">{r.self_rating ?? '—'}</td>
                       <td className="py-3 px-4 text-sm text-gray-600">{r.overall_rating ?? '—'}</td>
+                      <td className="py-3 px-4">
+                        <Link to={storePath(`/hr/performance/reviews/${r.id}`)}
+                          className="text-xs text-blue-600 hover:underline font-medium">Open</Link>
+                      </td>
                     </tr>
                   )
                 })}

@@ -168,7 +168,6 @@ async def login(
 
     vrepo = VendorRepository(db)
     resolved_vendor_id: Optional[UUID] = None
-    resolved_via_default_slug = False
     if not platform_login:
         if vendor_slug_raw and str(vendor_slug_raw).strip():
             v = await vrepo.find_by_slug_ci(str(vendor_slug_raw).strip())
@@ -186,16 +185,15 @@ async def login(
             v = await vrepo.find_by_slug_ci(settings.VENDOR_LOGIN_DEFAULT_SLUG.strip())
             if v:
                 resolved_vendor_id = v.id
-                resolved_via_default_slug = True
 
     try:
         tokens = await service.login(str(login_val), str(password), vendor_id=resolved_vendor_id)
     except HTTPException as exc:
-        # Legacy safety: default slug without X-Platform-Login still retries global on miss.
+        # Wrong vendor slug (env, ?vendor=, or host) must not block login when the user
+        # belongs to another business — retry without tenant scope.
         if (
             not platform_login
             and exc.status_code == status.HTTP_401_UNAUTHORIZED
-            and resolved_via_default_slug
             and resolved_vendor_id is not None
             and exc.detail == "No team account on this business for that email or phone."
         ):

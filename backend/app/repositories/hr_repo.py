@@ -5,7 +5,7 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func, update
+from sqlalchemy import select, and_, func, update, or_
 from sqlalchemy.orm import selectinload
 
 from app.models.hr import (
@@ -149,6 +149,39 @@ class EmployeeRepo:
             select(EmployeeProfile).where(EmployeeProfile.vendor_user_id == vendor_user_id)
         )
         return result.scalar_one_or_none()
+
+    async def list_without_portal_access(
+        self,
+        vendor_id: UUID,
+        *,
+        search: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[EmployeeProfile]:
+        """Active HR profiles not yet linked to a vendor_user (no Staff Access row)."""
+        q = (
+            select(EmployeeProfile)
+            .where(
+                EmployeeProfile.vendor_id == vendor_id,
+                EmployeeProfile.vendor_user_id.is_(None),
+                EmployeeProfile.is_active.is_(True),
+                EmployeeProfile.status != "exited",
+            )
+            .order_by(EmployeeProfile.full_name, EmployeeProfile.employee_code)
+            .limit(limit)
+        )
+        if search and str(search).strip():
+            term = f"%{str(search).strip().lower()}%"
+            q = q.where(
+                or_(
+                    func.lower(EmployeeProfile.full_name).like(term),
+                    func.lower(EmployeeProfile.employee_code).like(term),
+                    func.lower(EmployeeProfile.personal_email).like(term),
+                )
+            )
+        opts = await self._load_options()
+        q = q.options(*opts)
+        result = await self.db.execute(q)
+        return list(result.scalars().all())
 
     async def create(self, vendor_id: UUID, data: dict) -> EmployeeProfile:
         store_id = data.get("store_id")

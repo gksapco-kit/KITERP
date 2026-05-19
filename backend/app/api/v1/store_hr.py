@@ -26,11 +26,15 @@ from app.api.v1.vendor_hr_extra import (
     _current_employee,
     ExpenseIn,
     TicketIn,
+    TicketCommentIn,
+    ReviewSelfIn,
+    CompletionIn,
 )
+from app.repositories.hr_repo import LeaveRepo
 from app.services.hr_service import HRService
 from app.repositories.hr_training_repo import TrainingRepo
 from app.repositories.hr_recruit_repo import OnboardingChecklistRepo
-from app.repositories.hr_performance_repo import GoalRepo, ReviewRepo, FeedbackRepo
+from app.repositories.hr_performance_repo import CycleRepo, GoalRepo, ReviewRepo, FeedbackRepo
 from app.repositories.hr_ess_repo import (
     AnnouncementRepo,
     ExpenseRepo,
@@ -181,6 +185,14 @@ async def store_hr_login(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is disabled")
 
+    # Detect OTP login before clearing — used to trigger must_change_password in response
+    was_otp_login = bool(getattr(user, "portal_temp_password", None))
+    if was_otp_login:
+        user.portal_temp_password = None
+        user.portal_temp_password_expires_at = None
+        db.add(user)
+        await db.flush()
+
     vu = emp.vendor_user
 
     branch_ctx: Optional[Dict[str, Any]] = None
@@ -217,6 +229,7 @@ async def store_hr_login(
     out: Dict[str, Any] = {
         "access_token": token,
         "token_type": "bearer",
+        "must_change_password": was_otp_login,
         "employee": {
             "id": str(emp.id),
             "employee_code": emp.employee_code,
@@ -226,6 +239,7 @@ async def store_hr_login(
     }
     if branch_ctx:
         out["branch"] = branch_ctx
+    await db.commit()
     return out
 
 
@@ -243,6 +257,55 @@ async def store_hr_me(
         "full_name": u.full_name if u else None,
         "email": u.email if u else None,
     }
+
+
+class HrForgotPasswordRequest(BaseModel):
+    login: str = Field(..., min_length=1)
+
+
+@router.post("/forgot-password")
+async def hr_forgot_password(
+    body: HrForgotPasswordRequest,
+    vendor_id: UUID = Depends(get_store_hr_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Employee forgot password — looks up their account and returns a
+    non-sensitive hint so they can contact HR with their login identifier.
+    Always returns 200 to avoid user enumeration.
+    """
+    candidates = await _resolve_login_employee_candidates(db, vendor_id, body.login)
+    if not candidates:
+        return {"found": False}
+    emp = candidates[0]
+    user = emp.vendor_user.user if emp.vendor_user else None
+    return {
+        "found": True,
+        "employee_name": emp.full_name or (user.full_name if user else None),
+        "login": user.email if user else None,
+    }
+
+
+class HrChangePasswordIn(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+@router.post("/change-password")
+async def hr_change_password(
+    body: HrChangePasswordIn,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Employee self-service password change (including mandatory change after first OTP login)."""
+    from app.core.security import verify_password, get_password_hash
+    user = vu.user
+    if not user or not verify_password(body.current_password, user.password_hash or ""):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    user.password_hash = get_password_hash(body.new_password)
+    db.add(user)
+    await db.commit()
+    return {"success": True}
 
 
 @router.get("/ess/profile")
@@ -304,6 +367,33 @@ async def ess_profile(
             "overdue": sum(1 for e in enrollments if e.status == "overdue"),
         },
     }
+
+
+class ESSProfileUpdate(BaseModel):
+    personal_email: Optional[str] = Field(None, max_length=255)
+    personal_phone: Optional[str] = Field(None, max_length=20)
+    emergency_contact_name: Optional[str] = Field(None, max_length=100)
+    emergency_contact_phone: Optional[str] = Field(None, max_length=20)
+    emergency_contact_relation: Optional[str] = Field(None, max_length=50)
+
+
+@router.patch("/ess/profile")
+async def ess_update_profile(
+    body: ESSProfileUpdate,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Employee self-service: update personal contact and emergency details."""
+    emp = await _current_employee(db, vu)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
+    data = body.model_dump(exclude_none=True)
+    for k, v in data.items():
+        setattr(emp, k, v)
+    db.add(emp)
+    await db.commit()
+    await db.refresh(emp)
+    return _d(emp)
 
 
 @router.post("/ess/policies/{pid}/acknowledge")
@@ -759,3 +849,264 @@ async def ess_onboarding_task_update(
     await repo.maybe_complete(t.checklist_id)
     await db.commit()
     return _d(t)
+
+
+# ── ESS: holidays (read-only) ────────────────────────────────────────────────
+
+@router.get("/ess/holidays")
+async def ess_holidays(
+    year: Optional[int] = Query(None),
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    yr = year or date.today().year
+    items = await LeaveRepo(db).list_holidays(vu.vendor_id, yr)
+    return [_d(h) for h in items]
+
+
+# ── ESS: compliance policy reader ─────────────────────────────────────────────
+
+@router.get("/ess/policies/{pid}")
+async def ess_get_policy(
+    pid: UUID,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    emp = await _current_employee(db, vu)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
+    p = await PolicyRepo(db).get(pid, vu.vendor_id)
+    if not p or p.status != "published":
+        raise HTTPException(status_code=404, detail="Policy not available")
+    pending = await PolicyRepo(db).my_pending(vu.vendor_id, emp.id)
+    pending_ids = {str(x.id) for x in pending}
+    d = _d(p)
+    d["pending_acknowledgement"] = str(p.id) in pending_ids
+    # Employees do not need admin acknowledgement audit list
+    d.pop("acknowledgements", None)
+    return d
+
+
+# ── ESS: training enrollment & course completion ─────────────────────────────
+
+async def _ess_enrollment_for_employee(
+    db: AsyncSession, vu: VendorUser, eid: UUID
+) -> tuple[EmployeeProfile, Any]:
+    emp = await _current_employee(db, vu)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
+    enr = await TrainingRepo(db).get_enrollment(eid, vu.vendor_id)
+    if not enr or str(enr.employee_id) != str(emp.id):
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+    return emp, enr
+
+
+@router.get("/ess/training/enrollments/{eid}")
+async def ess_get_enrollment(
+    eid: UUID,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, enr = await _ess_enrollment_for_employee(db, vu, eid)
+    completions = await TrainingRepo(db).list_completions(eid)
+    prog = await TrainingRepo(db).get_program(enr.program_id, vu.vendor_id)
+    out = {**_d(enr), "completions": [_d(c) for c in completions]}
+    if prog:
+        out["program"] = _d(prog)
+    return out
+
+
+@router.post("/ess/training/enrollments/{eid}/complete-course")
+async def ess_complete_course(
+    eid: UUID,
+    body: CompletionIn,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    emp, enr = await _ess_enrollment_for_employee(db, vu, eid)
+    course = await TrainingRepo(db).get_course(body.course_id)
+    if not course or str(course.program_id) != str(enr.program_id):
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    score_pct = body.score_pct
+    passed = body.passed if body.passed is not None else True
+    if course.questions and body.answers:
+        correct_total = 0
+        correct = 0
+        for q in course.questions:
+            correct_total += int(q.points or 1)
+            ans = body.answers.get(str(q.id))
+            if ans is None:
+                continue
+            correct_options = {o.get("id") for o in (q.options or []) if o.get("is_correct")}
+            given = set(ans) if isinstance(ans, list) else {ans}
+            if given == correct_options and correct_options:
+                correct += int(q.points or 1)
+        score_pct = int(round(100 * correct / correct_total)) if correct_total else 100
+        passed = score_pct >= int(course.pass_score_pct or 70)
+
+    await TrainingRepo(db).upsert_completion(
+        eid, body.course_id, score_pct=score_pct, passed=passed, answers=body.answers,
+    )
+    enr = await TrainingRepo(db).recalc_progress(eid)
+    if enr.status == "completed":
+        program = await TrainingRepo(db).get_program(enr.program_id, vu.vendor_id)
+        if program and program.issues_certificate:
+            r2 = await db.execute(
+                select(EmployeeProfile)
+                .where(EmployeeProfile.id == emp.id)
+                .options(selectinload(EmployeeProfile.vendor_user).selectinload(VendorUser.user))
+            )
+            emp_row = r2.scalar_one_or_none()
+            name = (
+                emp_row.vendor_user.user.full_name
+                if emp_row and emp_row.vendor_user and emp_row.vendor_user.user
+                else "Employee"
+            )
+            cert = await TrainingRepo(db).issue_certificate(vu.vendor_id, enr.id, program.name, name)
+            enr.certificate_url = f"/api/v1/store/hr/ess/training/certificates/{cert.id}"
+            await db.flush()
+    await db.commit()
+    completions = await TrainingRepo(db).list_completions(eid)
+    return {**_d(enr), "completions": [_d(c) for c in completions]}
+
+
+# ── ESS: helpdesk detail & comments ───────────────────────────────────────────
+
+async def _ess_ticket_for_employee(
+    db: AsyncSession, vu: VendorUser, tid: UUID
+) -> tuple[EmployeeProfile, Any]:
+    emp = await _current_employee(db, vu)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
+    t = await HelpdeskRepo(db).get(tid, vu.vendor_id)
+    if not t or str(t.employee_id) != str(emp.id):
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return emp, t
+
+
+def _ticket_public(t) -> Dict[str, Any]:
+    d = _d(t)
+    comments = d.get("comments") or []
+    d["comments"] = [c for c in comments if not c.get("is_internal")]
+    return d
+
+
+@router.get("/ess/helpdesk/{tid}")
+async def ess_helpdesk_get(
+    tid: UUID,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, t = await _ess_ticket_for_employee(db, vu, tid)
+    return _ticket_public(t)
+
+
+@router.post("/ess/helpdesk/{tid}/comments", status_code=201)
+async def ess_helpdesk_comment(
+    tid: UUID,
+    body: TicketCommentIn,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, t = await _ess_ticket_for_employee(db, vu, tid)
+    c = await HelpdeskRepo(db).add_comment(tid, {
+        "author_user_id": vu.id,
+        "body": body.body,
+        "is_internal": False,
+        "is_staff_reply": False,
+        "attachment_url": body.attachment_url,
+    })
+    await NotificationService(db).notify_ticket_event(
+        vu.vendor_id, t.id, t.ticket_number or str(t.id)[:8], t.subject, "Comment",
+    )
+    await db.commit()
+    return _d(c)
+
+
+# ── ESS: performance review actions ──────────────────────────────────────────
+
+async def _ess_review_for_employee(
+    db: AsyncSession, vu: VendorUser, rid: UUID
+):
+    emp = await _current_employee(db, vu)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee profile not found")
+    r = await ReviewRepo(db).get(rid, vu.vendor_id)
+    if not r or str(r.employee_id) != str(emp.id):
+        raise HTTPException(status_code=404, detail="Review not found")
+    return emp, r
+
+
+@router.get("/ess/performance/reviews/{rid}")
+async def ess_get_review(
+    rid: UUID,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, r = await _ess_review_for_employee(db, vu, rid)
+    cycle = await CycleRepo(db).get(r.cycle_id, vu.vendor_id)
+    out = _d(r)
+    if cycle:
+        out["cycle"] = _d(cycle)
+    return out
+
+
+@router.put("/ess/performance/reviews/{rid}/self")
+async def ess_submit_self_review(
+    rid: UUID,
+    body: ReviewSelfIn,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, r = await _ess_review_for_employee(db, vu, rid)
+    if r.status not in ("self_pending", "draft"):
+        raise HTTPException(status_code=400, detail="Self-review is not open for this cycle")
+    data: Dict[str, Any] = {
+        "self_assessment": body.self_assessment,
+        "self_rating": body.self_rating,
+        "self_submitted_at": datetime.utcnow(),
+    }
+    if r.status in ("self_pending", "draft"):
+        data["status"] = "manager_pending"
+    r = await ReviewRepo(db).update(r, {k: v for k, v in data.items() if v is not None})
+    kpi_scores = body.kpi_self_scores
+    if kpi_scores:
+        existing = {s.kpi_key: s for s in r.kpi_scores}
+        scores_to_save = []
+        for s in kpi_scores:
+            ex = existing.get(s.get("kpi_key"))
+            scores_to_save.append({
+                "kpi_key": s.get("kpi_key"),
+                "label": s.get("label") or (ex.label if ex else None),
+                "weight": s.get("weight") or (float(ex.weight) if ex and ex.weight else 10),
+                "self_score": s.get("self_score"),
+                "manager_score": ex.manager_score if ex else None,
+                "comments": s.get("comments") or (ex.comments if ex else None),
+            })
+        await ReviewRepo(db).upsert_kpi_scores(rid, scores_to_save)
+    await db.commit()
+    return _d(await ReviewRepo(db).get(rid, vu.vendor_id))
+
+
+class ReviewAckIn(BaseModel):
+    note: Optional[str] = None
+
+
+@router.put("/ess/performance/reviews/{rid}/acknowledge")
+async def ess_acknowledge_review(
+    rid: UUID,
+    body: ReviewAckIn,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, r = await _ess_review_for_employee(db, vu, rid)
+    if r.status != "manager_submitted":
+        raise HTTPException(status_code=400, detail="This review is not ready for acknowledgement")
+    r = await ReviewRepo(db).update(r, {
+        "employee_acknowledgement": body.note,
+        "acknowledged_at": datetime.utcnow(),
+        "status": "acknowledged",
+    })
+    await db.commit()
+    return _d(r)

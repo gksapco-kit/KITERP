@@ -513,6 +513,7 @@ export const vendorApi = {
     password: string
     access_starts_at?: string
     access_ends_at?: string
+    employee_profile_id?: string
   }): Promise<TeamMember & { _otp?: string }> => {
     const response = await apiClient.post('/vendors/me/team', data)
     return response.data
@@ -1152,6 +1153,20 @@ export const vendorApi = {
     const r = await apiClient.get('/vendors/me/hr/employees', { params })
     return r.data
   },
+  hrListEmployeesEligibleForAccess: async (params?: { search?: string; limit?: number }) => {
+    const r = await apiClient.get('/vendors/me/hr/employees/eligible-for-access', { params })
+    return r.data as {
+      items: {
+        id: string
+        full_name?: string | null
+        employee_code?: string
+        personal_email?: string | null
+        personal_phone?: string | null
+        department?: string | null
+        designation?: string | null
+      }[]
+    }
+  },
   hrGetEmployee: async (id: string) => {
     const r = await apiClient.get(`/vendors/me/hr/employees/${id}`)
     return r.data
@@ -1167,6 +1182,10 @@ export const vendorApi = {
   hrSetEmployeePortalPassword: async (empId: string, password: string) => {
     const r = await apiClient.post(`/vendors/me/hr/employees/${empId}/portal-password`, { password })
     return r.data as { success: boolean; message?: string }
+  },
+  hrGenerateEmployeeOtp: async (empId: string) => {
+    const r = await apiClient.post(`/vendors/me/hr/employees/${empId}/portal-otp`)
+    return r.data as { otp: string; employee_name: string; login: string }
   },
   hrListDocuments: async (empId: string) => {
     const r = await apiClient.get(`/vendors/me/hr/employees/${empId}/documents`)

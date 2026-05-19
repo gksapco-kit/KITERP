@@ -494,10 +494,13 @@ export function useInviteTeamMember() {
       password: string
       access_starts_at?: string
       access_ends_at?: string
+      employee_profile_id?: string
     }) =>
       vendorApi.inviteTeamMember(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor', 'team'] })
+      qc.invalidateQueries({ queryKey: ['hr', 'eligible-for-access'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.hrEmployees() })
     },
     onError: apiError('Could not invite team member — email may already be in use'),
   })
@@ -1271,6 +1274,18 @@ export function useHRNextEmployeeCode(storeId?: string) {
 export function useHREmployees(params?: Record<string, unknown>) {
   return useQuery({ queryKey: vendorKeys.hrEmployees(params), queryFn: () => vendorApi.hrListEmployees(params), staleTime: 30_000 })
 }
+
+export function useHREmployeesEligibleForAccess(
+  params?: { search?: string; limit?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: ['hr', 'eligible-for-access', params],
+    queryFn: () => vendorApi.hrListEmployeesEligibleForAccess(params),
+    staleTime: 30_000,
+    enabled: options?.enabled !== false,
+  })
+}
 export function useHREmployee(id: string | null) {
   return useQuery({ queryKey: vendorKeys.hrEmployee(id ?? ''), queryFn: () => vendorApi.hrGetEmployee(id!), enabled: !!id, staleTime: 30_000 })
 }
@@ -1306,6 +1321,18 @@ export function useSetHREmployeePortalPassword() {
       toast.success('Portal password updated — share it securely with the employee')
     },
     onError: apiError('Could not update portal password'),
+  })
+}
+
+export function useGenerateEmployeeOtp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (empId: string) => vendorApi.hrGenerateEmployeeOtp(empId),
+    onSuccess: (_d, empId) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.hrEmployee(empId) })
+      toast.success('One-time password generated — share it with the employee')
+    },
+    onError: apiError('Could not generate one-time password'),
   })
 }
 

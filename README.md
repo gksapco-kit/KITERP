@@ -105,6 +105,27 @@ npm install && npm run dev
 
 Visit `http://localhost:3002/store/{vendor-slug}` to see a vendor's storefront.
 
+### All three web apps at once (recommended)
+
+From the **repository root** (not inside `frontend/` alone):
+
+```bash
+npm install
+npm run dev
+```
+
+Wait until the terminal shows **Local:** URLs for **3000**, **3001**, and **3002**, then open:
+
+| App | URL |
+|-----|-----|
+| Super Admin | http://localhost:3000 |
+| Vendor Admin | http://localhost:3001 |
+| Storefront | http://localhost:3002 |
+
+**Windows:** If `http://localhost:3000` (or 3001/3002) spins forever, use **`http://127.0.0.1:3000`** (same for 3001 and 3002). The first page load can take **10–30+ seconds** when the project lives on **OneDrive** — keep the dev terminal open.
+
+In Cursor: **Terminal → Run Task → Dev: ALL web apps (3000 + 3001 + 3002)**.
+
 ### Mobile App
 
 ```bash

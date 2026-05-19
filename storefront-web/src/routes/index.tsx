@@ -49,13 +49,19 @@ import ESSAttendance from '@/pages/employee/Attendance'
 import ESSLeaves from '@/pages/employee/Leaves'
 import ESSPayslips from '@/pages/employee/Payslips'
 import ESSTraining from '@/pages/employee/Training'
+import ESSCourseLearning from '@/pages/employee/CourseLearning'
 import ESSPerformance from '@/pages/employee/Performance'
+import ESSReviewDetail from '@/pages/employee/ReviewDetail'
+import ESSPolicyDetail from '@/pages/employee/PolicyDetail'
+import ESSTicketDetail from '@/pages/employee/TicketDetail'
 import ESSExpenses from '@/pages/employee/Expenses'
 import ESSHelpdesk from '@/pages/employee/Helpdesk'
 import ESSAnnouncements from '@/pages/employee/Announcements'
 import ESSOnboarding from '@/pages/employee/Onboarding'
 import ESSPolicies from '@/pages/employee/Policies'
+import ESSProfilePage from '@/pages/employee/Profile'
 import HrLogin from '@/pages/hr/HrLogin'
+import HrChangePassword from '@/pages/hr/HrChangePassword'
 import DevEmployeeHrLinks from '@/pages/DevEmployeeHrLinks'
 
 function LegacyEmployeeToHrRedirect() {
@@ -155,19 +161,25 @@ export const router = createBrowserRouter([
       },
 
       { path: 'hr/login', element: <HrLogin /> },
+      { path: 'hr/change-password', element: <HrChangePassword /> },
       {
         path: 'hr',
         element: <HrPortalLayout />,
         children: [
           { index: true,               element: <ESSDashboard /> },
+          { path: 'profile',           element: <ESSProfilePage /> },
           { path: 'attendance',        element: <ESSAttendance /> },
           { path: 'leaves',            element: <ESSLeaves /> },
           { path: 'payslips',          element: <ESSPayslips /> },
           { path: 'policies',          element: <ESSPolicies /> },
           { path: 'training',          element: <ESSTraining /> },
+          { path: 'training/:enrollmentId', element: <ESSCourseLearning /> },
           { path: 'performance',       element: <ESSPerformance /> },
+          { path: 'performance/reviews/:reviewId', element: <ESSReviewDetail /> },
+          { path: 'policies/:policyId', element: <ESSPolicyDetail /> },
           { path: 'expenses',          element: <ESSExpenses /> },
           { path: 'helpdesk',          element: <ESSHelpdesk /> },
+          { path: 'helpdesk/:ticketId', element: <ESSTicketDetail /> },
           { path: 'announcements',     element: <ESSAnnouncements /> },
           { path: 'onboarding',        element: <ESSOnboarding /> },
         ],

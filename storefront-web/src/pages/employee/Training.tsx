@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom'
 import { GraduationCap, Award, Clock, ExternalLink } from 'lucide-react'
+import { useVendor } from '@/contexts/VendorContext'
 import { useESSTraining } from '@/hooks/useESS'
 import { essApi } from '@/api/ess'
 
@@ -11,6 +13,7 @@ const STATUS: Record<string, { label: string; color: string }> = {
 }
 
 export default function ESSTrainingPage() {
+  const { storePath } = useVendor()
   const { data, isLoading } = useESSTraining()
   const items: any[] = (data?.enrollments ?? data) || []
 
@@ -73,10 +76,14 @@ export default function ESSTrainingPage() {
                     </div>
                     <span className="text-xs text-gray-600">{e.progress_pct ?? 0}%</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400 italic">
-                      {e.status === 'completed' ? 'Completed' : 'In progress'}
-                    </span>
+                  <div>
+                    <Link
+                      to={storePath(`/hr/training/${e.id}`)}
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      {e.status === 'completed' ? 'Review' : 'Continue'}
+                    </Link>
                     {e.certificate_id && (
                       <button
                         type="button"

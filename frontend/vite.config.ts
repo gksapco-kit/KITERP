@@ -20,7 +20,14 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
-      host: '0.0.0.0', // Bind to all interfaces (IPv4 and IPv6)
+      strictPort: true,
+      /** Dual-stack on Windows; prefer http://127.0.0.1:3000 if localhost hangs. */
+      host: true,
+      allowedHosts: true,
+      hmr: { clientPort: 3000 },
+      warmup: {
+        clientFiles: ['./index.html', './src/main.tsx'],
+      },
       proxy: {
         '/api': {
           target: apiProxyTarget,

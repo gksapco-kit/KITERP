@@ -15,7 +15,7 @@ import {
   Shuffle, ClipboardCheck, Wand2, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
-  GripVertical, SlidersHorizontal, Database, Search,
+  GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +34,8 @@ import { useLogout } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useVendorStore } from '@/stores/vendorStore'
+import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
+import { useESSProfile } from '@/hooks/useVendor'
 import { useMyVendor, useStores } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { useQuery } from '@tanstack/react-query'
@@ -87,6 +89,8 @@ interface NavItem {
   groupColor?: 'blue' | 'amber' | 'emerald' | 'indigo' | 'rose' | 'violet'
   /** Restrict to a specific finance mode: 'basic' shows only when finance_mode=basic; 'advanced' shows only when finance_mode=advanced (or unset) */
   requiresFinanceMode?: 'basic' | 'advanced'
+  /** Full URL — renders as external link (new tab) instead of in-app route */
+  externalHref?: string
 }
 
 /** Path without query string, no trailing slash (except root). */
@@ -294,27 +298,17 @@ const allSections: NavSection[] = [
     title: 'HR Management',
     icon: Briefcase,
     items: [
-      { to: '/hr/me', icon: UserCheck, label: 'My ESS Hub', alwaysShow: true },
       { to: '/hr/employees', icon: UserCog, label: 'Employees', requiresPermission: 'hr.view' },
       { to: '/hr/attendance', icon: Clock, label: 'Attendance', requiresPermission: 'hr.view' },
-      { to: '/hr/attendance/my', icon: Clock, label: 'My Attendance', alwaysShow: true },
       { to: '/hr/leaves', icon: Plane, label: 'Leave Requests', requiresPermission: 'hr.view' },
-      { to: '/hr/leaves/my', icon: Plane, label: 'My Leaves', alwaysShow: true },
       { to: '/hr/recruitment', icon: Briefcase, label: 'Recruitment', requiresPermission: 'hr.manage' },
       { to: '/hr/onboarding', icon: UserCheck, label: 'Onboarding', requiresPermission: 'hr.manage' },
-      { to: '/hr/my-onboarding', icon: UserCheck, label: 'My Onboarding', alwaysShow: true },
       { to: '/hr/performance', icon: Target, label: 'Performance', requiresPermission: 'hr.manage' },
-      { to: '/hr/my-performance', icon: Target, label: 'My Performance', alwaysShow: true },
       { to: '/hr/training', icon: GraduationCap, label: 'Training', requiresPermission: 'hr.manage' },
-      { to: '/hr/my-training', icon: GraduationCap, label: 'My Training', alwaysShow: true },
       { to: '/hr/compliance', icon: ShieldAlert, label: 'Compliance', requiresPermission: 'hr.manage' },
-      { to: '/hr/my-policies', icon: ShieldAlert, label: 'My Policies', alwaysShow: true },
       { to: '/hr/announcements', icon: Megaphone, label: 'Announcements', requiresPermission: 'hr.manage' },
-      { to: '/hr/my-announcements', icon: Megaphone, label: 'My Announcements', alwaysShow: true },
       { to: '/hr/expenses', icon: ReceiptIcon, label: 'Expense Claims', requiresPermission: 'hr.manage' },
-      { to: '/hr/my-expenses', icon: ReceiptIcon, label: 'My Expenses', alwaysShow: true },
       { to: '/hr/helpdesk', icon: LifeBuoy, label: 'Helpdesk', requiresPermission: 'hr.manage' },
-      { to: '/hr/my-helpdesk', icon: LifeBuoy, label: 'My Tickets', alwaysShow: true },
       { to: '/hr/payroll', icon: DollarSign, label: 'Payroll', requiresPermission: 'hr.salary_view' },
       { to: '/hr/offers', icon: FileSignature, label: 'Offer Letters', requiresPermission: 'hr.offers' },
       { to: '/hr/departments', icon: Building2, label: 'Departments', requiresPermission: 'hr.manage' },
@@ -338,7 +332,6 @@ const allSections: NavSection[] = [
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
       { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
-      { to: '/plans', icon: CreditCard, label: 'Plans & Billing', alwaysShow: true },
     ],
   },
 ]
@@ -915,6 +908,35 @@ export default function DashboardLayout() {
     [filterItem],
   )
 
+  const { data: essProfile } = useESSProfile()
+  const employeePortalUrl = useMemo(() => {
+    const slug = vendor?.slug?.trim()
+    if (!slug) return null
+    return `${getStorefrontAppOrigin()}/store/${encodeURIComponent(slug)}/hr/login`
+  }, [vendor?.slug])
+  const hasLinkedEmployeeProfile = Boolean(
+    (essProfile as { employee?: unknown } | null | undefined)?.employee,
+  )
+
+  /** HR admin nav + optional storefront ESS link when this login is tied to an employee record */
+  const displaySections = useMemo(
+    () =>
+      visibleSections.map((section) => {
+        if (section.id !== 'hr' || !hasLinkedEmployeeProfile || !employeePortalUrl) {
+          return section
+        }
+        const portalItem: NavItem = {
+          to: '#employee-portal',
+          icon: ExternalLink,
+          label: 'Employee portal',
+          externalHref: employeePortalUrl,
+          alwaysShow: true,
+        }
+        return { ...section, items: [portalItem, ...section.items] }
+      }),
+    [visibleSections, hasLinkedEmployeeProfile, employeePortalUrl],
+  )
+
   const [sectionOrder, setSectionOrder] = useState<string[]>(() => loadSectionIds(DEFAULT_SECTION_IDS))
   const [itemPlacements, setItemPlacements] = useState<Record<string, string[]>>({})
 
@@ -923,14 +945,14 @@ export default function DashboardLayout() {
   }, [sectionOrder])
 
   useEffect(() => {
-    if (!visibleSections.length) return
+    if (!displaySections.length) return
     setItemPlacements((prev) =>
       reconcileNavPlacements(
-        Object.keys(prev).length ? prev : loadNavPlacementsState(visibleSections),
-        visibleSections,
+        Object.keys(prev).length ? prev : loadNavPlacementsState(displaySections),
+        displaySections,
       ),
     )
-  }, [visibleSections])
+  }, [displaySections])
 
   useEffect(() => {
     if (!Object.keys(itemPlacements).length) return
@@ -943,8 +965,8 @@ export default function DashboardLayout() {
   )
 
   const orderedVisibleSections = useMemo(
-    () => orderSectionsById(visibleSections, sectionOrder),
-    [visibleSections, sectionOrder],
+    () => orderSectionsById(displaySections, sectionOrder),
+    [displaySections, sectionOrder],
   )
 
   // ── Universal Search ───────────────────────────────────────────────────────
@@ -969,13 +991,13 @@ export default function DashboardLayout() {
 
   const orderedNavItemsBySectionId = useMemo(() => {
     const byTo = new Map<string, NavItem>()
-    for (const s of visibleSections) {
+    for (const s of displaySections) {
       for (const it of s.items) {
         byTo.set(it.to, it)
       }
     }
     const m = new Map<string, NavItem[]>()
-    for (const s of visibleSections) {
+    for (const s of displaySections) {
       const keys = itemPlacements[s.id]
       const list: NavItem[] = []
       if (keys?.length) {
@@ -989,11 +1011,11 @@ export default function DashboardLayout() {
       m.set(s.id, list)
     }
     return m
-  }, [visibleSections, itemPlacements])
+  }, [displaySections, itemPlacements])
 
   const flatVisibleNavItems = useMemo(
-    () => visibleSections.flatMap((s) => orderedNavItemsBySectionId.get(s.id) ?? s.items),
-    [visibleSections, orderedNavItemsBySectionId],
+    () => displaySections.flatMap((s) => orderedNavItemsBySectionId.get(s.id) ?? s.items),
+    [displaySections, orderedNavItemsBySectionId],
   )
 
   const activeNavTo = useMemo(
@@ -1004,7 +1026,7 @@ export default function DashboardLayout() {
   function resetNavOrderToDefaults() {
     clearSavedNavOrder()
     setSectionOrder(loadSectionIds(DEFAULT_SECTION_IDS))
-    setItemPlacements(buildDefaultPlacementsFromSections(visibleSections))
+    setItemPlacements(buildDefaultPlacementsFromSections(displaySections))
     setNavReorderMode(false)
     setNavActiveDndId(null)
     setNavDndOverId(null)
@@ -1090,7 +1112,7 @@ export default function DashboardLayout() {
       setNavDndOverId(null)
       const it = parseItmDndId(id)
       if (it) {
-        for (const s of visibleSections) {
+        for (const s of displaySections) {
           for (const item of s.items) {
             if (item.to === it.to) {
               setNavDragOverlay({ kind: 'item', item })
@@ -1103,7 +1125,7 @@ export default function DashboardLayout() {
       }
       const sid = parseSecDndId(id)
       if (sid) {
-        const sec = visibleSections.find((s) => s.id === sid)
+        const sec = displaySections.find((s) => s.id === sid)
         if (sec) {
           setNavDragOverlay({ kind: 'section', title: sec.title, subtitle: sec.subtitle, Icon: sec.icon })
         } else {
@@ -1113,7 +1135,7 @@ export default function DashboardLayout() {
         setNavDragOverlay(null)
       }
     },
-    [visibleSections],
+    [displaySections],
   )
 
   const handleNavDragOver = useCallback((event: DragOverEvent) => {
@@ -1341,7 +1363,7 @@ export default function DashboardLayout() {
                     if (!prev) {
                       setCollapsedSections((old) => {
                         const next = { ...old }
-                        for (const s of visibleSections) {
+                        for (const s of displaySections) {
                           next[s.title] = false
                         }
                         return next
@@ -1595,6 +1617,32 @@ export default function DashboardLayout() {
                                           ) : (
                                             <span className={NAV_DRAG_COL} aria-hidden />
                                           )}
+                                          {item.externalHref ? (
+                                            <a
+                                              href={item.externalHref}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              title={`${item.label} (opens in new tab)`}
+                                              tabIndex={isSectionCollapsed || inCollapsedSubgroup ? -1 : undefined}
+                                              onClick={() => setSidebarOpen(false)}
+                                              className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
+                                            >
+                                              <span
+                                                className={cn(
+                                                  'relative z-[1] flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
+                                                  item.labelSize ?? 'text-[11px]',
+                                                  'leading-snug',
+                                                  navRowTransition,
+                                                  navLinkInactive,
+                                                )}
+                                              >
+                                                <span className={cn(NAV_ICON_COL, 'text-muted-foreground/80 group-hover/nav:text-foreground')}>
+                                                  <item.icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                                                </span>
+                                                <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                                              </span>
+                                            </a>
+                                          ) : (
                                           <NavLink
                                             to={item.to}
                                             title={item.label}
@@ -1634,6 +1682,7 @@ export default function DashboardLayout() {
                                               )
                                             }}
                                           </NavLink>
+                                          )}
                                         </div>
                                       )}
                                     </SortableItemShell>

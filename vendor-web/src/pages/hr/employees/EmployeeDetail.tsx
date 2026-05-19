@@ -4,7 +4,7 @@ import {
   ArrowLeft, User, Briefcase, FileText, Calendar, Plane, DollarSign, Receipt,
   Plus, Trash2, CheckCircle, Upload, LogOut, Heart, Image, List,
   File as FileIcon, X, Settings, Clock, Circle, AlertTriangle, Copy, Check, ChevronDown,
-  KeyRound, Loader2,
+  KeyRound, Loader2, Pencil, Save,
 } from 'lucide-react'
 import type { FamilyMember } from '@/types'
 import {
@@ -17,17 +17,22 @@ import { vendorApi } from '@/api/vendor'
 import { useAuthStore } from '@/stores/authStore'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
-
-const TABS = [
-  { id: 'personal', label: 'Personal', icon: User },
-  { id: 'employment', label: 'Employment', icon: Briefcase },
-  { id: 'documents', label: 'Documents', icon: FileText },
-  { id: 'leaves', label: 'Leaves', icon: Plane },
-  { id: 'salary', label: 'Salary', icon: DollarSign },
-  { id: 'payslips', label: 'Payslips', icon: Receipt },
-  { id: 'credentials', label: 'Credentials', icon: KeyRound },
-  { id: 'exit', label: 'Exit', icon: LogOut },
-]
+import { EmployeeTabBar } from './EmployeeTabBar'
+import { resolveEmployeeTab, type EmployeeTabId } from './employeeMasterTabs'
+import { IdentityTab } from './EmployeeMasterTabPanels'
+import {
+  AddressesTab,
+  BankTab,
+  KycTab,
+  EmployeePersonalTab,
+  FamilyTab,
+  NotesTab,
+  EmployeeCredentialsTab,
+  ShareDropdown,
+} from './employeeTabPanelsExtended'
+import { employeeDisplayName } from '@/lib/hrEmployeeDisplay'
+import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
+import { useVendorStore } from '@/stores/vendorStore'
 
 const CLEARANCE_ITEMS = [
   { key: 'it', label: 'IT / Assets' },
@@ -1933,21 +1938,70 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
 
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data: emp, isLoading } = useHREmployee(id ?? null)
+  const vendorSlug = useVendorStore(s => s.vendor?.slug ?? '')
   const { data: departments = [] } = useHRDepartments()
   const { data: designations = [] } = useHRDesignations()
   const updateEmployee = useUpdateHREmployee()
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') ?? 'personal')
+  const [activeTab, setActiveTab] = useState<EmployeeTabId>(() => resolveEmployeeTab(searchParams.get('tab')))
+  const [editing, setEditing] = useState(false)
+  const [pendingChanges, setPendingChanges] = useState<Record<string, unknown>>({})
+  const isSaving = updateEmployee.isPending
+
+  useEffect(() => {
+    setActiveTab(resolveEmployeeTab(searchParams.get('tab')))
+  }, [searchParams])
+
+  // Reset pending changes when emp reloads (after a save)
+  useEffect(() => {
+    setPendingChanges({})
+    setEditing(false)
+  }, [emp?.updated_at])
+
+  function setTab(tab: EmployeeTabId) {
+    setActiveTab(tab)
+    setSearchParams({ tab }, { replace: true })
+  }
+
+  function collect(data: Record<string, unknown>) {
+    setPendingChanges(prev => ({ ...prev, ...data }))
+  }
+
+  async function handleSaveAll() {
+    if (Object.keys(pendingChanges).length === 0) {
+      setEditing(false)
+      return
+    }
+    try {
+      await updateEmployee.mutateAsync({ id: emp.id, data: pendingChanges })
+      toast.success('Changes saved')
+      setEditing(false)
+      setPendingChanges({})
+    } catch {
+      toast.error('Failed to save changes')
+    }
+  }
+
+  function handleCancelEdit() {
+    setEditing(false)
+    setPendingChanges({})
+  }
+
+  // For credentials / ops tabs that still do their own save (passwords, leaves, etc.)
+  async function handleDirectSave(data: Record<string, unknown>) {
+    await updateEmployee.mutateAsync({ id: emp.id, data })
+  }
 
   if (isLoading) return <div className="p-8 text-center text-gray-400">Loading…</div>
   if (!emp) return <div className="p-8 text-center text-red-500">Employee not found.</div>
 
-  const user = emp.vendor_user?.user
+  const displayName = employeeDisplayName(emp)
+  const initials = displayName[0]?.toUpperCase() ?? emp.employee_code?.[0] ?? '?'
+  const hasPendingChanges = Object.keys(pendingChanges).length > 0
 
-  async function handleSave(data: Record<string, unknown>) {
-    await updateEmployee.mutateAsync({ id: emp.id, data })
-  }
+  // Master tabs support global edit; ops tabs handle their own editing
+  const isMasterTab = ['identity', 'credentials', 'addresses', 'bank', 'kyc', 'personal', 'family', 'notes'].includes(activeTab)
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -1955,47 +2009,135 @@ export default function EmployeeDetailPage() {
         <Link to="/hr/employees" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-500" />
         </Link>
-        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
-          {user?.full_name?.[0]?.toUpperCase() ?? emp.employee_code?.[0]}
+        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg shrink-0">
+          {initials}
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{user?.full_name ?? 'Employee'}</h1>
-          <p className="text-sm text-gray-500">{emp.employee_code} · {emp.designation?.name ?? ''} · {emp.department?.name ?? ''}</p>
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-gray-900 truncate">{displayName}</h1>
+          <p className="text-sm text-gray-500 truncate">
+            {(emp.employee_code_custom as string | undefined) || (emp.employee_code as string | undefined)}
+            {emp.designation?.name ? ` · ${emp.designation.name}` : ''}
+            {emp.department?.name ? ` · ${emp.department.name}` : ''}
+          </p>
         </div>
-        <span className={`ml-auto text-xs px-2 py-1 rounded-full font-medium ${
+        <span className={`ml-auto text-xs px-2 py-1 rounded-full font-medium shrink-0 ${
           emp.status === 'active' ? 'bg-green-100 text-green-700' :
           emp.status === 'probation' ? 'bg-blue-100 text-blue-700' :
           'bg-gray-100 text-gray-600'
         }`}>
           {emp.status?.replace('_', ' ')}
         </span>
+
+        {/* ── Share access + Global edit / save ── */}
+        {isMasterTab && (
+          <div className="flex items-center gap-2 shrink-0">
+            {!editing && (() => {
+              const linkedUser = (emp as any).vendor_user?.user
+              const loginEmail = (linkedUser?.email ?? '').trim()
+              const storedOtp = (linkedUser?.portal_temp_password ?? '').trim()
+              const codeCustom = String(emp.employee_code_custom ?? '').trim()
+              const codeAuto = String(emp.employee_code ?? '').trim()
+              const loginAliases = [...new Set([codeCustom, codeAuto].filter(Boolean))]
+              const hrPortalUrl = vendorSlug
+                ? `${getStorefrontAppOrigin()}/store/${encodeURIComponent(vendorSlug)}/hr/login`
+                : `${getStorefrontAppOrigin()}/hr/login`
+              return (
+                <ShareDropdown
+                  hrPortalUrl={hrPortalUrl}
+                  loginEmail={loginEmail}
+                  loginAliases={loginAliases}
+                  displayName={displayName}
+                  otp={storedOtp || null}
+                />
+              )
+            })()}
+            {editing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" /> Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAll}
+                  disabled={isSaving}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors font-medium ${
+                    hasPendingChanges
+                      ? 'bg-primary text-white hover:bg-primary/90'
+                      : 'bg-gray-100 text-gray-500'
+                  } disabled:opacity-50`}
+                >
+                  {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  {isSaving ? 'Saving…' : 'Save changes'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit profile
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl overflow-x-auto">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-              activeTab === tab.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <tab.icon className="w-3.5 h-3.5" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {editing && hasPendingChanges && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <Save className="w-3.5 h-3.5 shrink-0" />
+          Unsaved changes across tabs — click <strong className="mx-0.5">Save changes</strong> to apply them all.
+        </div>
+      )}
 
-      <div className="bg-white rounded-xl border shadow-sm p-6">
-        {activeTab === 'personal' && <PersonalTab emp={emp} onSave={handleSave} />}
-        {activeTab === 'employment' && <EmploymentTab emp={emp} departments={departments} designations={designations} onSave={handleSave} />}
-        {activeTab === 'documents' && <DocumentsTab empId={emp.id} />}
-        {activeTab === 'leaves' && <LeavesTab empId={emp.id} />}
-        {activeTab === 'salary' && <SalaryTab empId={emp.id} />}
-        {activeTab === 'payslips' && <PayslipsTab empId={emp.id} />}
-        {activeTab === 'credentials' && <CredentialsTab emp={emp} />}
-        {activeTab === 'exit' && <ExitTab emp={emp} onSave={handleSave} />}
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <EmployeeTabBar activeTab={activeTab} onTabChange={setTab} />
+        <div className="p-6">
+          {activeTab === 'identity' && (
+            <IdentityTab
+              emp={emp as Record<string, unknown>}
+              editing={editing}
+              onChange={collect}
+              departments={departments}
+              designations={designations}
+            />
+          )}
+          {activeTab === 'credentials' && (
+            <EmployeeCredentialsTab
+              emp={emp as Record<string, unknown>}
+              editing={editing}
+              onSave={handleDirectSave}
+              empId={String(emp.id)}
+            />
+          )}
+          {activeTab === 'addresses' && (
+            <AddressesTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          )}
+          {activeTab === 'bank' && (
+            <BankTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          )}
+          {activeTab === 'kyc' && (
+            <KycTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          )}
+          {activeTab === 'personal' && (
+            <EmployeePersonalTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          )}
+          {activeTab === 'family' && (
+            <FamilyTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          )}
+          {activeTab === 'notes' && (
+            <NotesTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          )}
+          {activeTab === 'documents' && <DocumentsTab empId={emp.id} />}
+          {activeTab === 'leaves' && <LeavesTab empId={emp.id} />}
+          {activeTab === 'salary' && <SalaryTab empId={emp.id} />}
+          {activeTab === 'payslips' && <PayslipsTab empId={emp.id} />}
+          {activeTab === 'exit' && <ExitTab emp={emp} onSave={handleDirectSave} />}
+        </div>
       </div>
     </div>
   )
