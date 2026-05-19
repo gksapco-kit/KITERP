@@ -510,29 +510,54 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
       <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
 
         {/* Search input row */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-          <Search className="w-5 h-5 text-muted-foreground shrink-0" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={tab === 'navigate' ? 'Search pages, reports, settings…' : 'Search products, orders, customers…'}
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          {query && (
+        <div className="flex items-center gap-2 sm:gap-3 px-4 py-3 border-b border-border">
+          <Search className="w-5 h-5 shrink-0 text-muted-foreground" aria-hidden />
+          <div
+            className={cn(
+              'relative min-w-0 flex-1 rounded-lg px-2 py-1 transition-shadow',
+              'focus-within:ring-2 focus-within:ring-primary/25 focus-within:ring-offset-0',
+            )}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={tab === 'navigate' ? 'Search pages, reports, settings…' : 'Search products, orders, customers…'}
+              className={cn(
+                'w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none',
+                'focus-visible:ring-0 focus-visible:ring-offset-0',
+                query && 'pr-8',
+              )}
+              autoComplete="off"
+              spellCheck={false}
+            />
             <button
-              onClick={() => setQuery('')}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              type="button"
+              onClick={() => {
+                setQuery('')
+                inputRef.current?.focus()
+              }}
+              aria-label="Clear search"
+              className={cn(
+                'absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-opacity hover:bg-muted hover:text-foreground',
+                query ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+              )}
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
-          )}
-          <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+          </div>
+          <kbd className="hidden shrink-0 sm:inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
             Esc
           </kbd>
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close search"
+            className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Tabs */}

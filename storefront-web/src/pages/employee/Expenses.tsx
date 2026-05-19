@@ -97,7 +97,14 @@ function ExpenseModal({ claim, onClose }: { claim: any | null; onClose: () => vo
           </Field>
         </div>
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
-          <button onClick={onClose} className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-cancel"
+            style={{ backgroundColor: '#ffc954', borderColor: '#ffc954', color: '#374151' }}
+          >
+            Cancel
+          </button>
           <button onClick={() => submit('draft')} disabled={!form.title || !form.amount}
             className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-100 disabled:opacity-50">
             Save draft

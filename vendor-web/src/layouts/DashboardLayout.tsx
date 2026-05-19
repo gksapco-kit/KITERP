@@ -1794,7 +1794,7 @@ export default function DashboardLayout() {
       {/* Sidebar — single instance so nav scroll ref targets the visible panel */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 max-w-[min(100vw,18rem)] rounded-r-2xl border-r border-sidebar-border/40 bg-sidebar text-sidebar-foreground shadow-sm lg:z-30 lg:w-64 lg:min-w-[14rem]',
+          'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 max-w-[min(100vw,18rem)] border-r border-sidebar-border/40 bg-sidebar text-sidebar-foreground shadow-sm lg:z-30 lg:w-64 lg:min-w-[14rem]',
           'transition-transform duration-200 ease-out motion-reduce:transition-none lg:translate-x-0 lg:transition-none',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
@@ -1805,7 +1805,7 @@ export default function DashboardLayout() {
       {/* Main content */}
       <div className="lg:ml-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border">
+        <header className="sticky top-0 z-20 overflow-visible bg-card/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center h-14 gap-3 px-4 lg:px-8">
             {/* Left: hamburger + page title */}
             <div className="flex items-center gap-3 shrink-0">
@@ -1888,9 +1888,9 @@ export default function DashboardLayout() {
                 </button>
 
                 {profileOpen && (
-                    <div className="absolute top-full right-0 mt-2 z-50 w-72 bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
-                      {/* User header */}
-                      <div className="border-b border-white/10 bg-[linear-gradient(90deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_42%,hsl(var(--hero-to))_100%)] px-4 py-3 text-white">
+                    <div className="absolute top-full right-0 z-[100] mt-2 flex w-72 max-h-[min(32rem,calc(100dvh-4.5rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+                      {/* User header — fixed at top of panel */}
+                      <div className="shrink-0 border-b border-white/10 bg-[linear-gradient(90deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_42%,hsl(var(--hero-to))_100%)] px-4 py-3 text-white">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-sm font-bold text-white shadow-md ring-1 ring-white/15">
                             {(user?.full_name || 'U').charAt(0).toUpperCase()}
@@ -1906,6 +1906,7 @@ export default function DashboardLayout() {
                         </div>
                       </div>
 
+                      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                       {/* Account section */}
                       <div className="py-1">
                         <ProfileMenuLabel>Account</ProfileMenuLabel>
@@ -2059,15 +2060,16 @@ export default function DashboardLayout() {
                           <span className="flex-1">About &amp; version</span>
                         </Link>
                       </div>
+                      </div>
 
-                      {/* Logout */}
-                      <div className="py-1 border-t border-border">
+                      {/* Logout — always visible at bottom */}
+                      <div className="shrink-0 border-t border-border bg-card py-1">
                         <button
                           type="button"
                           onClick={() => { setProfileOpen(false); logout() }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
                         >
-                          <LogOut className="w-4 h-4" />
+                          <LogOut className="h-4 w-4" />
                           <span className="flex-1 text-left">Logout</span>
                         </button>
                       </div>

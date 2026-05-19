@@ -41,7 +41,7 @@ export default function ESSLayout() {
     !!(loginBranch && wlStoreId && loginBranch.id === wlStoreId)
 
   return (
-    <div className="flex min-h-[calc(100vh-120px)] bg-gray-50">
+    <div className="ess-portal flex min-h-[calc(100vh-120px)] bg-gray-50">
       {/* Sidebar */}
       <aside className="w-56 shrink-0 bg-white border-r flex flex-col">
         {/* Portal header */}

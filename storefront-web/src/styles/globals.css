@@ -131,14 +131,72 @@
   animation: ticker var(--ticker-duration, 30s) linear infinite;
 }
 
-@layer components {
-  .btn-cancel {
-    @apply border border-[#ffc954] bg-[#ffc954] text-gray-700 shadow-sm
-           transition-colors duration-150
-           hover:bg-[#ffc954]/90 hover:border-[#ffc954]/90 hover:text-gray-900
-           active:bg-[#ffc954]/85
-           disabled:pointer-events-none disabled:opacity-50;
-  }
+/* KITERP brand green — outside @layer so store theme / Tailwind utilities cannot override */
+.ess-portal {
+  --primary: 158 44% 58%;
+  --primary-foreground: 210 40% 98%;
+  --ring: 158 44% 58%;
+}
+
+button.btn-brand,
+.ess-portal .btn-brand,
+a.btn-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: #fff !important;
+  background-color: #64c3a0 !important;
+  border: none;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+button.btn-brand:hover:not(:disabled),
+.ess-portal .btn-brand:hover:not(:disabled),
+a.btn-brand:hover:not(:disabled) {
+  background-color: #52b38f !important;
+}
+
+button.btn-brand:disabled,
+.ess-portal .btn-brand:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+button.btn-cancel,
+.ess-portal .btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: #374151 !important;
+  background-color: #ffc954 !important;
+  border: 1px solid #ffc954 !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+button.btn-cancel:hover:not(:disabled),
+.ess-portal .btn-cancel:hover:not(:disabled) {
+  background-color: #f5be3d !important;
+  border-color: #f5be3d !important;
+  color: #1f2937 !important;
+}
+
+button.btn-cancel:disabled,
+.ess-portal .btn-cancel:disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 /* Sonner — reference layout: left accent, title/message, close on right center */

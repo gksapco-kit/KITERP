@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useVendor } from './VendorContext'
 import {
   hexToHslChannels,
@@ -55,7 +56,12 @@ const ThemeContext = createContext<ThemeConfig>(DEFAULT_THEME)
 
 const GOOGLE_FONTS = ['Inter', 'Poppins', 'DM Sans', 'Space Grotesk', 'Playfair Display', 'Roboto']
 
+/** KITERP kit green — used in Employee HR portal instead of per-store storefront blue */
+export const KIT_BRAND_PRIMARY = '#64C3A0'
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  const isHrPortal = /\/hr(\/|$)/.test(pathname)
   const { vendor } = useVendor()
   const themeConfig = vendor?.theme_config
 
@@ -95,9 +101,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--font-store', theme.font)
     root.style.setProperty('--font-body', theme.font_body || theme.font)
 
-    const primaryHsl = hexToHslChannels(theme.colors.primary)
+    const brandPrimary = isHrPortal ? KIT_BRAND_PRIMARY : theme.colors.primary
+    const primaryHsl = hexToHslChannels(brandPrimary)
     if (primaryHsl) {
-      const fg = primaryForegroundHslForHex(theme.colors.primary)
+      const fg = primaryForegroundHslForHex(brandPrimary)
       root.style.setProperty('--primary', primaryHsl)
       root.style.setProperty('--primary-foreground', fg)
       root.style.setProperty('--ring', primaryHsl)
@@ -124,6 +131,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.body.style.backgroundColor = ''
     }
   }, [
+    isHrPortal,
     theme.colors.primary,
     theme.colors.secondary,
     theme.colors.accent,
