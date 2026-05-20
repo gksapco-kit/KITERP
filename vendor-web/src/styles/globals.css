@@ -190,6 +190,15 @@
   }
 }
 
+/* Vendor /register — full-page signup (no inner scroll trap) */
+.vendor-register {
+  width: 100%;
+  overflow-x: hidden;
+}
+.vendor-register main {
+  width: 100%;
+}
+
 /*
  * Dark mode — remap legacy light-only Tailwind classes (bg-white, text-gray-*, etc.)
  * so pages match dashboard Card styling without editing every file.

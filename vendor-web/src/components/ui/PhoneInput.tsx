@@ -167,6 +167,8 @@ export interface PhoneInputProps {
   comfortable?: boolean
   /** With `comfortable`, match SmartLoginInput dense (~20% smaller) layout. */
   dense?: boolean
+  /** Softer valid-state styling (no loud green border / in-field counter). */
+  subtleFeedback?: boolean
 }
 
 export function PhoneInput({
@@ -184,6 +186,7 @@ export function PhoneInput({
   autoComplete = 'username',
   comfortable = false,
   dense = false,
+  subtleFeedback = false,
 }: PhoneInputProps) {
   const defaultCountry =
     COUNTRIES.find(c => c.iso === defaultCountryIso) ??
@@ -401,12 +404,13 @@ export function PhoneInput({
               'focus:ring-2 focus:ring-ring focus:border-primary',
               error ? 'border-destructive bg-destructive/10' : 'border-input',
               isOverLimit && 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15',
-              isFull && !error && 'border-green-600 bg-green-500/10 dark:border-green-500 dark:bg-green-500/15',
+              isFull && !error && !subtleFeedback && 'border-green-600 bg-green-500/10 dark:border-green-500 dark:bg-green-500/15',
+              isFull && !error && subtleFeedback && 'border-input',
               disabled && 'opacity-50 cursor-not-allowed bg-muted',
             )}
           />
           {/* Counter: shows overflow in amber, normal progress in gray */}
-          {localNumber.length > 0 && maxDigits <= 12 && (
+          {localNumber.length > 0 && maxDigits <= 12 && !subtleFeedback && (
             <span className={cn(
               'absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono tabular-nums pointer-events-none',
               isOverLimit
@@ -438,7 +442,14 @@ export function PhoneInput({
           Will save last {maxDigits} digits: <span className="font-mono font-semibold">{localNumber.slice(-maxDigits)}</span>
         </p>
       ) : isFull ? (
-        <p className="text-[11px] text-green-700 dark:text-green-400">✓ {maxDigits}-digit number entered</p>
+        subtleFeedback ? (
+          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 text-primary/80 shrink-0" aria-hidden />
+            Valid {maxDigits}-digit number
+          </p>
+        ) : (
+          <p className="text-[11px] text-green-700 dark:text-green-400">✓ {maxDigits}-digit number entered</p>
+        )
       ) : null}
     </div>
   )

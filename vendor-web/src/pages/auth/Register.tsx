@@ -127,7 +127,10 @@ const PwField = forwardRef<
         <Input
           ref={ref}
           type={show ? 'text' : 'password'}
-          className={cn('h-11 min-h-11 text-base pr-10', className)}
+          className={cn(
+            'h-10 text-sm pr-10 focus-visible:ring-primary/40 focus-visible:ring-offset-4 focus-visible:ring-offset-white',
+            className,
+          )}
           {...props}
         />
         <button
@@ -187,7 +190,7 @@ function TypeDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'flex h-11 min-h-11 w-full items-center gap-2.5 rounded-lg border bg-white px-3 text-base transition-all',
+          'flex h-10 min-h-10 w-full items-center gap-2 rounded-lg border bg-white px-3 text-sm transition-all',
           open ? 'border-primary/60 ring-1 ring-primary/25' : 'border-gray-200 hover:border-gray-300',
           error ? 'border-red-400' : '',
         )}
@@ -464,96 +467,76 @@ export default function Register() {
     })
   }
 
+  const fieldLabel = 'mb-1 block text-sm font-medium text-slate-700'
+  const fieldRow = 'grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3'
+  const inputClass = 'h-10 text-sm'
+
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 flex flex-col">
-      {/* Top nav bar */}
-      <header className="bg-white border-b shrink-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Store className="w-6 h-6 text-blue-600" />
-            <span className="font-bold text-base text-gray-900">KITERP</span>
-          </div>
-          <p className="text-sm text-gray-500">
+    <div className="vendor-register flex min-h-dvh min-h-screen w-full flex-col bg-slate-50">
+      <header className="shrink-0 border-b border-slate-200 bg-white">
+        <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link to="/register" className="flex items-center gap-2">
+            <Store className="h-5 w-5 text-primary" aria-hidden />
+            <span className="text-base font-semibold text-slate-900">KITERP</span>
+          </Link>
+          <p className="text-xs text-slate-600 sm:text-sm">
             Already a vendor?{' '}
-            <Link to="/login" className="-mx-0.5 rounded-md px-1 py-2 font-semibold text-blue-600 hover:underline">
+            <Link to="/login" className="font-semibold text-[hsl(204.42deg_94.86%_48.34%)] hover:underline">
               Sign in
             </Link>
           </p>
         </div>
       </header>
 
-      {/* Body */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <div className="h-full max-w-6xl mx-auto px-4 py-4 sm:py-6">
-          <div className="grid h-full lg:grid-cols-[1fr_1.2fr] gap-6 lg:gap-10 items-stretch">
+      <main className="flex-1 w-full">
+        <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-5 lg:py-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6 lg:gap-8 md:items-start">
 
-            {/* Left — marketing panel */}
-            <div className="hidden lg:flex flex-col justify-center pr-2">
-              <h1 className="text-2xl xl:text-3xl font-bold text-gray-900 leading-tight">
-                Start selling online<br />
-                <span className="text-blue-600">in minutes</span>
+            {/* Marketing — tablet/desktop only */}
+            <aside className="hidden md:block md:sticky md:top-4">
+              <h1 className="text-xl font-bold leading-tight text-slate-900 lg:text-2xl">
+                Start selling online{' '}
+                <span className="text-[hsl(204.42deg_94.86%_48.34%)]">in minutes</span>
               </h1>
-              <p className="mt-2 text-sm text-gray-500">
-                Create your branded store, manage products &amp; services, accept orders, and grow your business.
+              <p className="mt-2 text-sm leading-snug text-slate-600">
+                Branded store, orders, inventory, and reports — one dashboard.
               </p>
-
-              <div className="space-y-3 mt-5">
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
                 {FEATURES.map((f) => (
-                  <div key={f.title} className="flex gap-3 items-start">
-                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                      <f.icon className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm leading-tight">{f.title}</h3>
-                      <p className="text-xs text-gray-500 leading-snug">{f.desc}</p>
-                    </div>
-                  </div>
+                  <li key={f.title} className="flex items-start gap-2.5 rounded-lg bg-white px-3 py-2.5 shadow-sm ring-1 ring-slate-200/80">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                      <f.icon className="h-4 w-4 text-primary" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-slate-900">{f.title}</span>
+                      <span className="block text-xs text-slate-500">{f.desc}</span>
+                    </span>
+                  </li>
                 ))}
-              </div>
-
-              <p className="flex items-center gap-1.5 mt-6 text-xs text-gray-400">
-                <ShieldCheck className="w-3.5 h-3.5" /> Secured by KITERP
+              </ul>
+              <p className="mt-4 flex items-center gap-1.5 text-xs text-slate-500">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden />
+                Secured by KITERP
               </p>
-            </div>
+            </aside>
 
-            {/* Right — form card */}
-            <div className="flex h-full min-h-0 flex-col lg:justify-center">
-              <div className="shrink-0 px-1 pb-3 pt-1 text-center lg:hidden">
-                <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-[1.65rem]">
-                  Start selling online{' '}
-                  <span className="text-blue-600">in minutes</span>
-                </h1>
-                <p className="mt-1.5 text-sm leading-snug text-gray-600">
-                  Create your branded store, manage products &amp; services, accept orders, and grow your business.
-                </p>
-              </div>
-
-              <div className="flex min-h-0 flex-1 flex-col lg:flex-none">
-                <div className="max-h-full w-full flex-1 overflow-y-auto rounded-2xl border bg-white p-6 shadow-xl sm:p-8 lg:flex-none">
-                {/* Mobile logo */}
-                <div className="mb-2 text-center lg:hidden">
-                  <Store className="mx-auto mb-1 h-9 w-9 text-blue-600" />
+            {/* Signup form */}
+            <section className="w-full min-w-0">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md sm:p-5">
+                <div className="mb-4 border-b border-slate-100 pb-3">
+                  <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Create your business</h2>
+                  <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Fill in the details below to get started.</p>
                 </div>
 
-                <div className="mb-5">
-                  <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Create your business</h2>
-                  <p className="mt-1 text-sm text-gray-600">Fill in the details below to get started</p>
-                </div>
-
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  {/* Row 1 — Business Name + Business Category */}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+                  <div className={fieldRow}>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Business Name / Brand</label>
-                      <Input
-                        {...register('business_name')}
-                        placeholder="e.g. Fresh Mart"
-                        className="h-11 min-h-11 text-base"
-                      />
-                      {errors.business_name && <p className="mt-1 text-xs text-red-500">{errors.business_name.message}</p>}
+                      <label className={fieldLabel}>Business Name / Brand</label>
+                      <Input {...register('business_name')} placeholder="e.g. Fresh Mart" className={inputClass} />
+                      {errors.business_name && <p className="mt-0.5 text-xs text-red-500">{errors.business_name.message}</p>}
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Business Category</label>
+                      <label className={fieldLabel}>Business Category</label>
                       <Controller
                         control={control}
                         name="business_category"
@@ -568,24 +551,19 @@ export default function Register() {
                     </div>
                   </div>
 
-                  {/* Row 2 — Full Name */}
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Full Name</label>
-                    <Input
-                      {...register('full_name')}
-                      placeholder="Your full name"
-                      className="h-11 min-h-11 text-base"
-                    />
-                    {errors.full_name && <p className="mt-1 text-xs text-red-500">{errors.full_name.message}</p>}
+                    <label className={fieldLabel}>Full Name</label>
+                    <Input {...register('full_name')} placeholder="Your full name" className={inputClass} />
+                    {errors.full_name && <p className="mt-0.5 text-xs text-red-500">{errors.full_name.message}</p>}
                   </div>
 
-                  {/* Row 3 — Phone + Email (at least one required; phone needs OTP) */}
-                  <p className="-mt-1 text-sm leading-snug text-gray-600">
-                    Provide <strong className="font-medium text-gray-800">either</strong> a contact email <strong className="font-medium text-gray-800">or</strong> a mobile number. After you click Create your business, we will ask for a phone OTP in a secure popup.
+                  <p className="text-xs leading-snug text-slate-500">
+                    Email <span className="text-slate-400">or</span> phone required. Phone signups use OTP after submit.
                   </p>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
+
+                  <div className={fieldRow}>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Phone Number</label>
+                      <label className={fieldLabel}>Phone Number</label>
                       <Controller
                         control={control}
                         name="phone"
@@ -597,35 +575,30 @@ export default function Register() {
                             error={errors.phone?.message}
                             defaultCountryIso="IN"
                             inferCountryFromLocation
-                            comfortable
+                            subtleFeedback
                           />
                         )}
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Contact Email</label>
+                      <label className={fieldLabel}>Contact Email</label>
                       <Input
                         {...register('email')}
                         type="email"
                         placeholder="Optional if you use phone"
-                        className="h-11 min-h-11 text-base"
+                        className={inputClass}
                       />
-                      {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+                      {errors.email && <p className="mt-0.5 text-xs text-red-500">{errors.email.message}</p>}
                     </div>
                   </div>
 
-                  {/* Row 4 — Password + Confirm */}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
+                  <div className={fieldRow}>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
-                      <PwField
-                        {...register('password')}
-                        placeholder="Min. 8 characters"
-                        error={errors.password?.message}
-                      />
+                      <label className={fieldLabel}>Password</label>
+                      <PwField {...register('password')} placeholder="Min. 8 characters" error={errors.password?.message} />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Confirm Password</label>
+                      <label className={fieldLabel}>Confirm Password</label>
                       <PwField
                         {...register('confirm_password')}
                         placeholder="Re-enter password"
@@ -634,47 +607,50 @@ export default function Register() {
                     </div>
                   </div>
 
+                  <div className="pt-3">
                   <Button
                     type="submit"
-                    className="mt-2 w-full min-h-12 rounded-xl bg-primary px-4 py-3 text-lg font-bold hover:bg-primary/90 sm:min-h-14 sm:px-6 sm:py-3.5 sm:text-xl"
+                    size="lg"
+                    className="h-11 w-full rounded-lg border-0 text-base font-semibold text-white shadow-sm hover:opacity-95"
+                    style={{ backgroundColor: '#64c3a0' }}
                     disabled={signupMut.isPending || otpModalOpen || checkingContact}
                   >
                     {checkingContact ? (
                       <>
-                        <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin sm:h-6 sm:w-6" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Checking…
                       </>
                     ) : signupMut.isPending && !otpModalOpen ? (
                       <>
-                        <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin sm:h-6 sm:w-6" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Creating account…
                       </>
                     ) : (
                       <>
-                        <Rocket className="mr-2 h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
+                        <Rocket className="mr-2 h-4 w-4" />
                         Create your business
                       </>
                     )}
                   </Button>
+                  </div>
                 </form>
 
-                <p className="mt-4 text-center text-xs text-gray-500 sm:text-sm">
+                <p className="mt-3 text-center text-[11px] text-slate-500 sm:text-xs">
                   By signing up, you agree to our{' '}
-                  <a href="#" className="underline hover:text-gray-700">Terms of Service</a>
+                  <a href="#" className="text-[hsl(204.42deg_94.86%_48.34%)] hover:underline">Terms</a>
                   {' '}and{' '}
-                  <a href="#" className="underline hover:text-gray-700">Privacy Policy</a>.
+                  <a href="#" className="text-[hsl(204.42deg_94.86%_48.34%)] hover:underline">Privacy Policy</a>.
                 </p>
 
-                <div className="mt-5">
+                <div className="mt-3 border-t border-slate-100 pt-3">
                   <HelpAccordion />
                 </div>
-                </div>
               </div>
-            </div>
+            </section>
 
           </div>
         </div>
-      </div>
+      </main>
 
       {otpModalOpen && pendingPhoneSignup ? (
         <div
