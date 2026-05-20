@@ -56,7 +56,7 @@ export const listFiscalYears = (params?: { company_id?: string }) =>
   axios.get(`${BASE}/fiscal-years`, { params }).then(r => r.data)
 export const createFiscalYear = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/fiscal-years`, data).then(r => r.data)
-/** Attach an existing fiscal year variant to more company codes (shared calendar, no duplicate period rows). */
+/** Attach an existing fiscal year variant to more business units (shared calendar, no duplicate period rows). */
 export const assignFiscalYearCompanies = (
   fyId: string,
   data: { company_ids: string[]; is_current?: boolean }

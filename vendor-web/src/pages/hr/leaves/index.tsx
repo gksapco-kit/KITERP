@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { CheckCircle, XCircle, Clock, Filter, X } from 'lucide-react'
 import { useHRLeaveRequests, useApproveLeave, useRejectLeave, useHREmployees } from '@/hooks/useVendor'
@@ -19,7 +20,7 @@ function RejectModal({ reqId, onClose }: { reqId: string; onClose: () => void })
     onClose()
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold mb-3">Reject Leave Request</h2>

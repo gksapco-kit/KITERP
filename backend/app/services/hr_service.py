@@ -113,12 +113,33 @@ class HRService:
                     status_code=422,
                     detail="personal_email or personal_phone is required for HR-only employees",
                 )
+        if data.get("manager_id"):
+            await self._validate_manager_id(vendor_id, data.get("manager_id"))
         return await self.emp_repo.create(vendor_id, data)
+
+    async def _validate_manager_id(
+        self,
+        vendor_id: UUID,
+        manager_id: Optional[UUID],
+        *,
+        emp_id: Optional[UUID] = None,
+    ) -> None:
+        if not manager_id:
+            return
+        if emp_id and manager_id == emp_id:
+            raise HTTPException(status_code=400, detail="Employee cannot be their own reporting manager")
+        mgr = await self.emp_repo.get(manager_id, vendor_id)
+        if not mgr:
+            raise HTTPException(status_code=400, detail="Reporting manager not found")
+        if not mgr.is_active or mgr.status == "exited":
+            raise HTTPException(status_code=400, detail="Reporting manager must be an active employee")
 
     async def update_employee(self, emp_id: UUID, vendor_id: UUID, data: dict) -> EmployeeProfile:
         emp = await self.emp_repo.get(emp_id, vendor_id)
         if not emp:
             raise HTTPException(status_code=404, detail="Employee not found")
+        if "manager_id" in data:
+            await self._validate_manager_id(vendor_id, data.get("manager_id"), emp_id=emp_id)
         return await self.emp_repo.update(emp, data)
 
     async def set_employee_portal_password(self, emp_id: UUID, vendor_id: UUID, new_password: str) -> None:

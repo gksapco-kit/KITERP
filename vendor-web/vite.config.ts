@@ -23,8 +23,8 @@ export default defineConfig({
   server: {
     port: 3001,
     strictPort: true,
-    /** Match admin frontend; listens on all interfaces (IPv4 + IPv6 on Windows). */
-    host: '0.0.0.0',
+    /** `true` avoids localhost hanging on some Windows setups; use http://127.0.0.1:3001 if needed. */
+    host: true,
     /** Allow Docker / reverse-proxy hostnames (Vite 5+ host check). */
     allowedHosts: true,
     /** Align HMR client port with host port map (e.g. Docker 3001:3001). */

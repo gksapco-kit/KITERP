@@ -136,7 +136,7 @@ async def _resolve_draft_period(
             )
             if r_link.scalar_one_or_none() is None:
                 raise ValueError(
-                    "The selected accounting period belongs to a different company code than this document. "
+                    "The selected accounting period belongs to a different business unit than this document. "
                     "Align company and period, or pick a period for a company that uses this calendar."
                 )
         return p.id, fy.id

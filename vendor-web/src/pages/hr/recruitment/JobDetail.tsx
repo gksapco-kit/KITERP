@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Calendar, X, Star, Users as UsersIcon } from 'lucide-react'
@@ -30,7 +31,7 @@ function AddCandidateToJobModal({ jobId, onClose }: { jobId: string; onClose: ()
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Add Candidate to Pipeline</h2>

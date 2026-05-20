@@ -6,7 +6,7 @@ from uuid import UUID
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -15,6 +15,20 @@ from app.models.vendor_user import VendorUser
 from app.services.hr_service import HRService
 
 router = APIRouter()
+
+_OPTIONAL_EMP_DATE_FIELDS_IN = (
+    "date_of_birth",
+    "date_of_joining",
+    "probation_end_date",
+    "lwd",
+)
+_OPTIONAL_EMP_DATE_FIELDS_UPDATE = _OPTIONAL_EMP_DATE_FIELDS_IN + ("date_of_exit",)
+
+
+def _coerce_optional_date(v: Any) -> Optional[date]:
+    if v is None or v == "":
+        return None
+    return v
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -73,6 +87,7 @@ class EmployeeIn(BaseModel):
     permanent_address: Optional[dict] = None
     department_id: Optional[UUID] = None
     designation_id: Optional[UUID] = None
+    manager_id: Optional[UUID] = None
     employment_type: Optional[str] = "full_time"
     date_of_joining: Optional[date] = None
     probation_end_date: Optional[date] = None
@@ -87,6 +102,12 @@ class EmployeeIn(BaseModel):
     uan_number: Optional[str] = None
     esi_number: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator(*_OPTIONAL_EMP_DATE_FIELDS_IN, mode="before")
+    @classmethod
+    def _optional_dates(cls, v: Any) -> Optional[date]:
+        return _coerce_optional_date(v)
+
 
 class EmployeePortalPasswordIn(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
@@ -119,6 +140,7 @@ class EmployeeUpdate(BaseModel):
     permanent_address: Optional[dict] = None
     department_id: Optional[UUID] = None
     designation_id: Optional[UUID] = None
+    manager_id: Optional[UUID] = None
     employment_type: Optional[str] = None
     date_of_joining: Optional[date] = None
     date_of_exit: Optional[date] = None
@@ -136,6 +158,11 @@ class EmployeeUpdate(BaseModel):
     esi_number: Optional[str] = None
     notes: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @field_validator(*_OPTIONAL_EMP_DATE_FIELDS_UPDATE, mode="before")
+    @classmethod
+    def _optional_dates(cls, v: Any) -> Optional[date]:
+        return _coerce_optional_date(v)
 
 
 class DocumentIn(BaseModel):
@@ -510,6 +537,11 @@ async def update_employee(
     from passlib.context import CryptContext
     svc = HRService(db)
     data = body.model_dump(exclude_none=True)
+    if "manager_id" in body.model_fields_set:
+        data["manager_id"] = body.manager_id
+    for field in _OPTIONAL_EMP_DATE_FIELDS_UPDATE:
+        if field in body.model_fields_set:
+            data[field] = getattr(body, field)
     if "pos_pin" in data:
         ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
         data["pos_pin_hash"] = ctx.hash(data.pop("pos_pin"))
@@ -522,6 +554,7 @@ async def update_employee(
             db, emp, lwd=emp.lwd, previous_lwd=previous_lwd,
         )
     await db.commit()
+    emp = await svc.get_employee(emp_id, vu.vendor_id)
     return _d(emp)
 
 

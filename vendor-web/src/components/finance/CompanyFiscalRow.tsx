@@ -187,7 +187,7 @@ export default function CompanyFiscalRow({
           {fiscalYears.length === 0 ? null : (
             <>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Fiscal year for this company</label>
+                <label className="text-xs font-bold text-slate-500 uppercase">Fiscal year for this business unit</label>
                 <select
                   value={fyId}
                   onChange={e => { setFyId(e.target.value) }}

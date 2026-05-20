@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useUpdateVendor } from '@/hooks/useVendor'
+import { useUpdateVendor, useStores } from '@/hooks/useVendor'
+import StoresPage from '@/pages/stores'
 import { vendorApi } from '@/api/vendor'
 import {
   Save, Loader2, Store, MapPin, FileText, Globe,
@@ -61,6 +62,10 @@ export default function SettingsPage() {
   const { vendor, selectedStore } = useVendorStore()
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const { data: storesData } = useStores()
+  const stores = storesData?.stores ?? []
+  /** No branch filter — show Business Units hub instead of single-store overview card. */
+  const allBusinessUnitsMode = stores.length > 1 && !selectedStore
   const [searchParams] = useSearchParams()
   const updateVendor = useUpdateVendor()
 
@@ -89,39 +94,33 @@ export default function SettingsPage() {
     (user.vendor_role.role === 'owner' || user.vendor_role.role === 'platform_staff')
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <div
-          className="flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 text-sm text-muted-foreground"
-          title={vendor?.status ?? undefined}
-        >
-          <span className={`h-2 w-2 shrink-0 rounded-full ${vendor?.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'}`} />
-          {vendorStatusLabel(vendor?.status)}
+    <div className={cn('mx-auto space-y-4', allBusinessUnitsMode ? 'max-w-6xl' : 'max-w-3xl')}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold text-foreground">Settings</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          {showSupportAuditLink && (
+            <Link
+              to="/settings/support-activity"
+              className="inline-flex items-center gap-1.5 rounded-full border border-blue-200/80 bg-blue-50/60 px-2.5 py-1 text-[11px] font-medium text-blue-800 hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
+            >
+              <HelpCircle className="h-3 w-3 shrink-0" />
+              Support audit
+            </Link>
+          )}
+          <div
+            className="flex items-center gap-2 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground"
+            title={vendor?.status ?? undefined}
+          >
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${vendor?.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'}`} />
+            {vendorStatusLabel(vendor?.status)}
+          </div>
         </div>
       </div>
 
-      {showSupportAuditLink && (
-        <Card className="border-blue-100 bg-blue-50/60 dark:bg-blue-950/20 dark:border-blue-900">
-          <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <HelpCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-900 dark:text-gray-100">Platform support activity</p>
-                <p className="text-sm text-muted-foreground">
-                  View when platform staff opened this dashboard from admin and what changes they made while signed in.
-                </p>
-              </div>
-            </div>
-            <Button variant="secondary" size="sm" className="shrink-0" asChild>
-              <Link to="/settings/support-activity">View audit log</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Unified Store & Overview card */}
-      {(() => {
+      {/* All business units: show management grid; one branch selected: store overview card */}
+      {allBusinessUnitsMode ? (
+        <StoresPage embeddedInSettings />
+      ) : (() => {
         const activeKey = selectedStore?.code || selectedStore?.id
         const slug = vendor?.slug?.trim()
         const storeBase = slug ? getCustomerStorefrontBaseUrl(slug) : ''
@@ -131,7 +130,7 @@ export default function SettingsPage() {
               : storeBase)
           : '#'
         const linkDisplay = activeLink.startsWith('http') ? activeLink.replace(/^https?:\/\//, '') : activeLink
-        const activeName = selectedStore?.name || vendor?.business_name || 'All Stores'
+        const activeName = selectedStore?.name || vendor?.business_name || 'Business'
         const activeDesc = selectedStore?.description || vendor?.business_type || ''
 
         return (
@@ -160,7 +159,7 @@ export default function SettingsPage() {
                     <VerifiedBadge level={vendorVerificationLevel(vendor)} size="xs" />
                     {selectedStore ? (
                       <IdChip
-                        label="Store"
+                        label="Business unit"
                         code={formatStoreCode({ id: selectedStore.id, code: selectedStore.code })}
                         fullValue={selectedStore.id}
                         className="!py-0 !px-1.5"
@@ -229,7 +228,7 @@ export default function SettingsPage() {
                     className="flex items-center gap-1 text-xs text-primary hover:text-primary font-medium transition-colors px-2 py-1 rounded-lg hover:bg-accent ml-auto"
                   >
                     <Settings2 className="w-3 h-3" />
-                    Company Codes
+                    Business Units
                     <ChevronRight className="w-3 h-3" />
                   </button>
                 </div>
@@ -239,14 +238,14 @@ export default function SettingsPage() {
             <CardContent className="border-t border-border pt-3 pb-4">
               <p className="text-xs leading-relaxed text-muted-foreground">
                 To filter orders and reports by branch, use the{' '}
-                <strong className="font-medium text-foreground">store selector in the left sidebar</strong>.
+                <strong className="font-medium text-foreground">business unit selector in the top bar</strong>.
                 {' '}
                 <button
                   type="button"
                   onClick={() => navigate('/stores')}
                   className="font-medium text-primary hover:underline"
                 >
-                  Manage company codes
+                  Manage business units
                 </button>
               </p>
             </CardContent>

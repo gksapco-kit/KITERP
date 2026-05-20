@@ -73,6 +73,38 @@ export function useESSClockOut() {
   })
 }
 
+export function useESSMarkAttendance() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: essApi.markAttendance,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: K.todayAtt })
+      qc.invalidateQueries({ queryKey: ['ess-attendance'] })
+      toast.success('Attendance marked')
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(typeof msg === 'string' ? msg : 'Could not mark attendance')
+    },
+  })
+}
+
+export function useESSMarkAttendanceRange() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: essApi.markAttendanceRange,
+    onSuccess: (res: { message?: string }) => {
+      qc.invalidateQueries({ queryKey: K.todayAtt })
+      qc.invalidateQueries({ queryKey: ['ess-attendance'] })
+      toast.success(res?.message ?? 'Attendance range marked')
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(typeof msg === 'string' ? msg : 'Could not mark attendance range')
+    },
+  })
+}
+
 // ── Leaves ────────────────────────────────────────────────────────────────────
 
 export function useESSLeaves() {

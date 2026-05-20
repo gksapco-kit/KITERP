@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactNode } from 'react'
 import { X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, onModalBackdropClick } from '@/lib/utils'
 
 export function ModalCloseButton({
   onClose,
@@ -39,7 +39,7 @@ export function ModalOverlay({
         'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto',
         className,
       )}
-      onClick={onClose}
+      onClick={onModalBackdropClick(onClose)}
     >
       {children}
     </div>

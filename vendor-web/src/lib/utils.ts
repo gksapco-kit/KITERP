@@ -1,8 +1,16 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import type { MouseEvent } from 'react'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/** Close modal only when clicking the dimmed backdrop, not when events bubble from inputs inside the panel. */
+export function onModalBackdropClick(onClose: () => void) {
+  return (e: MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose()
+  }
 }
 
 export function formatCurrency(amount: number, currency = 'INR') {

@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LifeBuoy, Plus, X, ExternalLink } from 'lucide-react'
@@ -82,7 +83,7 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
     create.mutate(form as unknown as Record<string, unknown>, { onSuccess: onClose })
   }
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">Raise Ticket</h2>

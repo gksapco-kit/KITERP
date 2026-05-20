@@ -152,20 +152,24 @@ export default function HrLogin() {
                   value={login} onChange={(e) => setLogin(e.target.value)} />
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="hr-password">Password</Label>
-                  <button type="button" onClick={() => setShowForgot(true)}
-                    className="text-xs text-primary hover:underline">
-                    Forgot password?
-                  </button>
-                </div>
+                <Label htmlFor="hr-password">Password</Label>
                 <Input id="hr-password" type="password" autoComplete="current-password" required
+                  className="mt-1"
                   value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? 'Signing in…' : 'Sign in'}
               </Button>
+              <p className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(true)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </p>
             </form>
             <p className="text-center text-xs text-gray-400 mt-6">
               Access is managed by your HR administrator. Contact HR if you need an account.

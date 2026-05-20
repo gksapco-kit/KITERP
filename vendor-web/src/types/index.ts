@@ -945,6 +945,7 @@ export interface EmployeeProfile {
   // Employment
   department_id?: string | null
   designation_id?: string | null
+  manager_id?: string | null
   employment_type: string
   date_of_joining?: string | null
   date_of_exit?: string | null
@@ -975,6 +976,7 @@ export interface EmployeeProfile {
   // Loaded relations
   department?: HRDepartment | null
   designation?: HRDesignation | null
+  manager?: Pick<EmployeeProfile, 'id' | 'full_name' | 'employee_code' | 'employee_code_custom' | 'vendor_user'> | null
   vendor_user?: {
     id: string
     user?: { full_name: string; email: string; phone?: string; avatar_url?: string }

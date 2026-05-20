@@ -1549,6 +1549,15 @@ export const vendorApi = {
 
   hrListExpenses: async (params?: { status?: string; employee_id?: string }) =>
     (await apiClient.get('/vendors/me/hr/ess/expenses', { params })).data,
+  hrUploadExpenseReceipt: async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const r = await apiClient.post('/vendors/me/hr/ess/expenses/receipt', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+    })
+    return r.data as { url: string; name: string; content_type?: string; is_image?: boolean; size?: number }
+  },
   hrMyExpenses: async () => (await apiClient.get('/vendors/me/hr/ess/me/expenses')).data,
   hrGetExpense: async (id: string) => (await apiClient.get(`/vendors/me/hr/ess/expenses/${id}`)).data,
   hrCreateExpense: async (d: Record<string, unknown>) => (await apiClient.post('/vendors/me/hr/ess/expenses', d)).data,
@@ -1608,5 +1617,30 @@ export const vendorApi = {
   assignStaffStore: async (data: { staff_id: string; store_id: string | null }) => {
     const r = await apiClient.post('/vendors/me/stores/assign-staff', data)
     return r.data
+  },
+
+  // ── Production orders ────────────────────────────────────────────
+  listProductionOrders: async (params?: Record<string, unknown>) => {
+    const r = await apiClient.get('/vendors/me/production-orders', { params })
+    return r.data as { items: Record<string, unknown>[]; total: number }
+  },
+  getProductionOrder: async (id: string) => {
+    const r = await apiClient.get(`/vendors/me/production-orders/${id}`)
+    return r.data as Record<string, unknown>
+  },
+  createProductionOrder: async (data: Record<string, unknown>) => {
+    const r = await apiClient.post('/vendors/me/production-orders', data)
+    return r.data as Record<string, unknown>
+  },
+  updateProductionOrder: async (id: string, data: Record<string, unknown>) => {
+    const r = await apiClient.put(`/vendors/me/production-orders/${id}`, data)
+    return r.data as Record<string, unknown>
+  },
+  deleteProductionOrder: async (id: string) => {
+    await apiClient.delete(`/vendors/me/production-orders/${id}`)
+  },
+  importLocalProductionOrders: async (data: { orders: Record<string, unknown>[]; default_store_id?: string }) => {
+    const r = await apiClient.post('/vendors/me/production-orders/import-local', data)
+    return r.data as { created: number; skipped: number }
   },
 }

@@ -17,8 +17,9 @@ export default function CycleDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const { data: cycle, isLoading } = useHRCycle(id)
   const { data: reviews = [] } = useHRReviews({ cycle_id: id })
-  const { data: employees = [] } = useHREmployees()
-  const empMap = new Map((employees as EmployeeProfile[]).map(e => [e.id, e.vendor_user?.user?.full_name ?? e.employee_code]))
+  const { data: empData } = useHREmployees({ limit: 200 })
+  const employees: EmployeeProfile[] = empData?.items ?? []
+  const empMap = new Map(employees.map(e => [e.id, e.vendor_user?.user?.full_name ?? e.employee_code]))
 
   if (isLoading || !cycle) return <div className="p-6 text-gray-400">Loading…</div>
 

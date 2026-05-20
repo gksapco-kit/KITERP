@@ -242,7 +242,7 @@ function StoreModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="text-lg font-semibold">{store ? 'Edit company code' : 'New company code'}</h2>
+          <h2 className="text-lg font-semibold">{store ? 'Edit business unit' : 'New business unit'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-muted">
             <X className="w-5 h-5" />
           </button>
@@ -518,11 +518,33 @@ function TransferModal({
   )
 }
 
+// ── Inline stats (compact header) ───────────────────────────────────────────
+
+function BusinessUnitStatsChips({ stores }: { stores: StoreRecord[] }) {
+  const activeCount = stores.filter((s) => s.is_active).length
+  const staffTotal = stores.reduce((a, s) => a + (s.staff_count ?? 0), 0)
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-0.5">
+        <span className="font-semibold tabular-nums text-indigo-600">{stores.length}</span>
+        units
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-0.5">
+        <span className="font-semibold tabular-nums text-emerald-600">{activeCount}</span>
+        active
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-0.5">
+        <span className="font-semibold tabular-nums text-amber-600">{staffTotal}</span>
+        staff
+      </span>
+    </div>
+  )
+}
+
 // ── StoreCard ──────────────────────────────────────────────────────────────
 
 function StoreCard({
   store,
-  vendorSlug,
   vendorVerificationLevel: vendorLevel,
   isSelected,
   onSelect,
@@ -541,142 +563,108 @@ function StoreCard({
   onSetDefault: () => void
   onView: () => void
 }) {
-  const link = storeLink(vendorSlug, store)
+  const unitCode = formatStoreCode(store)
 
   return (
-    <Card className={cn(
-      'relative border-2 transition-all hover:shadow-md',
-      isSelected ? 'border-primary shadow-md shadow-primary/25' : store.is_default ? 'border-primary/30' : 'border-transparent',
-    )}>
-      {/* Selected badge */}
-      {isSelected && (
-        <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
-          <Check className="w-2.5 h-2.5" /> In use
-        </span>
+    <Card
+      className={cn(
+        'flex min-h-[10.5rem] flex-col border shadow-sm transition-all hover:shadow-md',
+        isSelected ? 'border-primary ring-1 ring-primary/25' : 'border-border',
+        !store.is_active && 'opacity-80',
       )}
-      {!isSelected && store.is_default && (
-        <span className="absolute top-3 right-3 bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-          <Star className="w-3 h-3" /> Default
-        </span>
-      )}
-
-      <CardHeader className="pb-2">
-        <div className="flex items-start gap-3">
-          {(() => {
-            const companyType = (store.settings as Record<string, string> | undefined)?.company_type
-            const preset = COMPANY_TYPES.find(t => t.value === companyType)
-            const Icon = preset?.icon ?? Store
-            return (
-              <div className={cn(
-                'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
-                isSelected ? 'bg-primary/10' : store.is_active ? 'bg-indigo-100' : 'bg-gray-100',
-              )}>
-                <Icon className={cn('w-5 h-5', isSelected ? 'text-primary' : store.is_active ? 'text-indigo-600' : 'text-gray-400')} />
-              </div>
-            )
-          })()}
+    >
+      <CardContent className="flex flex-1 flex-col gap-2 p-3">
+        <div className="flex items-start gap-2">
+          <div
+            className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+              isSelected ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
+            )}
+          >
+            <Store className="h-4 w-4" />
+          </div>
           <div className="min-w-0 flex-1">
-            <CardTitle className="text-base truncate">{store.name}</CardTitle>
-            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              {(() => {
-                const companyType = (store.settings as Record<string, string> | undefined)?.company_type
-                return companyType ? (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                    {companyType}
-                  </span>
-                ) : null
-              })()}
-              <IdChip label="" code={formatStoreCode(store)} fullValue={store.id} className="!py-0 !px-1.5" />
-              <VerifiedBadge level={vendorLevel} size="xs" />
-            </div>
+            <p className="truncate text-sm font-semibold leading-tight text-foreground" title={store.name}>
+              {store.name}
+            </p>
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Business unit
+            </p>
+            <p className="truncate font-mono text-xs text-muted-foreground" title={unitCode}>
+              {unitCode}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {isSelected ? (
+              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-semibold text-primary-foreground">
+                In use
+              </span>
+            ) : store.is_default ? (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                <Star className="h-2.5 w-2.5" />
+                Default
+              </span>
+            ) : null}
+            <VerifiedBadge level={vendorLevel} size="xs" />
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="space-y-2">
-        {store.description && <p className="text-sm text-gray-600 line-clamp-2">{store.description}</p>}
-
-        <div className="space-y-1">
-          {store.address?.city && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-              <span className="truncate">
-                {[store.address.street, store.address.city, store.address.state].filter(Boolean).join(', ')}
-              </span>
-            </div>
-          )}
-          {store.phone && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-3.5 h-3.5 flex-shrink-0" />{store.phone}
-            </div>
-          )}
-          {store.email && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Mail className="w-3.5 h-3.5 flex-shrink-0" />
-              <span className="truncate">{store.email}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Store link row */}
-        <div className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5">
-          <Link2 className="w-3 h-3 text-gray-400 shrink-0" />
-          <span className="text-[11px] text-blue-600 truncate flex-1 font-mono">{link}</span>
-          <button
-            type="button"
-            onClick={() => copyText(link, 'Store link copied!')}
-            className="p-0.5 rounded hover:bg-gray-200 transition-colors shrink-0"
-            title="Copy link"
+        <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2 py-1.5 text-[11px] text-muted-foreground">
+          <span className="tabular-nums">{store.inventory_count ?? 0} SKUs</span>
+          <span className="text-border">·</span>
+          <span className="tabular-nums">{store.staff_count ?? 0} staff</span>
+          <span
+            className={cn(
+              'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+              store.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground',
+            )}
           >
-            <Copy className="w-3 h-3 text-gray-500" />
-          </button>
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-0.5 rounded hover:bg-gray-200 transition-colors shrink-0"
-            title="Open store link"
-          >
-            <ExternalLink className="w-3 h-3 text-gray-500" />
-          </a>
-        </div>
-
-        <div className="flex items-center gap-3 pt-0.5">
-          <span className="flex items-center gap-1 text-sm text-gray-500">
-            <Package className="w-3.5 h-3.5" />{store.inventory_count ?? 0} SKUs
-          </span>
-          <span className="flex items-center gap-1 text-sm text-gray-500">
-            <Users className="w-3.5 h-3.5" />{store.staff_count ?? 0} staff
-          </span>
-          <span className={cn('ml-auto text-xs px-2 py-0.5 rounded-full font-medium', store.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
-            {store.is_active ? 'Active' : 'Inactive'}
+            {store.is_active ? 'Active' : 'Off'}
           </span>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 pt-2 border-t">
-          {/* Select / Deselect */}
+        <div className="mt-auto flex items-center gap-1 border-t border-border pt-2">
           <Button
             size="sm"
             variant={isSelected ? 'default' : 'outline'}
-            className={cn('h-8 text-xs flex-1', isSelected && 'bg-primary hover:bg-primary/90 text-white')}
+            className={cn('h-7 flex-1 text-xs', isSelected && 'bg-primary hover:bg-primary/90')}
             onClick={onSelect}
           >
-            {isSelected ? <><Check className="w-3 h-3 mr-1" />Clear filter</> : 'Use in app'}
+            {isSelected ? (
+              <>
+                <Check className="mr-1 h-3 w-3" />
+                Clear
+              </>
+            ) : (
+              'Use in app'
+            )}
           </Button>
-          <Button size="sm" variant="ghost" className="h-8 text-xs px-2" onClick={onView}>
-            View <ChevronRight className="w-3 h-3 ml-0.5" />
+          <Button size="sm" variant="ghost" className="h-7 w-7 shrink-0 p-0" onClick={onView} title="View details">
+            <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" className="h-8 px-2" onClick={onEdit} title="Edit">
-            <Edit2 className="w-3.5 h-3.5" />
+          <Button size="sm" variant="ghost" className="h-7 w-7 shrink-0 p-0" onClick={onEdit} title="Edit">
+            <Edit2 className="h-3.5 w-3.5" />
           </Button>
           {!store.is_default && (
-            <Button size="sm" variant="ghost" className="h-8 px-2" onClick={onSetDefault} title="Use as default branch for new sessions">
-              <StarOff className="w-3.5 h-3.5" />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 shrink-0 p-0"
+              onClick={onSetDefault}
+              title="Set as default"
+            >
+              <StarOff className="h-3.5 w-3.5" />
             </Button>
           )}
-          <Button size="sm" variant="ghost" className="h-8 px-2 text-red-500 hover:bg-red-50 hover:text-red-600" onClick={onDelete} title={store.is_default ? 'Default branch cannot be deleted' : 'Delete company code'} disabled={store.is_default}>
-            <Trash2 className="w-3.5 h-3.5" />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 shrink-0 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+            onClick={onDelete}
+            title={store.is_default ? 'Default branch cannot be deleted' : 'Delete'}
+            disabled={store.is_default}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </CardContent>
@@ -724,7 +712,7 @@ function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onBack}>← Back to Company Codes</Button>
+        <Button variant="outline" size="sm" onClick={onBack}>← Back to Business Units</Button>
         <h2 className="text-xl font-semibold">{store.name}</h2>
         {store.is_default && (
           <span className="bg-indigo-100 text-indigo-700 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -758,10 +746,10 @@ function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void
         ))}
       </div>
 
-      {/* Company code + storefront / HR links (not in sidebar — lives on store detail) */}
+      {/* Business unit + storefront / HR links (not in sidebar — lives on store detail) */}
       <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-border bg-muted/30">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Company code</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Business unit</p>
           <IdChip label="" code={formatStoreCode(store)} fullValue={store.id} className="w-fit" />
         </div>
         {vendor?.slug ? (
@@ -880,7 +868,12 @@ function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
-export default function StoresPage() {
+type StoresPageProps = {
+  /** Render inside Settings when "All business units" is selected (no back link). */
+  embeddedInSettings?: boolean
+}
+
+export default function StoresPage({ embeddedInSettings = false }: StoresPageProps = {}) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { vendor, selectedStore, setSelectedStore } = useVendorStore()
@@ -961,83 +954,99 @@ export default function StoresPage() {
     return <StoreDetail store={fresh} onBack={() => setViewingStore(null)} />
   }
 
+  const activeCount = stores.filter((s) => s.is_active).length
+  const staffTotal = stores.reduce((a, s) => a + (s.staff_count ?? 0), 0)
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-3">
+      {/* Compact toolbar: title, inline stats, search, actions */}
+      <div className="space-y-2">
+        {!embeddedInSettings && (
           <button
             type="button"
             onClick={() => navigate('/settings')}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary mb-2 transition-colors group"
+            className="group flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary"
           >
-            <ChevronRight className="w-4 h-4 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
+            <ChevronRight className="h-3.5 w-3.5 rotate-180 transition-transform group-hover:-translate-x-0.5" />
             Back to Settings
           </button>
-          <h1 className="text-2xl font-bold text-foreground">Company Codes</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Branches and locations for inventory, staff, and storefront links. &ldquo;Use in app&rdquo; filters the dashboard; the default star marks your primary branch.
-            {selectedStore && (
-              <span className="ml-2 inline-flex items-center gap-1 text-primary font-medium">
-                <Check className="w-3 h-3" /> Filter: {selectedStore.name}
-              </span>
+        )}
+
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2
+                className={cn(
+                  'font-semibold text-foreground',
+                  embeddedInSettings ? 'text-base' : 'text-lg',
+                )}
+              >
+                {embeddedInSettings ? 'Branches & locations' : 'Business Units'}
+              </h2>
+              {stores.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5">
+                    <span className="font-semibold tabular-nums text-indigo-600">{stores.length}</span>
+                    <span className="text-muted-foreground">units</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5">
+                    <span className="font-semibold tabular-nums text-emerald-600">{activeCount}</span>
+                    <span className="text-muted-foreground">active</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5">
+                    <span className="font-semibold tabular-nums text-amber-600">{staffTotal}</span>
+                    <span className="text-muted-foreground">staff</span>
+                  </span>
+                </div>
+              )}
+              {selectedStore && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  <Check className="h-3 w-3" />
+                  {selectedStore.name}
+                </span>
+              )}
+            </div>
+            {!embeddedInSettings && (
+              <p className="mt-1 hidden text-[11px] text-muted-foreground md:block">
+                Use in app to filter the dashboard; star marks your default branch.
+              </p>
             )}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {stores.length >= 2 && (
-            <Button variant="outline" onClick={copyAllLinks} title="Copy all store links to clipboard">
-              <Link2 className="w-4 h-4 mr-2" />Copy All Links
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {stores.length > 0 && (
+              <div className="relative min-w-[10rem] flex-1 sm:max-w-xs">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={listSearch}
+                  onChange={(e) => setListSearch(e.target.value)}
+                  placeholder="Search units…"
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
+            )}
+            {stores.length >= 2 && (
+              <Button variant="outline" size="sm" className="h-8" onClick={copyAllLinks} title="Copy all storefront links">
+                <Link2 className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Copy links</span>
+              </Button>
+            )}
+            {stores.length >= 2 && (
+              <Button variant="outline" size="sm" className="h-8" onClick={() => setShowTransfer(true)} title="Transfer stock between units">
+                <ArrowLeftRight className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Transfer</span>
+              </Button>
+            )}
+            <Button size="sm" className="h-8" onClick={() => { setEditingStore(null); setModal('create') }}>
+              <Plus className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden xs:inline sm:inline">New unit</span>
+              <span className="xs:hidden sm:hidden">New</span>
             </Button>
-          )}
-          {stores.length >= 2 && (
-            <Button variant="outline" onClick={() => setShowTransfer(true)}>
-              <ArrowLeftRight className="w-4 h-4 mr-2" />Transfer Stock
-            </Button>
-          )}
-          <Button onClick={() => { setEditingStore(null); setModal('create') }}>
-            <Plus className="w-4 h-4 mr-2" />New company code
-          </Button>
+          </div>
         </div>
       </div>
 
-      {/* Stats bar */}
-      {stores.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-indigo-600">{stores.length}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Company codes</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{stores.filter(s => s.is_active).length}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Active</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{stores.reduce((a, s) => a + (s.staff_count ?? 0), 0)}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Total Staff Assigned</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {stores.length > 0 && (
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <Input
-            value={listSearch}
-            onChange={(e) => setListSearch(e.target.value)}
-            placeholder="Search by name, code, city, type…"
-            className="pl-9"
-          />
-        </div>
-      )}
-
-      {/* Company code grid */}
+      {/* Business unit grid */}
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
@@ -1045,10 +1054,10 @@ export default function StoresPage() {
       ) : stores.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-xl text-center">
           <Store className="w-12 h-12 text-gray-300 mb-3" />
-          <p className="font-medium text-gray-600">No company codes yet</p>
+          <p className="font-medium text-gray-600">No business units yet</p>
           <p className="text-sm text-gray-400 mt-1">Add your first branch or location to get started</p>
           <Button className="mt-4" onClick={() => { setEditingStore(null); setModal('create') }}>
-            <Plus className="w-4 h-4 mr-2" />Add first company code
+            <Plus className="w-4 h-4 mr-2" />Add first business unit
           </Button>
         </div>
       ) : filteredStores.length === 0 ? (
@@ -1057,7 +1066,7 @@ export default function StoresPage() {
           <Button variant="link" className="mt-2" onClick={() => setListSearch('')}>Clear search</Button>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {filteredStores.map(store => (
             <StoreCard
               key={store.id}
@@ -1072,7 +1081,7 @@ export default function StoresPage() {
                   toast.error('Set another branch as default before deleting this one.')
                   return
                 }
-                const msg = `Delete company code "${store.name}"? This cannot be undone. Inventory and staff links for this branch will be removed.`
+                const msg = `Delete business unit "${store.name}"? This cannot be undone. Inventory and staff links for this branch will be removed.`
                 if (window.confirm(msg)) deleteMutation.mutate(store.id)
               }}
               onSetDefault={() => {
@@ -1085,10 +1094,10 @@ export default function StoresPage() {
           <button
             type="button"
             onClick={() => { setEditingStore(null); setModal('create') }}
-            className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center h-52 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-gray-400 hover:text-indigo-500"
+            className="flex min-h-[10.5rem] flex-col items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
           >
-            <Plus className="w-8 h-8 mb-2" />
-            <span className="text-sm font-medium">Add company code</span>
+            <Plus className="mb-1.5 h-6 w-6" />
+            <span className="text-xs font-medium">Add unit</span>
           </button>
           )}
         </div>

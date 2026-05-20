@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, CheckCircle, CreditCard, ExternalLink, Download, Loader2, Trash2, AlertTriangle, Info, X } from 'lucide-react'
@@ -17,7 +18,7 @@ function DeleteConfirmModal({ runId, label, onClose }: { runId: string; label: s
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
         <button
           type="button"

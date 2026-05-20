@@ -598,3 +598,20 @@ async def upload_hr_document(
         "is_image": is_image,
         "size": len(contents),
     })
+
+
+# -- Expense receipt upload (no application size cap) --
+
+from app.services.expense_receipt_upload import save_expense_receipt
+
+
+@router.post("/hr/expenses/receipt")
+async def upload_expense_receipt(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a receipt or supporting document for an expense claim."""
+    vendor_id = await _get_vendor_id(user, db)
+    result = await save_expense_receipt(file, vendor_id)
+    return JSONResponse(content=result)

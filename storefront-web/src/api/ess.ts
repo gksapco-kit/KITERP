@@ -28,6 +28,21 @@ export const essApi = {
     const res = await hrApiClient.get(`${base}/attendance`, { params })
     return res.data
   },
+  markAttendance: async (data: { date: string; status: string; notes?: string }) => {
+    const res = await hrApiClient.post(`${base}/attendance/mark`, data)
+    return res.data
+  },
+  markAttendanceRange: async (data: {
+    from_date: string
+    to_date: string
+    status: string
+    notes?: string
+    skip_weekends?: boolean
+    skip_existing?: boolean
+  }) => {
+    const res = await hrApiClient.post(`${base}/attendance/mark-range`, data)
+    return res.data
+  },
 
   getLeaves: async () => {
     const res = await hrApiClient.get(`${base}/leaves`)
@@ -71,6 +86,13 @@ export const essApi = {
   getPerformance: async () => {
     const res = await hrApiClient.get(`${base}/performance`)
     return res.data
+  },
+
+  uploadExpenseReceipt: async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await hrApiClient.post(`${base}/expenses/receipt`, form, { timeout: 0 })
+    return res.data as { url: string; name: string; content_type?: string; is_image?: boolean; size?: number }
   },
 
   getExpenses: async () => {

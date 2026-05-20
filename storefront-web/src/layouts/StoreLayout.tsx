@@ -355,7 +355,21 @@ function StoreContent() {
   useCart()
   useJourneyBeacon(vendor?.id, customer?.id)
 
-  if (isLoading) {
+  const isHrAuthPage =
+    !!vendorSlug &&
+    (pathname === `/store/${vendorSlug}/hr/login` ||
+      pathname === `/store/${vendorSlug}/hr/change-password`)
+
+  // Employee HR / ESS lives under /store/:slug/hr — resolve vendor via X-Vendor-Slug on the API.
+  // Do not block on public catalog so /hr/login still opens when the storefront vendor is missing or pending.
+  const isEmployeeHrArea =
+    !!vendorSlug &&
+    (isHrAuthPage ||
+      pathname === `/store/${vendorSlug}/hr` ||
+      pathname.startsWith(`/store/${vendorSlug}/hr/`))
+
+  // Sign-in pages must render even while catalog vendor fetch is in flight (or failed).
+  if (isLoading && !isHrAuthPage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -366,14 +380,15 @@ function StoreContent() {
     )
   }
 
-  // Employee HR / ESS lives under /store/:slug/hr — resolve vendor via X-Vendor-Slug on the API.
-  // Do not block on public catalog so /hr/login still opens when the storefront vendor is missing or pending.
-  const isEmployeeHrArea =
-    !!vendorSlug &&
-    (pathname === `/store/${vendorSlug}/hr/login` ||
-      pathname === `/store/${vendorSlug}/hr/change-password` ||
-      pathname === `/store/${vendorSlug}/hr` ||
-      pathname.startsWith(`/store/${vendorSlug}/hr/`))
+  if (isLoading && isHrAuthPage) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
+    )
+  }
 
   if (isEmployeeHrArea && (error || !vendor)) {
     return (
@@ -496,8 +511,8 @@ function StoreContent() {
   // HR / ESS portal — render without store nav/footer/cart
   if (isEmployeeHrArea) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
-        <main className="flex-1">
+      <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+        <main className="flex-1 min-h-0 flex flex-col">
           <Outlet />
         </main>
       </div>

@@ -5,7 +5,7 @@ from typing import Optional, List, Any, Dict
 from uuid import UUID
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1767,6 +1767,17 @@ class ExpenseDecide(BaseModel):
     note: Optional[str] = None
 
 
+@router.post("/ess/expenses/receipt")
+async def upload_expense_receipt_vendor(
+    file: UploadFile = File(...),
+    vu: VendorUser = Depends(get_current_vendor_user),
+):
+    """Upload receipt / media for expense claims (vendor HR portal). No size cap in app."""
+    from app.services.expense_receipt_upload import save_expense_receipt
+
+    return await save_expense_receipt(file, vu.vendor_id)
+
+
 @router.get("/ess/expenses")
 async def list_expenses(
     status: Optional[str] = None,
@@ -1852,6 +1863,8 @@ async def decide_expense(
         raise HTTPException(404, "Expense not found")
     if body.decision not in ("approved", "rejected"):
         raise HTTPException(400, "Decision must be approved or rejected")
+    if body.decision == "rejected" and not (body.note or "").strip():
+        raise HTTPException(400, "Rejection reason is required")
     e = await ExpenseRepo(db).update(e, {
         "status": body.decision,
         "decided_at": datetime.utcnow(),

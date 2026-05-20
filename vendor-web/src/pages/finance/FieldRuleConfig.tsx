@@ -22,7 +22,7 @@ type RuleRow = {
 
 const SCOPE = [
   { value: 'gl', label: 'GL (tenant default)' },
-  { value: 'company', label: 'Company code' },
+  { value: 'company', label: 'Business unit' },
   { value: 'user', label: 'User' },
 ] as const
 
@@ -95,7 +95,7 @@ export default function FieldRuleConfig() {
         </h1>
         <p className="text-sm text-gray-500 mt-1 max-w-2xl">
           Define whether journal header fields are <strong>optional</strong>, <strong>mandatory</strong>, or <strong>hidden</strong>.
-          Rules merge as: <em>GL default → company code → user</em> (the most specific scope wins).
+          Rules merge as: <em>GL default → business unit → user</em> (the most specific scope wins).
         </p>
       </div>
 

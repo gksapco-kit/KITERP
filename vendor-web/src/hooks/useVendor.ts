@@ -49,7 +49,7 @@ export const vendorKeys = {
   priceRules: (productId: string) => [...vendorKeys.all, 'price-rules', productId] as const,
   productBOM: (productId: string) => [...vendorKeys.all, 'product-bom', productId] as const,
   reservations: (orderType: string, orderId: string) => [...vendorKeys.all, 'reservations', orderType, orderId] as const,
-  /** Company codes / outlets — use with useStores; invalidate `[...vendorKeys.all, 'stores']` after mutations. */
+  /** Business units / outlets — use with useStores; invalidate `[...vendorKeys.all, 'stores']` after mutations. */
   stores: (params?: Record<string, unknown>) => [...vendorKeys.all, 'stores', params] as const,
   // HR keys
   hrDepartments: () => [...vendorKeys.all, 'hr-departments'] as const,

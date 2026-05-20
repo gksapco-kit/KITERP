@@ -107,6 +107,9 @@ class EmployeeRepo:
             selectinload(EmployeeProfile.department),
             selectinload(EmployeeProfile.designation),
             selectinload(EmployeeProfile.vendor_user).selectinload(VendorUser.user),
+            selectinload(EmployeeProfile.manager).selectinload(EmployeeProfile.vendor_user).selectinload(
+                VendorUser.user
+            ),
         ]
 
     async def list(

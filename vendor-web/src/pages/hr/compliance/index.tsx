@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -171,7 +172,7 @@ function PolicyModal({ existing, onClose }: { existing?: Policy | null; onClose:
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? `Edit Policy (v${existing.version})` : 'New Policy'}</h2>
@@ -255,7 +256,8 @@ function CertificationsTab() {
   if (employeeFilter) params.employee_id = employeeFilter
   if (expiringDays) params.expiring_within_days = Number(expiringDays)
   const { data: certs = [], isLoading } = useHRCertifications(params)
-  const { data: employees = [] } = useHREmployees()
+  const { data: empData } = useHREmployees({ limit: 200 })
+  const employees: EmployeeProfile[] = empData?.items ?? []
   const empMap = new Map((employees as EmployeeProfile[]).map(e => [e.id, e.vendor_user?.user?.full_name ?? e.employee_code]))
   const del = useDeleteHRCertification()
   const [editing, setEditing] = useState<ComplianceCertification | null>(null)
@@ -347,7 +349,8 @@ function CertificationsTab() {
 }
 
 function CertModal({ existing, onClose }: { existing?: ComplianceCertification | null; onClose: () => void }) {
-  const { data: employees = [] } = useHREmployees()
+  const { data: empData } = useHREmployees({ limit: 200 })
+  const employees: EmployeeProfile[] = empData?.items ?? []
   const create = useCreateHRCertification()
   const update = useUpdateHRCertification()
   const [form, setForm] = useState({

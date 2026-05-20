@@ -30,7 +30,7 @@ import {
   EmployeeCredentialsTab,
   ShareDropdown,
 } from './employeeTabPanelsExtended'
-import { employeeDisplayName } from '@/lib/hrEmployeeDisplay'
+import { employeeDisplayName, sanitizeEmployeeUpdatePayload } from '@/lib/hrEmployeeDisplay'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useVendorStore } from '@/stores/vendorStore'
 
@@ -1974,7 +1974,10 @@ export default function EmployeeDetailPage() {
       return
     }
     try {
-      await updateEmployee.mutateAsync({ id: emp.id, data: pendingChanges })
+      await updateEmployee.mutateAsync({
+        id: emp.id,
+        data: sanitizeEmployeeUpdatePayload(pendingChanges),
+      })
       toast.success('Changes saved')
       setEditing(false)
       setPendingChanges({})
@@ -1990,7 +1993,7 @@ export default function EmployeeDetailPage() {
 
   // For credentials / ops tabs that still do their own save (passwords, leaves, etc.)
   async function handleDirectSave(data: Record<string, unknown>) {
-    await updateEmployee.mutateAsync({ id: emp.id, data })
+    await updateEmployee.mutateAsync({ id: emp.id, data: sanitizeEmployeeUpdatePayload(data) })
   }
 
   if (isLoading) return <div className="p-8 text-center text-gray-400">Loading…</div>
@@ -2000,15 +2003,31 @@ export default function EmployeeDetailPage() {
   const initials = displayName[0]?.toUpperCase() ?? emp.employee_code?.[0] ?? '?'
   const hasPendingChanges = Object.keys(pendingChanges).length > 0
 
+  const returnTo = searchParams.get('returnTo')
+  const returnClaimId = searchParams.get('claimId')?.trim() ?? ''
+  const backToExpenseClaim =
+    (returnTo === '/hr/expenses' || returnTo === 'expenses') && returnClaimId.length > 0
+
   // Master tabs support global edit; ops tabs handle their own editing
   const isMasterTab = ['identity', 'credentials', 'addresses', 'bank', 'kyc', 'personal', 'family', 'notes'].includes(activeTab)
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link to="/hr/employees" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <ArrowLeft className="w-5 h-5 text-gray-500" />
-        </Link>
+        {backToExpenseClaim ? (
+          <Link
+            to={`/hr/expenses?claim=${encodeURIComponent(returnClaimId)}`}
+            className="inline-flex items-center gap-1.5 px-2 py-1.5 -ml-1 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+            title="Back to expense claim"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Back to expense claim</span>
+          </Link>
+        ) : (
+          <Link to="/hr/employees" className="p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0" title="Back to employees">
+            <ArrowLeft className="w-5 h-5 text-gray-500" />
+          </Link>
+        )}
         <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg shrink-0">
           {initials}
         </div>

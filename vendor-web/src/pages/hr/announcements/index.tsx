@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { Megaphone, Plus, Pencil, Trash2, X, Pin } from 'lucide-react'
 import {
@@ -111,7 +112,7 @@ function AnnouncementModal({ item, onClose }: { item: Announcement | null; onClo
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">{item ? 'Edit Announcement' : 'New Announcement'}</h2>

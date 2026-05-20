@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -17,6 +17,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useProducts, useServices, useCustomers, useCreateCustomer, useTeamMembers, useSuppliers, useOrderReservations } from '@/hooks/useVendor'
+import {
+  useProductionOrders,
+  useProductionOrder,
+  useCreateProductionOrder,
+  useUpdateProductionOrder,
+  useDeleteProductionOrder,
+  useProductionOrdersBootstrap,
+} from '@/hooks/useProductionOrders'
 import { MRPReportModal } from '@/components/mrp/MRPReportModal'
 import { vendorApi } from '@/api/vendor'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -79,6 +87,7 @@ interface AuditEvent {
 
 interface ProductionOrder {
   id: string
+  store_id?: string | null
   ref: string
   type: POType
   template: string
@@ -143,16 +152,6 @@ const WORKFLOW_STEPS: { status: POStatus; label: string }[] = [
   { status: 'completed',     label: 'Completed' },
 ]
 
-const STORAGE_KEY = 'production_orders_v1'
-
-function loadOrders(): ProductionOrder[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') } catch { return [] }
-}
-
-function saveOrders(orders: ProductionOrder[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders))
-}
-
 function genRef(type: POType) {
   return `${type.toUpperCase()}-${Date.now().toString().slice(-6)}`
 }
@@ -202,7 +201,10 @@ function ProgressBar({ value, status }: { value: number; status: POStatus }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function ProductionOrdersPage() {
   const navigate = useNavigate()
-  const { vendor } = useVendorStore()
+  const { vendor, selectedStore } = useVendorStore()
+  const storeId = selectedStore?.id
+  useProductionOrdersBootstrap()
+
   const { data: productsData }  = useProducts({ page: 1, size: 200 })
   const { data: servicesData }  = useServices({ page: 1, size: 200 })
   const { data: customersData } = useCustomers({ size: 200 })
@@ -210,18 +212,33 @@ export default function ProductionOrdersPage() {
   const { data: suppliersData } = useSuppliers({ size: 100 })
   const createCustomer          = useCreateCustomer()
 
+  const listParams = useMemo(() => ({
+    ...(storeId ? { store_id: storeId } : {}),
+  }), [storeId])
+
+  const { data: ordersRaw = [], isLoading: ordersLoading } = useProductionOrders(listParams)
+  const createOrder = useCreateProductionOrder()
+  const updateOrderMut = useUpdateProductionOrder()
+  const deleteOrderMut = useDeleteProductionOrder()
+
+  const orders = ordersRaw as ProductionOrder[]
+
   const products  = productsData?.items  || []
   const services  = servicesData?.items  || []
   const customers = customersData?.items || []
   const teamMembers = teamData?.items    || []
   const suppliers = suppliersData?.items || []
-
-  const [orders, setOrders] = useState<ProductionOrder[]>(loadOrders)
   const [search, setSearch]             = useState('')
   const [typeFilter, setTypeFilter]     = useState<'all' | POType>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | POStatus>('all')
   const [priorityFilter, setPriorityFilter] = useState<'all' | Priority>('all')
-  const [viewOrder, setViewOrder]       = useState<ProductionOrder | null>(null)
+  const [viewOrderId, setViewOrderId]   = useState<string | null>(null)
+  const { data: viewOrderDetail } = useProductionOrder(viewOrderId)
+  const viewOrder = (viewOrderDetail ?? orders.find(o => o.id === viewOrderId) ?? null) as ProductionOrder | null
+
+  useEffect(() => {
+    setViewOrderId(null)
+  }, [storeId])
   const [mrpOrder, setMrpOrder]         = useState<ProductionOrder | null>(null)
   const [showCreate, setShowCreate]     = useState(false)
   const [createType, setCreateType]     = useState<POType | null>(null)
@@ -357,12 +374,6 @@ export default function ProductionOrdersPage() {
     }, [showCreate, createType]),
     enabled: showCreate && !!createType,
   })
-
-  // ── Persist ──────────────────────────────────────────────────────────────
-  function persist(next: ProductionOrder[]) {
-    setOrders(next)
-    saveOrders(next)
-  }
 
   // ── Computed ─────────────────────────────────────────────────────────────
   const stats = useMemo(() => ({
@@ -551,53 +562,61 @@ export default function ProductionOrdersPage() {
     if (!createType) return
     if (!formItems.length) { toast.error('Add at least one item.'); return }
     const ref = formRef.trim() || genRef(createType)
-    const now = new Date().toISOString()
     const customerLabel = formCustomerName ? ` for ${formCustomerName}` : ''
-    const order: ProductionOrder = {
-      id: Date.now().toString(), ref, type: createType,
+    const payload: Record<string, unknown> = {
+      ref,
+      type: createType,
+      store_id: storeId || null,
       template: TEMPLATES.find(t => t.id === formTemplate)?.label || formTemplate,
-      status: 'draft', progress: 0, priority: formPriority,
-      items: formItems, team: formTeam, target_date: formTargetDate,
+      status: 'draft',
+      progress: 0,
+      priority: formPriority,
+      items: formItems,
+      team: formTeam,
+      target_date: formTargetDate || null,
       assignees: formAssignees,
-      notes: formNotes, attachments: formAttachments, stock_dispatches: [],
+      notes: formNotes,
+      attachments: formAttachments,
+      stock_dispatches: [],
       audit_log: [
         makeAudit('created', `Order ${ref} created as Draft${customerLabel}`, { items: formItems.length, type: createType }),
       ],
-      created_at: now, updated_at: now,
       ...(createType === 'mto' ? {
-        customer_id: selectedCustomerId, customer_name: formCustomerName,
-        customer_phone: formCustomerPhone, customer_email: formCustomerEmail,
-        order_ref: formOrderRef, delivery_deadline: formDeadline,
+        customer_id: selectedCustomerId || null,
+        customer_name: formCustomerName,
+        customer_phone: formCustomerPhone,
+        customer_email: formCustomerEmail,
+        order_ref: formOrderRef,
+        delivery_deadline: formDeadline || null,
         special_requirements: formSpecialReq,
       } : {
         target_stock_level: Number(formTargetStock) || 0,
       }),
     }
-    persist([order, ...orders])
-    toast.success(`Production order ${ref} created`)
-    setShowCreate(false); setCreateType(null); resetForm()
+    createOrder.mutate(payload, {
+      onSuccess: (row) => {
+        setShowCreate(false)
+        setCreateType(null)
+        resetForm()
+        if (row?.id) {
+          setViewOrderId(String(row.id))
+          setDetailTab('details')
+        }
+      },
+    })
   }
 
   // ── Detail helpers ───────────────────────────────────────────────────────
   function updateOrder(id: string, patch: Partial<ProductionOrder>, auditEvent?: AuditEvent) {
-    const now = new Date().toISOString()
-    const next = orders.map(o => {
-      if (o.id !== id) return o
-      const log = auditEvent ? [...(o.audit_log || []), auditEvent] : (o.audit_log || [])
-      return { ...o, ...patch, audit_log: log, updated_at: now }
-    })
-    persist(next)
-    if (viewOrder?.id === id) setViewOrder(prev => {
-      if (!prev) return prev
-      const log = auditEvent ? [...(prev.audit_log || []), auditEvent] : (prev.audit_log || [])
-      return { ...prev, ...patch, audit_log: log, updated_at: now }
-    })
+    const data: Record<string, unknown> = { ...patch }
+    if (auditEvent) data.audit_event = auditEvent
+    updateOrderMut.mutate({ id, data })
   }
 
   function deleteOrder(id: string) {
-    persist(orders.filter(o => o.id !== id))
-    setViewOrder(null)
-    toast.success('Order deleted.')
+    deleteOrderMut.mutate(id, {
+      onSuccess: () => setViewOrderId(null),
+    })
   }
 
   function advanceStatus(order: ProductionOrder) {
@@ -684,6 +703,13 @@ export default function ProductionOrdersPage() {
               <Factory className="w-6 h-6 text-primary" /> Production Orders
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Manage Make-to-Order &amp; Make-to-Stock production workflows</p>
+            <p className="text-xs mt-2 px-2.5 py-1 rounded-lg border bg-amber-50 border-amber-200 text-amber-900 inline-block">
+              {storeId ? (
+                <>Showing orders for <strong>{selectedStore?.name}</strong></>
+              ) : (
+                <>Showing orders for <strong>all business units</strong> — pick a business unit in the header to filter</>
+              )}
+            </p>
           </div>
           <Button onClick={() => { setShowCreate(true); setCreateType(null) }}
             className="bg-primary hover:bg-primary/90 text-white gap-1.5 shrink-0">
@@ -797,11 +823,15 @@ export default function ProductionOrdersPage() {
         )}
 
         {/* ── Main content: list + detail panel ──────────────────────────── */}
-        <div className={`flex gap-4 ${viewOrder ? 'items-start' : ''}`}>
+        <div className={`flex gap-4 ${viewOrderId ? 'items-start' : ''}`}>
 
           {/* List */}
-          <div className={`${viewOrder ? 'hidden lg:block lg:w-[44%] shrink-0' : 'w-full'} space-y-2`}>
-            {filtered.length === 0 ? (
+          <div className={`${viewOrderId ? 'hidden lg:block lg:w-[44%] shrink-0' : 'w-full'} space-y-2`}>
+            {ordersLoading ? (
+              <div className="bg-white rounded-2xl border border-gray-200 text-center py-16 text-gray-400">
+                Loading production orders…
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-200 text-center py-20 text-gray-400">
                 <Factory className="w-12 h-12 mx-auto mb-3 opacity-20" />
                 <p className="font-semibold text-gray-500">No production orders yet</p>
@@ -819,7 +849,7 @@ export default function ProductionOrdersPage() {
                   order={order}
                   isActive={isActive}
                   totalDispatched={totalDispatched}
-                  onSelect={() => { setViewOrder(order); setDetailTab('details'); setEditStatus('') }}
+                  onSelect={() => { setViewOrderId(order.id); setDetailTab('details'); setEditStatus('') }}
                   onMRP={e => { e.stopPropagation(); setMrpOrder(order) }}
                 />
               )
@@ -859,7 +889,7 @@ export default function ProductionOrdersPage() {
                       className="p-1.5 hover:bg-white/70 rounded-lg text-gray-500 transition-colors"><Download className="w-4 h-4" /></button>
                     <button onClick={() => deleteOrder(order.id)} title="Delete"
                       className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                    <button type="button" aria-label="Close" onClick={() => setViewOrder(null)}
+                    <button type="button" aria-label="Close" onClick={() => setViewOrderId(null)}
                       className="p-1.5 hover:bg-white/70 rounded-lg text-gray-400 transition-colors">
                 <X className="w-4 h-4" /></button>
                   </div>

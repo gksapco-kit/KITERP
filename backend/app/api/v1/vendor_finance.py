@@ -162,7 +162,7 @@ async def update_account(
 async def list_fiscal_years(
     company_id: Optional[UUID] = Query(
         None,
-        description="Filter fiscal years for a company code; omit to list all companies",
+        description="Filter fiscal years for a business unit; omit to list all companies",
     ),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
@@ -613,7 +613,7 @@ async def manual_journal(
 
 async def _sync_fin_companies_from_stores(db: AsyncSession, vendor_id: UUID) -> None:
     """
-    Ensure every active store (Company Codes page) with a code has a matching FinCompany row
+    Ensure every active store (Business Units page) with a code has a matching FinCompany row
     so finance pickers (cost centers, JEs, etc.) list the same codes.
     """
     r = await db.execute(
@@ -745,7 +745,7 @@ async def create_cost_center(
         )
         default_co = r.scalar_one_or_none()
         if not default_co:
-            raise HTTPException(status_code=400, detail="No company code found. Please create a company code first.")
+            raise HTTPException(status_code=400, detail="No business unit found. Please create a business unit first.")
         data["company_id"] = default_co.id
     cc = FinCostCenter(vendor_id=vu.vendor_id, **data)
     db.add(cc)

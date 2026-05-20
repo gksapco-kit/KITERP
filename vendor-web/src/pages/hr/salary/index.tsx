@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { DollarSign, Plus, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useHRSalaryStructures, useCreateHRSalaryStructure, useHREmployees } from '@/hooks/useVendor'
@@ -27,7 +28,7 @@ function SalaryModal({ employees, onClose }: { employees: any[]; onClose: () => 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold mb-4">Create / Revise Salary Structure</h2>

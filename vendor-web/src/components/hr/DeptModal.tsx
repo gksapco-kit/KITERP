@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { useCreateHRDepartment, useUpdateHRDepartment } from '@/hooks/useVendor'
@@ -39,7 +40,7 @@ export function DeptModal({ dept, departments: _departments, onClose, onCreated 
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">

@@ -1,4 +1,4 @@
-"""Generate unique per-vendor store / company codes."""
+"""Generate unique per-vendor store / business unit codes."""
 import re
 from uuid import UUID
 
@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.store import Store
 
-# Default company code for the first outlet when a business is created.
+# Default business unit code for the first outlet when a business is created.
 DEFAULT_BUSINESS_COMPANY_CODE = "1000"
 
 
@@ -41,7 +41,7 @@ async def allocate_unique_store_code(
 
 
 async def allocate_default_business_store_code(db: AsyncSession, vendor_id: UUID) -> str:
-    """Company code for the default store created with a new business (starts at 1000)."""
+    """Business unit code for the default store created with a new business (starts at 1000)."""
     return await allocate_unique_store_code(db, vendor_id, DEFAULT_BUSINESS_COMPANY_CODE)
 
 
@@ -51,7 +51,7 @@ async def ensure_default_store_if_missing(
     location_name: str,
 ) -> bool:
     """
-    If the vendor has no stores yet, create a default outlet with company code 1000
+    If the vendor has no stores yet, create a default outlet with business unit code 1000
     (or uniquified). Used for legacy tenants and as a safety net after signup.
     Returns True if a row was created.
     """

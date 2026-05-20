@@ -1,6 +1,9 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { Receipt, Plus, X, Send, Trash2, Pencil } from 'lucide-react'
 import { useMyExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '@/hooks/useVendor'
+import { ExpenseReceiptUpload, type ExpenseReceipt } from '@/components/hr/ExpenseReceiptUpload'
+import { vendorApi } from '@/api/vendor'
 import type { ExpenseClaim } from '@/types'
 
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -93,9 +96,12 @@ export default function MyExpensesPage() {
 function ExpenseModal({ claim, onClose }: { claim: ExpenseClaim | null; onClose: () => void }) {
   const create = useCreateExpense()
   const update = useUpdateExpense()
+  const [receipts, setReceipts] = useState<ExpenseReceipt[]>(
+    () => (claim?.receipts ?? []).map((r) => ({ url: r.url, name: r.name })),
+  )
   const [form, setForm] = useState<{
     title: string; category: string; expense_date: string; currency: string;
-    amount: string; description: string; receipt_url: string; status: ExpenseClaim['status'];
+    amount: string; description: string; status: ExpenseClaim['status'];
   }>({
     title:        claim?.title ?? '',
     category:     claim?.category ?? 'travel',
@@ -103,7 +109,6 @@ function ExpenseModal({ claim, onClose }: { claim: ExpenseClaim | null; onClose:
     currency:     claim?.currency ?? 'INR',
     amount:       claim?.amount != null ? String(claim.amount) : '',
     description:  claim?.description ?? '',
-    receipt_url:  claim?.receipts?.[0]?.url ?? '',
     status:       claim?.status ?? 'draft',
   })
 
@@ -115,7 +120,7 @@ function ExpenseModal({ claim, onClose }: { claim: ExpenseClaim | null; onClose:
       currency: form.currency,
       amount: Number(form.amount),
       description: form.description,
-      receipts: form.receipt_url ? [{ url: form.receipt_url }] : [],
+      receipts: receipts.map((r) => ({ url: r.url, name: r.name })),
       status,
     }
     if (claim) update.mutate({ id: claim.id, data: payload }, { onSuccess: onClose })
@@ -123,7 +128,7 @@ function ExpenseModal({ claim, onClose }: { claim: ExpenseClaim | null; onClose:
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">{claim ? 'Edit Claim' : 'New Claim'}</h2>
@@ -161,15 +166,15 @@ function ExpenseModal({ claim, onClose }: { claim: ExpenseClaim | null; onClose:
                 value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
             </Field>
           </div>
-          <Field label="Receipt URL">
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.receipt_url}
-              onChange={e => setForm({ ...form, receipt_url: e.target.value })}
-              placeholder="https://…" />
-          </Field>
           <Field label="Description">
             <textarea className="w-full border rounded px-3 py-2 text-sm" rows={3} value={form.description}
               onChange={e => setForm({ ...form, description: e.target.value })} />
           </Field>
+          <ExpenseReceiptUpload
+            receipts={receipts}
+            onChange={setReceipts}
+            uploadFile={(file) => vendorApi.hrUploadExpenseReceipt(file)}
+          />
         </div>
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
           <button onClick={onClose} className="btn-cancel px-3 py-2 text-sm border rounded-lg text-gray-700">Cancel</button>

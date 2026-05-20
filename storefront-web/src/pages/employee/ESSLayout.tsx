@@ -41,11 +41,11 @@ export default function ESSLayout() {
     !!(loginBranch && wlStoreId && loginBranch.id === wlStoreId)
 
   return (
-    <div className="ess-portal flex min-h-[calc(100vh-120px)] bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-56 shrink-0 bg-white border-r flex flex-col">
+    <div className="ess-portal flex h-screen min-h-0 bg-gray-50 overflow-hidden">
+      {/* Sidebar — nav scrolls; sign out pinned to bottom */}
+      <aside className="w-56 shrink-0 bg-white border-r flex flex-col h-full min-h-0">
         {/* Portal header */}
-        <div className="px-4 py-4 border-b bg-slate-800">
+        <div className="shrink-0 px-4 py-4 border-b bg-slate-800">
           <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Employee Portal (ESS)</p>
           <p className="text-sm font-semibold text-white mt-0.5 truncate">Hello, {name}</p>
           {outletLabel && (
@@ -63,7 +63,7 @@ export default function ESSLayout() {
         </div>
 
         {/* Nav links */}
-        <nav className="flex-1 py-2 overflow-y-auto">
+        <nav className="flex-1 min-h-0 py-2 overflow-y-auto">
           {NAV.map(({ label, icon: Icon, path }) => (
             <NavLink
               key={path}
@@ -83,7 +83,7 @@ export default function ESSLayout() {
         </nav>
 
         {/* Sign out */}
-        <div className="border-t p-3">
+        <div className="shrink-0 border-t p-3 bg-white">
           <button
             type="button"
             onClick={() => {
@@ -98,7 +98,7 @@ export default function ESSLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 min-w-0 overflow-y-auto">
+      <main className="flex-1 min-h-0 min-w-0 overflow-y-auto">
         <Outlet />
       </main>
     </div>

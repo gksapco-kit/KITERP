@@ -10,7 +10,7 @@ import {
   useHRMarkAttendance, useHRUpdateAttendance, useHRMarkAttendanceRange,
 } from '@/hooks/useVendor'
 import type { AttendanceRecord } from '@/types'
-import { cn } from '@/lib/utils'
+import { cn, onModalBackdropClick } from '@/lib/utils'
 
 // ── Config ───────────────────────────────────────────────────────────────────────
 const STATUS_OPTS = ['present', 'absent', 'late', 'half_day', 'on_leave', 'holiday', 'week_off', 'time', 'total_hours']
@@ -107,7 +107,7 @@ function AttendanceModal({ employees, record, defaultDate, onClose }: MarkModalP
   const isPending = mark.isPending || update.isPending
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-base font-semibold text-gray-900">{isEdit ? 'Edit Attendance Record' : 'Mark Attendance'}</h2>

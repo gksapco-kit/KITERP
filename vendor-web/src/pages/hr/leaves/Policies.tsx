@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { Plus, Pencil, Shield, X } from 'lucide-react'
 import { useHRLeavePolicies, useCreateHRLeavePolicy, useUpdateHRLeavePolicy } from '@/hooks/useVendor'
@@ -25,7 +26,7 @@ function PolicyModal({ policy, onClose }: { policy?: LeavePolicy | null; onClose
   const busy = create.isPending || update.isPending
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold mb-4">{policy ? 'Edit Policy' : 'New Leave Policy'}</h2>

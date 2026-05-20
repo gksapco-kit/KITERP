@@ -219,6 +219,24 @@ def require_permission(*permissions: str):
     return _check
 
 
+def require_store_hr_permission(*permissions: str):
+    """ESS portal: same permission check as vendor central, using store HR JWT session."""
+
+    async def _check(
+        vendor_user: VendorUser = Depends(get_current_store_hr_vendor_user),
+    ) -> VendorUser:
+        effective = get_effective_permissions(vendor_user)
+        missing = [p for p in permissions if p not in effective]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permissions: {', '.join(missing)}",
+            )
+        return vendor_user
+
+    return _check
+
+
 def require_role(*roles: str):
     """
     Dependency factory: ensures the current vendor user has one of the listed roles.

@@ -43,7 +43,7 @@ export default function PeriodControl() {
     }
     if (submitted === 0 && hadValidationIssue === 0) {
       toast.info(
-        'Nothing to save. Expand a company code, choose a fiscal year, then fill the audit name and date range.',
+        'Nothing to save. Expand a business unit, choose a fiscal year, then fill the audit name and date range.',
         { duration: 10_000 },
       )
     }
@@ -65,7 +65,7 @@ export default function PeriodControl() {
   )
 
   if (compLoad) {
-    return <div className="p-8 text-sm text-slate-500">Loading company codes…</div>
+    return <div className="p-8 text-sm text-slate-500">Loading business units…</div>
   }
 
   return (
@@ -77,7 +77,7 @@ export default function PeriodControl() {
             GL posting periods
           </h1>
           <p className="text-sm text-slate-500 mt-1 max-w-2xl">
-            Only company codes with a <strong>linked</strong> calendar appear here. Expand a row to pick the year and
+            Only business units with a <strong>linked</strong> calendar appear here. Expand a row to pick the year and
             control periods. Use <strong>Add calendar</strong> to create and link a new fiscal year. Use{' '}
             <strong>Save</strong> to store pending audit / adjustment lines.
           </p>
@@ -108,7 +108,7 @@ export default function PeriodControl() {
         {allFyLoad && <span>Loading calendars…</span>}
         {!allFyLoad && (
           <span>
-            {fys.length} organisation calendar{fys.length === 1 ? '' : 's'} across company codes
+            {fys.length} organisation calendar{fys.length === 1 ? '' : 's'} across business units
           </span>
         )}
       </div>
@@ -116,13 +116,13 @@ export default function PeriodControl() {
       <div className="space-y-2 mb-6">
         {companyList.length === 0 && (
           <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            No company codes found. Add a company in Finance / master data, then return here.
+            No business units found. Add a company in Finance / master data, then return here.
           </p>
         )}
         {companyList.length > 0 && !allFyLoad && companiesWithCalendars.length === 0 && (
           <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-3">
-            No company codes have a fiscal calendar yet. Use <strong>Add calendar</strong> to create one and link it
-            to a company code — it will show up in this list after it&rsquo;s linked.
+            No business units have a fiscal calendar yet. Use <strong>Add calendar</strong> to create one and link it
+            to a business unit — it will show up in this list after it&rsquo;s linked.
           </p>
         )}
         {!allFyLoad && companiesWithCalendars.map(c => (

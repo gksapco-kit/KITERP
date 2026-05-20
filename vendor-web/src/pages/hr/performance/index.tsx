@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Trash2, X, Pencil, Rocket, Target, ClipboardList, Lock, ExternalLink } from 'lucide-react'
@@ -192,7 +193,7 @@ function CycleModal({ existing, onClose }: { existing?: ReviewCycle | null; onCl
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? 'Edit Cycle' : 'New Review Cycle'}</h2>
@@ -301,7 +302,8 @@ function CycleModal({ existing, onClose }: { existing?: ReviewCycle | null; onCl
 
 function GoalsTab() {
   const [employeeFilter, setEmployeeFilter] = useState('')
-  const { data: employees = [] } = useHREmployees()
+  const { data: empData } = useHREmployees({ limit: 200 })
+  const employees: EmployeeProfile[] = empData?.items ?? []
   const { data: goals = [], isLoading } = useHRGoals(employeeFilter ? { employee_id: employeeFilter } : undefined)
   const del = useDeleteHRGoal()
   const update = useUpdateHRGoal()
@@ -390,7 +392,8 @@ function GoalsTab() {
 }
 
 function GoalModal({ existing, onClose }: { existing?: PerformanceGoal | null; onClose: () => void }) {
-  const { data: employees = [] } = useHREmployees()
+  const { data: empData } = useHREmployees({ limit: 200 })
+  const employees: EmployeeProfile[] = empData?.items ?? []
   const { data: cycles = [] } = useHRCycles()
   const create = useCreateHRGoal()
   const update = useUpdateHRGoal()
@@ -495,7 +498,8 @@ function GoalModal({ existing, onClose }: { existing?: PerformanceGoal | null; o
 function ReviewsTab() {
   const [statusFilter, setStatusFilter] = useState('')
   const { data: reviews = [], isLoading } = useHRReviews(statusFilter ? { status: statusFilter } : undefined)
-  const { data: employees = [] } = useHREmployees()
+  const { data: empData } = useHREmployees({ limit: 200 })
+  const employees: EmployeeProfile[] = empData?.items ?? []
   const empMap = new Map((employees as EmployeeProfile[]).map(e => [e.id, e.vendor_user?.user?.full_name ?? e.employee_code]))
 
   return (

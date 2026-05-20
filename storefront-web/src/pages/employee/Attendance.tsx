@@ -1,11 +1,20 @@
 import { useState } from 'react'
-import { LogIn, LogOut, Clock, CheckCircle } from 'lucide-react'
-import { useESSTodayAttendance, useESSClockIn, useESSClockOut, useESSAttendance } from '@/hooks/useESS'
+import { LogIn, LogOut, Clock, CheckCircle, CalendarRange } from 'lucide-react'
+import {
+  useESSTodayAttendance,
+  useESSClockIn,
+  useESSClockOut,
+  useESSAttendance,
+} from '@/hooks/useESS'
+import { EssMarkSingleModal, EssMarkRangeModal } from './AttendanceSelfMarkModals'
 
 export default function ESSAttendancePage() {
   const { data: today, isLoading } = useESSTodayAttendance()
   const clockIn = useESSClockIn()
   const clockOut = useESSClockOut()
+
+  const [showMark, setShowMark] = useState(false)
+  const [showRange, setShowRange] = useState(false)
 
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -27,7 +36,30 @@ export default function ESSAttendancePage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">My Attendance</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My Attendance</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Clock in for today, or mark past days you forgot to record.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowRange(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-primary/40 text-primary bg-primary/5 rounded-lg hover:bg-primary/10"
+          >
+            <CalendarRange className="w-4 h-4" /> Mark attendance range
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowMark(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90"
+          >
+            <CheckCircle className="w-4 h-4" /> Mark single
+          </button>
+        </div>
+      </div>
 
       {/* Today card */}
       <div className="bg-white rounded-xl border shadow-sm p-6 mb-6">
@@ -64,6 +96,7 @@ export default function ESSAttendancePage() {
           <div className="shrink-0">
             {!clockedIn ? (
               <button
+                type="button"
                 onClick={() => clockIn.mutate()}
                 disabled={clockIn.isPending}
                 className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium disabled:opacity-50"
@@ -72,6 +105,7 @@ export default function ESSAttendancePage() {
               </button>
             ) : !clockedOut ? (
               <button
+                type="button"
                 onClick={() => clockOut.mutate()}
                 disabled={clockOut.isPending}
                 className="flex items-center gap-2 px-5 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-medium disabled:opacity-50"
@@ -121,7 +155,16 @@ export default function ESSAttendancePage() {
         </div>
 
         {records.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">No records for this month.</div>
+          <div className="p-8 text-center text-gray-400">
+            <p>No records for this month.</p>
+            <button
+              type="button"
+              onClick={() => setShowMark(true)}
+              className="mt-3 text-sm text-primary hover:underline"
+            >
+              Mark a day
+            </button>
+          </div>
         ) : (
           <div className="divide-y">
             {records.map((r: any) => (
@@ -158,6 +201,9 @@ export default function ESSAttendancePage() {
           </div>
         )}
       </div>
+
+      <EssMarkSingleModal open={showMark} onClose={() => setShowMark(false)} />
+      <EssMarkRangeModal open={showRange} onClose={() => setShowRange(false)} />
     </div>
   )
 }

@@ -4,7 +4,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision: str = "hr004_otp_expires_at"
-down_revision: Union[str, None] = "hr003_portal_temp_pw"
+down_revision: Union[str, None] = "hr003_employee_portal_otp"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

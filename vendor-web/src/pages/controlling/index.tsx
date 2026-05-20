@@ -37,7 +37,7 @@ export default function ControllingDashboardPage() {
         </div>
         {companies.length > 0 && (
           <label className="flex flex-col gap-1 text-xs text-gray-600">
-            Company code
+            Business unit
             <select
               value={activeCo}
               onChange={e => setCompanyId(e.target.value)}

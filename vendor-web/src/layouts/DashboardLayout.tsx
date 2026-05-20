@@ -207,7 +207,7 @@ const allSections: NavSection[] = [
       { to: '/finance/basic', icon: Landmark, label: 'Finance', requiresPermission: 'finance.view', requiresFinanceMode: 'basic' },
       // ── Advanced Finance mode ──────────────────────────────────────────────
       { to: '/finance', icon: Landmark, label: 'Finance Dashboard', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
-      { to: '/stores', icon: Building2, label: 'Company Codes', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
+      { to: '/stores', icon: Building2, label: 'Business Units', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/cost-centers', icon: Layers, label: 'Cost Centers', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/coa', icon: BookMarked, label: 'Chart of Accounts', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/journal', icon: ScrollText, label: 'Journal Entries', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
@@ -560,7 +560,7 @@ const pageTitles: Record<string, string> = {
   '/storefront-builder': 'Storefront Builder',
   '/blog': 'Blog Manager',
   '/finance/basic': 'Finance',
-  '/stores': 'Company Codes',
+  '/stores': 'Business Units',
   '/team': 'Staff Access Control',
 
   '/roles': 'Roles',
@@ -692,7 +692,7 @@ export default function DashboardLayout() {
 
   const { data: storesData, refetch: refetchStores } = useStores()
   const stores = storesData?.stores ?? []
-  /** "All locations" only makes sense when there are multiple outlets to filter between. */
+  /** "All business units" only when there are multiple outlets to filter between. */
   const showAllLocationsOption = stores.length > 1
 
   const openStorePicker = () => {
@@ -707,12 +707,15 @@ export default function DashboardLayout() {
   /** Single-store tenants: treat the sole outlet as the active context even before persisted selection updates. */
   const rowForHeader =
     activeStoreFromApi ?? (stores.length === 1 ? stores[0] : undefined)
+  const allBusinessUnitsMode = showAllLocationsOption && !selectedStore
   const storeHeaderName =
-    rowForHeader?.name ?? selectedStore?.name ?? vendor?.display_name ?? 'Select Store'
+    rowForHeader?.name ??
+    selectedStore?.name ??
+    (allBusinessUnitsMode ? 'All business units' : vendor?.display_name ?? 'Select Business Unit')
   const storeHeaderSubtitle = rowForHeader
-    ? rowForHeader.description || rowForHeader.code || 'Store'
-    : showAllLocationsOption
-      ? 'All locations — pick a store to filter'
+    ? rowForHeader.description || rowForHeader.code || 'Business unit'
+    : allBusinessUnitsMode
+      ? 'No filter applied'
       : vendor?.business_type || 'Business'
   const storePillActive = Boolean(rowForHeader)
 
@@ -1203,119 +1206,102 @@ export default function DashboardLayout() {
      location.pathname.startsWith('/controlling/orders/') ? 'CO manufacturing order' :
      'Dashboard')
 
+  const storePickerMenu = storePickerOpen ? (
+    <>
+      <div
+        className="fixed inset-0 z-40"
+        onClick={() => setStorePickerOpen(false)}
+        aria-hidden
+      />
+      <div
+        className="absolute top-full right-0 z-50 mt-1.5 w-72 max-w-[min(18rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+        role="listbox"
+        aria-label="Select business unit"
+      >
+        <div className="border-b border-border bg-muted px-4 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Select Business Unit</p>
+        </div>
+
+        {showAllLocationsOption && (
+          <button
+            type="button"
+            role="option"
+            aria-selected={!selectedStore}
+            onClick={() => { setSelectedStore(null); setStorePickerOpen(false) }}
+            className={cn(
+              'w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-accent transition-colors',
+              !selectedStore && 'bg-primary/10 dark:bg-primary/20',
+            )}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">All business units</p>
+              <p className="text-[10px] text-muted-foreground">No filter applied</p>
+            </div>
+            {!selectedStore && <Check className="w-4 h-4 text-primary shrink-0" />}
+          </button>
+        )}
+
+        {stores.length > 0 && (
+          <div className={cn('border-border', showAllLocationsOption && 'border-t')}>
+            {stores.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                role="option"
+                aria-selected={selectedStore?.id === s.id}
+                onClick={() => {
+                  setSelectedStore({ id: s.id, name: s.name, code: s.code, description: s.description })
+                  setStorePickerOpen(false)
+                }}
+                className={cn(
+                  'w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors',
+                  selectedStore?.id === s.id && 'bg-primary/10 dark:bg-primary/20',
+                )}
+              >
+                <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
+                  <Store className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{s.description || s.code || 'Business unit'}</p>
+                </div>
+                {selectedStore?.id === s.id && <Check className="w-4 h-4 text-primary shrink-0" />}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {stores.length === 0 && (
+          <p className="px-4 py-3 text-xs text-muted-foreground text-center">No business units configured yet</p>
+        )}
+
+        <div className="border-t border-border px-4 py-2">
+          <Link
+            to="/stores"
+            onClick={() => setStorePickerOpen(false)}
+            className="flex items-center gap-1.5 text-[11px] text-primary hover:text-primary font-medium transition-colors"
+          >
+            <Settings className="w-3 h-3" />
+            Manage business units
+            <ChevronRight className="w-3 h-3 ml-auto" />
+          </Link>
+        </div>
+      </div>
+    </>
+  ) : null
+
   const sidebarContent = (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Store Selector + User Role */}
-      <div className="relative border-b border-sidebar-border/25 bg-sidebar-accent/40">
-        <button
-          type="button"
-          onClick={openStorePicker}
-          className="flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-info shadow-sm">
-            <Store className="h-[1.05rem] w-[1.05rem] text-white" />
-          </div>
-          <div className="min-w-0 flex-1 text-left">
-            <p className="truncate text-sm font-bold leading-tight text-sidebar-foreground">
-              {storeHeaderName}
-            </p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-              {storeHeaderSubtitle}
-            </p>
-            <div className="mt-0.5 flex items-center gap-0.5">
-              <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90">
-                <ShieldCheck className="h-2.5 w-2.5" />
-                {roleBadge}
-              </span>
-            </div>
-          </div>
-          <ChevronDown className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none',
-            storePickerOpen && 'rotate-180'
-          )} />
-        </button>
-
-        {/* In-page store picker dropdown */}
-        {storePickerOpen && (
-          <>
-            {/* Transparent overlay to close picker on outside click */}
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setStorePickerOpen(false)}
-            />
-            <div className="absolute top-full left-0 right-0 z-50 bg-card border border-border shadow-xl rounded-b-xl overflow-hidden">
-              {/* Header */}
-              <div className="border-b border-border bg-muted px-4 py-2.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Select Store</p>
-              </div>
-
-              {showAllLocationsOption && (
-                <button
-                  type="button"
-                  onClick={() => { setSelectedStore(null); setStorePickerOpen(false) }}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors',
-                    !selectedStore && 'bg-primary/10 dark:bg-primary/20'
-                  )}
-                >
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-primary to-info">
-                    <LayoutDashboard className="w-3.5 h-3.5 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-foreground truncate">{vendor?.display_name || 'Business'}</p>
-                    <p className="text-[10px] text-muted-foreground">All locations (no store filter)</p>
-                  </div>
-                  {!selectedStore && <Check className="w-4 h-4 text-primary shrink-0" />}
-                </button>
-              )}
-
-              {stores.length > 0 && (
-                <div className={cn('border-border', showAllLocationsOption && 'border-t')}>
-                  {stores.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedStore({ id: s.id, name: s.name, code: s.code, description: s.description })
-                        setStorePickerOpen(false)
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors',
-                        selectedStore?.id === s.id && 'bg-primary/10 dark:bg-primary/20'
-                      )}
-                    >
-                      <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
-                        <Store className="w-3.5 h-3.5 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{s.description || s.code || 'Store'}</p>
-                      </div>
-                      {selectedStore?.id === s.id && <Check className="w-4 h-4 text-primary shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {stores.length === 0 && (
-                <p className="px-4 py-3 text-xs text-muted-foreground text-center">No companies configured yet</p>
-              )}
-
-              {/* Company Codes link */}
-              <div className="border-t border-border px-4 py-2">
-                <Link
-                  to="/stores"
-                  onClick={() => setStorePickerOpen(false)}
-                  className="flex items-center gap-1.5 text-[11px] text-primary hover:text-primary font-medium transition-colors"
-                >
-                  <Settings className="w-3 h-3" />
-                  Manage company codes
-                  <ChevronRight className="w-3 h-3 ml-auto" />
-                </Link>
-              </div>
-            </div>
-          </>
-        )}
+      {/* Active business unit context (selector lives in top bar) */}
+      <div className="border-b border-sidebar-border/25 bg-sidebar-accent/40 px-2.5 py-2">
+        <p className="truncate text-sm font-bold leading-tight text-sidebar-foreground">{storeHeaderName}</p>
+        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{storeHeaderSubtitle}</p>
+        <div className="mt-1 flex items-center gap-0.5">
+          <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90">
+            <ShieldCheck className="h-2.5 w-2.5" />
+            {roleBadge}
+          </span>
+        </div>
       </div>
 
       {/* Navigation — reorder mode shows drag handles (order saved in this browser) */}
@@ -1844,21 +1830,31 @@ export default function DashboardLayout() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {/* Active store pill */}
-              <button
-                type="button"
-                onClick={openStorePicker}
-                className={cn(
-                  'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
-                  storePillActive
-                    ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20 hover:bg-primary/90'
-                    : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
-                )}
-              >
-                <Store className="w-3.5 h-3.5" />
-                {rowForHeader ? storeHeaderName : stores.length > 1 ? 'All locations' : (vendor?.display_name ?? 'Business')}
-                <ChevronDown className="w-3 h-3 opacity-70" />
-              </button>
+              {/* Business unit selector — dropdown opens below this pill */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={openStorePicker}
+                  aria-expanded={storePickerOpen}
+                  aria-haspopup="listbox"
+                  className={cn(
+                    'flex max-w-[min(12rem,38vw)] items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition-all sm:max-w-[14rem] sm:px-3',
+                    storePillActive
+                      ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90'
+                      : 'border-border bg-muted text-muted-foreground hover:bg-muted/80',
+                  )}
+                >
+                  <Store className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{storeHeaderName}</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-3 w-3 shrink-0 opacity-70 transition-transform duration-200 motion-reduce:transition-none',
+                      storePickerOpen && 'rotate-180',
+                    )}
+                  />
+                </button>
+                {storePickerMenu}
+              </div>
 
               <Link to="/notifications" className="relative p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors inline-flex">
                 <Bell className="w-5 h-5" />
@@ -1985,7 +1981,7 @@ export default function DashboardLayout() {
                           className="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
                         >
                           <Store className="w-4 h-4 text-muted-foreground" />
-                          <span className="flex-1">Company Codes</span>
+                          <span className="flex-1">Business Units</span>
                         </Link>
                         {(isOwnerOrAdmin || permissions.includes('team.view')) && (
                           <Link

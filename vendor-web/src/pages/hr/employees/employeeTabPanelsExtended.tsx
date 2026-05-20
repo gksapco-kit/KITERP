@@ -431,9 +431,29 @@ export function ShareDropdown({
     ].filter(l => l !== null && l !== '').join('\n')
   }
 
+  /** Plain key-value list of every credential field (for admin clipboard). */
+  function buildCredentialsText() {
+    const activeOtp = (otp ?? '').trim()
+    return [
+      'HR Portal Credentials',
+      '',
+      displayName ? `Name: ${displayName}` : null,
+      `Portal URL: ${hrPortalUrl}`,
+      loginEmail ? `Work email: ${loginEmail}` : null,
+      loginAliases.length ? `Employee code: ${loginAliases.join(' / ')}` : null,
+      activeOtp ? `One-time password: ${activeOtp}` : 'One-time password: (not set)',
+    ].filter((line): line is string => line != null).join('\n')
+  }
+
   function copyAll() {
     navigator.clipboard.writeText(buildMessage())
     toast.success('Access details copied')
+    setOpen(false)
+  }
+
+  function copyCredentials() {
+    navigator.clipboard.writeText(buildCredentialsText())
+    toast.success('Credentials copied')
     setOpen(false)
   }
 
@@ -465,6 +485,9 @@ export function ShareDropdown({
           <div className="absolute right-0 mt-1 w-56 bg-white border rounded-xl shadow-lg z-50 py-1 text-sm">
             <button type="button" onClick={copyAll} className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700">
               <Copy className="w-3.5 h-3.5 text-gray-400" /> Copy access message
+            </button>
+            <button type="button" onClick={copyCredentials} className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700">
+              <KeyRound className="w-3.5 h-3.5 text-gray-400" /> Copy credentials
             </button>
             {loginEmail && (
               <button type="button" onClick={shareEmail} className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700">

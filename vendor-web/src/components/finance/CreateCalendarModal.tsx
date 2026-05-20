@@ -75,8 +75,8 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
       const n = ids.length
       toast.success(
         n > 1
-          ? `Fiscal year created and linked to ${n} company codes.`
-          : 'Fiscal year created and linked to the company.',
+          ? `Fiscal year created and linked to ${n} business units.`
+          : 'Fiscal year created and linked to the business unit.',
       )
       void qc.invalidateQueries({ queryKey: ['finance', 'fiscal-years'] })
       onClose()
@@ -96,8 +96,8 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
     if (targetIds.length === 0) {
       toast.error(
         createForAllCompanies
-          ? 'Add at least one company code before creating a calendar for all.'
-          : 'Select a company code, or choose "Every company code".',
+          ? 'Add at least one business unit before creating a calendar for all.'
+          : 'Select a business unit, or choose "Every business unit".',
       )
       return
     }
@@ -183,7 +183,7 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
         </div>
         <form id={formId} onSubmit={onSubmit} className="p-4 space-y-3 overflow-y-auto min-h-0 flex-1">
           <p className="text-xs text-slate-600">
-            Set <strong>fiscal pattern</strong> and year, link to one or all company codes, optional post-close audit.
+            Set <strong>fiscal pattern</strong> and year, link to one or all business units, optional post-close audit.
             Internal code is set from your pattern and dates.
           </p>
           <div>
@@ -209,12 +209,12 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
               }}
             />
             <span>
-              Link to <strong>every</strong> company code ({companies.length}{' '}
+              Link to <strong>every</strong> business unit ({companies.length}{' '}
               {companies.length === 1 ? 'code' : 'codes'})
             </span>
           </label>
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">Company code</label>
+            <label className="text-xs font-bold text-slate-500 uppercase">Business unit</label>
             <select
               value={createAssignCompanyId}
               onChange={e => { setCreateAssignCompanyId(e.target.value) }}
@@ -222,7 +222,7 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
               disabled={createForAllCompanies}
               required={!createForAllCompanies}
             >
-              <option value="">— Select company —</option>
+              <option value="">— Select business unit —</option>
               {companies.map(c => (
                 <option key={c.id} value={c.id}>
                   {c.code} — {c.name}
@@ -231,7 +231,7 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
             </select>
             {createForAllCompanies && (
               <p className="text-[11px] text-emerald-800 mt-1">
-                One shared calendar; linked to all listed company codes.
+                One shared calendar; linked to all listed business units.
               </p>
             )}
           </div>
@@ -343,7 +343,7 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
               checked={createAssignAsCurrent}
               onChange={e => { setCreateAssignAsCurrent(e.target.checked) }}
             />
-            Set as <strong>current</strong> fiscal year for each linked company code
+            Set as <strong>current</strong> fiscal year for each linked business unit
           </label>
           <div className="sticky bottom-0 z-10 -mx-4 -mb-4 mt-2 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50/95 px-4 py-3 backdrop-blur sm:rounded-b-xl">
             <button
@@ -355,7 +355,7 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
               type="submit"
               disabled={createFyMut.isPending}
               className="inline-flex items-center gap-2 text-sm font-medium bg-[#64C3A0] text-white rounded-lg px-4 py-2 hover:bg-[#64C3A0]/90 disabled:opacity-50"
-              aria-label="Save fiscal calendar and link to selected company codes"
+              aria-label="Save fiscal calendar and link to selected business units"
             >
               {createFyMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {createFyMut.isPending ? 'Saving…' : 'Save'}

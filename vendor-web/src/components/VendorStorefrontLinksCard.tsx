@@ -5,11 +5,11 @@ import { cn } from '@/lib/utils'
 
 type Props = {
   vendorSlug: string
-  /** Optional outlet / company code (store code) — appended as `?branch=` on links when set */
+  /** Optional outlet / business unit (store code) — appended as `?branch=` on links when set */
   outletCode?: string | null
-  /** When true, do not render the outlet row (e.g. company code is shown above this card on Store detail). */
+  /** When true, do not render the outlet row (e.g. business unit is shown above this card on Store detail). */
   hideOutletRow?: boolean
-  /** Flat layout without outer card chrome (use inside Company Codes / store detail). */
+  /** Flat layout without outer card chrome (use inside Business Units / store detail). */
   embedded?: boolean
 }
 
@@ -85,7 +85,7 @@ export default function VendorStorefrontLinksCard({
         {outlet && !hideOutletRow ? (
           <div className="flex items-start gap-2 rounded-md bg-muted/50 px-2 py-1.5 border border-border/60">
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-medium text-muted-foreground">Outlet / company code</p>
+              <p className="text-[10px] font-medium text-muted-foreground">Outlet / business unit</p>
               <p className="text-xs font-mono font-semibold text-foreground truncate" title={outlet}>
                 {outlet}
               </p>

@@ -1023,7 +1023,7 @@ export default function CreditDebitMemos() {
               <p className="text-xs text-slate-500 mt-1 mb-3 max-w-3xl">Company, currency, and GL period for this document. Shown for control and included in the memo record on finalise.</p>
               {companiesList.length === 0 ? (
                 <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Add a company in Finance to fill company code, currency, and period fields.
+                  Add a company in Finance to fill business unit, currency, and period fields.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">

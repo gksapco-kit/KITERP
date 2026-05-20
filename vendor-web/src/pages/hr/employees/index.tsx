@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -420,7 +421,7 @@ function AddEmployeeModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onModalBackdropClick(onClose)}>
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[960px] flex flex-col" onClick={e => e.stopPropagation()}>
 
           {/* Header */}

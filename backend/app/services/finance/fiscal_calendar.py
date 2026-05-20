@@ -401,7 +401,7 @@ async def create_fiscal_year_from_template(
     if await find_fiscal_year_by_variant(db, vendor_id, vcode) is not None:
         raise ValueError(
             f"A fiscal year with variant code \"{vcode}\" already exists for this organisation. "
-            "Use a different code or assign that calendar to more company codes from the fiscal year list."
+            "Use a different code or assign that calendar to more business units from the fiscal year list."
         )
 
     company_ids = list(dict.fromkeys(payload.company_ids))
@@ -413,7 +413,7 @@ async def create_fiscal_year_from_template(
             raise ValueError(
                 f"A fiscal year already exists for one of the selected companies for that period: "
                 f"\"{other.name}\" ({other.variant_code}, {other.start_date} to {other.end_date}). "
-                f"You are trying to create {fy_start} to {fy_end}, which overlaps for that company code. "
+                f"You are trying to create {fy_start} to {fy_end}, which overlaps for that business unit. "
                 "Remove that company from the list, or use a different start year / pattern."
             )
 
@@ -511,7 +511,7 @@ async def assign_fiscal_year_to_companies(
             raise ValueError(
                 f"This company already has a different fiscal year covering that period: "
                 f"\"{other.name}\" ({other.variant_code}, {other.start_date} to {other.end_date}). "
-                "Close or remove the overlapping year first, or pick another company code."
+                "Close or remove the overlapping year first, or pick another business unit."
             )
         if mark_current:
             await clear_current_fiscal_years(db, vendor_id, cid)

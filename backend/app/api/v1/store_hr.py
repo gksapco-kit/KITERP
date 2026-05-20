@@ -1,11 +1,12 @@
 """Storefront employee HR — login + ESS using VendorUser/User credentials (not Customer)."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+import uuid as _uuid
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, or_, func as sqlfunc
@@ -17,7 +18,7 @@ from app.api.deps import get_store_hr_vendor_id, get_current_store_hr_vendor_use
 from app.core.security import verify_password, create_access_token
 from app.models.user import User
 from app.models.vendor_user import VendorUser
-from app.models.hr import EmployeeProfile, PayrollEntry
+from app.models.hr import EmployeeProfile, PayrollEntry, AttendanceRecord
 from app.models.hr_recruit import OnboardingTask, OnboardingChecklist
 from app.models.hr_training import TrainingCertificate, TrainingProgram
 from app.api.v1.vendor_hr import LeaveRequestIn, ClockInOut
@@ -496,6 +497,139 @@ async def ess_attendance_history(
     return {"items": [_d(r) for r in result["items"]], "total": result["total"]}
 
 
+ESS_ATTENDANCE_STATUSES = frozenset({
+    "present", "absent", "late", "half_day", "on_leave", "holiday", "week_off",
+})
+ESS_MARK_RANGE_MAX_DAYS = 90
+
+
+class EssMarkAttendanceIn(BaseModel):
+    date: date
+    status: str
+    notes: Optional[str] = None
+
+
+class EssMarkRangeIn(BaseModel):
+    from_date: date
+    to_date: date
+    status: str = "present"
+    notes: Optional[str] = None
+    skip_weekends: bool = True
+    skip_existing: bool = True
+
+
+async def _ess_employee_or_404(svc: HRService, vu: VendorUser) -> EmployeeProfile:
+    emp = await svc.emp_repo.get_by_vendor_user(vu.id)
+    if not emp:
+        raise HTTPException(
+            status_code=404,
+            detail="No employee profile found. Please contact HR.",
+        )
+    return emp
+
+
+def _validate_ess_attendance_status(status: str) -> str:
+    s = (status or "").strip().lower()
+    if s not in ESS_ATTENDANCE_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Allowed: {', '.join(sorted(ESS_ATTENDANCE_STATUSES))}",
+        )
+    return s
+
+
+@router.post("/ess/attendance/mark")
+async def ess_mark_attendance(
+    body: EssMarkAttendanceIn,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark attendance for the logged-in employee only (one day)."""
+    svc = HRService(db)
+    emp = await _ess_employee_or_404(svc, vu)
+    att_status = _validate_ess_attendance_status(body.status)
+    if body.date > date.today():
+        raise HTTPException(status_code=400, detail="Cannot mark attendance for a future date.")
+    record = await svc.mark_attendance(
+        vendor_id=vu.vendor_id,
+        marked_by=vu.id,
+        employee_id=emp.id,
+        att_date=body.date,
+        status=att_status,
+        notes=body.notes,
+    )
+    await db.commit()
+    return _d(record)
+
+
+@router.post("/ess/attendance/mark-range")
+async def ess_mark_attendance_range(
+    body: EssMarkRangeIn,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bulk-mark attendance for the logged-in employee across a date range."""
+    if body.from_date > body.to_date:
+        raise HTTPException(status_code=400, detail="from_date must be <= to_date")
+    if body.to_date > date.today():
+        raise HTTPException(status_code=400, detail="Cannot mark attendance for future dates.")
+
+    max_days = (body.to_date - body.from_date).days + 1
+    if max_days > ESS_MARK_RANGE_MAX_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Range cannot exceed {ESS_MARK_RANGE_MAX_DAYS} days",
+        )
+
+    svc = HRService(db)
+    emp = await _ess_employee_or_404(svc, vu)
+    att_status = _validate_ess_attendance_status(body.status)
+
+    created = 0
+    skipped = 0
+    current = body.from_date
+    while current <= body.to_date:
+        if body.skip_weekends and current.weekday() >= 5:
+            current += timedelta(days=1)
+            continue
+
+        existing_res = await db.execute(
+            select(AttendanceRecord).where(
+                AttendanceRecord.employee_id == emp.id,
+                AttendanceRecord.date == current,
+            )
+        )
+        existing_rec = existing_res.scalar_one_or_none()
+
+        if existing_rec:
+            if body.skip_existing:
+                skipped += 1
+                current += timedelta(days=1)
+                continue
+            await db.delete(existing_rec)
+
+        db.add(
+            AttendanceRecord(
+                id=_uuid.uuid4(),
+                employee_id=emp.id,
+                date=current,
+                status=att_status,
+                notes=body.notes,
+                marked_by=vu.id,
+                approval_status="pending",
+            )
+        )
+        created += 1
+        current += timedelta(days=1)
+
+    await db.commit()
+    return {
+        "created": created,
+        "skipped": skipped,
+        "message": f"Marked {created} day(s); skipped {skipped} existing.",
+    }
+
+
 @router.get("/ess/leaves")
 async def ess_my_leaves(
     year: Optional[int] = None,
@@ -674,6 +808,17 @@ async def ess_performance(
     }
 
 
+@router.post("/ess/expenses/receipt")
+async def ess_upload_expense_receipt(
+    file: UploadFile = File(...),
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+):
+    """Upload receipt / media for employee expense claims. No application size cap."""
+    from app.services.expense_receipt_upload import save_expense_receipt
+
+    return await save_expense_receipt(file, vu.vendor_id)
+
+
 @router.get("/ess/expenses")
 async def ess_my_expenses(
     vu: VendorUser = Depends(get_current_store_hr_vendor_user),
@@ -717,11 +862,16 @@ async def ess_update_expense(
     emp = await _current_employee(db, vu)
     if not emp or str(e.employee_id) != str(emp.id):
         raise HTTPException(403, "Not your expense claim")
-    if e.status not in ("draft", "submitted"):
+    if e.status not in ("draft", "submitted", "rejected"):
         raise HTTPException(400, f"Cannot edit a {e.status} claim")
     data = body.model_dump(exclude_none=True)
-    if data.get("status") == "submitted" and not e.submitted_at:
-        data["submitted_at"] = datetime.utcnow()
+    if data.get("status") == "submitted":
+        if not e.submitted_at:
+            data["submitted_at"] = datetime.utcnow()
+        if e.status == "rejected":
+            data["decision_note"] = None
+            data["decided_at"] = None
+            data["approver_user_id"] = None
     e = await ExpenseRepo(db).update(e, data)
     await db.commit()
     return _d(e)

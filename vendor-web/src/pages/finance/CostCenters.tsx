@@ -205,7 +205,7 @@ export default function CostCenters() {
             Cost Centers
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage cost centers grouped by department and assigned to company codes
+            Manage cost centers grouped by department and assigned to business units
           </p>
         </div>
         <button
@@ -216,19 +216,19 @@ export default function CostCenters() {
         </button>
       </div>
 
-      {/* Company codes strip */}
+      {/* Business units strip */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
             <Building2 className="w-4 h-4 text-gray-400" />
-            Company Codes
+            Business Units
             <span className="text-[11px] font-normal text-gray-400 ml-1">({companies.length})</span>
           </h2>
           <Link
             to="/stores"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/10 transition-colors"
           >
-            <ExternalLink className="w-3 h-3" /> Manage in Company Codes
+            <ExternalLink className="w-3 h-3" /> Manage in Business Units
           </Link>
         </div>
         {coLoading ? (
@@ -497,10 +497,10 @@ export default function CostCenters() {
                     />
                   </div>
 
-                  {/* Company Code — optional */}
+                  {/* Business unit — optional */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
-                      Company Code
+                      Business Unit
                       <span className="text-[10px] font-normal text-gray-400 normal-case tracking-normal">(optional)</span>
                     </label>
                     <select
@@ -514,7 +514,7 @@ export default function CostCenters() {
                       ))}
                     </select>
                     <p className="text-[11px] text-gray-400 mt-1">
-                      Leave blank to automatically use the default company code.
+                      Leave blank to automatically use the default business unit.
                     </p>
                   </div>
                 </div>

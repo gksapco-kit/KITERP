@@ -22,6 +22,27 @@ export function employeeContactEmail(emp: EmployeeProfile | Record<string, unkno
   ).trim()
 }
 
+const OPTIONAL_EMPLOYEE_DATE_KEYS = [
+  'date_of_birth',
+  'date_of_joining',
+  'date_of_exit',
+  'probation_end_date',
+  'lwd',
+] as const
+
+/** Empty date inputs → null so optional HR dates are not sent as "". */
+export function sanitizeEmployeeUpdatePayload(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const out = { ...data }
+  for (const key of OPTIONAL_EMPLOYEE_DATE_KEYS) {
+    if (key in out && (out[key] === '' || out[key] === undefined)) {
+      out[key] = null
+    }
+  }
+  return out
+}
+
 export function employeeContactPhone(emp: EmployeeProfile | Record<string, unknown>): string {
   const e = emp as EmployeeProfile
   return (

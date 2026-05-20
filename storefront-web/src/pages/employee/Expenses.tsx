@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Receipt, Plus, X, Send, Trash2, Pencil } from 'lucide-react'
 import { useESSExpenses, useESSCreateExpense, useESSUpdateExpense, useESSDeleteExpense } from '@/hooks/useESS'
+import { ExpenseReceiptUpload, type ExpenseReceipt } from '@/components/hr/ExpenseReceiptUpload'
+import { essApi } from '@/api/ess'
+import ExpenseClaimDetail from './ExpenseClaimDetail'
 
 const STATUS: Record<string, { label: string; color: string }> = {
   draft:     { label: 'Draft',     color: 'bg-gray-100 text-gray-600' },
@@ -22,6 +25,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function ExpenseModal({ claim, onClose }: { claim: any | null; onClose: () => void }) {
   const create = useESSCreateExpense()
   const update = useESSUpdateExpense()
+  const [receipts, setReceipts] = useState<ExpenseReceipt[]>(
+    () => (claim?.receipts ?? []).map((r: { url: string; name?: string }) => ({ url: r.url, name: r.name })),
+  )
   const [form, setForm] = useState({
     title:        claim?.title ?? '',
     category:     claim?.category ?? 'travel',
@@ -29,7 +35,6 @@ function ExpenseModal({ claim, onClose }: { claim: any | null; onClose: () => vo
     currency:     claim?.currency ?? 'INR',
     amount:       claim?.amount != null ? String(claim.amount) : '',
     description:  claim?.description ?? '',
-    receipt_url:  claim?.receipts?.[0]?.url ?? '',
     status:       claim?.status ?? 'draft',
   })
 
@@ -37,7 +42,7 @@ function ExpenseModal({ claim, onClose }: { claim: any | null; onClose: () => vo
     const payload: Record<string, unknown> = {
       title: form.title, category: form.category, expense_date: form.expense_date,
       currency: form.currency, amount: Number(form.amount), description: form.description,
-      receipts: form.receipt_url ? [{ url: form.receipt_url }] : [], status,
+      receipts: receipts.map((r) => ({ url: r.url, name: r.name })), status,
     }
     if (claim) update.mutate({ id: claim.id, data: payload }, { onSuccess: onClose })
     else       create.mutate(payload, { onSuccess: onClose })
@@ -86,15 +91,15 @@ function ExpenseModal({ claim, onClose }: { claim: any | null; onClose: () => vo
               </Field>
             </div>
           </div>
-          <Field label="Receipt URL">
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.receipt_url}
-              placeholder="https://…"
-              onChange={(e) => setForm({ ...form, receipt_url: e.target.value })} />
-          </Field>
           <Field label="Description">
             <textarea className="w-full border rounded px-3 py-2 text-sm" rows={3} value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </Field>
+          <ExpenseReceiptUpload
+            receipts={receipts}
+            onChange={setReceipts}
+            uploadFile={(file) => essApi.uploadExpenseReceipt(file)}
+          />
         </div>
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
           <button
@@ -124,6 +129,7 @@ export default function ESSExpensesPage() {
   const del = useESSDeleteExpense()
   const [editing, setEditing] = useState<any | null>(null)
   const [showNew, setShowNew] = useState(false)
+  const [viewClaim, setViewClaim] = useState<any | null>(null)
   const list: any[] = (claims as any)?.items ?? claims
 
   return (
@@ -160,7 +166,11 @@ export default function ESSExpensesPage() {
               {list.map((c: any) => {
                 const st = STATUS[c.status] ?? STATUS.draft
                 return (
-                  <tr key={c.id} className="border-b hover:bg-gray-50">
+                  <tr
+                    key={c.id}
+                    className="border-b hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setViewClaim(c)}
+                  >
                     <td className="py-2 px-4 text-sm font-mono text-gray-700">{c.claim_number ?? '—'}</td>
                     <td className="py-2 px-4 text-sm">{c.title}</td>
                     <td className="py-2 px-4 text-xs text-gray-500">{c.category ?? '—'}</td>
@@ -170,8 +180,13 @@ export default function ESSExpensesPage() {
                     <td className="py-2 px-4 text-xs text-gray-500">{c.expense_date ?? '—'}</td>
                     <td className="py-2 px-4">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                      {c.status === 'rejected' && c.decision_note && (
+                        <p className="text-[10px] text-red-600 mt-1 max-w-[140px] truncate" title={c.decision_note}>
+                          {c.decision_note}
+                        </p>
+                      )}
                     </td>
-                    <td className="py-2 px-4">
+                    <td className="py-2 px-4" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         {(c.status === 'draft' || c.status === 'rejected') && (
                           <button onClick={() => setEditing(c)}
@@ -197,6 +212,9 @@ export default function ESSExpensesPage() {
 
       {(showNew || editing) && (
         <ExpenseModal claim={editing} onClose={() => { setShowNew(false); setEditing(null) }} />
+      )}
+      {viewClaim && (
+        <ExpenseClaimDetail claim={viewClaim} onClose={() => setViewClaim(null)} />
       )}
     </div>
   )

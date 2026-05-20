@@ -1,7 +1,8 @@
-﻿import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { useStores } from '@/hooks/useVendor'
-import type { HRAddress, HRDepartment, HRDesignation } from '@/types'
+import { useHREmployees, useStores } from '@/hooks/useVendor'
+import { employeeDisplayName, sanitizeEmployeeUpdatePayload } from '@/lib/hrEmployeeDisplay'
+import type { EmployeeProfile, HRAddress, HRDepartment, HRDesignation } from '@/types'
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -82,7 +83,14 @@ export function IdentityTab({
 }) {
   const { data: storesData } = useStores()
   const stores = storesData?.stores ?? []
+  const { data: empListData } = useHREmployees({ limit: 500 })
+  const allEmployees = (empListData?.items ?? []) as EmployeeProfile[]
+  const currentEmpId = String(emp.id ?? '')
+  const managerOptions = allEmployees.filter(
+    e => e.id !== currentEmpId && e.status !== 'exited' && e.is_active !== false,
+  )
   const linkedUser = (emp as { vendor_user?: { user?: { full_name?: string } } }).vendor_user?.user
+  const managerRecord = (emp as { manager?: EmployeeProfile | null }).manager
 
   const initial = {
     full_name: String(emp.full_name ?? linkedUser?.full_name ?? ''),
@@ -92,6 +100,7 @@ export function IdentityTab({
     store_id: String(emp.store_id ?? ''),
     department_id: String(emp.department_id ?? ''),
     designation_id: String(emp.designation_id ?? ''),
+    manager_id: String(emp.manager_id ?? ''),
     employment_type: String(emp.employment_type ?? 'full_time'),
     date_of_joining: String(emp.date_of_joining ?? ''),
     probation_end_date: String(emp.probation_end_date ?? ''),
@@ -115,20 +124,30 @@ export function IdentityTab({
   function update<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     const next = { ...form, [field]: value }
     setForm(next)
-    onChange({
-      ...next,
-      notice_period_days: Number(next.notice_period_days) || 30,
-      store_id: next.store_id || null,
-      department_id: next.department_id || null,
-      designation_id: next.designation_id || null,
-    })
+    onChange(
+      sanitizeEmployeeUpdatePayload({
+        ...next,
+        notice_period_days: Number(next.notice_period_days) || 30,
+        store_id: next.store_id || null,
+        department_id: next.department_id || null,
+        designation_id: next.designation_id || null,
+        manager_id: next.manager_id || null,
+        date_of_joining: next.date_of_joining || null,
+        probation_end_date: next.probation_end_date || null,
+        lwd: next.lwd || null,
+      }),
+    )
   }
 
   const empT = emp as {
     store?: { name?: string }
     department?: { name?: string }
     designation?: { name?: string }
+    manager?: EmployeeProfile | null
   }
+  const managerDisplay = managerRecord
+    ? employeeDisplayName(managerRecord)
+    : ''
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -206,6 +225,21 @@ export function IdentityTab({
         <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.designation_id} onChange={e => update('designation_id', e.target.value)}>
           <option value="">— None —</option>
           {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+      </FieldRow>
+      <FieldRow label="Reporting manager" editing={editing} display={managerDisplay}>
+        <select
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          value={form.manager_id}
+          onChange={e => update('manager_id', e.target.value)}
+        >
+          <option value="">— No manager —</option>
+          {managerOptions.map(m => (
+            <option key={m.id} value={m.id}>
+              {employeeDisplayName(m)}
+              {m.employee_code ? ` · ${m.employee_code}` : ''}
+            </option>
+          ))}
         </select>
       </FieldRow>
       <FieldRow label="Employment type" editing={editing} display={String(emp.employment_type ?? '').replace('_', '-')}>

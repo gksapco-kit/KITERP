@@ -23,14 +23,20 @@ export default defineConfig(({ mode }) => {
       },
       ...(useWatchPolling ? { watch: { usePolling: true, interval: 1000 } } : {}),
       // Local dev: localhost. Docker Compose can set BACKEND_URL=http://backend:8000
-      proxy: { '/api': { target: backendUrl, changeOrigin: true } },
+      proxy: {
+        '/api': { target: backendUrl, changeOrigin: true },
+        '/uploads': { target: backendUrl, changeOrigin: true },
+      },
     },
     preview: {
       port: 3002,
       strictPort: true,
       host: '0.0.0.0',
       allowedHosts: true,
-      proxy: { '/api': { target: backendUrl, changeOrigin: true } },
+      proxy: {
+        '/api': { target: backendUrl, changeOrigin: true },
+        '/uploads': { target: backendUrl, changeOrigin: true },
+      },
     },
   }
 })

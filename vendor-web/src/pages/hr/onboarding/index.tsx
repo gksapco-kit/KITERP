@@ -1,3 +1,4 @@
+import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
 import { Plus, Trash2, X, Layers, ListChecks, Pencil, CheckCircle2, Circle, Clock as ClockIcon } from 'lucide-react'
 import {
@@ -172,7 +173,7 @@ function StartChecklistModal({ onClose }: { onClose: () => void }) {
     onClose()
   }
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Start Onboarding</h2>

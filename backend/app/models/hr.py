@@ -83,6 +83,12 @@ class EmployeeProfile(Base):
     # Employment
     department_id = Column(UUID(as_uuid=True), ForeignKey("hr_department.id", ondelete="SET NULL"), nullable=True)
     designation_id = Column(UUID(as_uuid=True), ForeignKey("hr_designation.id", ondelete="SET NULL"), nullable=True)
+    manager_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("hr_employee_profile.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     employment_type = Column(String(20), default="full_time")  # full_time / part_time / contract / intern
     date_of_joining = Column(Date)
     date_of_exit = Column(Date)
@@ -129,6 +135,12 @@ class EmployeeProfile(Base):
     vendor_user = relationship("VendorUser", backref="employee_profile", foreign_keys=[vendor_user_id])
     department = relationship("Department", back_populates="employees", foreign_keys=[department_id])
     designation = relationship("Designation", back_populates="employees", foreign_keys=[designation_id])
+    manager = relationship(
+        "EmployeeProfile",
+        remote_side="EmployeeProfile.id",
+        foreign_keys=[manager_id],
+        backref="direct_reports",
+    )
     documents = relationship("EmployeeDocument", back_populates="employee", cascade="all, delete-orphan")
     attendance_records = relationship("AttendanceRecord", back_populates="employee", cascade="all, delete-orphan")
     leave_requests = relationship("LeaveRequest", back_populates="employee", cascade="all, delete-orphan")
