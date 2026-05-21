@@ -1212,19 +1212,19 @@ export default function ReportsPage() {
           <div className="flex items-center gap-1 flex-wrap">
             <button
               onClick={() => setSelectedStoreId('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === 'all' ? 'bg-primary text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === 'all' ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary'}`}>
               All Stores
             </button>
             {reportStores.map(s => (
               <button key={s.id}
                 onClick={() => setSelectedStoreId(s.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === s.id ? 'bg-primary text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === s.id ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary'}`}>
                 {s.name}{s.code ? ` · ${s.code}` : ''}
               </button>
             ))}
           </div>
           {selectedStoreId !== 'all' && (
-            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg font-medium">
+            <span className="text-xs text-primary bg-primary/10 dark:bg-primary/20 px-2 py-1 rounded-lg font-medium">
               Showing data for: {reportStores.find(s => s.id === selectedStoreId)?.name}
             </span>
           )}
@@ -1272,10 +1272,10 @@ export default function ReportsPage() {
         </div>
 
         {/* Date range pills + custom */}
-        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+        <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
           {DATE_RANGES.map(r => (
             <button key={r.value} onClick={() => { setDateRange(r.value); if (r.value !== 'custom') resetToolbar() }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${dateRange === r.value ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${dateRange === r.value ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               {r.label}
             </button>
           ))}

@@ -693,7 +693,7 @@ export default function ProductionOrdersPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -703,7 +703,7 @@ export default function ProductionOrdersPage() {
               <Factory className="w-6 h-6 text-primary" /> Production Orders
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Manage Make-to-Order &amp; Make-to-Stock production workflows</p>
-            <p className="text-xs mt-2 px-2.5 py-1 rounded-lg border bg-amber-50 border-amber-200 text-amber-900 inline-block">
+            <p className="text-xs mt-2 px-2.5 py-1 rounded-lg border bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-200 inline-block">
               {storeId ? (
                 <>Showing orders for <strong>{selectedStore?.name}</strong></>
               ) : (
@@ -739,21 +739,21 @@ export default function ProductionOrdersPage() {
               className={`${s.bg} rounded-2xl p-3 text-left hover:opacity-80 transition-opacity`}>
               <s.icon className={`w-4 h-4 ${s.color} mb-1.5`} />
               <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-[11px] text-gray-500 leading-tight mt-0.5">{s.label}</p>
+              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{s.label}</p>
             </button>
           ))}
         </div>
 
         {/* ── MTO vs MTS explainer strip ─────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3">
+          <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3 dark:bg-indigo-500/10 dark:border-indigo-500/30">
             <ShoppingCart className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-indigo-900">Make to Order (MTO)</p>
               <p className="text-xs text-indigo-700 mt-0.5">Customer-specific production. Each order is tied to a customer or sales order. Products are manufactured on demand and dispatched directly to the customer upon completion.</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 bg-teal-50 border border-teal-200 rounded-2xl px-4 py-3">
+          <div className="flex items-start gap-3 bg-teal-50 border border-teal-200 rounded-2xl px-4 py-3 dark:bg-teal-500/10 dark:border-teal-500/30">
             <Package className="w-5 h-5 text-teal-500 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-teal-900">Make to Stock (MTS)</p>
@@ -773,10 +773,10 @@ export default function ProductionOrdersPage() {
           </div>
 
           {/* Type filter */}
-          <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
+          <div className="flex items-center bg-muted rounded-xl p-1 gap-0.5">
             {(['all', 'mto', 'mts'] as const).map(t => (
               <button key={t} onClick={() => setTypeFilter(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${typeFilter === t ? 'bg-white shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${typeFilter === t ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                 {t === 'all' ? 'All Types' : t === 'mto' ? '🛒 MTO' : '📦 MTS'}
               </button>
             ))}
@@ -802,7 +802,7 @@ export default function ProductionOrdersPage() {
               <div className="flex flex-wrap gap-1">
                 {(['all', ...Object.keys(STATUS_CONFIG)] as const).map(s => (
                   <button key={s} onClick={() => setStatusFilter(s as 'all' | POStatus)}
-                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${statusFilter === s ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${statusFilter === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
                     {s === 'all' ? 'All' : STATUS_CONFIG[s as POStatus].label}
                   </button>
                 ))}
@@ -813,7 +813,7 @@ export default function ProductionOrdersPage() {
               <div className="flex flex-wrap gap-1">
                 {(['all', 'low', 'medium', 'high', 'urgent'] as const).map(p => (
                   <button key={p} onClick={() => setPriorityFilter(p)}
-                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${priorityFilter === p ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${priorityFilter === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
                     {p === 'all' ? 'All' : PRIORITY_CONFIG[p].label}
                   </button>
                 ))}

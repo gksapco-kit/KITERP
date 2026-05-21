@@ -8,11 +8,11 @@ function fmt(n: number) {
 function Row({ label, value, indent = 0, bold = false }: { label: string; value: number; indent?: number; bold?: boolean }) {
   const negative = value < 0
   return (
-    <tr className="hover:bg-gray-50">
-      <td className="px-4 py-2 text-gray-700" style={{ paddingLeft: `${16 + indent * 20}px` }}>
+    <tr className="hover:bg-muted/50">
+      <td className="px-4 py-2 text-foreground" style={{ paddingLeft: `${16 + indent * 20}px` }}>
         <span className={bold ? 'font-semibold' : ''}>{label}</span>
       </td>
-      <td className={`px-4 py-2 text-right font-mono ${bold ? 'font-bold' : ''} ${negative ? 'text-red-600' : ''}`}>
+      <td className={`px-4 py-2 text-right font-mono ${bold ? 'font-bold' : ''} ${negative ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>
         {negative ? `(${fmt(value)})` : fmt(value)}
       </td>
     </tr>
@@ -30,53 +30,53 @@ export default function ProfitLoss() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold text-gray-900">Profit & Loss Statement</h1>
+      <h1 className="text-2xl font-bold text-foreground">Profit & Loss Statement</h1>
 
       <div className="flex gap-3 items-end">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          <label className="block text-xs font-medium text-muted-foreground mb-1">From</label>
+          <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          <label className="block text-xs font-medium text-muted-foreground mb-1">To</label>
+          <input type="date" value={to} onChange={e => setTo(e.target.value)} className="border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
         </div>
         <button onClick={() => setApplied({ from_date: from, to_date: to })}
-          className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">Apply</button>
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90">Apply</button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {isLoading ? (
-          <p className="p-8 text-center text-gray-500">Loading…</p>
+          <p className="p-8 text-center text-muted-foreground">Loading…</p>
         ) : !data ? (
-          <p className="p-8 text-center text-gray-500">No data. Post transactions first.</p>
+          <p className="p-8 text-center text-muted-foreground">No data. Post transactions first.</p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted border-b border-border">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount (₹)</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Description</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Amount (₹)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              <tr className="bg-green-50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-green-700 uppercase">Revenue</td></tr>
+            <tbody className="divide-y divide-border">
+              <tr className="bg-green-50 dark:bg-green-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-green-700 dark:text-green-300 uppercase">Revenue</td></tr>
               {(data.revenue_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total Revenue" value={data.total_revenue || 0} bold />
-              <tr className="bg-red-50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-red-700 uppercase">Cost of Goods Sold</td></tr>
+              <tr className="bg-red-50 dark:bg-red-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-red-700 dark:text-red-300 uppercase">Cost of Goods Sold</td></tr>
               {(data.cogs_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total COGS" value={data.total_cogs || 0} bold />
-              <tr className="bg-blue-50 border-t-2 border-blue-300"><td className="px-4 py-2 font-bold text-blue-700">Gross Profit</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.gross_profit || 0) < 0 ? 'text-red-600' : 'text-blue-700'}`}>{fmt(data.gross_profit || 0)}</td></tr>
-              <tr className="bg-orange-50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-orange-700 uppercase">Operating Expenses</td></tr>
+              <tr className="bg-blue-50 dark:bg-blue-500/10 border-t-2 border-blue-300 dark:border-blue-500/30"><td className="px-4 py-2 font-bold text-blue-700 dark:text-blue-300">Gross Profit</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.gross_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-700 dark:text-blue-300'}`}>{fmt(data.gross_profit || 0)}</td></tr>
+              <tr className="bg-orange-50 dark:bg-orange-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-orange-700 dark:text-orange-300 uppercase">Operating Expenses</td></tr>
               {(data.opex_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total Operating Expenses" value={data.total_opex || 0} bold />
-              <tr className="bg-primary/10 border-t-2 border-primary/40"><td className="px-4 py-2 font-bold text-primary">Operating Profit (EBIT)</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.operating_profit || 0) < 0 ? 'text-red-600' : 'text-primary'}`}>{fmt(data.operating_profit || 0)}</td></tr>
+              <tr className="bg-primary/10 border-t-2 border-primary/40"><td className="px-4 py-2 font-bold text-primary">Operating Profit (EBIT)</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.operating_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-primary'}`}>{fmt(data.operating_profit || 0)}</td></tr>
               {(data.other_income_lines || []).length > 0 && <>
-                <tr className="bg-teal-50"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-teal-700 uppercase">Other Income / Expenses</td></tr>
+                <tr className="bg-teal-50 dark:bg-teal-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-teal-700 dark:text-teal-300 uppercase">Other Income / Expenses</td></tr>
                 {data.other_income_lines.map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               </>}
-              <tr className="bg-gray-100 border-t-2 border-gray-400">
-                <td className="px-4 py-3 font-bold text-gray-800 text-base">Net Profit / (Loss)</td>
-                <td className={`px-4 py-3 text-right font-bold font-mono text-base ${(data.net_profit || 0) < 0 ? 'text-red-600' : 'text-green-700'}`}>
+              <tr className="bg-muted border-t-2 border-border">
+                <td className="px-4 py-3 font-bold text-foreground text-base">Net Profit / (Loss)</td>
+                <td className={`px-4 py-3 text-right font-bold font-mono text-base ${(data.net_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-300'}`}>
                   {(data.net_profit || 0) < 0 ? `(${fmt(data.net_profit || 0)})` : fmt(data.net_profit || 0)}
                 </td>
               </tr>

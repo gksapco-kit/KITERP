@@ -1364,8 +1364,8 @@ export default function BookingsPage() {
               onClick={() => { setStatusFilter(s); setPage(1) }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 statusFilter === s
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gray-900 text-white dark:bg-primary dark:text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
               }`}
             >
               {badge?.label || 'All'}

@@ -409,13 +409,13 @@ export default function InboxPage() {
     <div className="space-y-5">
       {/* Page header */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Overview</p>
-        <h1 className="text-2xl font-bold text-gray-900">Inbox</h1>
-        <p className="text-sm text-gray-500 mt-1">Chats from your website widget and form submissions — all in one place.</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Overview</p>
+        <h1 className="text-2xl font-bold text-foreground">Inbox</h1>
+        <p className="text-sm text-muted-foreground mt-1">Chats from your website widget and form submissions — all in one place.</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit">
         {([
           { id: 'chats' as Tab, icon: MessageSquare, label: 'Chats' },
           { id: 'forms' as Tab, icon: Mail, label: 'Form Submissions' },
@@ -425,7 +425,7 @@ export default function InboxPage() {
             onClick={() => setTab(id)}
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
-              tab === id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Icon className="w-4 h-4" />

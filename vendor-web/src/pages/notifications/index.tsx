@@ -36,12 +36,12 @@ type SortKey = 'newest' | 'oldest' | 'unread_first' | 'type'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string; activeRing: string }> = {
-  order:     { label: 'Orders',    icon: ShoppingCart, color: 'bg-blue-100 text-blue-600',   activeRing: 'border-blue-500 bg-blue-50 ring-blue-400' },
-  inventory: { label: 'Inventory', icon: Package,      color: 'bg-orange-100 text-orange-600', activeRing: 'border-orange-400 bg-orange-50 ring-orange-300' },
-  payment:   { label: 'Payments',  icon: CreditCard,   color: 'bg-green-100 text-green-600',  activeRing: 'border-green-500 bg-green-50 ring-green-400' },
-  review:    { label: 'Reviews',   icon: Star,         color: 'bg-yellow-100 text-yellow-600', activeRing: 'border-yellow-500 bg-yellow-50 ring-yellow-400' },
-  system:    { label: 'System',    icon: AlertTriangle,color: 'bg-primary/12 text-primary', activeRing: 'border-primary bg-accent ring-ring' },
-  info:      { label: 'Info',      icon: Info,         color: 'bg-muted text-muted-foreground',    activeRing: 'border-muted-foreground/40 bg-muted ring-ring' },
+  order:     { label: 'Orders',    icon: ShoppingCart, color: 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300',   activeRing: 'border-blue-500 bg-blue-50 ring-blue-400 dark:bg-blue-500/15 dark:border-blue-400' },
+  inventory: { label: 'Inventory', icon: Package,      color: 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300', activeRing: 'border-orange-400 bg-orange-50 ring-orange-300 dark:bg-orange-500/15 dark:border-orange-400' },
+  payment:   { label: 'Payments',  icon: CreditCard,   color: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-300',  activeRing: 'border-green-500 bg-green-50 ring-green-400 dark:bg-green-500/15 dark:border-green-400' },
+  review:    { label: 'Reviews',   icon: Star,         color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-300', activeRing: 'border-yellow-500 bg-yellow-50 ring-yellow-400 dark:bg-yellow-500/15 dark:border-yellow-400' },
+  system:    { label: 'System',    icon: AlertTriangle,color: 'bg-primary/12 text-primary dark:bg-primary/20 dark:text-primary', activeRing: 'border-primary bg-accent ring-ring dark:bg-primary/15' },
+  info:      { label: 'Info',      icon: Info,         color: 'bg-muted text-muted-foreground dark:bg-secondary dark:text-secondary-foreground',    activeRing: 'border-muted-foreground/40 bg-muted ring-ring dark:bg-secondary' },
 }
 
 const ALL_TYPES = Object.keys(TYPE_META)
@@ -324,22 +324,24 @@ export default function NotificationsPage() {
                 <button
                   type="button"
                   onClick={() => setUnreadOnly(false)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 select-none ${
+                  className={cn(
+                    'flex select-none items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-150',
                     !unreadOnly
-                      ? 'bg-primary text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
-                  }`}
+                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-accent hover:text-primary',
+                  )}
                 >
                   <Bell className="w-3.5 h-3.5" /> All
                 </button>
                 <button
                   type="button"
                   onClick={() => setUnreadOnly(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 select-none ${
+                  className={cn(
+                    'flex select-none items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-150',
                     unreadOnly
-                      ? 'bg-primary text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
-                  }`}
+                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-accent hover:text-primary',
+                  )}
                 >
                   <BellOff className="w-3.5 h-3.5" /> Unread only
                 </button>
@@ -359,12 +361,12 @@ export default function NotificationsPage() {
         {!showFilters && activeFiltersCount > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {unreadOnly && (
-              <Badge variant="secondary" className="gap-1 cursor-pointer bg-blue-100 text-blue-700 hover:bg-blue-200" onClick={() => setUnreadOnly(false)}>
+              <Badge variant="secondary" className="gap-1 cursor-pointer bg-primary/15 text-primary hover:bg-primary/25 dark:bg-primary/20" onClick={() => setUnreadOnly(false)}>
                 Unread only <X className="w-2.5 h-2.5" />
               </Badge>
             )}
             {search && (
-              <Badge variant="secondary" className="gap-1 cursor-pointer bg-blue-100 text-blue-700 hover:bg-blue-200" onClick={() => setSearch('')}>
+              <Badge variant="secondary" className="gap-1 cursor-pointer bg-primary/15 text-primary hover:bg-primary/25 dark:bg-primary/20" onClick={() => setSearch('')}>
                 "{search.length > 20 ? search.slice(0, 20) + '…' : search}" <X className="w-2.5 h-2.5" />
               </Badge>
             )}

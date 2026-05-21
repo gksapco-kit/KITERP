@@ -65,7 +65,7 @@ const DIMENSIONS: Dimension[] = [
     label: 'Customer',
     icon: Users,
     partyType: 'customer',
-    color: 'bg-blue-100 text-blue-700 border-blue-200',
+    color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30',
     description: 'Receivables and revenue lines by customer',
   },
   {
@@ -73,7 +73,7 @@ const DIMENSIONS: Dimension[] = [
     label: 'Supplier / Vendor',
     icon: Briefcase,
     partyType: 'supplier',
-    color: 'bg-orange-100 text-orange-700 border-orange-200',
+    color: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30',
     description: 'Payables and expense lines by supplier',
   },
   {
@@ -81,7 +81,7 @@ const DIMENSIONS: Dimension[] = [
     label: 'Employee',
     icon: User,
     partyType: 'employee',
-    color: 'bg-green-100 text-green-700 border-green-200',
+    color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30',
     description: 'Payroll, salary, and expense reimbursement lines by employee',
   },
   {
@@ -97,14 +97,14 @@ const DIMENSIONS: Dimension[] = [
     label: 'Freelancer',
     icon: Activity,
     partyType: 'freelancer',
-    color: 'bg-pink-100 text-pink-700 border-pink-200',
+    color: 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-500/15 dark:text-pink-300 dark:border-pink-500/30',
     description: 'Lines posted against freelance engagements',
   },
   {
     id: 'cost_center',
     label: 'Cost Centre',
     icon: Layers,
-    color: 'bg-teal-100 text-teal-700 border-teal-200',
+    color: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-500/30',
     description: 'All posted lines for a profit / cost centre',
   },
 ]
@@ -562,19 +562,19 @@ export default function GLReport() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-screen bg-gray-50">
+    <div className="flex flex-col h-full min-h-screen bg-background">
       {/* ── Page header ── */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">GL Report — Line Items</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h1 className="text-2xl font-bold text-foreground">GL Report — Line Items</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
               Posted journal entries by GL account, customer, supplier, employee or other master data
             </p>
           </div>
           <div className="flex items-center gap-2">
             {/* View toggle */}
-            <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+            <div className="flex border border-border rounded-lg overflow-hidden">
               {[
                 { id: 'ledger', icon: List, label: 'Ledger' },
                 { id: 'summary', icon: BarChart3, label: 'Summary' },
@@ -584,7 +584,7 @@ export default function GLReport() {
                   onClick={() => setView(v.id as any)}
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors',
-                    view === v.id ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50',
+                    view === v.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent',
                   )}
                 >
                   <v.icon className="w-3.5 h-3.5" /> {v.label}
@@ -748,12 +748,12 @@ export default function GLReport() {
                 <SummaryView fromDate={fromDate} toDate={toDate} />
               </div>
             ) : !selectedRecord ? (
-              <div className="flex flex-col items-center justify-center h-80 text-center text-gray-400 gap-3 mt-8">
-                <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
+              <div className="flex flex-col items-center justify-center h-80 text-center text-muted-foreground gap-3 mt-8">
+                <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
                   <dim.icon className="w-8 h-8 opacity-40" />
                 </div>
-                <p className="text-base font-medium text-gray-500">Select a {dim.label}</p>
-                <p className="text-sm max-w-xs leading-relaxed">
+                <p className="text-base font-medium text-foreground">Select a {dim.label}</p>
+                <p className="text-sm max-w-xs leading-relaxed text-muted-foreground">
                   Use the search box above to pick a {dim.label.toLowerCase()} and see all posted GL line items.
                 </p>
                 {/* Quick-start: show all dimensions as clickable pills */}
