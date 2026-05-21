@@ -38,14 +38,14 @@
     --canvas-grid: 158 12% 92%;
     --panel: 0 0% 100%;
     --panel-foreground: 222 20% 12%;
-    /* Sidebar — hue aligned to #64C3A0 (158°) */
-    --sidebar-background: 158 12% 96%;
-    --sidebar-foreground: 158 22% 26%;
+    /* Sidebar — neutral rail; mint (--sidebar-primary) on active nav only */
+    --sidebar-background: 210 20% 97%;
+    --sidebar-foreground: 222 20% 12%;
     --sidebar-primary: 158 44% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 158 26% 92%;
-    --sidebar-accent-foreground: 158 30% 18%;
-    --sidebar-border: 158 14% 87%;
+    --sidebar-accent: 210 20% 93%;
+    --sidebar-accent-foreground: 222 47% 15%;
+    --sidebar-border: 214 22% 90%;
     --sidebar-ring: 158 44% 58%;
     /* Dashboard welcome hero — same hue family as sidebar / primary */
     --hero-via: 158 52% 24%;
@@ -93,14 +93,14 @@
     --canvas-grid: 158 18% 11%;
     --panel: 221 46% 8%;
     --panel-foreground: 240 33% 94%;
-    /* Sidebar — same hue as #64C3A0, lifted slightly from app bg */
-    --sidebar-background: 158 22% 7%;
-    --sidebar-foreground: 158 8% 93%;
+    /* Sidebar — neutral dark rail; mint on active nav */
+    --sidebar-background: 221 40% 9%;
+    --sidebar-foreground: 240 33% 94%;
     --sidebar-primary: 158 44% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 158 22% 14%;
+    --sidebar-accent: 221 24% 15%;
     --sidebar-accent-foreground: 240 33% 94%;
-    --sidebar-border: 158 18% 16%;
+    --sidebar-border: 221 24% 20%;
     --sidebar-ring: 158 44% 58%;
     --hero-via: 158 38% 22%;
     --hero-to: 158 42% 11%;
@@ -119,8 +119,11 @@
   * {
     @apply border-border;
   }
+  html {
+    @apply font-sans;
+  }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   /* Smooth focus rings */

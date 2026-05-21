@@ -25,7 +25,7 @@ const SUPPORT_CHAT_URL = (import.meta.env.VITE_SUPPORT_CHAT_URL as string | unde
 
 function ProfileMenuLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="px-4 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+    <p className="px-4 pt-1 pb-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
       {children}
     </p>
   )
@@ -254,11 +254,11 @@ const allSections: NavSection[] = [
       { to: '/controlling/orders',                   icon: Factory,       label: 'All Orders',                 requiresPermission: 'finance.view', groupLabel: 'Production Orders',     groupColor: 'amber' },
       { to: '/controlling/orders?kind=assembly',     icon: Workflow,      label: 'Assembly Orders',            requiresPermission: 'finance.view' },
       { to: '/controlling/orders?kind=process',      icon: ArrowLeftRight,label: 'Process Orders',             requiresPermission: 'finance.view' },
-      { to: '/controlling/internal-orders',          icon: Boxes,         label: 'Internal & Project Orders',  requiresPermission: 'finance.view', labelSize: 'text-[11px]' },
+      { to: '/controlling/internal-orders',          icon: Boxes,         label: 'Internal & Project Orders',  requiresPermission: 'finance.view', labelSize: 'text-sm' },
       // ── Production Execution
       { to: '/controlling/production-process',       icon: TrendingUp,    label: 'Production Process',         requiresPermission: 'finance.view', groupLabel: 'Production Execution',  groupColor: 'emerald' },
       { to: '/controlling/goods-movements',          icon: Package,       label: 'Goods Movements',            requiresPermission: 'finance.view' },
-      { to: '/controlling/activity-confirmations',   icon: Clock,         label: 'Activity Confirmations',     requiresPermission: 'finance.view', labelSize: 'text-[11px]' },
+      { to: '/controlling/activity-confirmations',   icon: Clock,         label: 'Activity Confirmations',     requiresPermission: 'finance.view', labelSize: 'text-sm' },
       { to: '/controlling/cost-bookings',            icon: Receipt,       label: 'Cost Bookings',              requiresPermission: 'finance.view' },
       // ── Analysis & Reporting
       { to: '/controlling/wip',                      icon: ClipboardList, label: 'WIP Report',                 requiresPermission: 'finance.view', groupLabel: 'Analysis & Reporting', groupColor: 'indigo' },
@@ -274,7 +274,7 @@ const allSections: NavSection[] = [
     title: 'Master Data Management',
     icon: Database,
     items: [
-      { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-[11px]', alwaysShow: true },
+      { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-sm', alwaysShow: true },
       { to: '/reviews', icon: MessageSquare, label: 'Reviews', requiresPermission: 'reviews.view' },
     ],
   },
@@ -497,7 +497,7 @@ function SortableItemShell({
       {prepend}
       <div
         className={cn(
-          'flex min-h-[1.75rem] w-full items-center gap-0 rounded-md transition-[box-shadow] duration-100',
+          'flex min-h-[2rem] w-full items-center gap-0 rounded-md transition-[box-shadow] duration-100',
           outlineDropTarget &&
             'ring-2 ring-sidebar-primary ring-offset-2 ring-offset-sidebar shadow-sm',
         )}
@@ -512,7 +512,7 @@ function SortableItemShell({
 const navLinkActive =
   'border-l-2 border-transparent bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-sm ring-1 ring-white/25 rounded-lg dark:shadow-md dark:shadow-black/25 dark:ring-white/20'
 const navLinkInactive =
-  'border-l-2 border-transparent font-normal text-muted-foreground rounded-lg hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground active:opacity-90 dark:text-sidebar-foreground/72 dark:hover:bg-sidebar-accent dark:hover:text-sidebar-accent-foreground'
+  'border-l-2 border-transparent font-normal text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:opacity-90'
 
 const navRowTransition = 'transition-[background-color,color,border-color] duration-150 ease-out motion-reduce:transition-none'
 const navExpandTransition =
@@ -522,6 +522,8 @@ const navExpandTransition =
 const NAV_ICON_COL = 'flex h-5 w-5 shrink-0 items-center justify-center'
 const NAV_DRAG_COL = 'flex h-7 w-5 shrink-0 items-center justify-center'
 const NAV_ROW_PAD_Y = 'py-0.5'
+/** Nav leaf row height — matches main content text-sm rhythm */
+const NAV_ROW_MIN_H = 'min-h-[2rem]'
 
 /**
  * Nested nav tree — mint rail + elbows; stroke ~30% thinner than prior 2px (~1.4px).
@@ -1257,7 +1259,7 @@ export default function DashboardLayout() {
         aria-label="Select business unit"
       >
         <div className="border-b border-border bg-muted px-4 py-2.5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Select Business Unit</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Select Business Unit</p>
         </div>
 
         {showAllLocationsOption && (
@@ -1273,7 +1275,7 @@ export default function DashboardLayout() {
           >
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground">All business units</p>
-              <p className="text-[10px] text-muted-foreground">No filter applied</p>
+              <p className="text-xs text-muted-foreground">No filter applied</p>
             </div>
             {!selectedStore && <Check className="w-4 h-4 text-primary shrink-0" />}
           </button>
@@ -1301,7 +1303,7 @@ export default function DashboardLayout() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{s.description || s.code || 'Business unit'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{s.description || s.code || 'Business unit'}</p>
                 </div>
                 {selectedStore?.id === s.id && <Check className="w-4 h-4 text-primary shrink-0" />}
               </button>
@@ -1317,7 +1319,7 @@ export default function DashboardLayout() {
           <Link
             to="/settings"
             onClick={() => setStorePickerOpen(false)}
-            className="flex items-center gap-1.5 text-[11px] text-primary hover:text-primary font-medium transition-colors"
+            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary font-medium transition-colors"
           >
             <Settings className="w-3 h-3" />
             Settings
@@ -1331,11 +1333,11 @@ export default function DashboardLayout() {
   const sidebarContent = (
     <div className="flex h-full min-h-0 flex-col">
       {/* Active business unit context (selector lives in top bar) */}
-      <div className="border-b border-sidebar-border/25 bg-sidebar-accent/40 px-2.5 py-2">
-        <p className="truncate text-sm font-bold leading-tight text-sidebar-foreground">{storeHeaderName}</p>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{storeHeaderSubtitle}</p>
+      <div className="border-b border-sidebar-border bg-muted/30 px-2.5 py-2">
+        <p className="truncate text-sm font-semibold leading-tight text-sidebar-foreground">{storeHeaderName}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{storeHeaderSubtitle}</p>
         <div className="mt-1 flex items-center gap-0.5">
-          <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90">
+          <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-xs font-semibold bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90">
             <ShieldCheck className="h-2.5 w-2.5" />
             {roleBadge}
           </span>
@@ -1361,7 +1363,7 @@ export default function DashboardLayout() {
           aria-label="Main navigation"
         >
           <div className="mb-0.5 flex shrink-0 items-center justify-between gap-2 px-0.5 py-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/65">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
               Modules
             </span>
             <div className="flex shrink-0 items-center gap-1">
@@ -1371,7 +1373,7 @@ export default function DashboardLayout() {
                   aria-label="Reset menu order to default and exit reorder mode"
                   onClick={resetNavOrderToDefaults}
                   className={cn(
-                    'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    'rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                     'text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground',
                   )}
                 >
@@ -1402,7 +1404,7 @@ export default function DashboardLayout() {
                   })
                 }}
                 className={cn(
-                  'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  'rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   navReorderMode
                     ? 'bg-primary text-white shadow-sm hover:bg-primary/90 dark:bg-primary dark:hover:bg-accent'
                     : 'text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground',
@@ -1458,7 +1460,7 @@ export default function DashboardLayout() {
                 >
                   {(secListeners, secAttributes) => (
                     <>
-                      <div className="flex min-h-[1.75rem] items-center gap-0.5">
+                      <div className="flex min-h-[2rem] items-center gap-0.5">
                         {navReorderMode ? (
                           <button
                             type="button"
@@ -1482,7 +1484,7 @@ export default function DashboardLayout() {
                           aria-expanded={!isSectionCollapsed}
                           aria-controls={sectionPanelId}
                           className={cn(
-                            'group/sec flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1 py-0.5 text-left',
+                            'group/sec flex min-h-[2rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1 py-0.5 text-left',
                             navRowTransition,
                             sectionHasActive && !isSectionCollapsed
                               ? 'bg-muted/50 text-foreground'
@@ -1505,14 +1507,14 @@ export default function DashboardLayout() {
                           <div className="min-w-0 flex-1 py-0.5">
                             <span
                               className={cn(
-                                'block truncate text-[11px] leading-tight tracking-tight',
-                                sectionHasActive ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground',
+                                'block truncate text-sm leading-snug tracking-normal',
+                                sectionHasActive ? 'font-semibold text-foreground' : 'font-medium text-sidebar-foreground',
                               )}
                             >
                               {section.title}
                             </span>
                             {section.subtitle ? (
-                              <span className="mt-px block truncate text-[10px] font-normal leading-snug text-muted-foreground/90">
+                              <span className="mt-px block truncate text-xs font-normal leading-snug text-muted-foreground">
                                 {section.subtitle}
                               </span>
                             ) : null}
@@ -1577,7 +1579,7 @@ export default function DashboardLayout() {
                                         onClick={() => toggleGroup(grpKey)}
                                         aria-expanded={!isGroupCollapsed}
                                         className={cn(
-                                          'relative flex min-h-[1.625rem] w-full items-center gap-1.5 rounded-md py-0.5 pr-1 pl-[calc(var(--tree-x)+0.5rem)] text-left text-[10px] font-semibold uppercase tracking-wide',
+                                          'relative flex min-h-[1.875rem] w-full items-center gap-1.5 rounded-md py-0.5 pr-1 pl-[calc(var(--tree-x)+0.5rem)] text-left text-xs font-semibold uppercase tracking-wide',
                                           itemIdx > 0 ? 'mt-0.5' : 'mt-0',
                                           navRowTransition,
                                           'text-muted-foreground/80 hover:bg-muted/35 hover:text-foreground',
@@ -1619,7 +1621,7 @@ export default function DashboardLayout() {
                                       {(itemListeners, itemAttributes) => (
                                         <div
                                           className={cn(
-                                            'relative flex min-h-[1.75rem] w-full min-w-0 flex-1 items-center gap-0.5',
+                                            'relative flex min-h-[2rem] w-full min-w-0 flex-1 items-center gap-0.5',
                                             inCollapsedSubgroup && 'hidden',
                                           )}
                                         >
@@ -1653,8 +1655,8 @@ export default function DashboardLayout() {
                                             >
                                               <span
                                                 className={cn(
-                                                  'relative z-[1] flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
-                                                  item.labelSize ?? 'text-[11px]',
+                                                  'relative z-[1] flex min-h-[2rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
+                                                  item.labelSize ?? 'text-sm',
                                                   'leading-snug',
                                                   navRowTransition,
                                                   navLinkInactive,
@@ -1679,8 +1681,8 @@ export default function DashboardLayout() {
                                               return (
                                               <span
                                                 className={cn(
-                                                  'relative z-[1] flex min-h-[1.75rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
-                                                  item.labelSize ?? 'text-[11px]',
+                                                  'relative z-[1] flex min-h-[2rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
+                                                  item.labelSize ?? 'text-sm',
                                                   'leading-snug',
                                                   navRowTransition,
                                                   isActive ? navLinkActive : navLinkInactive,
@@ -1734,7 +1736,7 @@ export default function DashboardLayout() {
                 return (
                   <div
                     className={cn(
-                      'pointer-events-none flex min-h-[1.75rem] min-w-[13rem] max-w-[17rem] items-center gap-0.5 rounded-lg border border-sidebar-border/80 bg-sidebar py-0.5 pl-1 pr-2 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
+                      'pointer-events-none flex min-h-[2rem] min-w-[13rem] max-w-[17rem] items-center gap-0.5 rounded-lg border border-sidebar-border/80 bg-sidebar py-0.5 pl-1 pr-2 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
                     )}
                   >
                     <span className={NAV_DRAG_COL}>
@@ -1747,7 +1749,7 @@ export default function DashboardLayout() {
                       <span
                         className={cn(
                           'min-w-0 flex-1 truncate text-left font-medium',
-                          item.labelSize ?? 'text-[11px]',
+                          item.labelSize ?? 'text-sm',
                         )}
                       >
                         {item.label}
@@ -1763,7 +1765,7 @@ export default function DashboardLayout() {
                 return (
                   <div
                     className={cn(
-                      'pointer-events-none flex min-h-[1.75rem] min-w-[13rem] max-w-[17rem] items-center gap-1.5 rounded-lg border border-sidebar-border/80 bg-sidebar px-2 py-1 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
+                      'pointer-events-none flex min-h-[2rem] min-w-[13rem] max-w-[17rem] items-center gap-1.5 rounded-lg border border-sidebar-border/80 bg-sidebar px-2 py-1 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
                     )}
                   >
                     <span
@@ -1775,9 +1777,9 @@ export default function DashboardLayout() {
                       <OI className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className="block truncate text-[11px] font-semibold leading-tight">{pl.title}</span>
+                      <span className="block truncate text-xs font-semibold leading-snug">{pl.title}</span>
                       {pl.subtitle ? (
-                        <span className="mt-px block truncate text-[10px] text-muted-foreground">{pl.subtitle}</span>
+                        <span className="mt-px block truncate text-xs text-muted-foreground">{pl.subtitle}</span>
                       ) : null}
                     </div>
                   </div>
@@ -1794,7 +1796,8 @@ export default function DashboardLayout() {
           type="button"
           onClick={logout}
           className={cn(
-            'flex min-h-[1.75rem] w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] font-medium text-muted-foreground',
+            'flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-sm font-medium text-sidebar-foreground',
+            NAV_ROW_MIN_H,
             navRowTransition,
             'hover:bg-red-500/10 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-0 dark:hover:bg-red-950/30 dark:hover:text-red-300',
           )}
@@ -1809,7 +1812,7 @@ export default function DashboardLayout() {
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background font-sans text-foreground">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-40 lg:hidden backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
@@ -1818,7 +1821,7 @@ export default function DashboardLayout() {
       {/* Sidebar — single instance so nav scroll ref targets the visible panel */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 max-w-[min(100vw,18rem)] border-r border-sidebar-border/40 bg-sidebar text-sidebar-foreground shadow-sm lg:z-30 lg:w-64 lg:min-w-[14rem]',
+          'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 max-w-[min(100vw,18rem)] border-r border-sidebar-border bg-sidebar font-sans text-sidebar-foreground text-sm shadow-sm lg:z-30 lg:w-64 lg:min-w-[14rem]',
           'transition-transform duration-200 ease-out motion-reduce:transition-none lg:translate-x-0 lg:transition-none',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
@@ -1956,7 +1959,7 @@ export default function DashboardLayout() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-white">{user?.full_name}</p>
-                            {user?.email && <p className="truncate text-[11px] text-emerald-100/85">{user.email}</p>}
+                            {user?.email && <p className="truncate text-xs text-emerald-100/85">{user.email}</p>}
                             <span className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-white/15 text-white ring-1 ring-white/25">
                               <ShieldCheck className="h-2.5 w-2.5" />
                               {roleBadge}
@@ -2148,7 +2151,7 @@ export default function DashboardLayout() {
         />
 
         {/* Page content */}
-        <main className="p-4 lg:p-8 bg-background">
+        <main className="p-4 lg:p-8 bg-background font-sans text-sm">
           <Outlet />
         </main>
       </div>
