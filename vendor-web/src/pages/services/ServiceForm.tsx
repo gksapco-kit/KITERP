@@ -1413,10 +1413,10 @@ export default function ServiceForm() {
           </Card>
         )}
 
-        {/* Storefront Options */}
+        {/* Business Front Options */}
         <Card>
           <CardContent className="p-5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" />Storefront Options</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" />Business Front Options</p>
             <div className="divide-y rounded-lg border">
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2">
@@ -1893,15 +1893,15 @@ export default function ServiceForm() {
         </Section>
 
         {/* 2. Plans & Options */}
-        {/* 2. Storefront Options */}
+        {/* 2. Business Front Options */}
         <Section
-          title="Storefront Options"
+          title="Business Front Options"
           icon={ToggleRight}
           open={!!openSections.storefrontOptions}
           onToggle={() => toggle('storefrontOptions')}
         >
           <div className="pt-4">
-            <p className="text-xs text-gray-500 mb-3">Control how customers interact with this service on the storefront.</p>
+            <p className="text-xs text-gray-500 mb-3">Control how customers interact with this service on the business front.</p>
             <div className="divide-y rounded-lg border">
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">

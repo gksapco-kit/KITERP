@@ -468,7 +468,7 @@ export default function BlogManagerPage() {
                     type="button"
                     size="sm"
                     disabled={publishBusy}
-                    title="Make this post visible on your storefront blog"
+                    title="Make this post visible on your business front blog"
                     className="h-8 gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
                     onClick={() => publishMutation.mutate({ id: post.id, publish: true })}
                   >

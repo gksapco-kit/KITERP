@@ -10,7 +10,7 @@ BASE = "http://localhost:8000/api/v1"
 VENDOR_EMAIL = "vendor@kiterp.com"
 VENDOR_PASSWORD = "vendor123"
 VENDOR_NAME = "Demo Store"
-# Slug used in storefront URLs: /store/<slug>/…  ("test" matches a common dev URL.)
+# Slug used in business front URLs: /store/<slug>/…  ("test" matches a common dev URL.)
 VENDOR_SLUG = "test"
 
 
@@ -148,7 +148,7 @@ async def main():
         print()
         print("  Login at:")
         print(f"    Vendor Admin:  http://localhost:3001")
-        print(f"    Storefront:    http://localhost:3002/store/{VENDOR_SLUG}")
+        print(f"    Business Front:    http://localhost:3002/store/{VENDOR_SLUG}")
         print(f"    Super Admin:   http://localhost:3000")
         print()
 

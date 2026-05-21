@@ -28,7 +28,7 @@ class FiscalYearTemplatedCreate(BaseModel):
 
     company_ids: List[UUID] = Field(
         default_factory=list,
-        description="Optional: companies to link on create. Leave empty to only define the variant, then link via assign.",
+        description="Optional: business units to link on create. Leave empty to only define the variant, then link via assign.",
     )
     variant_code: str = Field(
         min_length=1, max_length=40, description="Unique per organisation, e.g. 2026-27 or IN-LOCAL"
@@ -103,7 +103,7 @@ class FiscalYearLegacyCreate(BaseModel):
     end_date: date
     company_ids: List[UUID] = Field(
         default_factory=list,
-        description="Optional: link on create; otherwise assign the variant to companies separately.",
+        description="Optional: link on create; otherwise assign the variant to business units separately.",
     )
     variant_code: str = Field(min_length=1, max_length=40)
     status: str = "open"
@@ -137,7 +137,7 @@ class FiscalYearLegacyCreate(BaseModel):
 
 
 class FiscalYearAssignCompanies(BaseModel):
-    """Attach an existing shared fiscal year calendar to one or more company codes."""
+    """Attach an existing shared fiscal year calendar to one or more business units."""
 
     company_ids: List[UUID] = Field(min_length=1)
     is_current: bool = False

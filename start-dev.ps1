@@ -42,14 +42,14 @@ Start-Process powershell -ArgumentList @(
 Start-Process powershell -ArgumentList @(
   "-NoExit",
   "-Command",
-  "cd '$ROOT\storefront-web'; Write-Host 'STOREFRONT :3002' -ForegroundColor Cyan; npm run dev"
+  "cd '$ROOT\storefront-web'; Write-Host 'BUSINESS FRONT :3002' -ForegroundColor Cyan; npm run dev"
 ) -WindowStyle Normal
 
 Write-Host ""
 Write-Host "=== Ready! ===" -ForegroundColor Green
 Write-Host "  Super Admin      : http://localhost:3000/login" -ForegroundColor White
 Write-Host "  Vendor dashboard : http://localhost:3001" -ForegroundColor White
-Write-Host "  Storefront       : http://localhost:3002" -ForegroundColor White
+Write-Host "  Business Front       : http://localhost:3002" -ForegroundColor White
 Write-Host "  ESS test links   : http://localhost:3002/local/employee-hr" -ForegroundColor Cyan
 Write-Host "  Backend API docs : http://localhost:8000/docs" -ForegroundColor White
 Write-Host ""

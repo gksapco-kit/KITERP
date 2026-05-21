@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;600;700&display=swap');
 
-/* Fonts for shared storefront home-sections (editorial kits). */
+/* Fonts for shared business front home-sections (editorial kits). */
 
 *, ::before, ::after{
   --tw-border-spacing-x: 0;
@@ -601,7 +601,7 @@ video {
   --hero-via: 158 52% 24%;
   --hero-to: 158 40% 10%;
   --hero-cta: 222 22% 14%;
-  /* Storefront UI kit — editorial templates (shared home-sections) */
+  /* Business Front UI kit — editorial templates (shared home-sections) */
   --retail-bg: 36 38% 95%;
   --retail-ink: 22 30% 14%;
   --retail-accent: 16 76% 56%;
@@ -8204,10 +8204,10 @@ body{
   scrollbar-gutter: stable;
 }
 
-/* Storefront kit utilities (shared HeroSection / RestaurantMenuSection) */
+/* Business Front kit utilities (shared HeroSection / RestaurantMenuSection) */
 
 .font-display {
-  font-family: 'Fraunces', 'Instrument Serif', Georgia, serif;
+  font-family: "Fraunces', 'Instrument Serif', Georgia, serif;
   font-optical-sizing: auto;
 }
 

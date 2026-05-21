@@ -786,7 +786,7 @@ GET    /api/v1/vendors/me/services/:id    # Get service
 PUT    /api/v1/vendors/me/services/:id    # Update service
 DELETE /api/v1/vendors/me/services/:id    # Delete service
 
-# Public Storefront (vendor subdomain)
+# Public Business Front (vendor subdomain)
 GET    /api/v1/catalog/products           # List vendor products (filtered by tenant)
 GET    /api/v1/catalog/products/:slug     # Get product by slug
 GET    /api/v1/catalog/services           # List vendor services

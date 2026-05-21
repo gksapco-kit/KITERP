@@ -207,11 +207,11 @@ export default function VendorDetail() {
     )
   }
 
-  const storefrontUrl = getCustomerStorefrontBaseUrl(vendor.slug)
+  const businessFrontUrl = getCustomerStorefrontBaseUrl(vendor.slug)
   const hasLocation = vendor.latitude != null && vendor.longitude != null
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -269,9 +269,9 @@ export default function VendorDetail() {
                       <Smartphone className="w-4 h-4" /> Branded App
                     </Button>
                   )}
-                  <a href={storefrontUrl} target="_blank" rel="noopener noreferrer">
+                  <a href={businessFrontUrl} target="_blank" rel="noopener noreferrer">
                     <Button size="sm" variant="outline" className="gap-1">
-                      <ExternalLink className="w-4 h-4" /> View Storefront
+                      <ExternalLink className="w-4 h-4" /> View Business Front
                     </Button>
                   </a>
                 </>
@@ -600,9 +600,9 @@ export default function VendorDetail() {
               </div>
               {vendor.status === 'approved' && (
                 <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs font-medium text-blue-700 mb-1">Storefront URL</p>
-                  <a href={storefrontUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline break-all">{storefrontUrl}</a>
+                  <p className="text-xs font-medium text-blue-700 mb-1">Business Front URL</p>
+                  <a href={businessFrontUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline break-all">{businessFrontUrl}</a>
                 </div>
               )}
             </CardContent>

@@ -2,7 +2,7 @@
  * Bridges the existing store API (useCart, useCheckout, useAuthStore)
  * to the checkout template's { state, actions } shape.
  *
- * Drop-in replacement for useCheckoutDemo() in the deployed storefront context.
+ * Drop-in replacement for useCheckoutDemo() in the deployed business front context.
  */
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'

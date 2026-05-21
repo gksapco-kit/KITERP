@@ -207,8 +207,8 @@ async def get_template_config(vendor: Vendor = Depends(_get_vendor)):
 
 
 def _apply_builder_config(current: dict, bc: dict) -> None:
-    """Translate the Storefront Builder's rich config into the flat theme_config fields
-    that ThemeContext and the storefront consume, and store the raw builder_config for
+    """Translate the Business Front Builder"s rich config into the flat theme_config fields
+    that ThemeContext and the business front consume, and store the raw builder_config for
     round-trip reload in the builder UI."""
     current["builder_config"] = bc
 
@@ -245,7 +245,7 @@ def _apply_builder_config(current: dict, bc: dict) -> None:
             sec_id: str = sec.get("id", "")
             visible: bool = bool(sec.get("visible", True))
             props: dict = sec.get("props") or {}
-            # Map builder section ids to storefront section keys
+            # Map builder section ids to business front section keys
             mapped_id = SECTION_ID_MAP.get(sec_id, sec_id)
             sections_map[mapped_id] = visible
 
@@ -269,7 +269,7 @@ async def update_template_config(data: TemplateConfigUpdate, vendor: Vendor = De
 
     updates = data.model_dump(exclude_unset=True)
 
-    # Handle full builder_config payload first (Storefront Builder saves this shape)
+    # Handle full builder_config payload first (Business Front Builder saves this shape)
     if "builder_config" in updates and updates["builder_config"]:
         _apply_builder_config(current, updates["builder_config"])
 

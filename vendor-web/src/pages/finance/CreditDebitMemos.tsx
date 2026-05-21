@@ -340,7 +340,7 @@ export default function CreditDebitMemos() {
     if (salesOrderRef.trim()) meta.push(`Sales order: ${salesOrderRef.trim()}`)
     if (linkedOrder) meta.push(`Linked order: ${linkedOrder.order_number} (${linkedOrder.item_count} items)`)
     const fin: string[] = []
-    if (selectedHeaderCompany) fin.push(`Company: ${selectedHeaderCompany.code} (${selectedHeaderCompany.name})`)
+    if (selectedHeaderCompany) fin.push(`Business unit: ${selectedHeaderCompany.code} (${selectedHeaderCompany.name})`)
     if (headerCurrency.trim()) fin.push(`Currency: ${headerCurrency.trim().toUpperCase()}`)
     const fyRow = (fiscalYears as { id: string; name: string }[]).find((f) => f.id === headerFiscalYearId)
     if (fyRow) fin.push(`Fiscal year: ${fyRow.name}`)
@@ -1020,7 +1020,7 @@ export default function CreditDebitMemos() {
 
             <div className="mt-5 rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
               <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">Posting &amp; company</p>
-              <p className="text-xs text-slate-500 mt-1 mb-3 max-w-3xl">Company, currency, and GL period for this document. Shown for control and included in the memo record on finalise.</p>
+              <p className="text-xs text-slate-500 mt-1 mb-3 max-w-3xl">Business unit, currency, and GL period for this document. Shown for control and included in the memo record on finalise.</p>
               {companiesList.length === 0 ? (
                 <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   Add a company in Finance to fill business unit, currency, and period fields.
@@ -1028,7 +1028,7 @@ export default function CreditDebitMemos() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
                   <div>
-                    <Label className="text-xs text-slate-600">Company (code)</Label>
+                    <Label className="text-xs text-slate-600">Business unit (code)</Label>
                     <select
                       className="mt-1 w-full h-9 text-sm border border-slate-200 rounded-md bg-white"
                       value={headerCompanyId}
@@ -1045,7 +1045,7 @@ export default function CreditDebitMemos() {
                       ))}
                     </select>
                     {selectedHeaderCompany && (
-                      <p className="mt-1 text-[10px] text-slate-400 font-mono">Code: {selectedHeaderCompany.code}</p>
+                      <p className="mt-1 text-[10px] text-slate-400 font-mono">Unit code: {selectedHeaderCompany.code}</p>
                     )}
                   </div>
                   <div>

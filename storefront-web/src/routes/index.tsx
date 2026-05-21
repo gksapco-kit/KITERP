@@ -117,7 +117,7 @@ export const router = createBrowserRouter([
       { path: 'order/:orderId/confirmation', element: <StorefrontConfirmationRoute /> },
     ],
   },
-  // Vendor-specific storefront: /store/:vendorSlug/...
+  // Vendor-specific business front: /store/:vendorSlug/...
   {
     path: '/store/:vendorSlug',
     element: <StoreLayout />,

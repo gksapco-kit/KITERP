@@ -226,7 +226,7 @@ export default function AddVendor() {
               )}
 
               <div className="bg-white rounded-lg p-3 border">
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Storefront</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Business Front</p>
                 <p className="font-mono text-sm">{vendor.slug}.yourdomain.com</p>
               </div>
             </div>

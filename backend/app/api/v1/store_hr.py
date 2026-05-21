@@ -1,4 +1,4 @@
-"""Storefront employee HR — login + ESS using VendorUser/User credentials (not Customer)."""
+"""Business Front employee HR — login + ESS using VendorUser/User credentials (not Customer)."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -51,7 +51,7 @@ router = APIRouter()
 class StoreHrLogin(BaseModel):
     login: str = Field(..., min_length=1)
     password: str = Field(..., min_length=1)
-    # Optional: store UUID or company/store code (same as ?branch= on storefront) — must match employee's outlet when they are store-pinned.
+    # Optional: store UUID or company/store code (same as ?branch= on business front) — must match employee"s outlet when they are store-pinned.
     branch: Optional[str] = Field(None, max_length=80)
 
 
@@ -404,7 +404,7 @@ async def ess_acknowledge_policy(
     vu: VendorUser = Depends(get_current_store_hr_vendor_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Same compliance acknowledgement as vendor ESS, for storefront employee tokens."""
+    """Same compliance acknowledgement as vendor ESS, for business front employee tokens."""
     emp = await _current_employee(db, vu)
     if not emp:
         raise HTTPException(status_code=400, detail="Employee profile required")

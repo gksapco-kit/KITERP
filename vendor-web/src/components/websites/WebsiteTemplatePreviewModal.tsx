@@ -22,7 +22,7 @@ export interface CustomStyleParams {
   storeName?: string
 }
 
-/** Returns a storefront full-page preview URL, optionally with custom style params. */
+/** Returns a business front full-page preview URL, optionally with custom style params. */
 export function getStorefrontTemplateBrowserPreviewUrl(
   templateId: string,
   custom?: CustomStyleParams,
@@ -483,7 +483,7 @@ export function WebsiteTemplatePreviewModal({
             </div>
           </div>
 
-          {/* Customize style panel — only for storefront templates */}
+          {/* Customize style panel — only for business front templates */}
           {isStorefront && showCustomize && (
             <CustomizeStylePanel template={template} />
           )}

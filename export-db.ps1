@@ -130,14 +130,14 @@ Quick restore (Windows + Docker Desktop)
   4. When prompted type 'yes' to confirm the restore.
   5. After import:   docker compose up -d
      - Vendor app  : http://localhost:3001
-     - Storefront  : http://localhost:3002
+     - Business Front  : http://localhost:3002
      - API docs    : http://localhost:8000/docs
 
 Manual restore (if import-db.ps1 is unavailable)
 -------------------------------------------------
   docker compose up -d postgres
   docker cp database.sql kiterp-postgres:/tmp/restore.sql
-  docker exec kiterp-postgres psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS kiterp; CREATE DATABASE kiterp OWNER postgres;"
+  docker exec kiterp-postgres psql -U postgres -d postgres -c 'DROP DATABASE IF EXISTS kiterp; CREATE DATABASE kiterp OWNER postgres;"
   docker exec kiterp-postgres psql -U postgres -d kiterp -f /tmp/restore.sql
   docker compose up -d
 "@

@@ -36,7 +36,7 @@ export const CATEGORY_META: Record<
   BlockCategory,
   { label: string; description: string }
 > = {
-  products: { label: "Products", description: "Storefront product blocks" },
+  products: { label: "Products", description: "Business Front product blocks" },
   services: { label: "Services", description: "Service catalog blocks" },
   menu: { label: "Menu", description: "Restaurant menu blocks" },
   bookings: { label: "Bookings", description: "Scheduling & reservations" },

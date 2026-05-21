@@ -227,8 +227,8 @@ async def _snapshot_page(
 async def _sync_legacy_theme_config(db, site, vendor) -> None:
     """
     On publish, mirror the homepage blocks into vendor.theme_config.builder_config
-    so the legacy storefront Home.tsx (which reads builder_config.sections) keeps
-    working for tenants that haven't fully migrated to BlockRenderer.
+    so the legacy business front Home.tsx (which reads builder_config.sections) keeps
+    working for tenants that haven"t fully migrated to BlockRenderer.
 
     Only the block types the legacy renderer understands are mapped.
     """
@@ -441,7 +441,7 @@ async def publish_site(
     await db.commit()
 
     # Sync homepage blocks into legacy vendor.theme_config.builder_config so
-    # storefront tenants that haven't migrated to BlockRenderer keep working.
+    # business front tenants that haven"t migrated to BlockRenderer keep working.
     try:
         await _sync_legacy_theme_config(db, site, vendor)
     except Exception:
@@ -1652,7 +1652,7 @@ async def delete_media(
 
 
 def _footer_props_standard() -> Dict[str, Any]:
-    """Full multi-column footer — stored on each block so preview/storefront match template data (no UI-side defaults)."""
+    """Full multi-column footer — stored on each block so preview/business front match template data (no UI-side defaults)."""
     return {
         "show_legal": True,
         "copyright": "© 2026 Your Company. All rights reserved.",
@@ -2137,7 +2137,7 @@ WEBSITE_TEMPLATES = {
             ]},
         ],
     },
-    # ── Storefront gallery templates (full React-component previews) ──────────
+    # ── Business Front gallery templates (full React-component previews) ──────────
     "storefront_fashion": {
         "id": "storefront_fashion",
         "name": "Atelier",
@@ -2599,8 +2599,8 @@ async def apply_template(
             "container_width": current.get("container_width", "1280px"),
         }
         merged.update(tpl_style)
-        # Storefront gallery templates (React previews in template-browser) — tag the
-        # published site so the live storefront can render the same React shell, not
+        # Business Front gallery templates (React previews in template-browser) — tag the
+        # published site so the live business front can render the same React shell, not
         # only the block approximation.
         tid = str(template_id)
         if tid.startswith("storefront_"):
@@ -3774,7 +3774,7 @@ async def restore_page_revision(
     return {"ok": True, "restored_revision_id": revision_id}
 
 
-# ── Builder preview snapshots (storefront draft browser preview) ───────────
+# ── Builder preview snapshots (business front draft browser preview) ───────────
 
 MAX_BUILDER_PREVIEW_BYTES = 2 * 1024 * 1024
 
@@ -3786,7 +3786,7 @@ async def create_builder_preview(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_user),
 ):
-    """Save a full-site JSON snapshot; storefront loads it via public preview-by-token."""
+    """Save a full-site JSON snapshot; business front loads it via public preview-by-token."""
     vendor = await _get_vendor(db, user)
     await _get_site(db, site_id, vendor.id)
     payload = body.get("payload")
@@ -3969,7 +3969,7 @@ async def create_preview_link(
 ):
     """
     Generate a signed preview URL that lets anyone view the unpublished site
-    for 24 hours. The token is embedded in the URL and verified by the storefront.
+    for 24 hours. The token is embedded in the URL and verified by the business front.
     """
     import secrets, hashlib
     vendor = await _get_vendor(db, user)

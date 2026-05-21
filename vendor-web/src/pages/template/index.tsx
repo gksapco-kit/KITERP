@@ -142,7 +142,7 @@ export default function TemplatePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Store Template</h1>
-          <p className="text-sm text-gray-500 mt-1">Customize your storefront appearance</p>
+          <p className="text-sm text-gray-500 mt-1">Customize your business front appearance</p>
         </div>
         <Button onClick={() => saveMutation.mutate(draft)} disabled={saveMutation.isPending} className="gap-2">
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

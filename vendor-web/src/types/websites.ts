@@ -118,7 +118,7 @@ export interface BlockProps {
   show_close?: boolean
 
   // Generic
-  /** Exact body/heading font size in px (builder + storefront); wins over `text_scale` when set. */
+  /** Exact body/heading font size in px (builder + business front); wins over `text_scale` when set. */
   font_size_px?: number | null
   /** Section-relative font scale (builder canvas / preview). */
   text_scale?: number | null

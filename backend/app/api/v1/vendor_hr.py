@@ -565,7 +565,7 @@ async def set_employee_portal_password(
     vu: VendorUser = Depends(require_permission("hr.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Set password for employee storefront HR / ESS login (linked User account)."""
+    """Set password for employee business front HR / ESS login (linked User account)."""
     svc = HRService(db)
     await svc.set_employee_portal_password(emp_id, vu.vendor_id, body.password)
     await db.commit()

@@ -71,7 +71,7 @@ export const mockPricingTiers = [
     price: 19,
     period: "month",
     description: "For solo store owners getting set up.",
-    features: ["1 storefront", "Up to 50 products", "Email support"],
+    features: ["1 business front", "Up to 50 products", "Email support"],
   },
   {
     id: "growth",
@@ -79,7 +79,7 @@ export const mockPricingTiers = [
     price: 49,
     period: "month",
     description: "For growing brands needing more reach.",
-    features: ["3 storefronts", "Unlimited products", "Priority support", "Abandoned cart"],
+    features: ["3 business fronts", "Unlimited products", "Priority support", "Abandoned cart"],
     highlighted: true,
   },
   {
@@ -88,6 +88,6 @@ export const mockPricingTiers = [
     price: 129,
     period: "month",
     description: "For high-volume merchants.",
-    features: ["Unlimited storefronts", "Advanced analytics", "Dedicated manager", "Custom integrations"],
+    features: ["Unlimited business fronts", "Advanced analytics", "Dedicated manager", "Custom integrations"],
   },
 ];

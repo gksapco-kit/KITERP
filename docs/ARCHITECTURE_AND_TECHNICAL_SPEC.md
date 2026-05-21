@@ -149,7 +149,7 @@ Category determines which module drives "In_progress" (e.g. Service execution, P
 
 - **Scope**: Per Tasker (or per Store entity).
 - **Components**:
-  - **Storefront**: Themed customer view; product/service catalog; cart/checkout producing Orders in core.
+  - **Business Front**: Themed customer view; product/service catalog; cart/checkout producing Orders in core.
   - **Admin**: Store CRUD, catalog, inventory, employees/roles (light HR), payments/finance, reports.
   - **Share & publish**: Short links, embed, PWA/App/Play Store/App Store; same backend, different entry URLs/apps.
 - **Multi-tenancy**: StoreId on all store-scoped data; optional subdomain or path-based routing.

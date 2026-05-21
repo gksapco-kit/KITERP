@@ -16,7 +16,7 @@ export default function StorefrontCartPage({ basePath, storeName = 'Store' }: Pr
   const { cart, updateLine, removeLine } = useStorefront()
   const empty = !cart || cart.lines.length === 0
 
-  // Bridge storefront CartLine → checkout CartItem
+  // Bridge business front CartLine → checkout CartItem
   const cartItems = (cart?.lines ?? []).map((l) => ({
     id: l.id,
     productId: l.productId,

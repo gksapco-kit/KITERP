@@ -390,7 +390,7 @@ class VendorRepository(BaseRepository[Vendor]):
         skip: int = 0,
         limit: int = 60,
     ) -> tuple[List[Vendor], int]:
-        """Vendors visible on the public path storefront (approved or legacy active)."""
+        """Vendors visible on the public path business front (approved or legacy active)."""
         live = Vendor.status.in_(("approved", "active"))
         query = select(Vendor).where(live)
         count_query = select(func.count()).select_from(Vendor).where(live)

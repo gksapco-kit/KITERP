@@ -1,5 +1,5 @@
 """
-Public Sites API — unauthenticated read-only endpoints for the storefront renderer.
+Public Sites API — unauthenticated read-only endpoints for the business front renderer.
 
 These endpoints serve published website builder content to visitor browsers
 without requiring a login token. Vendor resolution is done either by:
@@ -295,7 +295,7 @@ def _public_site_dict_from_template(tpl: Dict[str, Any]) -> Dict[str, Any]:
 async def get_website_template_preview(template_id: str):
     """
     Unauthenticated: return a synthetic `PublicSite` JSON for a catalog template,
-    for opening a full browser preview (storefront BlockRenderer) before apply.
+    for opening a full browser preview (business front BlockRenderer) before apply.
     """
     from app.api.v1.vendor_websites import WEBSITE_TEMPLATES
 
@@ -333,7 +333,7 @@ async def get_site_by_subdomain(
 ):
     """
     Return the published site + all published pages + blocks for a subdomain.
-    Used by the storefront on page load to determine what to render.
+    Used by the business front on page load to determine what to render.
     """
     cache_key = f"pub_site:subdomain:{subdomain}"
     cached = await _cached_get(cache_key)
@@ -712,7 +712,7 @@ async def submit_contact_public(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Submit a contact form from a published storefront page (no auth required).
+    Submit a contact form from a published business front page (no auth required).
 
     Side effects:
       1. Records a `wb_form_submissions` row so the vendor inbox shows it.
@@ -1031,7 +1031,7 @@ def _client_ip(request: Optional[Request]) -> Optional[str]:
     return None
 
 
-# ── Public storefront checkout ────────────────────────────────────────────────
+# ── Public business front checkout ────────────────────────────────────────────────
 
 from decimal import Decimal
 from pydantic import BaseModel, EmailStr, Field
@@ -1101,7 +1101,7 @@ async def place_storefront_order(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Public endpoint — place an order from the storefront checkout.
+    Public endpoint — place an order from the business front checkout.
     No authentication required (guest checkout supported).
     """
     # 1. Resolve vendor from site

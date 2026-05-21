@@ -102,7 +102,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
           const status = ax.response?.status
           if (status === 404) {
             setError(
-              'No store with this slug exists yet, or the vendor is not approved/active on the storefront. For local dev: from the backend folder run python setup_vendor.py (default slug test), then python seed_dev_hr_employee.py to create an ESS login.',
+              'No store with this slug exists yet, or the vendor is not approved/active on the business front. For local dev: from the backend folder run python setup_vendor.py (default slug test), then python seed_dev_hr_employee.py to create an ESS login.',
             )
             return
           }

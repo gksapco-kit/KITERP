@@ -52,7 +52,7 @@ async def on_vendor_registered(data: dict):
 async def on_vendor_approved(data: dict):
     """Handle vendor approval event."""
     logger.info(f"Vendor approved: {data.get('vendor_id')}")
-    # TODO: Send approval email, activate storefront, etc.
+    # TODO: Send approval email, activate business front, etc.
 
 
 async def on_vendor_rejected(data: dict):

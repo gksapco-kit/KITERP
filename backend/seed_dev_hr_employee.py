@@ -120,7 +120,7 @@ async def ensure_dev_employee(
 
 
 async def main():
-    p = argparse.ArgumentParser(description="Seed one ESS / storefront HR employee for local testing")
+    p = argparse.ArgumentParser(description="Seed one ESS / business front HR employee for local testing")
     p.add_argument("--slug", default=DEFAULT_SLUG, help=f"Vendor slug (default: {DEFAULT_SLUG})")
     p.add_argument("--email", default=DEFAULT_EMAIL, help="Login email")
     p.add_argument("--password", default=DEFAULT_PASSWORD, help="Login password")
@@ -141,7 +141,7 @@ async def main():
     await engine.dispose()
 
     print()
-    print("  Storefront HR login (default dev stack):")
+    print("  Business Front HR login (default dev stack):")
     print(f"    URL:      http://localhost:3002/store/{vendor.slug}/hr/login")
     print(f"    Email:    {args.email}")
     print(f"    Password: {args.password}")

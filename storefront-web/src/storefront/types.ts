@@ -1,4 +1,4 @@
-// Storefront data contract — every template only depends on this interface.
+// Business Front data contract — every template only depends on this interface.
 
 export interface Money {
   amount: number; // minor units (cents/paise)

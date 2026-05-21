@@ -290,9 +290,37 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
             <h4 className="font-semibold text-white text-sm mb-4">Contact Us</h4>
             <div className="space-y-2.5 text-sm">
               {vendor?.primary_phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" />{vendor.primary_phone}</p>}
-              {vendor?.support_phone && vendor.support_phone !== vendor.primary_phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" />{vendor.support_phone}</p>}
+              {vendor?.support_phone && vendor.support_phone !== vendor.primary_phone && (
+                <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" />{vendor.support_phone}</p>
+              )}
+              {Array.isArray((vendor?.settings as Record<string, unknown> | undefined)?.support_phones) &&
+                ((vendor!.settings as Record<string, unknown>).support_phones as string[])
+                  .filter((p) => typeof p === 'string' && p.trim() && p !== vendor?.primary_phone && p !== vendor?.support_phone)
+                  .map((phone) => (
+                    <p key={phone} className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 shrink-0" />
+                      {phone}
+                    </p>
+                  ))}
               {vendor?.primary_email && <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 shrink-0" />{vendor.primary_email}</p>}
-              {vendor?.support_email && vendor.support_email !== vendor.primary_email && <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 shrink-0" />{vendor.support_email}</p>}
+              {vendor?.support_email && vendor.support_email !== vendor.primary_email && (
+                <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 shrink-0" />{vendor.support_email}</p>
+              )}
+              {Array.isArray((vendor?.settings as Record<string, unknown> | undefined)?.support_emails) &&
+                ((vendor!.settings as Record<string, unknown>).support_emails as string[])
+                  .filter(
+                    (e) =>
+                      typeof e === 'string' &&
+                      e.trim() &&
+                      e.toLowerCase() !== vendor?.primary_email?.toLowerCase() &&
+                      e.toLowerCase() !== vendor?.support_email?.toLowerCase(),
+                  )
+                  .map((email) => (
+                    <p key={email} className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 shrink-0" />
+                      {email}
+                    </p>
+                  ))}
               {(vendor?.street_address || vendor?.city) && (
                 <p className="flex items-start gap-2"><MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   <span>{[vendor.street_address, vendor.city, vendor.state, vendor.postal_code].filter(Boolean).join(', ')}</span>
@@ -361,7 +389,7 @@ function StoreContent() {
       pathname === `/store/${vendorSlug}/hr/change-password`)
 
   // Employee HR / ESS lives under /store/:slug/hr — resolve vendor via X-Vendor-Slug on the API.
-  // Do not block on public catalog so /hr/login still opens when the storefront vendor is missing or pending.
+  // Do not block on public catalog so /hr/login still opens when the business front vendor is missing or pending.
   const isEmployeeHrArea =
     !!vendorSlug &&
     (isHrAuthPage ||

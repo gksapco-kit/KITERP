@@ -33,7 +33,7 @@ import PlatformTeam from '@/pages/dashboard/PlatformTeam'
 import PlatformTeamMemberDetail from '@/pages/dashboard/PlatformTeamMemberDetail'
 import AccountActivity from '@/pages/dashboard/AccountActivity'
 
-// Storefront Pages
+// Business Front Pages
 import StorefrontHome from '@/pages/storefront/Home'
 import StorefrontProducts from '@/pages/storefront/Products'
 import StorefrontProductDetail from '@/pages/storefront/ProductDetail'
@@ -108,7 +108,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Public Storefront Routes (no auth required)
+  // Public Business Front Routes (no auth required)
   {
     path: '/store/:vendorSlug',
     element: <StorefrontLayout />,

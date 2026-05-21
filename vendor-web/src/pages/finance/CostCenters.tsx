@@ -543,7 +543,7 @@ export default function CostCenters() {
                       },
                       {
                         icon: Building2,
-                        label: 'Company',
+                        label: 'Business unit',
                         value: companies.find(c => c.id === ccDialog.editing!.company_id)
                           ? `${companies.find(c => c.id === ccDialog.editing!.company_id)!.code} — ${companies.find(c => c.id === ccDialog.editing!.company_id)!.name}`
                           : ccDialog.editing.company_id.slice(0, 8) + '…',

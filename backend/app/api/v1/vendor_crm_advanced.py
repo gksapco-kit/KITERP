@@ -1,6 +1,6 @@
 """
 Advanced CRM endpoints: reports, AI insights, chat (REST + WebSocket),
-audit, public lead intake and storefront chat widget.
+audit, public lead intake and business front chat widget.
 """
 from __future__ import annotations
 
@@ -376,7 +376,7 @@ async def public_lead_intake(
     return LeadResponse.model_validate(lead)
 
 
-# ── Public chat widget (storefront / landing pages) ──────────────────────────
+# ── Public chat widget (business front / landing pages) ──────────────────────────
 
 @public_router.post("/chat/widget/{vendor_id}/messages")
 async def widget_post_message(
@@ -440,7 +440,7 @@ async def public_journey_beacon(
     vendor_id: UUID, payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lightweight journey-event beacon for storefronts (page_view, etc.)."""
+    """Lightweight journey-event beacon for business fronts (page_view, etc.)."""
     from app.models.crm import CrmJourneyEvent
     event_type = payload.get("event_type") or "page_view"
     obj = CrmJourneyEvent(

@@ -143,7 +143,7 @@ class HRService:
         return await self.emp_repo.update(emp, data)
 
     async def set_employee_portal_password(self, emp_id: UUID, vendor_id: UUID, new_password: str) -> None:
-        """Update the linked User password used for storefront HR / ESS login (email or employee code)."""
+        """Update the linked User password used for business front HR / ESS login (email or employee code)."""
         emp = await self.emp_repo.get(emp_id, vendor_id)
         if not emp:
             raise HTTPException(status_code=404, detail="Employee not found")

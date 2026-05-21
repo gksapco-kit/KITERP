@@ -448,10 +448,10 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                 <div className="px-5 pb-5 pt-1 border-t border-gray-100">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3">
 
-                    {/* Company */}
+                    {/* Business unit */}
                     <div className="md:col-span-1">
                       <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        <Building2 className="inline w-3 h-3 mr-0.5" /> Company *
+                        <Building2 className="inline w-3 h-3 mr-0.5" /> Business unit *
                       </label>
                       <select
                         value={companyId}
@@ -1232,7 +1232,7 @@ export default function JournalEntries() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Entry No', 'Company', 'Posting Date', 'Doc Date', 'Type', 'Narration', 'Debit', 'Credit', 'Status', 'Actions'].map(h => (
+              {['Entry No', 'Business unit', 'Posting Date', 'Doc Date', 'Type', 'Narration', 'Debit', 'Credit', 'Status', 'Actions'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">{h}</th>
               ))}
             </tr>

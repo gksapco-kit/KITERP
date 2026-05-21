@@ -1,4 +1,4 @@
-"""Storefront employee HR: login (X-Vendor-Slug), JWT, /me, ESS profile."""
+"""Business Front employee HR: login (X-Vendor-Slug), JWT, /me, ESS profile."""
 
 import uuid
 

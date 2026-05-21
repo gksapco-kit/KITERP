@@ -229,7 +229,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     )
   }
 
-  /** ── Default product / menu grid (original storefront behavior) ── */
+  /** ── Default product / menu grid (original business front behavior) ── */
   const items = liveItems.length > 0
     ? liveItems
     : (props.items as LiveItem[] | undefined) || []

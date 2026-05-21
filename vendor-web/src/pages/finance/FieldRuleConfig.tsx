@@ -102,7 +102,7 @@ export default function FieldRuleConfig() {
       <div className="rounded-xl border border-primary/20 bg-primary/10/50 p-4 flex gap-3 text-sm text-primary/90 mb-4">
         <Info className="w-5 h-5 shrink-0" />
         <p>
-          Scope <strong>GL</strong> applies to all users until overridden. <strong>Company</strong> refines the rule when posting to that company.
+          Scope <strong>GL</strong> applies to all users until overridden. <strong>Business unit</strong> refines the rule when posting to that unit.
           <strong>User</strong> is for a specific team member. Combine with the Journal Entry screen: mandatory fields are enforced on save.
         </p>
       </div>
@@ -211,7 +211,7 @@ export default function FieldRuleConfig() {
             </div>
             {form.scope === 'company' && (
               <div>
-                <label className="text-xs font-bold text-gray-500 uppercase">Company</label>
+                <label className="text-xs font-bold text-gray-500 uppercase">Business unit</label>
                 <select
                   value={form.company_id}
                   onChange={e => setForm(f => ({ ...f, company_id: e.target.value }))}

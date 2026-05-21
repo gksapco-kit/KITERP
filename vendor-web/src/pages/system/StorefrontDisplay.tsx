@@ -75,7 +75,7 @@ export default function StorefrontDisplayPage() {
         display_fields: { product: productFields, service: serviceFields },
       },
     } as Partial<Vendor>, {
-      onSuccess: () => toast.success('Storefront display updated'),
+      onSuccess: () => toast.success('Business Front display updated'),
       onSettled: () => { savingRef.current = false },
     })
   }
@@ -95,7 +95,7 @@ export default function StorefrontDisplayPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Storefront Display</h1>
+        <h1 className="text-2xl font-bold text-foreground">Business Front Display</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Control which fields are visible to customers on your product and service pages.
         </p>

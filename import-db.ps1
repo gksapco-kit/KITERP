@@ -152,6 +152,6 @@ Write-Host "    docker compose up -d" -ForegroundColor White
 Write-Host ""
 Write-Host "  Then open:" -ForegroundColor White
 Write-Host "    Vendor app  : http://localhost:3001" -ForegroundColor White
-Write-Host "    Storefront  : http://localhost:3002" -ForegroundColor White
+Write-Host "    Business Front  : http://localhost:3002" -ForegroundColor White
 Write-Host "    API docs    : http://localhost:8000/docs" -ForegroundColor White
 Write-Host "=============================================" -ForegroundColor Green

@@ -52,7 +52,7 @@
     --hero-to: 158 40% 10%;
     --hero-cta: 222 22% 14%;
 
-    /* Storefront UI kit — editorial templates (shared home-sections) */
+    /* Business Front UI kit — editorial templates (shared home-sections) */
     --retail-bg: 36 38% 95%;
     --retail-ink: 22 30% 14%;
     --retail-accent: 16 76% 56%;
@@ -404,7 +404,7 @@
   }
 }
 
-/* Storefront kit utilities (shared HeroSection / RestaurantMenuSection) */
+/* Business Front kit utilities (shared HeroSection / RestaurantMenuSection) */
 .font-display {
   font-family: 'Fraunces', 'Instrument Serif', Georgia, serif;
   font-optical-sizing: auto;

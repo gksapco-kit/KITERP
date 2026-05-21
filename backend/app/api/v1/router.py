@@ -83,7 +83,7 @@ api_router.include_router(app_builds.router, tags=["App Builds"])
 api_router.include_router(catalog.router, prefix="/catalog", tags=["Public Catalog"])
 api_router.include_router(catalog_blog.router, prefix="/catalog/blog", tags=["Public Blog"])
 
-# ── Storefront (customer-facing, tenant-aware) ───────────────────
+# ── Business Front (customer-facing, tenant-aware) ───────────────────
 api_router.include_router(store_auth.router, prefix="/store/auth", tags=["Store Auth"])
 api_router.include_router(store_hr.router, prefix="/store/hr", tags=["Store HR"])
 api_router.include_router(store_cart.router, prefix="/store/cart", tags=["Store Cart"])
@@ -99,7 +99,7 @@ api_router.include_router(vendor_blog.router, prefix="/vendors/me/blog", tags=["
 # ── Website Builder ───────────────────────────────────────────────
 api_router.include_router(vendor_websites.router, prefix="/vendors/me/websites", tags=["Website Builder"])
 
-# ── Public Sites (storefront renderer, no auth) ───────────────────
+# ── Public Sites (business front renderer, no auth) ───────────────────
 api_router.include_router(public_sites.router, prefix="/public/sites", tags=["Public Sites"])
 
 # ── Uploads ───────────────────────────────────────────────────────

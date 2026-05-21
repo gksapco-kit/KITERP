@@ -37,7 +37,7 @@ export default function RentalHubPage() {
           <Package className="w-10 h-10 text-amber-600 shrink-0" />
           <div>
             <p className="font-semibold text-gray-900">Orders</p>
-            <p className="text-xs text-gray-500 mt-1">Online rental checkout flows through storefront orders.</p>
+            <p className="text-xs text-gray-500 mt-1">Online rental checkout flows through business front orders.</p>
           </div>
         </Link>
       </div>

@@ -24,7 +24,7 @@ export default function Checkout() {
   const [params] = useSearchParams()
 
   // Precedence: URL param (QA/demo) > wb_site style_config (website builder)
-  //             > vendor theme_config (storefront builder) > theme.css default
+  //             > vendor theme_config (business front builder) > theme.css default
   const siteLayout = (builderSite?.style_config as Partial<StyleConfig> | undefined)?.checkout_layout
   const themeLayout = (storeInfo as any)?.checkout_layout as CheckoutLayout | undefined
   const layout = (params.get('layout') as CheckoutLayout) || siteLayout || themeLayout || undefined

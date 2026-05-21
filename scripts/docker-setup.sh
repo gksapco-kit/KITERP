@@ -45,7 +45,7 @@ case "${1:-help}" in
         echo "  API Docs:       http://localhost:8000/docs"
         echo "  Admin Panel:    http://localhost:3000"
         echo "  Vendor Panel:   http://localhost:3001"
-        echo "  Storefront:     http://localhost:3002"
+        echo "  Business Front:     http://localhost:3002"
         echo ""
         echo -e "${YELLOW}Run './scripts/docker-setup.sh logs' to follow logs${NC}"
         ;;

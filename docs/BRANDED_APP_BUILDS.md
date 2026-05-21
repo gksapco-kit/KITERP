@@ -2,7 +2,7 @@
 
 ## Overview
 
-When a vendor subscribes to a plan that includes the **branded_app** feature, the platform can generate a custom Android/iOS app bearing that vendor's name, icon, colors, and bundle ID. The app connects back to the same backend but is locked to that vendor's storefront.
+When a vendor subscribes to a plan that includes the **branded_app** feature, the platform can generate a custom Android/iOS app bearing that vendor's name, icon, colors, and bundle ID. The app connects back to the same backend but is locked to that vendor's business front.
 
 ## Architecture
 

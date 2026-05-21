@@ -1201,6 +1201,19 @@ export function useStores(params?: Record<string, unknown>) {
   })
 }
 
+export function useUpdateStore() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      vendorApi.updateStore(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.stores() })
+      toast.success('Business unit address saved')
+    },
+    onError: apiError('Could not save business unit address'),
+  })
+}
+
 // ─────────────────────────────────────────────────────────────────
 // HR Hooks
 // ─────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 /**
- * Website builder "storefront_*" catalog templates — full React previews in
+ * Website builder "business front_*" catalog templates — full React previews in
  * /template-browser/:id. When applied to a site, wb_catalog_template_id is set
  * on style_config so the live /store/:slug home can match that preview.
  */

@@ -56,7 +56,7 @@ const ThemeContext = createContext<ThemeConfig>(DEFAULT_THEME)
 
 const GOOGLE_FONTS = ['Inter', 'Poppins', 'DM Sans', 'Space Grotesk', 'Playfair Display', 'Roboto']
 
-/** KITERP kit green — used in Employee HR portal instead of per-store storefront blue */
+/** KITERP kit green — used in Employee HR portal instead of per-store business front blue */
 export const KIT_BRAND_PRIMARY = '#64C3A0'
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

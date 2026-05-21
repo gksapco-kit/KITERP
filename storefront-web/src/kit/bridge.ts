@@ -1,5 +1,5 @@
 /**
- * Bridges the project's storefront data types to the ERP UI Kit types.
+ * Bridges the project's business front data types to the ERP UI Kit types.
  * All kit components consume these mapped types; keep API calls in page hooks.
  */
 import type { Product as StoreProduct, ServiceItem } from '@/storefront/types'

@@ -95,7 +95,7 @@ log "Building backend image..."
 $COMPOSE build backend
 
 log "Building frontend images (this may take a few minutes)..."
-$COMPOSE build frontend-build vendor-build storefront-build
+$COMPOSE build frontend-build vendor-build business front-build
 
 log "Building nginx..."
 $COMPOSE build nginx 2>/dev/null || true
@@ -116,7 +116,7 @@ fi
 
 # Build and copy frontend static files
 log "Building frontend static files..."
-$COMPOSE up frontend-build vendor-build storefront-build
+$COMPOSE up frontend-build vendor-build business front-build
 
 # Start remaining services
 log "Starting backend and nginx..."
@@ -139,7 +139,7 @@ log " Deploy complete!"
 log "============================================"
 echo ""
 info "Access your dev environment:"
-info "  Storefront:  http://${PUBLIC_IP}/"
+info "  Business Front:  http://${PUBLIC_IP}/"
 info "  Admin Panel: http://${PUBLIC_IP}/admin/"
 info "  Vendor:      http://${PUBLIC_IP}/vendor/"
 info "  API Docs:    http://${PUBLIC_IP}/docs"

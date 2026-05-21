@@ -62,7 +62,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Tax Returns':                          ['gst', 'vat', 'tax', 'filing', 'tax return', 'return filing'],
   'Master Data — Customers & Suppliers':  ['customer', 'supplier', 'contacts', 'parties', 'vendors', 'client list'],
   'Website Builder':                      ['web', 'site', 'page', 'cms', 'website', 'web builder'],
-  'Storefront Builder':                   ['store', 'shop', 'ecommerce', 'online store', 'store builder'],
+  'Business Front Builder':                   ['store', 'shop', 'ecommerce', 'online store', 'store builder'],
   'Document Templates':                   ['doc', 'template', 'prescription', 'sop', 'challan', 'document'],
   'Blog Manager':                         ['blog', 'post', 'article', 'content', 'news'],
   'Notifications':                        ['alerts', 'bell', 'updates', 'notification list'],
@@ -102,7 +102,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Restaurant floor':                     ['table', 'floor plan', 'seating', 'dine in', 'restaurant'],
   'Kitchen board':                        ['kitchen', 'kds', 'cook', 'chef', 'food orders'],
   'Restaurant tables':                    ['tables', 'restaurant', 'floor', 'seating'],
-  'Business Units':                       ['branch', 'outlet', 'location', 'store code', 'business unit', 'company code'],
+  'Business Units':                       ['branch', 'outlet', 'location', 'store code', 'business unit', 'unit code'],
   'Approvals':                            ['approve', 'pending approval', 'finance approval'],
   'Posting periods':                      ['period', 'close period', 'accounting period'],
   'GL field rules':                       ['gl', 'field rules', 'general ledger rules'],
@@ -159,15 +159,15 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   },
   {
     kind: 'nav', id: 'settings-hours',
-    label: 'Opening Hours & Availability',
-    description: 'Settings → Hours & ordering',
+    label: 'Offline Business Hours',
+    description: 'Settings → Offline business hours',
     section: 'Settings', sectionId: 'my-kit',
     to: '/settings?section=hours-availability',
     keywords: [
       'hours', 'opening hours', 'business hours', 'open', 'close',
       'availability', 'when are you open', 'store timing', 'shop hours',
       'weekdays', 'weekend', 'monday friday', 'working hours', 'timing',
-      'storefront hours', 'open time', 'close time',
+      'business front hours', 'open time', 'close time',
     ],
   },
   {
@@ -181,7 +181,8 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
       'order acceptance', 'stop orders', 'enable orders', 'disable orders',
       'customers place orders', 'online store hours', 'ecommerce hours',
       'custom order hours', 'order timing', 'when can customers order',
-      'storefront orders', 'online ordering', 'order window', 'order time',
+      'same as offline', 'offline business hours', 'match opening hours',
+      'business front orders', 'online ordering', 'order window', 'order time',
     ],
   },
   {
@@ -197,13 +198,13 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   },
   {
     kind: 'nav', id: 'settings-display',
-    label: 'Storefront Display',
-    description: 'System Configuration → Storefront display',
+    label: 'Business Front Display',
+    description: 'System Configuration → Business Front display',
     section: 'System Configuration', sectionId: 'system',
     to: '/system/storefront-display',
     keywords: [
-      'display', 'storefront', 'appearance', 'how store looks',
-      'storefront settings', 'shop appearance', 'product fields', 'service fields',
+      'display', 'business front', 'appearance', 'how store looks',
+      'business front settings', 'shop appearance', 'product fields', 'service fields',
     ],
   },
   {
@@ -215,7 +216,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     keywords: [
       'modules', 'features', 'enable feature', 'disable feature',
       'finance mode', 'basic finance', 'advanced finance', 'module toggle',
-      'offering type', 'products only', 'services only',
+      'hr module', 'enable hr', 'central hr', 'business unit hr', 'human resources',
     ],
   },
   {
@@ -238,7 +239,7 @@ export const EXTRA_NAV_ENTRIES: NavSearchEntry[] = [
   { kind: 'nav', id: 'support-activity',   label: 'Support Activity Log',     description: 'Settings → Platform support log',       section: 'My Kit',                 sectionId: 'my-kit',    to: '/settings/support-activity', keywords: ['support', 'log', 'activity', 'platform', 'admin access'] },
   { kind: 'nav', id: 'notification-prefs', label: 'Notification Settings',    description: 'My Kit → Notification preferences',     section: 'My Kit',                 sectionId: 'my-kit',    to: '/notifications/settings',   keywords: ['notifications', 'preferences', 'alerts', 'sound', 'push', 'digest', 'quiet hours', 'do not disturb'] },
   { kind: 'nav', id: 'profile-page',       label: 'My Profile',               description: 'Account → Personal profile',            section: 'My Kit',                 sectionId: 'my-kit',    to: '/profile',                   keywords: ['profile', 'account', 'me', 'personal', 'my account', 'password', 'avatar'] },
-  { kind: 'nav', id: 'company-codes',      label: 'Business Units / Branches', description: 'Finance → Business units',              section: 'Finance Management',     sectionId: 'finance',   to: '/stores',                    keywords: ['business unit', 'branch', 'outlet', 'code', 'multi store', 'locations', 'company code'] },
+  { kind: 'nav', id: 'business-units',     label: 'Business Units / Branches', description: 'Finance → Business units',              section: 'Finance Management',     sectionId: 'finance',   to: '/stores',                    keywords: ['business unit', 'branch', 'outlet', 'unit code', 'multi store', 'locations'] },
   { kind: 'nav', id: 'pos-settings',       label: 'POS Invoice Settings',     description: 'POS → Print template settings',        section: 'Sales Management',       sectionId: 'sales',     to: '/pos',                       keywords: ['pos', 'receipt', 'print receipt', 'pos template', 'pos invoice'] },
   { kind: 'nav', id: 'master-data',        label: 'Customers & Suppliers',    description: 'Master Data → All parties',             section: 'Master Data Management', sectionId: 'master-data', to: '/master-data',             keywords: ['customer', 'supplier', 'parties', 'contacts', 'client', 'vendor', 'debtor', 'creditor'] },
 ]

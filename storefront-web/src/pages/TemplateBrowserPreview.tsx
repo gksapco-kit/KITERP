@@ -19,7 +19,7 @@ import type { StorefrontConfig } from '@/storefront/theming'
 import { EditContext, type ContentMap } from '@/storefront/editContext'
 import { CONTENT_SCHEMAS, type ContentSchema, type EditSection } from '@/storefront/contentSchema'
 
-// ── Storefront template map ──────────────────────────────────────────────────
+// ── Business Front template map ──────────────────────────────────────────────────
 const FashionTemplate     = lazy(() => import('@/storefront/templates/FashionTemplate').then(m => ({ default: m.FashionTemplate })))
 const ElectronicsTemplate = lazy(() => import('@/storefront/templates/ElectronicsTemplate').then(m => ({ default: m.ElectronicsTemplate })))
 const GroceryTemplate     = lazy(() => import('@/storefront/templates/GroceryTemplate').then(m => ({ default: m.GroceryTemplate })))
@@ -645,7 +645,7 @@ function EditPanel(props: EditPanelProps) {
   )
 }
 
-// ── Storefront React component preview ───────────────────────────────────────
+// ── Business Front React component preview ───────────────────────────────────────
 function StorefrontPreview({ templateId }: { templateId: string }) {
   const TemplateComponent = STOREFRONT_TEMPLATES[templateId]
   const rawKey = templateId.replace('storefront_', '')

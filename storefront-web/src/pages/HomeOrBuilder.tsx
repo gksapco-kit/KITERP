@@ -27,7 +27,7 @@ export default function HomeOrBuilder() {
     }
 
     // No explicit catalog template but has a builder site with no saved blocks:
-    // apply Services template as the default storefront layout.
+    // apply Services template as the default business front layout.
     if (!hasSavedBuilderBlocks) {
       return <CatalogStorefrontLiveHome catalogTemplateId="storefront_services" />
     }

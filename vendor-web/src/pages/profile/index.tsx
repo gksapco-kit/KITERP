@@ -832,7 +832,7 @@ function IdentifiersSection({ open, toggle }: { open: boolean; toggle: () => voi
         label: 'Subdomain',
         code: vendor.subdomain,
         full: vendor.subdomain,
-        description: 'Public storefront subdomain.',
+        description: 'Public business front subdomain.',
       })
     }
   }

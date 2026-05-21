@@ -85,8 +85,8 @@ class JournalLineOut(BaseModel):
 # ─── Header schemas ───────────────────────────────────────────────────────────
 
 class JournalEntryCreate(BaseModel):
-    # Company (posting entity)
-    company_id: Optional[UUID] = None          # defaults to vendor's default company
+    # Business unit (posting entity; fin_company row)
+    company_id: Optional[UUID] = None          # defaults to vendor's default business unit
 
     # Dates
     entry_date: date                           # posting date

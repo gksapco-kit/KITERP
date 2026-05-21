@@ -173,7 +173,7 @@ class WebsiteRedirect(Base):
 
 
 class WebsiteFormSubmission(Base):
-    """Contact/newsletter/custom form submissions from published storefront pages."""
+    """Contact/newsletter/custom form submissions from published business front pages."""
     __tablename__ = "wb_form_submissions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -193,7 +193,7 @@ class WebsiteFormSubmission(Base):
 
 class WebsiteBuilderPreview(Base):
     """
-    Full-site JSON snapshot for browser preview (storefront :3002) without publishing.
+    Full-site JSON snapshot for browser preview (business front :3002) without publishing.
     Created from the vendor builder; read via opaque token on the public API.
     """
     __tablename__ = "wb_builder_previews"

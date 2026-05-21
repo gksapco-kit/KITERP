@@ -254,7 +254,7 @@ def require_role(*roles: str):
     return _check
 
 
-# ── Customer dependencies (storefront) ──────────────────────────
+# ── Customer dependencies (business front) ──────────────────────────
 
 async def get_store_vendor_id(
     request: Request,
@@ -271,7 +271,7 @@ async def get_store_vendor_id(
     if vendor_id:
         return UUID(vendor_id)
 
-    # 2. Slug before ID: path-based storefront sends both headers; a leftover X-Vendor-Id from another
+    # 2. Slug before ID: path-based business front sends both headers; a leftover X-Vendor-Id from another
     #    tab/store must not override the slug the user opened (fixes HR login “no employee profile”).
     vendor_slug = request.headers.get("x-vendor-slug")
     if vendor_slug:
@@ -300,9 +300,9 @@ async def get_store_hr_vendor_id(
     db: AsyncSession = Depends(get_db),
 ) -> UUID:
     """
-    Vendor scope for storefront employee HR (login + authenticated /store/hr/*).
+    Vendor scope for business front employee HR (login + authenticated /store/hr/*).
     Slug before X-Vendor-Id (see get_store_vendor_id). Slug lookup does **not** require
-    storefront-live status — otherwise login succeeds but GET /store/hr/me fails and the UI
+    business front-live status — otherwise login succeeds but GET /store/hr/me fails and the UI
     bounces back to an empty login form.
     """
     vendor_id = get_tenant_vendor_id(request)
@@ -338,7 +338,7 @@ async def get_current_store_hr_vendor_user(
     db: AsyncSession = Depends(get_db),
 ) -> VendorUser:
     """
-    VendorUser for storefront employee HR (JWT from POST /store/hr/login).
+    VendorUser for business front employee HR (JWT from POST /store/hr/login).
     Not a customer session — uses role store_hr_employee and vendor_user_id in the token.
     """
     if not token:

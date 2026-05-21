@@ -1229,12 +1229,12 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </CardContent>
       </Card>
 
-      {/* Storefront Options */}
+      {/* Business Front Options */}
       <Card>
         <CardContent className="p-6 space-y-4">
           <div className="flex items-center gap-3 mb-2">
             <ToggleRight className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold text-gray-900">Storefront Options</span>
+            <span className="font-semibold text-gray-900">Business Front Options</span>
           </div>
           <div className="divide-y rounded-lg border">
             <div className="flex items-center justify-between px-4 py-3">
@@ -2621,7 +2621,7 @@ export default function ProductForm() {
                 {isBundleType && <ShoppingBag className="w-4 h-4 mt-0.5 shrink-0" />}
                 <div>
                   {isDigitalType && <><strong>Digital Product:</strong> Shipping, inventory, and return sections are hidden. Add download URL and access limits in the Digital Product section below.</>}
-                  {isSubscriptionType && <><strong>Subscription Product:</strong> Each plan/variant carries its own billing interval, per-cycle price, trial period &amp; setup fee. The end user can select their preferred plan on the storefront.</>}
+                  {isSubscriptionType && <><strong>Subscription Product:</strong> Each plan/variant carries its own billing interval, per-cycle price, trial period &amp; setup fee. The end user can select their preferred plan on the business front.</>}
                   {isBundleType && <><strong>Bundle Product:</strong> Variants are replaced by the Bundle Items section — select products to include. Add download details if the bundle is digital.</>}
                 </div>
               </div>
@@ -3943,10 +3943,10 @@ export default function ProductForm() {
           </Section>
         )}
 
-        {/* Storefront Options */}
-        <Section title="Storefront Options" icon={ToggleRight} open={!!openSections.storefrontOptions} onToggle={() => toggle('storefrontOptions')}>
+        {/* Business Front Options */}
+        <Section title="Business Front Options" icon={ToggleRight} open={!!openSections.storefrontOptions} onToggle={() => toggle('storefrontOptions')}>
           <div className="pt-4 space-y-4">
-            <p className="text-xs text-gray-500">Control how customers interact with this product on the storefront.</p>
+            <p className="text-xs text-gray-500">Control how customers interact with this product on the business front.</p>
             <div className="divide-y rounded-lg border">
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -3974,7 +3974,7 @@ export default function ProductForm() {
           </div>
         </Section>
 
-        {/* 8. Visibility & Marketing — status + storefront visibility live in sticky header */}
+        {/* 8. Visibility & Marketing — status + business front visibility live in sticky header */}
         <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')}>
           <div className="space-y-4 pt-4">
             <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">

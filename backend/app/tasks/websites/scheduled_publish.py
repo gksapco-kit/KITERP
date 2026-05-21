@@ -4,7 +4,7 @@ Scheduled-publish worker.
 Promotes any `wb_pages` row whose `publish_status='scheduled'` and
 `scheduled_publish_at <= now()` into `publish_status='published'` and flips
 `is_published=True`. Also invalidates the public-sites cache so the new
-content shows up on the storefront within the next request.
+content shows up on the business front within the next request.
 
 The tick is intentionally cheap: a single SELECT, then a per-row UPDATE.
 Rows are batched at 200 to avoid long transactions while still draining a
@@ -62,7 +62,7 @@ async def _tick() -> Dict[str, int]:
         await db.commit()
 
         # Best-effort: clear public-site caches for affected sites so the
-        # storefront sees the change without waiting for the 60s TTL.
+        # business front sees the change without waiting for the 60s TTL.
         try:
             from app.api.v1.public_sites import invalidate_site_cache
 

@@ -18,14 +18,14 @@ import type { AccountUser, NavLinkItem } from "../types";
 
 export interface UnifiedNavProps {
   logo?: React.ReactNode;
-  /** Target for the logo link (storefront should pass `storePath('/')`). Defaults to `/`. */
+  /** Target for the logo link (business front should pass `storePath("/')`). Defaults to `/`. */
   logoHomeTo?: string;
   /** Rendered after the logo (e.g. branch / store selector). */
   afterLogo?: React.ReactNode;
   /** Extra block inside the mobile sheet below nav links. */
   sheetExtra?: React.ReactNode;
   links: NavLinkItem[];
-  /** Extra controls in the header tray (e.g. storefront notification bell). */
+  /** Extra controls in the header tray (e.g. business front notification bell). */
   extraTray?: React.ReactNode;
   showSearch?: boolean;
   showCart?: boolean;
@@ -34,7 +34,7 @@ export interface UnifiedNavProps {
   cartHref?: string;
   user?: AccountUser | null;
   cta?: { label: string; href: string };
-  variant?: "bordered" | "transparent" | "centered";
+  variant?: 'bordered' | 'transparent' | 'centered';
   sticky?: boolean;
   onSearch?: (q: string) => void;
   onSignOut?: () => void;

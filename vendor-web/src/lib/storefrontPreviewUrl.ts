@@ -6,7 +6,7 @@ function isLoopbackDashboardHost(): boolean {
 }
 
 /**
- * Use path-based storefront URLs on port 3002 (separate Vite app), not production subdomains.
+ * Use path-based business front URLs on port 3002 (separate Vite app), not production subdomains.
  * `import.meta.env.DEV` is false for `vite preview` and production builds — loopback check still routes locally.
  */
 export function shouldUseLocalStorefrontUrls(): boolean {
@@ -14,8 +14,8 @@ export function shouldUseLocalStorefrontUrls(): boolean {
 }
 
 /**
- * Base URL of the storefront SPA (no trailing slash).
- * Matches "Open in browser" in WebsiteTemplatePreviewModal:
+ * Base URL of the business front SPA (no trailing slash).
+ * Matches 'Open in browser" in WebsiteTemplatePreviewModal:
  * - VITE_STOREFRONT_URL when set
  * - dev: same host, port 3002
  * - prod: current origin (same deployment as vendor app)

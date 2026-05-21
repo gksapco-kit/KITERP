@@ -782,7 +782,7 @@ function StoreLocatorSection({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NEW SECTION COMPONENTS (added by storefront builder)
+// NEW SECTION COMPONENTS (added by business front builder)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AnnouncementBarSection({ props }: { props: SectionProps }) {
@@ -1410,7 +1410,7 @@ export default function Home() {
                   }}
                 />
               )
-            // ── New sections added via storefront builder ──
+            // ── New sections added via business front builder ──
             case 'stats':
               return <StatsSection props={p} colors={c} templateId={builderTemplateId} />
             case 'faq':

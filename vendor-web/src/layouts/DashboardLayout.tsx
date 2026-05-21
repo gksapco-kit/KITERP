@@ -37,6 +37,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useESSProfile } from '@/hooks/useVendor'
 import { useMyVendor, useStores } from '@/hooks/useVendor'
+import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
 import { Button } from '@/components/ui/button'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
@@ -44,6 +45,14 @@ import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { UniversalSearch } from '@/components/UniversalSearch'
 import { buildNavIndex, type NavSearchEntry } from '@/lib/appSearchIndex'
+import { isHrNavVisible } from '@/lib/hrModuleSettings'
+import { buildHrEssLoginUrl, isHrEssLinkVisibleForStore } from '@/lib/hrStorefrontLinks'
+import {
+  isFinanceNavVisible,
+  isCrmNavVisible,
+  isCommissionNavVisible,
+  isControllingNavVisible,
+} from '@/lib/vendorModuleSettings'
 import {
   DndContext,
   DragOverlay,
@@ -322,8 +331,8 @@ const allSections: NavSection[] = [
     items: [
       { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Website templates', alwaysShow: true },
-      { to: '/storefront-builder', icon: Wand2, label: 'Storefront Builder', alwaysShow: true },
-      { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Storefront Display', alwaysShow: true },
+      { to: '/storefront-builder', icon: Wand2, label: 'Business Front Builder', alwaysShow: true },
+      { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
@@ -557,7 +566,7 @@ const pageTitles: Record<string, string> = {
   '/purchase-orders/templates': 'PO Templates',
   '/websites': 'Website Builder',
   '/websites/templates': 'Website templates',
-  '/storefront-builder': 'Storefront Builder',
+  '/storefront-builder': 'Business Front Builder',
   '/blog': 'Blog Manager',
   '/finance/basic': 'Finance',
   '/stores': 'Business Units',
@@ -567,7 +576,7 @@ const pageTitles: Record<string, string> = {
   '/plans': 'Plans & Billing',
   '/settings': 'Settings',
   '/system/modules': 'Module Settings',
-  '/system/storefront-display': 'Storefront Display',
+  '/system/storefront-display': 'Business Front Display',
   '/system/social-links': 'Social & Web Links',
 
   '/crm': 'CRM Dashboard',
@@ -886,6 +895,18 @@ export default function DashboardLayout() {
 
   const financeMode = ((vendor?.settings as Record<string, unknown> | undefined)?.finance_mode as string | undefined) ?? 'advanced'
 
+  const vendorSettings = vendor?.settings as Record<string, unknown> | undefined
+
+  const hrNavVisible = useMemo(
+    () => isHrNavVisible(vendorSettings, selectedStore?.id),
+    [vendorSettings, selectedStore?.id],
+  )
+
+  const financeNavVisible = useMemo(() => isFinanceNavVisible(vendorSettings), [vendorSettings])
+  const crmNavVisible = useMemo(() => isCrmNavVisible(vendorSettings), [vendorSettings])
+  const commissionNavVisible = useMemo(() => isCommissionNavVisible(vendorSettings), [vendorSettings])
+  const controllingNavVisible = useMemo(() => isControllingNavVisible(vendorSettings), [vendorSettings])
+
   const filterItem = useCallback(
     (item: NavItem) => {
       if (item.alwaysShow) return true
@@ -906,22 +927,35 @@ export default function DashboardLayout() {
   const visibleSections = useMemo(
     () =>
       allSections
+        .filter((section) => {
+          if (section.id === 'hr' && !hrNavVisible) return false
+          if (section.id === 'finance' && !financeNavVisible) return false
+          if (section.id === 'crm' && !crmNavVisible) return false
+          if (section.id === 'commission' && !commissionNavVisible) return false
+          if (section.id === 'controlling' && !controllingNavVisible) return false
+          return true
+        })
         .map((section) => ({ ...section, items: section.items.filter(filterItem) }))
         .filter((section) => section.items.length > 0),
-    [filterItem],
+    [filterItem, hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible, controllingNavVisible],
   )
 
   const { data: essProfile } = useESSProfile()
   const employeePortalUrl = useMemo(() => {
     const slug = vendor?.slug?.trim()
     if (!slug) return null
-    return `${getStorefrontAppOrigin()}/store/${encodeURIComponent(slug)}/hr/login`
-  }, [vendor?.slug])
+    const storeId = selectedStore?.id
+    const branch =
+      storeId && isHrEssLinkVisibleForStore(storeId, vendorSettings)
+        ? stores.find((s) => s.id === storeId)?.code ?? null
+        : null
+    return buildHrEssLoginUrl(slug, branch)
+  }, [vendor?.slug, vendorSettings, selectedStore?.id, stores])
   const hasLinkedEmployeeProfile = Boolean(
     (essProfile as { employee?: unknown } | null | undefined)?.employee,
   )
 
-  /** HR admin nav + optional storefront ESS link when this login is tied to an employee record */
+  /** HR admin nav + optional business front ESS link when this login is tied to an employee record */
   const displaySections = useMemo(
     () =>
       visibleSections.map((section) => {
@@ -1195,16 +1229,20 @@ export default function DashboardLayout() {
   }
 
   const roleBadge = vendorRole?.role_name || 'Member'
+  const { heading: settingsScopeHeading } = useBusinessUnitScopeLabel()
 
-  const pageTitle = pageTitles[location.pathname] ||
-    (location.pathname.startsWith('/products/') ? 'Product Details' :
-     location.pathname.startsWith('/services/') ? 'Service Details' :
-     location.pathname.startsWith('/orders/') ? 'Order Details' :
-     location.pathname.startsWith('/customers/') ? 'Customer Details' :
-     location.pathname.startsWith('/invoices/') ? 'Invoice Details' :
-     location.pathname.startsWith('/purchase-orders/') ? 'Purchase Order' :
-     location.pathname.startsWith('/controlling/orders/') ? 'CO manufacturing order' :
-     'Dashboard')
+  const pageTitle =
+    location.pathname === '/settings'
+      ? `Settings — ${settingsScopeHeading}`
+      : pageTitles[location.pathname] ||
+        (location.pathname.startsWith('/products/') ? 'Product Details' :
+         location.pathname.startsWith('/services/') ? 'Service Details' :
+         location.pathname.startsWith('/orders/') ? 'Order Details' :
+         location.pathname.startsWith('/customers/') ? 'Customer Details' :
+         location.pathname.startsWith('/invoices/') ? 'Invoice Details' :
+         location.pathname.startsWith('/purchase-orders/') ? 'Purchase Order' :
+         location.pathname.startsWith('/controlling/orders/') ? 'CO manufacturing order' :
+         'Dashboard')
 
   const storePickerMenu = storePickerOpen ? (
     <>
@@ -1277,12 +1315,12 @@ export default function DashboardLayout() {
 
         <div className="border-t border-border px-4 py-2">
           <Link
-            to="/stores"
+            to="/settings"
             onClick={() => setStorePickerOpen(false)}
             className="flex items-center gap-1.5 text-[11px] text-primary hover:text-primary font-medium transition-colors"
           >
             <Settings className="w-3 h-3" />
-            Manage business units
+            Settings
             <ChevronRight className="w-3 h-3 ml-auto" />
           </Link>
         </div>
@@ -1791,61 +1829,84 @@ export default function DashboardLayout() {
       {/* Main content */}
       <div className="lg:ml-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 overflow-visible bg-card/80 backdrop-blur-md border-b border-border">
-          <div className="flex items-center h-14 gap-3 px-4 lg:px-8">
-            {/* Left: hamburger + page title */}
-            <div className="flex items-center gap-3 shrink-0">
+        <header className="sticky top-0 z-30 overflow-visible border-b border-border bg-card/80 backdrop-blur-md">
+          {/*
+            Title + search must shrink (min-w-0). Actions stay full width (shrink-0).
+            Do not use overflow-hidden here — it clips the unit picker when the row is tight.
+          */}
+          <div className="flex h-14 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-8">
+            {/* Title — truncates first */}
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
               <button
                 type="button"
-                className="lg:hidden p-2 -ml-2 rounded-lg text-muted-foreground hover:bg-muted"
+                className="lg:hidden shrink-0 rounded-lg p-2 -ml-1 text-muted-foreground hover:bg-muted"
                 onClick={() => setSidebarOpen(true)}
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="h-5 w-5" />
               </button>
-              <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
+              {location.pathname === '/settings' ? (
+                <div
+                  className="flex min-w-0 items-baseline gap-1.5 overflow-hidden sm:gap-2"
+                  title={`Settings — ${settingsScopeHeading}`}
+                >
+                  <h1 className="shrink-0 text-sm font-semibold text-foreground sm:text-base lg:text-lg">
+                    Settings
+                  </h1>
+                  <span className="hidden min-w-0 truncate text-xs font-medium text-muted-foreground md:inline sm:text-sm">
+                    {settingsScopeHeading}
+                  </span>
+                </div>
+              ) : (
+                <h1
+                  className="min-w-0 truncate text-sm font-semibold text-foreground sm:text-base lg:text-lg"
+                  title={pageTitle}
+                >
+                  {pageTitle}
+                </h1>
+              )}
             </div>
 
-            {/* Center: universal search bar */}
-            <div className="flex-1 flex justify-center px-2">
+            {/* Search — fixed max width, yields space to actions */}
+            <div className="hidden shrink min-w-0 md:flex md:justify-center">
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="hidden sm:flex items-center gap-2 w-full max-w-sm rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:border-primary/30 hover:text-foreground transition-all"
+                className="flex h-9 w-40 min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 text-muted-foreground transition-all hover:border-primary/30 hover:bg-muted hover:text-foreground lg:w-48 xl:w-56"
               >
-                <Search className="w-4 h-4 shrink-0" />
-                <span className="flex-1 text-left text-xs">Search pages, records…</span>
-                <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">
+                <Search className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate text-left text-xs">Search pages, records…</span>
+                <kbd className="hidden shrink-0 lg:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">
                   ⌘K
                 </kbd>
               </button>
-              {/* Mobile: icon only */}
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="sm:hidden p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
-                aria-label="Open search"
-              >
-                <Search className="w-5 h-5" />
-              </button>
             </div>
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted md:hidden"
+              aria-label="Open search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
 
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Business unit selector — dropdown opens below this pill */}
+            {/* Actions — priority: never clipped */}
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <div className="relative">
                 <button
                   type="button"
                   onClick={openStorePicker}
                   aria-expanded={storePickerOpen}
                   aria-haspopup="listbox"
+                  title={storeHeaderName}
                   className={cn(
-                    'flex max-w-[min(12rem,38vw)] items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition-all sm:max-w-[14rem] sm:px-3',
+                    'flex min-w-[2.75rem] max-w-[11.5rem] items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition-all sm:max-w-[12.5rem] lg:max-w-[14rem]',
                     storePillActive
                       ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90'
                       : 'border-border bg-muted text-muted-foreground hover:bg-muted/80',
                   )}
                 >
                   <Store className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{storeHeaderName}</span>
+                  <span className="hidden min-w-0 truncate sm:inline">{storeHeaderName}</span>
                   <ChevronDown
                     className={cn(
                       'h-3 w-3 shrink-0 opacity-70 transition-transform duration-200 motion-reduce:transition-none',
@@ -1856,31 +1917,33 @@ export default function DashboardLayout() {
                 {storePickerMenu}
               </div>
 
-              <Link to="/notifications" className="relative p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors inline-flex">
-                <Bell className="w-5 h-5" />
+              <Link
+                to="/notifications"
+                className="relative inline-flex shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted"
+              >
+                <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none ring-2 ring-background">
+                  <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-background">
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </Link>
-              {/* Profile dropdown — name + avatar trigger */}
-              <div ref={profileMenuRef} className="relative ml-2 pl-3 border-l border-border">
+              <div ref={profileMenuRef} className="relative shrink-0 border-l border-border pl-2 sm:pl-3">
                 <button
                   type="button"
                   onClick={() => setProfileOpen(v => !v)}
                   className={cn(
-                    'flex items-center gap-2 rounded-full py-1 pl-1 pr-1.5 transition-colors',
+                    'flex items-center gap-1.5 rounded-full py-1 pl-1 pr-1.5 transition-colors sm:pr-2',
                     profileOpen ? 'bg-muted ring-1 ring-border' : 'hover:bg-muted',
                   )}
                 >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-xs font-bold text-white shadow-sm ring-1 ring-black/15">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-xs font-bold text-white shadow-sm ring-1 ring-black/15">
                     {(user?.full_name || 'U').charAt(0).toUpperCase()}
                   </div>
-                  <span className="hidden sm:inline text-sm font-medium text-foreground truncate max-w-[120px]">
+                  <span className="hidden min-w-0 max-w-[5.5rem] truncate text-sm font-medium text-foreground md:inline lg:max-w-[7rem]">
                     {user?.full_name}
                   </span>
-                  <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform', profileOpen && 'rotate-180')} />
+                  <ChevronDown className={cn('hidden h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform md:block', profileOpen && 'rotate-180')} />
                 </button>
 
                 {profileOpen && (

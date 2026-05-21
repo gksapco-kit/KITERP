@@ -7,23 +7,24 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useUpdateVendor, useStores } from '@/hooks/useVendor'
+import { useUpdateVendor, useUpdateStore, useStores } from '@/hooks/useVendor'
+import type { StoreRecord } from '@/api/vendor'
+import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
 import StoresPage from '@/pages/stores'
+import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
 import { vendorApi } from '@/api/vendor'
 import {
   Save, Loader2, Store, MapPin, FileText, Globe,
   Clock, ChevronDown, ChevronUp, Building2, Phone,
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
   ChevronRight, Check, Settings2,
-  Info, CheckCircle2, Landmark, HelpCircle,
+  Info, CheckCircle2, Landmark, HelpCircle, Lock, Building, Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { Vendor } from '@/types'
 import { ImageCropModal } from '@/components/common/ImageCropModal'
 import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/vendorAppMeta'
-import { IdChip, VerifiedBadge, vendorVerificationLevel, formatStoreCode, formatVendorCode } from '@/lib/verification'
-import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 
 type Section = 'profile' | 'contact' | 'address' | 'tax' | 'hours-availability' | 'order-acceptance' | 'about'
@@ -59,13 +60,22 @@ const OFFERING_OPTIONS = [
 ]
 
 export default function SettingsPage() {
-  const { vendor, selectedStore } = useVendorStore()
+  const vendor = useVendorStore((s) => s.vendor)
+  const selectedStore = useVendorStore((s) => s.selectedStore)
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const { data: storesData } = useStores()
   const stores = storesData?.stores ?? []
+  const { label: scopeLabel, heading: scopeHeading, mode: scopeMode, storeId: scopeStoreId } =
+    useBusinessUnitScopeLabel()
   /** No branch filter — show Business Units hub instead of single-store overview card. */
-  const allBusinessUnitsMode = stores.length > 1 && !selectedStore
+  const allBusinessUnitsMode = scopeMode === 'all'
+  const activeStoreRecord = selectedStore
+    ? stores.find((s) => s.id === selectedStore.id)
+    : stores.length === 1
+      ? stores[0]
+      : undefined
+  const showUnitDetailInSettings = !allBusinessUnitsMode && Boolean(activeStoreRecord)
   const [searchParams] = useSearchParams()
   const updateVendor = useUpdateVendor()
 
@@ -94,9 +104,17 @@ export default function SettingsPage() {
     (user.vendor_role.role === 'owner' || user.vendor_role.role === 'platform_staff')
 
   return (
-    <div className={cn('mx-auto space-y-4', allBusinessUnitsMode ? 'max-w-6xl' : 'max-w-3xl')}>
+    <div className="mx-auto max-w-6xl space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-foreground">Settings</h1>
+        <h1
+          className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xl font-bold text-foreground"
+          title={`Settings — ${scopeHeading}`}
+        >
+          <span className="shrink-0">Settings</span>
+          <span className="min-w-0 truncate text-base font-semibold text-muted-foreground sm:text-lg">
+            {scopeHeading}
+          </span>
+        </h1>
         <div className="flex flex-wrap items-center gap-2">
           {showSupportAuditLink && (
             <Link
@@ -117,192 +135,98 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* All business units: show management grid; one branch selected: store overview card */}
       {allBusinessUnitsMode ? (
         <StoresPage embeddedInSettings />
-      ) : (() => {
-        const activeKey = selectedStore?.code || selectedStore?.id
-        const slug = vendor?.slug?.trim()
-        const storeBase = slug ? getCustomerStorefrontBaseUrl(slug) : ''
-        const activeLink = slug
-          ? (selectedStore
-              ? `${storeBase}?branch=${encodeURIComponent(activeKey!)}`
-              : storeBase)
-          : '#'
-        const linkDisplay = activeLink.startsWith('http') ? activeLink.replace(/^https?:\/\//, '') : activeLink
-        const activeName = selectedStore?.name || vendor?.business_name || 'Business'
-        const activeDesc = selectedStore?.description || vendor?.business_type || ''
-
-        return (
-          <Card className={cn(selectedStore && 'ring-2 ring-ring ring-offset-1')}>
-            {/* Header row: icon + name/link + logged-in + manage button */}
-            <CardContent className="py-4 pb-0">
-              <div className="flex items-start gap-4">
-                {/* Icon */}
-                <div className={cn(
-                  'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl',
-                  selectedStore ? 'bg-accent' : 'bg-primary/15 dark:bg-secondary/80',
-                )}>
-                  {vendor?.logo_url && !selectedStore ? (
-                    <img src={mediaUrl(vendor.logo_url)} alt="" className="h-14 w-14 rounded-xl object-cover" />
-                  ) : selectedStore ? (
-                    <Store className="h-7 w-7 text-primary" />
-                  ) : (
-                    <Building2 className="h-7 w-7 text-primary" />
-                  )}
-                </div>
-
-                {/* Name + link */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="truncate font-semibold text-foreground">{activeName}</p>
-                    <VerifiedBadge level={vendorVerificationLevel(vendor)} size="xs" />
-                    {selectedStore ? (
-                      <IdChip
-                        label="Business unit"
-                        code={formatStoreCode({ id: selectedStore.id, code: selectedStore.code })}
-                        fullValue={selectedStore.id}
-                        className="!py-0 !px-1.5"
-                      />
-                    ) : (
-                      vendor && (
-                        <IdChip
-                          label="Business"
-                          code={formatVendorCode(vendor)}
-                          fullValue={vendor.id}
-                          className="!py-0 !px-1.5"
-                        />
-                      )
-                    )}
-                  </div>
-                  {activeDesc && <p className="mt-0.5 truncate text-xs text-muted-foreground">{activeDesc}</p>}
-                  {/* Store / vendor link */}
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <a
-                      href={activeLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:underline flex items-center gap-1 truncate"
-                    >
-                      {linkDisplay}
-                      <ExternalLink className="w-3 h-3 shrink-0" />
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(activeLink)
-                        toast.success(selectedStore ? `${selectedStore.name} link copied!` : 'Store link copied!')
-                      }}
-                      className="shrink-0 rounded p-1 transition-colors hover:bg-accent/80 dark:hover:bg-secondary/50"
-                      title="Copy link"
-                    >
-                      <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    </button>
-                  </div>
-                  {/* Secondary: main vendor link when a branch is selected */}
-                  {selectedStore && slug && (
-                    <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-border">
-                      <span className="text-[10px] text-gray-400 shrink-0">All stores:</span>
-                      <a
-                        href={storeBase}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-gray-400 hover:text-blue-600 hover:underline flex items-center gap-1 truncate"
-                      >
-                        {storeBase.replace(/^https?:\/\//, '')}
-                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right: logged-in + manage */}
-                <div className="text-right shrink-0 space-y-2">
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <p>Logged in as</p>
-                    <p className="font-medium text-foreground">{user?.full_name}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/stores')}
-                    className="flex items-center gap-1 text-xs text-primary hover:text-primary font-medium transition-colors px-2 py-1 rounded-lg hover:bg-accent ml-auto"
-                  >
-                    <Settings2 className="w-3 h-3" />
-                    Business Units
-                    <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </CardContent>
-
-            <CardContent className="border-t border-border pt-3 pb-4">
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                To filter orders and reports by branch, use the{' '}
-                <strong className="font-medium text-foreground">business unit selector in the top bar</strong>.
-                {' '}
-                <button
-                  type="button"
-                  onClick={() => navigate('/stores')}
-                  className="font-medium text-primary hover:underline"
-                >
-                  Manage business units
-                </button>
-              </p>
-            </CardContent>
-          </Card>
-        )
-      })()}
+      ) : showUnitDetailInSettings && activeStoreRecord ? (
+        <section className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+            <p className="text-xs text-muted-foreground">
+              Unit details for the selection in the top bar.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/stores')}
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              <Settings2 className="h-3 w-3" />
+              All business units
+            </button>
+          </div>
+          <BusinessUnitDetailPanel
+            key={activeStoreRecord.id}
+            store={activeStoreRecord}
+            embeddedInSettings
+          />
+        </section>
+      ) : null}
 
 
-      <div id="settings-section-profile">
-        <ProfileSection
-          vendor={vendor}
-          open={openSection === 'profile'}
-          toggle={() => setOpenSection(openSection === 'profile' ? null : 'profile')}
-          onSave={updateVendor}
-        />
+      <div
+        key={scopeStoreId ?? 'all-units'}
+        className="space-y-2"
+      >
+        <p className="flex flex-wrap items-center gap-2 px-0.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Settings scope:</span>
+          <span className="rounded-md border border-border bg-muted/40 px-2 py-0.5 font-medium text-foreground">
+            {scopeLabel}
+          </span>
+          {scopeMode === 'all' && (
+            <span className="text-[11px]">Change unit in the top bar</span>
+          )}
+        </p>
+        <div id="settings-section-profile">
+          <ProfileSection
+            vendor={vendor}
+            open={openSection === 'profile'}
+            toggle={() => setOpenSection(openSection === 'profile' ? null : 'profile')}
+            onSave={updateVendor}
+          />
+        </div>
+        <div id="settings-section-contact">
+          <ContactSection
+            vendor={vendor}
+            open={openSection === 'contact'}
+            toggle={() => setOpenSection(openSection === 'contact' ? null : 'contact')}
+            onSave={updateVendor}
+          />
+        </div>
+        <div id="settings-section-address">
+          <AddressSection
+            vendor={vendor}
+            activeStore={activeStoreRecord}
+            hqEditable={allBusinessUnitsMode}
+            unitEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
+            open={openSection === 'address'}
+            toggle={() => setOpenSection(openSection === 'address' ? null : 'address')}
+            onSaveVendor={updateVendor}
+          />
+        </div>
+        <div id="settings-section-tax">
+          <TaxSection
+            vendor={vendor}
+            open={openSection === 'tax'}
+            toggle={() => setOpenSection(openSection === 'tax' ? null : 'tax')}
+            onSave={updateVendor}
+          />
+        </div>
+        <div id="settings-section-hours-availability">
+          <BusinessHoursSection
+            vendor={vendor}
+            open={openSection === 'hours-availability'}
+            toggle={() => setOpenSection(openSection === 'hours-availability' ? null : 'hours-availability')}
+            onSave={updateVendor}
+          />
+        </div>
+        <div id="settings-section-order-acceptance">
+          <OrderAcceptanceSection
+            vendor={vendor}
+            open={openSection === 'order-acceptance'}
+            toggle={() => setOpenSection(openSection === 'order-acceptance' ? null : 'order-acceptance')}
+            onSave={updateVendor}
+          />
+        </div>
       </div>
-      <div id="settings-section-contact">
-        <ContactSection
-          vendor={vendor}
-          open={openSection === 'contact'}
-          toggle={() => setOpenSection(openSection === 'contact' ? null : 'contact')}
-          onSave={updateVendor}
-        />
-      </div>
-      <div id="settings-section-address">
-        <AddressSection
-          vendor={vendor}
-          open={openSection === 'address'}
-          toggle={() => setOpenSection(openSection === 'address' ? null : 'address')}
-          onSave={updateVendor}
-        />
-      </div>
-      <div id="settings-section-tax">
-        <TaxSection
-          vendor={vendor}
-          open={openSection === 'tax'}
-          toggle={() => setOpenSection(openSection === 'tax' ? null : 'tax')}
-          onSave={updateVendor}
-        />
-      </div>
-      <div id="settings-section-hours-availability">
-        <BusinessHoursSection
-          vendor={vendor}
-          open={openSection === 'hours-availability'}
-          toggle={() => setOpenSection(openSection === 'hours-availability' ? null : 'hours-availability')}
-          onSave={updateVendor}
-        />
-      </div>
-      <div id="settings-section-order-acceptance">
-        <OrderAcceptanceSection
-          vendor={vendor}
-          open={openSection === 'order-acceptance'}
-          toggle={() => setOpenSection(openSection === 'order-acceptance' ? null : 'order-acceptance')}
-          onSave={updateVendor}
-        />
-      </div>
-      <div id="settings-section-about">
+      <div id="settings-section-about" className="mt-2">
         <AboutSection
           open={openSection === 'about'}
           toggle={() => setOpenSection(openSection === 'about' ? null : 'about')}
@@ -319,40 +243,65 @@ interface SectionProps {
   onSave: ReturnType<typeof useUpdateVendor>
 }
 
-function SectionWrapper({ title, icon: Icon, open, toggle, children }: {
-  title: string; icon: React.ElementType; open: boolean; toggle: () => void; children: React.ReactNode
+function SectionWrapper({
+  title,
+  icon: Icon,
+  subtitle: subtitleOverride,
+  open,
+  toggle,
+  children,
+}: {
+  title: string
+  icon: React.ElementType
+  /** Fixed subtitle (e.g. About); omit to use live business-unit scope from the header picker. */
+  subtitle?: string
+  open: boolean
+  toggle: () => void
+  children: React.ReactNode
 }) {
+  const { label: scopeLabel } = useBusinessUnitScopeLabel()
+  const subtitle = subtitleOverride ?? scopeLabel
   return (
-    <Card className="overflow-hidden shadow-sm">
+    <Card
+      className={cn(
+        'overflow-hidden border shadow-sm transition-colors',
+        open && 'border-primary/25 bg-primary/[0.04]',
+      )}
+    >
       <button
         type="button"
         onClick={toggle}
+        aria-expanded={open}
         className={cn(
-          'flex w-full items-center justify-between gap-3 px-4 py-4 text-left sm:px-5 sm:py-[1.125rem]',
-          'transition-colors',
-          'hover:bg-accent/80 dark:hover:bg-secondary/60',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'flex w-full items-center gap-3 px-3 py-3 text-left transition-colors sm:px-3.5',
+          'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3.5">
-          <span
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-              'bg-primary/12 text-primary ring-1 ring-inset ring-primary/20',
-              'dark:bg-primary/25 dark:ring-primary/40',
-            )}
-            aria-hidden
-          >
-            <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
-          </span>
-          <span className="truncate text-base font-semibold leading-snug tracking-tight text-foreground">{title}</span>
-        </div>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground dark:text-foreground/80">
-          {open ? <ChevronUp className="h-5 w-5" aria-hidden /> : <ChevronDown className="h-5 w-5" aria-hidden />}
+        <span
+          className={cn(
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+            'bg-primary/10 text-primary ring-1 ring-inset ring-primary/15',
+          )}
+          aria-hidden
+        >
+          <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
         </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold leading-snug text-foreground">{title}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground" title={subtitle}>
+            {subtitle}
+          </p>
+        </div>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+          aria-hidden
+        />
       </button>
       {open && (
-        <CardContent className="border-t border-border bg-muted/25 px-4 pb-6 pt-0 dark:bg-black/20 sm:px-6">
+        <CardContent className="border-t border-border bg-muted/20 px-3 pb-4 pt-3 sm:px-4">
           {children}
         </CardContent>
       )}
@@ -371,8 +320,8 @@ function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
     : ''
 
   return (
-    <SectionWrapper title="About" icon={Info} open={open} toggle={toggle}>
-      <div className="space-y-4 pt-2">
+    <SectionWrapper title="About" icon={Info} subtitle="App version & support" open={open} toggle={toggle}>
+      <div className="space-y-4">
         <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-muted p-2 text-muted-foreground"><Globe className="h-4 w-4" /></div>
@@ -439,11 +388,19 @@ function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
   )
 }
 
-function SaveButton({ loading }: { loading: boolean }) {
+function SaveButton({ loading, compact }: { loading: boolean; compact?: boolean }) {
   return (
-    <Button type="submit" disabled={loading} className="gap-2">
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-      Save Changes
+    <Button
+      type="submit"
+      disabled={loading}
+      className={cn('gap-1.5', compact && 'h-8 px-3 text-xs')}
+    >
+      {loading ? (
+        <Loader2 className={cn('animate-spin', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
+      ) : (
+        <Save className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+      )}
+      {compact ? 'Save' : 'Save Changes'}
     </Button>
   )
 }
@@ -550,112 +507,154 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
         />
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        {/* Logo & Banner */}
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">Store Branding</Label>
-          <div className="flex gap-5 items-start">
-            {/* Logo */}
-            <div className="flex flex-col items-center gap-1.5">
-              <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFileSelected} />
-              <button type="button" onClick={() => logoRef.current?.click()}
-                className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center overflow-hidden group transition-colors bg-gray-50">
+      <form onSubmit={handleSubmit} className="space-y-2.5">
+        {/* Logo & banner — single compact row */}
+        <div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-foreground">Store branding</span>
+            <span className="text-[10px] text-muted-foreground">PNG/JPG · banner 3:1</span>
+          </div>
+          <div className="flex items-stretch gap-2">
+            <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFileSelected} />
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => logoRef.current?.click()}
+                title="Upload logo"
+                className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400 group"
+              >
                 {logoUploading ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                 ) : vendor?.logo_url ? (
                   <>
-                    <img src={imgUrl(vendor.logo_url)} alt="Logo" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Camera className="w-4 h-4 text-white" />
+                    <img src={imgUrl(vendor.logo_url)} alt="Logo" className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Camera className="h-3.5 w-3.5 text-white" />
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center gap-0.5 text-gray-400">
-                    <Building2 className="w-6 h-6" />
-                    <span className="text-[9px]">Add Logo</span>
-                  </div>
+                  <Building2 className="h-5 w-5 text-gray-400" />
                 )}
               </button>
               {vendor?.logo_url && (
-                <button type="button" aria-label="Close" type="button" onClick={removeLogo} className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-0.5">
-                <X className="w-2.5 h-2.5" /> Remove
+                <button
+                  type="button"
+                  aria-label="Remove logo"
+                  onClick={removeLogo}
+                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-[10px] text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                >
+                  <X className="h-2.5 w-2.5" />
                 </button>
               )}
-              <span className="text-[10px] text-gray-400">Logo</span>
+              <span className="mt-0.5 block text-center text-[9px] text-muted-foreground">Logo</span>
             </div>
 
-            {/* Banner */}
-            <div className="flex-1 flex flex-col gap-1.5">
-              <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFileSelected} />
-              <button type="button" onClick={() => bannerRef.current?.click()}
-                className="relative w-full h-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center overflow-hidden group transition-colors bg-gray-50">
+            <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFileSelected} />
+            <div className="relative min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => bannerRef.current?.click()}
+                title="Upload store banner (1200×400)"
+                className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400 group"
+              >
                 {bannerUploading ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                 ) : vendor?.banner_url ? (
                   <>
-                    <img src={imgUrl(vendor.banner_url)} alt="Banner" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Camera className="w-4 h-4 text-white" />
+                    <img src={imgUrl(vendor.banner_url)} alt="Banner" className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Camera className="h-3.5 w-3.5 text-white" />
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center gap-0.5 text-gray-400">
-                    <ImageIcon className="w-6 h-6" />
-                    <span className="text-[10px]">Add Store Banner (1200x400)</span>
-                  </div>
+                  <span className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                    <ImageIcon className="h-4 w-4 shrink-0" />
+                    Add banner
+                  </span>
                 )}
               </button>
               {vendor?.banner_url && (
-                <button type="button" aria-label="Close" type="button" onClick={removeBanner} className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-0.5 self-start">
-                <X className="w-2.5 h-2.5" /> Remove
+                <button
+                  type="button"
+                  aria-label="Remove banner"
+                  onClick={removeBanner}
+                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                >
+                  <X className="h-2.5 w-2.5" />
                 </button>
               )}
-              <span className="text-[10px] text-gray-400">Store Banner</span>
+              <span className="mt-0.5 block text-center text-[9px] text-muted-foreground">Banner</span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Business Name</Label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <div className="mb-1 flex items-center gap-1">
+              <Label className="text-xs font-medium">Business name</Label>
+              <button
+                type="button"
+                className="inline-flex text-muted-foreground hover:text-foreground"
+                title="Legal / registered name (e.g. on invoices). Store URL is unchanged."
+                aria-label="About business name"
+              >
+                <HelpCircle className="h-3 w-3" />
+              </button>
+            </div>
             <Input
+              className="h-8 text-sm"
               value={form.business_name}
               onChange={(e) => setForm({ ...form, business_name: e.target.value })}
               minLength={2}
               maxLength={255}
             />
-            <p className="text-xs text-gray-400">Legal / registered name (e.g. on invoices). Store URL is unchanged.</p>
           </div>
-          <div className="space-y-1.5">
-            <Label>Display Name</Label>
-            <Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
+          <div>
+            <div className="mb-1 flex items-center gap-1">
+              <Label className="text-xs font-medium">Brand name</Label>
+              <button
+                type="button"
+                className="inline-flex text-muted-foreground hover:text-foreground"
+                title="Public name shown on your business front and customer-facing pages."
+                aria-label="About brand name"
+              >
+                <HelpCircle className="h-3 w-3" />
+              </button>
+            </div>
+            <Input
+              className="h-8 text-sm"
+              value={form.display_name}
+              onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+            />
+          </div>
+          <div className="sm:col-span-2 lg:col-span-1">
+            <Label className="mb-1 block text-xs font-medium">Offering type</Label>
+            <select
+              className="flex h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+              value={form.offering_type}
+              onChange={(e) => setForm({ ...form, offering_type: e.target.value })}
+            >
+              {OFFERING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label>Offering Type</Label>
-          <select
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={form.offering_type}
-            onChange={(e) => setForm({ ...form, offering_type: e.target.value })}
-          >
-            {OFFERING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Description</Label>
+        <div>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <Label className="text-xs font-medium">Description</Label>
+            <span className="text-[10px] tabular-nums text-muted-foreground">{form.description.length}/2000</span>
+          </div>
           <textarea
-            className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y"
+            rows={3}
+            className="flex min-h-[4.5rem] w-full resize-y rounded-md border border-input bg-background px-2.5 py-1.5 text-sm leading-snug"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Tell customers about your business..."
             maxLength={2000}
           />
-          <p className="text-xs text-gray-400">{form.description.length}/2000</p>
         </div>
 
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-end border-t border-border/60 pt-2">
           <SaveButton loading={onSave.isPending} />
         </div>
       </form>
@@ -665,59 +664,166 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
 
 // â”€â”€ Contact Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+function supportPhonesFromVendor(vendor: Vendor): string[] {
+  const settings = (vendor.settings || {}) as Record<string, unknown>
+  const extra = Array.isArray(settings.support_phones)
+    ? (settings.support_phones as string[]).filter((p) => typeof p === 'string' && p.trim())
+    : []
+  const primary = vendor.support_phone?.trim() || ''
+  if (primary) {
+    return [primary, ...extra.filter((p) => p.trim() !== primary)]
+  }
+  return extra.length > 0 ? extra : ['']
+}
+
+function supportEmailsFromVendor(vendor: Vendor): string[] {
+  const settings = (vendor.settings || {}) as Record<string, unknown>
+  const extra = Array.isArray(settings.support_emails)
+    ? (settings.support_emails as string[]).filter((e) => typeof e === 'string' && e.trim())
+    : []
+  const primary = vendor.support_email?.trim() || ''
+  if (primary) {
+    return [primary, ...extra.filter((e) => e.trim().toLowerCase() !== primary.toLowerCase())]
+  }
+  return extra.length > 0 ? extra : ['']
+}
+
 function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
-  const [form, setForm] = useState({
-    support_email: '',
-    support_phone: '',
-  })
+  const [supportEmails, setSupportEmails] = useState<string[]>([''])
+  const [supportPhones, setSupportPhones] = useState<string[]>([''])
 
   useEffect(() => {
     if (vendor) {
-      setForm({
-        support_email: vendor.support_email || '',
-        support_phone: vendor.support_phone || '',
-      })
+      setSupportEmails(supportEmailsFromVendor(vendor))
+      setSupportPhones(supportPhonesFromVendor(vendor))
     }
   }, [vendor])
 
+  const updateSupportEmail = (index: number, value: string) => {
+    setSupportEmails((prev) => prev.map((e, i) => (i === index ? value : e)))
+  }
+
+  const addSupportEmail = () => {
+    setSupportEmails((prev) => [...prev, ''])
+  }
+
+  const removeSupportEmail = (index: number) => {
+    setSupportEmails((prev) => (prev.length <= 1 ? [''] : prev.filter((_, i) => i !== index)))
+  }
+
+  const updateSupportPhone = (index: number, value: string) => {
+    setSupportPhones((prev) => prev.map((p, i) => (i === index ? value : p)))
+  }
+
+  const addSupportPhone = () => {
+    setSupportPhones((prev) => [...prev, ''])
+  }
+
+  const removeSupportPhone = (index: number) => {
+    setSupportPhones((prev) => (prev.length <= 1 ? [''] : prev.filter((_, i) => i !== index)))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const trimmedPhones = supportPhones.map((p) => p.trim()).filter(Boolean)
+    const trimmedEmails = supportEmails.map((em) => em.trim()).filter(Boolean)
     onSave.mutate({
-      support_email: form.support_email || undefined,
-      support_phone: form.support_phone || undefined,
+      support_email: trimmedEmails[0] || undefined,
+      support_phone: trimmedPhones[0] || undefined,
+      settings: {
+        ...(vendor?.settings || {}),
+        support_emails: trimmedEmails.slice(1),
+        support_phones: trimmedPhones.slice(1),
+      },
     } as Partial<Vendor>)
   }
 
   return (
     <SectionWrapper title="Contact Information" icon={Phone} open={open} toggle={toggle}>
-      <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Primary Email</Label>
-            <Input value={vendor?.primary_email || ''} disabled className="bg-gray-50" />
+          <div className="space-y-2">
+            <Label>Business Support Email</Label>
+            <div className="space-y-2">
+              {supportEmails.map((email, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    {index > 0 && (
+                      <span className="mb-1 block text-xs text-muted-foreground">Additional email</span>
+                    )}
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => updateSupportEmail(index, e.target.value)}
+                      placeholder="support@yourstore.com"
+                    />
+                  </div>
+                  {index > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label="Remove email address"
+                      onClick={() => removeSupportEmail(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto gap-1 px-0 text-blue-600"
+              onClick={addSupportEmail}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add more
+            </Button>
           </div>
-          <div className="space-y-1.5">
-            <Label>Primary Phone</Label>
-            <Input value={vendor?.primary_phone || ''} disabled className="bg-gray-50" />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Support Email</Label>
-            <Input
-              type="email"
-              value={form.support_email}
-              onChange={(e) => setForm({ ...form, support_email: e.target.value })}
-              placeholder="support@yourstore.com"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Support Phone</Label>
-            <PhoneInput
-              value={form.support_phone}
-              onChange={(v) => setForm({ ...form, support_phone: v })}
-              defaultCountryIso="IN"
-            />
+          <div className="space-y-2">
+            <Label>Business Support Phone</Label>
+            <div className="space-y-2">
+              {supportPhones.map((phone, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    {index > 0 && (
+                      <span className="mb-1 block text-xs text-muted-foreground">Additional phone</span>
+                    )}
+                    <PhoneInput
+                      value={phone}
+                      onChange={(v) => updateSupportPhone(index, v)}
+                      defaultCountryIso="IN"
+                    />
+                  </div>
+                  {index > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="mt-6 h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label="Remove phone number"
+                      onClick={() => removeSupportPhone(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto gap-1 px-0 text-blue-600"
+              onClick={addSupportPhone}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add more
+            </Button>
           </div>
         </div>
         <div className="flex justify-end pt-2">
@@ -730,109 +836,291 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
 
 // â”€â”€ Address Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function AddressSection({ vendor, open, toggle, onSave }: SectionProps) {
-  const [form, setForm] = useState({
+function ReadOnlyBanner({ message }: { message: string }) {
+  return (
+    <p className="flex items-start gap-1 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-[10px] leading-snug text-muted-foreground">
+      <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+      <span>{message}</span>
+    </p>
+  )
+}
+
+type AddressFieldValues = {
+  street: string
+  city: string
+  state: string
+  postal: string
+}
+
+function UniformAddressFields({
+  values,
+  onChange,
+  streetPlaceholder = '123 Main Street',
+}: {
+  values: AddressFieldValues
+  onChange: (patch: Partial<AddressFieldValues>) => void
+  streetPlaceholder?: string
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="space-y-1">
+        <Label className="text-xs font-medium text-muted-foreground">Street address</Label>
+        <Input
+          value={values.street}
+          onChange={(e) => onChange({ street: e.target.value })}
+          placeholder={streetPlaceholder}
+          className="h-8 text-sm"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs font-medium text-muted-foreground">City</Label>
+          <Input
+            value={values.city}
+            onChange={(e) => onChange({ city: e.target.value })}
+            placeholder="Hyderabad"
+            className="h-8 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs font-medium text-muted-foreground">State</Label>
+          <Input
+            value={values.state}
+            onChange={(e) => onChange({ state: e.target.value })}
+            placeholder="Telangana"
+            className="h-8 text-sm"
+          />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs font-medium text-muted-foreground">Postal code</Label>
+        <Input
+          value={values.postal}
+          onChange={(e) => onChange({ postal: e.target.value })}
+          placeholder="500001"
+          className="h-8 text-sm"
+        />
+      </div>
+    </div>
+  )
+}
+
+function AddressPanelShell({
+  title,
+  icon: Icon,
+  hint,
+  editable,
+  readOnlyMessage,
+  children,
+  onSubmit,
+  saving,
+}: {
+  title: string
+  icon: React.ElementType
+  hint: string
+  editable: boolean
+  readOnlyMessage?: string
+  children: React.ReactNode
+  onSubmit: (e: React.FormEvent) => void
+  saving: boolean
+}) {
+  return (
+    <form
+      onSubmit={onSubmit}
+      className={cn(
+        'flex h-full flex-col rounded-lg border border-border bg-background',
+        !editable && 'opacity-[0.98]',
+      )}
+    >
+      <div className="flex items-start gap-2 border-b border-border px-2.5 py-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-foreground">{title}</p>
+          <p className="text-[10px] leading-snug text-muted-foreground">{hint}</p>
+        </div>
+        {!editable ? (
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <Lock className="h-2.5 w-2.5" />
+            View only
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-1 flex-col gap-2 p-2.5">
+        {!editable && readOnlyMessage ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
+        <fieldset disabled={!editable} className="contents [&_input]:disabled:cursor-default [&_input]:disabled:opacity-100">
+          {children}
+        </fieldset>
+        {editable ? (
+          <div className="mt-auto flex justify-end pt-0.5">
+            <SaveButton loading={saving} compact />
+          </div>
+        ) : null}
+      </div>
+    </form>
+  )
+}
+
+type AddressSectionProps = {
+  vendor: Vendor | null
+  activeStore?: StoreRecord
+  hqEditable: boolean
+  unitEditable: boolean
+  open: boolean
+  toggle: () => void
+  onSaveVendor: ReturnType<typeof useUpdateVendor>
+}
+
+function AddressSection({
+  vendor,
+  activeStore,
+  hqEditable,
+  unitEditable,
+  open,
+  toggle,
+  onSaveVendor,
+}: AddressSectionProps) {
+  const updateStore = useUpdateStore()
+
+  const [hqForm, setHqForm] = useState({
     street_address: '',
     city: '',
     state: '',
     postal_code: '',
-    latitude: '' as string,
-    longitude: '' as string,
-    service_radius_km: '10',
   })
-  const savingRef = useRef(false)
+  const [unitForm, setUnitForm] = useState({
+    street: '',
+    city: '',
+    state: '',
+    pincode: '',
+  })
+  const hqSavingRef = useRef(false)
+  const unitSavingRef = useRef(false)
 
   useEffect(() => {
-    if (vendor && !savingRef.current) {
-      setForm({
+    if (vendor && !hqSavingRef.current) {
+      setHqForm({
         street_address: vendor.street_address || '',
         city: vendor.city || '',
         state: vendor.state || '',
         postal_code: vendor.postal_code || '',
-        latitude: vendor.latitude != null ? String(vendor.latitude) : '',
-        longitude: vendor.longitude != null ? String(vendor.longitude) : '',
-        service_radius_km: String(vendor.service_radius_km ?? 10),
       })
     }
   }, [vendor])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!unitSavingRef.current) {
+      const addr = activeStore?.address
+      setUnitForm({
+        street: addr?.street ?? '',
+        city: addr?.city ?? '',
+        state: addr?.state ?? '',
+        pincode: addr?.pincode ?? '',
+      })
+    }
+  }, [activeStore?.id, activeStore?.address?.street, activeStore?.address?.city, activeStore?.address?.state, activeStore?.address?.pincode])
+
+  const handleHqSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    savingRef.current = true
-    onSave.mutate({
-      street_address: form.street_address || undefined,
-      city: form.city || undefined,
-      state: form.state || undefined,
-      postal_code: form.postal_code || undefined,
-      latitude: form.latitude ? parseFloat(form.latitude) : undefined,
-      longitude: form.longitude ? parseFloat(form.longitude) : undefined,
-      service_radius_km: form.service_radius_km ? parseInt(form.service_radius_km) : undefined,
-    } as Partial<Vendor>, {
-      onSettled: () => { savingRef.current = false },
-    })
+    if (!hqEditable) return
+    hqSavingRef.current = true
+    onSaveVendor.mutate(
+      {
+        street_address: hqForm.street_address || undefined,
+        city: hqForm.city || undefined,
+        state: hqForm.state || undefined,
+        postal_code: hqForm.postal_code || undefined,
+      } as Partial<Vendor>,
+      { onSettled: () => { hqSavingRef.current = false } },
+    )
   }
 
+  const handleUnitSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!unitEditable || !activeStore) return
+    unitSavingRef.current = true
+    updateStore.mutate(
+      {
+        id: activeStore.id,
+        data: {
+          address: {
+            street: unitForm.street || undefined,
+            city: unitForm.city || undefined,
+            state: unitForm.state || undefined,
+            pincode: unitForm.pincode || undefined,
+            country: activeStore.address?.country || 'India',
+          },
+        },
+      },
+      { onSettled: () => { unitSavingRef.current = false } },
+    )
+  }
+
+  const unitHint = unitEditable
+    ? `Location for ${activeStore?.name ?? 'this unit'}`
+    : 'Select a business unit in the top bar to edit'
+
   return (
-    <SectionWrapper title="Business address (HQ)" icon={MapPin} open={open} toggle={toggle}>
-      <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <div className="space-y-1.5">
-          <Label>Street Address</Label>
-          <Input
-            value={form.street_address}
-            onChange={(e) => setForm({ ...form, street_address: e.target.value })}
-            placeholder="123 Main Street, Suite 100"
+    <SectionWrapper title="Addresses" icon={MapPin} open={open} toggle={toggle}>
+      <div className="grid grid-cols-1 gap-3 pt-2 lg:grid-cols-2 lg:items-stretch">
+        <AddressPanelShell
+          title="Business unit address"
+          icon={Building}
+          hint={unitHint}
+          editable={unitEditable}
+          readOnlyMessage="Choose a specific business unit in the top bar to update its address."
+          onSubmit={handleUnitSubmit}
+          saving={updateStore.isPending}
+        >
+          <UniformAddressFields
+            values={{
+              street: unitForm.street,
+              city: unitForm.city,
+              state: unitForm.state,
+              postal: unitForm.pincode,
+            }}
+            onChange={(patch) =>
+              setUnitForm({
+                ...unitForm,
+                street: patch.street ?? unitForm.street,
+                city: patch.city ?? unitForm.city,
+                state: patch.state ?? unitForm.state,
+                pincode: patch.postal ?? unitForm.pincode,
+              })
+            }
           />
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="space-y-1.5">
-            <Label>City</Label>
-            <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Hyderabad" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>State</Label>
-            <Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} placeholder="Telangana" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Postal Code</Label>
-            <Input value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} placeholder="500001" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Radius (km)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={500}
-              value={form.service_radius_km}
-              onChange={(e) => setForm({ ...form, service_radius_km: e.target.value })}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Latitude</Label>
-            <Input
-              type="number"
-              step="any"
-              value={form.latitude}
-              onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-              placeholder="17.385044"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Longitude</Label>
-            <Input
-              type="number"
-              step="any"
-              value={form.longitude}
-              onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-              placeholder="78.486671"
-            />
-          </div>
-        </div>
-        <div className="flex justify-end pt-2">
-          <SaveButton loading={onSave.isPending} />
-        </div>
-      </form>
+        </AddressPanelShell>
+
+        <AddressPanelShell
+          title="Headquarters (HQ)"
+          icon={MapPin}
+          hint="All business units — legal & service location (headquarters)"
+          editable={hqEditable}
+          readOnlyMessage="Switch to All business units in the top bar to edit the HQ address."
+          onSubmit={handleHqSubmit}
+          saving={onSaveVendor.isPending}
+        >
+          <UniformAddressFields
+            values={{
+              street: hqForm.street_address,
+              city: hqForm.city,
+              state: hqForm.state,
+              postal: hqForm.postal_code,
+            }}
+            onChange={(patch) =>
+              setHqForm({
+                ...hqForm,
+                street_address: patch.street ?? hqForm.street_address,
+                city: patch.city ?? hqForm.city,
+                state: patch.state ?? hqForm.state,
+                postal_code: patch.postal ?? hqForm.postal_code,
+              })
+            }
+            streetPlaceholder="123 Main Street, Suite 100"
+          />
+        </AddressPanelShell>
+      </div>
     </SectionWrapper>
   )
 }
@@ -959,10 +1247,16 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   return (
-    <SectionWrapper title="Hours & ordering" icon={Clock} open={open} toggle={toggle}>
-      <form onSubmit={handleSubmit} className="space-y-3 pt-4">
+    <SectionWrapper
+      title="Offline Business Hours"
+      subtitle="Business Front opening hours"
+      icon={Clock}
+      open={open}
+      toggle={toggle}
+    >
+      <form onSubmit={handleSubmit} className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          <strong className="font-medium text-foreground">Opening hours</strong> — shown on your storefront (when you are open for visitors).
+          <strong className="font-medium text-foreground">Opening hours</strong> — shown on your business front (when you are open for visitors).
         </p>
         {DAYS.map((day) => (
           <div key={day} className="flex items-center gap-4 py-1">
@@ -1010,15 +1304,17 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
 function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [enabled, setEnabled] = useState(true)
   const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
-  const [useCustomHours, setUseCustomHours] = useState(false)
+  const [sameAsOfflineHours, setSameAsOfflineHours] = useState(true)
   const savingRef = useRef(false)
 
   useEffect(() => {
     if (vendor && !savingRef.current) {
       setEnabled(vendor.order_acceptance_enabled !== false)
       const h: Record<string, { open: string; close: string; closed: boolean }> = {}
-      const hasCustom = vendor.order_acceptance_hours && Object.keys(vendor.order_acceptance_hours).length > 0
-      setUseCustomHours(!!hasCustom)
+      const hasCustom =
+        vendor.order_acceptance_hours != null &&
+        Object.keys(vendor.order_acceptance_hours).length > 0
+      setSameAsOfflineHours(!hasCustom)
       for (const day of DAYS) {
         const existing = vendor.order_acceptance_hours?.[day]
         h[day] = {
@@ -1036,7 +1332,7 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
     savingRef.current = true
     onSave.mutate({
       order_acceptance_enabled: enabled,
-      order_acceptance_hours: useCustomHours ? hours : {},
+      order_acceptance_hours: sameAsOfflineHours ? {} : hours,
     } as Partial<Vendor>, {
       onSettled: () => { savingRef.current = false },
     })
@@ -1046,9 +1342,9 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }))
   }
 
-  const copyFromOpeningHours = () => {
-    if (!vendor?.business_hours) {
-      toast.error('Save opening hours first')
+  const copyFromOfflineBusinessHours = () => {
+    if (!vendor?.business_hours || Object.keys(vendor.business_hours).length === 0) {
+      toast.error('Save Offline Business Hours first')
       return
     }
     const h: Record<string, { open: string; close: string; closed: boolean }> = {}
@@ -1061,47 +1357,78 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
       }
     }
     setHours(h)
-    setUseCustomHours(true)
-    toast.success('Copied opening hours')
+    toast.success('Copied from Offline Business Hours')
   }
 
   return (
-    <SectionWrapper title="Online orders" icon={ShoppingBag} open={open} toggle={toggle}>
-      <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <p className="text-sm text-muted-foreground">
-          Controls when customers can place orders. If custom hours are off, the storefront uses your opening hours from the section above.
-        </p>
-        <label className="flex items-center gap-3 cursor-pointer">
+    <SectionWrapper
+      title="Online orders"
+      subtitle="When customers can place orders online"
+      icon={ShoppingBag}
+      open={open}
+      toggle={toggle}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="flex cursor-pointer items-center gap-3">
           <input
             type="checkbox"
             checked={enabled}
             onChange={(e) => setEnabled(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600"
+            className="h-4 w-4 rounded border-gray-300 text-blue-600"
           />
-          <span className="text-sm font-medium text-gray-700">Accept Orders</span>
+          <span className="text-sm font-medium text-foreground">Accept orders online</span>
         </label>
-        <p className="text-xs text-gray-500">
-          When disabled, customers cannot place new orders on your storefront.
+        <p className="text-xs text-muted-foreground">
+          When disabled, customers cannot place new orders on your business front.
         </p>
 
         {enabled && (
           <>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useCustomHours}
-                onChange={(e) => setUseCustomHours(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600"
-              />
-              <span className="text-sm font-medium text-foreground">Use custom order hours (different from opening hours)</span>
-            </label>
-            {useCustomHours && (
-              <Button type="button" variant="outline" size="sm" onClick={copyFromOpeningHours}>
-                Copy from opening hours
-              </Button>
+            <div className="space-y-2" role="radiogroup" aria-label="Online order hours">
+              <label className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+                <input
+                  type="radio"
+                  name="orderHoursMode"
+                  checked={sameAsOfflineHours}
+                  onChange={() => setSameAsOfflineHours(true)}
+                  className="h-4 w-4 border-gray-300 text-blue-600"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-foreground">Same as Offline Business Hours</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Online order times follow your offline hours — no separate schedule to configure.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+                <input
+                  type="radio"
+                  name="orderHoursMode"
+                  checked={!sameAsOfflineHours}
+                  onChange={() => setSameAsOfflineHours(false)}
+                  className="h-4 w-4 border-gray-300 text-blue-600"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-foreground">Configure Different Hours</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Set a custom weekly schedule for when customers can place orders online.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            {!sameAsOfflineHours && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Set custom online order hours below, or copy your offline hours as a starting point.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={copyFromOfflineBusinessHours}>
+                  Copy from Offline Business Hours
+                </Button>
+              </>
             )}
 
-            {useCustomHours && (
+            {!sameAsOfflineHours && (
               <div className="space-y-3 pl-7">
                 {DAYS.map((day) => (
                   <div key={day} className="flex items-center gap-4 py-1">

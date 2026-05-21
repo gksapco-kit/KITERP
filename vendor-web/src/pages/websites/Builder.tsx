@@ -127,7 +127,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'ab_test_block', label: 'A/B Test Block', icon: ToggleLeft, desc: 'Show variant A or B to split-test content', category: 'advanced', defaultProps: { variant_a: { headline: 'Version A Headline', cta: 'Click Here A' }, variant_b: { headline: 'Version B Headline', cta: 'Click Here B' }, split: 50 } },
   { type: 'personalization_block', label: 'Personalization Block', icon: Users, desc: 'Show different content by device / location / referral', category: 'advanced', defaultProps: { default_content: 'Default message for all visitors', mobile_content: 'Tap to get started on mobile!', rule: 'device' } },
 
-  // Commerce — P1 storefront blocks (must mirror storefront BlockRenderer)
+  // Commerce — P1 business front blocks (must mirror business front BlockRenderer)
   { type: 'product_detail', label: 'Product Detail', icon: ShoppingBag, desc: 'Gallery, variants, and add-to-cart for a single product', category: 'ecommerce', defaultProps: { show_variants: true, show_reviews: true } },
   { type: 'cart_drawer', label: 'Cart Drawer', icon: ShoppingCart, desc: 'Slide-out cart panel with upsells', category: 'erp', defaultProps: { title: 'Your Cart', show_upsells: true } },
   { type: 'checkout_form', label: 'Checkout Form', icon: ShoppingCart, desc: 'Address, shipping, payment fields', category: 'erp', defaultProps: { allow_cod: true, show_tip: false } },
@@ -695,7 +695,7 @@ const LINK_TYPES: LinkTypeMeta[] = [
   { id: 'team_member', label: 'Team member', desc: 'Employee / team profile',       icon: Users,        group: 'people', resource: 'team' },
   { id: 'testimonial', label: 'Testimonial', desc: 'Highlight a review on site',    icon: Quote,        group: 'people', resource: 'testimonials' },
 
-  // Stores / branches (linked via ?branch={code} on the current storefront)
+  // Stores / branches (linked via ?branch={code} on the current business front)
   { id: 'store',         label: 'Store / branch',   desc: 'Switch to a specific outlet',  icon: StoreIcon,  group: 'stores', resource: 'stores', note: 'Link this button to one of your physical outlets. Visitors get ?branch={code} appended so inventory, prices and contact info follow that branch.' },
   { id: 'store_locator', label: 'All stores',       desc: 'Store locator — lists every branch', icon: MapPin, group: 'stores', route: '/stores',   note: 'Opens the store-locator page showing every active outlet. Use this for "Find a store near you" type buttons.' },
   { id: 'stores_multi',  label: 'Selected stores',  desc: 'Pick several branches at once', icon: Layers,   group: 'stores', resource: 'stores', note: 'Link to a curated set of outlets. Visitors land on the locator filtered to just the branches you picked (?branch=code1,code2…).' },
@@ -2382,7 +2382,7 @@ function BlockPreview({
   }
   const p = block.props
   const isTemplateBlock = !!(p as any)?._template_block
-  /** Site theme only — per-block `_template_style` is not merged so preview matches the live storefront. */
+  /** Site theme only — per-block `_template_style` is not merged so preview matches the live business front. */
   const effectiveStyle: StyleConfig = style
   const ds = (p as any)?.data_source
   const dsType = normalizeSourceType(ds?.type)
@@ -2707,7 +2707,7 @@ function BlockPreview({
         const sideImageUrl = ((p as any).image_url || p.bg_image_url) as string | undefined
         const hasSideImage = isSplit && !!sideImageUrl
         const hasBgImg = !!heroImageUrl
-        // Split + right column image should NOT reuse full-bleed background (matches storefront gallery look).
+        // Split + right column image should NOT reuse full-bleed background (matches business front gallery look).
         const useFullBleedImageBg = hasBgImg && !hasSideImage
         const heroBg = useFullBleedImageBg && p.bg_style === 'gradient'
           ? heroGrad
@@ -8276,7 +8276,7 @@ export default function WebsiteBuilder() {
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
   const [showFullPreview, setShowFullPreview] = useState(false)
-  /** Full-screen preview: real storefront iframe (draft token) vs legacy BlockPreview fallback. */
+  /** Full-screen preview: real business front iframe (draft token) vs legacy BlockPreview fallback. */
   const [sfOverlayToken, setSfOverlayToken] = useState<string | null>(null)
   const [sfOverlayVendorSlug, setSfOverlayVendorSlug] = useState<string | null>(null)
   const [sfOverlayPublishedFallback, setSfOverlayPublishedFallback] = useState(false)
@@ -9583,7 +9583,7 @@ export default function WebsiteBuilder() {
       setLastSavedAt(new Date())
       setSaveFlash(true)
       setTimeout(() => setSaveFlash(false), 1800)
-      toast.success(`✅ Applied — your storefront is now live with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`)
+      toast.success(`✅ Applied — your business front is now live with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       toast.error(`Apply failed: ${msg}`)
@@ -9732,7 +9732,7 @@ export default function WebsiteBuilder() {
     }
   }
 
-  // Store test URL — storefront /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
+  // Store test URL — business front /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
   const vendorCatalogSlug = myVendor?.slug?.trim() ?? null
   const siteTestUrl = site
@@ -9804,7 +9804,7 @@ export default function WebsiteBuilder() {
       if (!opened) toast.error('Pop-up blocked — allow pop-ups to open the draft preview.')
     } catch (err) {
       console.error('[BrowserPreview] failed:', err)
-      // When the API DB has no wb_builder_previews table, still open something useful if we have a storefront URL.
+      // When the API DB has no wb_builder_previews table, still open something useful if we have a business front URL.
       if (siteTestUrl && isBuilderPreviewInfraFailure(err)) {
         const pageSlug = activePage?.slug?.trim()
         const path =
@@ -9815,10 +9815,10 @@ export default function WebsiteBuilder() {
         const opened = window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
         if (opened) {
           toast.warning(
-            'Draft snapshot preview is not available on this server (run alembic upgrade web006 on the database your API uses, then restart the API). Opened your published storefront instead — click Save first if you need the latest edits there.',
+            'Draft snapshot preview is not available on this server (run alembic upgrade web006 on the database your API uses, then restart the API). Opened your published business front instead — click Save first if you need the latest edits there.',
           )
         } else {
-          toast.error('Pop-up blocked — allow pop-ups to open the storefront.')
+          toast.error('Pop-up blocked — allow pop-ups to open the business front.')
         }
       } else {
         toast.error(extractApiError(err, 'Browser preview'))
@@ -9868,12 +9868,12 @@ export default function WebsiteBuilder() {
           setSfOverlayVendorSlug(vendorSlug)
           setSfOverlayPublishedFallback(true)
           toast.warning(
-            'Draft snapshot preview is not available on this server. Showing your published storefront in the overlay — run DB migrations for builder previews if you need unsaved draft parity.',
+            'Draft snapshot preview is not available on this server. Showing your published business front in the overlay — run DB migrations for builder previews if you need unsaved draft parity.',
           )
         } else {
           setSfOverlayBlockFallback(true)
           toast.warning(
-            'Draft preview is not available and no local storefront URL is configured — showing builder canvas preview.',
+            'Draft preview is not available and no local business front URL is configured — showing builder canvas preview.',
           )
         }
       } else {
@@ -10206,7 +10206,7 @@ export default function WebsiteBuilder() {
             </button>
           </div>
 
-          {/* Scrollable preview canvas — iframe uses the same storefront draft URL as “Open in browser”. */}
+          {/* Scrollable preview canvas — iframe uses the same business front draft URL as “Open in browser”. */}
           <div className="flex-1 overflow-auto bg-gray-800 flex justify-center py-6">
             <div
               className="bg-white shadow-2xl rounded-xl overflow-hidden transition-all duration-300 flex flex-col"
@@ -10219,13 +10219,13 @@ export default function WebsiteBuilder() {
               {sfOverlayLoading && (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-gray-500 text-sm">
                   <Loader2 className="w-8 h-8 animate-spin text-primary/80" />
-                  <span>Loading storefront preview…</span>
+                  <span>Loading business front preview…</span>
                 </div>
               )}
               {!sfOverlayLoading && storefrontOverlayIframeSrc && (
                 <iframe
                   key={storefrontOverlayIframeSrc}
-                  title="Storefront preview"
+                  title="Business front preview"
                   src={storefrontOverlayIframeSrc}
                   className="w-full flex-1 border-0 bg-white"
                   style={{ minHeight: 'calc(100vh - 7rem)' }}
@@ -10304,7 +10304,7 @@ export default function WebsiteBuilder() {
             ))}
           </div>
 
-          {/* Full Preview — same storefront app as “Open in browser”, embedded at the selected device width */}
+          {/* Full Preview — same business front app as “Open in browser”, embedded at the selected device width */}
           <button
             type="button"
             onClick={() => {
@@ -10315,7 +10315,7 @@ export default function WebsiteBuilder() {
               setSfOverlayLoading(true)
               setShowFullPreview(true)
             }}
-            title="Full-screen preview — real storefront (draft snapshot), same rendering as Open in browser"
+            title="Full-screen preview — real business front (draft snapshot), same rendering as Open in browser"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-semibold transition-colors"
           >
             <Eye className="w-3.5 h-3.5" /> Preview
@@ -10325,7 +10325,7 @@ export default function WebsiteBuilder() {
             type="button"
             disabled={openingBrowserPreview}
             onClick={() => void handleOpenBrowserPreview()}
-            title="Open draft on the storefront in a new tab (same link rules as template gallery — uses VITE_STOREFRONT_URL or :3002 in dev)"
+            title="Open draft on the business front in a new tab (same link rules as template gallery — uses VITE_STOREFRONT_URL or :3002 in dev)"
             className={cn(
               STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS,
               openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-accent',
@@ -11531,7 +11531,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
   const [savingI18n, setSavingI18n] = useState(false)
 
   // Branding + analytics state — surfaces tracking IDs and the favicon
-  // that previously had no UI but were honoured on the storefront.
+  // that previously had no UI but were honoured on the business front.
   const [faviconUrl, setFaviconUrl] = useState((site as any).favicon_url || '')
   const [logoUrl, setLogoUrl] = useState((site as any).logo_url || '')
   const [ogImageUrl, setOgImageUrl] = useState((site as any).og_image_url || '')

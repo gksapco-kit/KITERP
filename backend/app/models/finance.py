@@ -50,7 +50,7 @@ class FinCompany(Base):
 class FinFiscalYearCompany(Base):
     """
     Many-to-many: one vendor-level fiscal year / variant (shared calendar) can be
-    posted against multiple company codes; `is_current` is per company.
+    posted against multiple business units; `is_current` is per business unit.
     """
     __tablename__ = "fin_fiscal_year_company"
 
@@ -221,7 +221,7 @@ class FinPeriod(Base):
 class FinFieldRule(Base):
     """
     Per-field display requirement for GL documents (e.g. journal entry).
-    scope: gl = tenant default, company = company code, user = team member.
+    scope: gl = tenant default, company = business unit, user = team member.
     """
     __tablename__ = "fin_field_rule"
 

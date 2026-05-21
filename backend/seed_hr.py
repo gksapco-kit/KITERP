@@ -11,7 +11,7 @@ Usage (from backend/):
 
 Requires: DATABASE_URL in .env  (postgresql+asyncpg://...)
 
-Re-running ``seed_employees`` resets each seed account password to ``Test@1234`` (same emails as ``EMPLOYEES``), so HR storefront login matches docs even if that user existed before.
+Re-running ``seed_employees`` resets each seed account password to ``Test@1234`` (same emails as ``EMPLOYEES``), so HR business front login matches docs even if that user existed before.
 """
 
 import asyncio
@@ -522,7 +522,7 @@ async def main(vendor_id_arg: str | None, vendor_slug_arg: str | None, days: int
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed HR test data into an existing vendor")
     parser.add_argument("--vendor-id",    help="Target vendor UUID (auto-picks if only one vendor exists)")
-    parser.add_argument("--vendor-slug",  help="Target vendor by storefront slug (e.g. test)")
+    parser.add_argument("--vendor-slug",  help="Target vendor by business front slug (e.g. test)")
     parser.add_argument("--list-vendors", action="store_true", help="List all vendors and exit")
     parser.add_argument("--days",         type=int, default=30, help="Days of attendance history (default: 30)")
     parser.add_argument("--clean",        action="store_true", help="Remove seed employees from the vendor")

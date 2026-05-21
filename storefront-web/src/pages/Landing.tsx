@@ -154,7 +154,7 @@ export default function Landing() {
             {[
               {
                 icon: Globe, title: 'Multi-Vendor Platform', color: 'bg-blue-50 text-blue-600',
-                desc: 'Each vendor gets their own branded storefront with products, services, and independent checkout.',
+                desc: 'Each vendor gets their own branded business front with products, services, and independent checkout.',
               },
               {
                 icon: ShieldCheck, title: 'Verified Vendors', color: 'bg-green-50 text-green-600',

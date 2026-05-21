@@ -48,7 +48,7 @@ async def get_vendor_id_from_tenant(
             return vendor.id
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Vendor '{vendor_slug}' not found or not available on the storefront.",
+            detail=f"Vendor '{vendor_slug}' not found or not available on the business front.",
         )
 
     raise HTTPException(
@@ -126,7 +126,7 @@ async def list_storefront_vendors(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Public directory of vendors that can be opened on the path-based storefront
+    Public directory of vendors that can be opened on the path-based business front
     (``/store/{slug}``). Used by the marketing landing page for suggestions.
     """
     repo = VendorRepository(db)
@@ -195,7 +195,7 @@ async def get_vendor_by_slug(
 ):
     """
     Public endpoint: Look up a vendor by slug.
-    Used by the storefront SaaS app to resolve vendor from URL path.
+    Used by the business front SaaS app to resolve vendor from URL path.
     """
     repo = VendorRepository(db)
     vendor = await repo.find_by_slug(vendor_slug)
@@ -241,7 +241,7 @@ async def list_public_stores(
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return active store locations for the vendor's storefront."""
+    """Return active store locations for the vendor's business front."""
     from sqlalchemy import select
     from app.models.store import Store
 
@@ -312,7 +312,7 @@ async def list_categories(
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    """List active categories for the vendor storefront."""
+    """List active categories for the vendor business front."""
     from app.repositories.vendor_category_repo import VendorCategoryRepository
     repo = VendorCategoryRepository(db)
 
@@ -339,7 +339,7 @@ async def list_products(
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    """List active products for vendor storefront."""
+    """List active products for vendor business front."""
     repo = ProductRepository(db)
     skip = (page - 1) * size
     
@@ -567,7 +567,7 @@ async def list_services(
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    """List active services for vendor storefront."""
+    """List active services for vendor business front."""
     repo = ServiceRepository(db)
     skip = (page - 1) * size
 

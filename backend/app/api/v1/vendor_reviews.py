@@ -149,7 +149,7 @@ async def toggle_review_visibility(
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Show/hide a review from storefront."""
+    """Show/hide a review from business front."""
     vendor_id = await _get_vendor_id(user, db)
     repo = ReviewRepository(db)
     review = await repo.get_by_id_with_customer(review_id)

@@ -1002,7 +1002,7 @@ function CredentialsTab({ emp }: { emp: any }) {
           <KeyRound className="w-4 h-4 text-primary" /> Credentials
         </h3>
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          This employee has no linked login account. Portal passwords apply only to team members who have a user record (the same account used for HR / ESS on the storefront).
+          This employee has no linked login account. Portal passwords apply only to team members who have a user record (the same account used for HR / ESS on the business front).
         </div>
       </div>
     )
@@ -1014,7 +1014,7 @@ function CredentialsTab({ emp }: { emp: any }) {
         <KeyRound className="w-4 h-4 text-primary" /> Credentials — HR / ESS portal
       </h3>
       <p className="text-xs text-gray-500 mb-4 max-w-xl">
-        Employees open your storefront <span className="font-mono bg-gray-100 px-1 rounded">/hr/login</span> and sign in with their work email or employee code plus the password you set here. This is separate from the vendor dashboard login.
+        Employees open your business front <span className="font-mono bg-gray-100 px-1 rounded">/hr/login</span> and sign in with their work email or employee code plus the password you set here. This is separate from the vendor dashboard login.
       </p>
 
       <div className="grid gap-3 mb-6 max-w-lg">

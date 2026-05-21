@@ -119,7 +119,7 @@ async def dispatch_event_for_vendor(
     Resolve every site owned by a vendor and dispatch the same event to each.
 
     Used when the trigger source is not website-scoped (e.g. an order placed
-    through the regular storefront / POS) but vendors with multiple sites
+    through the regular business front / POS) but vendors with multiple sites
     still want webhook subscribers to learn about it.
     """
     vendor_uuid = _coerce_uuid(vendor_id)

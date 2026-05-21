@@ -196,7 +196,7 @@ async def create_fiscal_year(
                 )
             )
             if r.scalar_one_or_none() is None:
-                raise HTTPException(404, f"Company not found for this tenant: {cid}")
+                raise HTTPException(404, f"Business unit not found for this tenant: {cid}")
         try:
             fy = await create_fiscal_year_from_template(db, vu.vendor_id, p)
         except ValueError as e:
@@ -218,7 +218,7 @@ async def create_fiscal_year(
             )
         )
         if r.scalar_one_or_none() is None:
-            raise HTTPException(404, f"Company not found for this tenant: {cid}")
+            raise HTTPException(404, f"Business unit not found for this tenant: {cid}")
     if await find_fiscal_year_by_variant(db, vu.vendor_id, d["variant_code"]):
         raise HTTPException(
             400,
@@ -231,10 +231,10 @@ async def create_fiscal_year(
         if other is not None:
             raise HTTPException(
                 400,
-                f"A fiscal year already exists for a selected company for that period: "
+                f"A fiscal year already exists for a selected business unit for that period: "
                 f"\"{other.name}\" ({other.variant_code}, {other.start_date} to {other.end_date}). "
-                f"You asked for {d['start_date']} to {d['end_date']}, which overlaps for that company. "
-                "Remove that company, pick another variant, or use different dates.",
+                f"You asked for {d['start_date']} to {d['end_date']}, which overlaps for that business unit. "
+                "Remove that business unit, pick another variant, or use different dates.",
             )
     fy = await FinCOARepo(db).create_fiscal_year(
         vu.vendor_id,
@@ -256,7 +256,7 @@ async def assign_fiscal_year_companies(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Assign an existing shared fiscal year / variant to more company codes (no duplicate periods)."""
+    """Assign an existing shared fiscal year / variant to more business units (no duplicate periods)."""
     try:
         p = FiscalYearAssignCompanies.model_validate(body)
     except Exception as e:
@@ -268,7 +268,7 @@ async def assign_fiscal_year_companies(
             )
         )
         if r.scalar_one_or_none() is None:
-            raise HTTPException(404, f"Company not found: {cid}")
+            raise HTTPException(404, f"Business unit not found: {cid}")
     try:
         n = await assign_fiscal_year_to_companies(
             db, vu.vendor_id, fy_id, p.company_ids, mark_current=p.is_current
@@ -649,7 +649,7 @@ async def _sync_fin_companies_from_stores(db: AsyncSession, vendor_id: UUID) -> 
         by_code[code] = co
     await db.flush()
 
-    # Mark default: align with the default store (same company code on GL side)
+    # Mark default: align with the default store (same business unit code on GL side)
     dstore = (
         await db.execute(
             select(Store)
@@ -691,7 +691,7 @@ async def list_companies(
         from app.models.vendor import Vendor
         vr = await db.execute(select(Vendor).where(Vendor.id == vu.vendor_id))
         vendor = vr.scalar_one_or_none()
-        name = vendor.business_name if vendor else "Default Company"
+        name = vendor.business_name if vendor else "Default business unit"
         c = FinCompany(vendor_id=vu.vendor_id, code="1000", name=name, is_default=True)
         db.add(c)
         await db.commit()
@@ -804,7 +804,7 @@ async def update_company(
     )
     co = r.scalar_one_or_none()
     if not co:
-        raise HTTPException(status_code=404, detail="Company not found")
+        raise HTTPException(status_code=404, detail="Business unit not found")
     allowed = {"name", "code", "currency", "country", "tax_id", "address", "is_default", "is_active"}
     for k, v in body.items():
         if k in allowed:

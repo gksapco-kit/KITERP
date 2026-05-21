@@ -117,7 +117,7 @@ async def _require_company(db: AsyncSession, vendor_id: UUID, company_id: UUID) 
     )
     co = r.scalar_one_or_none()
     if not co:
-        raise HTTPException(status_code=404, detail="Company not found")
+        raise HTTPException(status_code=404, detail="Business unit not found")
     return co
 
 

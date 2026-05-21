@@ -51,7 +51,7 @@ export default function SocialLinksPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Social & Web Links</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Links shown on your storefront, website, and customer-facing pages.
+          Links shown on your business front, website, and customer-facing pages.
         </p>
       </div>
 

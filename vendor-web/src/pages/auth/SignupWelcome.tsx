@@ -34,8 +34,8 @@ const LAUNCH_STEPS: LaunchStep[] = [
     nextHref: '/storefront-builder',
   },
   {
-    id: 'storefront',
-    label: 'Storefront',
+    id: 'business front',
+    label: 'Business Front',
     description: 'Template, branding, and pages for your public store URL.',
     nextHref: '/storefront-builder',
   },
@@ -93,7 +93,7 @@ function clampComplete(n: unknown): number {
 function topStatusBadge(complete: number): string {
   if (complete >= 4) return 'STORE LIVE'
   if (complete >= 3) return 'CATALOG READY'
-  if (complete >= 2) return 'STOREFRONT READY'
+  if (complete >= 2) return 'BUSINESS FRONT READY'
   return 'ACCOUNT READY'
 }
 

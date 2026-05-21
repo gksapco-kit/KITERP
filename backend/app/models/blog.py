@@ -1,5 +1,5 @@
 """
-Vendor Blog Posts — vendor-authored articles published on their storefront.
+Vendor Blog Posts — vendor-authored articles published on their business front.
 """
 from __future__ import annotations
 import uuid

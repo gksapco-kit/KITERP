@@ -189,7 +189,7 @@ interface TemplateDef {
 }
 
 const TEMPLATES: TemplateDef[] = [
-  // ── Editorial vertical templates from Storefront UI Kit ──────────────────
+  // ── Editorial vertical templates from Business Front UI Kit ──────────────────
   {
     id: 'atelier',
     name: 'Atelier · Retail',
@@ -778,14 +778,14 @@ const SECTION_FIELD_DEFS: Record<string, FieldDef[]> = {
   ],
 }
 
-// ─── Storefront pages directory ───────────────────────────────────────────────
+// ─── Business Front pages directory ───────────────────────────────────────────────
 interface StorefrontPageDef {
   route: string; label: string; icon: React.ElementType
   description: string; features: string[]
   requiresModule?: keyof ModulesConfig; editableInBuilder: boolean; editorHint?: string
 }
 const STOREFRONT_PAGES: StorefrontPageDef[] = [
-  { route: '/', label: 'Home Page', icon: Home, description: 'Your main storefront — all sections you configure in this builder appear here in the order you set.', features: ['Hero banner', 'Announcement bar', 'Product & service grids', 'Category showcase', 'Testimonials & reviews', 'Newsletter opt-in', 'Contact map', 'Any custom sections you add'], editableInBuilder: true, editorHint: 'Edit sections using the Sections tab in the left panel' },
+  { route: '/', label: 'Home Page', icon: Home, description: 'Your main business front — all sections you configure in this builder appear here in the order you set.', features: ['Hero banner', 'Announcement bar', 'Product & service grids', 'Category showcase', 'Testimonials & reviews', 'Newsletter opt-in', 'Contact map', 'Any custom sections you add'], editableInBuilder: true, editorHint: 'Edit sections using the Sections tab in the left panel' },
   { route: '/products', label: 'Products Catalogue', icon: ShoppingBag, description: 'Auto-generated product listing page with search, filters and sorting. Populated from your product catalogue.', features: ['Full-text search bar', 'Category & price filters', 'Sort by: price / rating / newest', 'Grid / list view toggle', 'Pagination'], editableInBuilder: false },
   { route: '/products/:slug', label: 'Product Detail Page', icon: Package, description: 'Individual product page with gallery, variants, buy actions, and related products.', features: ['Product image gallery', 'Variant & size selector', 'Add to cart / buy now', 'Star ratings & reviews', 'Related / upsell products', 'Delivery & return info'], editableInBuilder: true, editorHint: 'Uses the classic product layout by default.' },
   { route: '/services', label: 'Services Catalogue', icon: Wrench, description: 'All your services with booking and enquiry CTAs. Auto-populated from your services list.', features: ['Service cards with duration & price', 'Book now button', 'Filter by category', 'Enquiry form'], editableInBuilder: false },
@@ -862,8 +862,8 @@ function runAI(prompt: string, vendor: Vendor | null, current: BuilderConfig): {
     const sections = already ? current.sections : [...current.sections, { id: 'ess_login_card', visible: true, props: { headline: 'Employee Portal', subtitle: 'Access your self-service dashboard' } }]
     return { reply: "Enabled the Employee Portal module and added an ESS login card section.", patch: { modules: { ...current.modules, ess_portal: true }, sections } }
   }
-  if (p.includes('chat') || p.includes('support') || p.includes('widget') || p.includes('crm')) return { reply: "Live chat widget enabled — customers can reach you directly from the storefront.", patch: { modules: { ...current.modules, crm_widget: true } } }
-  if (p.includes('job') || p.includes('hiring') || p.includes('career') || p.includes('recruitment')) return { reply: "Job Board section enabled — your open HR positions will appear on the storefront.", patch: { modules: { ...current.modules, job_board: true } } }
+  if (p.includes('chat') || p.includes('support') || p.includes('widget') || p.includes('crm')) return { reply: "Live chat widget enabled — customers can reach you directly from the business front.", patch: { modules: { ...current.modules, crm_widget: true } } }
+  if (p.includes('job') || p.includes('hiring') || p.includes('career') || p.includes('recruitment')) return { reply: "Job Board section enabled — your open HR positions will appear on the business front.", patch: { modules: { ...current.modules, job_board: true } } }
   if (p.includes('newsletter') || p.includes('email') || p.includes('subscribe')) return { reply: "Newsletter signup enabled — great for building your email list.", patch: { modules: { ...current.modules, newsletter: true } } }
   if (p.includes('compact') || p.includes('dense') || p.includes('tight')) return { reply: "Compact spacing applied — more content visible above the fold.", patch: { style: { ...current.style, spacing: 'compact' } } }
   if (p.includes('spacious') || p.includes('airy') || p.includes('breathe')) return { reply: "Spacious layout applied — elegant and breathable.", patch: { style: { ...current.style, spacing: 'spacious' } } }
@@ -878,7 +878,7 @@ function runAI(prompt: string, vendor: Vendor | null, current: BuilderConfig): {
     const bt = vendor.business_type.toLowerCase()
     if (bt.includes('restaurant') || bt.includes('food') || bt.includes('cafe')) return { reply: `Since you're a ${vendor.business_type}, I've applied the **Verde** restaurant layout.`, patch: buildConfigPatchForTemplate('verde', current) }
   }
-  return { reply: "I've refreshed your storefront with a balanced look. Try prompts like 'make it dark', 'warm tones for a restaurant', 'minimal and clean', or 'add employee portal'!", patch: { style: { ...current.style, primary_color: '#6366f1', secondary_color: '#4f46e5', accent_color: '#f59e0b' } } }
+  return { reply: "I've refreshed your business front with a balanced look. Try prompts like 'make it dark', 'warm tones for a restaurant', 'minimal and clean', or 'add employee portal'!", patch: { style: { ...current.style, primary_color: '#6366f1', secondary_color: '#4f46e5', accent_color: '#f59e0b' } } }
 }
 
 function buildAIDefaults(vendor: Vendor | null): BuilderConfig {
@@ -964,7 +964,7 @@ export default function StorefrontBuilderPage() {
   const [activeTab, setActiveTab] = useState<BuilderTab>('style')
   const [device, setDevice] = useState<DeviceMode>('desktop')
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
-  const [aiMessages, setAiMessages] = useState<AiMessage[]>([{ role: 'ai', content: `Hi! I'm your AI storefront assistant. Describe your brand or what you'd like to change — e.g. "make it dark and bold", "warm tones for a restaurant", or "add an employee portal".` }])
+  const [aiMessages, setAiMessages] = useState<AiMessage[]>([{ role: 'ai', content: `Hi! I'm your AI business front assistant. Describe your brand or what you'd like to change — e.g. "make it dark and bold", "warm tones for a restaurant", or "add an employee portal".` }])
   const [aiInput, setAiInput] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [showMoreTemplates, setShowMoreTemplates] = useState(false)
@@ -1155,7 +1155,7 @@ export default function StorefrontBuilderPage() {
         const defaults = buildAIDefaults(vendor)
         setDraft(defaults)
         setIsGeneratingDefaults(false)
-        toast.success('AI set up your storefront!', { description: 'Based on your business profile. Customize it below.' })
+        toast.success('AI set up your business front!', { description: 'Based on your business profile. Customize it below.' })
       }, 1600)
     }
   }, [savedConfig, vendor, defaultsApplied])
@@ -1177,7 +1177,7 @@ export default function StorefrontBuilderPage() {
       postSaveBehaviorRef.current = 'save'
       qc.invalidateQueries({ queryKey: ['storefront-builder-config'] })
       if (mode !== 'publish') {
-        toast.success('Storefront saved!')
+        toast.success('Business Front saved!')
       }
       setSelectedSectionId(null)
       setPreviewTemplateId(null)
@@ -1207,7 +1207,7 @@ export default function StorefrontBuilderPage() {
       setPreviewMode('browse')
       setRecentlySaved(false)
       if (mediaSiteId) {
-        toast.success('Storefront published!')
+        toast.success('Business Front published!')
       } else {
         toast.success('Saved', { description: 'Create a site under Websites to publish live.' })
       }
@@ -1365,10 +1365,10 @@ export default function StorefrontBuilderPage() {
   const selectedSection = selectedSectionId ? draft.sections.find(s => s.id === selectedSectionId) : null
   const selectedDef = selectedSectionId ? SECTION_DEFS.find(d => d.id === selectedSectionId) : null
 
-  const storefrontBase = vendor?.slug
+  const businessFrontBase = vendor?.slug
     ? getCustomerStorefrontBaseUrl(vendor.slug)
     : 'https://your-store.kiterp.com'
-  const storeUrl = storefrontBase
+  const storeUrl = businessFrontBase
 
   const tabConfig: { id: BuilderTab; label: string; icon: React.ElementType }[] = [
     { id: 'templates', label: 'Templates', icon: LayoutTemplate },
@@ -1389,8 +1389,8 @@ export default function StorefrontBuilderPage() {
           </div>
         </div>
         <div className="text-center">
-          <p className="text-lg font-semibold text-gray-900">{isGeneratingDefaults ? 'AI is setting up your storefront…' : 'Loading builder…'}</p>
-          <p className="text-sm text-gray-500 mt-1">{isGeneratingDefaults ? 'Analysing your business profile and generating the best layout' : 'Fetching your storefront configuration'}</p>
+          <p className="text-lg font-semibold text-gray-900">{isGeneratingDefaults ? 'AI is setting up your business front…' : 'Loading builder…'}</p>
+          <p className="text-sm text-gray-500 mt-1">{isGeneratingDefaults ? 'Analysing your business profile and generating the best layout' : 'Fetching your business front configuration'}</p>
         </div>
         <div className="flex gap-1.5 mt-2">
           {[0, 1, 2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
@@ -1408,7 +1408,7 @@ export default function StorefrontBuilderPage() {
             <Wand2 className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-gray-900">Storefront Builder</h1>
+            <h1 className="text-sm font-bold text-gray-900">Business Front Builder</h1>
             <p className="text-[10px] text-gray-400">{vendor?.display_name || vendor?.business_name}</p>
           </div>
         </div>
@@ -1903,9 +1903,9 @@ export default function StorefrontBuilderPage() {
             {/* ── MODULES TAB ── */}
             {activeTab === 'modules' && (
               <div className="p-3 space-y-2">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-3">Storefront Modules</p>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-3">Business Front Modules</p>
                 {[
-                  { key: 'ess_portal' as const, label: 'Employee Portal (ESS)', desc: 'Staff can access HR self-service from the storefront', icon: UserCheck, warning: 'Requires HR module' },
+                  { key: 'ess_portal' as const, label: 'Employee Portal (ESS)', desc: 'Staff can access HR self-service from the business front', icon: UserCheck, warning: 'Requires HR module' },
                   { key: 'crm_widget' as const, label: 'Live Chat Widget', desc: 'Floating chat support via your CRM inbox', icon: Sparkles, warning: 'Requires CRM module' },
                   { key: 'online_booking' as const, label: 'Online Booking', desc: 'Let customers book services directly', icon: Wand2 },
                   { key: 'customer_reviews' as const, label: 'Customer Reviews', desc: 'Display product and service reviews', icon: Star },
@@ -1949,7 +1949,7 @@ export default function StorefrontBuilderPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-900">Store Locator</p>
-                      <p className="text-[10px] text-gray-400 leading-tight mt-0.5">Show your branch / location cards on the storefront</p>
+                      <p className="text-[10px] text-gray-400 leading-tight mt-0.5">Show your branch / location cards on the business front</p>
                     </div>
                     <button onClick={() => updateModules({ store_locator: !draft.modules.store_locator })}>
                       {draft.modules.store_locator ? <ToggleRight className="w-7 h-7 text-primary/80" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
@@ -2261,7 +2261,7 @@ export default function StorefrontBuilderPage() {
             {panelMode === 'pages' ? (
               <PagesPanel
                 modules={draft.modules}
-                storefrontBase={storefrontBase}
+                businessFrontBase={businessFrontBase}
                 onNavigatePreview={(route) => {
                   setPreviewTargetRoute(route)
                   setPanelMode('properties')
@@ -2305,12 +2305,13 @@ export default function StorefrontBuilderPage() {
                       <EyeOff className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-semibold text-amber-800">Section is hidden</p>
-                        <p className="text-[10px] text-amber-600 mt-0.5 leading-snug">This section won't appear on your storefront. You can still edit its settings below.</p>
+                        <p className="text-[10px] text-amber-600 mt-0.5 leading-snug">This section won't appear on your business front. You can still edit its settings below.</p>
                       </div>
                     </div>
                     <button
                       onClick={() => toggleSection(selectedSection.id)}
-                      className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+                      className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                    >
                       <Eye className="w-3.5 h-3.5" /> Make Visible
                     </button>
                   </div>
@@ -2849,7 +2850,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
 }
 
 // ─── Pages Panel ──────────────────────────────────────────────────────────────
-// Maps a storefront route to the nearest route the in-builder preview supports
+// Maps a business front route to the nearest route the in-builder preview supports
 function toPreviewRoute(route: string): string | null {
   if (route === '/') return '/'
   if (route.startsWith('/products')) return '/products'
@@ -2859,21 +2860,21 @@ function toPreviewRoute(route: string): string | null {
   return null
 }
 
-function PagesPanel({ modules, storefrontBase, onNavigatePreview }: { modules: ModulesConfig; storefrontBase: string; onNavigatePreview: (route: string) => void }) {
+function PagesPanel({ modules, businessFrontBase, onNavigatePreview }: { modules: ModulesConfig; businessFrontBase: string; onNavigatePreview: (route: string) => void }) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const pages = STOREFRONT_PAGES.filter(pg => !pg.requiresModule || modules[pg.requiresModule])
   const hiddenPages = STOREFRONT_PAGES.filter(pg => pg.requiresModule && !modules[pg.requiresModule])
 
   function routeUrl(route: string) {
     const clean = route.replace(/:slug/g, 'preview-item')
-    return `${storefrontBase}${clean}`
+    return `${businessFrontBase}${clean}`
   }
 
   return (
     <div className="p-3 space-y-2">
       <div className="flex items-start gap-2 p-2.5 bg-blue-50 rounded-xl border border-blue-100 mb-1">
         <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-        <p className="text-[10px] text-blue-700 leading-snug">Every page on your storefront website. Pages marked <span className="font-bold">EDITABLE</span> can be customised from this builder.</p>
+        <p className="text-[10px] text-blue-700 leading-snug">Every page on your business front website. Pages marked <span className="font-bold">EDITABLE</span> can be customised from this builder.</p>
       </div>
 
       {pages.map(pg => (
@@ -2940,7 +2941,7 @@ function PagesPanel({ modules, storefrontBase, onNavigatePreview }: { modules: M
                   className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-600 hover:border-primary/60 hover:text-primary hover:bg-accent transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  Open in storefront
+                  Open in business front
                 </a>
               </div>
             </div>
@@ -3000,7 +3001,7 @@ function resolveBuilderScrollAnchor(sectionId: string, fieldKey: string | null, 
   return fieldKey
 }
 
-// ─── Storefront Preview ───────────────────────────────────────────────────────
+// ─── Business Front Preview ───────────────────────────────────────────────────────
 interface PreviewProps {
   draft: BuilderConfig
   vendor: Vendor | null
@@ -3083,7 +3084,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
 
   const brStyle = s.border_radius === 'sharp' ? '2px' : s.border_radius === 'pill' ? '9999px' : '8px'
   const spacing = s.spacing === 'compact' ? '12px' : s.spacing === 'spacious' ? '28px' : '20px'
-  /** Match live storefront `ThemeConfig.colors.background` (builder style), not a separate dark canvas. */
+  /** Match live business front `ThemeConfig.colors.background` (builder style), not a separate dark canvas. */
   const bg = s.bg_color
   const textColor = s.dark_mode ? '#f3f4f6' : '#111827'
   const subTextColor = s.dark_mode ? '#9ca3af' : '#6b7280'
@@ -3408,7 +3409,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
       }}
       onClick={isBrowse ? undefined : () => onSelectSection(null)}
     >
-      {/* Nav — match live storefront UnifiedNav: light chrome, not dashboard dark card */}
+      {/* Nav — match live business front UnifiedNav: light chrome, not dashboard dark card */}
       <div
         style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb' }}
         className="px-4 py-3 flex items-center justify-between sticky top-0 z-10"

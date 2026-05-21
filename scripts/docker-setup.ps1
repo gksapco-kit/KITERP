@@ -42,7 +42,7 @@ switch ($Command) {
         Write-Host "  API Docs:       http://localhost:8000/docs" -ForegroundColor White
         Write-Host "  Admin Panel:    http://localhost:3000" -ForegroundColor White
         Write-Host "  Vendor Panel:   http://localhost:3001" -ForegroundColor White
-        Write-Host "  Storefront:     http://localhost:3002" -ForegroundColor White
+        Write-Host "  Business Front:     http://localhost:3002" -ForegroundColor White
         Write-Host ""
         Write-Host "Run '.\scripts\docker-setup.ps1 logs' to follow logs" -ForegroundColor Yellow
     }

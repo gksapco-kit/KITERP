@@ -1,4 +1,4 @@
-"""Rules for which vendors are addressable from the public storefront and store-scoped APIs (slug / headers)."""
+"""Rules for which vendors are addressable from the public business front and store-scoped APIs (slug / headers)."""
 from typing import Optional
 
 

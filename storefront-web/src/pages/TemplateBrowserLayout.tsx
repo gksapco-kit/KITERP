@@ -9,7 +9,7 @@ import { mockAdapter } from '@/storefront/adapters/mock'
 
 export default function TemplateBrowserLayout() {
   // The adapter is always the mock one for template browser previews.
-  // Real storefronts (/store/:vendorSlug) use a different layout with the real adapter.
+  // Real business fronts (/store/:vendorSlug) use a different layout with the real adapter.
   return (
     <StorefrontProvider adapter={mockAdapter}>
       <Outlet />

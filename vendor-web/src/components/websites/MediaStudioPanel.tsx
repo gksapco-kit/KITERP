@@ -34,15 +34,15 @@ export interface MediaStudioPanelProps {
   applyToImageLayer?: boolean
   onApplyUrl: (url: string) => void
   /**
-   * When there is no selected block (e.g. storefront builder), show this
-   * instead of the generic "Apply to Block" hint.
+   * When there is no selected block (e.g. business front builder), show this
+   * instead of the generic 'Apply to Block" hint.
    */
   applyTargetDescription?: string | null
 }
 
 /**
  * Uploads, media library, and AI image adjustments — shared by the full
- * website Builder and the Storefront Builder.
+ * website Builder and the Business Front Builder.
  */
 export function MediaStudioPanel({
   siteId,
@@ -172,7 +172,7 @@ export function MediaStudioPanel({
       ? `Apply to "${selectedBlock.label || selectedBlock.block_type}"`
       : applyTargetDescription
         ? `Apply to ${applyTargetDescription}`
-        : 'Apply to storefront'
+        : 'Apply to business front'
 
   return (
     <div className="h-full flex flex-col overflow-y-auto">

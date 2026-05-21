@@ -31,7 +31,7 @@ export default function DevEmployeeHrLinks() {
     <div className="min-h-screen bg-slate-50 text-slate-900 p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Employee HR / ESS — test links</h1>
       <p className="text-sm text-slate-600 mb-2">
-        Storefront dev server: <strong className="font-mono">port 3002</strong> (see <code className="bg-slate-200 px-1 rounded">vite.config.ts</code>).
+        Business Front dev server: <strong className="font-mono">port 3002</strong> (see <code className="bg-slate-200 px-1 rounded">vite.config.ts</code>).
       </p>
       <p className="text-sm text-slate-600 mb-6">
         Vendor slug in URLs: <strong className="font-mono">{DEV_SLUG}</strong>

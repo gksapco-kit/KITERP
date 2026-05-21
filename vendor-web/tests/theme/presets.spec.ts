@@ -7,7 +7,7 @@ test.describe('Feature 18: Theme presets for business categories', () => {
     await page.goto('/template');
 
     await expect(page.getByRole('heading', { name: /Store Template/i })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Customize your storefront appearance/i)).toBeVisible();
+    await expect(page.getByText(/Customize your business front appearance/i)).toBeVisible();
 
     await expect(page.getByRole('button', { name: /Templates/i })).toBeVisible();
 

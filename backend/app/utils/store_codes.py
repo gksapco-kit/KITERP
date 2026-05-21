@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.store import Store
 
 # Default business unit code for the first outlet when a business is created.
-DEFAULT_BUSINESS_COMPANY_CODE = "1000"
+DEFAULT_BUSINESS_UNIT_CODE = "1000"
 
 
 def store_code_base_from_label(label: str) -> str:
@@ -42,7 +42,7 @@ async def allocate_unique_store_code(
 
 async def allocate_default_business_store_code(db: AsyncSession, vendor_id: UUID) -> str:
     """Business unit code for the default store created with a new business (starts at 1000)."""
-    return await allocate_unique_store_code(db, vendor_id, DEFAULT_BUSINESS_COMPANY_CODE)
+    return await allocate_unique_store_code(db, vendor_id, DEFAULT_BUSINESS_UNIT_CODE)
 
 
 async def ensure_default_store_if_missing(

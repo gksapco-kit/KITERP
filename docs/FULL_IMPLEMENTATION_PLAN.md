@@ -150,7 +150,7 @@
 | Payment reminders | TODO | |
 | Booking reminders | TODO | |
 
-## 11. Storefront (Customer-Facing)
+## 11. Business Front (Customer-Facing)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -159,7 +159,7 @@
 | Cart + checkout | DONE | Cart API + checkout endpoint |
 | Reviews | DONE | Review model + endpoints |
 | Nearby vendors | DONE | Geo-based vendor discovery |
-| Storefront UI pages | TODO | Need full storefront React pages |
+| Business Front UI pages | TODO | Need full business front React pages |
 | Guest checkout | TODO | |
 | WhatsApp order confirmation | TODO | |
 | Verified seller badge | TODO | |
@@ -251,10 +251,10 @@ Priority: HIGH — Must-have per spec
 6. Build POS returns & refunds
 7. Build day-end Z report
 
-### Phase 1E — Public Storefront UI (Week 4-5)
+### Phase 1E — Public Business Front UI (Week 4-5)
 Priority: HIGH — Customer-facing, revenue generating
 
-1. Build storefront layout (vendor-branded header, nav, footer)
+1. Build business front layout (vendor-branded header, nav, footer)
 2. Build home page (featured products/services, categories)
 3. Build product listing + detail pages
 4. Build service listing + detail + booking pages
@@ -297,7 +297,7 @@ Priority: MEDIUM — Key differentiator
 ### Phase 2 — Future Enhancements
 - Escrow payments
 - Third-party delivery integration
-- WhatsApp catalog sync + "Order via WhatsApp"
+- WhatsApp catalog sync + 'Order via WhatsApp"
 - Multi-store hierarchy
 - Advanced templates (HTML/CSS)
 - Tally export

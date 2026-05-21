@@ -471,7 +471,7 @@ export interface Service {
   image_url?: string
   gallery: string[]
   media: ServiceMediaItem[]
-  /** Present when API includes storefront aggregates */
+  /** Present when API includes business front aggregates */
   avg_rating?: number
   // SEO
   meta_title?: string

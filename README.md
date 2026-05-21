@@ -1,6 +1,6 @@
 # KITERP - Multi-Vendor SaaS Platform
 
-A full-stack multi-vendor SaaS platform with vendor admin, customer storefronts, and mobile apps. **One deployment serves all vendors** — each vendor gets their own branded store via URL slug or subdomain.
+A full-stack multi-vendor SaaS platform with vendor admin, customer business fronts, and mobile apps. **One deployment serves all vendors** — each vendor gets their own branded store via URL slug or subdomain.
 
 ## Architecture (SaaS Model)
 
@@ -9,14 +9,14 @@ A full-stack multi-vendor SaaS platform with vendor admin, customer storefronts,
 | **Backend API** | `http://localhost:8000` | FastAPI backend serving all vendors |
 | **Super Admin** | `http://localhost:3000` | Platform admin — manage/approve vendors |
 | **Vendor Admin** | `http://localhost:3001` | Vendor dashboard — products, orders, customers |
-| **Customer Storefront** | `http://localhost:3002/store/:slug` | Customer shopping per vendor |
+| **Customer Business Front** | `http://localhost:3002/store/:slug` | Customer shopping per vendor |
 | **Mobile App** | Expo (Android/iOS/Web) | Vendor admin + customer shopping |
 
 ### Multi-Tenant Resolution
 
 Vendor context is resolved in this priority:
 1. **Subdomain** (production): `vendor-slug.kiterp.com` via `TenantMiddleware`
-2. **X-Vendor-Slug header** (SaaS web): storefront sends slug from URL path
+2. **X-Vendor-Slug header** (SaaS web): business front sends slug from URL path
 3. **X-Vendor-Id header** (mobile/fallback): direct vendor ID
 
 ## Tech Stack
@@ -55,7 +55,7 @@ kiterp/
 │   └── alembic/          # Database migrations
 ├── frontend/             # Super Admin (port 3000)
 ├── vendor-web/           # Vendor Admin Panel (port 3001)
-├── storefront-web/       # Customer Storefront (port 3002)
+├── storefront-web/       # Customer Business Front app (port 3002)
 │   └── src/contexts/     # VendorContext — resolves vendor from URL
 ├── mobile/               # React Native / Expo app
 │   └── app/              # Expo Router screens
@@ -96,14 +96,14 @@ cd vendor-web
 npm install && npm run dev
 ```
 
-### Customer Storefront (port 3002)
+### Customer Business Front (port 3002)
 
 ```bash
 cd storefront-web
 npm install && npm run dev
 ```
 
-Visit `http://localhost:3002/store/{vendor-slug}` to see a vendor's storefront.
+Visit `http://localhost:3002/store/{vendor-slug}` to see a vendor's business front.
 
 ### All three web apps at once (recommended)
 
@@ -120,7 +120,7 @@ Wait until the terminal shows **Local:** URLs for **3000**, **3001**, and **3002
 |-----|-----|
 | Super Admin | http://localhost:3000 |
 | Vendor Admin | http://localhost:3001 |
-| Storefront | http://localhost:3002 |
+| Business Front | http://localhost:3002 |
 
 **Windows:** If `http://localhost:3000` (or 3001/3002) spins forever, use **`http://127.0.0.1:3000`** (same for 3001 and 3002). The first page load can take **10–30+ seconds** when the project lives on **OneDrive** — keep the dev terminal open.
 
@@ -146,7 +146,7 @@ npx expo start --android        # Android emulator
 - **Vendor Registration & Onboarding**: Multi-step registration with document verification
 - **Super Admin Dashboard**: Vendor approval/rejection workflow with detail pages
 - **Vendor Admin Panel**: Products, services, orders, customers management
-- **Customer Storefront**: Per-vendor branded shopping experience
+- **Customer Business Front**: Per-vendor branded shopping experience
 - **Mobile App**: Vendor admin + customer shopping (Android/iOS via Expo)
 - **Product & Service Management**: Full CRUD with variants, images, categories
 - **Shopping Cart & Checkout**: Customer cart, order placement, order tracking
@@ -174,7 +174,7 @@ npx expo start --android        # Android emulator
 - `GET /api/v1/catalog/products` — Browse products
 - `GET /api/v1/catalog/services` — Browse services
 
-### Customer Storefront (tenant-aware)
+### Customer Business Front (tenant-aware)
 - `POST /api/v1/store/auth/register` — Customer registration
 - `POST /api/v1/store/auth/login` — Customer login
 - `GET/POST /api/v1/store/cart` — Cart management

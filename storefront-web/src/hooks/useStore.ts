@@ -317,7 +317,7 @@ export function useCustomerLogout() {
   const { logout } = useAuthStore()
   return () => {
     logout()
-    // NOTE: Do NOT remove vendor_id / vendor_slug — the user stays on the same vendor storefront
+    // NOTE: Do NOT remove vendor_id / vendor_slug — the user stays on the same vendor business front
     qc.clear()
     toast.success('Logged out')
     // Navigation is handled by the calling component

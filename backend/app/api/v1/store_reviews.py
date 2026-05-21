@@ -1,5 +1,5 @@
 # app/api/v1/store_reviews.py
-"""Customer-facing review endpoints for the storefront."""
+"""Customer-facing review endpoints for the business front."""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession

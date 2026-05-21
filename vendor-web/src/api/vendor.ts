@@ -850,7 +850,7 @@ export const vendorApi = {
     return response.data
   },
 
-  // ── Storefront Builder ────────────────────────────────────────
+  // ── Business Front Builder ────────────────────────────────────────
   getStorefrontBuilderConfig: async (): Promise<Record<string, unknown> | null> => {
     try {
       const response = await apiClient.get('/vendors/me/template')

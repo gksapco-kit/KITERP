@@ -228,7 +228,7 @@ async def set_fy_company_assignments(
     *,
     mark_current: bool,
 ) -> None:
-    """Link the same fiscal year (shared calendar) to one or more company codes."""
+    """Link the same fiscal year (shared calendar) to one or more business units."""
     seen: Set[UUID] = set()
     ordered: List[UUID] = []
     for cid in company_ids:
@@ -472,7 +472,7 @@ async def assign_fiscal_year_to_companies(
     mark_current: bool = False,
 ) -> int:
     """
-    Attach an existing shared calendar (fiscal year) to additional company codes.
+    Attach an existing shared calendar (fiscal year) to additional business units.
     Returns the number of new assignment rows created.
     """
     r = await db.execute(

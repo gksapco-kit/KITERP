@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  Plus, Store, MapPin, Phone, Mail, Users, Package, Search,
+  Plus, Store, Users, Package, Search,
   Edit2, Trash2, Star, StarOff, X, Loader2,
   ChevronRight, ArrowLeftRight, Link2, Copy, ExternalLink, Check,
   Building2, Heart, Briefcase, Dumbbell, ShoppingBag, Hotel, UtensilsCrossed,
@@ -30,7 +30,7 @@ import {
   type VerificationLevel,
 } from '@/lib/verification'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
-import VendorStorefrontLinksCard from '@/components/VendorStorefrontLinksCard'
+import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
 
@@ -50,7 +50,7 @@ interface StoreFormData {
   name: string
   code: string
   description: string
-  phone: string   // full E.164 string e.g. "+919876543210"
+  phone: string   // full E.164 string e.g. '+919876543210"
   email: string
   street: string
   city: string
@@ -675,193 +675,12 @@ function StoreCard({
 // ── StoreDetail ────────────────────────────────────────────────────────────
 
 function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void }) {
-  const { vendor } = useVendorStore()
-  const qc = useQueryClient()
-  const [invSearch, setInvSearch] = useState('')
-  const [assignStaffId, setAssignStaffId] = useState('')
-
-  const { data: invData, isLoading: invLoading } = useQuery({
-    queryKey: ['store-inventory', store.id, invSearch],
-    queryFn: () => vendorApi.getStoreInventory(store.id, { search: invSearch || undefined }),
-  })
-
-  const { data: staffData, isLoading: staffLoading } = useQuery({
-    queryKey: ['store-staff', store.id],
-    queryFn: () => vendorApi.getStoreStaff(store.id),
-  })
-
-  const { data: allTeam } = useQuery({
-    queryKey: ['team'],
-    queryFn: () => vendorApi.listTeamMembers(),
-  })
-
-  const assignMutation = useMutation({
-    mutationFn: () => vendorApi.assignStaffStore({ staff_id: assignStaffId, store_id: store.id }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['store-staff'] }); setAssignStaffId('') },
-  })
-
-  const unassignMutation = useMutation({
-    mutationFn: (staffId: string) => vendorApi.assignStaffStore({ staff_id: staffId, store_id: null }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['store-staff'] }),
-  })
-
-  const unassignedMembers = allTeam?.items?.filter(
-    (m: { id: string }) => !staffData?.staff?.some((s: { id: string }) => s.id === m.id)
-  ) ?? []
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onBack}>← Back to Business Units</Button>
-        <h2 className="text-xl font-semibold">{store.name}</h2>
-        {store.is_default && (
-          <span className="bg-indigo-100 text-indigo-700 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-            <Star className="w-3 h-3" /> Default
-          </span>
-        )}
-        <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', store.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
-          {store.is_active ? 'Active' : 'Inactive'}
-        </span>
-      </div>
-
-      {/* Info cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'SKUs in Stock', value: store.inventory_count ?? 0, icon: Package, color: 'text-indigo-600 bg-indigo-50' },
-          { label: 'Staff Members', value: store.staff_count ?? 0, icon: Users, color: 'text-emerald-600 bg-emerald-50' },
-          { label: 'City', value: store.address?.city || '—', icon: MapPin, color: 'text-amber-600 bg-amber-50' },
-          { label: 'Phone', value: store.phone || '—', icon: Phone, color: 'text-primary bg-accent' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <Card key={label}>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center', color)}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{label}</p>
-                <p className="font-semibold text-sm">{value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Business unit + storefront / HR links (not in sidebar — lives on store detail) */}
-      <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-muted/30">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Business unit</p>
-          <IdChip label="" code={formatStoreCode(store)} fullValue={store.id} className="w-fit" />
-        </div>
-        {vendor?.slug ? (
-          <div className="px-4 py-3">
-            <VendorStorefrontLinksCard
-              vendorSlug={vendor.slug}
-              outletCode={store.code}
-              hideOutletRow
-              embedded
-            />
-          </div>
-        ) : (
-          <div className="px-4 py-3 text-xs text-muted-foreground">Vendor slug unavailable — refresh or re-open this page.</div>
-        )}
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Inventory */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2"><Package className="w-4 h-4" />Inventory</CardTitle>
-              <Input
-                value={invSearch}
-                onChange={e => setInvSearch(e.target.value)}
-                placeholder="Search products…"
-                className="w-44 h-7 text-xs"
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {invLoading ? (
-              <div className="flex items-center justify-center h-32"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
-            ) : !invData?.items?.length ? (
-              <div className="text-center py-10 text-gray-400 text-sm">No inventory records yet</div>
-            ) : (
-              <div className="divide-y max-h-72 overflow-y-auto">
-                {invData.items.map(item => (
-                  <div key={item.id} className="flex items-center justify-between px-4 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{item.product_name}</p>
-                      {item.product_sku && <p className="text-xs text-gray-400 font-mono">{item.product_sku}</p>}
-                    </div>
-                    <div className="text-right ml-3">
-                      <p className={cn('text-sm font-semibold', item.quantity <= item.low_stock_threshold ? 'text-red-600' : 'text-gray-900')}>
-                        {item.quantity}
-                      </p>
-                      {item.quantity <= item.low_stock_threshold && (
-                        <p className="text-[10px] text-red-500">Low stock</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Staff */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2"><Users className="w-4 h-4" />Staff at this Store</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Assign */}
-            <div className="flex gap-2 mb-3">
-              <select
-                value={assignStaffId}
-                onChange={e => setAssignStaffId(e.target.value)}
-                className="flex-1 text-sm border rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Assign team member…</option>
-                {unassignedMembers.map((m) => (
-                  <option key={m.id} value={m.id}>{m.user?.full_name ?? m.id}</option>
-                ))}
-              </select>
-              <Button
-                size="sm"
-                disabled={!assignStaffId || assignMutation.isPending}
-                onClick={() => assignMutation.mutate()}
-              >
-                {assignMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Assign'}
-              </Button>
-            </div>
-
-            {staffLoading ? (
-              <div className="flex items-center justify-center h-24"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
-            ) : !staffData?.staff?.length ? (
-              <p className="text-sm text-gray-400 text-center py-6">No staff assigned yet</p>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {staffData.staff.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium">{m.name ?? '—'}</p>
-                      <p className="text-xs text-gray-500">{m.email} · <span className="capitalize">{m.role}</span></p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-red-500 hover:bg-red-50"
-                      onClick={() => unassignMutation.mutate(m.id)}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+    <div className="space-y-3">
+      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onBack}>
+        ← Back to Business Units
+      </Button>
+      <BusinessUnitDetailPanel store={store} />
     </div>
   )
 }
@@ -945,7 +764,7 @@ export default function StoresPage({ embeddedInSettings = false }: StoresPagePro
   }
 
   function copyAllLinks() {
-    const lines = stores.map(s => `${s.name}: ${storeLink(vendor?.slug, s)}`).join('\n')
+    const lines = stores.map((s) => `${s.name}: ${storeLink(vendor?.slug, s)}`).join('\n')
     copyText(lines, `${stores.length} store links copied!`)
   }
 
@@ -1026,7 +845,7 @@ export default function StoresPage({ embeddedInSettings = false }: StoresPagePro
               </div>
             )}
             {stores.length >= 2 && (
-              <Button variant="outline" size="sm" className="h-8" onClick={copyAllLinks} title="Copy all storefront links">
+              <Button variant="outline" size="sm" className="h-8" onClick={copyAllLinks} title="Copy all business front links">
                 <Link2 className="h-3.5 w-3.5 sm:mr-1" />
                 <span className="hidden sm:inline">Copy links</span>
               </Button>

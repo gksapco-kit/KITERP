@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Page, Section } from "../KitLayout";
 
 const groups = [
-  { title: "Storefront shell", items: [["Header & Nav", "/kit/header"], ["Footer", "/kit/footer"]] },
+  { title: "Business Front shell", items: [["Header & Nav", "/kit/header"], ["Footer", "/kit/footer"]] },
   { title: "Commerce", items: [["Products", "/kit/products"], ["Checkout & Payments", "/kit/checkout"], ["Account", "/kit/account"]] },
   { title: "Services", items: [["Services", "/kit/services"], ["Bookings", "/kit/bookings"]] },
   { title: "Content & marketing", items: [["Blog", "/kit/blog"], ["Marketing blocks", "/kit/marketing"]] },
