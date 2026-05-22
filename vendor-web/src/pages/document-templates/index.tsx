@@ -236,7 +236,7 @@ function AccordionSection({ title, children, defaultOpen = false, badge }: {
         onClick={() => setOpen(!open)}>
         <span className="flex items-center gap-2">
           {title}
-          {badge && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">{badge}</span>}
+          {badge && <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">{badge}</span>}
         </span>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
@@ -252,7 +252,7 @@ function ToggleRow({ label, hint, checked, onChange }: {
     <label className="flex items-center justify-between py-1.5 cursor-pointer gap-3">
       <div>
         <span className="text-sm text-gray-700">{label}</span>
-        {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
+        {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
       </div>
       <button type="button" onClick={() => onChange(!checked)}
         className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-gray-300'}`}>
@@ -756,7 +756,7 @@ function SOPPanel({ s, set }: { s: SOPSettings; set: <K extends keyof SOPSetting
         <div className="flex gap-2 mt-1">
           {(['numeric', 'alpha', 'roman'] as const).map(o => (
             <button key={o} onClick={() => set('step_numbering', o)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${s.step_numbering === o ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${s.step_numbering === o ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
               {o === 'numeric' ? '1, 2, 3' : o === 'alpha' ? 'a, b, c' : 'i, ii, iii'}
             </button>
           ))}
@@ -865,7 +865,7 @@ function HRLetterPanel({ s, set }: { s: HRLetterSettings; set: <K extends keyof 
       <div className="grid grid-cols-2 gap-2">
         {letterTypes.map(t => (
           <button key={t.id} onClick={() => set('letter_type', t.id as HRLetterSettings['letter_type'])}
-            className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-colors ${s.letter_type === t.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+            className={`py-2 px-3 rounded-lg border text-xs font-medium transition-colors ${s.letter_type === t.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
             {t.label}
           </button>
         ))}
@@ -961,7 +961,7 @@ export default function DocumentTemplatesPage() {
                   <button key={tmpl.id} onClick={() => { setActiveType(tmpl.id); setSettingsTab('design') }}
                     className="group text-left bg-white border border-gray-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all relative">
                     {saved && (
-                      <span className="absolute top-3 right-3 text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="absolute top-3 right-3 text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full flex items-center gap-1">
                         <Check className="w-2.5 h-2.5" /> Saved
                       </span>
                     )}
@@ -970,7 +970,7 @@ export default function DocumentTemplatesPage() {
                     </div>
                     <h3 className="font-bold text-gray-900 text-sm mb-1">{tmpl.label}</h3>
                     <p className="text-xs text-gray-500 leading-relaxed">{tmpl.desc}</p>
-                    <div className="mt-3 flex items-center gap-1 text-xs font-semibold text-indigo-600 group-hover:gap-2 transition-all">
+                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-indigo-600 group-hover:gap-2 transition-all">
                       <Eye className="w-3.5 h-3.5" /> Configure & Preview
                     </div>
                   </button>
@@ -1048,7 +1048,7 @@ export default function DocumentTemplatesPage() {
               const TIcon = t.icon
               return (
                 <button key={t.id} onClick={() => setSettingsTab(t.id)}
-                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-semibold transition-all border-b-2 ${settingsTab === t.id ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-all border-b-2 ${settingsTab === t.id ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                   <TIcon className="w-3.5 h-3.5" />
                   {t.label}
                 </button>
@@ -1083,7 +1083,7 @@ export default function DocumentTemplatesPage() {
               <div className="flex gap-2">
                 {(['A4', 'Letter', 'A5'] as const).map(p => (
                   <button key={p} onClick={() => set('paper_size', p as never)}
-                    className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-colors ${(s as BaseDocSettings)?.paper_size === p ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors ${(s as BaseDocSettings)?.paper_size === p ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                     {p}
                   </button>
                 ))}

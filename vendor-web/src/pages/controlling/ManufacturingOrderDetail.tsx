@@ -429,7 +429,7 @@ export default function ManufacturingOrderDetailPage() {
                 amount_actual: string | number
               }) => (
                 <tr key={ln.id} className="border-t border-gray-100">
-                  <td className="px-3 py-2 text-xs font-semibold">{ln.category}</td>
+                  <td className="px-3 py-2 text-xs font-medium">{ln.category}</td>
                   <td className="px-3 py-2">{ln.description ?? '—'}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{ln.qty_planned}</td>
                   <td className="px-3 py-2 text-right">

@@ -96,7 +96,7 @@ export function SmartLoginInput({
             className={cn(
               'shrink-0 text-foreground',
               comfortable
-                ? (dense ? 'text-xs font-semibold' : 'text-[0.95rem] font-semibold')
+                ? (dense ? 'text-xs font-medium' : 'text-[0.95rem] font-semibold')
                 : 'text-sm font-medium',
             )}
           >
@@ -109,7 +109,7 @@ export function SmartLoginInput({
             'inline-flex shrink-0 items-center gap-1.5 rounded-lg transition-colors hover:underline',
             hyperlinkClassName ?? 'text-primary hover:bg-primary/10',
             comfortable
-              ? (dense ? 'min-h-[1.6625rem] px-1.5 py-0 text-xs font-semibold' : 'min-h-8 px-2 py-1 text-[0.95rem] font-semibold')
+              ? (dense ? 'min-h-[1.6625rem] px-1.5 py-0 text-xs font-medium' : 'min-h-8 px-2 py-1 text-[0.95rem] font-semibold')
               : 'text-xs',
           )}
           onClick={handleToggle}

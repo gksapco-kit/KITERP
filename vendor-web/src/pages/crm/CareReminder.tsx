@@ -192,10 +192,10 @@ function ComposeModal({ onClose, onSave, editing }: {
           <div className="flex items-center gap-2">
             {(['customer', 'compose', 'schedule'] as const).map((s, i) => (
               <div key={s} className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full transition-colors ${step === s ? 'bg-primary/15 text-primary' : (
+                <div className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full transition-colors ${step === s ? 'bg-primary/15 text-primary' : (
                   (s === 'compose' && selectedCustomer) || (s === 'schedule' && message.trim()) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'
                 )}`}>
-                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold bg-white/50">{i + 1}</span>
+                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold bg-white/50">{i + 1}</span>
                   {s === 'customer' ? 'Select Customer' : s === 'compose' ? 'Compose Message' : 'Schedule'}
                 </div>
                 {i < 2 && <ArrowRight className="w-3 h-3 text-gray-300" />}
@@ -254,7 +254,7 @@ function ComposeModal({ onClose, onSave, editing }: {
                     const Icon = meta.icon
                     return (
                       <button key={key} onClick={() => setChannel(key)}
-                        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 text-xs font-semibold transition-all ${channel === key ? `${meta.border} ${meta.bg} ${meta.color}` : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 text-xs font-medium transition-all ${channel === key ? `${meta.border} ${meta.bg} ${meta.color}` : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                         <Icon className="w-5 h-5" />
                         {meta.label}
                       </button>
@@ -298,7 +298,7 @@ function ComposeModal({ onClose, onSave, editing }: {
                   className="w-full text-sm border border-input rounded-xl px-3 py-2.5 min-h-[120px] resize-y focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder={`Type your ${CHANNEL_META[channel].label} message… Use {name} for customer name.`}
                   value={message} onChange={e => setMessage(e.target.value)} />
-                <p className="text-right text-[10px] text-gray-400 mt-0.5">{message.length} chars</p>
+                <p className="text-right text-xs text-gray-400 mt-0.5">{message.length} chars</p>
               </div>
 
               {/* Reach Me Back toggle */}
@@ -360,7 +360,7 @@ function ComposeModal({ onClose, onSave, editing }: {
                     const FIcon = f.icon
                     return (
                       <button key={f.id} onClick={() => setFrequency(f.id)}
-                        className={`flex items-center gap-2 py-2.5 px-3 rounded-xl border-2 text-xs font-semibold transition-all ${frequency === f.id ? 'border-primary/60 bg-primary/10 text-primary' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                        className={`flex items-center gap-2 py-2.5 px-3 rounded-xl border-2 text-xs font-medium transition-all ${frequency === f.id ? 'border-primary/60 bg-primary/10 text-primary' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                         <FIcon className="w-3.5 h-3.5" />{f.label}
                       </button>
                     )
@@ -370,16 +370,16 @@ function ComposeModal({ onClose, onSave, editing }: {
 
               {/* Preview card */}
               <div className="rounded-xl border-2 border-dashed border-gray-200 p-4 bg-gray-50">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Message Preview</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Message Preview</p>
                 <div className={`rounded-xl p-4 ${chMeta.bg} border ${chMeta.border}`}>
                   {channel === 'email' && subject && <p className="text-xs font-bold text-gray-700 mb-2">Subject: {subject}</p>}
                   <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{message}</p>
                   {includeReachBack && (
                     <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
-                      <button className="flex items-center gap-2 bg-primary text-white text-xs font-semibold px-4 py-2 rounded-lg pointer-events-none">
+                      <button className="flex items-center gap-2 bg-primary text-white text-xs font-medium px-4 py-2 rounded-lg pointer-events-none">
                         <PhoneIncoming className="w-3.5 h-3.5" /> Please call me back
                       </button>
-                      <p className="text-[10px] text-gray-400 mt-1.5">Tapping this creates a follow-up in your CRM</p>
+                      <p className="text-xs text-gray-400 mt-1.5">Tapping this creates a follow-up in your CRM</p>
                     </div>
                   )}
                 </div>
@@ -454,18 +454,18 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
               <SIcon className="w-3 h-3 mr-1" />{sMeta.label}
             </Badge>
             {r.include_reach_back && (
-              <span className="text-[10px] font-semibold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-1">
+              <span className="text-xs font-medium bg-primary/15 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-1">
                 <PhoneIncoming className="w-2.5 h-2.5" /> Reach-back
               </span>
             )}
             {pendingActions.length > 0 && (
-              <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+              <span className="text-xs font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex items-center gap-1">
                 <Inbox className="w-2.5 h-2.5" /> {pendingActions.length} action{pendingActions.length > 1 ? 's' : ''}
               </span>
             )}
           </div>
           <p className="text-xs text-gray-500 mt-0.5 truncate">{r.message.slice(0, 90)}{r.message.length > 90 ? '…' : ''}</p>
-          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400">
+          <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
             <span className="flex items-center gap-1"><AlarmClock className="w-3 h-3" />{fmtDt(r.scheduled_at)}</span>
             {r.frequency !== 'once' && <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{r.frequency}</span>}
             {r.responded_at && <span className="flex items-center gap-1 text-emerald-500"><CheckCircle2 className="w-3 h-3" />Responded {fmtDt(r.responded_at)}</span>}
@@ -485,13 +485,13 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
         <div className="border-t bg-gray-50 px-4 py-4 space-y-4">
           {/* Full message preview */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Message</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Message</p>
             <div className={`rounded-xl p-3 ${chMeta.bg} border ${chMeta.border} text-sm text-gray-800 leading-relaxed whitespace-pre-wrap`}>
               {r.channel === 'email' && r.subject && <p className="text-xs font-bold text-gray-700 mb-2">Subject: {r.subject}</p>}
               {r.message}
               {r.include_reach_back && (
                 <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
-                  <span className="inline-flex items-center gap-2 bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                  <span className="inline-flex items-center gap-2 bg-primary text-white text-xs font-medium px-3 py-1.5 rounded-lg">
                     <PhoneIncoming className="w-3.5 h-3.5" /> Please call me back
                   </span>
                 </div>
@@ -502,7 +502,7 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
           {/* CRM Action Items */}
           {r.action_items.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                 <Inbox className="w-3.5 h-3.5 text-amber-500" /> CRM Action Items (Reach-back Responses)
               </p>
               <div className="space-y-2">
@@ -514,9 +514,9 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
                     </button>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm ${a.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>{a.note}</p>
-                      <p className="text-[11px] text-gray-400 mt-0.5">From: {a.customer_name} · {fmtDt(a.created_at)}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">From: {a.customer_name} · {fmtDt(a.created_at)}</p>
                     </div>
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${a.done ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${a.done ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
                       {a.done ? 'Done' : 'Pending'}
                     </span>
                   </div>
@@ -776,7 +776,7 @@ export default function CareReminderPage() {
                     persistActions(updated)
                     persist(reminders.map(r => ({ ...r, action_items: r.action_items.map(ai => ai.id === a.id ? { ...ai, done: true } : ai) })))
                     toast.success('Action marked complete')
-                  }} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+                  }} className="text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
                     <CheckCircle2 className="w-4 h-4" /> Done
                   </button>
                 </div>

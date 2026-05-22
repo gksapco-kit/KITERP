@@ -69,7 +69,7 @@ export function PropertyListing({
                   top: `${25 + (i * 23) % 55}%`,
                 }}
               >
-                <span className="rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background shadow-md">
+                <span className="rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background shadow-md">
                   {formatPrice(p.price / 1000, p.currency).replace(/\.\d+/, "")}K
                 </span>
                 <span className="h-2 w-2 rotate-45 -translate-y-1 bg-foreground" />
@@ -124,7 +124,7 @@ function PropertyCard({ property, showAgent, cta }: { property: Property; showAg
     <div className="group overflow-hidden rounded-lg border border-border bg-card text-card-foreground transition-shadow hover:shadow-md">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img src={property.image} alt={property.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-        <Badge className={cn("absolute left-3 top-3 text-[10px]", status.className)}>{status.label}</Badge>
+        <Badge className={cn("absolute left-3 top-3 text-xs", status.className)}>{status.label}</Badge>
         <button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-background">
           <Heart className="h-4 w-4" />
         </button>
@@ -168,7 +168,7 @@ function PropertyRow({
     <div className={cn("flex gap-4 rounded-lg border border-border bg-card p-3", compact && "p-2")}>
       <div className={cn("relative shrink-0 overflow-hidden rounded-md bg-muted", compact ? "h-20 w-28" : "h-32 w-44")}>
         <img src={property.image} alt={property.title} className="h-full w-full object-cover" />
-        <Badge className={cn("absolute left-1.5 top-1.5 text-[9px]", status.className)}>{status.label}</Badge>
+        <Badge className={cn("absolute left-1.5 top-1.5 text-xs", status.className)}>{status.label}</Badge>
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
@@ -251,7 +251,7 @@ export function PropertyDetail({ propertyId = "re1", cta = "Schedule tour" }: Pr
           <div className="rounded-xl border border-border p-5">
             {p.agent && (
               <>
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Listing agent</div>
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Listing agent</div>
                 <div className="mt-2 flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 font-semibold text-primary">
                     {p.agent.split(" ").map((n) => n[0]).join("")}
@@ -281,7 +281,7 @@ export function PropertyDetail({ propertyId = "re1", cta = "Schedule tour" }: Pr
             </div>
           </div>
           <div className="rounded-xl border border-border p-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estimated mortgage</div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Estimated mortgage</div>
             <div className="mt-2 text-2xl font-semibold">
               {formatPrice(Math.round(p.price * 0.005), p.currency)}<span className="text-sm font-normal text-muted-foreground">/mo</span>
             </div>

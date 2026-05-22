@@ -51,7 +51,7 @@ export default function ESSPerformancePage() {
                   <tr key={g.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4 text-sm">
                       <p className="font-medium">{g.title}</p>
-                      {g.description && <p className="text-[11px] text-gray-500">{g.description}</p>}
+                      {g.description && <p className="text-xs text-gray-500">{g.description}</p>}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">{g.target_date ?? '—'}</td>
                     <td className="py-3 px-4">
@@ -135,13 +135,13 @@ export default function ESSPerformancePage() {
                 <p className="text-sm font-medium capitalize">
                   {f.title ?? f.feedback_type ?? 'Feedback'}
                 </p>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-xs text-gray-400">
                   {new Date(f.created_at).toLocaleDateString()}
                 </p>
               </div>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{f.body}</p>
               {f.related_competency && (
-                <p className="text-[11px] text-gray-500 mt-1">Re: {f.related_competency}</p>
+                <p className="text-xs text-gray-500 mt-1">Re: {f.related_competency}</p>
               )}
             </div>
           ))}

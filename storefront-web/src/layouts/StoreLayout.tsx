@@ -117,7 +117,7 @@ function CartButton({ itemCount, to, dark = false }: { itemCount: number; to: st
       <div className="relative">
         <ShoppingCart className="w-5 h-5" />
         {itemCount > 0 && (
-          <span className="absolute -top-2 -right-2 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 bg-red-500 shadow-sm">
+          <span className="absolute -top-2 -right-2 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 bg-red-500 shadow-sm">
             {itemCount}
           </span>
         )}

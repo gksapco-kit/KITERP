@@ -431,11 +431,11 @@ export default function CategoriesPage() {
             <ResizableTable tableId="categories" defaultWidths={[240, 120, 160, 90, 80]}>
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Category / Subcategory</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Applies To</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Custom Fields</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Category / Subcategory</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Applies To</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Custom Fields</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">

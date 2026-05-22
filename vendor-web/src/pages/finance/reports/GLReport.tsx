@@ -260,10 +260,10 @@ function KPI({ label, value, sub, icon: Icon, color }: {
         <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center', color)}>
           <Icon className="w-3.5 h-3.5" />
         </div>
-        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</span>
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</span>
       </div>
       <p className="font-mono font-bold text-xl text-gray-900">{value}</p>
-      {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -298,17 +298,17 @@ function LedgerTable({
       <table className="w-full text-xs whitespace-nowrap">
         <thead className="bg-muted border-b border-border sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Date</th>
-            <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Entry No</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Entry No</th>
             {showAccount && (
-              <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Account</th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Account</th>
             )}
-            <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide max-w-[200px]">Narration</th>
-            <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Ref Doc</th>
-            <th className="px-3 py-3 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Source</th>
-            <th className="px-3 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Debit</th>
-            <th className="px-3 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Credit</th>
-            <th className="px-4 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Balance</th>
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide max-w-[200px]">Narration</th>
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Ref Doc</th>
+            <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">Source</th>
+            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Debit</th>
+            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Credit</th>
+            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Balance</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
@@ -320,17 +320,17 @@ function LedgerTable({
                 row.debit > 0 ? '' : 'bg-accent/10',
               )}
             >
-              <td className="px-4 py-2.5 font-mono text-gray-500 text-[11px]">{row.date}</td>
+              <td className="px-4 py-2.5 font-mono text-gray-500 text-xs">{row.date}</td>
               <td className="px-3 py-2.5">
                 <span className="font-mono font-semibold text-primary">{row.entry_no}</span>
               </td>
               {showAccount && (
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-[11px] text-gray-400">{row.account_code}</span>
+                    <span className="font-mono text-xs text-gray-400">{row.account_code}</span>
                     <span className="text-gray-700 max-w-[120px] truncate">{row.account_name}</span>
                     {row.account_type && (
-                      <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full font-semibold hidden group-hover:inline',
+                      <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-semibold hidden group-hover:inline',
                         TYPE_COLORS[row.account_type] || 'bg-gray-100 text-gray-500')}>
                         {row.account_type}
                       </span>
@@ -343,11 +343,11 @@ function LedgerTable({
               </td>
               <td className="px-3 py-2.5">
                 {row.ref_doc_type
-                  ? <span className="text-[10px] text-gray-500">{row.ref_doc_type}: {row.ref_doc_no || '—'}</span>
+                  ? <span className="text-xs text-gray-500">{row.ref_doc_type}: {row.ref_doc_no || '—'}</span>
                   : <span className="text-gray-200">—</span>}
               </td>
               <td className="px-3 py-2.5 text-center">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                   {SOURCE_LABELS[row.source_type] || row.source_type}
                 </span>
               </td>
@@ -364,7 +364,7 @@ function LedgerTable({
               <td className="px-4 py-2.5 text-right font-mono">
                 <span className={cn('font-semibold', row.balance < 0 ? 'text-red-600' : 'text-gray-900')}>
                   {fmt(Math.abs(row.balance))}
-                  {row.balance < 0 && <span className="text-[9px] ml-0.5 opacity-70">Cr</span>}
+                  {row.balance < 0 && <span className="text-xs ml-0.5 opacity-70">Cr</span>}
                 </span>
               </td>
             </tr>
@@ -386,7 +386,7 @@ function LedgerTable({
                 const bal = rows.length ? rows[rows.length - 1].balance : 0
                 return (
                   <span className={bal < 0 ? 'text-red-600' : 'text-gray-900'}>
-                    {fmt(Math.abs(bal))}{bal < 0 && <span className="text-[9px] ml-0.5">Cr</span>}
+                    {fmt(Math.abs(bal))}{bal < 0 && <span className="text-xs ml-0.5">Cr</span>}
                   </span>
                 )
               })()}
@@ -438,13 +438,13 @@ function SummaryView({ fromDate, toDate }: { fromDate: string; toDate: string })
           <table className="w-full text-xs">
             <thead className="bg-muted border-b border-border">
               <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Code</th>
-                <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Account Name</th>
-                <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Type</th>
-                <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Subtype</th>
-                <th className="px-3 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Total Debit</th>
-                <th className="px-3 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Total Credit</th>
-                <th className="px-4 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Net</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Code</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Account Name</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Type</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Subtype</th>
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Total Debit</th>
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Total Credit</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Net</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -455,7 +455,7 @@ function SummaryView({ fromDate, toDate }: { fromDate: string; toDate: string })
                     <td className="px-4 py-2.5 font-mono text-gray-500">{r.code}</td>
                     <td className="px-3 py-2.5 text-gray-800 font-medium max-w-[200px] truncate">{r.name}</td>
                     <td className="px-3 py-2.5">
-                      <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-semibold', TYPE_COLORS[r.account_type] || 'bg-gray-100 text-gray-500')}>
+                      <span className={cn('text-xs px-2 py-0.5 rounded-full font-semibold', TYPE_COLORS[r.account_type] || 'bg-gray-100 text-gray-500')}>
                         {r.account_type}
                       </span>
                     </td>
@@ -600,7 +600,7 @@ export default function GLReport() {
         {/* ── Left sidebar: dimension picker ── */}
         <div className="w-56 bg-card border-r border-border flex flex-col shrink-0 overflow-y-auto">
           <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Report By</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Report By</p>
           </div>
           <nav className="py-2 space-y-0.5 px-2">
             {DIMENSIONS.map(d => (
@@ -620,7 +620,7 @@ export default function GLReport() {
             ))}
           </nav>
           <div className="mt-auto px-4 py-3 border-t border-gray-100">
-            <p className="text-[10px] text-gray-400 leading-snug">{dim.description}</p>
+            <p className="text-xs text-gray-400 leading-snug">{dim.description}</p>
           </div>
         </div>
 
@@ -779,7 +779,7 @@ export default function GLReport() {
                       {selectedRecord.code && <span className="font-mono text-gray-400 mr-2">{selectedRecord.code}</span>}
                       {selectedRecord.name}
                     </p>
-                    <p className="text-[11px] text-gray-400">{dim.label} · {rows.length} posted transactions</p>
+                    <p className="text-xs text-gray-400">{dim.label} · {rows.length} posted transactions</p>
                   </div>
                 </div>
                 <LedgerTable rows={rows} showAccount={showAccountCol} isLoading={isLoading} />

@@ -66,7 +66,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
         <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
       </div>
 

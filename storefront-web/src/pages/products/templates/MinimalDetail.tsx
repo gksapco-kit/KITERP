@@ -79,7 +79,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       {/* Product Title — Centered */}
       <div className="text-center mb-6">
         {product.brand && (
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-[0.2em] mb-2">{product.brand}</p>
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-[0.2em] mb-2">{product.brand}</p>
         )}
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">{product.name}</h1>
         {(product.avg_rating ?? 0) > 0 && (
@@ -149,7 +149,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
           {variantColors && !isSubscription && (
             <div className="flex justify-center">
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide text-center mb-3">Color</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide text-center mb-3">Color</p>
                 <div className="flex gap-3 justify-center">
                   {variantColors.map(vc => (
                     <button key={vc.id} onClick={() => setSelectedVariantId(vc.id)} title={vc.name}
@@ -164,7 +164,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
 
           {isSubscription ? (
             <div className="max-w-md mx-auto">
-              <p className="text-xs font-semibold text-primary/80 uppercase tracking-[0.15em] text-center mb-4 flex items-center justify-center gap-1.5">
+              <p className="text-xs font-medium text-primary/80 uppercase tracking-[0.15em] text-center mb-4 flex items-center justify-center gap-1.5">
                 <Repeat className="w-3.5 h-3.5" /> Choose a Plan
               </p>
               <div className="space-y-2">
@@ -189,14 +189,14 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
                             {intervalLabel[vInterval] || vInterval}
                           </span>
                           {hasTrial && (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
                               isSelected ? 'bg-green-400/20 text-green-200' : 'text-green-700 bg-green-50'
                             }`}>
                               {v.subscription_trial_days}d trial
                             </span>
                           )}
                           {hasSetup && (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
                               isSelected ? 'bg-amber-400/20 text-amber-200' : 'text-amber-700 bg-amber-50'
                             }`}>
                               {formatCurrency(v.subscription_setup_fee!, v.currency)} setup
@@ -208,7 +208,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
                         <p className={`text-lg font-extrabold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
                           {formatCurrency(v.price, v.currency)}
                         </p>
-                        <p className={`text-[11px] ${isSelected ? 'text-white/60' : 'text-gray-400'}`}>{vShort}</p>
+                        <p className={`text-xs ${isSelected ? 'text-white/60' : 'text-gray-400'}`}>{vShort}</p>
                       </div>
                     </button>
                   )
@@ -217,7 +217,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
             </div>
           ) : (
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide text-center mb-3">Options</p>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide text-center mb-3">Options</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {activeVariants.map(v => {
                   const isSelected = selectedVariant?.id === v.id

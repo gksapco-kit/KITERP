@@ -145,7 +145,7 @@ export default function BlogPost() {
 
           {/* Category */}
           {post.category && (
-            <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full mb-4"
+            <span className="inline-block text-xs font-medium px-3 py-1 rounded-full mb-4"
               style={{ backgroundColor: primaryColor + '15', color: primaryColor }}>
               {post.category}
             </span>

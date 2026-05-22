@@ -89,7 +89,7 @@ export default function TicketsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
           <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
         </div>
         <Button onClick={() => setShowCreate(true)}>
@@ -115,12 +115,12 @@ export default function TicketsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ticket</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Priority</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Source</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden xl:table-cell">Updated</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Action</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ticket</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Priority</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Source</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell">Updated</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y">

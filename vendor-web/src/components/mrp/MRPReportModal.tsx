@@ -63,7 +63,7 @@ function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CFG[status as keyof typeof STATUS_CFG] ?? STATUS_CFG.no_bom
   const Icon = cfg.icon
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
       <Icon className="w-3 h-3" />
       {cfg.label}
     </span>
@@ -232,22 +232,22 @@ export function MRPReportModal({ orderId, orderType, orderRef, items, onClose }:
         {lines.length > 0 && (
           <div className="px-6 py-3 border-b flex items-center gap-3 flex-wrap">
             {summary.ok > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
                 <CheckCircle className="w-3 h-3" /> {summary.ok} In Stock
               </span>
             )}
             {summary.partial > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
                 <AlertTriangle className="w-3 h-3" /> {summary.partial} Partial
               </span>
             )}
             {summary.short > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
                 <XCircle className="w-3 h-3" /> {summary.short} Short
               </span>
             )}
             {summary.no_bom > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                 <Package className="w-3 h-3" /> {summary.no_bom} No BOM
               </span>
             )}
@@ -322,7 +322,7 @@ export function MRPReportModal({ orderId, orderType, orderRef, items, onClose }:
                                   </span>
                                 )}
                               </div>
-                              {line.component_sku && <span className="text-[11px] text-gray-400">SKU: {line.component_sku}</span>}
+                              {line.component_sku && <span className="text-xs text-gray-400">SKU: {line.component_sku}</span>}
                             </div>
                             {line.source_items.length > 0 && (
                               <button
@@ -352,7 +352,7 @@ export function MRPReportModal({ orderId, orderType, orderRef, items, onClose }:
                         }`}>
                           {fmt(line.available)}
                           {line.shortage > 0 && (
-                            <div className="text-[11px] text-red-500 font-normal">short {fmt(line.shortage)}</div>
+                            <div className="text-xs text-red-500 font-normal">short {fmt(line.shortage)}</div>
                           )}
                         </td>
                         <td className="px-4 py-3 text-center">

@@ -253,13 +253,13 @@ export default function OrderDetail() {
                           {step.label}
                         </span>
                         {step.key === 'confirmed' && order.confirmed_at && (
-                          <span className="text-[10px] text-gray-400 mt-0.5">{formatDate(order.confirmed_at)}</span>
+                          <span className="text-xs text-gray-400 mt-0.5">{formatDate(order.confirmed_at)}</span>
                         )}
                         {step.key === 'shipped' && order.shipped_at && (
-                          <span className="text-[10px] text-gray-400 mt-0.5">{formatDate(order.shipped_at)}</span>
+                          <span className="text-xs text-gray-400 mt-0.5">{formatDate(order.shipped_at)}</span>
                         )}
                         {step.key === 'delivered' && order.delivered_at && (
-                          <span className="text-[10px] text-gray-400 mt-0.5">{formatDate(order.delivered_at)}</span>
+                          <span className="text-xs text-gray-400 mt-0.5">{formatDate(order.delivered_at)}</span>
                         )}
                       </div>
                     ))}

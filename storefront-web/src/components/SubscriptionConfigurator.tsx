@@ -333,17 +333,17 @@ export default function SubscriptionConfigurator({
   // Renders the date-preview chip list (reused for weekly + recurring)
   const renderDateChips = (dates: string[], maxShow: number = 12) => (
     <div className="bg-white rounded-lg border border-gray-100 p-3">
-      <p className="text-[11px] font-semibold text-gray-500 mb-1.5">
+      <p className="text-xs font-medium text-gray-500 mb-1.5">
         {dates.length} occurrence{dates.length !== 1 ? 's' : ''} in this period
       </p>
       <div className="flex flex-wrap gap-1">
         {dates.slice(0, maxShow).map(d => (
-          <span key={d} className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${themeUi.pillPrimary}`}>
+          <span key={d} className={`text-xs font-medium px-2 py-0.5 rounded-full ${themeUi.pillPrimary}`}>
             {formatDateShort(new Date(d))}
           </span>
         ))}
         {dates.length > maxShow && (
-          <span className="text-[10px] font-medium text-gray-400 px-2 py-0.5">
+          <span className="text-xs font-medium text-gray-400 px-2 py-0.5">
             +{dates.length - maxShow} more
           </span>
         )}
@@ -410,7 +410,7 @@ export default function SubscriptionConfigurator({
               key={m.id}
               type="button"
               onClick={() => setMode(m.id)}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-[10px] font-semibold transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-xs font-medium transition-colors ${
                 mode === m.id ? `${themeUi.toggleActive} shadow-sm` : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -425,12 +425,12 @@ export default function SubscriptionConfigurator({
         {mode === 'dates' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Start Date</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
               <input type="date" value={startDate} min={minStartDate} onChange={e => handleStartDateChange(e.target.value)}
                 className={`w-full px-3 py-2.5 text-sm ${inputFocus}`} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">End Date</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
               <input type="date" value={endDate} min={startDate} onChange={e => handleEndDateChange(e.target.value)}
                 className={`w-full px-3 py-2.5 text-sm ${inputFocus}`} />
             </div>
@@ -440,7 +440,7 @@ export default function SubscriptionConfigurator({
         {/* ── Mode: Cycles ── */}
         {mode === 'cycles' && (
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-2">Number of Billing Cycles</label>
+            <label className="block text-xs font-medium text-gray-600 mb-2">Number of Billing Cycles</label>
             <div className="flex items-center gap-3">
               <input type="number" min="1" max={maxCycles && maxCycles > 0 ? maxCycles : 999}
                 value={selectedCycles} onChange={e => handleCycleChange(Math.max(1, parseInt(e.target.value) || 1))}
@@ -458,7 +458,7 @@ export default function SubscriptionConfigurator({
         {/* ── Mode: Pick Dates ── */}
         {mode === 'pick_dates' && (
           <div className="space-y-3">
-            <label className="block text-xs font-semibold text-gray-600">Select specific dates</label>
+            <label className="block text-xs font-medium text-gray-600">Select specific dates</label>
             <div className="flex gap-2">
               <input type="date" value={pickInput} min={minStartDate} onChange={e => setPickInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPickDate() } }}
@@ -469,7 +469,7 @@ export default function SubscriptionConfigurator({
               </button>
             </div>
             {maxCycles && maxCycles > 0 && (
-              <p className="text-[11px] text-amber-600">Max {maxCycles} dates allowed</p>
+              <p className="text-xs text-amber-600">Max {maxCycles} dates allowed</p>
             )}
             {pickedDates.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
@@ -493,11 +493,11 @@ export default function SubscriptionConfigurator({
         {mode === 'weekly' && (
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-2">Deliver / bill every</label>
+              <label className="block text-xs font-medium text-gray-600 mb-2">Deliver / bill every</label>
               <div className="grid grid-cols-7 gap-1">
                 {WEEKDAYS.map((day, i) => (
                   <button key={day} type="button" onClick={() => setWeeklyDay(i)}
-                    className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+                    className={`py-2 rounded-lg text-xs font-medium transition-all ${
                       weeklyDay === i
                         ? 'bg-[color:var(--color-primary)] text-white shadow-sm'
                         : `bg-gray-100 text-gray-600 ${themeUi.pillPrimaryHoverChip}`
@@ -509,12 +509,12 @@ export default function SubscriptionConfigurator({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">From</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
                 <input type="date" value={weeklyFrom} min={minStartDate} onChange={e => setWeeklyFrom(e.target.value)}
                   className={`w-full px-3 py-2.5 text-sm ${inputFocus}`} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Until</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Until</label>
                 <input type="date" value={weeklyTo} min={weeklyFrom} onChange={e => setWeeklyTo(e.target.value)}
                   className={`w-full px-3 py-2.5 text-sm ${inputFocus}`} />
               </div>
@@ -528,7 +528,7 @@ export default function SubscriptionConfigurator({
           <div className="space-y-3">
             {/* Frequency row */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-2">Repeat every</label>
+              <label className="block text-xs font-medium text-gray-600 mb-2">Repeat every</label>
               <div className="flex items-center gap-2">
                 <input type="number" min="1" max="99" value={recurEvery}
                   onChange={e => setRecurEvery(Math.max(1, parseInt(e.target.value) || 1))}
@@ -551,13 +551,13 @@ export default function SubscriptionConfigurator({
             {/* Weekday multi-select — only for "week" unit */}
             {recurUnit === 'week' && (
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2">On these days</label>
+                <label className="block text-xs font-medium text-gray-600 mb-2">On these days</label>
                 <div className="grid grid-cols-7 gap-1">
                   {WEEKDAYS.map((day, i) => {
                     const active = recurWeekdays.includes(i)
                     return (
                       <button key={day} type="button" onClick={() => toggleRecurWeekday(i)}
-                        className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+                        className={`py-2 rounded-lg text-xs font-medium transition-all ${
                           active
                             ? 'bg-[color:var(--color-primary)] text-white shadow-sm'
                             : `bg-gray-100 text-gray-600 ${themeUi.pillPrimaryHoverChip}`
@@ -573,12 +573,12 @@ export default function SubscriptionConfigurator({
             {/* Date range */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Start</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Start</label>
                 <input type="date" value={recurFrom} min={minStartDate} onChange={e => setRecurFrom(e.target.value)}
                   className={`w-full px-3 py-2.5 text-sm ${inputFocus}`} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">End</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">End</label>
                 <input type="date" value={recurTo} min={recurFrom} onChange={e => setRecurTo(e.target.value)}
                   className={`w-full px-3 py-2.5 text-sm ${inputFocus}`} />
               </div>
@@ -599,23 +599,23 @@ export default function SubscriptionConfigurator({
         {/* Timeline visual — for dates/cycles modes */}
         {(mode === 'dates' || mode === 'cycles') && (
           <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Subscription Timeline</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Your Subscription Timeline</p>
             <div className="relative">
               <div className="flex items-center gap-0">
                 {hasTrial && (
                   <div className="flex-shrink-0 text-center">
                     <div className="h-2 bg-green-400 rounded-l-full" style={{ width: '60px' }} />
-                    <p className="text-[10px] text-green-700 font-medium mt-1">Free trial</p>
-                    <p className="text-[10px] text-gray-400">{trialDays}d</p>
+                    <p className="text-xs text-green-700 font-medium mt-1">Free trial</p>
+                    <p className="text-xs text-gray-400">{trialDays}d</p>
                   </div>
                 )}
                 <div className="flex-1 text-center min-w-[120px]">
                   <div className={`h-2 bg-[color:var(--color-primary)] ${hasTrial ? '' : 'rounded-l-full'} rounded-r-full`} />
-                  <p className={`text-[10px] font-medium mt-1 ${themeUi.textPrimaryStrong}`}>Active subscription</p>
-                  <p className="text-[10px] text-gray-400">{effectiveCycles} cycle{effectiveCycles !== 1 ? 's' : ''}</p>
+                  <p className={`text-xs font-medium mt-1 ${themeUi.textPrimaryStrong}`}>Active subscription</p>
+                  <p className="text-xs text-gray-400">{effectiveCycles} cycle{effectiveCycles !== 1 ? 's' : ''}</p>
                 </div>
               </div>
-              <div className="flex justify-between mt-2 text-[10px]">
+              <div className="flex justify-between mt-2 text-xs">
                 <div className="text-left">
                   <p className="font-semibold text-gray-700">{hasTrial ? 'Trial starts' : 'Starts'}</p>
                   <p className="text-gray-500">{formatDateShort(today)}</p>
@@ -697,7 +697,7 @@ export default function SubscriptionConfigurator({
           }
         </button>
 
-        <p className="text-[11px] text-center text-gray-400">
+        <p className="text-xs text-center text-gray-400">
           {mode === 'pick_dates'
             ? `You selected ${effectiveCycles} date${effectiveCycles !== 1 ? 's' : ''}.`
             : mode === 'weekly'

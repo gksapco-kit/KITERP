@@ -120,10 +120,21 @@ const KEYWORD_HINTS: Record<string, string[]> = {
 
 export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   {
+    kind: 'nav', id: 'settings-main',
+    label: 'Settings',
+    description: 'My Kit → Business Unit / Store settings',
+    section: 'My Kit', sectionId: 'my-kit',
+    to: '/settings',
+    keywords: [
+      'settings', 'configuration', 'business profile', 'contact', 'address', 'tax',
+      'hours', 'online orders', 'about', 'vendor settings', 'store settings',
+    ],
+  },
+  {
     kind: 'nav', id: 'settings-profile',
     label: 'Business Profile',
     description: 'Settings → Business Profile',
-    section: 'Settings', sectionId: 'my-kit',
+    section: 'My Kit', sectionId: 'my-kit',
     to: '/settings?section=profile',
     keywords: [
       'business name', 'brand', 'logo', 'banner', 'category', 'offering',
@@ -135,7 +146,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     kind: 'nav', id: 'settings-contact',
     label: 'Contact Information',
     description: 'Settings → Contact',
-    section: 'Settings', sectionId: 'my-kit',
+    section: 'My Kit', sectionId: 'my-kit',
     to: '/settings?section=contact',
     keywords: [
       'email', 'phone', 'contact', 'support email', 'support phone',
@@ -146,7 +157,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     kind: 'nav', id: 'settings-address',
     label: 'Addresses',
     description: 'Settings → Addresses',
-    section: 'Settings', sectionId: 'my-kit',
+    section: 'My Kit', sectionId: 'my-kit',
     to: '/settings?section=address',
     keywords: [
       'address', 'location', 'street', 'city', 'state', 'pincode', 'zip',
@@ -157,7 +168,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     kind: 'nav', id: 'settings-tax',
     label: 'Tax & Compliance',
     description: 'Settings → Tax',
-    section: 'Settings', sectionId: 'my-kit',
+    section: 'My Kit', sectionId: 'my-kit',
     to: '/settings?section=tax',
     keywords: [
       'tax', 'gst', 'gstin', 'pan', 'vat', 'tax rate', 'gst registration',
@@ -168,7 +179,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     kind: 'nav', id: 'settings-hours',
     label: 'Offline Business Hours',
     description: 'Settings → Offline Business Hours',
-    section: 'Settings', sectionId: 'my-kit',
+    section: 'My Kit', sectionId: 'my-kit',
     to: '/settings?section=hours-availability',
     keywords: [
       'hours', 'opening hours', 'business hours', 'open', 'close',
@@ -181,7 +192,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     kind: 'nav', id: 'settings-order-acceptance',
     label: 'Online Orders',
     description: 'Settings → Online Orders',
-    section: 'Settings', sectionId: 'my-kit',
+    section: 'My Kit', sectionId: 'my-kit',
     to: '/settings?section=order-acceptance',
     keywords: [
       'online orders', 'order hours', 'online hours', 'accept orders',
@@ -230,7 +241,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     kind: 'nav', id: 'settings-about',
     label: 'About',
     description: 'Settings → About',
-    section: 'Settings', sectionId: 'my-kit',
+    section: 'My Kit', sectionId: 'my-kit',
     to: '/settings?section=about',
     keywords: [
       'version', 'about', 'changelog', 'release', 'build', 'app version',

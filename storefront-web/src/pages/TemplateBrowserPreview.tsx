@@ -255,11 +255,11 @@ function ApplyToStoreButton({
   if (state === 'error') {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-red-600 max-w-[180px] truncate" title={errorMsg}>{errorMsg}</span>
+        <span className="text-xs text-red-600 max-w-[180px] truncate" title={errorMsg}>{errorMsg}</span>
         <button
           type="button"
           onClick={() => setState(getVendorToken() ? 'idle' : 'unauthenticated')}
-          className="text-[10px] underline text-gray-500 hover:text-gray-700"
+          className="text-xs underline text-gray-500 hover:text-gray-700"
         >
           Retry
         </button>
@@ -376,12 +376,12 @@ function StyleTab({
   return (
     <div className="flex-1 p-4 space-y-5 overflow-y-auto">
       <div>
-        <label className="block text-[10px] font-extrabold uppercase tracking-wide text-gray-500 mb-1.5">Store name</label>
+        <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-500 mb-1.5">Store name</label>
         <input type="text" value={storeName} onChange={e => onStoreNameChange(e.target.value)} placeholder="My Store"
           className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-gray-900" />
       </div>
       <div>
-        <div className="text-[10px] font-extrabold uppercase tracking-wide text-gray-500 mb-2">Brand colors</div>
+        <div className="text-xs font-extrabold uppercase tracking-wide text-gray-500 mb-2">Brand colors</div>
         <div className="space-y-2">
           {colorRows.map(({ key, label, value }) => (
             <div key={key} className="flex items-center gap-2.5">
@@ -391,7 +391,7 @@ function StyleTab({
                   className="absolute inset-0 opacity-0 cursor-pointer w-full h-full rounded-lg" />
               </label>
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-semibold text-gray-500 mb-0.5">{label}</div>
+                <div className="text-xs font-medium text-gray-500 mb-0.5">{label}</div>
                 <input type="text" value={value} maxLength={7} placeholder="#000000"
                   onChange={e => { const v = e.target.value.trim(); if (/^#[0-9A-Fa-f]{6}$/.test(v)) onColorChange(key, v) }}
                   className="w-full font-mono text-xs px-2 py-1 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-1 focus:ring-ring text-gray-800" />
@@ -404,10 +404,10 @@ function StyleTab({
         {colorRows.map(({ key, value }) => <div key={key} className="flex-1" style={{ backgroundColor: value }} />)}
       </div>
       <div>
-        <div className="text-[10px] font-extrabold uppercase tracking-wide text-gray-500 mb-2">Typography</div>
+        <div className="text-xs font-extrabold uppercase tracking-wide text-gray-500 mb-2">Typography</div>
         <div className="space-y-2">
           <div>
-            <label className="text-[10px] font-semibold text-gray-500 block mb-1">Heading font</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Heading font</label>
             <select value={displayFont} onChange={e => onDisplayFontChange(e.target.value)}
               className="w-full text-sm px-2.5 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-ring text-gray-800">
               {HEADING_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
@@ -417,7 +417,7 @@ function StyleTab({
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-semibold text-gray-500 block mb-1">Body font</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Body font</label>
             <select value={bodyFont} onChange={e => onBodyFontChange(e.target.value)}
               className="w-full text-sm px-2.5 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-ring text-gray-800">
               {BODY_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
@@ -497,7 +497,7 @@ function ContentTab({
                   const val = content[field.key] ?? ''
                   return (
                     <div key={field.key}>
-                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">{field.label}</label>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">{field.label}</label>
                       {field.type === 'textarea' ? (
                         <textarea
                           value={val}
@@ -544,7 +544,7 @@ function ContentTab({
           </div>
         )
       })}
-      <div className="p-4 text-[10px] text-gray-400 text-center">
+      <div className="p-4 text-xs text-gray-400 text-center">
         Click the <ExternalLink className="inline w-2.5 h-2.5 mx-0.5" /> icon next to any section to scroll to it in the preview.
       </div>
     </div>
@@ -638,7 +638,7 @@ function EditPanel(props: EditPanelProps) {
         </div>
       )}
 
-      <div className="px-3 py-2 border-t border-gray-100 text-[9px] text-gray-400 text-center shrink-0">
+      <div className="px-3 py-2 border-t border-gray-100 text-xs text-gray-400 text-center shrink-0">
         Changes are live in the preview. Apply the template to save to your site.
       </div>
     </div>

@@ -65,7 +65,7 @@ function AddressFields({
 }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
       <input
         className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
         placeholder="Street / House No. / Area"
@@ -124,7 +124,7 @@ function FamilyMemberRow({
   return (
     <div className="border rounded-lg p-3 space-y-2 bg-gray-50">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-semibold text-gray-500">Member {index + 1}</span>
+        <span className="text-xs font-medium text-gray-500">Member {index + 1}</span>
         <button type="button" onClick={onRemove} className="text-red-400 hover:text-red-600 p-0.5">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -459,7 +459,7 @@ function AddEmployeeModal({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium border-b-2 transition-colors ${
+                  className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${
                     isActive
                       ? 'border-blue-600 text-blue-600 bg-blue-50/40'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -532,7 +532,7 @@ function AddEmployeeModal({
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-medium text-gray-600">Employee ID</label>
                       {/* Toggle between auto and manual */}
-                      <div className="flex bg-gray-100 rounded-md p-0.5 text-[11px]">
+                      <div className="flex bg-gray-100 rounded-md p-0.5 text-xs">
                         <button
                           type="button"
                           onClick={() => { setEmployeeIdManual(false); setEmployeeIdOverride('') }}
@@ -563,7 +563,7 @@ function AddEmployeeModal({
                         <span className="font-medium text-gray-700">{nextCodeData?.next_code ?? '—'}</span>
                       </div>
                     )}
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    <p className="text-xs text-gray-400 mt-0.5">
                       {employeeIdManual
                         ? 'You are entering a custom ID. System will still assign an internal code.'
                         : `Will auto-assign: ${nextCodeData?.next_code ?? '…'}`}
@@ -778,7 +778,7 @@ function AddEmployeeModal({
                   </div>
                 </div>
                 <div className="border-t pt-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Emergency Contact</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Emergency Contact</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
@@ -854,7 +854,7 @@ function AddEmployeeModal({
                 {/* Add document form */}
                 {showDocForm ? (
                   <div className="border rounded-xl p-4 bg-blue-50/30 space-y-3">
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">New Document</p>
+                    <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">New Document</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Document Type</label>

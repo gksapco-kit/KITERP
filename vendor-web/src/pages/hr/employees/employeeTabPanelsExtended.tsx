@@ -282,7 +282,7 @@ export function EmployeePersonalTab({
         </FieldRow>
       </div>
       <div className="pt-4 border-t">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Emergency contact</p>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Emergency contact</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <FieldRow label="Name" editing={editing} display={form.emergency_contact_name}>
             <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.emergency_contact_name} onChange={e => update('emergency_contact_name', e.target.value)} />
@@ -327,7 +327,7 @@ export function FamilyTab({
       {members.map((m, i) => (
         <div key={i} className="border rounded-lg p-3 bg-gray-50 space-y-2">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-gray-500">Member {i + 1}</span>
+            <span className="text-xs font-medium text-gray-500">Member {i + 1}</span>
             {editing && (
               <button type="button" onClick={() => setAndEmit(members.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600">
                 <Trash2 className="w-3.5 h-3.5" />
@@ -630,10 +630,10 @@ export function EmployeeCredentialsTab({
               <ShieldCheck className={`w-4 h-4 ${otpExpired ? 'text-red-500' : 'text-amber-600'}`} />
               <span className="text-sm font-semibold text-gray-900">One-time login password</span>
               {otpExpired
-                ? <span className="text-[10px] px-1.5 py-0.5 bg-red-200 text-red-800 rounded-full font-semibold uppercase tracking-wide">Expired</span>
-                : <span className="text-[10px] px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded-full font-semibold uppercase tracking-wide">Active</span>}
+                ? <span className="text-xs px-1.5 py-0.5 bg-red-200 text-red-800 rounded-full font-semibold uppercase tracking-wide">Expired</span>
+                : <span className="text-xs px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded-full font-semibold uppercase tracking-wide">Active</span>}
               {otpExpiryLabel() && !otpExpired && (
-                <span className="ml-auto text-[11px] text-amber-700">{otpExpiryLabel()}</span>
+                <span className="ml-auto text-xs text-amber-700">{otpExpiryLabel()}</span>
               )}
             </div>
             <div className="px-4 py-3">
@@ -646,7 +646,7 @@ export function EmployeeCredentialsTab({
                 </button>
                 {!otpExpired && <CopyBtn text={storedOtp} id="otp" copied={copied} copy={copy} />}
               </div>
-              <p className={`text-[11px] mt-1.5 ${otpExpired ? 'text-red-600' : 'text-amber-700'}`}>
+              <p className={`text-xs mt-1.5 ${otpExpired ? 'text-red-600' : 'text-amber-700'}`}>
                 {otpExpired
                   ? 'This OTP has expired. Click Regenerate to issue a new one.'
                   : 'Active until the employee logs in or you regenerate. Valid for 72 hours.'}
@@ -673,7 +673,7 @@ export function EmployeeCredentialsTab({
               <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5 flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-0.5">Work email (login)</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Work email (login)</p>
                   <p className="text-sm font-mono text-gray-900 truncate">{loginEmail || '—'}</p>
                 </div>
                 {loginEmail && <CopyBtn text={loginEmail} id="login-email" copied={copied} copy={copy} />}
@@ -682,7 +682,7 @@ export function EmployeeCredentialsTab({
                 <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5 flex items-center gap-2">
                   <KeyRound className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-0.5">Employee code(s) (login)</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Employee code(s) (login)</p>
                     <p className="text-sm font-mono text-gray-900">{loginAliases.join(' · ')}</p>
                   </div>
                   <CopyBtn text={loginAliases.join(', ')} id="emp-codes" copied={copied} copy={copy} />
@@ -691,7 +691,7 @@ export function EmployeeCredentialsTab({
             </div>
 
             {/* Manual password set/reset */}
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Set / reset portal password</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Set / reset portal password</p>
             <form onSubmit={handlePortalSubmit} className="max-w-md space-y-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">New password</label>

@@ -61,11 +61,11 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
               onClick={() => setExpanded(isOpen ? null : key)}
             >
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-gray-400">#{idx + 1}</span>
+                <span className="text-xs font-medium text-gray-400">#{idx + 1}</span>
                 <span className="text-sm font-medium text-gray-800">
                   {rule.name || CALC_TYPES.find(c => c.value === rule.calculation_type)?.label || 'Rule'}
                 </span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${rule.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${rule.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {rule.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>

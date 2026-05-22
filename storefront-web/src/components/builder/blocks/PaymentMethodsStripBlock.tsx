@@ -21,7 +21,7 @@ interface Method {
 function Badge({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`inline-flex items-center justify-center min-w-[56px] h-9 px-2.5 rounded-md border border-gray-200 bg-white text-[11px] font-semibold tracking-wider ${className}`}
+      className={`inline-flex items-center justify-center min-w-[56px] h-9 px-2.5 rounded-md border border-gray-200 bg-white text-xs font-medium tracking-wider ${className}`}
     >
       {children}
     </div>

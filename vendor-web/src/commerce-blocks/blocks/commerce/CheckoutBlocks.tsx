@@ -65,7 +65,7 @@ export function Checkout({
               {it.product.image && (
                 <img src={it.product.image} alt={it.product.name} className="h-full w-full object-cover" />
               )}
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold text-background">
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1 text-xs font-medium text-background">
                 {it.quantity}
               </span>
             </div>
@@ -114,7 +114,7 @@ export function Checkout({
         <Lock className="h-4 w-4" />
         {cta}
       </Button>
-      <p className="text-center text-[11px] text-muted-foreground">
+      <p className="text-center text-xs text-muted-foreground">
         Secured payment · 30-day returns
       </p>
     </aside>
@@ -329,9 +329,9 @@ export function AddressBook({ layout = "list", showPhone = true }: AddressBookPr
               )}
             >
               <div className="mb-2 flex items-center gap-2">
-                <Badge variant="secondary" className="text-[10px]">{a.label}</Badge>
+                <Badge variant="secondary" className="text-xs">{a.label}</Badge>
                 {a.isDefault && (
-                  <Badge variant="outline" className="text-[10px]">Default</Badge>
+                  <Badge variant="outline" className="text-xs">Default</Badge>
                 )}
                 {active && (
                   <span className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -437,7 +437,7 @@ export function OrderConfirmation({
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-2">
             {showShipping && (
               <div className="space-y-2 p-5">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
                   <Truck className="h-3.5 w-3.5" />
                   Shipping to
                 </div>
@@ -446,7 +446,7 @@ export function OrderConfirmation({
                   <div className="text-muted-foreground">{o.shippingAddress.line1}</div>
                   <div className="text-muted-foreground">{o.shippingAddress.city}</div>
                 </div>
-                <div className="mt-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <div className="mt-3 flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
                   <Package className="h-3.5 w-3.5" />
                   Estimated delivery
                 </div>
@@ -525,7 +525,7 @@ export function GiftCards({ layout = "shop", cta = "Buy gift card" }: GiftCardsP
                   <Sparkles className="h-5 w-5 text-foreground/70" />
                   <div className="absolute inset-x-3 bottom-3">
                     <div className="text-2xl font-semibold text-foreground">${g.amount}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-foreground/70">
+                    <div className="text-xs uppercase tracking-wider text-foreground/70">
                       {g.currency} gift card
                     </div>
                   </div>
@@ -565,7 +565,7 @@ export function GiftCards({ layout = "shop", cta = "Buy gift card" }: GiftCardsP
             <Gift className="h-4 w-4" />
             {cta}
           </Button>
-          <p className="text-center text-[11px] text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             Never expires · Redeemable online & in-store
           </p>
         </aside>

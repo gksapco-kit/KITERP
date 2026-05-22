@@ -131,7 +131,7 @@ function ShareMenu({ invoice, onClose }: {
 
   return (
     <div ref={ref} className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-xl border w-48 py-1 animate-in fade-in zoom-in-95 duration-100">
-      <p className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase">Share via</p>
+      <p className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase">Share via</p>
       {shareOptions.map((opt) => (
         <button
           key={opt.label}
@@ -236,15 +236,15 @@ export default function InvoicesPage() {
           <ResizableTable tableId="invoices" defaultWidths={[120, 120, 90, 160, 90, 90, 90, 100, 80]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Invoice #</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Reference</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Due</th>
-                <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Invoice #</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Reference</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">Due</th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -421,7 +421,7 @@ function ItemSearchRow({
             <div className="flex border-b bg-gray-50 px-2 pt-1.5 gap-1">
               {(['all', 'product', 'service'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
-                  className={`px-3 py-1 rounded-t-lg text-xs font-semibold capitalize transition-colors ${tab === t ? 'bg-white border border-b-white border-gray-200 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+                  className={`px-3 py-1 rounded-t-lg text-xs font-medium capitalize transition-colors ${tab === t ? 'bg-white border border-b-white border-gray-200 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
                   {t === 'all' ? 'All' : t === 'product' ? '📦 Products' : '⚙️ Services'}
                 </button>
               ))}
@@ -441,24 +441,24 @@ function ItemSearchRow({
                       onMouseDown={e => { e.preventDefault(); apply(c) }}
                       className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors flex items-center gap-3"
                     >
-                      <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${c.kind === 'product' ? 'bg-blue-100 text-blue-700' : 'bg-primary/12 text-primary'}`}>
+                      <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${c.kind === 'product' ? 'bg-blue-100 text-blue-700' : 'bg-primary/12 text-primary'}`}>
                         {c.kind === 'product' ? '📦' : '⚙️'}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-xs text-gray-400">
                           {c.hsn_sac && <span className="mr-2">HSN {c.hsn_sac}</span>}
                           {c.price != null && <span className="mr-2">₹{c.price.toFixed(2)}</span>}
                           {c.tax_rate != null && <span>{c.tax_rate}% tax</span>}
                         </p>
                       </div>
-                      <span className="text-[10px] text-gray-300 capitalize shrink-0">{c.kind}</span>
+                      <span className="text-xs text-gray-300 capitalize shrink-0">{c.kind}</span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-            <div className="px-3 py-2 bg-gray-50 border-t text-[10px] text-gray-400">
+            <div className="px-3 py-2 bg-gray-50 border-t text-xs text-gray-400">
               {filtered.length} result{filtered.length !== 1 ? 's' : ''} · Select to auto-fill details
             </div>
           </div>
@@ -624,17 +624,17 @@ function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCre
             <div className="flex items-center justify-between mb-2">
               <div>
                 <Label>Line Items</Label>
-                <p className="text-[10px] text-gray-400 mt-0.5">Type to search your products &amp; services — select to auto-fill details</p>
+                <p className="text-xs text-gray-400 mt-0.5">Type to search your products &amp; services — select to auto-fill details</p>
               </div>
               <Button variant="outline" size="sm" onClick={addLine}><Plus className="w-3 h-3 mr-1" />Add Line</Button>
             </div>
             {/* Column headers */}
             <div className="flex gap-2 mb-1 px-0.5">
-              <p className="flex-1 text-[10px] font-semibold text-gray-400 uppercase">Item</p>
-              <p className="w-20 text-[10px] font-semibold text-gray-400 uppercase">HSN/SAC</p>
-              <p className="w-16 text-[10px] font-semibold text-gray-400 uppercase text-center">Qty</p>
-              <p className="w-24 text-[10px] font-semibold text-gray-400 uppercase">Rate (₹)</p>
-              <p className="w-16 text-[10px] font-semibold text-gray-400 uppercase text-center">Tax %</p>
+              <p className="flex-1 text-xs font-medium text-gray-400 uppercase">Item</p>
+              <p className="w-20 text-xs font-medium text-gray-400 uppercase">HSN/SAC</p>
+              <p className="w-16 text-xs font-medium text-gray-400 uppercase text-center">Qty</p>
+              <p className="w-24 text-xs font-medium text-gray-400 uppercase">Rate (₹)</p>
+              <p className="w-16 text-xs font-medium text-gray-400 uppercase text-center">Tax %</p>
               <div className="w-8" />
             </div>
             <div className="space-y-2">

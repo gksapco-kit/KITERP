@@ -274,7 +274,7 @@ function ToneDropdown({ value, onChange, volume }: {
           <Music2 className="w-4 h-4 text-blue-500 shrink-0" />
           <div className="min-w-0 text-left">
             <p className="text-sm font-medium text-gray-900 truncate">{selected?.label ?? 'Select tone'}</p>
-            <p className="text-[10px] text-gray-400 truncate">{selected?.description}</p>
+            <p className="text-xs text-gray-400 truncate">{selected?.description}</p>
           </div>
         </div>
         <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -293,7 +293,7 @@ function ToneDropdown({ value, onChange, volume }: {
                 return (
                   <div key={cat.key}>
                     <div className="px-3 py-1.5 bg-gray-50 sticky top-0 z-10">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{cat.label}</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{cat.label}</p>
                     </div>
                     {tones.map(t => (
                       <div
@@ -310,7 +310,7 @@ function ToneDropdown({ value, onChange, volume }: {
                             <p className={`text-sm font-medium truncate ${value === t.value ? 'text-blue-700' : 'text-gray-900'}`}>
                               {t.label}
                             </p>
-                            <p className="text-[10px] text-gray-400 truncate">{t.description}</p>
+                            <p className="text-xs text-gray-400 truncate">{t.description}</p>
                           </div>
                         </div>
                         {t.value !== 'silent' && t.value !== 'local' && (
@@ -519,7 +519,7 @@ export default function NotificationSettingsPage() {
             : <BellOff className="h-3.5 w-3.5 text-destructive" />}
           <span
             className={cn(
-              'text-xs font-semibold',
+              'text-xs font-medium',
               prefs.notifications_enabled ? 'text-primary' : 'text-destructive',
             )}
           >
@@ -538,7 +538,7 @@ export default function NotificationSettingsPage() {
           style={{ position: 'sticky', top: 72 }}
         >
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
-            <p className="px-4 pb-2 pt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sections</p>
+            <p className="px-4 pb-2 pt-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">Sections</p>
             <nav className="space-y-0.5 px-2 pb-2">
               {NAV_SECTIONS.map(s => {
                 const isActive = activeSection === s.id
@@ -624,7 +624,7 @@ export default function NotificationSettingsPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">{ev.label}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Tone</span>
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tone</span>
                   <ToneSelect
                     value={prefs.per_event_tones[ev.key] ?? ''}
                     onChange={v => set('per_event_tones', { ...prefs.per_event_tones, [ev.key]: v })}
@@ -673,7 +673,7 @@ export default function NotificationSettingsPage() {
           <div className="pt-3 space-y-5">
             {/* ── Ringtone — two option cards ── */}
             <div>
-              <p className="text-xs font-semibold text-gray-700 mb-2">Ringtone</p>
+              <p className="text-xs font-medium text-gray-700 mb-2">Ringtone</p>
               <div className="space-y-2">
 
                 {/* Option A: Built-in tone */}
@@ -764,7 +764,7 @@ export default function NotificationSettingsPage() {
                       {localFileName && (
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button type="button" onClick={() => fileInputRef.current?.click()}
-                            className="text-[11px] text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-2 py-0.5 bg-white hover:border-gray-300 transition-colors">
+                            className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-2 py-0.5 bg-white hover:border-gray-300 transition-colors">
                             Replace
                           </button>
                           <button type="button" onClick={handleClearLocal} className="text-red-400 hover:text-red-600">
@@ -794,7 +794,7 @@ export default function NotificationSettingsPage() {
             {/* Volume */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-gray-700">Volume</p>
+                <p className="text-xs font-medium text-gray-700">Volume</p>
                 <span className="text-xs font-mono text-gray-500">{prefs.volume}%</span>
               </div>
               <div className="flex items-center gap-3">
@@ -806,14 +806,14 @@ export default function NotificationSettingsPage() {
                   className="flex-1 h-2 rounded-full accent-blue-600 cursor-pointer" />
                 <Volume2 className="w-4 h-4 text-gray-600 shrink-0" />
               </div>
-              <p className="text-[10px] text-gray-400 mt-1">Release slider to preview selected tone.</p>
+              <p className="text-xs text-gray-400 mt-1">Release slider to preview selected tone.</p>
             </div>
 
             {/* Tone duration */}
             {prefs.sound_tone !== 'silent' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-gray-700">Alert duration</p>
+                  <p className="text-xs font-medium text-gray-700">Alert duration</p>
                   <span className="text-xs font-mono text-gray-500">{prefs.tone_duration_sec} s</span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
@@ -832,7 +832,7 @@ export default function NotificationSettingsPage() {
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">How long the tone plays on each alert. Preview below uses this duration.</p>
+                <p className="text-xs text-gray-400 mt-1">How long the tone plays on each alert. Preview below uses this duration.</p>
               </div>
             )}
 
@@ -879,7 +879,7 @@ export default function NotificationSettingsPage() {
 
               {/* Mode picker */}
               <div>
-                <p className="text-xs font-semibold text-gray-700 mb-2">Schedule mode</p>
+                <p className="text-xs font-medium text-gray-700 mb-2">Schedule mode</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { value: 'quiet',  icon: Moon,         label: 'Silence during',   desc: 'Mute alerts in these periods' },
@@ -897,8 +897,8 @@ export default function NotificationSettingsPage() {
                     >
                       <m.icon className={`w-4 h-4 mt-0.5 shrink-0 ${prefs.schedule_mode === m.value ? 'text-indigo-600' : 'text-gray-400'}`} />
                       <div>
-                        <p className="text-xs font-semibold text-gray-900">{m.label}</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">{m.desc}</p>
+                        <p className="text-xs font-medium text-gray-900">{m.label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{m.desc}</p>
                       </div>
                     </button>
                   ))}
@@ -907,7 +907,7 @@ export default function NotificationSettingsPage() {
 
               {/* Time slots */}
               <div>
-                <p className="text-xs font-semibold text-gray-700 mb-2">
+                <p className="text-xs font-medium text-gray-700 mb-2">
                   {prefs.schedule_mode === 'quiet' ? 'Silence periods' : 'Active windows'}
                 </p>
                 {prefs.schedule_slots.length === 0 && (
@@ -917,7 +917,7 @@ export default function NotificationSettingsPage() {
                   {prefs.schedule_slots.map((slot, idx) => (
                     <div key={slot.id} className="border border-border rounded-xl p-3 bg-muted/30 space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-gray-700">
+                        <p className="text-xs font-medium text-gray-700">
                           {prefs.schedule_mode === 'quiet' ? `Silence period ${idx + 1}` : `Window ${idx + 1}`}
                         </p>
                         <button type="button" onClick={() => removeSlot(slot.id)} className="text-red-400 hover:text-red-600">
@@ -927,14 +927,14 @@ export default function NotificationSettingsPage() {
 
                       {/* Day selector */}
                       <div>
-                        <p className="text-[10px] text-gray-500 mb-1.5">Days <span className="text-gray-400">(empty = every day)</span></p>
+                        <p className="text-xs text-gray-500 mb-1.5">Days <span className="text-gray-400">(empty = every day)</span></p>
                         <div className="flex gap-1 flex-wrap">
                       {DAYS_SHORT.map(d => (
                         <button
                           key={d}
                           type="button"
                           onClick={() => toggleSlotDay(slot.id, d)}
-                          className={`w-9 h-8 rounded-lg text-xs font-semibold transition-all duration-150 select-none ${
+                          className={`w-9 h-8 rounded-lg text-xs font-medium transition-all duration-150 select-none ${
                             slot.days.includes(d)
                               ? 'bg-indigo-600 text-white shadow-sm'
                               : 'bg-white border border-gray-200 text-gray-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50'
@@ -949,7 +949,7 @@ export default function NotificationSettingsPage() {
                       {/* Time range */}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[10px] text-gray-500 flex items-center gap-1 mb-1">
+                          <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                             <Clock className="w-3 h-3" />
                             {prefs.schedule_mode === 'quiet' ? 'Start (silence from)' : 'From'}
                           </label>
@@ -958,7 +958,7 @@ export default function NotificationSettingsPage() {
                             className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
                         </div>
                         <div>
-                          <label className="text-[10px] text-gray-500 flex items-center gap-1 mb-1">
+                          <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                             <Clock className="w-3 h-3" />
                             {prefs.schedule_mode === 'quiet' ? 'End (resume alerts)' : 'To'}
                           </label>
@@ -995,7 +995,7 @@ export default function NotificationSettingsPage() {
                       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5">
                         {DAYS_SHORT.map(d => {
                           const h = storeHours[d] ?? storeHours[d + 'day'] ?? storeHours[`${d}day`]
-                          return <p key={d} className="text-[10px] text-gray-500">{DAYS_LABEL[d]}: {h?.closed ? 'Closed' : h ? `${h.open}–${h.close}` : '—'}</p>
+                          return <p key={d} className="text-xs text-gray-500">{DAYS_LABEL[d]}: {h?.closed ? 'Closed' : h ? `${h.open}–${h.close}` : '—'}</p>
                         })}
                       </div>
                     )}
@@ -1004,7 +1004,7 @@ export default function NotificationSettingsPage() {
                 <Toggle checked={prefs.sync_with_store_hours} onChange={v => set('sync_with_store_hours', v)} />
               </div>
 
-              <p className="text-[10px] text-gray-400">
+              <p className="text-xs text-gray-400">
                 {prefs.schedule_mode === 'quiet'
                   ? 'Sounds and browser pop-ups are suppressed during silence periods. In-app notifications are always recorded.'
                   : 'Sounds and browser pop-ups are only fired during active windows. In-app notifications are always recorded.'}
@@ -1024,13 +1024,13 @@ export default function NotificationSettingsPage() {
 
               {/* ── Interval ── */}
               <div>
-                <p className="text-xs font-semibold text-gray-700 mb-2">Repeat interval</p>
+                <p className="text-xs font-medium text-gray-700 mb-2">Repeat interval</p>
                 {/* Preset chips */}
                 <div className="flex gap-2 flex-wrap items-center mb-3">
                   {REPEAT_OPTIONS.map(([label, mins]) => (
                     <button key={mins} type="button"
                       onClick={() => set('repeat_interval_min', mins)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 select-none ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-150 select-none ${
                         prefs.repeat_interval_min === mins && REPEAT_OPTION_VALUES.includes(prefs.repeat_interval_min)
                           ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
                           : 'bg-white border-gray-200 text-gray-600 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50'
@@ -1075,16 +1075,16 @@ export default function NotificationSettingsPage() {
                   </select>
                 </div>
                 {!REPEAT_OPTION_VALUES.includes(prefs.repeat_interval_min) && (
-                  <p className="text-[10px] text-rose-500 mt-1.5 font-medium">
+                  <p className="text-xs text-rose-500 mt-1.5 font-medium">
                     Custom: every {minutesToUnit(prefs.repeat_interval_min).val} {minutesToUnit(prefs.repeat_interval_min).unit}{minutesToUnit(prefs.repeat_interval_min).val !== 1 ? 's' : ''}
                   </p>
                 )}
-                <p className="text-[10px] text-gray-400 mt-1">Respects your schedule settings.</p>
+                <p className="text-xs text-gray-400 mt-1">Respects your schedule settings.</p>
               </div>
 
               {/* ── Max repetitions ── */}
               <div>
-                <p className="text-xs font-semibold text-gray-700 mb-2">Max repetitions</p>
+                <p className="text-xs font-medium text-gray-700 mb-2">Max repetitions</p>
                 <div className="flex gap-2 flex-wrap">
                   {MAX_COUNT_OPTIONS.map(opt => (
                     <button key={opt.value} type="button"
@@ -1097,7 +1097,7 @@ export default function NotificationSettingsPage() {
                     >{opt.label}</button>
                   ))}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1.5">
+                <p className="text-xs text-gray-400 mt-1.5">
                   {prefs.repeat_max_count === 0
                     ? 'Alert will repeat until a stop condition is met.'
                     : `Alert will repeat at most ${prefs.repeat_max_count} time${prefs.repeat_max_count > 1 ? 's' : ''}, then stop automatically.`}
@@ -1106,7 +1106,7 @@ export default function NotificationSettingsPage() {
 
               {/* ── Stop conditions ── */}
               <div>
-                <p className="text-xs font-semibold text-gray-700 mb-2">Stop repeating when…</p>
+                <p className="text-xs font-medium text-gray-700 mb-2">Stop repeating when…</p>
                 <div className="space-y-2">
                   {([
                     { key: 'repeat_stop_on_read',         label: 'Notification is marked as read',              desc: 'Stops the moment any unread alert is dismissed or read.' },
@@ -1117,7 +1117,7 @@ export default function NotificationSettingsPage() {
                     <div key={cond.key} className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2.5">
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-gray-800">{cond.label}</p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{cond.desc}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{cond.desc}</p>
                       </div>
                       <Toggle
                         checked={prefs[cond.key] as boolean}
@@ -1131,10 +1131,10 @@ export default function NotificationSettingsPage() {
               {/* ── Apply to events ── */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-gray-700">Apply repeats to</p>
+                  <p className="text-xs font-medium text-gray-700">Apply repeats to</p>
                   <button type="button"
                     onClick={() => set('repeat_apply_events', prefs.repeat_apply_events.length === 0 ? EVENTS.map(e => e.key) : [])}
-                    className="text-[10px] text-rose-600 hover:underline"
+                    className="text-xs text-rose-600 hover:underline"
                   >
                     {prefs.repeat_apply_events.length === 0 ? 'Select specific' : 'All events'}
                   </button>
@@ -1165,7 +1165,7 @@ export default function NotificationSettingsPage() {
                     })}
                   </div>
                 )}
-                <p className="text-[10px] text-gray-400 mt-1.5">
+                <p className="text-xs text-gray-400 mt-1.5">
                   {prefs.repeat_apply_events.length === 0
                     ? 'All event types will trigger repeat alerts.'
                     : `Only: ${prefs.repeat_apply_events.map(k => EVENTS.find(e => e.key === k)?.label).filter(Boolean).join(', ')}.`}
@@ -1243,7 +1243,7 @@ export default function NotificationSettingsPage() {
               <Clock className="w-4 h-4" />
             </div>
             <div className="flex-1">
-              <p className="text-xs font-semibold text-gray-700 mb-1">Send daily digest at</p>
+              <p className="text-xs font-medium text-gray-700 mb-1">Send daily digest at</p>
               <input
                 type="time"
                 value={prefs.digest_time}

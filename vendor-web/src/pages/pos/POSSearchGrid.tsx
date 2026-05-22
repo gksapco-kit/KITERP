@@ -212,7 +212,7 @@ function ConfigPanel({
         <span className="text-sm font-bold text-gray-800">Configure Grid</span>
         <div className="flex items-center gap-2">
           <button onClick={() => onChange({ filters: DEFAULT_FILTER_FIELDS, columns: DEFAULT_TABLE_COLUMNS })}
-            className="text-[10px] text-gray-400 hover:text-red-500 font-medium">Reset</button>
+            className="text-xs text-gray-400 hover:text-red-500 font-medium">Reset</button>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X className="w-4 h-4" /></button>
         </div>
       </div>
@@ -220,7 +220,7 @@ function ConfigPanel({
       <div className="flex border-b">
         {(['filters', 'columns'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2 text-xs font-semibold transition-colors border-b-2 ${tab === t ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`flex-1 py-2 text-xs font-medium transition-colors border-b-2 ${tab === t ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             {t === 'filters' ? '🔍 Filter Fields' : '📋 Table Columns'}
           </button>
         ))}
@@ -261,7 +261,7 @@ function ConfigPanel({
           </div>
         ))}
       </div>
-      <div className="px-3 py-2 border-t bg-gray-50 text-[10px] text-gray-400 text-center">
+      <div className="px-3 py-2 border-t bg-gray-50 text-xs text-gray-400 text-center">
         Drag rows to reorder · Toggle to show/hide
       </div>
     </div>
@@ -289,35 +289,35 @@ function CellContent({
       return (
         <div className="min-w-0">
           <div className="text-xs font-medium text-gray-900 truncate leading-tight">{item.name}</div>
-          {variant?.name && <div className="text-[10px] text-blue-600 font-semibold truncate">{variant.name}</div>}
+          {variant?.name && <div className="text-xs text-blue-600 font-semibold truncate">{variant.name}</div>}
           {item.item_type === 'service' && item.service_type && (
-            <div className="text-[10px] text-primary/80 truncate">{item.service_type}</div>
+            <div className="text-xs text-primary/80 truncate">{item.service_type}</div>
           )}
         </div>
       )
-    case 'sku':     return <span className="font-mono text-[11px] text-gray-600">{sku || '—'}</span>
+    case 'sku':     return <span className="font-mono text-xs text-gray-600">{sku || '—'}</span>
     case 'type':    return (
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
+      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
         {item.item_type === 'service' ? 'SVC' : 'PRD'}
       </span>
     )
-    case 'category': return <span className="text-[11px] text-gray-500 truncate">{item.category || '—'}</span>
-    case 'uom':     return <span className="text-[11px] text-gray-500">{item.uom || item.packing || '—'}</span>
-    case 'batch':   return <span className="text-[11px] font-mono text-gray-600">{variant?.batch_no ?? item.batch_no ?? '—'}</span>
-    case 'expiry':  return <span className="text-[11px] text-gray-600">{variant?.expiry_date ?? item.expiry_date ?? '—'}</span>
+    case 'category': return <span className="text-xs text-gray-500 truncate">{item.category || '—'}</span>
+    case 'uom':     return <span className="text-xs text-gray-500">{item.uom || item.packing || '—'}</span>
+    case 'batch':   return <span className="text-xs font-mono text-gray-600">{variant?.batch_no ?? item.batch_no ?? '—'}</span>
+    case 'expiry':  return <span className="text-xs text-gray-600">{variant?.expiry_date ?? item.expiry_date ?? '—'}</span>
     case 'stock':   return (
-      <span className={`text-[11px] font-semibold ${stock != null && stock < 5 ? 'text-red-600' : 'text-gray-700'}`}>
+      <span className={`text-xs font-medium ${stock != null && stock < 5 ? 'text-red-600' : 'text-gray-700'}`}>
         {stock != null ? stock : '—'}
       </span>
     )
-    case 'mrp':     return <span className="text-[11px] text-gray-500">{item.mrp != null ? formatCurrency(item.mrp) : '—'}</span>
-    case 'price':   return <span className="text-[11px] font-bold text-gray-900">{formatCurrency(price)}</span>
-    case 'gst':     return <span className="text-[11px] text-gray-600">{gst}%</span>
-    case 'hsn':     return <span className="font-mono text-[11px] text-gray-500">{hsn || '—'}</span>
-    case 'rack':    return <span className="text-[11px] text-gray-500">{item.rack_no || '—'}</span>
-    case 'company': return <span className="text-[11px] text-gray-500 truncate">{item.company || item.brand || '—'}</span>
-    case 'barcode': return <span className="font-mono text-[10px] text-gray-500">{variant?.barcode || '—'}</span>
-    case 'duration':return <span className="text-[11px] text-gray-500">{item.duration_minutes ? `${item.duration_minutes}min` : '—'}</span>
+    case 'mrp':     return <span className="text-xs text-gray-500">{item.mrp != null ? formatCurrency(item.mrp) : '—'}</span>
+    case 'price':   return <span className="text-xs font-bold text-gray-900">{formatCurrency(price)}</span>
+    case 'gst':     return <span className="text-xs text-gray-600">{gst}%</span>
+    case 'hsn':     return <span className="font-mono text-xs text-gray-500">{hsn || '—'}</span>
+    case 'rack':    return <span className="text-xs text-gray-500">{item.rack_no || '—'}</span>
+    case 'company': return <span className="text-xs text-gray-500 truncate">{item.company || item.brand || '—'}</span>
+    case 'barcode': return <span className="font-mono text-xs text-gray-500">{variant?.barcode || '—'}</span>
+    case 'duration':return <span className="text-xs text-gray-500">{item.duration_minutes ? `${item.duration_minutes}min` : '—'}</span>
     case 'action':  return (
       <button onClick={e => { e.stopPropagation(); onAdd() }}
         className="w-7 h-7 rounded-lg bg-blue-500 hover:bg-primary flex items-center justify-center transition-colors">
@@ -511,7 +511,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
             className={`flex items-center gap-1 px-2.5 h-8 rounded-lg border text-xs font-medium transition-colors relative ${showConfig ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-blue-50 hover:border-blue-300'}`}>
             <Settings2 className="w-3.5 h-3.5" />
             {activeFilterCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">
                 {activeFilterCount}
               </span>
             )}
@@ -527,7 +527,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
         <div className="flex flex-wrap gap-1.5 p-2 bg-blue-50/60 border border-blue-100 rounded-xl">
           {enabledFilters.map(f => (
             <div key={f.key} className="flex flex-col gap-0.5" style={{ minWidth: 90, maxWidth: 140, flex: '1 1 90px' }}>
-              <label className="text-[9px] font-bold text-blue-600 uppercase tracking-wide px-1">{f.label}</label>
+              <label className="text-xs font-bold text-blue-600 uppercase tracking-wide px-1">{f.label}</label>
               <input
                 type={f.type === 'number' ? 'number' : 'text'}
                 placeholder={f.placeholder || f.label}
@@ -540,7 +540,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
           {activeFilterCount > 0 && (
             <div className="flex flex-col justify-end">
               <button onClick={() => setFilters({})}
-                className="h-7 px-2 text-[10px] font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg border border-red-100 whitespace-nowrap">
+                className="h-7 px-2 text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg border border-red-100 whitespace-nowrap">
                 Clear ({activeFilterCount})
               </button>
             </div>
@@ -550,13 +550,13 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
 
       {/* ── Results count ── */}
       <div className="flex items-center justify-between px-1">
-        <span className="text-[11px] text-gray-400">
+        <span className="text-xs text-gray-400">
           {sorted.length === allItems.length
             ? `${sorted.length} item${sorted.length !== 1 ? 's' : ''}`
             : `${sorted.length} of ${allItems.length} items`}
         </span>
         {activeFilterCount > 0 && (
-          <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+          <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
             {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
           </span>
         )}
@@ -573,7 +573,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
                 return (
                   <th key={col.key}
                     style={{ width: col.width, minWidth: col.width }}
-                    className={`px-2.5 py-2 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap border-r border-gray-600 last:border-r-0 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${sortable ? 'cursor-pointer select-none hover:bg-gray-600' : ''}`}
+                    className={`px-2.5 py-2 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-r border-gray-600 last:border-r-0 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${sortable ? 'cursor-pointer select-none hover:bg-gray-600' : ''}`}
                     onClick={() => sortable && handleSort(col.key)}
                   >
                     <span className="flex items-center gap-1 justify-inherit">
@@ -615,7 +615,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
                           {hasMultipleVariants && (
                             <button
                               onClick={e => { e.stopPropagation(); onVariantPick(item) }}
-                              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 whitespace-nowrap">
+                              className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 whitespace-nowrap">
                               {activeVariants.length}v
                             </button>
                           )}

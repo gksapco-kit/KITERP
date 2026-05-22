@@ -72,7 +72,7 @@ export default function CartDrawerBlock({ style, props, liveItems }: Props) {
           style={{ backgroundColor: style.primary_color }}
         >
           <ShoppingCart className="w-6 h-6" aria-hidden="true" />
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
             {itemCount}
           </span>
         </button>

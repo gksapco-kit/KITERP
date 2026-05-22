@@ -62,7 +62,7 @@ export default function MyOnboardingPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900">{t.title}</p>
                 {t.description && <p className="text-xs text-gray-600 mt-0.5">{t.description}</p>}
-                <p className="text-[10px] text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   {t.category && `${t.category} · `}{t.due_date && `Due ${t.due_date}`}
                 </p>
               </div>

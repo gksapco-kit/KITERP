@@ -16,6 +16,7 @@ import {
   UserCog, Clock, Plane, ArrowUpRight, ArrowDownRight, Wallet,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { DashboardWelcomeBanner } from '@/components/dashboard/DashboardWelcomeBanner'
 
 type TopProductRow = { id: string; name: string; price: number; stock: number }
 type TopCustomerRow = { id: string; name: string; email: string; orders: number; spent: number }
@@ -273,38 +274,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 max-w-7xl">
 
-      {/* Welcome banner — token-driven gradient (primary → hero-via → hero-to) */}
-      <div className="relative overflow-hidden rounded-xl bg-[linear-gradient(90deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_42%,hsl(var(--hero-to))_100%)] px-3 py-3.5 text-white shadow-lg shadow-black/15 sm:py-4 lg:px-4 lg:py-5">
-        {/* Accent orb — right side only (not behind headline / left copy) */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-1 right-0 z-0 h-28 w-28 translate-x-[18%] rounded-full bg-white/[0.12] sm:bottom-2 sm:h-32 sm:w-32 sm:translate-x-[22%] lg:bottom-3 lg:h-36 lg:w-36 lg:translate-x-[28%]"
-        />
-        <div className="relative z-[1] flex w-full flex-col gap-1.5 text-left sm:gap-2 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
-          <div className="min-w-0 max-w-xl space-y-1 lg:space-y-1.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-white/85 sm:text-xs">{greeting}</p>
-            <h1 className="text-lg font-bold leading-tight text-white drop-shadow-sm sm:text-xl lg:text-2xl">
-              {vendor?.display_name || 'Welcome'}
-            </h1>
-            <p className="max-w-lg text-[11px] leading-snug text-primary-foreground/85 sm:text-xs sm:leading-normal">
-              Here's a complete overview of your store performance. Insights, analytics, and trends at a glance.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 pt-1 lg:flex-nowrap lg:justify-end lg:gap-2 lg:pt-0">
-            {quickActions.map(action => (
-              <Button
-                key={action.to}
-                size="xs"
-                className={`${action.color} gap-1 text-white shadow-md shadow-black/15`}
-                onClick={() => navigate(action.to)}
-              >
-                <action.icon className="h-3 w-3 shrink-0" />
-                {action.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <DashboardWelcomeBanner
+        greeting={greeting}
+        title={vendor?.display_name || 'Welcome'}
+        description="Here's a complete overview of your store performance. Insights, analytics, and trends at a glance."
+        actions={quickActions}
+        onNavigate={(to) => navigate(to)}
+      />
 
       {/* Overview KPI tiles */}
       <div className="rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
@@ -324,7 +300,7 @@ export default function Dashboard() {
                 {/* Label row */}
                 <div className="flex items-center gap-1.5">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted">
-                    <Icon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={2} />
                   </span>
                   <span className="text-xs font-medium text-muted-foreground">{kpi.label}</span>
                 </div>
@@ -343,7 +319,7 @@ export default function Dashboard() {
                 {kpi.pct !== 0 && (
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${
                         up
                           ? 'bg-success/10 text-success'
                           : 'bg-destructive/10 text-destructive'
@@ -355,7 +331,7 @@ export default function Dashboard() {
                       }
                       {AbsPct}%
                     </span>
-                    <span className="text-[11px] text-muted-foreground">vs last period</span>
+                    <span className="text-xs text-muted-foreground">vs last period</span>
                   </div>
                 )}
               </div>
@@ -577,7 +553,7 @@ export default function Dashboard() {
               />
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-muted text-left text-xs font-semibold uppercase text-muted-foreground">
+                  <tr className="border-b bg-muted text-left text-xs font-medium uppercase text-muted-foreground">
                     <th className="w-10 px-5 py-2">#</th>
                     <th className="px-5 py-2">Product</th>
                     <th className="px-5 py-2 text-right">Price</th>
@@ -612,7 +588,7 @@ export default function Dashboard() {
               />
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-muted text-left text-xs font-semibold uppercase text-muted-foreground">
+                  <tr className="border-b bg-muted text-left text-xs font-medium uppercase text-muted-foreground">
                     <th className="w-10 px-5 py-2">#</th>
                     <th className="px-5 py-2">Customer</th>
                     <th className="px-5 py-2 text-right">Orders</th>
@@ -657,7 +633,7 @@ export default function Dashboard() {
                 <button
                   key={tab.key}
                   onClick={() => { setOrderTab(tab.key); setOrderSearch(''); setOrderSortKey(tab.key === 'bookings' ? 'booking_date' : 'created_at'); setOrderSortDir('desc'); setOrderPage(0) }}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
                     orderTab === tab.key
                       ? 'bg-card text-primary shadow-sm ring-1 ring-primary/15'
                       : 'text-muted-foreground hover:text-foreground'
@@ -747,7 +723,7 @@ export default function Dashboard() {
               <>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b bg-muted text-left text-xs font-semibold uppercase text-muted-foreground">
+                    <tr className="border-b bg-muted text-left text-xs font-medium uppercase text-muted-foreground">
                       <th className="px-5 py-2">Date</th>
                       <th className="px-5 py-2">{isBookingTab ? 'Booking #' : 'Order #'}</th>
                       {isBookingTab && <th className="px-5 py-2">Service</th>}
@@ -838,7 +814,7 @@ export default function Dashboard() {
                             {ellipsisBefore && <span className="px-1 text-xs text-muted-foreground">…</span>}
                             <button
                               onClick={() => setOrderPage(i)}
-                              className={`h-7 w-7 rounded-lg text-xs font-semibold transition-colors ${
+                              className={`h-7 w-7 rounded-lg text-xs font-medium transition-colors ${
                                 i === orderPage
                                   ? 'bg-primary text-primary-foreground shadow-sm'
                                   : 'border text-muted-foreground hover:bg-card hover:shadow-sm'

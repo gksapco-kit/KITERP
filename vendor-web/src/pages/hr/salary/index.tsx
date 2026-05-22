@@ -184,7 +184,7 @@ export default function SalaryPage() {
                         <td colSpan={7} className="px-6 py-4">
                           <div className="grid grid-cols-2 gap-6">
                             <div>
-                              <h4 className="text-xs font-semibold text-green-700 mb-2">Earnings</h4>
+                              <h4 className="text-xs font-medium text-green-700 mb-2">Earnings</h4>
                               {Object.entries(s.earnings ?? {}).map(([k, v]) => (
                                 <div key={k} className="flex justify-between text-xs py-0.5 text-gray-600">
                                   <span className="capitalize">{k.replace(/_/g, ' ')}</span>
@@ -193,7 +193,7 @@ export default function SalaryPage() {
                               ))}
                             </div>
                             <div>
-                              <h4 className="text-xs font-semibold text-red-700 mb-2">Deductions</h4>
+                              <h4 className="text-xs font-medium text-red-700 mb-2">Deductions</h4>
                               {Object.entries(s.deductions ?? {}).map(([k, v]) => (
                                 <div key={k} className="flex justify-between text-xs py-0.5 text-gray-600">
                                   <span className="capitalize">{k.replace(/_/g, ' ')}</span>

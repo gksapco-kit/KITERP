@@ -37,7 +37,7 @@ function PostCard({ post, storePath, primaryColor }: {
       )}
       <div className="p-5">
         {post.category && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full mb-3 inline-block"
+          <span className="text-xs font-medium px-2.5 py-1 rounded-full mb-3 inline-block"
             style={{ backgroundColor: primaryColor + '15', color: primaryColor }}>
             {post.category}
           </span>
@@ -64,7 +64,7 @@ function PostCard({ post, storePath, primaryColor }: {
         {post.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3">
             {post.tags.slice(0, 4).map(t => (
-              <span key={t} className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{t}</span>
+              <span key={t} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{t}</span>
             ))}
           </div>
         )}

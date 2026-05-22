@@ -52,7 +52,7 @@ export default function ESSTrainingPage() {
                     <h3 className="font-semibold text-gray-900">
                       {e.program?.name ?? `Program ${String(e.program_id ?? e.id).slice(0, 6)}`}
                     </h3>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${stat.color}`}>
+                    <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${stat.color}`}>
                       {stat.label}
                     </span>
                   </div>

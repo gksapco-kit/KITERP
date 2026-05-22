@@ -41,7 +41,7 @@ export function CustomerNotificationsBell({
         <Button variant="ghost" size="icon" className="relative shrink-0" aria-label="Notifications">
           <Bell className="h-5 w-5" />
           {unread > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full text-[10px] p-0 flex items-center justify-center">
+            <Badge className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full text-xs p-0 flex items-center justify-center">
               {unread > 99 ? '99+' : unread}
             </Badge>
           )}

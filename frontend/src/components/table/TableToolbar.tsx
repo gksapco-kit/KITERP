@@ -53,7 +53,7 @@ export function TableToolbar({
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-        {hint && <span className="text-[11px] text-muted-foreground hidden md:inline max-w-[14rem]">{hint}</span>}
+        {hint && <span className="text-xs text-muted-foreground hidden md:inline max-w-[14rem]">{hint}</span>}
         <span className="text-xs font-medium text-muted-foreground">Sort</span>
         <select
           value={sortKey}

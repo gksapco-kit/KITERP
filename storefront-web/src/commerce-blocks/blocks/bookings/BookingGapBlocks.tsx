@@ -76,7 +76,7 @@ export function GroupBooking({ showAddons = true, cta = "Reserve for group" }: G
           </div>
 
           <div className="rounded-lg border border-border p-4">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Date & time
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
@@ -96,7 +96,7 @@ export function GroupBooking({ showAddons = true, cta = "Reserve for group" }: G
 
           {showAddons && (
             <div className="rounded-lg border border-border p-4">
-              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Group requests
               </div>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -137,7 +137,7 @@ export function GroupBooking({ showAddons = true, cta = "Reserve for group" }: G
           <Button className="w-full" size="lg" disabled={!valid}>
             {cta}
           </Button>
-          <p className="text-center text-[11px] text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             Hold for 15 min · No charge until you confirm
           </p>
         </aside>
@@ -226,7 +226,7 @@ export function RecurringBooking({
           </div>
 
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               How often
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -266,7 +266,7 @@ export function RecurringBooking({
 
           {showUpcoming && (
             <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Your next sessions
               </div>
               <ul className="space-y-2">
@@ -278,7 +278,7 @@ export function RecurringBooking({
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">{u.date}</span>
                     <span className="text-xs text-muted-foreground">{r.time}</span>
-                    <Badge variant="outline" className="ml-auto text-[10px] capitalize">
+                    <Badge variant="outline" className="ml-auto text-xs capitalize">
                       {u.status}
                     </Badge>
                   </li>
@@ -307,7 +307,7 @@ export function RecurringBooking({
             <span className="text-xl font-semibold">{formatPrice(total - discount, r.currency)}</span>
           </div>
           <Button className="w-full" size="lg">{cta}</Button>
-          <p className="text-center text-[11px] text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             Charged before each session · Cancel anytime
           </p>
         </aside>
@@ -354,7 +354,7 @@ export function WaitlistBlock({
             <Bell className="h-4 w-4" />
             {cta}
           </Button>
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground">
             No charge unless a spot opens & you accept
           </p>
         </div>
@@ -395,7 +395,7 @@ export function WaitlistBlock({
 
         {showOthers && (
           <div className="rounded-lg border border-border">
-            <div className="border-b border-border p-3 text-xs font-semibold uppercase text-muted-foreground">
+            <div className="border-b border-border p-3 text-xs font-medium uppercase text-muted-foreground">
               Others waiting
             </div>
             <ul>

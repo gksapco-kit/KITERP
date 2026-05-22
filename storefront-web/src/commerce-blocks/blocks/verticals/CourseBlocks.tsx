@@ -42,7 +42,7 @@ export function CourseCatalog({
             <div key={c.id} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-3 sm:flex-row">
               <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-md bg-muted sm:h-32 sm:w-48">
                 <img src={c.image} alt="" className="h-full w-full object-cover" />
-                <Badge className={cn("absolute left-2 top-2 text-[10px]", LEVEL_STYLE[c.level])}>{c.level}</Badge>
+                <Badge className={cn("absolute left-2 top-2 text-xs", LEVEL_STYLE[c.level])}>{c.level}</Badge>
               </div>
               <div className="flex flex-1 flex-col">
                 <div className="flex items-start justify-between gap-3">
@@ -112,7 +112,7 @@ function CourseCard({ c, showInstructor, cta }: { c: Course; showInstructor: boo
     <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img src={c.image} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-        <Badge className={cn("absolute left-3 top-3 text-[10px]", LEVEL_STYLE[c.level])}>{c.level}</Badge>
+        <Badge className={cn("absolute left-3 top-3 text-xs", LEVEL_STYLE[c.level])}>{c.level}</Badge>
       </div>
       <div className="flex flex-1 flex-col p-4">
         <div className="text-xs text-muted-foreground">{c.category}</div>
@@ -198,7 +198,7 @@ export function CourseDetail({ showOutcomes = true, cta = "Enroll for" }: Course
                   key={s.week}
                   className="flex items-center gap-4 border-b border-border p-4 last:border-b-0"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-xs font-semibold">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-xs font-medium">
                     W{s.week}
                   </div>
                   <div className="min-w-0 flex-1">

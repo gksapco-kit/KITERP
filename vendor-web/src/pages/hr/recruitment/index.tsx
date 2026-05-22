@@ -407,7 +407,7 @@ function JobsTab() {
                         {job.title}
                       </Link>
                       {job.public_slug && (
-                        <p className="text-[11px] text-gray-400 mt-0.5">/{job.public_slug}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">/{job.public_slug}</p>
                       )}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">
@@ -491,7 +491,7 @@ function CandidatesTab() {
                 <tr key={c.id} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <p className="text-sm font-medium text-gray-900">{c.full_name}</p>
-                    {c.location && <p className="text-[11px] text-gray-400">{c.location}</p>}
+                    {c.location && <p className="text-xs text-gray-400">{c.location}</p>}
                   </td>
                   <td className="py-3 px-4 text-xs text-gray-600">
                     {c.email && <p>{c.email}</p>}
@@ -499,11 +499,11 @@ function CandidatesTab() {
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600">
                     {c.current_designation ?? '—'}
-                    {c.current_company && <p className="text-[11px] text-gray-400">@ {c.current_company}</p>}
+                    {c.current_company && <p className="text-xs text-gray-400">@ {c.current_company}</p>}
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600">
                     {c.total_experience_years ? `${c.total_experience_years} yrs` : '—'}
-                    {c.notice_period_days != null && <p className="text-[11px] text-gray-400">{c.notice_period_days} d notice</p>}
+                    {c.notice_period_days != null && <p className="text-xs text-gray-400">{c.notice_period_days} d notice</p>}
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600">
                     {c.current_ctc != null ? `₹${Number(c.current_ctc).toLocaleString()}` : '—'}
@@ -572,11 +572,11 @@ function InterviewsTab() {
                   <tr key={iv.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4 text-sm text-gray-600">
                       {iv.scheduled_at ? new Date(iv.scheduled_at).toLocaleString() : '—'}
-                      {iv.duration_min ? <p className="text-[11px] text-gray-400">{iv.duration_min} min</p> : null}
+                      {iv.duration_min ? <p className="text-xs text-gray-400">{iv.duration_min} min</p> : null}
                     </td>
                     <td className="py-3 px-4 text-sm">
                       <p className="font-medium">R{iv.round_number}</p>
-                      <p className="text-[11px] text-gray-400">{iv.round_name ?? ''}</p>
+                      <p className="text-xs text-gray-400">{iv.round_name ?? ''}</p>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-700">{app?.candidate?.full_name ?? '—'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{app?.job_posting?.title ?? '—'}</td>

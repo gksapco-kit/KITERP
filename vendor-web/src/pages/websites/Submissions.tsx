@@ -54,7 +54,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             <span className={cn(
-              'text-[10px] font-bold px-2 py-0.5 rounded-full',
+              'text-xs font-bold px-2 py-0.5 rounded-full',
               sub.form_type === 'contact' ? 'bg-blue-100 text-blue-700' :
               sub.form_type === 'newsletter' ? 'bg-emerald-100 text-emerald-700' :
               sub.form_type === 'booking' ? 'bg-amber-100 text-amber-700' :
@@ -71,7 +71,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
         {/* Meta */}
         <div className="flex items-center gap-3 shrink-0">
           {sub.crm_lead_id && (
-            <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
               CRM Lead
             </span>
           )}
@@ -95,7 +95,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
               ...Object.fromEntries(otherFields.map(([k, v]) => [k.replace(/_/g, ' '), String(v)])),
             }).map(([label, value]) => (
               <div key={label} className={cn(label === 'Message' ? 'sm:col-span-2' : '')}>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
                 <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{value || '—'}</p>
               </div>
             ))}

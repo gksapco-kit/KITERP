@@ -410,7 +410,7 @@ export default function ModulesPage() {
                 </p>
                 <span
                   className={cn(
-                    'mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                    'mt-1 inline-flex items-center rounded-full px-2 py-0.5 type-badge',
                     tile.comingSoon
                       ? 'bg-muted text-muted-foreground'
                       : status.enabled

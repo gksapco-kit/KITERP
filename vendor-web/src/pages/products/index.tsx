@@ -194,14 +194,14 @@ export default function Products() {
             </form>
             <Button type="button" variant="outline" className="gap-2" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-4 h-4" />Filters
-              {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none font-bold bg-primary text-white rounded-full">{activeFilterCount}</span>}
+              {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-xs leading-none font-bold bg-primary text-white rounded-full">{activeFilterCount}</span>}
             </Button>
           </div>
 
           {showFilters && (
             <div className="flex flex-wrap items-end gap-3 pt-3 border-t">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</label>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</label>
                 <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}
                   className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-shadow">
                   <option value="">All Statuses</option>
@@ -211,7 +211,7 @@ export default function Products() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Category</label>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Category</label>
                 <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1) }}
                   className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-shadow">
                   <option value="">All Categories</option>
@@ -245,7 +245,7 @@ export default function Products() {
                 ] as { key: string; label: string; px: string; align: string }[]).map(col => {
                   const active = sortKey === col.key
                   return (
-                    <th key={col.key} className={`${col.align} ${col.px} py-3 text-[11px] font-semibold uppercase tracking-wider`}>
+                    <th key={col.key} className={`${col.align} ${col.px} py-3 text-xs font-medium uppercase tracking-wider`}>
                       <button
                         onClick={() => {
                           if (sortKey === col.key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
@@ -264,7 +264,7 @@ export default function Products() {
                     </th>
                   )
                 })}
-                <th className="text-right px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -304,13 +304,13 @@ export default function Products() {
                       )}
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors truncate">{product.name}</p>
-                        <p className="text-[11px] text-gray-400 truncate">{product.category || 'Uncategorized'}</p>
+                        <p className="text-xs text-gray-400 truncate">{product.category || 'Uncategorized'}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{product.brand || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 text-[11px] rounded-full font-semibold bg-blue-50 text-blue-700 capitalize">{product.product_type || 'physical'}</span>
+                    <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-blue-50 text-blue-700 capitalize">{product.product_type || 'physical'}</span>
                   </td>
                   <td className="px-4 py-3">
                     {(() => {
@@ -324,7 +324,7 @@ export default function Products() {
                           <span className="text-sm font-medium text-gray-900">
                             {low === high ? formatCurrency(low) : `${symbol}${low.toLocaleString()} – ${symbol}${high.toLocaleString()}`}
                           </span>
-                          <p className="text-[11px] text-gray-400 mt-0.5">{variants.length} variant{variants.length > 1 ? 's' : ''}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{variants.length} variant{variants.length > 1 ? 's' : ''}</p>
                         </div>
                       )
                     })()}
@@ -339,7 +339,7 @@ export default function Products() {
                         return (
                           <div>
                             <span className={`text-sm font-semibold ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>{qty}</span>
-                            <span className={`ml-1.5 text-[11px] ${isOut ? 'text-red-400' : 'text-gray-400'}`}>{sts.replace(/_/g, ' ')}</span>
+                            <span className={`ml-1.5 text-xs ${isOut ? 'text-red-400' : 'text-gray-400'}`}>{sts.replace(/_/g, ' ')}</span>
                           </div>
                         )
                       }
@@ -352,19 +352,19 @@ export default function Products() {
                           <span className={`text-sm font-semibold ${isAllOut ? 'text-red-600' : hasLow ? 'text-amber-600' : 'text-gray-800'}`}>
                             {totalStock.toLocaleString()}
                           </span>
-                          <span className="text-[11px] text-gray-400 ml-1">total</span>
+                          <span className="text-xs text-gray-400 ml-1">total</span>
                           {outCount > 0 && !isAllOut && (
-                            <p className="text-[11px] text-red-400 mt-0.5">{outCount} of {variants.length} out of stock</p>
+                            <p className="text-xs text-red-400 mt-0.5">{outCount} of {variants.length} out of stock</p>
                           )}
                           {isAllOut && (
-                            <p className="text-[11px] text-red-400 mt-0.5">all out of stock</p>
+                            <p className="text-xs text-red-400 mt-0.5">all out of stock</p>
                           )}
                         </div>
                       )
                     })()}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 text-[11px] rounded-full font-semibold ${
+                    <span className={`px-2 py-0.5 text-xs rounded-full font-semibold ${
                       product.status === 'active' ? 'bg-green-100 text-green-700' :
                       product.status === 'archived' ? 'bg-red-50 text-red-600' :
                       'bg-gray-100 text-gray-700'

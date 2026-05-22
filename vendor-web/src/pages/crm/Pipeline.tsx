@@ -135,7 +135,7 @@ export default function PipelinePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
           <h1 className="text-2xl font-bold text-gray-900">Sales Pipeline</h1>
         </div>
         <div className="flex items-center gap-2">

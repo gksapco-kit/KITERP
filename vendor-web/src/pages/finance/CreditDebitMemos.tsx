@@ -835,7 +835,7 @@ export default function CreditDebitMemos() {
           ) : (
             <div className="overflow-x-auto">
               <ResizableTable tableId="credit-debit-memos" defaultWidths={[110, 100, 80, 72, 150, 60, 90, 100, 88]}>
-                <thead><tr className="border-b bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                <thead><tr className="border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Memo #</th>
                   <th className="px-4 py-2.5">Type</th>
@@ -1045,7 +1045,7 @@ export default function CreditDebitMemos() {
                       ))}
                     </select>
                     {selectedHeaderCompany && (
-                      <p className="mt-1 text-[10px] text-slate-400 font-mono">Unit code: {selectedHeaderCompany.code}</p>
+                      <p className="mt-1 text-xs text-slate-400 font-mono">Unit code: {selectedHeaderCompany.code}</p>
                     )}
                   </div>
                   <div>
@@ -1057,7 +1057,7 @@ export default function CreditDebitMemos() {
                       placeholder="INR"
                       maxLength={8}
                     />
-                    <p className="mt-1 text-[10px] text-slate-400">Defaults from company; edit if needed</p>
+                    <p className="mt-1 text-xs text-slate-400">Defaults from company; edit if needed</p>
                   </div>
                   <div>
                     <Label className="text-xs text-slate-600">Fiscal year</Label>
@@ -1203,7 +1203,7 @@ export default function CreditDebitMemos() {
           </div>
 
           <details className="group border-b border-slate-100 open:bg-slate-50/50">
-            <summary className="px-6 sm:px-8 py-3 text-xs font-semibold text-slate-600 cursor-pointer list-none flex items-center gap-2">
+            <summary className="px-6 sm:px-8 py-3 text-xs font-medium text-slate-600 cursor-pointer list-none flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-300 group-open:bg-emerald-500" />
               Reference transaction
               <span className="font-normal text-slate-400">(optional — loads lines & customer)</span>
@@ -1211,7 +1211,7 @@ export default function CreditDebitMemos() {
             <div className="px-6 sm:px-8 pb-4 -mt-1">
               <div className={`rounded-lg border p-3 space-y-2.5 ${originalTxn ? 'bg-emerald-50/80 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
+                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
                     <ExternalLink className="w-3.5 h-3.5" />
                     Link to original sale or invoice
                   </p>
@@ -1219,7 +1219,7 @@ export default function CreditDebitMemos() {
                     <button type="button" aria-label="Close"
                       type="button"
                       onClick={() => { setOriginalTxn(null); setRefLookup(''); setCart([]) }}
-                      className="text-[10px] text-red-600 hover:text-red-800 flex items-center gap-0.5"
+                      className="text-xs text-red-600 hover:text-red-800 flex items-center gap-0.5"
                     >
                 <X className="w-3 h-3" /> Clear
                     </button>
@@ -1525,17 +1525,17 @@ export default function CreditDebitMemos() {
             </div>
 
             <details className="group mt-3 rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50/80 to-white open:shadow-sm">
-              <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate-700">
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium text-slate-700">
                 <History className="w-4 h-4 text-slate-500" />
                 Document activity (audit trail)
                 <span className="font-normal text-slate-500">
                   {auditLog.length ? `· ${auditLog.length} event${auditLog.length === 1 ? '' : 's'}` : '· no events yet'}
                 </span>
-                <span className="ml-auto text-[10px] font-medium text-slate-400 group-open:hidden">Show</span>
-                <span className="ml-auto text-[10px] font-medium text-slate-400 hidden group-open:inline">Hide</span>
+                <span className="ml-auto text-xs font-medium text-slate-400 group-open:hidden">Show</span>
+                <span className="ml-auto text-xs font-medium text-slate-400 hidden group-open:inline">Hide</span>
               </summary>
               <div className="border-t border-slate-100 px-3 pb-3">
-                <p className="text-[10px] text-slate-500 pt-2 pb-1.5">
+                <p className="text-xs text-slate-500 pt-2 pb-1.5">
                   Logged for this draft. The same summary is appended to the memo <span className="font-medium">notes on finalise</span> for server-side audit.
                 </p>
                 <ul className="max-h-48 space-y-2 overflow-y-auto text-xs leading-relaxed text-slate-700">
@@ -1544,7 +1544,7 @@ export default function CreditDebitMemos() {
                   ) : (
                     auditLog.map((a) => (
                       <li key={a.id} className="flex gap-2 border-l-2 border-slate-200 pl-2.5">
-                        <span className="shrink-0 font-mono text-[10px] text-slate-400 tabular-nums">{a.at}</span>
+                        <span className="shrink-0 font-mono text-xs text-slate-400 tabular-nums">{a.at}</span>
                         <span>{a.text}</span>
                       </li>
                     ))
@@ -1640,9 +1640,9 @@ export default function CreditDebitMemos() {
               <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-3 py-2">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                  <span className="truncate text-xs font-semibold text-slate-800">Catalog</span>
+                  <span className="truncate text-xs font-medium text-slate-800">Catalog</span>
                 </div>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                   {matches.length} in tab
                 </span>
               </div>
@@ -1687,7 +1687,7 @@ export default function CreditDebitMemos() {
                       )}
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium leading-snug text-slate-900 break-words">{r.name}</span>
-                        {r.sku && <span className="mt-0.5 block font-mono text-[10px] text-slate-500">SKU {r.sku}</span>}
+                        {r.sku && <span className="mt-0.5 block font-mono text-xs text-slate-500">SKU {r.sku}</span>}
                       </span>
                       <span className="shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-slate-800">{formatCurrency(r.price)}</span>
                     </button>
@@ -2148,7 +2148,7 @@ function MemoDetail({ txn, onBack, onEdit, onVoid, voidingId }: {
 
           {row.notes != null && String(row.notes) !== '' && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-amber-700 mb-1">Notes</p>
+              <p className="text-xs font-medium text-amber-700 mb-1">Notes</p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{String(row.notes)}</p>
             </div>
           )}

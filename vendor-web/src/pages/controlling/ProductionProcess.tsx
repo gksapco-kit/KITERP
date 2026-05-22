@@ -226,23 +226,23 @@ export default function ProductionProcessPage() {
                           <div className="min-w-0">
                             <p className="font-mono text-xs font-bold text-gray-900">{o.order_no}</p>
                             {o.title && (
-                              <p className="text-[11px] text-gray-500 truncate mt-0.5">{o.title}</p>
+                              <p className="text-xs text-gray-500 truncate mt-0.5">{o.title}</p>
                             )}
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded uppercase ${
                               o.priority === 'urgent' ? 'bg-red-500 text-white' :
                               o.priority === 'high' ? 'bg-orange-100 text-orange-700' :
                               o.priority === 'medium' ? 'bg-blue-100 text-blue-700' :
                               'bg-gray-100 text-gray-500'
                             }`}>{o.priority}</span>
-                            <span className="text-[9px] text-gray-400 uppercase">{o.order_kind}</span>
+                            <span className="text-xs text-gray-400 uppercase">{o.order_kind}</span>
                           </div>
                         </div>
 
                         {/* Dates */}
                         {(o.scheduled_start || o.scheduled_end) && (
-                          <div className={`flex items-center gap-1 text-[10px] ${isLate ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                          <div className={`flex items-center gap-1 text-xs ${isLate ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
                             <Clock className="w-3 h-3 shrink-0" />
                             {o.scheduled_start} → {o.scheduled_end}
                             {isLate && <AlertTriangle className="w-3 h-3" />}
@@ -250,7 +250,7 @@ export default function ProductionProcessPage() {
                         )}
 
                         {/* Qty */}
-                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="rounded-md bg-gray-50 p-2">
                             <p className="text-gray-400">Qty planned</p>
                             <p className="font-semibold text-gray-700">{parseFloat(o.qty_planned).toLocaleString()}</p>
@@ -263,7 +263,7 @@ export default function ProductionProcessPage() {
 
                         {/* Cost bar */}
                         <div className="space-y-1">
-                          <div className="flex justify-between text-[10px] text-gray-500">
+                          <div className="flex justify-between text-xs text-gray-500">
                             <span>Planned: {formatCurrency(planned)}</span>
                             <span>Actual: {formatCurrency(actual)}</span>
                           </div>
@@ -276,7 +276,7 @@ export default function ProductionProcessPage() {
                             </div>
                           )}
                           {actual !== 0 && (
-                            <p className={`text-[10px] font-medium ${variance > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                            <p className={`text-xs font-medium ${variance > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
                               Variance: {variance >= 0 ? '+' : ''}{formatCurrency(variance)}
                             </p>
                           )}
@@ -284,7 +284,7 @@ export default function ProductionProcessPage() {
 
                         {/* Settlement status */}
                         <div className="flex items-center justify-between">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${settlementColors[o.settlement_status] ?? 'bg-gray-100 text-gray-400'}`}>
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded uppercase ${settlementColors[o.settlement_status] ?? 'bg-gray-100 text-gray-400'}`}>
                             {o.settlement_status?.replace(/_/g, ' ') ?? 'none'}
                           </span>
                           <div className="flex items-center gap-2">
@@ -292,7 +292,7 @@ export default function ProductionProcessPage() {
                               <button
                                 onClick={() => handleTransition(o.id, stage.next!)}
                                 disabled={transitionMut.isPending}
-                                className="text-[10px] font-medium text-primary hover:text-primary flex items-center gap-0.5"
+                                className="text-xs font-medium text-primary hover:text-primary flex items-center gap-0.5"
                               >
                                 {stage.nextLabel} <ChevronRight className="w-3 h-3" />
                               </button>

@@ -258,7 +258,7 @@ function CreateCustomerModal({ onClose }: { onClose: () => void }) {
                 value={form.opening_balance}
                 onChange={(e) => setForm(p => ({ ...p, opening_balance: e.target.value }))}
               />
-              <p className="text-[10px] text-gray-400 mt-0.5">+ve = receivable, -ve = advance/credit</p>
+              <p className="text-xs text-gray-400 mt-0.5">+ve = receivable, -ve = advance/credit</p>
             </div>
           </div>
 
@@ -343,7 +343,7 @@ export default function Customers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Master Data</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">Master Data</p>
           <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
         </div>
         <Button onClick={() => setShowCreate(true)} className="bg-indigo-600 hover:bg-indigo-700">
@@ -388,13 +388,13 @@ export default function Customers() {
           <ResizableTable tableId="customers" defaultWidths={[220, 120, 140, 80, 100, 90, 80]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden sm:table-cell">Phone</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">GSTIN</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Orders</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Spent</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Balance</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Action</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Phone</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">GSTIN</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Orders</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Spent</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Balance</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y">

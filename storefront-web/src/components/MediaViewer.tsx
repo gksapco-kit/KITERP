@@ -74,7 +74,7 @@ function VideoPlayer({ url, alt }: { url: string; alt?: string }) {
           <Maximize className="w-4 h-4" />
         </button>
       </div>
-      <span className="absolute top-3 right-3 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span className="absolute top-3 right-3 bg-primary text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
         <Play className="w-3 h-3" />Video
       </span>
     </div>
@@ -143,12 +143,12 @@ function Model3DViewer({ url, alt, poster }: { url: string; alt?: string; poster
         </button>
       </model-viewer>
       <div className="absolute top-3 right-3 flex items-center gap-2">
-        <span className="bg-cyan-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+        <span className="bg-cyan-600 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
           <Box className="w-3 h-3" />3D &amp; AR
         </span>
       </div>
       <div className="absolute top-3 left-3">
-        <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 text-[10px] text-gray-500 flex items-center gap-1">
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 text-xs text-gray-500 flex items-center gap-1">
           <RotateCcw className="w-3 h-3" /> Drag to rotate &middot; Pinch to zoom
         </div>
       </div>

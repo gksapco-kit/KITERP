@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import type { Vendor } from '@/types'
 import { ImageCropModal } from '@/components/common/ImageCropModal'
@@ -120,7 +121,7 @@ export default function SettingsPage() {
           {showSupportAuditLink && (
             <Link
               to="/settings/support-activity"
-              className="inline-flex items-center gap-1.5 rounded-full border border-blue-200/80 bg-blue-50/60 px-2.5 py-1 text-[11px] font-medium text-blue-800 hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
+              className="inline-flex items-center gap-1.5 rounded-full border border-blue-200/80 bg-blue-50/60 px-2.5 py-1 text-xs font-medium text-blue-800 hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
             >
               <HelpCircle className="h-3 w-3 shrink-0" />
               Support audit
@@ -142,7 +143,7 @@ export default function SettingsPage() {
         <section className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
             <p className="text-xs text-muted-foreground">
-              Unit details for the selection in the top bar.
+              {BUSINESS_UNIT_STORE_LABEL} details for the selection in the top bar.
             </p>
             <button
               type="button"
@@ -150,7 +151,7 @@ export default function SettingsPage() {
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               <Settings2 className="h-3 w-3" />
-              All business units
+              All {BUSINESS_UNIT_STORE_LABEL}
             </button>
           </div>
           <BusinessUnitDetailPanel
@@ -172,7 +173,7 @@ export default function SettingsPage() {
             {scopeLabel}
           </span>
           {scopeMode === 'all' && (
-            <span className="text-[11px]">Change unit in the top bar</span>
+            <span className="text-xs">Change {BUSINESS_UNIT_STORE_LABEL} in the top bar</span>
           )}
         </p>
         <div className="flex flex-col gap-4">
@@ -299,7 +300,7 @@ function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
           </div>
           <div className="text-right">
             <p className="font-mono text-sm font-semibold text-foreground">v{APP_VERSION}</p>
-            <p className="text-[10px] text-muted-foreground">{LAST_UPDATED}</p>
+            <p className="text-xs text-muted-foreground">{LAST_UPDATED}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -321,7 +322,7 @@ function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
           </a>
         </div>
         {!SUPPORT_PHONE && (
-          <p className="text-[11px] text-gray-400">
+          <p className="text-xs text-gray-400">
             Optional: set <code className="bg-gray-100 px-1 rounded">VITE_SUPPORT_PHONE</code> in your environment for a one-tap call button.
           </p>
         )}
@@ -343,7 +344,7 @@ function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
               <div key={e.version} className="p-3">
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-xs font-mono font-semibold text-gray-800">v{e.version}</span>
-                  <span className="text-[10px] text-gray-400">{e.date}</span>
+                  <span className="text-xs text-gray-400">{e.date}</span>
                 </div>
                 <p className="text-xs text-gray-600">{e.notes}</p>
               </div>
@@ -479,7 +480,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
         <div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2">
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-foreground">Store branding</span>
-            <span className="text-[10px] text-muted-foreground">PNG/JPG · banner 3:1</span>
+            <span className="text-xs text-muted-foreground">PNG/JPG · banner 3:1</span>
           </div>
           <div className="flex items-stretch gap-2">
             <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFileSelected} />
@@ -508,12 +509,12 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
                   type="button"
                   aria-label="Remove logo"
                   onClick={removeLogo}
-                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-[10px] text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-xs text-destructive-foreground shadow-sm hover:bg-destructive/90"
                 >
                   <X className="h-2.5 w-2.5" />
                 </button>
               )}
-              <span className="mt-0.5 block text-center text-[9px] text-muted-foreground">Logo</span>
+              <span className="mt-0.5 block text-center text-xs text-muted-foreground">Logo</span>
             </div>
 
             <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFileSelected} />
@@ -534,7 +535,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
                     </div>
                   </>
                 ) : (
-                  <span className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                  <span className="flex items-center gap-1.5 text-xs text-gray-400">
                     <ImageIcon className="h-4 w-4 shrink-0" />
                     Add banner
                   </span>
@@ -550,7 +551,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
                   <X className="h-2.5 w-2.5" />
                 </button>
               )}
-              <span className="mt-0.5 block text-center text-[9px] text-muted-foreground">Banner</span>
+              <span className="mt-0.5 block text-center text-xs text-muted-foreground">Banner</span>
             </div>
           </div>
         </div>
@@ -609,7 +610,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
         <div>
           <div className="mb-1 flex items-center justify-between gap-2">
             <Label className="text-xs font-medium">Description</Label>
-            <span className="text-[10px] tabular-nums text-muted-foreground">{form.description.length}/2000</span>
+            <span className="text-xs tabular-nums text-muted-foreground">{form.description.length}/2000</span>
           </div>
           <textarea
             rows={3}
@@ -805,7 +806,7 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
 
 function ReadOnlyBanner({ message }: { message: string }) {
   return (
-    <p className="flex items-start gap-1 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-[10px] leading-snug text-muted-foreground">
+    <p className="flex items-start gap-1 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-xs leading-snug text-muted-foreground">
       <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
       <span>{message}</span>
     </p>
@@ -904,11 +905,11 @@ function AddressPanelShell({
           <Icon className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-foreground">{title}</p>
-          <p className="text-[10px] leading-snug text-muted-foreground">{hint}</p>
+          <p className="text-xs font-medium text-foreground">{title}</p>
+          <p className="text-xs leading-snug text-muted-foreground">{hint}</p>
         </div>
         {!editable ? (
-          <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
             <Lock className="h-2.5 w-2.5" />
             View only
           </span>
@@ -1026,17 +1027,17 @@ function AddressSection({
 
   const unitHint = unitEditable
     ? `Location for ${activeStore?.name ?? 'this unit'}`
-    : 'Select a business unit in the top bar to edit'
+    : `Select a ${BUSINESS_UNIT_STORE_LABEL} in the top bar to edit`
 
   return (
     <SectionWrapper title="Addresses" icon={MapPin} open={open} toggle={toggle}>
       <div className="grid grid-cols-1 gap-3 pt-2 lg:grid-cols-2 lg:items-stretch">
         <AddressPanelShell
-          title="Business unit address"
+          title={`${BUSINESS_UNIT_STORE_LABEL} address`}
           icon={Building}
           hint={unitHint}
           editable={unitEditable}
-          readOnlyMessage="Choose a specific business unit in the top bar to update its address."
+          readOnlyMessage={`Choose a specific ${BUSINESS_UNIT_STORE_LABEL} in the top bar to update its address.`}
           onSubmit={handleUnitSubmit}
           saving={updateStore.isPending}
         >
@@ -1062,9 +1063,9 @@ function AddressSection({
         <AddressPanelShell
           title="Headquarters (HQ)"
           icon={MapPin}
-          hint="All business units — legal & service location (headquarters)"
+          hint={`All ${BUSINESS_UNIT_STORE_LABEL} — legal / service location (headquarters)`}
           editable={hqEditable}
-          readOnlyMessage="Switch to All business units in the top bar to edit the HQ address."
+          readOnlyMessage={`Switch to All ${BUSINESS_UNIT_STORE_LABEL} in the top bar to edit the HQ address.`}
           onSubmit={handleHqSubmit}
           saving={onSaveVendor.isPending}
         >

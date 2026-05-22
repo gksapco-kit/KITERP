@@ -119,7 +119,7 @@ export function PayeeSelector({
                   <div className="text-xs text-gray-500 flex items-center gap-1.5">
                     {payee.phone && <span>{payee.phone}</span>}
                     {payee.external_user_id && <span>#{payee.external_user_id}</span>}
-                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px]">
+                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">
                       {linkTypeBadge[payee.link_type] || payee.link_type}
                     </span>
                   </div>

@@ -61,7 +61,7 @@ const ElectronicsHome = ({ filterMockElectronicsOnly = true }: { filterMockElect
       <section data-edit-id="hero" className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 sm:px-12 py-16 lg:py-24 grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
           <div>
-            <span className="inline-block text-[11px] uppercase tracking-[0.25em] opacity-70 mb-5">
+            <span className="inline-block text-xs uppercase tracking-[0.25em] opacity-70 mb-5">
               {c('hero.badge', 'Aurora X14 · just landed')}
             </span>
             <h1 className="text-[clamp(1.65rem,4vw_+_0.45rem,2.65rem)] sm:text-[clamp(2rem,4.5vw_+_0.5rem,3.25rem)] md:text-[clamp(2.35rem,5vw_+_0.45rem,3.75rem)] lg:text-[clamp(2.75rem,5.5vw,4.25rem)] font-bold leading-[0.95] mb-6 tracking-tight" style={{ fontFamily: 'var(--sf-display)' }}>
@@ -86,7 +86,7 @@ const ElectronicsHome = ({ filterMockElectronicsOnly = true }: { filterMockElect
               ].map((s) => (
                 <div key={s.l}>
                   <dd className="text-2xl" style={{ fontFamily: 'var(--sf-display)' }}>{s.v}</dd>
-                  <dt className="text-[11px] uppercase tracking-[0.18em] opacity-60 mt-1">{s.l}</dt>
+                  <dt className="text-xs uppercase tracking-[0.18em] opacity-60 mt-1">{s.l}</dt>
                 </div>
               ))}
             </dl>
@@ -124,7 +124,7 @@ const ElectronicsHome = ({ filterMockElectronicsOnly = true }: { filterMockElect
       <section data-edit-id="products" className="max-w-7xl mx-auto px-6 sm:px-12 py-20" id="deals">
         <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
           <div>
-            <span className="text-[11px] uppercase tracking-[0.25em] opacity-70">
+            <span className="text-xs uppercase tracking-[0.25em] opacity-70">
               {c('products.eyebrow', 'Featured')}
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl mt-2" style={{ fontFamily: 'var(--sf-display)' }}>
@@ -143,11 +143,11 @@ const ElectronicsHome = ({ filterMockElectronicsOnly = true }: { filterMockElect
               <div className="aspect-square relative" style={{ background: 'hsl(var(--sf-muted) / 0.4)' }}>
                 <img src={p.images[0].url} alt={p.images[0].alt} className="absolute inset-0 w-full h-full object-contain p-6" loading="lazy" />
                 {p.badges?.[0] ? (
-                  <span className="absolute top-3 left-3 text-[10px] uppercase tracking-[0.18em] px-2 py-1" style={{ background: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-primary-foreground))' }}>{p.badges[0]}</span>
+                  <span className="absolute top-3 left-3 text-xs uppercase tracking-[0.18em] px-2 py-1" style={{ background: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-primary-foreground))' }}>{p.badges[0]}</span>
                 ) : null}
               </div>
               <div className="p-5 border-t flex-1 flex flex-col" style={{ borderColor: 'hsl(var(--sf-border))' }}>
-                <div className="text-[11px] uppercase tracking-[0.18em] opacity-60">{p.brand}</div>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-60">{p.brand}</div>
                 <h3 className="text-lg mt-1 mb-2" style={{ fontFamily: 'var(--sf-display)' }}>{p.title}</h3>
                 {p.attributes ? (
                   <ul className="text-xs opacity-70 space-y-1 mb-4">

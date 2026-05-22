@@ -84,7 +84,7 @@ function VehicleCard({ v, cta }: { v: Vehicle; cta: string }) {
     <div className="group overflow-hidden rounded-lg border border-border bg-card text-card-foreground transition-shadow hover:shadow-md">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img src={v.image} alt={`${v.make} ${v.model}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-        <Badge className={cn("absolute left-3 top-3 text-[10px]", CONDITION_STYLE[v.condition])}>
+        <Badge className={cn("absolute left-3 top-3 text-xs", CONDITION_STYLE[v.condition])}>
           {v.condition}
         </Badge>
         <button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground backdrop-blur transition-colors hover:bg-background">
@@ -117,7 +117,7 @@ function VehicleRow({ v, cta }: { v: Vehicle; cta: string }) {
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-3 sm:flex-row">
       <div className="relative h-40 shrink-0 overflow-hidden rounded-md bg-muted sm:h-28 sm:w-44">
         <img src={v.image} alt="" className="h-full w-full object-cover" />
-        <Badge className={cn("absolute left-2 top-2 text-[10px]", CONDITION_STYLE[v.condition])}>
+        <Badge className={cn("absolute left-2 top-2 text-xs", CONDITION_STYLE[v.condition])}>
           {v.condition}
         </Badge>
       </div>

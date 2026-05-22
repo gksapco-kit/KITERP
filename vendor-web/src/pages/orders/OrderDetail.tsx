@@ -113,14 +113,14 @@ export default function OrderDetail() {
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold">Order {order.order_number}</h1>
               {isBooking && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium">
                   <CalendarDays className="w-3 h-3" /> Booking
                 </span>
               )}
               {isQuote && (
-                <span className="inline-flex px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">Quote</span>
+                <span className="inline-flex px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">Quote</span>
               )}
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${statusBadge[order.status] || 'bg-gray-100'}`}>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusBadge[order.status] || 'bg-gray-100'}`}>
                 {statusLabel[order.status] || order.status}
               </span>
             </div>
@@ -200,13 +200,13 @@ export default function OrderDetail() {
                     {step.label}
                   </span>
                   {step.key === 'confirmed' && order.confirmed_at && (
-                    <span className="text-[10px] text-gray-400 mt-0.5">{formatDate(order.confirmed_at)}</span>
+                    <span className="text-xs text-gray-400 mt-0.5">{formatDate(order.confirmed_at)}</span>
                   )}
                   {step.key === 'shipped' && order.shipped_at && (
-                    <span className="text-[10px] text-gray-400 mt-0.5">{formatDate(order.shipped_at)}</span>
+                    <span className="text-xs text-gray-400 mt-0.5">{formatDate(order.shipped_at)}</span>
                   )}
                   {step.key === 'delivered' && order.delivered_at && (
-                    <span className="text-[10px] text-gray-400 mt-0.5">{formatDate(order.delivered_at)}</span>
+                    <span className="text-xs text-gray-400 mt-0.5">{formatDate(order.delivered_at)}</span>
                   )}
                 </div>
               ))}
@@ -270,7 +270,7 @@ export default function OrderDetail() {
             <CardTitle className="text-sm flex items-center gap-2">
               {order.return_type === 'exchange' ? <Repeat className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
               {order.return_type === 'exchange' ? 'Exchange' : 'Return'} Request
-              <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+              <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
                 order.return_status === 'requested' ? 'bg-amber-200 text-amber-800' :
                 order.return_status === 'approved' ? 'bg-green-200 text-green-800' :
                 order.return_status === 'rejected' ? 'bg-red-200 text-red-800' : 'bg-gray-200'

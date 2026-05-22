@@ -162,7 +162,7 @@ export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props)
         {/* Fields */}
         <div className="space-y-3">
           <div>
-            <Label className="text-xs font-semibold">Full Name *</Label>
+            <Label className="text-xs font-medium">Full Name *</Label>
             <Input
               className="mt-1 h-9"
               value={name}
@@ -173,9 +173,9 @@ export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props)
           </div>
 
           <div>
-            <Label className="text-xs font-semibold">
+            <Label className="text-xs font-medium">
               Phone {!email ? '*' : ''}
-              {dupLoading && <span className="ml-1 text-[10px] text-gray-400 font-normal">Checking…</span>}
+              {dupLoading && <span className="ml-1 text-xs text-gray-400 font-normal">Checking…</span>}
             </Label>
             <PhoneInput
               value={phone}
@@ -185,7 +185,7 @@ export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props)
           </div>
 
           <div>
-            <Label className="text-xs font-semibold">Email {!phone ? '*' : ''}</Label>
+            <Label className="text-xs font-medium">Email {!phone ? '*' : ''}</Label>
             <Input
               className="mt-1 h-9"
               type="email"
@@ -195,7 +195,7 @@ export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props)
             />
           </div>
 
-          <p className="text-[11px] text-gray-400">Phone or email is required.</p>
+          <p className="text-xs text-gray-400">Phone or email is required.</p>
         </div>
 
         {/* Duplicate warning */}

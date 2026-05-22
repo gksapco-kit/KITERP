@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
+import { createPortal } from 'react-dom'
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
@@ -15,7 +16,8 @@ import {
   Shuffle, ClipboardCheck, Wand2, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
-  GripVertical, SlidersHorizontal, Database, Search, ExternalLink, MapPin, ShoppingBag,
+  GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
+  PanelLeftClose, PanelLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,9 +25,59 @@ const SUPPORT_PHONE = (import.meta.env.VITE_SUPPORT_PHONE as string | undefined)
 const SUPPORT_CHAT_URL = (import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined)?.trim()
   || 'mailto:support@kiterp.com?subject=Vendor%20Dashboard%20Help'
 
+/** Desktop sidebar: full width, icon rail, or hidden. */
+type SidebarMode = 'expanded' | 'rail' | 'hidden'
+
+const LS_SIDEBAR_MODE = 'kiterp.vendor.sidebar.mode'
+const LS_SIDEBAR_COLLAPSED_LEGACY = 'kiterp.vendor.sidebar.collapsed'
+const LS_SIDEBAR_WIDTH = 'kiterp.vendor.sidebar.width'
+/** Icon rail width — 30% wider than prior 56px rail (fits 45px icon targets + padding). */
+const SIDEBAR_RAIL_WIDTH_PX = 73
+/** Expanded sidebar width (px) — default matches former `w-64`. */
+const SIDEBAR_WIDTH_DEFAULT_PX = 256
+/** Minimum = icon rail width; drag left until icon-only menu. */
+const SIDEBAR_WIDTH_MIN_PX = SIDEBAR_RAIL_WIDTH_PX
+const SIDEBAR_WIDTH_MAX_PX = 480
+const SIDEBAR_WIDTH_STEP_PX = 8
+/** At or below this width, show icon-only nav (labels hidden) on desktop. */
+const SIDEBAR_ICON_ONLY_MAX_PX = 96
+/** Hysteresis on drag end — avoids mode flicker at the threshold. */
+const SIDEBAR_ICON_ONLY_ENTER_PX = 88
+const SIDEBAR_ICON_ONLY_EXIT_PX = 112
+
+function loadSidebarWidthPx(): number {
+  try {
+    const raw = localStorage.getItem(LS_SIDEBAR_WIDTH)
+    if (raw) {
+      const n = Number.parseInt(raw, 10)
+      if (Number.isFinite(n)) {
+        return Math.min(SIDEBAR_WIDTH_MAX_PX, Math.max(SIDEBAR_WIDTH_MIN_PX, n))
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return SIDEBAR_WIDTH_DEFAULT_PX
+}
+
+function clampSidebarWidthPx(w: number): number {
+  return Math.min(SIDEBAR_WIDTH_MAX_PX, Math.max(SIDEBAR_WIDTH_MIN_PX, Math.round(w)))
+}
+
+function loadSidebarMode(): SidebarMode {
+  try {
+    const raw = localStorage.getItem(LS_SIDEBAR_MODE)
+    if (raw === 'expanded' || raw === 'rail' || raw === 'hidden') return raw
+    if (localStorage.getItem(LS_SIDEBAR_COLLAPSED_LEGACY) === '1') return 'hidden'
+  } catch {
+    /* ignore */
+  }
+  return 'expanded'
+}
+
 function ProfileMenuLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="px-4 pt-1 pb-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <p className="px-4 pt-1 pb-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
       {children}
     </p>
   )
@@ -46,6 +98,10 @@ import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { UniversalSearch } from '@/components/UniversalSearch'
 import { buildNavIndex, type NavSearchEntry } from '@/lib/appSearchIndex'
 import { isHrNavVisible } from '@/lib/hrModuleSettings'
+import {
+  BUSINESS_UNIT_STORE_LABEL,
+  BUSINESS_UNIT_STORE_SETTINGS_LINK,
+} from '@/lib/businessUnitLabels'
 import { buildHrEssLoginUrl, isHrEssLinkVisibleForStore } from '@/lib/hrStorefrontLinks'
 import {
   isFinanceNavVisible,
@@ -102,6 +158,18 @@ interface NavItem {
   externalHref?: string
 }
 
+/**
+ * Nav items after a row with `groupLabel` belong to that group until the next `groupLabel`.
+ * (Only the first row per group sets `groupLabel` in config; siblings inherit for collapse.)
+ */
+function effectiveNavGroupLabels(items: NavItem[]): (string | null)[] {
+  let current: string | null = null
+  return items.map((item) => {
+    if (item.groupLabel) current = item.groupLabel
+    return current
+  })
+}
+
 /** Path without query string, no trailing slash (except root). */
 function navItemPath(to: string): string {
   const base = to.split('?')[0]
@@ -138,7 +206,7 @@ function resolveActiveNavTo(pathname: string, search: string, items: NavItem[]):
         bestScore = score
         bestTo = item.to
       }
-    } else if (pathname === '/settings' && locParams.has('section')) {
+    } else if (pathname === '/settings' && locParams.has('section') && item.to.includes('?')) {
       continue
     } else {
       const score = path.length
@@ -186,17 +254,11 @@ const allSections: NavSection[] = [
     icon: Sparkles,
     items: [
       { to: '/', icon: BarChart3, label: 'Dashboard', alwaysShow: true },
-      { to: '/settings?section=profile', icon: Store, label: 'Business Profile', alwaysShow: true, groupLabel: 'Settings' },
-      { to: '/settings?section=contact', icon: Phone, label: 'Contact Information', alwaysShow: true },
-      { to: '/settings?section=address', icon: MapPin, label: 'Addresses', alwaysShow: true },
-      { to: '/settings?section=tax', icon: FileText, label: 'Tax & Compliance', alwaysShow: true },
-      { to: '/settings?section=hours-availability', icon: Clock, label: 'Offline Business Hours', alwaysShow: true },
-      { to: '/settings?section=order-acceptance', icon: ShoppingBag, label: 'Online Orders', alwaysShow: true },
-      { to: '/settings?section=about', icon: Info, label: 'About', alwaysShow: true },
       { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/workspace', icon: LayoutGrid, label: 'Workspace Apps', alwaysShow: true },
       { to: '/relationship-manager', icon: UsersRound, label: 'Relationship Manager', alwaysShow: true },
+      { to: '/settings', icon: Settings, label: 'Settings', alwaysShow: true },
     ],
   },
   {
@@ -253,28 +315,36 @@ const allSections: NavSection[] = [
       { to: '/finance/basic', icon: Landmark, label: 'Finance', requiresPermission: 'finance.view', requiresFinanceMode: 'basic' },
       // ── Advanced Finance mode ──────────────────────────────────────────────
       { to: '/finance', icon: Landmark, label: 'Finance Dashboard', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
-      { to: '/stores', icon: Building2, label: 'Business Units', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
+      // ── General Accounting
+      { to: '/stores', icon: Building2, label: 'Business Units', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced', groupLabel: 'General Accounting', groupColor: 'blue' },
       { to: '/finance/cost-centers', icon: Layers, label: 'Cost Centers', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/coa', icon: BookMarked, label: 'Chart of Accounts', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/journal', icon: ScrollText, label: 'Journal Entries', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/trial-balance', icon: Scale, label: 'Trial Balance', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
-      { to: '/finance/ar', icon: ArrowLeftRight, label: 'Accounts Receivable', requiresPermission: 'finance.ar.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/ap', icon: Banknote, label: 'Accounts Payable', requiresPermission: 'finance.ap.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/bank', icon: Coins, label: 'Bank & Cash', requiresPermission: 'finance.bank.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/budgets', icon: Calculator, label: 'Budgets & Forecasts', requiresPermission: 'finance.budget.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/assets', icon: HardDrive, label: 'Fixed Assets', requiresPermission: 'finance.assets.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/tax', icon: CircleDollarSign, label: 'Tax Returns', requiresPermission: 'finance.tax.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/reports/pnl', icon: LineChart, label: 'P&L Statement', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
+      { to: '/finance/periods', icon: Lock, label: 'Posting Periods', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/field-rules', icon: ListChecks, label: 'GL Field Rules', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      // ── Accounts Receivable
+      { to: '/finance/ar', icon: ArrowLeftRight, label: 'Accounts Receivable', requiresPermission: 'finance.ar.manage', requiresFinanceMode: 'advanced', groupLabel: 'Accounts Receivable', groupColor: 'emerald' },
+      // ── Accounts Payable
+      { to: '/finance/ap', icon: Banknote, label: 'Accounts Payable', requiresPermission: 'finance.ap.manage', requiresFinanceMode: 'advanced', groupLabel: 'Accounts Payable', groupColor: 'amber' },
+      // ── Bank & Cash
+      { to: '/finance/bank', icon: Coins, label: 'Bank & Cash', requiresPermission: 'finance.bank.manage', requiresFinanceMode: 'advanced', groupLabel: 'Bank & Cash', groupColor: 'emerald' },
+      // ── Asset Accounting
+      { to: '/finance/assets', icon: HardDrive, label: 'Fixed Assets', requiresPermission: 'finance.assets.manage', requiresFinanceMode: 'advanced', groupLabel: 'Asset Accounting', groupColor: 'indigo' },
+      // ── Planning & Treasury
+      { to: '/finance/budgets', icon: Calculator, label: 'Budgets & Forecasts', requiresPermission: 'finance.budget.manage', requiresFinanceMode: 'advanced', groupLabel: 'Planning & Treasury', groupColor: 'violet' },
+      { to: '/finance/capital', icon: Shuffle, label: 'Loans & Investments', requiresPermission: 'finance.capital.manage', requiresFinanceMode: 'advanced' },
+      // ── Financial Reporting
+      { to: '/finance/reports/pnl', icon: LineChart, label: 'P&L Statement', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced', groupLabel: 'Financial Reporting', groupColor: 'rose' },
       { to: '/finance/reports/balance-sheet', icon: FilePieChart, label: 'Balance Sheet', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/reports/cash-flow', icon: TrendingUp, label: 'Cash Flow', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/reports/cost-analysis', icon: BarChart3, label: 'Cost Analysis', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/reports/gl', icon: BookOpen, label: 'GL Line Item Report', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
-      { to: '/finance/capital', icon: Shuffle, label: 'Loans & Investments', requiresPermission: 'finance.capital.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/approvals', icon: ClipboardCheck, label: 'Approvals', requiresPermission: 'finance.controls.approve', requiresFinanceMode: 'advanced' },
-      { to: '/finance/periods', icon: Lock, label: 'Posting Periods', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/field-rules', icon: ListChecks, label: 'GL Field Rules', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/audit', icon: ShieldCheck, label: 'Audit Log', requiresPermission: 'finance.audit.view', requiresFinanceMode: 'advanced' },
       { to: '/reports', icon: LayoutDashboard, label: 'Reports' },
+      // ── Governance
+      { to: '/finance/approvals', icon: ClipboardCheck, label: 'Approvals', requiresPermission: 'finance.controls.approve', requiresFinanceMode: 'advanced', groupLabel: 'Governance', groupColor: 'blue' },
+      { to: '/finance/audit', icon: ShieldCheck, label: 'Audit Log', requiresPermission: 'finance.audit.view', requiresFinanceMode: 'advanced' },
+      { to: '/finance/tax', icon: CircleDollarSign, label: 'Tax Returns', requiresPermission: 'finance.tax.manage', requiresFinanceMode: 'advanced' },
     ],
   },
   {
@@ -383,23 +453,6 @@ const allSections: NavSection[] = [
 ]
 
 const DEFAULT_SECTION_IDS = allSections.map((s) => s.id)
-
-/** Insert a divider between consecutive sections when the rail group changes (DnD-safe: divider lives inside each sortable shell). */
-const SECTION_RAIL_GROUP = new Map<string, string>([
-  ['my-kit', 'personal'],
-  ['sales', 'operations'],
-  ['commission', 'operations'],
-  ['inventory', 'operations'],
-  ['finance', 'ledger'],
-  ['controlling', 'ledger'],
-  ['master-data', 'relationships'],
-  ['crm', 'relationships'],
-  ['hr', 'workforce'],
-  ['system', 'platform'],
-])
-function railGroupForSection(id: string) {
-  return SECTION_RAIL_GROUP.get(id) ?? 'other'
-}
 
 const SID_SEC = 'sb-sec:'
 const SID_ITM = 'sb-itm:'
@@ -534,7 +587,8 @@ function SortableItemShell({
       {prepend}
       <div
         className={cn(
-          'flex min-h-[2rem] w-full items-center gap-0 rounded-md transition-[box-shadow] duration-100',
+          'flex w-full items-center gap-0 rounded-md transition-[box-shadow] duration-100',
+          NAV_ROW_MIN_H,
           outlineDropTarget &&
             'ring-2 ring-sidebar-primary ring-offset-2 ring-offset-sidebar shadow-sm',
         )}
@@ -545,33 +599,98 @@ function SortableItemShell({
   )
 }
 
-/** Active leaf — mint fill (sidebar-primary / #64C3A0 palette); light text */
+/** Active leaf — opaque color-mix fill (see .sidebar-nav-link-active); no shadow/ring blur */
 const navLinkActive =
-  'border-l-2 border-transparent bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-sm ring-1 ring-white/25 rounded-lg dark:shadow-md dark:shadow-black/25 dark:ring-white/20'
+  'sidebar-nav-link-active border-l-4 font-medium text-foreground rounded-lg shadow-none ring-0'
 const navLinkInactive =
-  'border-l-2 border-transparent font-normal text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:opacity-90'
+  'border-l-4 border-transparent font-normal text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:opacity-90'
+
+/** Icon-rail flyout menu items */
+const RAIL_FLYOUT_ITEM =
+  'flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45'
+const RAIL_FLYOUT_ITEM_ACTIVE =
+  'sidebar-nav-link-active font-medium text-foreground shadow-none ring-0'
+const RAIL_FLYOUT_ITEM_IDLE = 'font-normal text-foreground hover:bg-muted/70'
 
 const navRowTransition = 'transition-[background-color,color,border-color] duration-150 ease-out motion-reduce:transition-none'
 const navExpandTransition =
   'transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] motion-reduce:transition-none'
 
 /** Sidebar horizontal rhythm: icon column + label column align across section headers, items, logout. */
-const NAV_ICON_COL = 'flex h-5 w-5 shrink-0 items-center justify-center'
+const NAV_ICON_COL = 'flex h-6 w-6 shrink-0 items-center justify-center'
+/** Icon-only rail — 25% larger than prior h-9 / h-4 (36px / 16px). */
+const RAIL_ICON_BTN_CLASS = 'flex h-[2.8125rem] w-[2.8125rem] items-center justify-center rounded-lg'
+const RAIL_ICON_CLASS = 'h-5 w-5'
 const NAV_DRAG_COL = 'flex h-7 w-5 shrink-0 items-center justify-center'
+/** Nav row vertical rhythm — slim but enough height for crisp labels */
 const NAV_ROW_PAD_Y = 'py-0.5'
-/** Nav leaf row height — matches main content text-sm rhythm */
-const NAV_ROW_MIN_H = 'min-h-[2rem]'
+const NAV_ROW_MIN_H = 'min-h-[1.375rem]'
+const NAV_GROUP_ROW_MIN_H = 'min-h-[0.9375rem]'
+/** Sidebar label weights — ~40% lighter than prior bold/semibold/medium */
+const NAV_FONT_BRAND = 'font-semibold'
+const NAV_FONT_SECTION_ACTIVE = 'font-medium'
+const NAV_FONT_SECTION = 'font-normal'
+const NAV_FONT_GROUP = 'font-medium'
+const NAV_FONT_TAB = 'font-medium'
+/** Section row fills — light tint on the full row */
+const NAV_SECTION_BG_ACTIVE = 'bg-muted/25'
+const NAV_SECTION_BG_ACTIVE_COLLAPSED = 'bg-muted/20'
+const NAV_SECTION_BG_HOVER = 'hover:bg-muted/22'
+/** Module icon tiles — solid fill + ring so icons read at small viewports / low zoom */
+const NAV_SECTION_ICON_BG =
+  'rounded-md bg-muted text-muted-foreground ring-1 ring-border/50 dark:bg-zinc-800 dark:ring-border/45'
+const NAV_SECTION_ICON_BG_ACTIVE =
+  'bg-secondary text-foreground ring-border/60 dark:bg-sidebar-accent dark:text-sidebar-accent-foreground dark:ring-border/55'
 
 /**
- * Nested nav tree — mint rail + elbows; stroke ~30% thinner than prior 2px (~1.4px).
+ * Nested nav tree — mint rail + elbows; whole-pixel strokes (crisp when zoomed out).
  * Trunk x from panel left = 30px (see SortableSectionShell layout).
  */
 const NAV_TREE_PANEL_CLASS = '[--tree-x:1.875rem]'
+/** Indented rail for nested group children (Cost Planning, Production Orders, …). */
+const NAV_TREE_SUB_PANEL_CLASS = '[--tree-sub-x:2.75rem]'
 const navTreeTrunkLine =
-  'pointer-events-none absolute left-[var(--tree-x)] top-0 bottom-2 z-0 w-[1.4px] -translate-x-1/2 rounded-full bg-sidebar-primary dark:bg-sidebar-primary/80'
-/** Rounded elbow toward row content; stroke matches trunk. */
+  'pointer-events-none absolute left-[calc(var(--tree-x)-0.5px)] top-0 bottom-2 z-0 w-px bg-sidebar-primary'
+/** Short trunk scoped to a subgroup block only (not the whole module). */
+const navTreeSubgroupTrunk =
+  'pointer-events-none absolute left-[calc(var(--tree-sub-x)-0.5px)] top-0 bottom-0 z-0 w-px bg-sidebar-primary'
+/** Rounded elbow toward row content; whole-pixel box (no translate blur). */
 const navTreeElbowLine =
-  'pointer-events-none absolute left-[var(--tree-x)] top-1/2 z-0 h-[9px] w-[9px] -translate-y-full rounded-bl-[5px] border-b-[1.4px] border-l-[1.4px] border-sidebar-primary dark:border-sidebar-primary/80'
+  'pointer-events-none absolute left-[calc(var(--tree-x)-0.5px)] top-[calc(50%-8px)] z-0 h-2 w-2 rounded-bl-[4px] border-b border-l border-sidebar-primary'
+const navTreeSubElbowLine =
+  'pointer-events-none absolute left-[calc(var(--tree-sub-x)-0.5px)] top-[calc(50%-8px)] z-0 h-2 w-2 rounded-bl-[4px] border-b border-l border-sidebar-primary'
+
+type NavItemBlock =
+  | { kind: 'items'; entries: { item: NavItem; idx: number }[] }
+  | { kind: 'group'; label: string; grpKey: string; entries: { item: NavItem; idx: number }[] }
+
+function buildNavItemBlocks(
+  items: NavItem[],
+  groups: (string | null)[],
+  sectionTitle: string,
+): NavItemBlock[] {
+  const blocks: NavItemBlock[] = []
+  let i = 0
+  while (i < items.length) {
+    if (!groups[i]) {
+      const entries: { item: NavItem; idx: number }[] = []
+      while (i < items.length && !groups[i]) {
+        entries.push({ item: items[i], idx: i })
+        i++
+      }
+      blocks.push({ kind: 'items', entries })
+      continue
+    }
+    const label = groups[i]!
+    const entries: { item: NavItem; idx: number }[] = []
+    while (i < items.length && groups[i] === label) {
+      entries.push({ item: items[i], idx: i })
+      i++
+    }
+    blocks.push({ kind: 'group', label, grpKey: `${sectionTitle}:${label}`, entries })
+  }
+  return blocks
+}
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard — Analytics',
@@ -720,6 +839,25 @@ export default function DashboardLayout() {
   const { vendor, selectedStore, setSelectedStore } = useVendorStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  /** Desktop sidebar layout (persisted in this browser). */
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode)
+  /** Expanded sidebar width (desktop); persisted per browser. */
+  const [sidebarWidthPx, setSidebarWidthPx] = useState(loadSidebarWidthPx)
+  const [isSidebarResizing, setIsSidebarResizing] = useState(false)
+  const isSidebarResizingRef = useRef(false)
+  const sidebarResizeRafRef = useRef(0)
+  const sidebarWidthPxRef = useRef(sidebarWidthPx)
+  const lastExpandedSidebarWidthPxRef = useRef(
+    sidebarWidthPx > SIDEBAR_ICON_ONLY_MAX_PX ? sidebarWidthPx : SIDEBAR_WIDTH_DEFAULT_PX,
+  )
+  /** Section id for floating submenu when sidebar is in icon-rail mode. */
+  const [railFlyoutSectionId, setRailFlyoutSectionId] = useState<string | null>(null)
+  const [railFlyoutTop, setRailFlyoutTop] = useState(56)
+  const railFlyoutRef = useRef<HTMLDivElement>(null)
+  const railSectionButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  /** Desktop: narrow width → icons only + flyout submenus (same as icon-rail mode). */
+  const showIconOnlyNav =
+    sidebarMode !== 'hidden' && sidebarWidthPx <= SIDEBAR_ICON_ONLY_MAX_PX
   /** Drag handles and section reordering only while this is on (reduces visual noise). */
   const [navReorderMode, setNavReorderMode] = useState(false)
   /** @dnd-kit drag feedback: cursor overlay + drop highlights */
@@ -760,9 +898,9 @@ export default function DashboardLayout() {
   const storeHeaderName =
     rowForHeader?.name ??
     selectedStore?.name ??
-    (allBusinessUnitsMode ? 'All business units' : vendor?.display_name ?? 'Select Business Unit')
+    (allBusinessUnitsMode ? 'All business units' : vendor?.display_name ?? BUSINESS_UNIT_STORE_LABEL)
   const storeHeaderSubtitle = rowForHeader
-    ? rowForHeader.description || rowForHeader.code || 'Business unit'
+    ? rowForHeader.description || rowForHeader.code || BUSINESS_UNIT_STORE_LABEL
     : allBusinessUnitsMode
       ? 'No filter applied'
       : vendor?.business_type || 'Business'
@@ -815,6 +953,183 @@ export default function DashboardLayout() {
     document.addEventListener('pointerdown', onPointerDown, true)
     return () => document.removeEventListener('pointerdown', onPointerDown, true)
   }, [profileOpen])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_SIDEBAR_MODE, sidebarMode)
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [sidebarMode])
+
+  useLayoutEffect(() => {
+    sidebarWidthPxRef.current = sidebarWidthPx
+  }, [sidebarWidthPx])
+
+  const persistSidebarWidth = useCallback((w: number) => {
+    try {
+      localStorage.setItem(LS_SIDEBAR_WIDTH, String(w))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const setSidebarWidthClamped = useCallback((w: number, opts?: { syncModeLive?: boolean }) => {
+    const next = clampSidebarWidthPx(w)
+    sidebarWidthPxRef.current = next
+    if (next > SIDEBAR_ICON_ONLY_MAX_PX) {
+      lastExpandedSidebarWidthPxRef.current = next
+    }
+    setSidebarWidthPx(next)
+    if (opts?.syncModeLive && isSidebarResizingRef.current) {
+      setSidebarMode((m) => {
+        if (m === 'hidden') return m
+        if (next >= SIDEBAR_ICON_ONLY_EXIT_PX) return 'expanded'
+        if (next <= SIDEBAR_ICON_ONLY_ENTER_PX) return 'rail'
+        return m
+      })
+    }
+    return next
+  }, [])
+
+  const syncSidebarModeToWidth = useCallback(
+    (w: number) => {
+      setSidebarMode((m) => {
+        if (m === 'hidden') return m
+        if (m === 'rail') {
+          return w >= SIDEBAR_ICON_ONLY_EXIT_PX ? 'expanded' : 'rail'
+        }
+        return w <= SIDEBAR_ICON_ONLY_ENTER_PX ? 'rail' : 'expanded'
+      })
+      if (w <= SIDEBAR_ICON_ONLY_ENTER_PX) {
+        setSidebarWidthClamped(SIDEBAR_RAIL_WIDTH_PX)
+      }
+    },
+    [setSidebarWidthClamped],
+  )
+
+  const resetSidebarWidth = useCallback(() => {
+    const next = setSidebarWidthClamped(SIDEBAR_WIDTH_DEFAULT_PX)
+    syncSidebarModeToWidth(next)
+    persistSidebarWidth(next)
+  }, [persistSidebarWidth, setSidebarWidthClamped, syncSidebarModeToWidth])
+
+  const startSidebarResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (sidebarMode === 'hidden') return
+      e.preventDefault()
+      e.stopPropagation()
+      const startX = e.clientX
+      const startW = sidebarWidthPxRef.current
+      const handle = e.currentTarget
+      setIsSidebarResizing(true)
+      isSidebarResizingRef.current = true
+      setRailFlyoutSectionId(null)
+      handle.setPointerCapture(e.pointerId)
+
+      const onMove = (ev: PointerEvent) => {
+        const targetW = startW + (ev.clientX - startX)
+        cancelAnimationFrame(sidebarResizeRafRef.current)
+        sidebarResizeRafRef.current = requestAnimationFrame(() => {
+          setSidebarWidthClamped(targetW, { syncModeLive: true })
+        })
+      }
+      const onEnd = (ev: PointerEvent) => {
+        cancelAnimationFrame(sidebarResizeRafRef.current)
+        setIsSidebarResizing(false)
+        isSidebarResizingRef.current = false
+        if (handle.hasPointerCapture(ev.pointerId)) {
+          handle.releasePointerCapture(ev.pointerId)
+        }
+        handle.removeEventListener('pointermove', onMove)
+        handle.removeEventListener('pointerup', onEnd)
+        handle.removeEventListener('pointercancel', onEnd)
+        const w = sidebarWidthPxRef.current
+        syncSidebarModeToWidth(w)
+        persistSidebarWidth(sidebarWidthPxRef.current)
+      }
+      handle.addEventListener('pointermove', onMove)
+      handle.addEventListener('pointerup', onEnd)
+      handle.addEventListener('pointercancel', onEnd)
+    },
+    [persistSidebarWidth, setSidebarWidthClamped, sidebarMode, syncSidebarModeToWidth],
+  )
+
+  const onSidebarResizeKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (sidebarMode === 'hidden') return
+      let delta = 0
+      if (e.key === 'ArrowRight') delta = SIDEBAR_WIDTH_STEP_PX
+      else if (e.key === 'ArrowLeft') delta = -SIDEBAR_WIDTH_STEP_PX
+      else if (e.key === 'Home') {
+        e.preventDefault()
+        resetSidebarWidth()
+        return
+      } else return
+      e.preventDefault()
+      const next = setSidebarWidthClamped(sidebarWidthPxRef.current + delta)
+      syncSidebarModeToWidth(next)
+      persistSidebarWidth(next)
+    },
+    [persistSidebarWidth, resetSidebarWidth, setSidebarWidthClamped, sidebarMode, syncSidebarModeToWidth],
+  )
+
+  useEffect(() => {
+    if (isSidebarResizingRef.current) return
+    if (sidebarMode !== 'rail' || sidebarWidthPx === SIDEBAR_RAIL_WIDTH_PX) return
+    if (sidebarWidthPx > SIDEBAR_ICON_ONLY_MAX_PX) {
+      setSidebarMode('expanded')
+      return
+    }
+    setSidebarWidthClamped(SIDEBAR_RAIL_WIDTH_PX)
+  }, [sidebarMode, sidebarWidthPx, setSidebarWidthClamped])
+
+  useEffect(() => {
+    setRailFlyoutSectionId(null)
+  }, [location.pathname, location.search])
+
+  useEffect(() => {
+    if (!railFlyoutSectionId) return
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target
+      if (!(t instanceof Node)) return
+      if (railFlyoutRef.current?.contains(t)) return
+      for (const btn of railSectionButtonRefs.current.values()) {
+        if (btn.contains(t)) return
+      }
+      setRailFlyoutSectionId(null)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRailFlyoutSectionId(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [railFlyoutSectionId])
+
+  const toggleSidebarDesktop = useCallback(() => {
+    setSidebarMode((m) => {
+      if (m === 'expanded') {
+        if (sidebarWidthPxRef.current > SIDEBAR_ICON_ONLY_MAX_PX) {
+          lastExpandedSidebarWidthPxRef.current = sidebarWidthPxRef.current
+        }
+        setSidebarWidthClamped(SIDEBAR_RAIL_WIDTH_PX)
+        persistSidebarWidth(SIDEBAR_RAIL_WIDTH_PX)
+        return 'rail'
+      }
+      if (m === 'rail') return 'hidden'
+      const restore = lastExpandedSidebarWidthPxRef.current
+      setSidebarWidthClamped(restore)
+      persistSidebarWidth(restore)
+      return 'expanded'
+    })
+    setRailFlyoutSectionId(null)
+  }, [persistSidebarWidth, setSidebarWidthClamped])
+
+  const closeMobileSidebar = useCallback(() => setSidebarOpen(false), [])
 
   const prevUnreadRef = useRef<number | null>(null)
   const { show: showBrowserNotif, permission } = useBrowserNotifications()
@@ -1269,6 +1584,12 @@ export default function DashboardLayout() {
   }
 
   const roleBadge = vendorRole?.role_name || 'Member'
+  const profileName = user?.full_name?.trim() || ''
+  const profileHoverTitle = profileName
+    ? roleBadge
+      ? `${profileName} — ${roleBadge}`
+      : profileName
+    : undefined
   const { heading: settingsScopeHeading } = useBusinessUnitScopeLabel()
 
   const settingsSection = new URLSearchParams(location.search).get('section')
@@ -1300,12 +1621,14 @@ export default function DashboardLayout() {
         aria-hidden
       />
       <div
-        className="absolute top-full right-0 z-50 mt-1.5 w-72 max-w-[min(18rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+        className="absolute top-full right-0 z-50 mt-1.5 w-80 max-w-[min(20rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
         role="listbox"
-        aria-label="Select business unit"
+        aria-label={`Select ${BUSINESS_UNIT_STORE_LABEL}`}
       >
         <div className="border-b border-border bg-muted px-4 py-2.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Select Business Unit</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {BUSINESS_UNIT_STORE_LABEL}
+          </p>
         </div>
 
         {showAllLocationsOption && (
@@ -1349,7 +1672,9 @@ export default function DashboardLayout() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{s.description || s.code || 'Business unit'}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {s.description || s.code || BUSINESS_UNIT_STORE_LABEL}
+                  </p>
                 </div>
                 {selectedStore?.id === s.id && <Check className="w-4 h-4 text-primary shrink-0" />}
               </button>
@@ -1367,30 +1692,273 @@ export default function DashboardLayout() {
             onClick={() => setStorePickerOpen(false)}
             className="flex items-center gap-1.5 text-xs text-primary hover:text-primary font-medium transition-colors"
           >
-            <Settings className="w-3 h-3" />
-            Settings
-            <ChevronRight className="w-3 h-3 ml-auto" />
+            <Settings className="w-3 h-3 shrink-0" />
+            <span className="min-w-0 truncate">{BUSINESS_UNIT_STORE_SETTINGS_LINK}</span>
+            <ChevronRight className="w-3 h-3 ml-auto shrink-0" />
           </Link>
         </div>
       </div>
     </>
   ) : null
 
+  const sidebarDesktopToggleLabel =
+    sidebarMode === 'expanded'
+      ? 'Icon-only menu'
+      : sidebarMode === 'rail'
+        ? 'Hide menu'
+        : 'Show menu'
+
+  const toggleRailSection = useCallback(
+    (sectionId: string) => {
+      const btn = railSectionButtonRefs.current.get(sectionId)
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      const section = orderedVisibleSections.find((s) => s.id === sectionId)
+      const items = section
+        ? (orderedNavItemsBySectionId.get(section.id) ?? section.items)
+        : []
+      const groupCount = new Set(
+        effectiveNavGroupLabels(items).filter((g): g is string => Boolean(g)),
+      ).size
+      const estimatedH = Math.min(480, 72 + items.length * 36 + groupCount * 24)
+      const maxTop = Math.max(8, window.innerHeight - estimatedH - 8)
+      const top = Math.min(Math.max(8, rect.top - 6), maxTop)
+      setRailFlyoutTop(top)
+      setRailFlyoutSectionId((prev) => (prev === sectionId ? null : sectionId))
+    },
+    [orderedVisibleSections, orderedNavItemsBySectionId],
+  )
+
+  const railFlyoutSection = railFlyoutSectionId
+    ? orderedVisibleSections.find((s) => s.id === railFlyoutSectionId)
+    : null
+  const railFlyoutItems = railFlyoutSection
+    ? (orderedNavItemsBySectionId.get(railFlyoutSection.id) ?? railFlyoutSection.items)
+    : []
+
+  const RailFlyoutSectionIcon = railFlyoutSection?.icon
+
+  const railFlyoutMenu =
+    railFlyoutSection && railFlyoutSectionId && RailFlyoutSectionIcon
+      ? createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-[69] hidden lg:block"
+              aria-hidden
+              onClick={() => setRailFlyoutSectionId(null)}
+            />
+            <div
+              ref={railFlyoutRef}
+              role="menu"
+              aria-label={railFlyoutSection.title}
+              className={cn(
+                'fixed z-[70] flex w-[min(18rem,calc(100vw-5.5rem))] max-h-[min(32rem,calc(100dvh-1rem))] flex-col overflow-hidden',
+                'rounded-xl border border-border/80 bg-card shadow-xl ring-1 ring-black/[0.04] dark:ring-white/10',
+                'animate-in fade-in-0 slide-in-from-left-2 duration-200 motion-reduce:animate-none',
+                'before:pointer-events-none before:absolute before:-left-[5px] before:top-6 before:z-10 before:h-2.5 before:w-2.5 before:rotate-45 before:border-b before:border-l before:border-border/80 before:bg-card',
+              )}
+              style={{ left: SIDEBAR_RAIL_WIDTH_PX + 8, top: railFlyoutTop }}
+            >
+              <div className="flex shrink-0 items-center gap-2.5 border-b border-border/80 bg-card/95 px-3 py-2.5 backdrop-blur-sm">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/15 text-sidebar-primary ring-1 ring-sidebar-primary/20">
+                  <RailFlyoutSectionIcon className="h-4 w-4" strokeWidth={2} aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{railFlyoutSection.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {railFlyoutItems.length} {railFlyoutItems.length === 1 ? 'page' : 'pages'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="sidebar-scroll sidebar-scroll-intent min-h-0 flex-1 overflow-y-auto p-1.5">
+                {(() => {
+                  const flyoutGroups = effectiveNavGroupLabels(railFlyoutItems)
+                  return railFlyoutItems.map((item, itemIdx) => {
+                    const gl = flyoutGroups[itemIdx]
+                    const prevGl = itemIdx > 0 ? flyoutGroups[itemIdx - 1] : null
+                    const showGroupHeader = Boolean(gl) && gl !== prevGl
+                    return (
+                      <div key={`${item.to}-${item.label}`} className={showGroupHeader && itemIdx > 0 ? 'mt-1' : undefined}>
+                        {showGroupHeader && gl ? (
+                          <div className="flex items-center gap-2 px-2 pb-1 pt-2 first:pt-0.5">
+                            <span className="h-px min-w-[0.5rem] flex-1 bg-border/80" aria-hidden />
+                            <p className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {gl}
+                            </p>
+                            <span className="h-px flex-1 bg-border/80" aria-hidden />
+                          </div>
+                        ) : null}
+                        {item.externalHref ? (
+                          <a
+                            href={item.externalHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            role="menuitem"
+                            title={item.label}
+                            onClick={() => {
+                              setRailFlyoutSectionId(null)
+                              closeMobileSidebar()
+                            }}
+                            className={cn(RAIL_FLYOUT_ITEM, RAIL_FLYOUT_ITEM_IDLE)}
+                          >
+                            <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden />
+                            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                            <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
+                          </a>
+                        ) : (
+                          <NavLink
+                            to={item.to}
+                            role="menuitem"
+                            title={item.label}
+                            onClick={() => {
+                              setRailFlyoutSectionId(null)
+                              closeMobileSidebar()
+                            }}
+                            className="block rounded-lg outline-none"
+                          >
+                            {({ isActive }) => (
+                              <span
+                                className={cn(
+                                  RAIL_FLYOUT_ITEM,
+                                  isActive ? RAIL_FLYOUT_ITEM_ACTIVE : RAIL_FLYOUT_ITEM_IDLE,
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
+                                    isActive
+                                      ? 'bg-sidebar-primary/20 text-sidebar-primary'
+                                      : 'bg-muted/50 text-muted-foreground',
+                                  )}
+                                >
+                                  <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
+                                </span>
+                                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                                {item.to === '/notifications' && unreadCount > 0 ? (
+                                  <span className="inline-flex h-4 min-w-[1rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                  </span>
+                                ) : isActive ? (
+                                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-primary/80" aria-hidden />
+                                ) : null}
+                              </span>
+                            )}
+                          </NavLink>
+                        )}
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+
+              <div className="shrink-0 border-t border-border/80 bg-muted/15 p-1.5">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  onClick={() => {
+                    const restore = lastExpandedSidebarWidthPxRef.current
+                    setSidebarMode('expanded')
+                    setSidebarWidthClamped(restore)
+                    persistSidebarWidth(restore)
+                    setRailFlyoutSectionId(null)
+                  }}
+                >
+                  <PanelLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                  Expand full menu
+                </button>
+              </div>
+            </div>
+          </>,
+          document.body,
+        )
+      : null
+
   const sidebarContent = (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Active business unit context (selector lives in top bar) */}
-      <div className="border-b border-sidebar-border bg-muted/30 px-2.5 py-2">
-        <p className="truncate text-sm font-semibold leading-tight text-sidebar-foreground">{storeHeaderName}</p>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{storeHeaderSubtitle}</p>
-        <div className="mt-1 flex items-center gap-0.5">
-          <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-xs font-semibold bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90">
-            <ShieldCheck className="h-2.5 w-2.5" />
-            {roleBadge}
-          </span>
-        </div>
-      </div>
+      {/* KIT ERP brand — h-14 matches main header so border-b lines up across the layout */}
+      <button
+        type="button"
+        title={showIconOnlyNav ? 'Expand menu' : 'KIT ERP'}
+        onClick={() => {
+          if (!showIconOnlyNav) return
+          const restore = lastExpandedSidebarWidthPxRef.current
+          setSidebarMode('expanded')
+          setSidebarWidthClamped(restore)
+          persistSidebarWidth(restore)
+          setRailFlyoutSectionId(null)
+        }}
+        className={cn(
+          'flex h-14 w-full shrink-0 items-center gap-2 border-b border-sidebar-border bg-muted/30 px-2.5 text-left sm:px-3',
+          showIconOnlyNav && 'lg:cursor-pointer lg:justify-center lg:px-1.5 lg:hover:bg-muted/50',
+          !showIconOnlyNav && 'lg:cursor-default',
+        )}
+      >
+        <span
+          className={cn(
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-white shadow-sm ring-1 ring-black/10',
+            showIconOnlyNav && 'lg:h-10 lg:w-10',
+          )}
+          aria-hidden
+        >
+          <Store className={cn('h-4 w-4', showIconOnlyNav && 'lg:h-5 lg:w-5')} strokeWidth={1.5} />
+        </span>
+        <span className={cn('text-sm tracking-wide text-sidebar-foreground', NAV_FONT_BRAND, showIconOnlyNav && 'lg:hidden')}>
+          KIT ERP
+        </span>
+      </button>
 
-      {/* Navigation — reorder mode shows drag handles (order saved in this browser) */}
+      {/* Icon rail — desktop semi-collapsed mode */}
+      <nav
+        aria-label="Module icons"
+        className={cn(
+          'hidden min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto py-1',
+          showIconOnlyNav && 'lg:flex',
+          !showIconOnlyNav && 'lg:hidden',
+        )}
+      >
+        {orderedVisibleSections.map((section) => {
+          const SectionIcon = section.icon
+          const items = orderedNavItemsBySectionId.get(section.id) ?? section.items
+          const sectionHasActive = items.some((it) => activeNavTo === it.to)
+          const flyoutOpen = railFlyoutSectionId === section.id
+          return (
+            <div key={section.id} className="flex justify-center px-1.5">
+              <button
+                type="button"
+                ref={(node) => {
+                  if (node) railSectionButtonRefs.current.set(section.id, node)
+                  else railSectionButtonRefs.current.delete(section.id)
+                }}
+                title={section.titleTooltip ?? section.title}
+                aria-label={section.title}
+                aria-expanded={flyoutOpen}
+                aria-haspopup="menu"
+                onClick={() => toggleRailSection(section.id)}
+                className={cn(
+                  RAIL_ICON_BTN_CLASS,
+                  'transition-colors',
+                  'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
+                  (sectionHasActive || flyoutOpen) &&
+                    'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground',
+                )}
+              >
+                <SectionIcon className={cn(RAIL_ICON_CLASS)} strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+          )
+        })}
+      </nav>
+
+      {/* Full navigation — hidden on desktop when icon rail is active */}
+      <div
+        className={cn(
+          'flex min-h-0 min-w-0 flex-1 flex-col',
+          showIconOnlyNav && 'lg:hidden',
+          !showIconOnlyNav && 'lg:flex',
+        )}
+      >
       <DndContext
         sensors={sensors}
         collisionDetection={navCollisionDetection}
@@ -1409,7 +1977,7 @@ export default function DashboardLayout() {
           aria-label="Main navigation"
         >
           <div className="mb-0.5 flex shrink-0 items-center justify-between gap-2 px-0.5 py-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+            <span className={cn('text-xs uppercase tracking-wide text-muted-foreground/80', NAV_FONT_TAB)}>
               Modules
             </span>
             <div className="flex shrink-0 items-center gap-1">
@@ -1419,7 +1987,8 @@ export default function DashboardLayout() {
                   aria-label="Reset menu order to default and exit reorder mode"
                   onClick={resetNavOrderToDefaults}
                   className={cn(
-                    'rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    'rounded-md px-2 py-px text-xs uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    NAV_FONT_TAB,
                     'text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground',
                   )}
                 >
@@ -1450,7 +2019,8 @@ export default function DashboardLayout() {
                   })
                 }}
                 className={cn(
-                  'rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  'rounded-md px-2 py-px text-xs uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  NAV_FONT_TAB,
                   navReorderMode
                     ? 'bg-primary text-white shadow-sm hover:bg-primary/90 dark:bg-primary dark:hover:bg-accent'
                     : 'text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground',
@@ -1466,13 +2036,10 @@ export default function DashboardLayout() {
             items={orderedVisibleSections.map((s) => secDndId(s.id))}
             strategy={verticalListSortingStrategy}
           >
-            {orderedVisibleSections.map((section, sectionIdx) => {
+            {orderedVisibleSections.map((section) => {
               const isSectionCollapsed = collapsedSections[section.title] ?? true
               const orderedItems = orderedNavItemsBySectionId.get(section.id) ?? section.items
               const sectionHasActive = orderedItems.some((it) => activeNavTo === it.to)
-              const prevSectionId = sectionIdx > 0 ? orderedVisibleSections[sectionIdx - 1]?.id : null
-              const showRailDivider =
-                prevSectionId != null && railGroupForSection(section.id) !== railGroupForSection(prevSectionId)
 
               const SectionIcon = section.icon
               const sectionPanelId = `nav-section-${section.id}`
@@ -1494,19 +2061,10 @@ export default function DashboardLayout() {
                   sectionId={section.id}
                   sortDisabled={sortLocked}
                   outlineAsDropTarget={outlineSectionDrop}
-                  prepend={
-                    showRailDivider ? (
-                      <div
-                        className="mx-2 my-1 h-px bg-border/[0.1] dark:hidden"
-                        role="separator"
-                        aria-hidden
-                      />
-                    ) : null
-                  }
                 >
                   {(secListeners, secAttributes) => (
                     <>
-                      <div className="flex min-h-[2rem] items-center gap-0.5">
+                      <div className={cn('flex items-center gap-0.5', NAV_ROW_MIN_H)}>
                         {navReorderMode ? (
                           <button
                             type="button"
@@ -1530,13 +2088,15 @@ export default function DashboardLayout() {
                           aria-expanded={!isSectionCollapsed}
                           aria-controls={sectionPanelId}
                           className={cn(
-                            'group/sec flex min-h-[2rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1 py-0.5 text-left',
+                            'group/sec flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1 text-left',
+                            NAV_ROW_MIN_H,
+                            NAV_ROW_PAD_Y,
                             navRowTransition,
                             sectionHasActive && !isSectionCollapsed
-                              ? 'bg-muted/50 text-foreground'
+                              ? cn(NAV_SECTION_BG_ACTIVE, 'text-foreground')
                               : sectionHasActive
-                                ? 'bg-muted/35 text-foreground'
-                                : 'text-muted-foreground hover:bg-muted/45 hover:text-foreground',
+                                ? cn(NAV_SECTION_BG_ACTIVE_COLLAPSED, 'text-foreground')
+                                : cn('text-muted-foreground hover:text-foreground', NAV_SECTION_BG_HOVER),
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
                           )}
                           onClick={() => toggleSection(section.title, section.id)}
@@ -1544,17 +2104,18 @@ export default function DashboardLayout() {
                           <span
                             className={cn(
                               NAV_ICON_COL,
-                              'rounded-md bg-muted/60 text-muted-foreground ring-1 ring-border/25 dark:bg-zinc-800/50 dark:ring-border/25',
-                              sectionHasActive && 'bg-muted text-foreground ring-border/35 dark:bg-sidebar-accent dark:text-sidebar-accent-foreground',
+                              NAV_SECTION_ICON_BG,
+                              sectionHasActive && NAV_SECTION_ICON_BG_ACTIVE,
                             )}
                           >
-                            <SectionIcon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                            <SectionIcon className="h-4 w-4" strokeWidth={2} aria-hidden />
                           </span>
-                          <div className="min-w-0 flex-1 py-0.5">
+                          <div className={cn('min-w-0 flex-1', NAV_ROW_PAD_Y)}>
                             <span
                               className={cn(
                                 'block truncate text-sm leading-snug tracking-normal',
-                                sectionHasActive ? 'font-semibold text-foreground' : 'font-medium text-sidebar-foreground',
+                                sectionHasActive ? NAV_FONT_SECTION_ACTIVE : NAV_FONT_SECTION,
+                                sectionHasActive ? 'text-foreground' : 'text-sidebar-foreground',
                               )}
                             >
                               {section.title}
@@ -1568,7 +2129,7 @@ export default function DashboardLayout() {
                           <span className="flex h-7 w-6 shrink-0 items-center justify-center pr-1" aria-hidden>
                             <ChevronDown
                               className={cn(
-                                'h-3.5 w-3.5 text-muted-foreground/70 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                                'h-4 w-4 text-muted-foreground/70 transition-transform duration-200 ease-out motion-reduce:transition-none',
                                 isSectionCollapsed ? '-rotate-90' : 'rotate-180',
                               )}
                             />
@@ -1594,10 +2155,15 @@ export default function DashboardLayout() {
                           aria-hidden={isSectionCollapsed}
                         >
                           <div
-                            className={cn('relative ml-1 space-y-px py-1', NAV_TREE_PANEL_CLASS)}
+                            className={cn(
+                              'relative ml-1 space-y-px py-1',
+                              NAV_TREE_PANEL_CLASS,
+                              NAV_TREE_SUB_PANEL_CLASS,
+                            )}
                             role="group"
                             aria-label={`${section.title} pages`}
                           >
+                            {/* Full module rail — spans all pages in this section */}
                             <span aria-hidden className={navTreeTrunkLine} />
                             <SortableContext
                               id={`nav-items-${section.id}`}
@@ -1605,161 +2171,192 @@ export default function DashboardLayout() {
                               strategy={verticalListSortingStrategy}
                             >
                               <div className="space-y-px">
-                                {orderedItems.map((item, itemIdx) => {
-                                  const gl = item.groupLabel ?? null
-                                  const prevGl = itemIdx > 0 ? (orderedItems[itemIdx - 1]?.groupLabel ?? null) : null
-                                  const showGroupHeader = Boolean(gl) && gl !== prevGl
-                                  const grpKey = gl != null ? `${section.title}:${gl}` : ''
-                                  const isGroupCollapsed = grpKey ? (collapsedGroups[grpKey] ?? false) : false
-                                  const subgroupKey = item.groupLabel ? `${section.title}:${item.groupLabel}` : ''
-                                  const inCollapsedSubgroup = Boolean(
-                                    item.groupLabel && (collapsedGroups[subgroupKey] ?? false),
-                                  )
+                                {(() => {
+                                  const itemGroups = effectiveNavGroupLabels(orderedItems)
+                                  const blocks = buildNavItemBlocks(orderedItems, itemGroups, section.title)
 
-                                  const groupHeader =
-                                    showGroupHeader && gl != null ? (
-                                      <button
-                                        key={`hdr-${grpKey}`}
-                                        type="button"
-                                        tabIndex={isSectionCollapsed ? -1 : undefined}
-                                        onClick={() => toggleGroup(grpKey)}
-                                        aria-expanded={!isGroupCollapsed}
-                                        className={cn(
-                                          'relative flex min-h-[1.875rem] w-full items-center gap-1.5 rounded-md py-0.5 pr-1 pl-[calc(var(--tree-x)+0.5rem)] text-left text-xs font-semibold uppercase tracking-wide',
-                                          itemIdx > 0 ? 'mt-0.5' : 'mt-0',
-                                          navRowTransition,
-                                          'text-muted-foreground/80 hover:bg-muted/35 hover:text-foreground',
-                                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-                                          orderedItems.some((it) => (it.groupLabel ?? null) === gl && activeNavTo === it.to) && 'font-semibold text-foreground',
-                                        )}
+                                  const renderNavRow = (
+                                    item: NavItem,
+                                    tree: 'section' | 'sub',
+                                    tabIndexOff: boolean,
+                                  ) => {
+                                    const elbow = tree === 'sub' ? navTreeSubElbowLine : navTreeElbowLine
+                                    const thisItemDndId = itmDndId(section.id, item.to)
+                                    return (
+                                      <SortableItemShell
+                                        key={item.to + item.label}
+                                        sectionId={section.id}
+                                        itemTo={item.to}
+                                        sortDisabled={sortLocked}
+                                        outlineDropTarget={navReorderMode && navDndOverId === thisItemDndId}
+                                        hideSourceWhileDragging={
+                                          navReorderMode && navActiveDndId === thisItemDndId
+                                        }
                                       >
-                                        <span aria-hidden className={navTreeElbowLine} />
-                                        <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                                          {orderedItems.some((it) => (it.groupLabel ?? null) === gl && activeNavTo === it.to) && (
-                                            <span className="h-1 w-1 shrink-0 rounded-full bg-accent dark:bg-primary/50" />
-                                          )}
-                                          <span className="truncate">{gl}</span>
-                                        </span>
-                                        <span className="flex h-6 w-5 shrink-0 items-center justify-center pr-1" aria-hidden>
-                                          <ChevronDown
+                                        {(itemListeners, itemAttributes) => (
+                                          <div
                                             className={cn(
-                                              'h-3 w-3 text-muted-foreground/65 transition-transform duration-200 ease-out motion-reduce:transition-none',
-                                              isGroupCollapsed ? '-rotate-90' : 'rotate-180',
+                                              'relative flex w-full min-w-0 flex-1 items-center gap-0.5',
+                                              NAV_ROW_MIN_H,
+                                              tree === 'sub' && 'pl-[calc(var(--tree-sub-x)-var(--tree-x))]',
                                             )}
-                                          />
-                                        </span>
-                                      </button>
-                                    ) : null
-
-                                  const thisItemDndId = itmDndId(section.id, item.to)
-                                  return (
-                                    <SortableItemShell
-                                      key={item.to + item.label}
-                                      sectionId={section.id}
-                                      itemTo={item.to}
-                                      sortDisabled={sortLocked}
-                                      prepend={groupHeader}
-                                      outlineDropTarget={navReorderMode && navDndOverId === thisItemDndId}
-                                      hideSourceWhileDragging={
-                                        navReorderMode && navActiveDndId === thisItemDndId
-                                      }
-                                    >
-                                      {(itemListeners, itemAttributes) => (
-                                        <div
-                                          className={cn(
-                                            'relative flex min-h-[2rem] w-full min-w-0 flex-1 items-center gap-0.5',
-                                            inCollapsedSubgroup && 'hidden',
-                                          )}
-                                        >
-                                          <span aria-hidden className={navTreeElbowLine} />
-                                          {navReorderMode ? (
-                                            <button
-                                              type="button"
-                                              aria-label={`Drag to reorder ${item.label}`}
-                                              className={cn(
-                                                NAV_DRAG_COL,
-                                                'touch-none cursor-grab rounded text-muted-foreground/40 transition-colors hover:bg-muted/40 hover:text-muted-foreground/70 active:cursor-grabbing',
-                                              )}
-                                              {...itemListeners}
-                                              {...itemAttributes}
-                                              tabIndex={isSectionCollapsed || inCollapsedSubgroup ? -1 : undefined}
-                                            >
-                                              <GripVertical className="h-2.5 w-2.5" strokeWidth={2} aria-hidden />
-                                            </button>
-                                          ) : (
-                                            <span className={NAV_DRAG_COL} aria-hidden />
-                                          )}
-                                          {item.externalHref ? (
-                                            <a
-                                              href={item.externalHref}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              title={`${item.label} (opens in new tab)`}
-                                              tabIndex={isSectionCollapsed || inCollapsedSubgroup ? -1 : undefined}
-                                              onClick={() => setSidebarOpen(false)}
-                                              className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
-                                            >
-                                              <span
-                                                className={cn(
-                                                  'relative z-[1] flex min-h-[2rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
-                                                  item.labelSize ?? 'text-sm',
-                                                  'leading-snug',
-                                                  navRowTransition,
-                                                  navLinkInactive,
-                                                )}
-                                              >
-                                                <span className={cn(NAV_ICON_COL, 'text-muted-foreground/80 group-hover/nav:text-foreground')}>
-                                                  <item.icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-                                                </span>
-                                                <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                                              </span>
-                                            </a>
-                                          ) : (
-                                          <NavLink
-                                            to={item.to}
-                                            title={item.label}
-                                            tabIndex={isSectionCollapsed || inCollapsedSubgroup ? -1 : undefined}
-                                            onClick={() => setSidebarOpen(false)}
-                                            className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
                                           >
-                                            {() => {
-                                              const isActive = activeNavTo === item.to
-                                              return (
-                                              <span
+                                            <span aria-hidden className={elbow} />
+                                            {navReorderMode ? (
+                                              <button
+                                                type="button"
+                                                aria-label={`Drag to reorder ${item.label}`}
                                                 className={cn(
-                                                  'relative z-[1] flex min-h-[2rem] min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2',
-                                                  item.labelSize ?? 'text-sm',
-                                                  'leading-snug',
-                                                  navRowTransition,
-                                                  isActive ? navLinkActive : navLinkInactive,
+                                                  NAV_DRAG_COL,
+                                                  'touch-none cursor-grab rounded text-muted-foreground/40 transition-colors hover:bg-muted/40 hover:text-muted-foreground/70 active:cursor-grabbing',
                                                 )}
+                                                {...itemListeners}
+                                                {...itemAttributes}
+                                                tabIndex={isSectionCollapsed || tabIndexOff ? -1 : undefined}
+                                              >
+                                                <GripVertical className="h-2.5 w-2.5" strokeWidth={2} aria-hidden />
+                                              </button>
+                                            ) : (
+                                              <span className={NAV_DRAG_COL} aria-hidden />
+                                            )}
+                                            {item.externalHref ? (
+                                              <a
+                                                href={item.externalHref}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                title={`${item.label} (opens in new tab)`}
+                                                tabIndex={isSectionCollapsed || tabIndexOff ? -1 : undefined}
+                                                onClick={() => setSidebarOpen(false)}
+                                                className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
                                               >
                                                 <span
                                                   className={cn(
-                                                    NAV_ICON_COL,
-                                                    isActive
-                                                      ? 'text-sidebar-primary-foreground'
-                                                      : 'text-muted-foreground/80 group-hover/nav:text-foreground',
+                                                    'relative z-[1] flex min-w-0 flex-1 items-center gap-1.5 rounded-lg pl-1 pr-2',
+                                                    NAV_ROW_MIN_H,
+                                                    NAV_ROW_PAD_Y,
+                                                    item.labelSize ?? 'text-sm',
+                                                    'leading-snug',
+                                                    navRowTransition,
+                                                    navLinkInactive,
                                                   )}
                                                 >
-                                                  <item.icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-                                                </span>
-                                                <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                                                {item.to === '/notifications' && unreadCount > 0 && (
-                                                  <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white tabular-nums">
-                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                  <span className={cn(NAV_ICON_COL, 'text-muted-foreground/80 group-hover/nav:text-foreground')}>
+                                                    <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
                                                   </span>
-                                                )}
-                                              </span>
-                                              )
-                                            }}
-                                          </NavLink>
+                                                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                                                </span>
+                                              </a>
+                                            ) : (
+                                              <NavLink
+                                                to={item.to}
+                                                title={item.label}
+                                                tabIndex={isSectionCollapsed || tabIndexOff ? -1 : undefined}
+                                                onClick={() => setSidebarOpen(false)}
+                                                className="group/nav flex min-w-0 flex-1 rounded-lg pl-5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/45 focus-visible:ring-offset-0"
+                                              >
+                                                {() => {
+                                                  const isActive = activeNavTo === item.to
+                                                  return (
+                                                    <span
+                                                      className={cn(
+                                                        'relative z-[1] flex min-w-0 flex-1 items-center gap-1.5 rounded-lg pl-1 pr-2',
+                                                        NAV_ROW_MIN_H,
+                                                        NAV_ROW_PAD_Y,
+                                                        item.labelSize ?? 'text-sm',
+                                                        'leading-snug',
+                                                        navRowTransition,
+                                                        isActive ? navLinkActive : navLinkInactive,
+                                                      )}
+                                                    >
+                                                      <span
+                                                        className={cn(
+                                                          NAV_ICON_COL,
+                                                          isActive
+                                                            ? 'text-inherit'
+                                                            : 'text-muted-foreground/80 group-hover/nav:text-inherit',
+                                                        )}
+                                                      >
+                                                        <item.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
+                                                      </span>
+                                                      <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                                                      {item.to === '/notifications' && unreadCount > 0 && (
+                                                        <span className="ml-0.5 inline-flex h-3.5 min-w-[0.875rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white tabular-nums">
+                                                          {unreadCount > 99 ? '99+' : unreadCount}
+                                                        </span>
+                                                      )}
+                                                    </span>
+                                                  )
+                                                }}
+                                              </NavLink>
+                                            )}
+                                          </div>
+                                        )}
+                                      </SortableItemShell>
+                                    )
+                                  }
+
+                                  return blocks.map((block, blockIdx) => {
+                                    if (block.kind === 'items') {
+                                      return (
+                                        <div key={`sec-items-${blockIdx}`} className="relative space-y-px">
+                                          {block.entries.map(({ item }) =>
+                                            renderNavRow(item, 'section', isSectionCollapsed),
                                           )}
                                         </div>
-                                      )}
-                                    </SortableItemShell>
-                                  )
-                                })}
+                                      )
+                                    }
+
+                                    const isGroupCollapsed = collapsedGroups[block.grpKey] ?? false
+                                    const groupHasActive = block.entries.some(
+                                      ({ item }) => activeNavTo === item.to,
+                                    )
+
+                                    return (
+                                      <div key={block.grpKey} className={cn('relative', blockIdx > 0 && 'mt-0.5')}>
+                                        <button
+                                          type="button"
+                                          tabIndex={isSectionCollapsed ? -1 : undefined}
+                                          onClick={() => toggleGroup(block.grpKey)}
+                                          aria-expanded={!isGroupCollapsed}
+                                          className={cn(
+                                            'relative flex w-full items-center gap-1.5 rounded-md pr-1 pl-[calc(var(--tree-x)+0.5rem)] text-left text-xs uppercase tracking-wide',
+                                            NAV_GROUP_ROW_MIN_H,
+                                            NAV_ROW_PAD_Y,
+                                            NAV_FONT_GROUP,
+                                            navRowTransition,
+                                            'text-muted-foreground/80 hover:bg-muted/20 hover:text-foreground',
+                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+                                            groupHasActive && cn(NAV_FONT_SECTION_ACTIVE, 'text-foreground'),
+                                          )}
+                                        >
+                                          <span aria-hidden className={navTreeElbowLine} />
+                                          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                            {groupHasActive && (
+                                              <span className="h-1 w-1 shrink-0 rounded-full bg-accent dark:bg-primary/50" />
+                                            )}
+                                            <span className="truncate">{block.label}</span>
+                                          </span>
+                                          <span className="flex h-6 w-5 shrink-0 items-center justify-center pr-1" aria-hidden>
+                                            <ChevronDown
+                                              className={cn(
+                                                'h-3 w-3 text-muted-foreground/65 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                                                isGroupCollapsed ? '-rotate-90' : 'rotate-180',
+                                              )}
+                                            />
+                                          </span>
+                                        </button>
+                                        {!isGroupCollapsed && (
+                                          <div className="relative ml-[calc(var(--tree-sub-x)-var(--tree-x))] space-y-px">
+                                            <span aria-hidden className={navTreeSubgroupTrunk} />
+                                            {block.entries.map(({ item }) =>
+                                              renderNavRow(item, 'sub', isSectionCollapsed),
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })
+                                })()}
                               </div>
                             </SortableContext>
                           </div>
@@ -1782,7 +2379,9 @@ export default function DashboardLayout() {
                 return (
                   <div
                     className={cn(
-                      'pointer-events-none flex min-h-[2rem] min-w-[13rem] max-w-[17rem] items-center gap-0.5 rounded-lg border border-sidebar-border/80 bg-sidebar py-0.5 pl-1 pr-2 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
+                      'pointer-events-none flex min-w-[13rem] max-w-[17rem] items-center gap-0.5 rounded-lg border border-sidebar-border/80 bg-sidebar pl-1 pr-2 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
+                      NAV_ROW_MIN_H,
+                      NAV_ROW_PAD_Y,
                     )}
                   >
                     <span className={NAV_DRAG_COL}>
@@ -1790,11 +2389,12 @@ export default function DashboardLayout() {
                     </span>
                     <span className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-0">
                       <span className={cn(NAV_ICON_COL, 'text-muted-foreground')}>
-                        <OI className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                        <OI className="h-4 w-4" strokeWidth={2} aria-hidden />
                       </span>
                       <span
                         className={cn(
-                          'min-w-0 flex-1 truncate text-left font-medium',
+                          'min-w-0 flex-1 truncate text-left',
+                          NAV_FONT_SECTION,
                           item.labelSize ?? 'text-sm',
                         )}
                       >
@@ -1811,7 +2411,9 @@ export default function DashboardLayout() {
                 return (
                   <div
                     className={cn(
-                      'pointer-events-none flex min-h-[2rem] min-w-[13rem] max-w-[17rem] items-center gap-1.5 rounded-lg border border-sidebar-border/80 bg-sidebar px-2 py-1 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
+                      'pointer-events-none flex min-w-[13rem] max-w-[17rem] items-center gap-1.5 rounded-lg border border-sidebar-border/80 bg-sidebar px-2 text-sidebar-foreground shadow-xl ring-2 ring-sidebar-primary/50',
+                      NAV_ROW_MIN_H,
+                      NAV_ROW_PAD_Y,
                     )}
                   >
                     <span
@@ -1820,10 +2422,10 @@ export default function DashboardLayout() {
                         'rounded-md bg-muted/60 text-muted-foreground ring-1 ring-border/25',
                       )}
                     >
-                      <OI className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                      <OI className="h-4 w-4" strokeWidth={2} aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-semibold leading-snug">{pl.title}</span>
+                      <span className={cn('block truncate text-xs leading-snug', NAV_FONT_SECTION_ACTIVE)}>{pl.title}</span>
                       {pl.subtitle ? (
                         <span className="mt-px block truncate text-xs text-muted-foreground">{pl.subtitle}</span>
                       ) : null}
@@ -1835,30 +2437,54 @@ export default function DashboardLayout() {
           ) : null}
         </DragOverlay>
       </DndContext>
+      </div>
 
       {/* Logout — separated from primary nav */}
-      <div className="shrink-0 border-t border-border/15 bg-muted/10 px-2 py-1 dark:bg-muted/5">
+      <div
+        className={cn(
+          'shrink-0 border-t border-border/15 bg-muted/10 px-2 py-1 dark:bg-muted/5',
+          showIconOnlyNav && 'lg:px-1.5',
+        )}
+      >
         <button
           type="button"
           onClick={logout}
+          title="Logout"
           className={cn(
-            'flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-sm font-medium text-sidebar-foreground',
+            'flex w-full items-center gap-1.5 rounded-md px-1 text-sm text-sidebar-foreground',
             NAV_ROW_MIN_H,
+            NAV_ROW_PAD_Y,
+            NAV_FONT_SECTION,
             navRowTransition,
+            showIconOnlyNav && 'lg:justify-center',
             'hover:bg-red-500/10 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-0 dark:hover:bg-red-950/30 dark:hover:text-red-300',
           )}
         >
-          <span className={cn(NAV_ICON_COL, 'text-muted-foreground')}>
-            <LogOut className="h-3.5 w-3.5" aria-hidden />
+          <span
+            className={cn(
+              NAV_ICON_COL,
+              'text-muted-foreground',
+              showIconOnlyNav && 'lg:h-[1.875rem] lg:w-[1.875rem]',
+            )}
+          >
+            <LogOut className={cn('h-4 w-4', showIconOnlyNav && 'lg:h-5 lg:w-5')} aria-hidden />
           </span>
-          <span className="min-w-0 flex-1 truncate text-left">Logout</span>
+          <span className={cn('min-w-0 flex-1 truncate text-left', showIconOnlyNav && 'lg:hidden')}>Logout</span>
         </button>
       </div>
     </div>
   )
 
+  const sidebarWidthStyle =
+    sidebarMode !== 'hidden'
+      ? ({ '--sidebar-width': `${sidebarWidthPx}px` } as CSSProperties)
+      : undefined
+
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground">
+    <div
+      className="min-h-screen bg-background font-sans text-foreground"
+      style={sidebarWidthStyle}
+    >
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-40 lg:hidden backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
@@ -1867,18 +2493,90 @@ export default function DashboardLayout() {
       {/* Sidebar — single instance so nav scroll ref targets the visible panel */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-[min(17.5rem,100vw)] min-w-0 max-w-[min(100vw,18rem)] border-r border-sidebar-border bg-sidebar font-sans text-sidebar-foreground text-sm shadow-sm lg:z-30 lg:w-64 lg:min-w-[14rem]',
-          'transition-transform duration-200 ease-out motion-reduce:transition-none lg:translate-x-0 lg:transition-none',
+          'fixed inset-y-0 left-0 z-50 min-w-0 border-r border-sidebar-border bg-sidebar font-sans text-sidebar-foreground text-sm shadow-sm lg:z-30',
+          'max-lg:w-[min(17.5rem,100vw)] max-lg:max-w-[min(100vw,18rem)]',
+          'transition-[transform] duration-200 ease-out motion-reduce:transition-none',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          sidebarMode === 'hidden' ? 'lg:-translate-x-full' : 'lg:translate-x-0',
+          isSidebarResizing && 'transition-none will-change-[width]',
         )}
+        style={
+          sidebarMode !== 'hidden'
+            ? {
+                ['--sidebar-width' as string]: `${sidebarWidthPx}px`,
+                width: sidebarOpen
+                  ? `min(${sidebarWidthPx}px, 100vw)`
+                  : sidebarWidthPx,
+                maxWidth: sidebarOpen
+                  ? `min(${sidebarWidthPx}px, 100vw)`
+                  : SIDEBAR_WIDTH_MAX_PX,
+              }
+            : undefined
+        }
       >
         {sidebarContent}
+        {sidebarMode !== 'hidden' && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar. Drag left for icon-only menu, right for full labels. Double-click or Home resets width."
+            aria-valuemin={SIDEBAR_WIDTH_MIN_PX}
+            aria-valuemax={SIDEBAR_WIDTH_MAX_PX}
+            aria-valuenow={sidebarWidthPx}
+            tabIndex={0}
+            onPointerDown={startSidebarResize}
+            onDoubleClick={resetSidebarWidth}
+            onKeyDown={onSidebarResizeKeyDown}
+            className={cn(
+              'absolute right-0 top-0 bottom-0 z-[55] hidden w-3 cursor-col-resize touch-none lg:block',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/50',
+            )}
+          />
+        )}
       </aside>
 
+      {/* Desktop: collapse control on sidebar edge (aligned with header border) */}
+      <button
+        type="button"
+        onClick={toggleSidebarDesktop}
+        aria-expanded={sidebarMode !== 'hidden'}
+        aria-label={sidebarDesktopToggleLabel}
+        title={sidebarDesktopToggleLabel}
+        className={cn(
+          'fixed z-[45] hidden h-8 w-8 items-center justify-center border border-border bg-card text-muted-foreground shadow-md',
+          'hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+          'top-14 -translate-y-1/2 lg:flex',
+          isSidebarResizing && 'lg:pointer-events-none lg:opacity-0',
+          !isSidebarResizing && 'transition-[left] duration-200 ease-out motion-reduce:transition-none',
+          sidebarMode === 'hidden' && 'left-0 rounded-r-md border-l-0',
+          sidebarMode !== 'hidden' && 'lg:left-[var(--sidebar-width)] -translate-x-1/2 rounded-md',
+        )}
+      >
+        {sidebarMode === 'hidden' ? (
+          <PanelLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
+        ) : (
+          <PanelLeftClose className="h-4 w-4" strokeWidth={2} aria-hidden />
+        )}
+      </button>
+
+      {railFlyoutMenu}
+
       {/* Main content */}
-      <div className="lg:ml-64">
+      <div
+        className={cn(
+          sidebarMode === 'hidden' && 'lg:ml-0',
+          sidebarMode !== 'hidden' && 'lg:ml-[var(--sidebar-width)]',
+          isSidebarResizing && 'will-change-[margin-left]',
+          !isSidebarResizing && 'transition-[margin-left] duration-200 ease-out motion-reduce:transition-none',
+        )}
+        style={
+          sidebarMode !== 'hidden'
+            ? ({ ['--sidebar-width' as string]: `${sidebarWidthPx}px` } as CSSProperties)
+            : undefined
+        }
+      >
         {/* Top bar */}
-        <header className="sticky top-0 z-30 overflow-visible border-b border-border bg-card/80 backdrop-blur-md">
+        <header className="sticky top-0 z-30 overflow-visible border-b border-sidebar-border bg-card/80 backdrop-blur-md">
           {/*
             Title + search must shrink (min-w-0). Actions stay full width (shrink-0).
             Do not use overflow-hidden here — it clips the unit picker when the row is tight.
@@ -1888,8 +2586,9 @@ export default function DashboardLayout() {
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
               <button
                 type="button"
-                className="lg:hidden shrink-0 rounded-lg p-2 -ml-1 text-muted-foreground hover:bg-muted"
+                className="shrink-0 rounded-lg p-2 -ml-1 text-muted-foreground hover:bg-muted lg:hidden"
                 onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
               >
                 <Menu className="h-5 w-5" />
               </button>
@@ -1924,7 +2623,7 @@ export default function DashboardLayout() {
               >
                 <Search className="h-4 w-4 shrink-0" />
                 <span className="min-w-0 flex-1 truncate text-left text-xs">Search pages, records…</span>
-                <kbd className="hidden shrink-0 lg:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">
+                <kbd className="hidden shrink-0 lg:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-xs font-mono">
                   ⌘K
                 </kbd>
               </button>
@@ -1948,14 +2647,16 @@ export default function DashboardLayout() {
                   aria-haspopup="listbox"
                   title={storeHeaderName}
                   className={cn(
-                    'flex min-w-[2.75rem] max-w-[11.5rem] items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition-all sm:max-w-[12.5rem] lg:max-w-[14rem]',
+                    'flex min-w-[2.75rem] max-w-[11.5rem] items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all sm:max-w-[12.5rem] lg:max-w-[14rem]',
                     storePillActive
                       ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90'
                       : 'border-border bg-muted text-muted-foreground hover:bg-muted/80',
                   )}
                 >
                   <Store className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden min-w-0 truncate sm:inline">{storeHeaderName}</span>
+                  <span className="hidden min-w-0 truncate sm:inline" title={storeHeaderName}>
+                    {storeHeaderName}
+                  </span>
                   <ChevronDown
                     className={cn(
                       'h-3 w-3 shrink-0 opacity-70 transition-transform duration-200 motion-reduce:transition-none',
@@ -1972,7 +2673,7 @@ export default function DashboardLayout() {
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-background">
+                  <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold leading-none text-white ring-2 ring-background">
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
@@ -1981,6 +2682,8 @@ export default function DashboardLayout() {
                 <button
                   type="button"
                   onClick={() => setProfileOpen(v => !v)}
+                  title={profileHoverTitle}
+                  aria-label={profileHoverTitle ?? 'Open profile menu'}
                   className={cn(
                     'flex items-center gap-1.5 rounded-full py-1 pl-1 pr-1.5 transition-colors sm:pr-2',
                     profileOpen ? 'bg-muted ring-1 ring-border' : 'hover:bg-muted',
@@ -1989,8 +2692,20 @@ export default function DashboardLayout() {
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-xs font-bold text-white shadow-sm ring-1 ring-black/15">
                     {(user?.full_name || 'U').charAt(0).toUpperCase()}
                   </div>
-                  <span className="hidden min-w-0 max-w-[5.5rem] truncate text-sm font-medium text-foreground md:inline lg:max-w-[7rem]">
-                    {user?.full_name}
+                  <span className="hidden min-w-0 max-w-[6.5rem] flex-col items-start leading-tight md:flex lg:max-w-[8rem]">
+                    <span
+                      className="w-full truncate text-sm font-medium text-foreground"
+                      title={profileName || undefined}
+                    >
+                      {user?.full_name}
+                    </span>
+                    <span
+                      className="mt-0.5 inline-flex max-w-full items-center gap-0.5 truncate rounded px-1 py-px text-xs font-medium bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90"
+                      title={roleBadge}
+                    >
+                      <ShieldCheck className="h-2 w-2 shrink-0" aria-hidden />
+                      <span className="truncate">{roleBadge}</span>
+                    </span>
                   </span>
                   <ChevronDown className={cn('hidden h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform md:block', profileOpen && 'rotate-180')} />
                 </button>
@@ -2004,12 +2719,18 @@ export default function DashboardLayout() {
                             {(user?.full_name || 'U').charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-white">{user?.full_name}</p>
-                            {user?.email && <p className="truncate text-xs text-emerald-100/85">{user.email}</p>}
-                            <span className="mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-white/15 text-white ring-1 ring-white/25">
-                              <ShieldCheck className="h-2.5 w-2.5" />
+                            <p className="truncate text-sm font-semibold text-white" title={profileName || undefined}>
+                              {user?.full_name}
+                            </p>
+                            <span className="mt-0.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium bg-white/15 text-white ring-1 ring-white/25">
+                              <ShieldCheck className="h-2.5 w-2.5" aria-hidden />
                               {roleBadge}
                             </span>
+                            {user?.email && (
+                              <p className="mt-1 truncate text-xs text-emerald-100/85" title={user.email}>
+                                {user.email}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2069,7 +2790,7 @@ export default function DashboardLayout() {
                           <Bell className="w-4 h-4 text-muted-foreground" />
                           <span className="flex-1">Notifications</span>
                           {unreadCount > 0 && (
-                            <span className="inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                            <span className="inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
                               {unreadCount > 99 ? '99+' : unreadCount}
                             </span>
                           )}
@@ -2128,7 +2849,7 @@ export default function DashboardLayout() {
                           >
                             <Phone className="w-4 h-4 text-primary" />
                             <span className="flex-1">Call support</span>
-                            <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[110px]">{SUPPORT_PHONE}</span>
+                            <span className="text-xs text-muted-foreground font-mono truncate max-w-[110px]">{SUPPORT_PHONE}</span>
                           </a>
                         ) : (
                           <Link
@@ -2138,7 +2859,7 @@ export default function DashboardLayout() {
                           >
                             <Phone className="w-4 h-4 text-muted-foreground" />
                             <span className="flex-1">Call support</span>
-                            <span className="text-[10px] text-muted-foreground">Set phone</span>
+                            <span className="text-xs text-muted-foreground">Set phone</span>
                           </Link>
                         )}
                         <a

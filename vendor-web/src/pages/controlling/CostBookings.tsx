@@ -149,7 +149,7 @@ export default function CostBookingsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {BOOKING_TYPES.filter(t => t.value && totalByType[t.value] !== undefined).map(t => (
             <div key={t.value} className="rounded-lg border border-gray-100 bg-white p-3">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${bookingTypeColor(t.value)}`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${bookingTypeColor(t.value)}`}>
                 {t.label}
               </span>
               <p className="text-lg font-bold text-gray-900 mt-2">{formatCurrency(totalByType[t.value] ?? 0)}</p>

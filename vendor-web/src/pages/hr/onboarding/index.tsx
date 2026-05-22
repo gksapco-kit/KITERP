@@ -105,12 +105,12 @@ function ChecklistCard({ checklist, expanded, onToggle }: { checklist: Onboardin
       <div onClick={onToggle} className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50">
         <div>
           <p className="text-sm font-semibold text-gray-900">Employee #{checklist.employee_id.slice(0, 8)}</p>
-          <p className="text-[11px] text-gray-500">Started {new Date(checklist.started_at).toLocaleDateString()}
+          <p className="text-xs text-gray-500">Started {new Date(checklist.started_at).toLocaleDateString()}
             {checklist.target_completion_date && ` · Target ${checklist.target_completion_date}`}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-32">
-            <div className="flex items-center justify-between text-[11px] mb-0.5">
+            <div className="flex items-center justify-between text-xs mb-0.5">
               <span className="text-gray-500">{done}/{total} tasks</span>
               <span className="font-semibold text-gray-700">{pct}%</span>
             </div>
@@ -133,8 +133,8 @@ function ChecklistCard({ checklist, expanded, onToggle }: { checklist: Onboardin
                 <Icon className={`w-4 h-4 ${cfg.color}`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-800">{t.title}</p>
-                  {t.description && <p className="text-[11px] text-gray-500">{t.description}</p>}
-                  <p className="text-[10px] text-gray-400">
+                  {t.description && <p className="text-xs text-gray-500">{t.description}</p>}
+                  <p className="text-xs text-gray-400">
                     {t.category && `${t.category} · `}{t.due_date && `Due ${t.due_date}`}
                   </p>
                 </div>
@@ -256,7 +256,7 @@ function TemplatesTab() {
                 <tr key={t.id} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <p className="text-sm font-medium">{t.name}</p>
-                    {t.description && <p className="text-[11px] text-gray-500">{t.description}</p>}
+                    {t.description && <p className="text-xs text-gray-500">{t.description}</p>}
                   </td>
                   <td className="py-3 px-4 text-xs text-gray-600">
                     {t.designation_id || t.department_id ? 'Scoped' : 'All employees'}

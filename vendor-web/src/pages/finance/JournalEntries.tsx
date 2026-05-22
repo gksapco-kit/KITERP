@@ -110,7 +110,7 @@ function AccountCombobox({
             >
               <span className="font-mono text-xs text-gray-400 w-12 shrink-0">{acc.code}</span>
               <span className="flex-1 text-xs text-gray-800 truncate">{acc.name}</span>
-              <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full font-semibold shrink-0', TYPE_COLORS[acc.account_type] || 'bg-gray-100 text-gray-600')}>
+              <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-semibold shrink-0', TYPE_COLORS[acc.account_type] || 'bg-gray-100 text-gray-600')}>
                 {acc.account_type}
               </span>
             </button>
@@ -450,7 +450,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                     {/* Business unit */}
                     <div className="md:col-span-1">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                         <Building2 className="inline w-3 h-3 mr-0.5" /> Business unit *
                       </label>
                       <select
@@ -467,7 +467,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                     {/* Document Type */}
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Document Type</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Document Type</label>
                       <select
                         value={docType}
                         onChange={e => setDocType(e.target.value as DocType)}
@@ -479,7 +479,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                     {/* Currency */}
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Currency</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Currency</label>
                       <select
                         value={currency}
                         onChange={e => setCurrency(e.target.value)}
@@ -494,7 +494,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                     {/* Posting Date */}
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                         Posting Date *
                       </label>
                       <input
@@ -508,7 +508,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                     {/* Document Date */}
                     {!fieldHidden('header.document_date') && (
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                         Document Date{fieldMandatory('header.document_date') ? ' *' : ''}
                       </label>
                       <input
@@ -522,7 +522,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                     {/* Fiscal year & period */}
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Fiscal Year</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Fiscal Year</label>
                       <select
                         value={fiscalYearId}
                         onChange={e => { setFiscalYearId(e.target.value); setPeriodId('') }}
@@ -535,7 +535,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Accounting Period</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Accounting Period</label>
                       <select
                         value={periodId}
                         onChange={e => setPeriodId(e.target.value)}
@@ -555,7 +555,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                     {/* Reference */}
                     {!fieldHidden('header.reference') && (
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                         Reference{fieldMandatory('header.reference') ? ' *' : ''}
                       </label>
                       <input
@@ -570,7 +570,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                     {/* Narration / Description */}
                     {!fieldHidden('header.narration') && (
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                         Narration / Description{fr['header.narration'] === 'optional' ? '' : ' *'}
                       </label>
                       <input
@@ -585,7 +585,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
                     {/* Header Text / Note */}
                     {!fieldHidden('header.header_text') && (
                     <div className="md:col-span-3">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                         Header Note (internal){fieldMandatory('header.header_text') ? ' *' : ''}
                       </label>
                       <textarea
@@ -624,7 +624,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
               </div>
 
               {/* Column headers */}
-              <div className="grid text-[9px] font-bold text-gray-400 uppercase tracking-wide px-4 py-2 bg-gray-50 border-b border-gray-100"
+              <div className="grid text-xs font-bold text-gray-400 uppercase tracking-wide px-4 py-2 bg-gray-50 border-b border-gray-100"
                 style={{ gridTemplateColumns: '2fr 1.5fr 80px 80px 24px' }}>
                 <span>Account</span>
                 <span>Description</span>
@@ -691,7 +691,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Cost Centre */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Cost Centre</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Cost Centre</label>
                             <select
                               value={ln.cost_center_id || ''}
                               onChange={e => setLine(ln._key, { cost_center_id: e.target.value })}
@@ -706,7 +706,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Project */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Project</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Project</label>
                             <select
                               value={ln.project_id || ''}
                               onChange={e => setLine(ln._key, { project_id: e.target.value })}
@@ -721,7 +721,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Intercompany */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Intercompany</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Intercompany</label>
                             <select
                               value={ln.intercompany_partner_id || ''}
                               onChange={e => setLine(ln._key, { intercompany_partner_id: e.target.value })}
@@ -736,7 +736,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Value Date */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Value Date</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Value Date</label>
                             <input
                               type="date"
                               value={ln.value_date || ''}
@@ -747,7 +747,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Party Type */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Party Type</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Party Type</label>
                             <select
                               value={ln.party_type || ''}
                               onChange={e => setLine(ln._key, { party_type: (e.target.value as any) || undefined })}
@@ -761,7 +761,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Ref Doc Type */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Ref Doc Type</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Ref Doc Type</label>
                             <select
                               value={ln.ref_doc_type || ''}
                               onChange={e => setLine(ln._key, { ref_doc_type: (e.target.value as RefDocType) || undefined, ref_doc_id: '', ref_doc_no: '' })}
@@ -774,7 +774,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Ref Doc No */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Ref Doc Number</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Ref Doc Number</label>
                             <RefDocSearch
                               docType={(ln.ref_doc_type || '') as RefDocType | ''}
                               value={ln.ref_doc_no || ''}
@@ -784,7 +784,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Tax Code */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Tax Code</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Tax Code</label>
                             <input
                               value={ln.tax_code || ''}
                               onChange={e => setLine(ln._key, { tax_code: e.target.value })}
@@ -795,7 +795,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Tax Amount */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Tax Amount</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Tax Amount</label>
                             <input
                               type="number"
                               min={0}
@@ -808,7 +808,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* Assignment */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Assignment</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Assignment</label>
                             <input
                               value={ln.assignment || ''}
                               onChange={e => setLine(ln._key, { assignment: e.target.value })}
@@ -819,7 +819,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
                           {/* FX Rate */}
                           <div>
-                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">FX Rate</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">FX Rate</label>
                             <input
                               type="number"
                               step="0.000001"
@@ -867,7 +867,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
             <div className="p-4 space-y-4">
               {/* User details */}
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">User Details</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">User Details</p>
                 <div className="rounded-xl border border-gray-100 p-3 space-y-1.5 text-xs">
                   <div className="flex items-center gap-2">
                     <User className="w-3.5 h-3.5 text-gray-400" />
@@ -890,7 +890,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
               {/* Approval panel */}
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Approval</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Approval</p>
                 {jePolicy ? (
                   <div className={cn(
                     'rounded-xl border p-3 space-y-2 text-xs',
@@ -924,7 +924,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 
               {/* Entry summary */}
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Summary</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Summary</p>
                 <div className="rounded-xl border border-gray-100 p-3 space-y-1 text-xs">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Lines</span>
@@ -1031,7 +1031,7 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
             {savePreview.lines && savePreview.lines.length > 0 && (
               <div className="border border-gray-200 rounded-lg overflow-hidden text-xs">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b text-[10px] text-gray-500 uppercase">
+                  <thead className="bg-gray-50 border-b text-xs text-gray-500 uppercase">
                     <tr>
                       <th className="text-left px-2 py-1.5">Account</th>
                       <th className="text-right px-2 py-1.5">Dr</th>
@@ -1125,7 +1125,7 @@ function JEDetail({ jeId, onClose }: { jeId: string; onClose: () => void }) {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   {['#', 'Account', 'Description', 'Debit', 'Credit', 'Cost Ctr', 'Project', 'Ref Doc'].map(h => (
-                    <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">{h}</th>
+                    <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
               </thead>

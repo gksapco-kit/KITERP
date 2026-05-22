@@ -231,7 +231,7 @@ export default function ControllingProductCostsPage() {
                         <td className="px-4 py-3 font-medium text-gray-900">{v.version_code}</td>
                         <td className="px-4 py-3 text-gray-700">{pname}</td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                             v.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
                           }`}>{v.status}</span>
                         </td>
@@ -369,7 +369,7 @@ export default function ControllingProductCostsPage() {
                                           <tr key={ln.id} className="hover:bg-gray-50">
                                             <td className="px-3 py-1.5">
                                               {i === 0 && (
-                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${catBadge[cat]}`}>
+                                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full uppercase ${catBadge[cat]}`}>
                                                   {cat.replace(/_/g, ' ')}
                                                 </span>
                                               )}
@@ -384,11 +384,11 @@ export default function ControllingProductCostsPage() {
                                           </tr>
                                         ))}
                                         <tr className={`border-t border-dashed border-gray-200 ${catBadge[cat].split(' ')[0]}/10`}>
-                                          <td colSpan={4} className={`px-3 py-1 text-right text-[10px] font-bold uppercase ${catBadge[cat].split(' ')[1]}`}>
+                                          <td colSpan={4} className={`px-3 py-1 text-right text-xs font-bold uppercase ${catBadge[cat].split(' ')[1]}`}>
                                             {cat.replace(/_/g, ' ')} subtotal
                                           </td>
                                           <td className="px-3 py-1 text-right tabular-nums font-bold text-gray-900">{formatCurrency(catTotal)}</td>
-                                          <td className="px-3 py-1 text-right tabular-nums text-gray-500 text-[10px]">
+                                          <td className="px-3 py-1 text-right tabular-nums text-gray-500 text-xs">
                                             {((catTotal / total) * 100).toFixed(1)}%
                                           </td>
                                         </tr>
@@ -405,7 +405,7 @@ export default function ControllingProductCostsPage() {
                                       <td className="px-3 py-2 text-right font-bold text-gray-900 tabular-nums">
                                         {formatCurrency(Number(v.rolled_up_unit_cost))}
                                       </td>
-                                      <td className="px-3 py-2 text-right text-gray-400 text-[10px]">100%</td>
+                                      <td className="px-3 py-2 text-right text-gray-400 text-xs">100%</td>
                                     </tr>
                                   </tfoot>
                                 )}

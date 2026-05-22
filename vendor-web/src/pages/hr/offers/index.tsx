@@ -129,7 +129,7 @@ function CreateOfferModal({
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-medium text-gray-700">Template</label>
               <button type="button" onClick={() => navigate('/hr/offers/templates')}
-                className="text-[11px] text-blue-500 hover:underline flex items-center gap-0.5">
+                className="text-xs text-blue-500 hover:underline flex items-center gap-0.5">
                 <Settings2 className="w-3 h-3" /> Manage templates
               </button>
             </div>
@@ -147,7 +147,7 @@ function CreateOfferModal({
               ))}
             </select>
             {templates.length === 0 && (
-              <p className="text-[11px] text-gray-400 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 No templates yet.{' '}
                 <button type="button" onClick={() => navigate('/hr/offers/templates')} className="text-blue-500 hover:underline">Create one</button>
               </p>

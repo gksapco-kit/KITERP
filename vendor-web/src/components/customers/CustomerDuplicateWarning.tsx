@@ -34,7 +34,7 @@ export function CustomerDuplicateWarning({ matches, onSelectExisting, onLinkTo, 
       {/* Header bar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-200">
         <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-        <p className="flex-1 text-[11px] font-semibold text-amber-800 leading-tight">
+        <p className="flex-1 text-xs font-medium text-amber-800 leading-tight">
           {matches.length === 1
             ? '1 existing customer has the same contact'
             : `${matches.length} existing customers share these contact details`}
@@ -54,7 +54,7 @@ export function CustomerDuplicateWarning({ matches, onSelectExisting, onLinkTo, 
         {ownMatches.length > 0 && (
           <>
             {ownMatches.length > 0 && otherMatches.length > 0 && (
-              <p className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-500 bg-amber-50/80">
+              <p className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-500 bg-amber-50/80">
                 In your customer list
               </p>
             )}
@@ -65,7 +65,7 @@ export function CustomerDuplicateWarning({ matches, onSelectExisting, onLinkTo, 
         )}
         {otherMatches.length > 0 && (
           <>
-            <p className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-500 bg-amber-50/80">
+            <p className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-500 bg-amber-50/80">
               Known to other vendors
             </p>
             {otherMatches.map(m => (
@@ -77,11 +77,11 @@ export function CustomerDuplicateWarning({ matches, onSelectExisting, onLinkTo, 
 
       {/* Footer — create new anyway */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-amber-200 bg-amber-50">
-        <p className="text-[10px] text-amber-600">Or dismiss to create independently</p>
+        <p className="text-xs text-amber-600">Or dismiss to create independently</p>
         <button
           type="button"
           onClick={onDismiss}
-          className="text-[10px] font-semibold text-amber-700 hover:text-amber-900 hover:underline transition-colors"
+          className="text-xs font-medium text-amber-700 hover:text-amber-900 hover:underline transition-colors"
         >
           Create new anyway →
         </button>
@@ -116,24 +116,24 @@ function MatchRow({
       {/* Identity */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <p className="text-xs font-semibold text-gray-900 truncate">{match.full_name}</p>
+          <p className="text-xs font-medium text-gray-900 truncate">{match.full_name}</p>
           {crossVendor
-            ? <span className="text-[9px] px-1 py-0.5 rounded bg-gray-100 text-gray-500 font-medium shrink-0">External</span>
-            : <span className="text-[9px] px-1 py-0.5 rounded bg-green-100 text-green-700 font-medium shrink-0">Yours</span>}
+            ? <span className="text-xs px-1 py-0.5 rounded bg-gray-100 text-gray-500 font-medium shrink-0">External</span>
+            : <span className="text-xs px-1 py-0.5 rounded bg-green-100 text-green-700 font-medium shrink-0">Yours</span>}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           {match.phone && (
-            <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+            <span className="text-xs text-gray-400 flex items-center gap-0.5">
               <Phone className="w-2.5 h-2.5" /> {match.phone}
             </span>
           )}
           {match.email && (
-            <span className="text-[10px] text-gray-400 flex items-center gap-0.5 truncate max-w-[120px]">
+            <span className="text-xs text-gray-400 flex items-center gap-0.5 truncate max-w-[120px]">
               <Mail className="w-2.5 h-2.5 shrink-0" /> {match.email}
             </span>
           )}
           {match.total_orders > 0 && (
-            <span className="text-[10px] text-gray-300">{match.total_orders} orders</span>
+            <span className="text-xs text-gray-300">{match.total_orders} orders</span>
           )}
         </div>
       </div>
@@ -155,7 +155,7 @@ function MatchRow({
           <button
             type="button"
             onClick={() => onSelectExisting(match)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary hover:bg-primary/90 text-white text-[10px] font-semibold transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-medium transition-colors"
           >
             <UserCheck className="w-3 h-3" />
             Use
@@ -165,7 +165,7 @@ function MatchRow({
           <button
             type="button"
             onClick={() => onLinkTo(match)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-semibold transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium transition-colors"
           >
             Link
           </button>

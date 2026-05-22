@@ -35,10 +35,10 @@ export default function ESSAnnouncementsPage() {
                   {a.pinned && <Pin className="w-3 h-3 text-orange-500 shrink-0" />}
                   <h3 className="font-semibold text-gray-900">{a.title}</h3>
                   {!a.read_by_me && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">NEW</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">NEW</span>
                   )}
                 </div>
-                <p className="text-[10px] uppercase text-gray-400 mb-2">
+                <p className="text-xs uppercase text-gray-400 mb-2">
                   {a.category ?? 'general'} · {new Date(a.created_at).toLocaleDateString()}
                 </p>
                 <p className="text-sm text-gray-700 whitespace-pre-line">{a.body}</p>

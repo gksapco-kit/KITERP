@@ -138,16 +138,16 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
       {/* Panel header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-blue-100">
         <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-        <span className="text-xs font-semibold text-blue-800 flex-1">How to use templates</span>
+        <span className="text-xs font-medium text-blue-800 flex-1">How to use templates</span>
         <div className="flex gap-1">
           <button
             onClick={() => setTab('steps')}
-            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors ${tab === 'steps' ? 'bg-primary text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
+            className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded transition-colors ${tab === 'steps' ? 'bg-primary text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
             <ListChecks className="w-3 h-3" /> Steps
           </button>
           <button
             onClick={() => setTab('video')}
-            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-colors ${tab === 'video' ? 'bg-primary text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
+            className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded transition-colors ${tab === 'video' ? 'bg-primary text-white' : 'text-blue-600 hover:bg-blue-100'}`}>
             <Video className="w-3 h-3" /> Video
           </button>
         </div>
@@ -161,18 +161,18 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
         <div className="px-3 py-2 space-y-2 max-h-60 overflow-y-auto">
           {GUIDE_STEPS.map(step => (
             <div key={step.n} className="flex gap-2">
-              <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center mt-0.5">
+              <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center mt-0.5">
                 {step.n}
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-blue-900">{step.title}</p>
-                <p className="text-[11px] text-blue-700 leading-relaxed">{step.body}</p>
+                <p className="text-xs font-medium text-blue-900">{step.title}</p>
+                <p className="text-xs text-blue-700 leading-relaxed">{step.body}</p>
               </div>
             </div>
           ))}
           <div className="flex items-center gap-1.5 pt-1 pb-0.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
-            <p className="text-[11px] text-green-700 font-medium">You're ready — try creating your first template!</p>
+            <p className="text-xs text-green-700 font-medium">You're ready — try creating your first template!</p>
           </div>
         </div>
       )}
@@ -182,19 +182,19 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
         <div className="px-3 py-2">
           {!embedUrl ? (
             <>
-              <p className="text-[11px] text-blue-700 mb-1.5">Paste a YouTube or Vimeo URL to embed a walkthrough video for your team.</p>
+              <p className="text-xs text-blue-700 mb-1.5">Paste a YouTube or Vimeo URL to embed a walkthrough video for your team.</p>
               <div className="flex gap-1.5">
                 <input
                   value={draft}
                   onChange={e => setDraft(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && saveVideo()}
                   placeholder="https://www.youtube.com/watch?v=..."
-                  className="flex-1 border rounded px-2 py-1 text-[11px] focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                  className="flex-1 border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none bg-white"
                 />
                 <button
                   onClick={saveVideo}
                   disabled={!draft.trim()}
-                  className="px-2 py-1 text-[11px] bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-40">
+                  className="px-2 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-40">
                   Save
                 </button>
               </div>
@@ -211,8 +211,8 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
                 />
               </div>
               <div className="flex gap-3 mt-1.5">
-                <button onClick={() => { setDraft(videoUrl); setVideoUrl('') }} className="text-[11px] text-blue-600 hover:underline">Change URL</button>
-                <button onClick={clearVideo} className="text-[11px] text-red-500 hover:underline">Remove video</button>
+                <button onClick={() => { setDraft(videoUrl); setVideoUrl('') }} className="text-xs text-blue-600 hover:underline">Change URL</button>
+                <button onClick={clearVideo} className="text-xs text-red-500 hover:underline">Remove video</button>
               </div>
             </div>
           )}
@@ -227,22 +227,22 @@ function ScopeChips({ tpl }: { tpl: OfferLetterTemplate }) {
   return (
     <div className="flex flex-wrap gap-1 mt-1">
       {tpl.designation && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+        <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
           <Users className="w-2.5 h-2.5" />{(tpl.designation as any).name}
         </span>
       )}
       {tpl.department && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
           <Building2 className="w-2.5 h-2.5" />{(tpl.department as any).name}
         </span>
       )}
       {tpl.store && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+        <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
           <Store className="w-2.5 h-2.5" />{(tpl.store as any).name}
         </span>
       )}
       {!tpl.designation && !tpl.department && !tpl.store && (
-        <span className="text-[10px] text-gray-400 italic">Global</span>
+        <span className="text-xs text-gray-400 italic">Global</span>
       )}
     </div>
   )
@@ -502,7 +502,7 @@ export default function OfferTemplatesPage() {
 
               {/* Scope */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
                   Scope <span className="font-normal normal-case text-gray-400">— leave blank for global</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -539,13 +539,13 @@ export default function OfferTemplatesPage() {
 
               {/* Merge variable chips */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
                   Insert merge variable
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   {MERGE_VARS.map(({ key, label }) => (
                     <button key={key} type="button" onClick={() => insertMergeVar(key)}
-                      className="text-[11px] px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors font-mono">
+                      className="text-xs px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors font-mono">
                       {`{{${key}}}`}
                     </button>
                   ))}

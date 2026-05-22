@@ -690,7 +690,7 @@ export function OrderTracking({ showItems = true }: OrderProps) {
                   {reached && <Check className="h-3 w-3" />}
                 </div>
                 <div className="mt-2 text-xs font-medium">{s.label}</div>
-                <div className="text-[10px] text-muted-foreground">{s.date ?? "—"}</div>
+                <div className="text-xs text-muted-foreground">{s.date ?? "—"}</div>
               </li>
             );
           })}
@@ -703,7 +703,7 @@ export function OrderTracking({ showItems = true }: OrderProps) {
 
         {showItems && (
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               In this shipment
             </div>
             <ul className="divide-y divide-border">
@@ -770,7 +770,7 @@ export function LoyaltyWidget({ showPerks = true }: LoyaltyProps) {
 
         {showPerks && (
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Your perks
             </div>
             <ul className="space-y-1.5">

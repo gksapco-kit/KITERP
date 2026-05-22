@@ -37,13 +37,13 @@ export default function MerchProductGrid({ title, subtitle, products, storePath 
                   </div>
                 )}
                 {discount > 0 && (
-                  <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                  <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded">
                     -{discount}%
                   </span>
                 )}
               </div>
               <div className="p-3">
-                {p.brand && <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">{p.brand}</p>}
+                {p.brand && <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{p.brand}</p>}
                 <h4 className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
                   {p.name}
                 </h4>

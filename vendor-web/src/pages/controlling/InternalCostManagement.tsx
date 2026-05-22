@@ -95,7 +95,7 @@ function OverheadPoolCard({ pool, rates }: { pool: OverheadPoolRow; rates: Array
           <p className="font-semibold text-gray-900 text-sm">{pool.code}</p>
           <p className="text-xs text-gray-500">{pool.name}</p>
         </div>
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${pool.is_active ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-200 text-gray-500'}`}>
+        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full uppercase ${pool.is_active ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-200 text-gray-500'}`}>
           {pool.is_active ? 'Active' : 'Inactive'}
         </span>
       </div>
@@ -256,7 +256,7 @@ export default function InternalCostManagementPage() {
                     style={{ width: costSummary.total > 0 ? `${(amt / costSummary.total) * 100}%` : '0%' }}
                   />
                 </div>
-                <span className="w-24 text-right text-xs font-semibold text-gray-800">{formatCurrency(amt)}</span>
+                <span className="w-24 text-right text-xs font-medium text-gray-800">{formatCurrency(amt)}</span>
                 <span className="w-12 text-right text-xs text-gray-400">
                   {costSummary.total > 0 ? `${((amt / costSummary.total) * 100).toFixed(1)}%` : '0%'}
                 </span>
@@ -290,7 +290,7 @@ export default function InternalCostManagementPage() {
               )}
               {(activityTypes as ActivityTypeRow[]).map(a => (
                 <tr key={a.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-900">{a.code}</td>
+                  <td className="px-4 py-3 font-mono text-xs font-medium text-gray-900">{a.code}</td>
                   <td className="px-4 py-3 text-gray-700">{a.name}</td>
                   <td className="px-4 py-3 text-gray-500">{a.uom}</td>
                   <td className="px-4 py-3">

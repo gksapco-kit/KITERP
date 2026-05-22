@@ -70,7 +70,7 @@ const FashionHome = ({ basePath, filterMockFashionOnly = true }: { basePath: str
       <section data-edit-id="hero" className="relative overflow-hidden border-b" style={{ borderColor: 'hsl(var(--sf-border))' }}>
         <div className="grid grid-cols-1 xl:grid-cols-2">
           <div className="flex w-full min-w-0 max-w-xl flex-col justify-center px-4 py-12 sm:px-8 sm:py-16 md:px-12 xl:py-28">
-            <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.22em] sm:tracking-[0.3em] opacity-70 mb-4 sm:mb-6">
+            <span className="text-xs sm:text-xs uppercase tracking-[0.22em] sm:tracking-[0.3em] opacity-70 mb-4 sm:mb-6">
               {c('hero.season', 'Autumn/Winter Collection')}
             </span>
             <h1 className="text-[clamp(1.45rem,3.5vw_+_0.45rem,2.75rem)] sm:text-[clamp(1.75rem,3.8vw_+_0.45rem,3.25rem)] md:text-[clamp(2rem,4vw_+_0.45rem,3.5rem)] lg:text-[clamp(2.35rem,4.8vw_+_0.5rem,4.25rem)] leading-[1.06] sm:leading-[0.98] mb-5 sm:mb-6 hyphens-none break-words" style={{ fontFamily: 'var(--sf-display)' }}>
@@ -124,7 +124,7 @@ const FashionHome = ({ basePath, filterMockFashionOnly = true }: { basePath: str
       <section data-edit-id="categories" className="max-w-7xl mx-auto px-6 sm:px-12 py-20" id="women">
         <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
           <div>
-            <span className="text-[11px] uppercase tracking-[0.3em] opacity-70">
+            <span className="text-xs uppercase tracking-[0.3em] opacity-70">
               {c('categories.eyebrow', 'Shop by category')}
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl mt-2" style={{ fontFamily: 'var(--sf-display)' }}>
@@ -159,7 +159,7 @@ const FashionHome = ({ basePath, filterMockFashionOnly = true }: { basePath: str
               <img src={featured.images[0].url} alt={featured.images[0].alt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
             </div>
             <div>
-              <span className="text-[11px] uppercase tracking-[0.3em] opacity-70">Featured · {featured.brand}</span>
+              <span className="text-xs uppercase tracking-[0.3em] opacity-70">Featured · {featured.brand}</span>
               <h2 className="text-3xl sm:text-4xl md:text-5xl mt-3 mb-4" style={{ fontFamily: 'var(--sf-display)' }}>{featured.title}</h2>
               <div className="flex items-center gap-3 mb-6 text-sm opacity-80">
                 {featured.rating ? (
@@ -209,7 +209,7 @@ const FashionHome = ({ basePath, filterMockFashionOnly = true }: { basePath: str
       {/* About strip */}
       <section data-edit-id="about" className="border-t" style={{ borderColor: 'hsl(var(--sf-border))' }} id="about">
         <div className="max-w-4xl mx-auto px-6 py-24 text-center">
-          <span className="text-[11px] uppercase tracking-[0.3em] opacity-70">
+          <span className="text-xs uppercase tracking-[0.3em] opacity-70">
             {c('about.eyebrow', 'Our craft')}
           </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl mt-3 mb-6 text-balance" style={{ fontFamily: 'var(--sf-display)' }}>
@@ -229,7 +229,7 @@ const ProductCard = ({ product, onAdd }: { product: Product; onAdd: () => void }
     <div className="aspect-[4/5] relative overflow-hidden mb-4" style={{ background: 'hsl(var(--sf-muted))' }}>
       <img src={product.images[0].url} alt={product.images[0].alt} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
       {product.badges?.[0] ? (
-        <span className="absolute top-3 left-3 text-[10px] uppercase tracking-[0.2em] px-2 py-1" style={{ background: 'hsl(var(--sf-primary))', color: 'hsl(var(--sf-primary-foreground))' }}>{product.badges[0]}</span>
+        <span className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] px-2 py-1" style={{ background: 'hsl(var(--sf-primary))', color: 'hsl(var(--sf-primary-foreground))' }}>{product.badges[0]}</span>
       ) : null}
       <button onClick={onAdd} className="absolute bottom-3 left-3 right-3 h-10 text-xs uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'hsl(var(--sf-fg))', color: 'hsl(var(--sf-bg))' }}>
         Quick add

@@ -40,7 +40,7 @@ function IntegrationForm({ providerId, onClose }: { providerId: string; onClose:
         <Field label="Label"><Input value={label} onChange={e => setLabel(e.target.value)} /></Field>
         {provider.credentials.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-gray-500">Credentials (encrypted at rest)</p>
+            <p className="text-xs font-medium uppercase text-gray-500">Credentials (encrypted at rest)</p>
             {provider.credentials.map(k => (
               <Field key={k} label={k}>
                 <Input type={k.includes('password') || k.includes('token') || k.includes('secret') || k.includes('key') ? 'password' : 'text'}
@@ -51,7 +51,7 @@ function IntegrationForm({ providerId, onClose }: { providerId: string; onClose:
         )}
         {provider.settings.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-gray-500">Settings</p>
+            <p className="text-xs font-medium uppercase text-gray-500">Settings</p>
             {provider.settings.map(k => (
               <Field key={k} label={k}>
                 <Input value={settings[k] || ''} onChange={e => setSettings(p => ({ ...p, [k]: e.target.value }))} />
@@ -90,7 +90,7 @@ export default function IntegrationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
         <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
         <p className="text-sm text-gray-500 mt-1">Connect External Providers To Send Emails, SMS, WhatsApp, Run AI, Sync Calendars And More.</p>
       </div>

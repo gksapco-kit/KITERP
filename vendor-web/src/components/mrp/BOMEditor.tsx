@@ -201,7 +201,7 @@ export function BOMEditor({ productId, productName }: BOMEditorProps) {
                       </div>
                     </div>
                     {row.component_sku && (
-                      <p className="text-[11px] text-gray-400 mt-0.5 pl-1">SKU: {row.component_sku}</p>
+                      <p className="text-xs text-gray-400 mt-0.5 pl-1">SKU: {row.component_sku}</p>
                     )}
                   </td>
 

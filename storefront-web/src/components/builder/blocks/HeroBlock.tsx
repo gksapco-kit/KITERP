@@ -63,7 +63,7 @@ export default function HeroBlock({ site, style, props, blockType }: Props) {
               <span
                 className={
                   eyebrowPlain
-                    ? 'text-[11px] uppercase tracking-[0.3em] opacity-70 mb-6 block'
+                    ? 'text-xs uppercase tracking-[0.3em] opacity-70 mb-6 block'
                     : 'text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full inline-block mb-4'
                 }
                 style={

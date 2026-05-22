@@ -124,7 +124,7 @@ function TransactionModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Type */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Type</label>
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 block">Type</label>
             <div className="grid grid-cols-4 gap-2">
               {TXN_TYPES.map(t => (
                 <button
@@ -147,7 +147,7 @@ function TransactionModal({
 
           {/* Category */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Category</label>
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Category</label>
             <select
               value={form.category}
               onChange={e => set('category', e.target.value)}
@@ -173,7 +173,7 @@ function TransactionModal({
           {/* Amount + Date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Amount (₹)</label>
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Amount (₹)</label>
               <input
                 type="number"
                 min="0"
@@ -186,7 +186,7 @@ function TransactionModal({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Date</label>
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Date</label>
               <input
                 type="date"
                 value={form.txn_date}
@@ -199,7 +199,7 @@ function TransactionModal({
 
           {/* Description */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Description</label>
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Description</label>
             <input
               value={form.description || ''}
               onChange={e => set('description', e.target.value)}
@@ -211,7 +211,7 @@ function TransactionModal({
           {/* Payment Method + Reference */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Payment</label>
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Payment</label>
               <select
                 value={form.payment_method || ''}
                 onChange={e => set('payment_method', e.target.value)}
@@ -222,7 +222,7 @@ function TransactionModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Reference #</label>
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Reference #</label>
               <input
                 value={form.reference || ''}
                 onChange={e => set('reference', e.target.value)}
@@ -412,7 +412,7 @@ export default function BasicFinancePage() {
         ) : (
           <div className="divide-y divide-gray-100">
             {/* List header */}
-            <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[1fr_auto_auto] sm:grid-cols-[120px_1fr_auto_auto_auto] gap-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[1fr_auto_auto] sm:grid-cols-[120px_1fr_auto_auto_auto] gap-3 text-xs font-medium text-gray-400 uppercase tracking-wider">
               <span className="hidden sm:block">Date</span>
               <span>Category / Description</span>
               <span className="hidden sm:block text-right">Method</span>
@@ -443,7 +443,7 @@ export default function BasicFinancePage() {
                       {txn.description && (
                         <p className="text-xs text-gray-400 truncate">{txn.description}</p>
                       )}
-                      <span className="text-[10px] text-gray-300 sm:hidden">
+                      <span className="text-xs text-gray-300 sm:hidden">
                         {format(new Date(txn.txn_date), 'dd MMM yyyy')}
                       </span>
                     </div>

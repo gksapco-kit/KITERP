@@ -79,7 +79,7 @@ export default function AccountsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
           <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
         </div>
         <Button onClick={() => setShowCreate(true)}>
@@ -96,11 +96,11 @@ export default function AccountsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Company</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Industry</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Region</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Revenue</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden xl:table-cell">Employees</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Company</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Industry</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Region</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Revenue</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell">Employees</th>
               </tr>
             </thead>
             <tbody className="divide-y">

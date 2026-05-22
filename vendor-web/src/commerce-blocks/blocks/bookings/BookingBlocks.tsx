@@ -59,7 +59,7 @@ export function AvailabilityCalendar({
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] uppercase text-muted-foreground">
+        <div className="grid grid-cols-7 gap-1 text-center text-xs uppercase text-muted-foreground">
           {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
             <div key={i}>{d}</div>
           ))}
@@ -89,7 +89,7 @@ export function AvailabilityCalendar({
           })}
         </div>
         {showLegend && (
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-success" /> Available
             </span>

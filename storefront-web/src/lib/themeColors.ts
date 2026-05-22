@@ -140,7 +140,7 @@ export const themeUi = {
   bgSoftPanelBorder: 'border-[color-mix(in_srgb,var(--color-primary)_16%,white)]',
   bgBlueishPanel: 'bg-[color-mix(in_srgb,var(--color-primary)_11%,white)]',
   pillDuration:
-    'text-[10px] font-semibold text-[color:var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_12%,white)] border border-[color-mix(in_srgb,var(--color-primary)_28%,white)]',
+    'text-xs font-semibold text-[color:var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_12%,white)] border border-[color-mix(in_srgb,var(--color-primary)_28%,white)]',
   dayChip: 'text-[11px] font-semibold bg-[color-mix(in_srgb,var(--color-primary)_16%,white)] text-[color:var(--color-primary)]',
   accentRadio: 'accent-[color:var(--color-primary)]',
   groupHoverTitle: 'group-hover:text-[color:var(--color-primary)]',

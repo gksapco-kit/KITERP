@@ -98,7 +98,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
         <div className="lg:col-span-4 space-y-5">
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              {product.brand && <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">{product.brand}</span>}
+              {product.brand && <span className="text-xs font-medium text-blue-600 uppercase tracking-wider">{product.brand}</span>}
               {product.category && <span className="text-xs text-gray-400">in {product.category}</span>}
             </div>
             <h1 className="text-2xl font-bold text-gray-900 leading-tight">{product.name}</h1>
@@ -114,7 +114,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
             <div className="space-y-4 border-t pt-5">
               {variantColors && !isSubscription && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Color</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Color</p>
                   <div className="flex flex-wrap gap-2">
                     {variantColors.map(vc => (
                       <button key={vc.id} onClick={() => setSelectedVariantId(vc.id)} title={vc.name}
@@ -128,7 +128,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
 
               {isSubscription ? (
                 <div>
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                  <p className="text-xs font-medium text-primary uppercase tracking-wide mb-3 flex items-center gap-1.5">
                     <Repeat className="w-3.5 h-3.5" /> Choose a Plan
                   </p>
                   <div className="grid grid-cols-1 gap-2">
@@ -152,12 +152,12 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                                   {intervalLabel[vInterval] || vInterval}
                                 </span>
                                 {hasTrial && (
-                                  <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded">
+                                  <span className="text-xs font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded">
                                     {v.subscription_trial_days}d trial
                                   </span>
                                 )}
                                 {hasSetup && (
-                                  <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                                  <span className="text-xs font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
                                     {formatCurrency(v.subscription_setup_fee!, v.currency)} setup
                                   </span>
                                 )}
@@ -167,7 +167,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                               <p className={`text-lg font-extrabold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
                                 {formatCurrency(v.price, v.currency)}
                               </p>
-                              <p className="text-[11px] text-gray-400">{vShort}</p>
+                              <p className="text-xs text-gray-400">{vShort}</p>
                             </div>
                           </div>
                           {v.compare_at_price && v.compare_at_price > v.price && (
@@ -185,7 +185,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                 </div>
               ) : (
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Options</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Options</p>
                   <div className="grid grid-cols-2 gap-2">
                     {activeVariants.map(v => {
                       const isSelected = selectedVariant?.id === v.id

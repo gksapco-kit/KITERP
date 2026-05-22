@@ -198,7 +198,7 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-[11px] text-gray-500">
+          <thead className="bg-gray-50 text-left text-xs text-gray-500">
             <tr>
               <th className="px-4 py-2 font-medium">Code</th>
               <th className="px-4 py-2 font-medium">Name</th>
@@ -222,7 +222,7 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
                 <td className="px-4 py-2 font-mono text-xs font-bold text-gray-900">{wc.code}</td>
                 <td className="px-4 py-2 text-gray-700">{wc.name}</td>
                 <td className="px-4 py-2">
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${wcTypeBadge(wc.wc_type)}`}>
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${wcTypeBadge(wc.wc_type)}`}>
                     {wc.wc_type}
                   </span>
                 </td>
@@ -439,7 +439,7 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
                 <td className="px-3 py-2 font-mono font-bold text-gray-700">{op.seq_no}</td>
                 <td className="px-3 py-2">
                   <p className="font-medium text-gray-800">{op.description ?? op.operation_code ?? '—'}</p>
-                  {op.operation_code && op.description && <p className="text-gray-400 text-[10px]">{op.operation_code}</p>}
+                  {op.operation_code && op.description && <p className="text-gray-400 text-xs">{op.operation_code}</p>}
                 </td>
                 <td className="px-3 py-2 text-gray-600">{op.work_center_name ?? '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{(+op.setup_hrs).toFixed(3)}</td>
@@ -625,7 +625,7 @@ export default function RoutingPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-[11px] text-gray-500">
+            <thead className="bg-gray-50 text-left text-xs text-gray-500">
               <tr>
                 <th className="px-4 py-2 font-medium" />
                 <th className="px-4 py-2 font-medium">Code / Version</th>
@@ -655,12 +655,12 @@ export default function RoutingPage() {
                     </td>
                     <td className="px-4 py-2">
                       <p className="font-mono text-xs font-bold text-gray-900">{r.code}</p>
-                      <p className="text-[10px] text-gray-400">v{r.version}</p>
+                      <p className="text-xs text-gray-400">v{r.version}</p>
                     </td>
                     <td className="px-4 py-2 text-gray-700">{r.name}</td>
                     <td className="px-4 py-2 text-gray-500 text-xs">{pname ?? '—'}</td>
                     <td className="px-4 py-2">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusBadge(r.status)}`}>{r.status}</span>
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${statusBadge(r.status)}`}>{r.status}</span>
                     </td>
                     <td className="px-4 py-2 text-right tabular-nums text-gray-700">{(+r.lot_size).toFixed(2)} {r.uom}</td>
                     <td className="px-4 py-2 text-right text-gray-600 font-medium">{r.operations.length}</td>

@@ -222,7 +222,7 @@ export default function VendorDetail() {
             <h1 className="text-2xl font-bold">{vendor.display_name}</h1>
             <p className="text-sm text-gray-500">{vendor.business_name}</p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[vendor.status] || 'bg-gray-100'}`}>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[vendor.status] || 'bg-gray-100'}`}>
             {vendor.status.replace('_', ' ')}
           </span>
         </div>
@@ -409,7 +409,7 @@ export default function VendorDetail() {
                 <UserCircle className="w-4 h-4 text-blue-600" /> Vendor dashboard
               </CardTitle>
               <p className="text-xs text-gray-500 font-normal leading-snug pt-1">
-                Opens <span className="font-mono text-[11px]">{vendorAppBaseUrl}</span> in a new tab using
+                Opens <span className="font-mono text-xs">{vendorAppBaseUrl}</span> in a new tab using
                 your platform login — no separate password. Access is logged in both the admin audit trail and
                 this vendor&apos;s platform audit log.
               </p>
@@ -427,7 +427,7 @@ export default function VendorDetail() {
               </Button>
               {ownerData ? (
                 <div className="rounded-md bg-gray-50 border border-gray-100 p-3 text-xs space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
                     Owner account (reference)
                   </p>
                   <div className="text-sm text-gray-900">
@@ -437,12 +437,12 @@ export default function VendorDetail() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
-                      className={`px-1.5 py-0.5 rounded-full text-[11px] ${ownerData.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                      className={`px-1.5 py-0.5 rounded-full text-xs ${ownerData.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
                     >
                       {ownerData.is_active ? 'Active' : 'Inactive'}
                     </span>
                     {ownerData.is_email_verified && (
-                      <span className="px-1.5 py-0.5 rounded-full text-[11px] bg-blue-100 text-blue-700">
+                      <span className="px-1.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
                         Verified
                       </span>
                     )}
@@ -535,7 +535,7 @@ export default function VendorDetail() {
                         </select>
                       </div>
                       <p className="text-xs text-gray-600 whitespace-pre-wrap">{q.body}</p>
-                      <div className="text-[10px] text-gray-400 flex justify-between">
+                      <div className="text-xs text-gray-400 flex justify-between">
                         <span>{q.created_by_name || 'Vendor user'}</span>
                         <span>{q.created_at ? new Date(q.created_at).toLocaleString() : ''}</span>
                       </div>

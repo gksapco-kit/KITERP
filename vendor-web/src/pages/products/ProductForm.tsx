@@ -233,12 +233,12 @@ function Section({ title, icon: Icon, open, onToggle, children, surface = 'stand
           <div className="flex flex-col items-start min-w-0 text-left gap-0.5">
             <span className="font-semibold text-gray-900 leading-tight">{title}</span>
             {isProduct && (
-              <span className="text-[11px] font-medium text-blue-600/80 uppercase tracking-wide">
+              <span className="text-xs font-medium text-blue-600/80 uppercase tracking-wide">
                 {surfaceHint ?? 'Main product'}
               </span>
             )}
             {isVariants && (
-              <span className="text-[11px] font-medium text-indigo-600/80 uppercase tracking-wide">
+              <span className="text-xs font-medium text-indigo-600/80 uppercase tracking-wide">
                 {surfaceHint ?? 'SKUs & options'}
               </span>
             )}
@@ -382,7 +382,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
             {f.enabled ? (
               <select value={f.type}
                 onChange={e => onChange(fields.map(x => x.key === f.key ? { ...x, type: e.target.value as any } : x))}
-                className="h-7 rounded border border-gray-200 bg-gray-50 px-1.5 text-[11px] text-gray-500 shrink-0">
+                className="h-7 rounded border border-gray-200 bg-gray-50 px-1.5 text-xs text-gray-500 shrink-0">
                 {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
               </select>
             ) : (
@@ -409,7 +409,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
             {f.enabled && (
               <>
                 <button type="button" onClick={() => onChange(fields.map(x => x.key === f.key ? { ...x, required: !x.required } : x))}
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors shrink-0 ${
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full transition-colors shrink-0 ${
                     f.required ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'
                   }`}>
                   {f.required ? 'Required' : 'Optional'}
@@ -433,10 +433,10 @@ function QuoteFormConfigurator({ fields, onChange }: {
               />
               {f.type === 'select' && (
                 <div className="pl-1">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">Dropdown Options</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Dropdown Options</p>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {(f.options || []).map((opt, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-[11px] pl-2 pr-1 py-0.5 rounded-full">
+                      <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs pl-2 pr-1 py-0.5 rounded-full">
                         {opt}
                         <button type="button" onClick={() => removeOption(f.key, i)} className="hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
                       </span>
@@ -455,7 +455,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
                     </div>
                   ) : (
                     <button type="button" onClick={() => setEditingOptions(f.key)}
-                      className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
                       <Plus className="w-3 h-3" /> Add option
                     </button>
                   )}
@@ -631,12 +631,12 @@ function VariantMediaSection({
   return (
     <div className="mt-4 pt-4 border-t border-indigo-100">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide flex items-center gap-1.5">
+        <p className="text-xs font-medium text-indigo-700 uppercase tracking-wide flex items-center gap-1.5">
           <Eye className="w-3.5 h-3.5" />
           Variant Media
           <span className="font-normal text-gray-400 normal-case tracking-normal">(overrides product media when shown)</span>
         </p>
-        <span className="text-[10px] text-gray-400">{media.length} file{media.length !== 1 ? 's' : ''}</span>
+        <span className="text-xs text-gray-400">{media.length} file{media.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Drop zone */}
@@ -748,7 +748,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                     ) : mt === 'model3d' ? (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
                         <Box className="w-8 h-8" />
-                        <span className="text-[9px] mt-0.5 font-medium">3D Model</span>
+                        <span className="text-xs mt-0.5 font-medium">3D Model</span>
                       </div>
                     ) : (
                       <img src={mediaUrl(img.url)} alt={img.alt_text || product.name} className="w-full h-full object-cover" />
@@ -932,7 +932,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                           <span className="font-medium text-gray-900 leading-tight">{v.name}</span>
                         </div>
                         {v.is_on_sale && v.discount_percentage && (
-                          <span className="inline-block mt-0.5 bg-orange-100 text-orange-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                          <span className="inline-block mt-0.5 bg-orange-100 text-orange-700 text-xs font-medium px-1.5 py-0.5 rounded-full">
                             {v.discount_percentage}% OFF
                           </span>
                         )}
@@ -942,7 +942,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                       <td className="px-2 py-2 min-w-[130px]">
                         <p className="font-mono text-gray-700 leading-tight">{v.sku || '—'}</p>
                         {v.barcode && (
-                          <p className="font-mono text-gray-400 text-[10px] mt-0.5 tracking-wide">{v.barcode}</p>
+                          <p className="font-mono text-gray-400 text-xs mt-0.5 tracking-wide">{v.barcode}</p>
                         )}
                       </td>
 
@@ -950,10 +950,10 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                       <td className="px-2 py-2 min-w-[110px]">
                         <p className="font-semibold text-gray-900">{symbol}{v.price?.toLocaleString()}</p>
                         {v.compare_at_price && (
-                          <p className="text-gray-400 line-through text-[10px]">{symbol}{v.compare_at_price?.toLocaleString()}</p>
+                          <p className="text-gray-400 line-through text-xs">{symbol}{v.compare_at_price?.toLocaleString()}</p>
                         )}
                         {v.cost_price && (
-                          <p className="text-gray-400 text-[10px]">Cost: {symbol}{v.cost_price?.toLocaleString()}</p>
+                          <p className="text-gray-400 text-xs">Cost: {symbol}{v.cost_price?.toLocaleString()}</p>
                         )}
                       </td>
 
@@ -963,11 +963,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                           <span className={`text-sm font-bold ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-900'}`}>
                             {qty}
                           </span>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${stockStatus.bg} ${stockStatus.text}`}>
+                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${stockStatus.bg} ${stockStatus.text}`}>
                             {stockStatus.label}
                           </span>
                         </div>
-                        <p className="text-gray-400 text-[10px] mt-0.5">min {thresh}</p>
+                        <p className="text-gray-400 text-xs mt-0.5">min {thresh}</p>
                       </td>
 
                       {/* Tax % + HSN stacked */}
@@ -976,7 +976,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                           {v.tax_rate != null ? `${v.tax_rate}%` : v.gst_rate != null ? `${v.gst_rate}%` : '—'}
                         </p>
                         {v.hsn_code && (
-                          <p className="text-gray-400 text-[10px] mt-0.5 font-mono">{v.hsn_code}</p>
+                          <p className="text-gray-400 text-xs mt-0.5 font-mono">{v.hsn_code}</p>
                         )}
                       </td>
 
@@ -986,11 +986,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                       {/* Flags: active + backorders */}
                       <td className="px-2 py-2">
                         <div className="flex flex-wrap gap-1">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${v.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${v.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                             {v.is_active ? 'Active' : 'Inactive'}
                           </span>
                           {v.allow_backorders && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">Backorder</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">Backorder</span>
                           )}
                         </div>
                       </td>
@@ -1177,7 +1177,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-primary">{v.name || 'Default Plan'}</span>
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary/20 text-primary uppercase">{vPriceType === 'per_cycle' ? 'Per Cycle' : `Per ${uomLbl}`}</span>
+                        <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/20 text-primary uppercase">{vPriceType === 'per_cycle' ? 'Per Cycle' : `Per ${uomLbl}`}</span>
                       </div>
                       <span className="text-lg font-bold text-primary">{symbol}{(v.price ?? 0).toLocaleString()}{priceSuffix}</span>
                     </div>
@@ -1189,9 +1189,9 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                     </div>
                     {v.subscription_schedule_modes && v.subscription_schedule_modes.length > 0 && (
                       <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] text-gray-400 uppercase font-medium">Scheduling:</span>
+                        <span className="text-xs text-gray-400 uppercase font-medium">Scheduling:</span>
                         {v.subscription_schedule_modes.map(m => (
-                          <span key={m} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{
+                          <span key={m} className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{
                             ({ dates: 'Date Range', cycles: 'Cycles', pick_dates: 'Pick Dates', weekly: 'Weekly', recurring: 'Recurring' } as Record<string, string>)[m] || m
                           }</span>
                         ))}
@@ -1252,15 +1252,15 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           </div>
           {product.allow_quote_request && Array.isArray(product.quote_form_config) && product.quote_form_config.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Quote Form Fields</p>
+              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Quote Form Fields</p>
               <div className="overflow-x-auto rounded-lg border">
                 <ResizableTable tableId="product-quote-fields" defaultWidths={[180, 100, 80, 80]}>
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Field</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Type</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Enabled</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Required</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Field</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Type</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Enabled</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Required</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -1345,20 +1345,20 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
               const typeLabel: Record<string, string> = { party: 'Party / Customer', location: 'Location', scheduled: 'Scheduled', quantity: 'Quantity Tiers', channel: 'Channel' }
               return (
                 <div key={ruleType} className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{typeLabel[ruleType]}</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{typeLabel[ruleType]}</p>
                   <div className="overflow-x-auto rounded-lg border">
                     <ResizableTable tableId={`product-price-rules-${ruleType}`} defaultWidths={[150, 120, 90, 80, 80]}>
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Name</th>
-                          {ruleType === 'party' && <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Group</th>}
-                          {ruleType === 'location' && <><th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">State</th><th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">City</th><th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Pincode</th></>}
-                          {ruleType === 'scheduled' && <><th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Start</th><th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">End</th></>}
-                          {ruleType === 'quantity' && <><th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Min Qty</th><th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Max Qty</th></>}
-                          {ruleType === 'channel' && <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Channel</th>}
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Price</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Discount %</th>
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Status</th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Name</th>
+                          {ruleType === 'party' && <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Group</th>}
+                          {ruleType === 'location' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">State</th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">City</th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Pincode</th></>}
+                          {ruleType === 'scheduled' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Start</th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">End</th></>}
+                          {ruleType === 'quantity' && <><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Min Qty</th><th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Max Qty</th></>}
+                          {ruleType === 'channel' && <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Channel</th>}
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Price</th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Discount %</th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -1659,7 +1659,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
 
       {/* Pricing outcome */}
       <div>
-        <h5 className="text-xs font-semibold text-gray-600 mb-2">Pricing (set at least one)</h5>
+        <h5 className="text-xs font-medium text-gray-600 mb-2">Pricing (set at least one)</h5>
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Fixed Price</label>
@@ -2706,7 +2706,7 @@ export default function ProductForm() {
               if (allFields.length === 0) return null
               return (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Category Attributes</p>
+                  <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Category Attributes</p>
                   <div className="grid grid-cols-2 gap-3">
                     {allFields.map((f, i) => (
                       <div key={`cf-${i}`} className="space-y-1">
@@ -2758,11 +2758,11 @@ export default function ProductForm() {
                 <Upload className="w-8 h-8 mx-auto text-gray-400" />
                 <p className="mt-2 text-sm text-gray-600">Click or drag files here</p>
                 <div className="flex items-center justify-center gap-3 mt-2">
-                  <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Eye className="w-3 h-3" />Images</span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Film className="w-3 h-3" />Videos</span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Box className="w-3 h-3" />3D Models</span>
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Eye className="w-3 h-3" />Images</span>
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Film className="w-3 h-3" />Videos</span>
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Box className="w-3 h-3" />3D Models</span>
                 </div>
-                <p className="text-[10px] text-gray-300 mt-1">Images: 5 MB · Videos: 50 MB · 3D (GLB/GLTF): 30 MB</p>
+                <p className="text-xs text-gray-300 mt-1">Images: 5 MB · Videos: 50 MB · 3D (GLB/GLTF): 30 MB</p>
                 <input ref={fileInputRef} type="file" multiple
                   accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf"
                   className="hidden"
@@ -2779,15 +2779,15 @@ export default function ProductForm() {
                         ) : mt === 'model3d' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
                             <Box className="w-10 h-10" />
-                            <span className="text-[10px] mt-1 font-medium">{file.name.split('.').pop()?.toUpperCase()}</span>
+                            <span className="text-xs mt-1 font-medium">{file.name.split('.').pop()?.toUpperCase()}</span>
                           </div>
                         ) : (
                           <img src={pendingPreviews[i]} alt="" className="w-full h-full object-cover" />
                         )}
-                        {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
-                        {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
+                        {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
+                        {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
                         <button type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>
-                        {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
+                        {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
                       </div>
                     )
                   })}
@@ -2814,7 +2814,7 @@ export default function ProductForm() {
                 : 'Each variant has its own UOM, pricing, discount, and stock. Add SKUs for each size, color, or other combination the vendor offers.'}
             </p>
             {!isSubscriptionType && <div className="rounded-lg border bg-gray-50/80 p-4 space-y-3">
-              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Generate from options</p>
+              <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">Generate from options</p>
               <p className="text-xs text-gray-500">Define option names and their values. All combinations will be created as variant rows.</p>
               <div className="space-y-2">
                 {(() => {
@@ -3088,10 +3088,10 @@ export default function ProductForm() {
                     {isSubscriptionType && (
                       <div className="pt-2 border-t border-primary/20 space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1">
+                          <p className="text-xs font-medium text-primary uppercase tracking-wider flex items-center gap-1">
                             <Repeat className="w-3 h-3" />Billing
                           </p>
-                          <div className="inline-flex rounded border border-primary/30 overflow-hidden text-[11px]">
+                          <div className="inline-flex rounded border border-primary/30 overflow-hidden text-xs">
                             <button type="button"
                               className={`px-2.5 py-1 font-medium ${watch(`variants.${index}.price_type`) === 'per_cycle' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
                               onClick={() => setValue(`variants.${index}.price_type`, 'per_cycle')}
@@ -3118,7 +3118,7 @@ export default function ProductForm() {
                         </div>
                         {/* Schedule modes allowed for customers */}
                         <div>
-                          <p className="text-[10px] font-medium text-gray-500 mb-1.5">Customer scheduling options</p>
+                          <p className="text-xs font-medium text-gray-500 mb-1.5">Customer scheduling options</p>
                           <div className="flex flex-wrap gap-1.5">
                             {([
                               { id: 'dates', label: 'Date Range' },
@@ -3136,7 +3136,7 @@ export default function ProductForm() {
                                     if (next.length === 0) return
                                     setValue(`variants.${index}.subscription_schedule_modes`, next)
                                   }}
-                                  className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
+                                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                                     active
                                       ? 'bg-primary text-white border-primary'
                                       : 'bg-white text-gray-400 border-gray-200 hover:border-primary/40 hover:text-primary'
@@ -3225,13 +3225,13 @@ export default function ProductForm() {
                           {(profit != null || autoDiscPct > 0 || compareAt > 0) && (
                             <div className="flex items-center gap-3 flex-wrap mt-1">
                               {autoDiscPct > 0 && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">
                                   <Tag className="w-3 h-3" />{autoDiscPct.toFixed(1)}% OFF
                                   {compareAt > 0 && <span className="font-normal opacity-70 ml-1">vs ₹{compareAt.toLocaleString()}</span>}
                                 </span>
                               )}
                               {profit != null && (
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${profit >= 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${profit >= 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                                   <BarChart3 className="w-3 h-3" />
                                   {profit >= 0 ? 'Profit' : 'Loss'}: ₹{Math.abs(profit).toLocaleString()}
                                   {margin != null && <span className="font-normal opacity-80 ml-0.5">({margin.toFixed(1)}%)</span>}
@@ -3252,23 +3252,23 @@ export default function ProductForm() {
                       return (
                         <div className="space-y-2 p-3 bg-orange-50/50 border border-orange-100 rounded-lg">
                           <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide flex items-center gap-1">
+                            <p className="text-xs font-medium text-orange-600 uppercase tracking-wide flex items-center gap-1">
                               <Calendar className="w-3 h-3" /> Promotional Discount
                             </p>
                             {/* Live discount summary */}
                             <div className="flex items-center gap-1.5 flex-wrap justify-end">
                               {pDisc > 0 && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
                                   {pDisc.toFixed(1)}% OFF
                                 </span>
                               )}
                               {pAmt > 0 && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
                                   ₹{pAmt.toLocaleString()} OFF
                                 </span>
                               )}
                               {hasDates && (
-                                <span className="text-[10px] text-orange-600 px-2 py-0.5 rounded-full bg-white border border-orange-200">
+                                <span className="text-xs text-orange-600 px-2 py-0.5 rounded-full bg-white border border-orange-200">
                                   {new Date(pStart!).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })} → {new Date(pEnd!).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}
                                 </span>
                               )}
@@ -3289,7 +3289,7 @@ export default function ProductForm() {
                             </Field>
                           </div>
                           {hasDates && (
-                            <p className="text-[11px] text-orange-600 flex items-center gap-1.5">
+                            <p className="text-xs text-orange-600 flex items-center gap-1.5">
                               <Clock className="w-3 h-3 shrink-0" />
                               Offer valid from <strong>{new Date(pStart!).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</strong> to <strong>{new Date(pEnd!).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</strong>
                             </p>
@@ -3310,7 +3310,7 @@ export default function ProductForm() {
                     </div>
                     {/* ── Inventory (compact) ── */}
                     <div className="pt-3 border-t border-gray-100 space-y-2">
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Stock</p>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</p>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                         <Field label="Qty on hand">
                           <Input type="number" min="0" {...register(`variants.${index}.quantity`)}
@@ -3416,7 +3416,7 @@ export default function ProductForm() {
                       }
                       return (
                         <div className="mt-4 pt-4 border-t border-indigo-100">
-                          <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+                          <p className="text-xs font-medium text-indigo-700 uppercase tracking-wide flex items-center gap-1.5 mb-2">
                             <Eye className="w-3.5 h-3.5" />Variant Media
                             <span className="font-normal text-gray-400 normal-case tracking-normal">(uploaded when product is saved)</span>
                           </p>
@@ -3642,7 +3642,7 @@ export default function ProductForm() {
                     {/* Promotional window */}
                     <div className="p-3 rounded-lg border border-orange-100 bg-orange-50/40 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-orange-700 flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-orange-700 flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5" /> Promotional Period
                         </span>
                         <Controller name="is_on_sale" control={control} render={({ field }) => (
@@ -3660,7 +3660,7 @@ export default function ProductForm() {
                         <Field label="Promo Ends"><Input type="datetime-local" {...register('discount_end_date')} /></Field>
                       </div>
                       {bPStart && bPEnd && (
-                        <p className="text-[11px] text-orange-700 font-medium flex items-center gap-1.5 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5">
+                        <p className="text-xs text-orange-700 font-medium flex items-center gap-1.5 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5">
                           <Clock className="w-3 h-3 shrink-0" />
                           {bAutoDiscPct2 > 0 ? `${bAutoDiscPct2.toFixed(1)}% OFF` : 'Offer'} valid from <strong>{new Date(bPStart).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</strong> to <strong>{new Date(bPEnd).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</strong>
                         </p>
@@ -4033,7 +4033,7 @@ export default function ProductForm() {
                         setAddonSearch('')
                         setAddonSearchResults([])
                       }}>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${r.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-bold uppercase ${r.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {r.item_type === 'service' ? 'SVC' : 'PRD'}
                       </span>
                       <span className="font-medium text-gray-800">{r.name}</span>
@@ -4055,7 +4055,7 @@ export default function ProductForm() {
                   <div key={addon.id} className="border border-gray-200 rounded-xl p-3 space-y-3 bg-gray-50/50">
                     {/* Header row */}
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {addon.item_type === 'service' ? 'Service' : 'Product'}
                       </span>
                       <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{addon.name}</span>
@@ -4073,7 +4073,7 @@ export default function ProductForm() {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       {/* Add-on type */}
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Type</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Type</label>
                         <select
                           value={addon.addon_type}
                           onChange={e => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, addon_type: e.target.value } : a))}
@@ -4090,7 +4090,7 @@ export default function ProductForm() {
 
                       {/* Booking trigger channel */}
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Book When</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Book When</label>
                         <select
                           value={addon.booking_trigger}
                           onChange={e => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, booking_trigger: e.target.value } : a))}
@@ -4104,7 +4104,7 @@ export default function ProductForm() {
                       {/* Status trigger (conditional) */}
                       {addon.booking_trigger === 'on_status' && (
                         <div>
-                          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Trigger Status</label>
+                          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Trigger Status</label>
                           <select
                             value={addon.trigger_status || 'delivered'}
                             onChange={e => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, trigger_status: e.target.value } : a))}
@@ -4132,7 +4132,7 @@ export default function ProductForm() {
                     </div>
 
                     {/* Trigger description badge */}
-                    <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-medium flex items-center gap-1.5 ${
+                    <div className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 ${
                       addon.booking_trigger === 'at_sale' ? 'bg-green-50 text-green-700 border border-green-200' :
                       addon.booking_trigger === 'after_delivery' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                       'bg-amber-50 text-amber-700 border border-amber-200'

@@ -135,10 +135,10 @@ export default function ESSHelpdeskPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-mono text-gray-500">{t.ticket_number}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
-                        <span className="text-[10px] uppercase text-gray-500">{t.priority}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                        <span className="text-xs uppercase text-gray-500">{t.priority}</span>
                         {t.category && (
-                          <span className="text-[10px] uppercase text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                          <span className="text-xs uppercase text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
                             {t.category}
                           </span>
                         )}

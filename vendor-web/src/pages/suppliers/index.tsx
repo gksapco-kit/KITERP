@@ -108,7 +108,7 @@ export default function SuppliersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Master Data</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">Master Data</p>
           <h1 className="text-2xl font-bold text-gray-900">Vendors / Suppliers</h1>
         </div>
         <Button className="gap-2" onClick={() => setModal({ mode: 'create' })}>
@@ -160,13 +160,13 @@ export default function SuppliersPage() {
             <ResizableTable tableId="suppliers" defaultWidths={[180, 120, 140, 120, 90, 90, 80]}>
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Contact</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">GSTIN</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Phone</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Balance</th>
-                  <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Contact</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">GSTIN</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Phone</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Balance</th>
+                  <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -418,7 +418,7 @@ function SupplierModal({ mode, supplier, onClose }: {
                 type="number" step="0.01" value={openingBalance}
                 onChange={(e) => setOpeningBalance(e.target.value)} placeholder="0.00"
               />
-              <p className="text-[10px] text-gray-400">+ve = payable to supplier</p>
+              <p className="text-xs text-gray-400">+ve = payable to supplier</p>
             </div>
           </div>
 
@@ -520,7 +520,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
         <div className="p-6 space-y-6">
           {/* Contact Info */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Contact Information</h3>
+            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Contact Information</h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-3">
               {supplier.contact_name && (
                 <div className="flex items-center gap-3">
@@ -577,7 +577,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
           {/* GST / Business Details */}
           {(supplier.gstin || supplier.pan_number || (supplier.opening_balance && supplier.opening_balance !== 0)) && (
             <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">GST / Business Details</h3>
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">GST / Business Details</h3>
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                 {supplier.gstin && (
                   <div className="flex justify-between items-center">
@@ -606,7 +606,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
           {/* Notes */}
           {supplier.notes && (
             <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Notes</h3>
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Notes</h3>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{supplier.notes}</p>
               </div>
@@ -615,7 +615,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
 
           {/* Dates */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Timeline</h3>
+            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Timeline</h3>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
@@ -640,7 +640,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
 
           {/* Status & Access Controls */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
               <ShieldAlert className="w-3.5 h-3.5" /> Status &amp; Access Controls
             </h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-3">
@@ -648,7 +648,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
               {/* Current status row */}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">Current Status</span>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${stCfg.bg} ${stCfg.text}`}>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${stCfg.bg} ${stCfg.text}`}>
                   <span className={`w-2 h-2 rounded-full ${stCfg.dot}`} />
                   {stCfg.label}
                 </span>
@@ -769,7 +769,7 @@ function SupplierViewDrawer({ supplier, onClose, onEdit }: {
           {/* Purchase Orders */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
                 <ClipboardList className="w-3.5 h-3.5" /> Purchase Orders
                 {purchaseOrders.length > 0 && (
                   <span className="bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 rounded-full ml-1">

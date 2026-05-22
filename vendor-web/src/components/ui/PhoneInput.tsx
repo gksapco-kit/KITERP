@@ -412,7 +412,7 @@ export function PhoneInput({
           {/* Counter: shows overflow in amber, normal progress in gray */}
           {localNumber.length > 0 && maxDigits <= 12 && !subtleFeedback && (
             <span className={cn(
-              'absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono tabular-nums pointer-events-none',
+              'absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-mono tabular-nums pointer-events-none',
               isOverLimit
                 ? 'text-amber-500'
                 : localNumber.length >= maxDigits - 2
@@ -438,7 +438,7 @@ export function PhoneInput({
       {error ? (
         <p className="text-xs text-destructive">{error}</p>
       ) : isOverLimit ? (
-        <p className="text-[11px] text-amber-700 dark:text-amber-400">
+        <p className="text-xs text-amber-700 dark:text-amber-400">
           Will save last {maxDigits} digits: <span className="font-mono font-semibold">{localNumber.slice(-maxDigits)}</span>
         </p>
       ) : isFull ? (
@@ -448,7 +448,7 @@ export function PhoneInput({
             Valid {maxDigits}-digit number
           </p>
         ) : (
-          <p className="text-[11px] text-green-700 dark:text-green-400">✓ {maxDigits}-digit number entered</p>
+          <p className="text-xs text-green-700 dark:text-green-400">✓ {maxDigits}-digit number entered</p>
         )
       ) : null}
     </div>

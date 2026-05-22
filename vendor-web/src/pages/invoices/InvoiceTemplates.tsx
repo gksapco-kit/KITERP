@@ -291,7 +291,7 @@ function LayoutEditor({
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] text-gray-500 leading-relaxed mb-2">
+      <p className="text-xs text-gray-500 leading-relaxed mb-2">
         Drag sections to reorder them. Toggle the eye icon to show / hide a section.
         Changes are reflected instantly in the preview.
       </p>
@@ -323,7 +323,7 @@ function LayoutEditor({
       ))}
       <button
         onClick={() => onChange(DEFAULT_LAYOUT_SECTIONS.map(d => ({ ...d })))}
-        className="text-[10px] text-gray-400 hover:text-gray-600 mt-1 flex items-center gap-1"
+        className="text-xs text-gray-400 hover:text-gray-600 mt-1 flex items-center gap-1"
       >
         <RotateCcw className="w-3 h-3" /> Reset to default order
       </button>
@@ -355,8 +355,8 @@ function FontSizeSelector({
           }`}
         >
           <Type className={`mb-0.5 ${o.id === 'sm' ? 'w-3 h-3' : o.id === 'lg' ? 'w-5 h-5' : 'w-4 h-4'} ${value === o.id ? 'text-blue-600' : 'text-gray-500'}`} />
-          <span className={`text-xs font-semibold ${value === o.id ? 'text-blue-700' : 'text-gray-600'}`}>{o.label}</span>
-          <span className="text-[9px] text-gray-400">{o.hint}</span>
+          <span className={`text-xs font-medium ${value === o.id ? 'text-blue-700' : 'text-gray-600'}`}>{o.label}</span>
+          <span className="text-xs text-gray-400">{o.hint}</span>
         </button>
       ))}
     </div>
@@ -433,7 +433,7 @@ function AccordionSection({ title, badge, children, defaultOpen = false }: {
       >
         <div className="flex items-center gap-2">
           {title}
-          {badge && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-600">{badge}</span>}
+          {badge && <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-600">{badge}</span>}
         </div>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
@@ -449,7 +449,7 @@ function ToggleRow({ label, hint, checked, onChange }: {
     <label className="flex items-start justify-between py-1.5 cursor-pointer gap-3">
       <div>
         <span className="text-sm text-gray-700">{label}</span>
-        {hint && <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{hint}</p>}
+        {hint && <p className="text-xs text-gray-400 mt-0.5 leading-tight">{hint}</p>}
       </div>
       <button
         type="button"
@@ -541,7 +541,7 @@ function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; 
           onTouchEnd={stopDraw}
         />
       </div>
-      <p className="text-[10px] text-gray-400 text-center">Draw your signature above using mouse or touch</p>
+      <p className="text-xs text-gray-400 text-center">Draw your signature above using mouse or touch</p>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleClear}>
           <Eraser className="w-3.5 h-3.5" /> Clear
@@ -814,7 +814,7 @@ export default function InvoiceSettingsPage() {
                 <button
                   key={t.id}
                   onClick={() => setPosTab(t.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${
                     posTab === t.id
                       ? 'bg-white shadow text-blue-700 border border-blue-100'
                       : 'text-gray-500 hover:text-gray-700'
@@ -846,7 +846,7 @@ export default function InvoiceSettingsPage() {
                       )}
                       <div className="w-full rounded overflow-hidden border border-gray-100"
                         dangerouslySetInnerHTML={{ __html: tmpl.svg(posMerged().color) }} />
-                      <p className="mt-1 text-[10px] font-semibold text-gray-800 truncate">{tmpl.name}</p>
+                      <p className="mt-1 text-xs font-medium text-gray-800 truncate">{tmpl.name}</p>
                     </button>
                   ))}
                 </div>
@@ -854,7 +854,7 @@ export default function InvoiceSettingsPage() {
                 {/* Layout Editor - right panel within Template */}
                 <div className="w-44 shrink-0 border-l pl-3 space-y-3">
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Font Size</p>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Font Size</p>
                     <div className="flex gap-1">
                       {([{ id: 'sm', label: 'S' }, { id: 'md', label: 'M' }, { id: 'lg', label: 'L' }] as { id: 'sm' | 'md' | 'lg'; label: string }[]).map(o => (
                         <button key={o.id} onClick={() => setPos('font_size_scale', o.id)}
@@ -865,8 +865,8 @@ export default function InvoiceSettingsPage() {
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Section Order</p>
-                    <p className="text-[9px] text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Section Order</p>
+                    <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
                     {(posMerged().layout_sections ?? DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s }))).map((s, idx, arr) => (
                       <div key={s.id}
                         draggable
@@ -886,7 +886,7 @@ export default function InvoiceSettingsPage() {
                         className={`flex items-center gap-1 py-1 px-1.5 rounded mb-0.5 cursor-grab border transition-colors ${s.visible ? 'border-gray-100 hover:border-gray-200 bg-white' : 'border-transparent opacity-40'}`}
                       >
                         <GripVertical className="w-3 h-3 text-gray-300 shrink-0" />
-                        <span className={`flex-1 text-[10px] truncate ${s.visible ? 'text-gray-700' : 'text-gray-400 line-through'}`}>{s.label}</span>
+                        <span className={`flex-1 text-xs truncate ${s.visible ? 'text-gray-700' : 'text-gray-400 line-through'}`}>{s.label}</span>
                         <button onClick={() => setPos('layout_sections', arr.map(x => x.id === s.id ? { ...x, visible: !x.visible } : x))}
                           className="shrink-0 text-gray-300 hover:text-blue-500 transition-colors">
                           {s.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -894,7 +894,7 @@ export default function InvoiceSettingsPage() {
                       </div>
                     ))}
                     <button onClick={() => setPos('layout_sections', DEFAULT_LAYOUT_SECTIONS.map(d => ({ ...d })))}
-                      className="text-[9px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 mt-1">
+                      className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5 mt-1">
                       <RotateCcw className="w-2.5 h-2.5" /> Reset order
                     </button>
                   </div>
@@ -912,8 +912,8 @@ export default function InvoiceSettingsPage() {
                     >
                       <div className={`w-5 shrink-0 rounded border ${ps.id === 'A4' ? 'h-7' : 'h-3.5'} ${posMerged().paper_size === ps.id ? 'border-blue-400 bg-blue-100' : 'border-gray-300 bg-gray-50'}`} />
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold leading-tight text-gray-800">{ps.label}</p>
-                        <p className="text-[9px] text-gray-400 leading-tight truncate">{ps.sub}</p>
+                        <p className="text-xs font-medium leading-tight text-gray-800">{ps.label}</p>
+                        <p className="text-xs text-gray-400 leading-tight truncate">{ps.sub}</p>
                       </div>
                       {posMerged().paper_size === ps.id && <Check className="w-3 h-3 text-blue-500 ml-auto shrink-0" />}
                     </button>
@@ -992,7 +992,7 @@ export default function InvoiceSettingsPage() {
               <ToggleRow label="Show tax-inclusive note" hint='Adds "All prices inclusive of taxes" note'
                 checked={posMerged().show_tax_inclusive_note ?? false} onChange={v => setPos('show_tax_inclusive_note', v)} />
               <div className="pt-3 border-t border-gray-100 space-y-2">
-                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Custom Tax Labels</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Custom Tax Labels</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { key: 'tax_label',  label: 'Combined Tax', placeholder: 'Tax'  },
@@ -1064,7 +1064,7 @@ export default function InvoiceSettingsPage() {
                         { label: 'Normal', val: (posMerged().watermark_position ?? 'diagonal') === 'diagonal' ? 0.07 : 0.18 },
                         { label: 'Bold',   val: (posMerged().watermark_position ?? 'diagonal') === 'diagonal' ? 0.15 : 0.35 }].map(o => (
                         <button key={o.label} onClick={() => setPos('watermark_opacity', o.val)}
-                          className={`flex-1 text-[10px] py-0.5 rounded border transition-colors ${(posMerged().watermark_opacity ?? -1) === o.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                          className={`flex-1 text-xs py-0.5 rounded border transition-colors ${(posMerged().watermark_opacity ?? -1) === o.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                           {o.label}
                         </button>
                       ))}
@@ -1102,7 +1102,7 @@ export default function InvoiceSettingsPage() {
                   ) : (
                     <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 shrink-0 bg-gray-50">
                       <QrCode className="w-6 h-6 text-gray-300" />
-                      <span className="text-[9px] text-gray-400">QR Code</span>
+                      <span className="text-xs text-gray-400">QR Code</span>
                     </div>
                   )}
                   <div className="flex-1 min-w-0 space-y-1.5">
@@ -1125,7 +1125,7 @@ export default function InvoiceSettingsPage() {
                         <span><Upload className="w-3 h-3" /> {posMerged().qr_code_url ? 'Change QR Code' : 'Upload QR Code'}</span>
                       </Button>
                     </label>
-                    <p className="text-[9px] text-gray-400 leading-snug">
+                    <p className="text-xs text-gray-400 leading-snug">
                       PNG, JPG, SVG, WebP · Max 2 MB<br />
                       Generate via any UPI / payment app
                     </p>
@@ -1168,7 +1168,7 @@ export default function InvoiceSettingsPage() {
             {/* ── POS: Display Options ── */}
             <div className="border rounded-xl overflow-hidden">
               <div className="px-3 py-2 bg-gray-50 border-b">
-                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Display Options</span>
+                <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Display Options</span>
               </div>
               <div className="grid grid-cols-2 gap-px bg-gray-100 p-px">
                 {([
@@ -1229,7 +1229,7 @@ export default function InvoiceSettingsPage() {
                     <div className="flex gap-1 flex-wrap">
                       {[{ label: 'None', val: 0 }, { label: 'Compact', val: 3 }, { label: 'Standard', val: 5 }, { label: 'Relaxed', val: 10 }, { label: 'Wide', val: 15 }].map(p => (
                         <button key={p.val} onClick={() => setPos('pdf_margin', p.val)}
-                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(posMerged().pdf_margin ?? 5) === p.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                          className={`text-xs px-2 py-0.5 rounded border transition-colors ${(posMerged().pdf_margin ?? 5) === p.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                           {p.label}
                         </button>
                       ))}
@@ -1258,7 +1258,7 @@ export default function InvoiceSettingsPage() {
                   <div className="flex gap-1">
                     {[{ label: 'Low', val: 0.7 }, { label: 'Medium', val: 0.85 }, { label: 'High', val: 0.98 }].map(q => (
                       <button key={q.val} onClick={() => setPos('pdf_image_quality', q.val)}
-                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(posMerged().pdf_image_quality ?? 0.98) === q.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`text-xs px-2 py-0.5 rounded border transition-colors ${(posMerged().pdf_image_quality ?? 0.98) === q.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {q.label}
                       </button>
                     ))}
@@ -1331,7 +1331,7 @@ export default function InvoiceSettingsPage() {
               <button
                 key={t.id}
                 onClick={() => setSettingsTab(t.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${
                   settingsTab === t.id
                     ? 'bg-white shadow text-blue-700 border border-blue-100'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1367,7 +1367,7 @@ export default function InvoiceSettingsPage() {
                     )}
                     <div className="w-full rounded overflow-hidden border border-gray-100"
                       dangerouslySetInnerHTML={{ __html: tmpl.svg(settings.color) }} />
-                    <p className="mt-1 text-[10px] font-semibold text-gray-800 truncate">{tmpl.name}</p>
+                    <p className="mt-1 text-xs font-medium text-gray-800 truncate">{tmpl.name}</p>
                   </button>
                 ))}
               </div>
@@ -1375,7 +1375,7 @@ export default function InvoiceSettingsPage() {
               {/* Layout Editor - right panel within Themes */}
               <div className="w-44 shrink-0 border-l pl-3 space-y-3">
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Font Size</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Font Size</p>
                   <div className="flex gap-1">
                     {([{ id: 'sm', label: 'S' }, { id: 'md', label: 'M' }, { id: 'lg', label: 'L' }] as { id: 'sm' | 'md' | 'lg'; label: string }[]).map(o => (
                       <button key={o.id} onClick={() => set('font_size_scale', o.id)}
@@ -1387,8 +1387,8 @@ export default function InvoiceSettingsPage() {
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Section Order</p>
-                  <p className="text-[9px] text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Section Order</p>
+                  <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
                   {(settings.layout_sections ?? DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s }))).map((s, idx, arr) => (
                     <div key={s.id}
                       draggable
@@ -1408,7 +1408,7 @@ export default function InvoiceSettingsPage() {
                       className={`flex items-center gap-1 py-1 px-1.5 rounded mb-0.5 cursor-grab border transition-colors ${s.visible ? 'border-gray-100 hover:border-gray-200 bg-white' : 'border-transparent opacity-40'}`}
                     >
                       <GripVertical className="w-3 h-3 text-gray-300 shrink-0" />
-                      <span className={`flex-1 text-[10px] truncate ${s.visible ? 'text-gray-700' : 'text-gray-400 line-through'}`}>{s.label}</span>
+                      <span className={`flex-1 text-xs truncate ${s.visible ? 'text-gray-700' : 'text-gray-400 line-through'}`}>{s.label}</span>
                       <button onClick={() => set('layout_sections', arr.map(x => x.id === s.id ? { ...x, visible: !x.visible } : x))}
                         className="shrink-0 text-gray-300 hover:text-blue-500 transition-colors">
                         {s.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
@@ -1416,7 +1416,7 @@ export default function InvoiceSettingsPage() {
                     </div>
                   ))}
                   <button onClick={() => set('layout_sections', DEFAULT_LAYOUT_SECTIONS.map(d => ({ ...d })))}
-                    className="text-[9px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 mt-1">
+                    className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5 mt-1">
                     <RotateCcw className="w-2.5 h-2.5" /> Reset order
                   </button>
                 </div>
@@ -1434,8 +1434,8 @@ export default function InvoiceSettingsPage() {
                   >
                     <div className={`w-5 shrink-0 rounded border ${ps.id === 'A4' ? 'h-7' : 'h-3.5'} ${settings.paper_size === ps.id ? 'border-blue-400 bg-blue-100' : 'border-gray-300 bg-gray-50'}`} />
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold leading-tight text-gray-800">{ps.label}</p>
-                      <p className="text-[9px] text-gray-400 leading-tight truncate">{ps.sub}</p>
+                      <p className="text-xs font-medium leading-tight text-gray-800">{ps.label}</p>
+                      <p className="text-xs text-gray-400 leading-tight truncate">{ps.sub}</p>
                     </div>
                     {settings.paper_size === ps.id && <Check className="w-3 h-3 text-blue-500 ml-auto shrink-0" />}
                   </button>
@@ -1490,7 +1490,7 @@ export default function InvoiceSettingsPage() {
                     <span><Upload className="w-3 h-3" /> {logoUrl ? 'Change' : 'Upload Logo'}</span>
                   </Button>
                 </label>
-                <p className="text-[9px] text-gray-400 mt-1">PNG, JPG, SVG • Max 2 MB</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG • Max 2 MB</p>
               </div>
             </div>
           </AccordionSection>
@@ -1520,7 +1520,7 @@ export default function InvoiceSettingsPage() {
                 ) : (
                   <div className="h-12 w-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-0.5 shrink-0">
                     <Pen className="w-4 h-4 text-gray-300" />
-                    <span className="text-[9px] text-gray-400">Signature</span>
+                    <span className="text-xs text-gray-400">Signature</span>
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
@@ -1530,7 +1530,7 @@ export default function InvoiceSettingsPage() {
                     {uploadSignature.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                     {settings.signature_url ? 'Change' : 'Upload'}
                   </Button>
-                  <p className="text-[9px] text-gray-400 mt-1">PNG, JPG, SVG recommended</p>
+                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG recommended</p>
                 </div>
               </div>
             ) : (
@@ -1593,7 +1593,7 @@ export default function InvoiceSettingsPage() {
                 ) : (
                   <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 shrink-0 bg-gray-50">
                     <QrCode className="w-6 h-6 text-gray-300" />
-                    <span className="text-[9px] text-gray-400">QR Code</span>
+                    <span className="text-xs text-gray-400">QR Code</span>
                   </div>
                 )}
                 <div className="flex-1 min-w-0 space-y-1.5">
@@ -1616,7 +1616,7 @@ export default function InvoiceSettingsPage() {
                       <span><Upload className="w-3 h-3" /> {settings.qr_code_url ? 'Change QR Code' : 'Upload QR Code'}</span>
                     </Button>
                   </label>
-                  <p className="text-[9px] text-gray-400 leading-snug">
+                  <p className="text-xs text-gray-400 leading-snug">
                     PNG, JPG, SVG, WebP · Max 2 MB<br />
                     Generate a QR via any UPI / payment app
                   </p>
@@ -1724,7 +1724,7 @@ export default function InvoiceSettingsPage() {
                       { label: 'Normal', val: (settings.watermark_position ?? 'diagonal') === 'diagonal' ? 0.07 : 0.18 },
                       { label: 'Bold',   val: (settings.watermark_position ?? 'diagonal') === 'diagonal' ? 0.15 : 0.35 }].map(o => (
                       <button key={o.label} onClick={() => set('watermark_opacity', o.val)}
-                        className={`flex-1 text-[10px] py-0.5 rounded border transition-colors ${(settings.watermark_opacity ?? -1) === o.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`flex-1 text-xs py-0.5 rounded border transition-colors ${(settings.watermark_opacity ?? -1) === o.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {o.label}
                       </button>
                     ))}
@@ -1779,7 +1779,7 @@ export default function InvoiceSettingsPage() {
                     value={settings.discount_label || ''}
                     onChange={e => set('discount_label', e.target.value)}
                   />
-                  <p className="text-[10px] text-gray-400 mt-0.5">Label shown in the totals summary row (e.g. "Discount", "Offer", "Coupon Savings")</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Label shown in the totals summary row (e.g. "Discount", "Offer", "Coupon Savings")</p>
                 </div>
               </div>
             )}
@@ -1819,7 +1819,7 @@ export default function InvoiceSettingsPage() {
             />
 
             <div className="pt-3 border-t border-gray-100 space-y-2">
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Custom Tax Labels</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Custom Tax Labels</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { key: 'tax_label',  label: 'Combined Tax Label', placeholder: 'Tax' },
@@ -1838,7 +1838,7 @@ export default function InvoiceSettingsPage() {
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-gray-400 leading-relaxed">Useful for non-GST businesses (VAT, Service Tax, etc.) or custom display preferences.</p>
+              <p className="text-xs text-gray-400 leading-relaxed">Useful for non-GST businesses (VAT, Service Tax, etc.) or custom display preferences.</p>
             </div>
           </AccordionSection>
 
@@ -1889,7 +1889,7 @@ export default function InvoiceSettingsPage() {
           {/* ── Display Options (2-col grid) ── */}
           <div className="border rounded-xl overflow-hidden">
             <div className="px-3 py-2 bg-gray-50 border-b">
-              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Display Options</span>
+              <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Display Options</span>
             </div>
             <div className="grid grid-cols-2 gap-px bg-gray-100 p-px">
               {([
@@ -1955,7 +1955,7 @@ export default function InvoiceSettingsPage() {
                   <div className="flex gap-1 flex-wrap">
                     {[{ label: 'None', val: 0 }, { label: 'Compact', val: 3 }, { label: 'Standard', val: 5 }, { label: 'Relaxed', val: 10 }, { label: 'Wide', val: 15 }].map(p => (
                       <button key={p.val} onClick={() => set('pdf_margin', p.val)}
-                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(settings.pdf_margin ?? 5) === p.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                        className={`text-xs px-2 py-0.5 rounded border transition-colors ${(settings.pdf_margin ?? 5) === p.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                         {p.label}
                       </button>
                     ))}
@@ -1984,7 +1984,7 @@ export default function InvoiceSettingsPage() {
                 <div className="flex gap-1 flex-wrap">
                   {[{ label: 'Low', val: 0.7 }, { label: 'Medium', val: 0.85 }, { label: 'High', val: 0.98 }].map(q => (
                     <button key={q.val} onClick={() => set('pdf_image_quality', q.val)}
-                      className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${(settings.pdf_image_quality ?? 0.98) === q.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                      className={`text-xs px-2 py-0.5 rounded border transition-colors ${(settings.pdf_image_quality ?? 0.98) === q.val ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                       {q.label}
                     </button>
                   ))}

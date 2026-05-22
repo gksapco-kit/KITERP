@@ -778,7 +778,7 @@ export default function POS() {
           </h1>
           <div className="flex items-center gap-2">
             {loyaltyProgram?.is_active && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-700 font-medium">
+              <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 font-medium">
                 <Award className="w-3 h-3" /> Loyalty Active
               </div>
             )}
@@ -811,7 +811,7 @@ export default function POS() {
         {/* Return: compact order selection */}
         {txnMode === 'return' && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
-            <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">Return / Refund</p>
+            <p className="text-xs font-medium text-red-700 uppercase tracking-wide">Return / Refund</p>
             {originalTxn ? (
               <div className="flex items-center justify-between text-xs bg-white rounded-lg p-2.5 border border-green-200" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-2">
@@ -910,9 +910,9 @@ export default function POS() {
                   </div>
                 ) : (
                   <>
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                    <div className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                       <span>{suggestions.length} match{suggestions.length !== 1 ? 'es' : ''}</span>
-                      <span className="text-[10px] text-gray-300 normal-case font-normal">↑↓ navigate · Enter to add</span>
+                      <span className="text-xs text-gray-300 normal-case font-normal">↑↓ navigate · Enter to add</span>
                     </div>
                     {suggestions.map(({ item, matchField, matchValue }, idx) => {
                       const imgUrl = item.images?.[0]?.url ?? item.images?.[0]?.file_url
@@ -946,20 +946,20 @@ export default function POS() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-sm font-medium text-gray-900 truncate">{item.name}</span>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${FIELD_COLORS[matchField]}`}>
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 ${FIELD_COLORS[matchField]}`}>
                                 {FIELD_LABELS[matchField]}{matchField !== 'name' && matchField !== 'description' ? `: ${matchValue}` : ''}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              {item.sku && <span className="text-[10px] text-gray-400 font-mono">{item.sku}</span>}
-                              {item.category && <span className="text-[10px] text-gray-400">{item.category}</span>}
+                              {item.sku && <span className="text-xs text-gray-400 font-mono">{item.sku}</span>}
+                              {item.category && <span className="text-xs text-gray-400">{item.category}</span>}
                             </div>
                           </div>
 
                           {/* Price + type */}
                           <div className="text-right shrink-0">
                             <p className="text-sm font-semibold text-gray-900">₹{price.toLocaleString()}</p>
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-600'}`}>
+                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-600'}`}>
                               {item.item_type}
                             </span>
                           </div>
@@ -1004,12 +1004,12 @@ export default function POS() {
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[11px] text-gray-400">Hardware scanner ready — just scan any barcode</span>
+            <span className="text-xs text-gray-400">Hardware scanner ready — just scan any barcode</span>
           </div>
           {scanReport.length > 0 && (
             <button
               onClick={() => setScanReportOpen(o => !o)}
-              className="flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 hover:bg-amber-100 transition-colors"
+              className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 hover:bg-amber-100 transition-colors"
             >
               <AlertTriangle className="w-3 h-3" />
               Scan Report ({scanReport.length})
@@ -1025,7 +1025,7 @@ export default function POS() {
             <div className="flex items-center justify-between px-3 py-2 border-b border-amber-200 bg-amber-50">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-xs font-semibold text-amber-800">Scan Report — {scanReport.length} unmatched barcode{scanReport.length !== 1 ? 's' : ''}</span>
+                <span className="text-xs font-medium text-amber-800">Scan Report — {scanReport.length} unmatched barcode{scanReport.length !== 1 ? 's' : ''}</span>
               </div>
               <div className="flex items-center gap-2">
                 {/* Create All */}
@@ -1033,7 +1033,7 @@ export default function POS() {
                   onClick={() => {
                     scanReport.forEach(e => window.open(`/products/new?barcode=${encodeURIComponent(e.barcode)}`, '_blank'))
                   }}
-                  className="flex items-center gap-1 text-[11px] font-medium text-blue-700 hover:underline"
+                  className="flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
                 >
                   <PackagePlus className="w-3 h-3" /> Create All
                 </button>
@@ -1047,12 +1047,12 @@ export default function POS() {
                     a.href = url; a.download = `scan-report-${new Date().toISOString().slice(0,10)}.csv`
                     a.click(); URL.revokeObjectURL(url)
                   }}
-                  className="flex items-center gap-1 text-[11px] font-medium text-gray-600 hover:underline"
+                  className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:underline"
                 >
                   <Download className="w-3 h-3" /> Export
                 </button>
                 {/* Clear all */}
-                <button onClick={() => setScanReport([])} className="text-[11px] text-gray-400 hover:text-red-500 hover:underline">Clear all</button>
+                <button onClick={() => setScanReport([])} className="text-xs text-gray-400 hover:text-red-500 hover:underline">Clear all</button>
               </div>
             </div>
 
@@ -1061,17 +1061,17 @@ export default function POS() {
               {scanReport.map(entry => (
                 <div key={entry.id} className="flex items-center gap-2 px-3 py-1.5">
                   <span className="font-mono text-xs text-gray-800 min-w-0 truncate flex-1">{entry.barcode}</span>
-                  <span className="text-[10px] text-gray-400 shrink-0">
+                  <span className="text-xs text-gray-400 shrink-0">
                     {Math.round((Date.now() - entry.ts.getTime()) / 60000) < 1
                       ? 'just now'
                       : `${Math.round((Date.now() - entry.ts.getTime()) / 60000)}m ago`}
                   </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium shrink-0">Not Found</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium shrink-0">Not Found</span>
                   {/* Row actions */}
                   <button
                     title="Create product with this barcode"
                     onClick={() => window.open(`/products/new?barcode=${encodeURIComponent(entry.barcode)}`, '_blank')}
-                    className="shrink-0 flex items-center gap-0.5 text-[10px] text-blue-600 hover:underline font-medium"
+                    className="shrink-0 flex items-center gap-0.5 text-xs text-blue-600 hover:underline font-medium"
                   >
                     <PackagePlus className="w-3 h-3" /> Create
                   </button>
@@ -1140,7 +1140,7 @@ export default function POS() {
               {(filter === 'all' || filter === 'products') && products.length > 0 && (
                 <>
                   {filter === 'all' && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-gray-50/90 backdrop-blur-sm rounded text-xs font-semibold text-gray-500 uppercase tracking-wide z-10">
+                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-gray-50/90 backdrop-blur-sm rounded text-xs font-medium text-gray-500 uppercase tracking-wide z-10">
                       <Package className="w-3 h-3 text-blue-500" /> Products
                     </div>
                   )}
@@ -1167,7 +1167,7 @@ export default function POS() {
                             <p className="text-sm font-bold">{formatCurrency(v.price || p.price || 0)}</p>
                             <div className="flex items-center gap-1.5">
                               <button onClick={e => { e.stopPropagation(); setVariantPickerProduct(p) }}
-                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors whitespace-nowrap">
+                                className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors whitespace-nowrap">
                                 {activeVariants.length} variants
                               </button>
                               <button onClick={() => addToCart({ id: p.id, variant_id: v.id, name: `${p.name}${v.name ? ` — ${v.name}` : ''}`, sku: v.sku || p.sku, price: v.price || p.price || 0, tax_rate: v.tax_rate ?? p.tax_rate ?? p.gst_rate ?? 0, hsn_code: v.hsn_code || p.hsn_code, item_type: 'product', image_url: imgUrl })}
@@ -1204,7 +1204,7 @@ export default function POS() {
               {(filter === 'all' || filter === 'services') && services.length > 0 && (
                 <>
                   {filter === 'all' && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-gray-50/90 backdrop-blur-sm rounded text-xs font-semibold text-gray-500 uppercase tracking-wide z-10">
+                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-gray-50/90 backdrop-blur-sm rounded text-xs font-medium text-gray-500 uppercase tracking-wide z-10">
                       <Wrench className="w-3 h-3 text-primary/80" /> Services
                     </div>
                   )}
@@ -1228,7 +1228,7 @@ export default function POS() {
                           {s.sale_price != null && s.sale_price !== s.price ? (
                             <>
                               <p className="text-sm font-bold text-primary">{formatCurrency(s.sale_price)}</p>
-                              <p className="text-[10px] text-gray-400 line-through">{formatCurrency(s.price || 0)}</p>
+                              <p className="text-xs text-gray-400 line-through">{formatCurrency(s.price || 0)}</p>
                             </>
                           ) : (
                             <p className="text-sm font-bold">{formatCurrency(s.sale_price ?? s.price ?? 0)}</p>
@@ -1276,7 +1276,7 @@ export default function POS() {
                   <span className="font-medium text-blue-800">{selectedCustomer.full_name}</span>
                   {selectedCustomer.phone && <span className="text-xs text-blue-600 ml-2">{selectedCustomer.phone}</span>}
                   {selectedCustomer.id === defaultCustomerId && (
-                    <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded ml-2">Default</span>
+                    <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded ml-2">Default</span>
                   )}
                 </div>
               </div>
@@ -1357,7 +1357,7 @@ export default function POS() {
 
         {txnMode === 'sale' && (
           <div className="px-3 py-2 border-b bg-gray-50/50 space-y-1">
-            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Salesperson (commission)</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Salesperson (commission)</p>
             <StaffPicker selected={selectedSalesPerson} onSelect={setSelectedSalesPerson} />
           </div>
         )}
@@ -1429,7 +1429,7 @@ export default function POS() {
                       </span>
                       <button
                         onClick={() => setBookingPanelIdx(idx)}
-                        className="flex items-center gap-1 text-[10px] text-primary/80 hover:text-primary font-medium"
+                        className="flex items-center gap-1 text-xs text-primary/80 hover:text-primary font-medium"
                       >
                         <Pencil className="w-3 h-3" /> Change
                       </button>
@@ -1513,7 +1513,7 @@ export default function POS() {
               </div>
             )}
             {loyaltyAccount.points_balance < (loyaltyProgram.min_redeem_points || 0) && (
-              <p className="text-[10px] text-amber-600">Min {loyaltyProgram.min_redeem_points} pts to redeem</p>
+              <p className="text-xs text-amber-600">Min {loyaltyProgram.min_redeem_points} pts to redeem</p>
             )}
           </div>
         )}
@@ -2212,7 +2212,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
               <div className="bg-accent px-4 py-2.5 flex items-center gap-2 border-b border-primary/20">
                 <Calendar className="w-4 h-4 text-primary" />
                 <span className="text-sm font-semibold text-primary">Booking{bookingNumbers.length > 1 ? 's' : ''} Created</span>
-                <span className="ml-auto text-[10px] font-bold bg-primary/12 text-primary px-2 py-0.5 rounded-full">{bookingNumbers.length}</span>
+                <span className="ml-auto text-xs font-bold bg-primary/12 text-primary px-2 py-0.5 rounded-full">{bookingNumbers.length}</span>
               </div>
 
               <div className="divide-y divide-primary/10">
@@ -2240,10 +2240,10 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                           <Wrench className="w-3.5 h-3.5 text-primary/80 shrink-0" />
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate">{it.name}</p>
-                            {bNum && <p className="text-[10px] text-gray-400 font-mono">{bNum}</p>}
+                            {bNum && <p className="text-xs text-gray-400 font-mono">{bNum}</p>}
                           </div>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${sc.color}`}>{sc.label}</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${sc.color}`}>{sc.label}</span>
                       </div>
 
                       {/* Date / time / duration row */}
@@ -2284,7 +2284,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                         <>
                           {bookingActionsId === bId ? (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
-                              <p className="text-xs font-semibold text-red-700">Cancel or mark no-show?</p>
+                              <p className="text-xs font-medium text-red-700">Cancel or mark no-show?</p>
                               <input
                                 type="text"
                                 value={cancelReason}
@@ -2296,7 +2296,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                                 <button
                                   onClick={() => handleCancelBooking(bId, 'cancelled')}
                                   disabled={cancellingId === bId}
-                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
                                 >
                                   {cancellingId === bId ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
                                   Cancel Booking
@@ -2304,7 +2304,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                                 <button
                                   onClick={() => handleCancelBooking(bId, 'no_show')}
                                   disabled={cancellingId === bId}
-                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-60"
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-60"
                                 >
                                   {cancellingId === bId ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserX className="w-3.5 h-3.5" />}
                                   No-Show
@@ -2382,7 +2382,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                 <Printer className="w-4 h-4" />
                 Print Forms
                 {enabledForms.length > 0 && (
-                  <span className="text-[10px] bg-blue-100 text-blue-700 font-semibold px-1.5 py-0.5 rounded-full">{enabledForms.length} available</span>
+                  <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-1.5 py-0.5 rounded-full">{enabledForms.length} available</span>
                 )}
               </span>
               {showPrintForms ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -2407,8 +2407,8 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
                       >
                         <span className="text-xl shrink-0">{form.icon}</span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-gray-800 truncate">{form.label}</p>
-                          <p className="text-[10px] text-gray-400">{form.category}</p>
+                          <p className="text-xs font-medium text-gray-800 truncate">{form.label}</p>
+                          <p className="text-xs text-gray-400">{form.category}</p>
                         </div>
                         {/* Print button */}
                         <button
@@ -2525,7 +2525,7 @@ function POSTransactionHistory({
           ) : (
             <div className="overflow-x-auto">
               <ResizableTable tableId="pos-orders" defaultWidths={[120, 100, 80, 140, 60, 90, 100, 80, 50]}>
-                <thead><tr className="border-b bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                <thead><tr className="border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Order #</th>
                   <th className="px-4 py-2.5">POS #</th>
@@ -2825,7 +2825,7 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
 
           {txn.notes && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-amber-700 mb-1">Notes</p>
+              <p className="text-xs font-medium text-amber-700 mb-1">Notes</p>
               <p className="text-sm text-gray-700">{txn.notes as string}</p>
             </div>
           )}
@@ -2880,7 +2880,7 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
                   <Printer className="w-4 h-4" />
                   Other Document Types
                   {enabledForms.length > 0 && (
-                    <span className="text-[10px] bg-blue-100 text-blue-700 font-semibold px-1.5 py-0.5 rounded-full">
+                    <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-1.5 py-0.5 rounded-full">
                       {enabledForms.length} available
                     </span>
                   )}
@@ -2910,8 +2910,8 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
                         >
                           <span className="text-xl shrink-0">{form.icon}</span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-gray-800 truncate">{form.label}</p>
-                            <p className="text-[10px] text-gray-400">{form.description}</p>
+                            <p className="text-xs font-medium text-gray-800 truncate">{form.label}</p>
+                            <p className="text-xs text-gray-400">{form.description}</p>
                           </div>
                           <button
                             title={`Print ${form.label}`}
@@ -3441,7 +3441,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <Settings className="w-5 h-5 text-blue-600" /> POS Settings
             </h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">Configure receipt template, default customer & loyalty program.</p>
+            <p className="text-xs text-gray-400 mt-0.5">Configure receipt template, default customer & loyalty program.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => window.open('/invoices/templates', '_blank')} className="gap-1.5 text-xs">
@@ -3488,7 +3488,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
             {/* Group by category */}
             {Array.from(new Set(PRINT_FORM_TYPES.map(f => f.category))).map(category => (
               <div key={category} className="mb-6">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{category}</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{category}</p>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {PRINT_FORM_TYPES.filter(f => f.category === category).map(form => {
                     const isEnabled = enabledForms.includes(form.id)
@@ -3499,11 +3499,11 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-semibold text-gray-900">{form.label}</p>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${form.categoryColor}`}>{form.category}</span>
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${form.categoryColor}`}>{form.category}</span>
                             </div>
                             <p className="text-xs text-gray-500 mt-0.5 leading-tight">{form.description}</p>
                             <div className="flex flex-wrap gap-1 mt-1.5">
-                              {form.fields.map(f => <span key={f} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{f}</span>)}
+                              {form.fields.map(f => <span key={f} className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{f}</span>)}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-2 shrink-0">
@@ -3528,7 +3528,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                                 const html = generatePrintFormHtml(form.id, sampleData, vendor)
                                 openPrintWindow(html)
                               }}
-                              className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"
                             >
                               <Eye className="w-3 h-3" /> Preview
                             </button>
@@ -3573,7 +3573,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                         localPaper === ps.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:bg-gray-50'
                       }`}>
                       <div>{ps.label}</div>
-                      <div className="text-[10px] text-gray-400 font-normal">{ps.sub}</div>
+                      <div className="text-xs text-gray-400 font-normal">{ps.sub}</div>
                     </button>
                   ))}
                 </div>
@@ -3610,7 +3610,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                 ))}
               </div>
 
-              <p className="text-[11px] text-gray-400 leading-relaxed border-t pt-3">
+              <p className="text-xs text-gray-400 leading-relaxed border-t pt-3">
                 For bank details, signature upload, GST options & more, use the{' '}
                 <button onClick={() => window.open('/invoices/templates', '_blank')} className="text-blue-600 underline">
                   Full Template Editor
@@ -3723,14 +3723,14 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
 
                 {/* Earning rules */}
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-5">
-                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Earning Rules</p>
+                  <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Earning Rules</p>
 
                   {/* Points per ₹ spent */}
                   <div className="space-y-2">
                     <Label className="text-xs font-medium text-gray-700">Points per ₹ spent</Label>
                     <div className="flex items-stretch rounded-lg overflow-hidden border border-amber-300 bg-white shadow-sm">
                       <div className="flex items-center px-3 bg-amber-100 border-r border-amber-300">
-                        <span className="text-xs font-semibold text-amber-700">pts</span>
+                        <span className="text-xs font-medium text-amber-700">pts</span>
                       </div>
                       <input
                         type="number" min={0} step={0.01} value={pointsPerRupee}
@@ -3738,7 +3738,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                         className="flex-1 h-9 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-amber-400 rounded-r-lg"
                       />
                       <div className="flex items-center px-3 bg-amber-100 border-l border-amber-300">
-                        <span className="text-xs font-semibold text-amber-700">/ ₹1</span>
+                        <span className="text-xs font-medium text-amber-700">/ ₹1</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -3749,7 +3749,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                           : 'Enter a value above 0'}
                       </span>
                       {pointsPerRupee > 0 && (
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-xs text-gray-400">
                           (₹100 spend = {(pointsPerRupee * 100).toFixed(1)} pts)
                         </span>
                       )}
@@ -3761,7 +3761,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                     <Label className="text-xs font-medium text-gray-700">Bonus points per sale</Label>
                     <div className="flex items-stretch rounded-lg overflow-hidden border border-amber-300 bg-white shadow-sm">
                       <div className="flex items-center px-3 bg-amber-100 border-r border-amber-300">
-                        <span className="text-xs font-semibold text-amber-700">+pts</span>
+                        <span className="text-xs font-medium text-amber-700">+pts</span>
                       </div>
                       <input
                         type="number" min={0} step={1} value={pointsPerSale}
@@ -3769,7 +3769,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                         className="flex-1 h-9 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-amber-400 rounded-r-lg"
                       />
                       <div className="flex items-center px-3 bg-amber-100 border-l border-amber-300">
-                        <span className="text-xs font-semibold text-amber-700">flat</span>
+                        <span className="text-xs font-medium text-amber-700">flat</span>
                       </div>
                     </div>
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-medium">
@@ -3783,14 +3783,14 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
 
                 {/* Redemption rules */}
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-5">
-                  <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Redemption Rules</p>
+                  <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Redemption Rules</p>
 
                   {/* ₹ value per point */}
                   <div className="space-y-2">
                     <Label className="text-xs font-medium text-gray-700">₹ value per point</Label>
                     <div className="flex items-stretch rounded-lg overflow-hidden border border-green-300 bg-white shadow-sm">
                       <div className="flex items-center px-3 bg-green-100 border-r border-green-300">
-                        <span className="text-xs font-semibold text-green-700">₹</span>
+                        <span className="text-xs font-medium text-green-700">₹</span>
                       </div>
                       <input
                         type="number" min={0.01} step={0.01} value={currencyPerPoint}
@@ -3798,7 +3798,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                         className="flex-1 h-9 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-green-400 rounded-r-lg"
                       />
                       <div className="flex items-center px-3 bg-green-100 border-l border-green-300">
-                        <span className="text-xs font-semibold text-green-700">/ pt</span>
+                        <span className="text-xs font-medium text-green-700">/ pt</span>
                       </div>
                     </div>
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
@@ -3815,7 +3815,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                       <Label className="text-xs font-medium text-gray-700">Min points to redeem</Label>
                       <div className="flex items-stretch rounded-lg overflow-hidden border border-green-300 bg-white shadow-sm">
                         <div className="flex items-center px-3 bg-green-100 border-r border-green-300">
-                          <span className="text-xs font-semibold text-green-700">≥</span>
+                          <span className="text-xs font-medium text-green-700">≥</span>
                         </div>
                         <input
                           type="number" min={0} step={1} value={minRedeemPoints}
@@ -3823,7 +3823,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                           className="flex-1 h-9 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
                         />
                         <div className="flex items-center px-3 bg-green-100 border-l border-green-300">
-                          <span className="text-xs font-semibold text-green-700">pts</span>
+                          <span className="text-xs font-medium text-green-700">pts</span>
                         </div>
                       </div>
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
@@ -3842,7 +3842,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                           className="flex-1 h-9 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-green-400 rounded-l-lg"
                         />
                         <div className="flex items-center px-3 bg-green-100 border-l border-green-300">
-                          <span className="text-xs font-semibold text-green-700">%</span>
+                          <span className="text-xs font-medium text-green-700">%</span>
                         </div>
                       </div>
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
@@ -3855,7 +3855,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
 
                 {/* Tier thresholds (lifetime spend) */}
                 <div className="bg-accent border border-primary/30 rounded-xl p-4 space-y-4">
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wide">Customer Tiers <span className="font-normal text-primary/80">(lifetime spend thresholds)</span></p>
+                  <p className="text-xs font-medium text-primary uppercase tracking-wide">Customer Tiers <span className="font-normal text-primary/80">(lifetime spend thresholds)</span></p>
                   <div className="grid grid-cols-3 gap-4">
                     {[
                       { label: '🥉 Bronze from (₹)', value: bronzeThreshold, onChange: setBronzeThreshold, note: 'Usually ₹0 (everyone starts here)' },
@@ -3864,7 +3864,7 @@ function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsC
                     ].map(tier => (
                       <div key={tier.label}>
                         <Label className="text-xs text-gray-600">{tier.label}</Label>
-                        <p className="text-[10px] text-gray-400 mb-1">{tier.note}</p>
+                        <p className="text-xs text-gray-400 mb-1">{tier.note}</p>
                         <Input type="number" min={0} step={100} value={tier.value}
                           onChange={e => tier.onChange(Number(e.target.value))} className="h-8 text-sm" />
                       </div>

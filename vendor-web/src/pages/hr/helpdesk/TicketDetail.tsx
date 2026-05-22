@@ -41,7 +41,7 @@ export default function TicketDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900">{t.subject}</h1>
           <p className="text-sm text-gray-500 mt-1">
             {t.category ?? 'Other'} · Priority <strong>{t.priority}</strong> ·
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ml-2 ${stat.color}`}>{stat.label}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded ml-2 ${stat.color}`}>{stat.label}</span>
           </p>
         </div>
         <select value={t.status} onChange={e => update.mutate({ id: t.id, data: { status: e.target.value } })}
@@ -69,7 +69,7 @@ export default function TicketDetailPage() {
                     {c.is_staff_reply ? 'Staff' : 'Employee'}
                   </span>
                   {c.is_internal && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-200 text-yellow-800 flex items-center gap-1">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-200 text-yellow-800 flex items-center gap-1">
                       <Lock className="w-2.5 h-2.5" /> Internal
                     </span>
                   )}

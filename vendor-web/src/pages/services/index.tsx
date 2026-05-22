@@ -192,13 +192,13 @@ export default function Services() {
             </div>
             <Button type="button" variant="outline" className="gap-2" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-4 h-4" />Filters
-              {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none font-bold bg-primary text-white rounded-full">{activeFilterCount}</span>}
+              {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-xs leading-none font-bold bg-primary text-white rounded-full">{activeFilterCount}</span>}
             </Button>
           </div>
           {showFilters && (
             <div className="flex flex-wrap items-end gap-3 pt-3 border-t">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</label>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</label>
                 <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}
                   className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/60 transition-shadow">
                   <option value="">All Statuses</option>
@@ -208,7 +208,7 @@ export default function Services() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Category</label>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Category</label>
                 <select value={category} onChange={e => { setCategory(e.target.value); setPage(1) }}
                   className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/60 transition-shadow">
                   <option value="">All Categories</option>
@@ -246,14 +246,14 @@ export default function Services() {
             <ResizableTable tableId="services" defaultWidths={[240, 90, 90, 90, 70, 90, 80, 80]}>
               <thead>
                 <tr className="border-b bg-gray-50/80">
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Service</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Type</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Mode</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Price</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Plans</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Duration</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="text-right px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Service</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Mode</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Plans</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Duration</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -291,12 +291,12 @@ export default function Services() {
                           )}
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-gray-900 group-hover:text-primary transition-colors truncate">{service.name}</p>
-                            <p className="text-[11px] text-gray-400 truncate">{service.category || 'Uncategorized'}</p>
+                            <p className="text-xs text-gray-400 truncate">{service.category || 'Uncategorized'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 text-[11px] rounded-full font-semibold bg-accent text-primary capitalize">
+                        <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-accent text-primary capitalize">
                           {(service.service_type || 'one_time').replace('_', ' ')}
                         </span>
                       </td>
@@ -316,10 +316,10 @@ export default function Services() {
                           <div className="flex items-center gap-1.5">
                             <Layers className="w-3.5 h-3.5 text-primary/70" />
                             <span className="text-xs font-medium text-gray-700">{plansCount}</span>
-                            <span className="text-[10px] text-gray-400">({activePlans} active)</span>
+                            <span className="text-xs text-gray-400">({activePlans} active)</span>
                           </div>
                         ) : (
-                          <span className="text-[11px] text-gray-300">—</span>
+                          <span className="text-xs text-gray-300">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
@@ -328,7 +328,7 @@ export default function Services() {
                           : <span className="text-gray-300 text-xs">—</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 text-[11px] rounded-full font-semibold ${
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-semibold ${
                           service.status === 'active'   ? 'bg-green-100 text-green-700' :
                           service.status === 'archived' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'
                         }`}>{service.status}</span>

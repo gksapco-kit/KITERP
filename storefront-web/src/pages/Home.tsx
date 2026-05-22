@@ -115,7 +115,7 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
                     <div className="w-full h-full bg-gradient-to-br from-secondary to-muted group-hover:scale-105 transition-transform duration-700" />
                   )}
                   {p.compare_at_price && p.compare_at_price > p.price && (
-                    <span className="absolute top-3 left-3 text-[10px] uppercase tracking-widest bg-retail-ink text-retail-bg px-2 py-1 rounded-full">Sale</span>
+                    <span className="absolute top-3 left-3 text-xs uppercase tracking-widest bg-retail-ink text-retail-bg px-2 py-1 rounded-full">Sale</span>
                   )}
                 </div>
                 <div className="flex justify-between text-sm gap-2">
@@ -688,12 +688,12 @@ function StoreLocatorSection({
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-gray-900">{store.name}</p>
                       {store.is_default && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '15', color: colors.primary }}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '15', color: colors.primary }}>
                           Main
                         </span>
                       )}
                       {isHighlighted && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: colors.primary }}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: colors.primary }}>
                           Your store
                         </span>
                       )}
@@ -731,12 +731,12 @@ function StoreLocatorSection({
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-gray-900">{store.name}</p>
                       {store.is_default && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '15', color: colors.primary }}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '15', color: colors.primary }}>
                           Main
                         </span>
                       )}
                       {isHighlighted && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: colors.primary }}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: colors.primary }}>
                           Your store
                         </span>
                       )}

@@ -124,7 +124,7 @@ const GroceryHome = ({ filterMockGroceryOnly = true }: { filterMockGroceryOnly?:
               <div className="aspect-square relative" style={{ background: 'hsl(var(--sf-muted) / 0.4)' }}>
                 <img src={p.images[0].url} alt={p.images[0].alt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                 {p.badges?.[0] ? (
-                  <span className="absolute top-2 left-2 text-[10px] uppercase tracking-[0.15em] px-1.5 py-0.5" style={{ background: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-primary-foreground))' }}>{p.badges[0]}</span>
+                  <span className="absolute top-2 left-2 text-xs uppercase tracking-[0.15em] px-1.5 py-0.5" style={{ background: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-primary-foreground))' }}>{p.badges[0]}</span>
                 ) : null}
               </div>
               <div className="p-3 flex-1 flex flex-col">

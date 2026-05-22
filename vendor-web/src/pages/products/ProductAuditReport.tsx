@@ -510,38 +510,38 @@ export default function ProductAuditReport() {
               <thead>
                 {/* Sortable headers */}
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('version')}>Version <SortIcon col="version" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('timestampRaw')}>Timestamp <SortIcon col="timestampRaw" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('changedBy')}>Changed By <SortIcon col="changedBy" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('action')}>Action <SortIcon col="action" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('field')}>Field <SortIcon col="field" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('oldValue')}>Old Value <SortIcon col="oldValue" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('newValue')}>New Value <SortIcon col="newValue" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('version')}>Version <SortIcon col="version" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('timestampRaw')}>Timestamp <SortIcon col="timestampRaw" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('changedBy')}>Changed By <SortIcon col="changedBy" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('action')}>Action <SortIcon col="action" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('field')}>Field <SortIcon col="field" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('oldValue')}>Old Value <SortIcon col="oldValue" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('newValue')}>New Value <SortIcon col="newValue" /></button></th>
                 </tr>
                 {/* Inline filter row */}
                 <tr className="border-b bg-gray-50/30">
                   <th className="px-4 py-1.5">
-                    <select value={filterVersion} onChange={e => setFilterVersion(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-[11px] text-gray-600 font-normal">
+                    <select value={filterVersion} onChange={e => setFilterVersion(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
                       <option value="">All</option>
                       {uniqueVersions.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </th>
                   <th className="px-4 py-1.5" />
                   <th className="px-4 py-1.5">
-                    <select value={filterUser} onChange={e => setFilterUser(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-[11px] text-gray-600 font-normal">
+                    <select value={filterUser} onChange={e => setFilterUser(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
                       <option value="">All</option>
                       {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </th>
                   <th className="px-4 py-1.5">
-                    <select value={filterAction} onChange={e => setFilterAction(e.target.value as any)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-[11px] text-gray-600 font-normal">
+                    <select value={filterAction} onChange={e => setFilterAction(e.target.value as any)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
                       <option value="">All</option>
                       <option value="Created">Created</option>
                       <option value="Updated">Updated</option>
                     </select>
                   </th>
                   <th className="px-4 py-1.5">
-                    <select value={filterField} onChange={e => setFilterField(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-[11px] text-gray-600 font-normal">
+                    <select value={filterField} onChange={e => setFilterField(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
                       <option value="">All</option>
                       {uniqueFields.map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
@@ -552,7 +552,7 @@ export default function ProductAuditReport() {
                       placeholder="Search..."
                       value={searchOld}
                       onChange={e => setSearchOld(e.target.value)}
-                      className="w-full h-7 rounded border border-gray-200 bg-white px-2 text-[11px] text-gray-600 font-normal placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full h-7 rounded border border-gray-200 bg-white px-2 text-xs text-gray-600 font-normal placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
                   </th>
                   <th className="px-4 py-1.5">
@@ -561,7 +561,7 @@ export default function ProductAuditReport() {
                       placeholder="Search..."
                       value={searchNew}
                       onChange={e => setSearchNew(e.target.value)}
-                      className="w-full h-7 rounded border border-gray-200 bg-white px-2 text-[11px] text-gray-600 font-normal placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full h-7 rounded border border-gray-200 bg-white px-2 text-xs text-gray-600 font-normal placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
                   </th>
                 </tr>

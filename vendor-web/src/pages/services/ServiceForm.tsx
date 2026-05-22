@@ -464,7 +464,7 @@ function Field({ label, error, children, className }: {
     <div className={`space-y-1.5 ${className || ''}`}>
       <Label className="text-xs font-medium text-gray-600">{label}</Label>
       {children}
-      {error && <p className="text-[11px] text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
 }
@@ -489,7 +489,7 @@ function DisplayField({ label, value }: { label: string; value?: React.ReactNode
   if (value === null || value === undefined || value === '') return null
   return (
     <div>
-      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
       <p className="text-sm text-gray-800">{value}</p>
     </div>
   )
@@ -591,7 +591,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
             {f.enabled ? (
               <select value={f.type}
                 onChange={e => onChange(fields.map(x => x.key === f.key ? { ...x, type: e.target.value as any } : x))}
-                className="h-7 rounded border border-gray-200 bg-gray-50 px-1.5 text-[11px] text-gray-500 shrink-0">
+                className="h-7 rounded border border-gray-200 bg-gray-50 px-1.5 text-xs text-gray-500 shrink-0">
                 {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
               </select>
             ) : (
@@ -618,7 +618,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
             {f.enabled && (
               <>
                 <button type="button" onClick={() => onChange(fields.map(x => x.key === f.key ? { ...x, required: !x.required } : x))}
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors shrink-0 ${
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full transition-colors shrink-0 ${
                     f.required ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'
                   }`}>
                   {f.required ? 'Required' : 'Optional'}
@@ -642,10 +642,10 @@ function QuoteFormConfigurator({ fields, onChange }: {
               />
               {f.type === 'select' && (
                 <div className="pl-1">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1">Dropdown Options</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Dropdown Options</p>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {(f.options || []).map((opt, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-[11px] pl-2 pr-1 py-0.5 rounded-full">
+                      <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs pl-2 pr-1 py-0.5 rounded-full">
                         {opt}
                         <button type="button" aria-label="Close" type="button" onClick={() => removeOption(f.key, i)} className="hover:text-red-500 transition-colors">
                 <X className="w-3 h-3" /></button>
@@ -665,7 +665,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
                     </div>
                   ) : (
                     <button type="button" onClick={() => setEditingOptions(f.key)}
-                      className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
                       <Plus className="w-3 h-3" /> Add option
                     </button>
                   )}
@@ -751,7 +751,7 @@ function AvailabilityEditor({ availability, onChange }: {
                 className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${isOn ? 'bg-primary' : 'bg-gray-200'}`}>
                 <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${isOn ? 'translate-x-4' : 'translate-x-0'}`} />
               </button>
-              <span className={`w-8 text-xs font-semibold ${isOn ? 'text-gray-700' : 'text-gray-300'}`}>{dayLabel}</span>
+              <span className={`w-8 text-xs font-medium ${isOn ? 'text-gray-700' : 'text-gray-300'}`}>{dayLabel}</span>
               {!isOn && <span className="text-xs text-gray-300">Closed</span>}
               {isOn && (
                 <div className="flex-1 space-y-1.5">
@@ -776,7 +776,7 @@ function AvailabilityEditor({ availability, onChange }: {
               )}
               {isOn && (
                 <button type="button" onClick={() => addSlot(day)}
-                  className="text-blue-600 hover:text-blue-700 text-[10px] font-medium flex items-center gap-0.5 shrink-0">
+                  className="text-blue-600 hover:text-blue-700 text-xs font-medium flex items-center gap-0.5 shrink-0">
                   <Plus className="w-3 h-3" /> Slot
                 </button>
               )}
@@ -1328,19 +1328,19 @@ export default function ServiceForm() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="text-center rounded-lg border p-3">
                 <p className="text-xl font-bold text-blue-700">{priceDisplay}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{uomLbl}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{uomLbl}</p>
               </div>
               <div className="text-center rounded-lg border p-3">
                 <p className="text-xl font-bold">{service.duration_minutes ?? '—'}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{uomLbl}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{uomLbl}</p>
               </div>
               <div className="text-center rounded-lg border p-3">
                 <p className="text-xl font-bold">{service.view_count ?? 0}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">Views</p>
+                <p className="text-xs text-gray-400 mt-0.5">Views</p>
               </div>
               <div className="text-center rounded-lg border p-3">
                 <p className="text-xl font-bold">{service.booking_count ?? 0}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">Bookings</p>
+                <p className="text-xs text-gray-400 mt-0.5">Bookings</p>
               </div>
             </div>
 
@@ -1362,7 +1362,7 @@ export default function ServiceForm() {
                       ) : mt === 'model3d' ? (
                         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
                           <Box className="w-8 h-8" />
-                          <span className="text-[9px] mt-0.5 font-medium">3D Model</span>
+                          <span className="text-xs mt-0.5 font-medium">3D Model</span>
                         </div>
                       ) : (
                         <img src={mediaUrl(img.url)} alt={img.alt_text || service.name} className="w-full h-full object-cover" />
@@ -1388,7 +1388,7 @@ export default function ServiceForm() {
             {service.description && <p className="text-sm text-gray-700 mt-1">{service.description}</p>}
             {(service.tags || []).length > 0 && (
               <div className="flex gap-1 flex-wrap mt-3">
-                {service.tags.map((t: string, i: number) => <span key={i} className="text-[10px] px-2 py-0.5 bg-gray-100 rounded-full text-gray-500"><Tag className="w-2.5 h-2.5 inline mr-0.5" />{t}</span>)}
+                {service.tags.map((t: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-gray-100 rounded-full text-gray-500"><Tag className="w-2.5 h-2.5 inline mr-0.5" />{t}</span>)}
               </div>
             )}
           </CardContent>
@@ -1398,7 +1398,7 @@ export default function ServiceForm() {
         {(service.price || service.price_min || service.discount_percentage || service.discount_amount) && (
           <Card>
             <CardContent className="p-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Star className="w-3.5 h-3.5" />Pricing</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Star className="w-3.5 h-3.5" />Pricing</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <DisplayField label="Price Type" value={service.price_type} />
                 <DisplayField label="Price" value={service.price ? `${sym}${service.price.toLocaleString()}` : undefined} />
@@ -1416,7 +1416,7 @@ export default function ServiceForm() {
         {/* Business Front Options */}
         <Card>
           <CardContent className="p-5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" />Business Front Options</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" />Business Front Options</p>
             <div className="divide-y rounded-lg border">
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2">
@@ -1448,11 +1448,11 @@ export default function ServiceForm() {
             </div>
             {service.allow_quote_request && Array.isArray(service.quote_form_config) && service.quote_form_config.length > 0 && (
               <div className="mt-3 space-y-1">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Quote Form Fields</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Quote Form Fields</p>
                 <div className="flex flex-wrap gap-1.5">
                   {service.quote_form_config.map((f: any, i: number) => (
                     f.enabled !== false && (
-                      <span key={i} className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${f.required ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                      <span key={i} className={`text-xs px-2 py-0.5 rounded-full border font-medium ${f.required ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
                         {(f.label || f.name || '').replace(/_/g, ' ')}{f.required ? '*' : ''}
                       </span>
                     )
@@ -1467,7 +1467,7 @@ export default function ServiceForm() {
         {(service as any).is_subscription && (service as any).plans?.length > 0 && (
           <Card>
             <CardContent className="p-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Repeat className="w-3.5 h-3.5" />Subscription Plans</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Repeat className="w-3.5 h-3.5" />Subscription Plans</p>
               <div className="space-y-4">
                 {(service as any).plans.filter((v: any) => v.is_active !== false).map((v: any) => {
                   const freq = v.service_frequency || 'once'
@@ -1482,10 +1482,10 @@ export default function ServiceForm() {
                     <div key={v.id} className="rounded-xl border-2 border-primary/20 bg-accent/60 p-4 space-y-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-bold text-gray-900">{v.name}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isRec ? 'bg-primary/10 text-primary' : 'bg-blue-100 text-blue-700'}`}>{isRec ? 'Recurring' : 'One-time'}</span>
-                        {isRec && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${vPriceType === 'per_cycle' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-600'}`}>{vPriceType === 'per_cycle' ? 'Per Cycle' : 'Per UOM'}</span>}
-                        {isRec && interval && <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{interval}</span>}
-                        {vModeLbl && <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{vModeLbl}</span>}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isRec ? 'bg-primary/10 text-primary' : 'bg-blue-100 text-blue-700'}`}>{isRec ? 'Recurring' : 'One-time'}</span>
+                        {isRec && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${vPriceType === 'per_cycle' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-600'}`}>{vPriceType === 'per_cycle' ? 'Per Cycle' : 'Per UOM'}</span>}
+                        {isRec && interval && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{interval}</span>}
+                        {vModeLbl && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{vModeLbl}</span>}
                       </div>
                       <div className="flex items-baseline gap-2">
                         {v.price != null && (
@@ -1502,7 +1502,7 @@ export default function ServiceForm() {
                       {v.subscription_schedule_modes?.length > 0 && (
                         <div className="flex gap-1 flex-wrap">
                           {v.subscription_schedule_modes.map((m: string) => (
-                            <span key={m} className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium capitalize">{m.replace('_', ' ')}</span>
+                            <span key={m} className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium capitalize">{m.replace('_', ' ')}</span>
                           ))}
                         </div>
                       )}
@@ -1549,7 +1549,7 @@ export default function ServiceForm() {
                             <div className="flex gap-2 flex-wrap text-xs">
                               <span className="font-medium text-cyan-600 flex items-center gap-1"><Calendar className="w-3 h-3" />Availability:</span>
                               {v.availability.filter((a: any) => a.is_available).map((a: any) => (
-                                <span key={a.day_of_week} className="bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded text-[10px]">
+                                <span key={a.day_of_week} className="bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded text-xs">
                                   {DAYS_SHORT[a.day_of_week]} {a.start_time}–{a.end_time}
                                 </span>
                               ))}
@@ -1580,23 +1580,23 @@ export default function ServiceForm() {
         {(service.whats_included?.length || service.whats_not_included?.length || service.service_areas?.length || service.prerequisites) && (
           <Card>
             <CardContent className="p-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" />Details</p>
-              {service.prerequisites && <div className="mb-3"><p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Prerequisites</p><p className="text-sm text-gray-700">{service.prerequisites}</p></div>}
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" />Details</p>
+              {service.prerequisites && <div className="mb-3"><p className="text-xs font-medium text-gray-400 uppercase mb-1">Prerequisites</p><p className="text-sm text-gray-700">{service.prerequisites}</p></div>}
               {service.whats_included?.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">What's Included</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">What's Included</p>
                   <div className="flex gap-1.5 flex-wrap">{service.whats_included.map((w: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded-full border border-green-200">{w}</span>)}</div>
                 </div>
               )}
               {service.whats_not_included?.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Not Included</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Not Included</p>
                   <div className="flex gap-1.5 flex-wrap">{service.whats_not_included.map((w: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full border border-red-100">{w}</span>)}</div>
                 </div>
               )}
               {service.service_areas?.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin className="w-2.5 h-2.5" />Service Areas</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin className="w-2.5 h-2.5" />Service Areas</p>
                   <div className="flex gap-1.5 flex-wrap">{service.service_areas.map((a: string, i: number) => <span key={i} className="text-xs px-2 py-0.5 bg-gray-100 rounded-full text-gray-600">{a}</span>)}</div>
                 </div>
               )}
@@ -1608,7 +1608,7 @@ export default function ServiceForm() {
         {(service.meta_title || service.meta_description || service.meta_keywords) && (
           <Card>
             <CardContent className="p-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Search className="w-3.5 h-3.5" />SEO & Metadata</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Search className="w-3.5 h-3.5" />SEO & Metadata</p>
               <div className="space-y-2">
                 <DisplayField label="Meta Title" value={service.meta_title} />
                 <DisplayField label="Meta Description" value={service.meta_description} />
@@ -1633,10 +1633,10 @@ export default function ServiceForm() {
         {((service as any).addons || (service as any).service_packages) && (
           <Card>
             <CardContent className="p-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" />Add-ons & Packages</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" />Add-ons & Packages</p>
               {(service as any).addons && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-medium text-gray-400 uppercase mb-1">Add-on Service IDs</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Add-on Service IDs</p>
                   <div className="flex flex-wrap gap-1.5">
                     {(typeof (service as any).addons === 'string'
                       ? (service as any).addons.split(',').map((a: string) => a.trim()).filter(Boolean)
@@ -1653,7 +1653,7 @@ export default function ServiceForm() {
                 if (!Array.isArray(pkgs) || pkgs.length === 0) return null
                 return (
                   <div>
-                    <p className="text-[10px] font-medium text-gray-400 uppercase mb-2">Service Packages</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase mb-2">Service Packages</p>
                     <div className="space-y-2">
                       {pkgs.map((pkg: any, i: number) => (
                         <div key={i} className="flex items-center justify-between rounded-lg border px-3 py-2 bg-gray-50/50">
@@ -1662,7 +1662,7 @@ export default function ServiceForm() {
                           {pkg.includes?.length > 0 && (
                             <div className="flex gap-1 flex-wrap ml-3">
                               {pkg.includes.map((inc: string, j: number) => (
-                                <span key={j} className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-700 rounded-full border border-green-100">{inc}</span>
+                                <span key={j} className="text-xs px-1.5 py-0.5 bg-green-50 text-green-700 rounded-full border border-green-100">{inc}</span>
                               ))}
                             </div>
                           )}
@@ -1679,7 +1679,7 @@ export default function ServiceForm() {
         {/* Visibility badges */}
         <Card>
           <CardContent className="p-5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" />Visibility & Marketing</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" />Visibility & Marketing</p>
             <div className="flex gap-2 flex-wrap">
               {service.is_featured  && <span className="text-xs px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-medium">⭐ Featured</span>}
               {service.is_popular   && <span className="text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium">🔥 Popular</span>}
@@ -1696,8 +1696,8 @@ export default function ServiceForm() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <History className="w-4 h-4 text-gray-400" />
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Change History</p>
-                <span className="text-[10px] bg-gray-100 rounded-full px-2 py-0.5 text-gray-500">v{service.version_number}</span>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Change History</p>
+                <span className="text-xs bg-gray-100 rounded-full px-2 py-0.5 text-gray-500">v{service.version_number}</span>
                 <span className="text-xs text-gray-400">{(service as any).change_history?.length || 0} entries</span>
               </div>
               <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/services/${service.id}/audit`)}>
@@ -1722,7 +1722,7 @@ export default function ServiceForm() {
                       {isCreation ? (
                         <span className="text-green-600 font-medium">Service created</span>
                       ) : changedFields.length > 0 ? changedFields.map((field, j) => (
-                        <div key={j} className="flex gap-2 text-[11px] text-gray-500 flex-wrap">
+                        <div key={j} className="flex gap-2 text-xs text-gray-500 flex-wrap">
                           <span className="font-medium text-gray-700 capitalize">{field.replace(/_/g, ' ')}:</span>
                           <span className="text-red-500 line-through truncate max-w-[120px]">{String(changes[field]?.old ?? '(empty)')}</span>
                           <span>→</span>
@@ -1804,11 +1804,11 @@ export default function ServiceForm() {
             <Upload className="w-8 h-8 mx-auto text-gray-400" />
             <p className="mt-2 text-sm text-gray-600">Click or drag files here</p>
             <div className="flex items-center justify-center gap-3 mt-2">
-              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><ImageIcon className="w-3 h-3" />Images</span>
-              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Film className="w-3 h-3" />Videos</span>
-              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Box className="w-3 h-3" />3D Models</span>
+              <span className="inline-flex items-center gap-1 text-xs text-gray-400"><ImageIcon className="w-3 h-3" />Images</span>
+              <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Film className="w-3 h-3" />Videos</span>
+              <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Box className="w-3 h-3" />3D Models</span>
             </div>
-            <p className="text-[10px] text-gray-300 mt-1">Images: 5 MB · Videos: 50 MB · 3D (GLB/GLTF): 30 MB</p>
+            <p className="text-xs text-gray-300 mt-1">Images: 5 MB · Videos: 50 MB · 3D (GLB/GLTF): 30 MB</p>
             <input ref={fileInputRef} type="file" multiple
               accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf"
               className="hidden"
@@ -1825,16 +1825,16 @@ export default function ServiceForm() {
                     ) : mt === 'model3d' ? (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
                         <Box className="w-10 h-10" />
-                        <span className="text-[10px] mt-1 font-medium">{file.name.split('.').pop()?.toUpperCase()}</span>
+                        <span className="text-xs mt-1 font-medium">{file.name.split('.').pop()?.toUpperCase()}</span>
                       </div>
                     ) : (
                       <img src={pendingPreviews[i]} alt="" className="w-full h-full object-cover" />
                     )}
-                    {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
-                    {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
+                    {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
+                    {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
                     <button type="button" aria-label="Close" type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <X className="w-3 h-3" /></button>
-                    {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
+                    {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
                   </div>
                 )
               })}
@@ -1975,7 +1975,7 @@ export default function ServiceForm() {
           onToggle={() => toggle('subscription')}
           badge={
             plans.length > 0
-              ? <span className="ml-2 text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">{plans.length} plan{plans.length !== 1 ? 's' : ''}</span>
+              ? <span className="ml-2 text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">{plans.length} plan{plans.length !== 1 ? 's' : ''}</span>
               : undefined
           }
         >
@@ -2063,7 +2063,7 @@ export default function ServiceForm() {
 
                               {/* Service Configuration */}
                               <div className="pt-2 border-t border-primary/20 space-y-2">
-                                <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider flex items-center gap-1">
+                                <p className="text-xs font-medium text-blue-600 uppercase tracking-wider flex items-center gap-1">
                                   <Settings className="w-3 h-3" />Service Configuration
                                 </p>
                                 {/* Frequency: Once / Recurring — drives billing visibility */}
@@ -2113,10 +2113,10 @@ export default function ServiceForm() {
                               {plan.service_frequency === 'recurring' && (
                                 <div className="pt-2 border-t border-primary/20 space-y-2">
                                   <div className="flex items-center justify-between">
-                                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1">
+                                    <p className="text-xs font-medium text-primary uppercase tracking-wider flex items-center gap-1">
                                       <Repeat className="w-3 h-3" />Recurrence & Billing
                                     </p>
-                                    <div className="inline-flex rounded border border-primary/30 overflow-hidden text-[11px]">
+                                    <div className="inline-flex rounded border border-primary/30 overflow-hidden text-xs">
                                       <button type="button"
                                         className={`px-2.5 py-1 font-medium ${plan.price_type === 'per_cycle' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
                                         onClick={() => setPlans(p => p.map((x, i) => i === idx ? { ...x, price_type: 'per_cycle' } : x))}
@@ -2153,7 +2153,7 @@ export default function ServiceForm() {
                                     </Field>
                                   </div>
                                   <div>
-                                    <p className="text-[10px] font-medium text-gray-500 mb-1.5">Customer scheduling options</p>
+                                    <p className="text-xs font-medium text-gray-500 mb-1.5">Customer scheduling options</p>
                                     <div className="flex flex-wrap gap-1.5">
                                       {SCHEDULE_MODE_OPTIONS.map(opt => {
                                         const active = plan.subscription_schedule_modes.includes(opt.value)
@@ -2166,7 +2166,7 @@ export default function ServiceForm() {
                                                 : [...x.subscription_schedule_modes, opt.value]
                                               return { ...x, subscription_schedule_modes: next.length ? next : x.subscription_schedule_modes }
                                             }))}
-                                            className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
+                                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                                               active
                                                 ? 'bg-primary text-white border-primary'
                                                 : 'bg-white text-gray-400 border-gray-200 hover:border-primary/40 hover:text-primary'
@@ -2182,7 +2182,7 @@ export default function ServiceForm() {
 
                               {/* ── Plan Settings ── */}
                               <div className="pt-3 border-t border-primary/20 space-y-2">
-                                <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Plan Settings</p>
+                                <p className="text-xs font-medium text-primary uppercase tracking-wider">Plan Settings</p>
 
                                 {/* 1. Pricing & Discounts */}
                                 {(() => {
@@ -2192,7 +2192,7 @@ export default function ServiceForm() {
                                     <div className={`rounded-lg border transition-colors ${plan.enable_pricing ? 'border-green-200 bg-green-50/30' : 'border-gray-100'}`}>
                                       <button type="button" className="w-full flex items-center justify-between px-3 py-2"
                                         onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
-                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                        <span className="flex items-center gap-2 text-xs font-medium text-gray-700">
                                           <IndianRupee className="w-3.5 h-3.5" />Pricing & Discounts
                                           <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                                         </span>
@@ -2266,12 +2266,12 @@ export default function ServiceForm() {
                                             {(autoDiscPct > 0 || profit != null) && (
                                               <div className="flex items-center gap-2 flex-wrap">
                                                 {autoDiscPct > 0 && (
-                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">
                                                     <Tag className="w-3 h-3" />{autoDiscPct.toFixed(1)}% OFF vs ₹{pCompare.toLocaleString()}
                                                   </span>
                                                 )}
                                                 {profit != null && (
-                                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${profit >= 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${profit >= 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                                                     <BarChart3 className="w-3 h-3" />
                                                     {profit >= 0 ? 'Profit' : 'Loss'}: ₹{Math.abs(profit).toLocaleString()} ({margin?.toFixed(1)}%)
                                                   </span>
@@ -2282,12 +2282,12 @@ export default function ServiceForm() {
                                             {(autoDiscPct > 0 || autoDiscAmt > 0) && (
                                               <div className="flex items-center gap-2 flex-wrap">
                                                 {autoDiscPct > 0 && (
-                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">
                                                     <Tag className="w-3 h-3" />{autoDiscPct.toFixed(1)}% OFF
                                                   </span>
                                                 )}
                                                 {autoDiscAmt > 0 && (
-                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">
                                                     ₹{autoDiscAmt.toLocaleString()} savings
                                                   </span>
                                                 )}
@@ -2311,7 +2311,7 @@ export default function ServiceForm() {
                                             </div>
                                             {/* Promotional period */}
                                             <div className="p-2.5 rounded-lg bg-orange-50/50 border border-orange-100 space-y-2">
-                                              <p className="text-[10px] font-semibold text-orange-600 flex items-center gap-1"><Calendar className="w-3 h-3" /> Promotional Period</p>
+                                              <p className="text-xs font-medium text-orange-600 flex items-center gap-1"><Calendar className="w-3 h-3" /> Promotional Period</p>
                                               <div className="grid grid-cols-2 gap-2">
                                                 <Field label="Promo Starts">
                                                   <Input type="date" value={plan.discount_start_date}
@@ -2323,7 +2323,7 @@ export default function ServiceForm() {
                                                 </Field>
                                               </div>
                                               {plan.discount_start_date && plan.discount_end_date && (
-                                                <p className="text-[11px] text-orange-700 font-medium flex items-center gap-1.5 bg-white border border-orange-200 rounded-lg px-2 py-1">
+                                                <p className="text-xs text-orange-700 font-medium flex items-center gap-1.5 bg-white border border-orange-200 rounded-lg px-2 py-1">
                                                   <Clock className="w-3 h-3 shrink-0" />
                                                   {autoDiscPct > 0 ? `${autoDiscPct.toFixed(1)}% OFF` : 'Offer'} valid: {new Date(plan.discount_start_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })} → {new Date(plan.discount_end_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}
                                                 </p>
@@ -2344,7 +2344,7 @@ export default function ServiceForm() {
                                     <div className={`rounded-lg border transition-colors ${plan.enable_tax ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100'}`}>
                                       <button type="button" className="w-full flex items-center justify-between px-3 py-2"
                                         onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
-                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                        <span className="flex items-center gap-2 text-xs font-medium text-gray-700">
                                           <Receipt className="w-3.5 h-3.5" />Tax & Compliance
                                           <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                                         </span>
@@ -2386,7 +2386,7 @@ export default function ServiceForm() {
                                     <div className={`rounded-lg border transition-colors ${plan.enable_booking ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100'}`}>
                                       <button type="button" className="w-full flex items-center justify-between px-3 py-2"
                                         onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
-                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                        <span className="flex items-center gap-2 text-xs font-medium text-gray-700">
                                           <CalendarClock className="w-3.5 h-3.5" />Booking & Scheduling
                                           <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                                         </span>
@@ -2455,7 +2455,7 @@ export default function ServiceForm() {
                                     <div className={`rounded-lg border transition-colors ${plan.enable_availability ? 'border-cyan-200 bg-cyan-50/30' : 'border-gray-100'}`}>
                                       <button type="button" className="w-full flex items-center justify-between px-3 py-2"
                                         onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
-                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                        <span className="flex items-center gap-2 text-xs font-medium text-gray-700">
                                           <Calendar className="w-3.5 h-3.5" />Weekly Availability
                                           <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                                         </span>
@@ -2484,7 +2484,7 @@ export default function ServiceForm() {
                                     <div className={`rounded-lg border transition-colors ${plan.enable_lifecycle ? 'border-rose-200 bg-rose-50/30' : 'border-gray-100'}`}>
                                       <button type="button" className="w-full flex items-center justify-between px-3 py-2"
                                         onClick={() => setExpandedPlanSections(p => ({ ...p, [secKey]: !isOpen }))}>
-                                        <span className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                        <span className="flex items-center gap-2 text-xs font-medium text-gray-700">
                                           <Clock className="w-3.5 h-3.5" />Service Lifecycle
                                           <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                                         </span>
@@ -2530,7 +2530,7 @@ export default function ServiceForm() {
         {/* 8. Visibility & Marketing */}
         <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')}>
           <div className="pt-4">
-            <p className="text-[10px] text-gray-400 bg-blue-50 rounded px-3 py-2 mb-3">Status and visibility are controlled from the top sticky bar.</p>
+            <p className="text-xs text-gray-400 bg-blue-50 rounded px-3 py-2 mb-3">Status and visibility are controlled from the top sticky bar.</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
               <Controller name="is_featured" control={control} render={({ field }) => (
                 <Toggle label="⭐ Featured Service" checked={field.value} onChange={field.onChange} small />
@@ -2621,7 +2621,7 @@ export default function ServiceForm() {
                         setSvcAddonSearch('')
                         setSvcAddonResults([])
                       }}>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${r.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-bold uppercase ${r.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {r.item_type === 'service' ? 'SVC' : 'PRD'}
                       </span>
                       <span className="font-medium text-gray-800">{r.name}</span>
@@ -2642,7 +2642,7 @@ export default function ServiceForm() {
                 {serviceAddons.map((addon, ai) => (
                   <div key={addon.id} className="border border-gray-200 rounded-xl p-3 space-y-3 bg-gray-50/50">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {addon.item_type === 'service' ? 'Service' : 'Product'}
                       </span>
                       <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{addon.name}</span>
@@ -2658,7 +2658,7 @@ export default function ServiceForm() {
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Type</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Type</label>
                         <select value={addon.addon_type}
                           onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, addon_type: e.target.value } : a))}
                           className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
@@ -2672,7 +2672,7 @@ export default function ServiceForm() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Book When</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Book When</label>
                         <select value={addon.booking_trigger}
                           onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, booking_trigger: e.target.value } : a))}
                           className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
@@ -2683,7 +2683,7 @@ export default function ServiceForm() {
                       </div>
                       {addon.booking_trigger === 'on_status' && (
                         <div>
-                          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Trigger Status</label>
+                          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Trigger Status</label>
                           <select value={addon.trigger_status || 'delivered'}
                             onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, trigger_status: e.target.value } : a))}
                             className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
@@ -2709,7 +2709,7 @@ export default function ServiceForm() {
                       )}
                     </div>
 
-                    <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-medium flex items-center gap-1.5 ${
+                    <div className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 ${
                       addon.booking_trigger === 'at_sale' ? 'bg-green-50 text-green-700 border border-green-200' :
                       addon.booking_trigger === 'after_delivery' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                       'bg-amber-50 text-amber-700 border border-amber-200'
@@ -2736,14 +2736,14 @@ export default function ServiceForm() {
           {/* Selected chips */}
           <div className="flex flex-wrap gap-2 mb-3">
             {printDocIds.length === 0 && (
-              <span className="text-[11px] text-gray-400 italic">No document templates selected yet.</span>
+              <span className="text-xs text-gray-400 italic">No document templates selected yet.</span>
             )}
             {printDocIds.map(docId => {
               const doc = BOOKING_DOC_TYPES.find(d => d.id === docId)
               if (!doc) return null
               return (
                 <span key={docId}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${doc.bg} ${doc.border} ${doc.color}`}>
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${doc.bg} ${doc.border} ${doc.color}`}>
                   {doc.label}
                   <button type="button" aria-label="Close" type="button" onClick={() => removePrintDoc(docId as BookingDocTypeId)}
                     className="hover:opacity-70 transition-opacity" title="Remove">
@@ -2764,7 +2764,7 @@ export default function ServiceForm() {
             ) : (
               <div className="rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
-                  <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wide">Select a template</p>
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Select a template</p>
                   <button type="button" aria-label="Close" type="button" onClick={() => setShowDocPicker(false)}
                     className="p-0.5 rounded hover:bg-gray-200 transition-colors">
                 <X className="w-3.5 h-3.5 text-gray-400" />
@@ -2779,8 +2779,8 @@ export default function ServiceForm() {
                         <Printer className={`w-3.5 h-3.5 ${doc.color}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold ${doc.color}`}>{doc.label}</p>
-                        <p className="text-[10px] text-gray-400">{doc.desc}</p>
+                        <p className={`text-xs font-medium ${doc.color}`}>{doc.label}</p>
+                        <p className="text-xs text-gray-400">{doc.desc}</p>
                       </div>
                       <Plus className="w-3.5 h-3.5 text-gray-300 group-hover:text-primary/80 transition-colors shrink-0" />
                     </button>

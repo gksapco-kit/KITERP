@@ -128,7 +128,7 @@ export default function FieldRuleConfig() {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-gray-50 text-[10px] font-bold text-gray-500 uppercase border-b">
+        <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-gray-50 text-xs font-bold text-gray-500 uppercase border-b">
           <span className="col-span-2">Scope</span>
           <span className="col-span-3">Target</span>
           <span className="col-span-3">Field</span>

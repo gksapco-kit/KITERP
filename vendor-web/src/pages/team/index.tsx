@@ -566,7 +566,7 @@ export default function TeamPage() {
                 />
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Access window</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Access window</p>
                 <AccessWindowFields
                   accessStartsAt={inviteForm.access_starts_at}
                   accessEndsAt={inviteForm.access_ends_at}
@@ -861,7 +861,7 @@ function MemberDetailDrawer({
 
           {/* Contact */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contact</p>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Contact</p>
             <div className="space-y-2 bg-white border border-gray-100 rounded-xl divide-y divide-gray-50">
               <div className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -897,7 +897,7 @@ function MemberDetailDrawer({
           {/* Store Assignment */}
           {stores.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Store Assignment</p>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Store Assignment</p>
               <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-xl">
                 <Store className="w-4 h-4 text-gray-400 shrink-0" />
                 <select
@@ -917,7 +917,7 @@ function MemberDetailDrawer({
           {/* Role & Access */}
           {canEdit ? (
             <div className="space-y-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Role & Access</p>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Role & Access</p>
               <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
@@ -959,7 +959,7 @@ function MemberDetailDrawer({
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Role & Access</p>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Role & Access</p>
               <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="text-sm text-gray-700">
                   <span className="font-medium">Role:</span> {member.role_name}
@@ -981,7 +981,7 @@ function MemberDetailDrawer({
           {/* HR Profile Link */}
           {employeeId && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">HR Profile</p>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">HR Profile</p>
               <Link
                 to={`/hr/employees/${employeeId}`}
                 onClick={onClose}
@@ -999,7 +999,7 @@ function MemberDetailDrawer({
           {/* Verification */}
           {needsVerification && canManage && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Verification</p>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Verification</p>
               <button
                 type="button"
                 onClick={() => { onSendOtp(); onClose() }}

@@ -11,7 +11,7 @@ function safeSectionColor(v: unknown): string | undefined {
 }
 
 function verdeKickerSizeClass(v: string): string {
-  if (v === 'xs') return 'text-[11px]'
+  if (v === 'xs') return 'text-xs'
   if (v === 'sm') return 'text-sm'
   if (v === 'base') return 'text-base'
   if (v === 'lg') return 'text-lg'
@@ -43,17 +43,17 @@ function verdeListHeadingSizeClass(v: string): string {
 
 /** Room cards stay 3-up on narrow screens — keep type small so whole words fit per column. */
 function verdeRoomTitleSizeClass(v: string): string {
-  if (v === 'sm') return 'text-[10px] sm:text-xs md:text-sm leading-snug'
-  if (v === 'base') return 'text-[11px] sm:text-sm md:text-base leading-snug'
+  if (v === 'sm') return 'text-xs sm:text-xs md:text-sm leading-snug'
+  if (v === 'base') return 'text-xs sm:text-sm md:text-base leading-snug'
   if (v === 'lg') return 'text-xs sm:text-base md:text-lg leading-snug'
   if (v === 'xl') return 'text-sm sm:text-lg md:text-xl leading-snug'
-  return 'text-[11px] sm:text-sm md:text-base leading-snug'
+  return 'text-xs sm:text-sm md:text-base leading-snug'
 }
 
 function verdeRoomBodySizeClass(v: string): string {
-  if (v === 'xs') return 'text-[9px] sm:text-[10px] md:text-xs'
-  if (v === 'base') return 'text-[10px] sm:text-xs md:text-sm'
-  return 'text-[9px] sm:text-[10px] md:text-xs'
+  if (v === 'xs') return 'text-xs sm:text-xs md:text-xs'
+  if (v === 'base') return 'text-xs sm:text-xs md:text-sm'
+  return 'text-xs sm:text-xs md:text-xs'
 }
 
 export function RestaurantMenuSection({

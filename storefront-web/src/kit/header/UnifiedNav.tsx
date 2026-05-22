@@ -195,7 +195,7 @@ export function UnifiedNav({
               <Link to={cartHref}>
                 <ShoppingCart />
                 {cartCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full text-[10px]">
+                  <Badge className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full text-xs">
                     {cartCount}
                   </Badge>
                 )}

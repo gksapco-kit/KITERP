@@ -272,7 +272,7 @@ export function BarcodeScannerModal({ open, onClose, onScan, title = 'Scan Barco
           {/* Engine badge */}
           {engine && status === 'scanning' && (
             <div className="flex justify-center">
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                 engine === 'native'
                   ? 'bg-green-50 text-green-700 border border-green-200'
                   : 'bg-blue-50 text-blue-700 border border-blue-200'

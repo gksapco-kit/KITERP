@@ -165,7 +165,7 @@ function StatusBadge({ status }: { status: POStatus }) {
   const cfg = STATUS_CONFIG[status]
   const Icon = cfg.icon
   return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
       <Icon className="w-3 h-3" /> {cfg.label}
     </span>
   )
@@ -173,8 +173,8 @@ function StatusBadge({ status }: { status: POStatus }) {
 
 function TypeBadge({ type }: { type: POType }) {
   return type === 'mto'
-    ? <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800"><ShoppingCart className="w-3 h-3" /> MTO</span>
-    : <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800"><Package className="w-3 h-3" /> MTS</span>
+    ? <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800"><ShoppingCart className="w-3 h-3" /> MTO</span>
+    : <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800"><Package className="w-3 h-3" /> MTS</span>
 }
 
 function PriorityDot({ priority }: { priority: Priority }) {
@@ -193,7 +193,7 @@ function ProgressBar({ value, status }: { value: number; status: POStatus }) {
       <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${value}%` }} />
       </div>
-      <span className="text-[11px] font-semibold text-muted-foreground w-7 text-right">{value}%</span>
+      <span className="text-xs font-medium text-muted-foreground w-7 text-right">{value}%</span>
     </div>
   )
 }
@@ -739,7 +739,7 @@ export default function ProductionOrdersPage() {
               className={`${s.bg} rounded-2xl p-3 text-left hover:opacity-80 transition-opacity`}>
               <s.icon className={`w-4 h-4 ${s.color} mb-1.5`} />
               <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{s.label}</p>
+              <p className="text-xs text-muted-foreground leading-tight mt-0.5">{s.label}</p>
             </button>
           ))}
         </div>
@@ -776,14 +776,14 @@ export default function ProductionOrdersPage() {
           <div className="flex items-center bg-muted rounded-xl p-1 gap-0.5">
             {(['all', 'mto', 'mts'] as const).map(t => (
               <button key={t} onClick={() => setTypeFilter(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${typeFilter === t ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${typeFilter === t ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                 {t === 'all' ? 'All Types' : t === 'mto' ? '🛒 MTO' : '📦 MTS'}
               </button>
             ))}
           </div>
 
           <button onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-card transition-colors ${showFilters ? 'border-primary/60 text-primary' : 'border-border hover:bg-accent'}`}>
+            className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-3 py-1.5 bg-card transition-colors ${showFilters ? 'border-primary/60 text-primary' : 'border-border hover:bg-accent'}`}>
             <Filter className="w-3.5 h-3.5" /> More Filters
           </button>
 
@@ -798,7 +798,7 @@ export default function ProductionOrdersPage() {
         {showFilters && (
           <div className="flex flex-wrap gap-3 bg-card border border-border rounded-2xl p-4">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Status</p>
+              <p className="text-xs font-bold text-gray-400 uppercase mb-1.5">Status</p>
               <div className="flex flex-wrap gap-1">
                 {(['all', ...Object.keys(STATUS_CONFIG)] as const).map(s => (
                   <button key={s} onClick={() => setStatusFilter(s as 'all' | POStatus)}
@@ -809,7 +809,7 @@ export default function ProductionOrdersPage() {
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Priority</p>
+              <p className="text-xs font-bold text-gray-400 uppercase mb-1.5">Priority</p>
               <div className="flex flex-wrap gap-1">
                 {(['all', 'low', 'medium', 'high', 'urgent'] as const).map(p => (
                   <button key={p} onClick={() => setPriorityFilter(p)}
@@ -882,7 +882,7 @@ export default function ProductionOrdersPage() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => setMrpOrder(order)} title="Material Requirement Plan"
-                      className="p-1.5 hover:bg-indigo-100 rounded-lg text-indigo-600 transition-colors flex items-center gap-1 text-xs font-semibold px-2">
+                      className="p-1.5 hover:bg-indigo-100 rounded-lg text-indigo-600 transition-colors flex items-center gap-1 text-xs font-medium px-2">
                       <BarChart3 className="w-3.5 h-3.5" /> MRP
                     </button>
                     <button onClick={() => exportXLS(order)} title="Export Excel"
@@ -911,9 +911,9 @@ export default function ProductionOrdersPage() {
                               active ? 'border-primary bg-primary text-white' :
                               'border-border bg-card text-muted-foreground'
                             }`}>
-                              {done ? <CheckCircle className="w-3.5 h-3.5" /> : <span className="text-[10px] font-bold">{i + 1}</span>}
+                              {done ? <CheckCircle className="w-3.5 h-3.5" /> : <span className="text-xs font-bold">{i + 1}</span>}
                             </div>
-                            <p className={`text-[10px] font-semibold mt-1 ${active ? 'text-primary' : done ? 'text-green-700' : 'text-gray-400'}`}>{step.label}</p>
+                            <p className={`text-xs font-medium mt-1 ${active ? 'text-primary' : done ? 'text-green-700' : 'text-gray-400'}`}>{step.label}</p>
                           </div>
                           {i < WORKFLOW_STEPS.length - 1 && (
                             <div className={`w-8 sm:w-12 h-0.5 mb-4 ${done ? 'bg-green-400' : 'bg-gray-200'}`} />
@@ -928,7 +928,7 @@ export default function ProductionOrdersPage() {
                 <div className="flex border-b bg-gray-50/60">
                   {(['details', 'items', 'stock', 'history'] as const).map(tab => (
                     <button key={tab} onClick={() => setDetailTab(tab)}
-                      className={`flex-1 text-xs font-semibold py-2.5 capitalize transition-all border-b-2 ${detailTab === tab ? 'border-primary text-primary bg-card' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                      className={`flex-1 text-xs font-medium py-2.5 capitalize transition-all border-b-2 ${detailTab === tab ? 'border-primary text-primary bg-card' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                       {tab === 'stock' ? 'Stock Dispatch' : tab === 'history' ? 'Attachments' : tab}
                     </button>
                   ))}
@@ -943,7 +943,7 @@ export default function ProductionOrdersPage() {
                       <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold text-gray-600">Production Progress</span>
+                            <span className="text-xs font-medium text-gray-600">Production Progress</span>
                             <span className="text-xs font-bold text-primary">{order.progress}%</span>
                           </div>
                           <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
@@ -958,7 +958,7 @@ export default function ProductionOrdersPage() {
                             </button>
                           )}
                           <button onClick={() => { setEditStatus(order.status); setEditProgress(order.progress) }}
-                            className="flex items-center gap-1.5 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+                            className="flex items-center gap-1.5 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                             <Edit2 className="w-3 h-3" /> Edit Status / Progress
                           </button>
                         </div>
@@ -992,7 +992,7 @@ export default function ProductionOrdersPage() {
                             <div>
                               <p className="text-indigo-500 mb-0.5">Customer</p>
                               <p className="font-semibold">{order.customer_name || '—'}</p>
-                              {order.customer_id && <p className="font-mono text-[10px] text-indigo-400 mt-0.5">{order.customer_id}</p>}
+                              {order.customer_id && <p className="font-mono text-xs text-indigo-400 mt-0.5">{order.customer_id}</p>}
                             </div>
                             <div>
                               <p className="text-indigo-500 mb-0.5">Phone / Email</p>
@@ -1039,7 +1039,7 @@ export default function ProductionOrdersPage() {
                             <div className="flex gap-1 mb-1">
                               {(['team', 'supplier'] as const).map(tab => (
                                 <button key={tab} onClick={() => setDetailAssigneeTab(tab)}
-                                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${detailAssigneeTab === tab ? 'bg-primary text-white' : 'bg-card text-muted-foreground border border-border hover:bg-accent'}`}>
+                                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${detailAssigneeTab === tab ? 'bg-primary text-white' : 'bg-card text-muted-foreground border border-border hover:bg-accent'}`}>
                                   {tab === 'team' ? '👤 Team' : '🚚 Supplier'}
                                 </button>
                               ))}
@@ -1069,7 +1069,7 @@ export default function ProductionOrdersPage() {
                                       </div>
                                       <div>
                                         <p className="font-medium">{detailAssigneeTab === 'team' ? m.full_name : m.company_name}</p>
-                                        <p className="text-[10px] text-gray-400">{m.role || m.email}</p>
+                                        <p className="text-xs text-gray-400">{m.role || m.email}</p>
                                       </div>
                                     </button>
                                   ))}
@@ -1082,9 +1082,9 @@ export default function ProductionOrdersPage() {
                             {detailEditAssignees.length > 0 && (
                               <div className="flex flex-wrap gap-2 pt-1">
                                 {detailEditAssignees.map(a => (
-                                  <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
+                                  <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
                                     {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
-                                    {a.name} <span className="opacity-60 text-[10px]">({a.role})</span>
+                                    {a.name} <span className="opacity-60 text-xs">({a.role})</span>
                                     <button type="button" aria-label="Close" onClick={() => removeDetailAssignee(a.id)} className="ml-0.5 opacity-60 hover:opacity-100">
                 <X className="w-3 h-3" />
                                     </button>
@@ -1110,7 +1110,7 @@ export default function ProductionOrdersPage() {
                         ) : (
                           <div className="flex flex-wrap gap-2">
                             {order.assignees && order.assignees.length > 0 ? order.assignees.map(a => (
-                              <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
+                              <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
                                 {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
                                 {a.name} <span className="opacity-60">({a.role})</span>
                               </div>
@@ -1170,7 +1170,7 @@ export default function ProductionOrdersPage() {
                     <div className="space-y-3">
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         <ResizableTable tableId="production-bom" defaultWidths={[40, 200, 120, 80, 90, 90, 80]}>
-                          <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-muted-foreground uppercase">
+                          <thead className="bg-gray-50 border-b"><tr className="text-xs font-medium text-muted-foreground uppercase">
                             <th className="py-2 px-3 text-center w-8">#</th>
                             <th className="py-2 px-3 text-left">Item</th>
                             <th className="py-2 px-3 text-left hidden sm:table-cell">Variant / SKU</th>
@@ -1183,7 +1183,7 @@ export default function ProductionOrdersPage() {
                             {order.items.map((item, idx) => (
                               <tr key={`${item.product_id}__${item.variant_id ?? idx}`} className="hover:bg-gray-50">
                                 <td className="py-2.5 px-3 text-center">
-                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-[10px] font-bold text-muted-foreground">{idx + 1}</span>
+                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-xs font-bold text-muted-foreground">{idx + 1}</span>
                                 </td>
                                 <td className="py-2.5 px-3 font-medium text-sm">{item.name}</td>
                                 <td className="py-2.5 px-3 hidden sm:table-cell">
@@ -1195,7 +1195,7 @@ export default function ProductionOrdersPage() {
                                   }
                                 </td>
                                 <td className="py-2.5 px-3 hidden sm:table-cell">
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-700'}`}>
+                                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-accent text-primary' : 'bg-blue-50 text-blue-700'}`}>
                                     {item.item_type === 'service' ? '⚙️ Service' : '📦 Product'}
                                   </span>
                                 </td>
@@ -1271,10 +1271,10 @@ export default function ProductionOrdersPage() {
                           </button>
                         </div>
                         {order.type === 'mts' && (
-                          <p className="text-[11px] text-green-700">Dispatching will update inventory stock levels for MTS orders.</p>
+                          <p className="text-xs text-green-700">Dispatching will update inventory stock levels for MTS orders.</p>
                         )}
                         {order.type === 'mto' && (
-                          <p className="text-[11px] text-indigo-700">Dispatching records delivery to customer for MTO orders.</p>
+                          <p className="text-xs text-indigo-700">Dispatching records delivery to customer for MTO orders.</p>
                         )}
                       </div>
                     </div>
@@ -1284,9 +1284,9 @@ export default function ProductionOrdersPage() {
                   {detailTab === 'history' && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-gray-600">Attachments ({order.attachments.length})</p>
+                        <p className="text-xs font-medium text-gray-600">Attachments ({order.attachments.length})</p>
                         <button onClick={() => fileInputRef.current?.click()}
-                          className="flex items-center gap-1 text-xs font-semibold text-primary bg-accent hover:bg-primary/12 px-3 py-1.5 rounded-lg transition-colors">
+                          className="flex items-center gap-1 text-xs font-medium text-primary bg-accent hover:bg-primary/12 px-3 py-1.5 rounded-lg transition-colors">
                           <Paperclip className="w-3.5 h-3.5" /> Attach File
                         </button>
                         <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" className="hidden"
@@ -1329,8 +1329,8 @@ export default function ProductionOrdersPage() {
                                 ? <img src={a.dataUrl} alt={a.name} className="w-10 h-10 object-cover rounded-lg shrink-0" />
                                 : <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0"><FileText className="w-5 h-5 text-blue-600" /></div>}
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-800 truncate">{a.name}</p>
-                                <p className="text-[10px] text-gray-400">{(a.size / 1024).toFixed(1)} KB</p>
+                                <p className="text-xs font-medium text-gray-800 truncate">{a.name}</p>
+                                <p className="text-xs text-gray-400">{(a.size / 1024).toFixed(1)} KB</p>
                               </div>
                               <a href={a.dataUrl} download={a.name} className="p-1 hover:bg-gray-200 rounded-lg text-muted-foreground shrink-0">
                                 <Download className="w-3.5 h-3.5" />
@@ -1342,30 +1342,30 @@ export default function ProductionOrdersPage() {
                       <div className="border-t pt-3 space-y-4">
                         {/* Key dates summary */}
                         <div>
-                          <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                          <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-gray-400" /> Key Dates
                           </p>
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div className="bg-gray-50 rounded-lg p-2.5">
-                              <p className="text-gray-400 text-[10px] font-semibold uppercase mb-0.5">Created</p>
+                              <p className="text-gray-400 text-xs font-medium uppercase mb-0.5">Created</p>
                               <p className="font-mono text-gray-700">{new Date(order.created_at).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
                             </div>
                             <div className="bg-gray-50 rounded-lg p-2.5">
-                              <p className="text-gray-400 text-[10px] font-semibold uppercase mb-0.5">Last Updated</p>
+                              <p className="text-gray-400 text-xs font-medium uppercase mb-0.5">Last Updated</p>
                               <p className="font-mono text-gray-700">{new Date(order.updated_at).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
                             </div>
                             <div className="bg-gray-50 rounded-lg p-2.5">
-                              <p className="text-gray-400 text-[10px] font-semibold uppercase mb-0.5">Target Date</p>
+                              <p className="text-gray-400 text-xs font-medium uppercase mb-0.5">Target Date</p>
                               <p className="font-mono text-gray-700">{order.target_date || '—'}</p>
                             </div>
                             {order.type === 'mto' && order.delivery_deadline && (
                               <div className="bg-red-50 rounded-lg p-2.5">
-                                <p className="text-red-400 text-[10px] font-semibold uppercase mb-0.5">Delivery Deadline</p>
+                                <p className="text-red-400 text-xs font-medium uppercase mb-0.5">Delivery Deadline</p>
                                 <p className="font-mono text-red-700 font-semibold">{order.delivery_deadline}</p>
                               </div>
                             )}
                             <div className="bg-green-50 rounded-lg p-2.5 col-span-2">
-                              <p className="text-green-600 text-[10px] font-semibold uppercase mb-0.5">Stock Dispatches</p>
+                              <p className="text-green-600 text-xs font-medium uppercase mb-0.5">Stock Dispatches</p>
                               <p className="font-semibold text-green-700">{order.stock_dispatches.length} dispatch{order.stock_dispatches.length !== 1 ? 'es' : ''} · {order.stock_dispatches.reduce((s, d) => s + d.qty, 0)} units total</p>
                             </div>
                           </div>
@@ -1373,9 +1373,9 @@ export default function ProductionOrdersPage() {
 
                         {/* Audit log timeline */}
                         <div>
-                          <p className="text-xs font-semibold text-gray-600 mb-3 flex items-center gap-1.5">
+                          <p className="text-xs font-medium text-gray-600 mb-3 flex items-center gap-1.5">
                             <ClipboardList className="w-3.5 h-3.5 text-gray-400" /> Activity Log
-                            <span className="ml-auto text-[10px] font-normal text-gray-400">{(order.audit_log || []).length} event{(order.audit_log || []).length !== 1 ? 's' : ''}</span>
+                            <span className="ml-auto text-xs font-normal text-gray-400">{(order.audit_log || []).length} event{(order.audit_log || []).length !== 1 ? 's' : ''}</span>
                           </p>
                           {(order.audit_log || []).length === 0 ? (
                             <p className="text-xs text-gray-400 italic text-center py-4 bg-gray-50 rounded-xl">No activity recorded yet.</p>
@@ -1405,17 +1405,17 @@ export default function ProductionOrdersPage() {
                                       <div className={`absolute left-2 top-1.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${c.dot} ${isFirst ? 'ring-2 ring-offset-1 ring-primary/30' : ''}`} />
                                       <div className={`flex-1 min-w-0 rounded-xl px-3 py-2.5 ${isFirst ? 'bg-accent border border-primary/20' : 'bg-gray-50'}`}>
                                         <div className="flex items-start justify-between gap-2">
-                                          <p className={`text-xs font-semibold leading-tight ${isFirst ? c.text : 'text-gray-700'}`}>
+                                          <p className={`text-xs font-medium leading-tight ${isFirst ? c.text : 'text-gray-700'}`}>
                                             <span className="mr-1">{c.icon}</span>
                                             {ev.detail}
                                           </p>
                                         </div>
                                         <div className="flex items-center gap-2 mt-1">
-                                          <span className="text-[10px] text-gray-400 font-mono">
+                                          <span className="text-xs text-gray-400 font-mono">
                                             {new Date(ev.timestamp).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
                                           </span>
                                           {ev.actor && (
-                                            <span className="text-[10px] text-gray-400">· {ev.actor}</span>
+                                            <span className="text-xs text-gray-400">· {ev.actor}</span>
                                           )}
                                         </div>
                                       </div>
@@ -1461,7 +1461,7 @@ export default function ProductionOrdersPage() {
                       </div>
                       <div className="mt-auto flex flex-wrap gap-1">
                         {['Customer-specific', 'Direct dispatch', 'Order linked'].map(t => (
-                          <span key={t} className="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full font-semibold">{t}</span>
+                          <span key={t} className="text-xs bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full font-semibold">{t}</span>
                         ))}
                       </div>
                     </button>
@@ -1474,7 +1474,7 @@ export default function ProductionOrdersPage() {
                       </div>
                       <div className="mt-auto flex flex-wrap gap-1">
                         {['Stock replenishment', 'Adds to inventory', 'Demand-driven'].map(t => (
-                          <span key={t} className="text-[10px] bg-teal-200 text-teal-800 px-2 py-0.5 rounded-full font-semibold">{t}</span>
+                          <span key={t} className="text-xs bg-teal-200 text-teal-800 px-2 py-0.5 rounded-full font-semibold">{t}</span>
                         ))}
                       </div>
                     </button>
@@ -1503,13 +1503,13 @@ export default function ProductionOrdersPage() {
 
                   {/* Template */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-2">Production Template</p>
+                    <p className="text-xs font-medium text-gray-600 mb-2">Production Template</p>
                     <div className="grid grid-cols-3 gap-2">
                       {TEMPLATES.map(t => (
                         <button key={t.id} onClick={() => setFormTemplate(t.id)}
                           className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${formTemplate === t.id ? 'border-primary/60 bg-accent' : 'border-gray-200 hover:border-primary/30'}`}>
                           <span className="text-base">{t.emoji}</span>
-                          <div><p className={`text-xs font-semibold leading-tight ${formTemplate === t.id ? 'text-primary' : 'text-gray-700'}`}>{t.label}</p></div>
+                          <div><p className={`text-xs font-medium leading-tight ${formTemplate === t.id ? 'text-primary' : 'text-gray-700'}`}>{t.label}</p></div>
                         </button>
                       ))}
                     </div>
@@ -1518,12 +1518,12 @@ export default function ProductionOrdersPage() {
                   {/* Core fields */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">Work Order Ref</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Work Order Ref</label>
                       <input value={formRef} onChange={e => setFormRef(e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">Priority</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Priority</label>
                       <select value={formPriority} onChange={e => setFormPriority(e.target.value as Priority)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                         <option value="low">🟢 Low</option><option value="medium">🔵 Medium</option>
@@ -1531,12 +1531,12 @@ export default function ProductionOrdersPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">Production Team</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Production Team</label>
                       <input value={formTeam} onChange={e => setFormTeam(e.target.value)} placeholder="e.g. Assembly Line A"
                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">Target Completion</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Target Completion</label>
                       <input type="date" value={formTargetDate} onChange={e => setFormTargetDate(e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
@@ -1549,7 +1549,7 @@ export default function ProductionOrdersPage() {
 
                       {/* Customer search */}
                       <div className="relative">
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Search Customer</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Search Customer</label>
                         <div className="flex items-center border border-border rounded-xl overflow-hidden bg-card focus-within:ring-2 focus-within:ring-indigo-400">
                           <Search className="w-3.5 h-3.5 text-gray-400 ml-3 shrink-0" />
                           <input
@@ -1578,14 +1578,14 @@ export default function ProductionOrdersPage() {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-semibold text-gray-800">{c.full_name}</p>
                                   <p className="text-xs text-gray-400 truncate">{c.phone || ''}{c.phone && c.email ? ' · ' : ''}{c.email || ''}</p>
-                                  <p className="text-[10px] font-mono text-gray-300">{c.id}</p>
+                                  <p className="text-xs font-mono text-gray-300">{c.id}</p>
                                 </div>
                               </button>
                             )) : (
                               <div className="px-3 py-3 text-xs text-muted-foreground text-center">No customers found</div>
                             )}
                             <button onClick={() => { setCustomerDropOpen(false); setShowNewCustomer(true) }}
-                              className="w-full text-left px-3 py-2.5 bg-indigo-50 text-indigo-700 text-xs font-semibold flex items-center gap-2 hover:bg-indigo-100 transition-colors border-t">
+                              className="w-full text-left px-3 py-2.5 bg-indigo-50 text-indigo-700 text-xs font-medium flex items-center gap-2 hover:bg-indigo-100 transition-colors border-t">
                               <Plus className="w-3.5 h-3.5" /> Create new customer
                             </button>
                           </div>
@@ -1620,7 +1620,7 @@ export default function ProductionOrdersPage() {
                             <input value={newCustEmail} onChange={e => setNewCustEmail(e.target.value)} placeholder="Email (or phone)"
                               className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
                           </div>
-                          <p className="text-[10px] text-gray-400">At least phone or email is required to create a customer.</p>
+                          <p className="text-xs text-gray-400">At least phone or email is required to create a customer.</p>
                           <div className="flex items-center justify-between gap-2">
                             <button
                               onClick={() => navigate('/master-data/new?returnTo=/production')}
@@ -1641,14 +1641,14 @@ export default function ProductionOrdersPage() {
 
                       {/* Order details */}
                       <div className="grid grid-cols-2 gap-3">
-                        <div><label className="block text-xs font-semibold text-gray-600 mb-1">Sales Order Ref</label>
+                        <div><label className="block text-xs font-medium text-gray-600 mb-1">Sales Order Ref</label>
                           <input value={formOrderRef} onChange={e => setFormOrderRef(e.target.value)} placeholder="e.g. SO-12345"
                             className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
-                        <div><label className="block text-xs font-semibold text-gray-600 mb-1">Delivery Deadline</label>
+                        <div><label className="block text-xs font-medium text-gray-600 mb-1">Delivery Deadline</label>
                           <input type="date" value={formDeadline} onChange={e => setFormDeadline(e.target.value)}
                             className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
                       </div>
-                      <div><label className="block text-xs font-semibold text-gray-600 mb-1">Special Requirements</label>
+                      <div><label className="block text-xs font-medium text-gray-600 mb-1">Special Requirements</label>
                         <textarea value={formSpecialReq} onChange={e => setFormSpecialReq(e.target.value)} rows={2} placeholder="Customer-specific requirements, customisation notes…"
                           className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400" /></div>
                     </div>
@@ -1658,7 +1658,7 @@ export default function ProductionOrdersPage() {
                   {createType === 'mts' && (
                     <div className="bg-teal-50 rounded-2xl p-4 space-y-3">
                       <p className="text-xs font-bold text-teal-800 flex items-center gap-1.5"><BarChart3 className="w-3.5 h-3.5" /> Stock Target</p>
-                      <div><label className="block text-xs font-semibold text-gray-600 mb-1">Target Stock Level (units)</label>
+                      <div><label className="block text-xs font-medium text-gray-600 mb-1">Target Stock Level (units)</label>
                         <input type="number" min={0} value={formTargetStock} onChange={e => setFormTargetStock(e.target.value)} placeholder="e.g. 500"
                           className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" /></div>
                     </div>
@@ -1666,16 +1666,16 @@ export default function ProductionOrdersPage() {
 
                   {/* Items picker — Products & Services */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-primary/80" /> Items to Produce</p>
+                    <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-primary/80" /> Items to Produce</p>
                     {/* Tab + search row */}
                     <div className="flex gap-2 mb-2">
                       <div className="flex items-center bg-muted rounded-xl p-0.5 shrink-0">
                         <button onClick={() => setItemTab('product')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'product' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${itemTab === 'product' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
                           <Package className="w-3 h-3" /> Product
                         </button>
                         <button onClick={() => setItemTab('service')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'service' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${itemTab === 'service' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
                           <Layers className="w-3 h-3" /> Service
                         </button>
                       </div>
@@ -1718,7 +1718,7 @@ export default function ProductionOrdersPage() {
                               <span className="flex-1 font-medium">{p.name}</span>
                               {p.sku && <span className="text-xs text-gray-400 font-mono">{p.sku}</span>}
                               {hasVariants && (
-                                <span className="text-[10px] font-bold bg-primary/12 text-primary px-1.5 py-0.5 rounded-full shrink-0">
+                                <span className="text-xs font-bold bg-primary/12 text-primary px-1.5 py-0.5 rounded-full shrink-0">
                                   {activeVariants.length} variants
                                 </span>
                               )}
@@ -1734,7 +1734,7 @@ export default function ProductionOrdersPage() {
                     {formItems.length > 0 && (
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         <ResizableTable tableId="production-form-bom" defaultWidths={[40, 200, 120, 80, 80, 40]}>
-                          <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-muted-foreground uppercase">
+                          <thead className="bg-gray-50 border-b"><tr className="text-xs font-medium text-muted-foreground uppercase">
                             <th className="py-2 px-3 text-center w-8">#</th>
                             <th className="py-2 px-3 text-left">Item</th>
                             <th className="py-2 px-3 text-left hidden sm:table-cell">Variant / SKU</th>
@@ -1748,7 +1748,7 @@ export default function ProductionOrdersPage() {
                               return (
                                 <tr key={rowKey} className="hover:bg-gray-50">
                                   <td className="py-2 px-3 text-center">
-                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-[10px] font-bold text-muted-foreground">{idx + 1}</span>
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-xs font-bold text-muted-foreground">{idx + 1}</span>
                                   </td>
                                   <td className="py-2 px-3 font-medium text-sm">{item.name}</td>
                                   <td className="py-2 px-3 hidden sm:table-cell">
@@ -1760,7 +1760,7 @@ export default function ProductionOrdersPage() {
                                     }
                                   </td>
                                   <td className="py-2 px-3 hidden sm:table-cell">
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'product' ? 'bg-blue-50 text-blue-700' : 'bg-accent text-primary'}`}>
+                                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'product' ? 'bg-blue-50 text-blue-700' : 'bg-accent text-primary'}`}>
                                       {item.item_type === 'product' ? '📦 Product' : '⚙️ Service'}
                                     </span>
                                   </td>
@@ -1791,15 +1791,15 @@ export default function ProductionOrdersPage() {
 
                   {/* Assignee picker — Team member or Vendor/Supplier */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-primary/80" /> Assign To (Employee / Vendor)</p>
+                    <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-primary/80" /> Assign To (Employee / Vendor)</p>
                     <div className="flex gap-2 mb-2">
                       <div className="flex items-center bg-muted rounded-xl p-0.5 shrink-0">
                         <button onClick={() => setAssigneeTab('team')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'team' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${assigneeTab === 'team' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
                           <User className="w-3 h-3" /> Employee
                         </button>
                         <button onClick={() => setAssigneeTab('supplier')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'supplier' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${assigneeTab === 'supplier' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
                           <Truck className="w-3 h-3" /> Vendor
                         </button>
                       </div>
@@ -1838,10 +1838,10 @@ export default function ProductionOrdersPage() {
                     {formAssignees.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-1">
                         {formAssignees.map(a => (
-                          <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
+                          <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
                             {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
                             {a.name}
-                            <span className="text-[10px] opacity-60 ml-0.5">({a.role})</span>
+                            <span className="text-xs opacity-60 ml-0.5">({a.role})</span>
                             <button type="button" aria-label="Close" onClick={() => removeAssignee(a.id)} className="ml-0.5 opacity-60 hover:opacity-100">
                 <X className="w-3 h-3" /></button>
                           </div>
@@ -1852,7 +1852,7 @@ export default function ProductionOrdersPage() {
 
                   {/* Notes */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Instructions / Notes</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Instructions / Notes</label>
                     <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2}
                       placeholder="Production instructions, quality requirements, safety notes…"
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
@@ -1860,7 +1860,7 @@ export default function ProductionOrdersPage() {
 
                   {/* Attachments */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-2">Attachments (optional)</p>
+                    <p className="text-xs font-medium text-gray-600 mb-2">Attachments (optional)</p>
                     {formAttachments.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {formAttachments.map((a, i) => (
@@ -2005,10 +2005,10 @@ function ProductionOrderCard({
               <TypeBadge type={order.type} />
               <StatusBadge status={order.status} />
               {order.priority === 'urgent' && (
-                <span className="text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">🔴 URGENT</span>
+                <span className="text-xs font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">🔴 URGENT</span>
               )}
               {hasActiveReservations && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
                   <Lock className="w-2.5 h-2.5" /> Stock Reserved
                 </span>
               )}
@@ -2025,7 +2025,7 @@ function ProductionOrderCard({
               <ProgressBar value={order.progress} status={order.status} />
             </div>
             {totalDispatched > 0 && (
-              <p className="text-[11px] text-green-600 font-semibold mt-1 flex items-center gap-1">
+              <p className="text-xs text-green-600 font-semibold mt-1 flex items-center gap-1">
                 <PackagePlus className="w-3 h-3" /> {totalDispatched} units sent to stock
               </p>
             )}
@@ -2035,7 +2035,7 @@ function ProductionOrderCard({
               <button
                 onClick={onMRP}
                 title="Material Requirement Plan"
-                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors"
               >
                 <BarChart3 className="w-3.5 h-3.5" /> MRP
               </button>

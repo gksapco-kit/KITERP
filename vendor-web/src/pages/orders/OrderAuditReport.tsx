@@ -390,36 +390,36 @@ export default function OrderAuditReport() {
             <ResizableTable tableId="order-audit" defaultWidths={[150, 130, 130, 140, 220]}>
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('timestampRaw')}>Timestamp <SortIcon col="timestampRaw" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('fromStatus')}>From Status <SortIcon col="fromStatus" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('toStatus')}>To Status <SortIcon col="toStatus" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('changedByRole')}>Changed By <SortIcon col="changedByRole" /></button></th>
-                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('notes')}>Notes <SortIcon col="notes" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('timestampRaw')}>Timestamp <SortIcon col="timestampRaw" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('fromStatus')}>From Status <SortIcon col="fromStatus" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('toStatus')}>To Status <SortIcon col="toStatus" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('changedByRole')}>Changed By <SortIcon col="changedByRole" /></button></th>
+                  <th className="text-left px-4 py-2.5"><button className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase hover:text-gray-800 transition-colors" onClick={() => toggleSort('notes')}>Notes <SortIcon col="notes" /></button></th>
                 </tr>
                 {/* Inline filters */}
                 <tr className="border-b bg-gray-50/30">
                   <th className="px-4 py-1.5" />
                   <th className="px-4 py-1.5">
-                    <select value={filterFrom} onChange={e => setFilterFrom(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-[11px] text-gray-600 font-normal">
+                    <select value={filterFrom} onChange={e => setFilterFrom(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
                       <option value="">All</option>
                       {uniqueFromStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </th>
                   <th className="px-4 py-1.5">
-                    <select value={filterTo} onChange={e => setFilterTo(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-[11px] text-gray-600 font-normal">
+                    <select value={filterTo} onChange={e => setFilterTo(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
                       <option value="">All</option>
                       {uniqueToStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </th>
                   <th className="px-4 py-1.5">
-                    <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-[11px] text-gray-600 font-normal">
+                    <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className="w-full h-7 rounded border border-gray-200 bg-white px-1.5 text-xs text-gray-600 font-normal">
                       <option value="">All</option>
                       {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                   </th>
                   <th className="px-4 py-1.5">
                     <input type="text" placeholder="Search..." value={searchNotes} onChange={e => setSearchNotes(e.target.value)}
-                      className="w-full h-7 rounded border border-gray-200 bg-white px-2 text-[11px] text-gray-600 font-normal placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                      className="w-full h-7 rounded border border-gray-200 bg-white px-2 text-xs text-gray-600 font-normal placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400" />
                   </th>
                 </tr>
               </thead>

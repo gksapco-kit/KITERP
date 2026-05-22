@@ -282,7 +282,7 @@ export function PhoneInput({
           {/* Digit counter */}
           {localNumber.length > 0 && maxDigits <= 12 && (
             <span className={cn(
-              'absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono pointer-events-none select-none',
+              'absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none select-none',
               isOverLimit || localNumber.length >= maxDigits - 1
                 ? 'text-amber-500'
                 : 'text-gray-300',
@@ -306,12 +306,12 @@ export function PhoneInput({
       {error ? (
         <p className="text-xs text-red-500">{error}</p>
       ) : isOverLimit ? (
-        <p className="text-[11px] text-amber-600">
+        <p className="text-xs text-amber-600">
           Will save last {maxDigits} digits:{' '}
           <span className="font-mono font-semibold">{localNumber.slice(-maxDigits)}</span>
         </p>
       ) : isFull ? (
-        <p className="text-[11px] text-green-600">✓ Valid {maxDigits}-digit number</p>
+        <p className="text-xs text-green-600">✓ Valid {maxDigits}-digit number</p>
       ) : null}
     </div>
   )

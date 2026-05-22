@@ -139,7 +139,7 @@ export default function BookingSlotPickerBlock({ site, style, props, liveItems }
                   className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500">›</button>
               </div>
               <div className="grid grid-cols-7 gap-1 text-center">
-                {DAYS.map(d => <div key={d} className="text-[10px] font-bold text-gray-400 py-1">{d}</div>)}
+                {DAYS.map(d => <div key={d} className="text-xs font-bold text-gray-400 py-1">{d}</div>)}
                 {Array.from({ length: first }).map((_, i) => <div key={`e${i}`} />)}
                 {Array.from({ length: count }).map((_, i) => {
                   const day = i + 1

@@ -88,7 +88,7 @@ export default function WebsiteTemplateGalleryPage() {
         </div>
 
         <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-4 sm:p-5 mb-6">
-          <label className="block text-[10px] font-extrabold uppercase tracking-wide text-gray-400 mb-2">Apply template to</label>
+          <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-400 mb-2">Apply template to</label>
           {sitesLoading && <p className="text-sm text-gray-500">Loading sites…</p>}
           {!sitesLoading && sites.length === 0 && (
             <p className="text-sm text-gray-600">
@@ -139,7 +139,7 @@ export default function WebsiteTemplateGalleryPage() {
                 type="button"
                 onClick={() => setTemplateCategory(cat)}
                 className={cn(
-                  'text-[10px] px-2 py-1 rounded-full font-extrabold transition-colors',
+                  'text-xs px-2 py-1 rounded-full font-extrabold transition-colors',
                   templateCategory === cat
                     ? 'bg-primary text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
@@ -178,12 +178,12 @@ export default function WebsiteTemplateGalleryPage() {
                     <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={cn(
-                          'text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide',
+                          'text-xs px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide',
                           tier === 'full' ? 'bg-accent text-primary' : 'bg-white/80 text-gray-700',
                         )}>
                           {tier === 'full' ? 'Full site' : 'Lite'}
                         </span>
-                        <span className="text-[10px] bg-white/80 text-gray-700 rounded-full px-2 py-0.5 font-semibold">
+                        <span className="text-xs bg-white/80 text-gray-700 rounded-full px-2 py-0.5 font-semibold">
                           {pageCount} pg
                         </span>
                       </div>

@@ -151,8 +151,8 @@ export function MediaStudioPanel({
   }) => (
     <div className="space-y-0.5">
       <div className="flex items-center justify-between">
-        <label className="text-[10px] font-semibold text-gray-600">{label}</label>
-        <span className="text-[10px] text-gray-400 font-mono w-8 text-right">{(adjustments as any)[field]}</span>
+        <label className="text-xs font-medium text-gray-600">{label}</label>
+        <span className="text-xs text-gray-400 font-mono w-8 text-right">{(adjustments as any)[field]}</span>
       </div>
       <input
         type="range"
@@ -178,7 +178,7 @@ export function MediaStudioPanel({
     <div className="h-full flex flex-col overflow-y-auto">
       <div className="p-3 border-b border-gray-100 shrink-0">
         {applyToImageLayer && (
-          <div className="mb-2 px-2 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-[10px] text-emerald-800">
+          <div className="mb-2 px-2 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-xs text-emerald-800">
             Selected: image layer — uploads and library items apply to that layer.
           </div>
         )}
@@ -208,7 +208,7 @@ export function MediaStudioPanel({
             <>
               <Upload className="w-6 h-6" />
               <span className="font-semibold">{isDragging ? 'Drop files here' : 'Click or drag & drop to upload'}</span>
-              <span className="text-[10px] text-gray-400">JPG, PNG, WebP, GIF, MP4 • Multiple files ok</span>
+              <span className="text-xs text-gray-400">JPG, PNG, WebP, GIF, MP4 • Multiple files ok</span>
             </>
           )}
         </div>
@@ -216,8 +216,8 @@ export function MediaStudioPanel({
 
       <div className="p-3 shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Media Library ({mediaList.length})</span>
-          <button type="button" onClick={() => refetch()} className="text-[10px] text-primary/80 hover:text-primary flex items-center gap-0.5">
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Media Library ({mediaList.length})</span>
+          <button type="button" onClick={() => refetch()} className="text-xs text-primary/80 hover:text-primary flex items-center gap-0.5">
             <RefreshCcw className="w-3 h-3" /> Refresh
           </button>
         </div>
@@ -229,7 +229,7 @@ export function MediaStudioPanel({
           <div className="flex flex-col items-center justify-center py-8 text-gray-400 gap-2">
             <ImageIcon className="w-10 h-10 opacity-20" />
             <p className="text-xs font-medium">No media yet</p>
-            <p className="text-[10px]">Upload images or generate with AI</p>
+            <p className="text-xs">Upload images or generate with AI</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
@@ -278,7 +278,7 @@ export function MediaStudioPanel({
                         ev.stopPropagation()
                         onApplyUrl(m.original_url)
                       }}
-                      className="w-full py-1.5 bg-primary rounded-lg text-[10px] font-bold text-white hover:bg-primary/90"
+                      className="w-full py-1.5 bg-primary rounded-lg text-xs font-bold text-white hover:bg-primary/90"
                     >
                       {applyToImageLayer ? 'Use in Layer' : 'Use in Block'}
                     </button>
@@ -289,7 +289,7 @@ export function MediaStudioPanel({
                         void navigator.clipboard.writeText(src)
                         toast.success('URL copied!')
                       }}
-                      className="w-full py-1.5 bg-white/90 rounded-lg text-[10px] font-bold text-gray-700"
+                      className="w-full py-1.5 bg-white/90 rounded-lg text-xs font-bold text-gray-700"
                     >
                       Copy URL
                     </button>
@@ -311,11 +311,11 @@ export function MediaStudioPanel({
           <div className="flex items-center gap-1.5">
             <Wand2 className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-bold text-gray-700">Image Adjuster & Designer</span>
-            <span className="ml-auto text-[10px] text-gray-400 truncate max-w-[100px]">{selectedMediaObj.filename}</span>
+            <span className="ml-auto text-xs text-gray-400 truncate max-w-[100px]">{selectedMediaObj.filename}</span>
           </div>
 
           {selectedMediaObj.file_type === 'video' ? (
-            <p className="text-[10px] text-gray-500 bg-gray-50 rounded-lg px-2 py-2 border border-gray-100">
+            <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-2 py-2 border border-gray-100">
               Video is ready to insert; AI adjustments apply to images only. Use &quot;Apply&quot; below with the original file, or pick an image from the library.
             </p>
           ) : null}
@@ -330,7 +330,7 @@ export function MediaStudioPanel({
               }}
             />
             {adjustedUrl && (
-              <div className="absolute top-2 left-2 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">✓ Adjusted</div>
+              <div className="absolute top-2 left-2 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">✓ Adjusted</div>
             )}
           </div>
 
@@ -338,7 +338,7 @@ export function MediaStudioPanel({
             <button
               type="button"
               onClick={() => onApplyUrl(adjustedUrl || selectedMediaObj.original_url)}
-              className="flex-1 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 flex items-center justify-center gap-1.5"
+              className="flex-1 py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 flex items-center justify-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" />
               {applyPrimaryLabel}
@@ -356,10 +356,10 @@ export function MediaStudioPanel({
             </button>
           </div>
           {!selectedBlock && !applyTargetDescription && (
-            <p className="text-[10px] text-center text-amber-600">← Select a block on the canvas first</p>
+            <p className="text-xs text-center text-amber-600">← Select a block on the canvas first</p>
           )}
           {applyTargetDescription && !selectedBlock && (
-            <p className="text-[10px] text-center text-emerald-700 bg-emerald-50 rounded-lg py-1.5">
+            <p className="text-xs text-center text-emerald-700 bg-emerald-50 rounded-lg py-1.5">
               Applies to: {applyTargetDescription}
             </p>
           )}
@@ -387,13 +387,13 @@ export function MediaStudioPanel({
                       onChange={e => setAdjustments(a => ({ ...a, [key]: e.target.checked }))}
                       className="rounded accent-primary"
                     />
-                    <span className="text-[11px] text-gray-600 font-medium">{label}</span>
+                    <span className="text-xs text-gray-600 font-medium">{label}</span>
                   </label>
                 ))}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Color Grade</label>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Color Grade</label>
                 <div className="grid grid-cols-4 gap-1">
                   {[null, 'cinematic', 'vivid', 'matte', 'vintage', 'cool', 'warm', 'faded'].map(grade => (
                     <button
@@ -401,7 +401,7 @@ export function MediaStudioPanel({
                       key={grade || 'none'}
                       onClick={() => setAdjustments(a => ({ ...a, color_grade: grade }))}
                       className={cn(
-                        'py-1.5 rounded-lg text-[10px] font-bold border transition-colors',
+                        'py-1.5 rounded-lg text-xs font-bold border transition-colors',
                         adjustments.color_grade === grade
                           ? 'bg-primary text-white border-primary'
                           : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
@@ -414,7 +414,7 @@ export function MediaStudioPanel({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Overlay</label>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Overlay</label>
                 <div className="grid grid-cols-3 gap-1">
                   {[null, 'dark', 'light', 'gradient_down', 'gradient_up', 'vignette'].map(ov => (
                     <button
@@ -422,7 +422,7 @@ export function MediaStudioPanel({
                       key={ov || 'none'}
                       onClick={() => setAdjustments(a => ({ ...a, overlay: ov } as any))}
                       className={cn(
-                        'py-1.5 rounded-lg text-[10px] font-bold border transition-colors',
+                        'py-1.5 rounded-lg text-xs font-bold border transition-colors',
                         (adjustments as any).overlay === ov
                           ? 'bg-primary text-white border-primary'
                           : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40',
@@ -452,7 +452,7 @@ export function MediaStudioPanel({
                     })
                     setAdjustedUrl(null)
                   }}
-                  className="flex-1 py-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200"
+                  className="flex-1 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200"
                 >
                   Reset
                 </button>
@@ -471,7 +471,7 @@ export function MediaStudioPanel({
                 <button
                   type="button"
                   onClick={() => onApplyUrl(adjustedUrl)}
-                  className="w-full py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1.5"
+                  className="w-full py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1.5"
                 >
                   <Check className="w-3.5 h-3.5" /> {applyToImageLayer ? 'Use Adjusted on Layer' : 'Use This Adjusted Version'}
                 </button>

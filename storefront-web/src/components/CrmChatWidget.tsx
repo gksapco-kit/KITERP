@@ -136,7 +136,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
           <div className="px-4 py-3 text-white flex items-center justify-between" style={{ backgroundColor: themeColor }}>
             <div>
               <p className="text-sm font-semibold">{vendorName || 'Chat with us'}</p>
-              <p className="text-[11px] text-white/80">We typically reply in a few minutes.</p>
+              <p className="text-xs text-white/80">We typically reply in a few minutes.</p>
             </div>
             <button onClick={() => setOpen(false)} className="p-1 hover:bg-white/10 rounded">
               <X className="w-5 h-5" />
@@ -153,7 +153,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
               <button type="submit" className="h-10 rounded-md text-white text-sm font-medium" style={{ backgroundColor: themeColor }}>
                 Start chat
               </button>
-              <p className="text-[11px] text-gray-400 text-center">By chatting you accept our privacy policy.</p>
+              <p className="text-xs text-gray-400 text-center">By chatting you accept our privacy policy.</p>
             </form>
           ) : (
             <>
@@ -174,7 +174,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
                         'bg-white border border-gray-200 text-gray-800'
                       }`}
                       style={mine ? { backgroundColor: themeColor } : undefined}>
-                        {bot && <p className="text-[10px] uppercase font-semibold mb-1 opacity-70">Bot</p>}
+                        {bot && <p className="text-xs uppercase font-semibold mb-1 opacity-70">Bot</p>}
                         <p className="whitespace-pre-wrap">{m.body}</p>
                       </div>
                     </div>

@@ -209,8 +209,8 @@ export default function CompanyFiscalRow({
                 onSubmit={onAddAudit}
                 className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2"
               >
-                <h4 className="text-xs font-semibold text-slate-800">Add audit / adjustment period</h4>
-                <p className="text-[11px] text-slate-600">
+                <h4 className="text-xs font-medium text-slate-800">Add audit / adjustment period</h4>
+                <p className="text-xs text-slate-600">
                   Use <strong className="text-slate-700">Save</strong> at the top or bottom of this page to store the
                   period. Post-close window, starting after{' '}
                   {fy ? <strong>{formatIsoDate(fy.end_date)}</strong> : 'FY end'}. A range that spans
@@ -236,7 +236,7 @@ export default function CompanyFiscalRow({
                     onChange={e => { setAddAuditEnd(e.target.value) }}
                   />
                 </div>
-                <p className="text-[10px] text-slate-500">Press Enter in a field to save (same as Save on this page).</p>
+                <p className="text-xs text-slate-500">Press Enter in a field to save (same as Save on this page).</p>
               </form>
 
               {perLoad && (
@@ -270,7 +270,7 @@ export default function CompanyFiscalRow({
                                 </span>
                                 {isAudit && (
                                   <span
-                                    className="inline-flex items-center text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30/80"
+                                    className="inline-flex items-center text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30/80"
                                   >
                                     Audit
                                   </span>
@@ -342,7 +342,7 @@ export default function CompanyFiscalRow({
                             <div className="border-t border-slate-100 bg-slate-50/80 px-4 py-2.5 text-xs text-slate-600">
                               <p>
                                 <span className="font-semibold text-slate-500">Period ID:</span>{' '}
-                                <code className="text-[11px] text-slate-700">{p.id}</code>
+                                <code className="text-xs text-slate-700">{p.id}</code>
                               </p>
                               <p className="mt-1">
                                 {isAudit

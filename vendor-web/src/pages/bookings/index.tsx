@@ -81,31 +81,31 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
       <div className="flex items-center gap-2 px-2.5 py-2">
         {/* Avatar */}
         <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${avatarCls}`}>
-          <span className="text-[9px] font-bold text-white">{initials}</span>
+          <span className="text-xs font-bold text-white">{initials}</span>
         </div>
 
         {/* Name + slot details */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="text-[11px] font-bold text-gray-900 truncate leading-tight">
+            <p className="text-xs font-bold text-gray-900 truncate leading-tight">
               {(s.customer_name as string) || 'Guest'}
             </p>
-            {overdue && <span className="text-[9px] px-1 py-0 rounded bg-orange-100 text-orange-600 font-bold shrink-0">OD</span>}
-            {dimmed && <span className="text-[9px] px-1 py-0 rounded bg-gray-100 text-gray-400 font-bold shrink-0">OS</span>}
+            {overdue && <span className="text-xs px-1 py-0 rounded bg-orange-100 text-orange-600 font-bold shrink-0">OD</span>}
+            {dimmed && <span className="text-xs px-1 py-0 rounded bg-gray-100 text-gray-400 font-bold shrink-0">OS</span>}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            <span className="text-[9px] text-gray-400 flex items-center gap-0.5 shrink-0">
+            <span className="text-xs text-gray-400 flex items-center gap-0.5 shrink-0">
               <Clock className="w-2 h-2" />
               {overdue && s.booking_date ? `${s.booking_date} · ` : ''}
               {(s.start_time as string)?.slice(0, 5)}{s.end_time ? `–${(s.end_time as string).slice(0, 5)}` : ''}
             </span>
             {!!s.service_name && (
-              <span className="text-[9px] text-primary/80 font-medium truncate max-w-[90px]">
+              <span className="text-xs text-primary/80 font-medium truncate max-w-[90px]">
                 {s.service_name as string}
               </span>
             )}
             {!!s.assigned_staff_name && (
-              <span className="text-[9px] text-gray-300 truncate max-w-[70px]">· {s.assigned_staff_name as string}</span>
+              <span className="text-xs text-gray-300 truncate max-w-[70px]">· {s.assigned_staff_name as string}</span>
             )}
           </div>
         </div>
@@ -113,7 +113,7 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
         {/* Right side: status + view + actions */}
         <div className="flex items-center gap-1 shrink-0">
           {/* Status pill */}
-          <span className={`flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+          <span className={`flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${
             status === 'pending'     ? 'bg-amber-100 text-amber-700' :
             status === 'confirmed'   ? 'bg-blue-100 text-blue-700' :
             status === 'in_progress' ? 'bg-primary/12 text-primary' :
@@ -133,19 +133,19 @@ function SlotActionCard({ slot: s, overdue, dimmed, onConfirm, onStart, onComple
           {/* Primary action */}
           {canAct && status === 'pending' && (
             <button onClick={onConfirm} disabled={isPending} title="Confirm"
-              className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors">
+              className="flex items-center gap-0.5 px-2 py-1 rounded-md text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors">
               <Check className="w-2.5 h-2.5" /> OK
             </button>
           )}
           {canAct && status === 'confirmed' && (
             <button onClick={onStart} disabled={isPending} title="Start"
-              className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[9px] font-bold bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              className="flex items-center gap-0.5 px-2 py-1 rounded-md text-xs font-bold bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors">
               <Play className="w-2.5 h-2.5" /> Go
             </button>
           )}
           {canAct && status === 'in_progress' && (
             <button onClick={onComplete} disabled={isPending} title="Complete"
-              className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors">
+              className="flex items-center gap-0.5 px-2 py-1 rounded-md text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors">
               <CheckCircle className="w-2.5 h-2.5" /> Done
             </button>
           )}
@@ -252,7 +252,7 @@ function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, select
         <div className="bg-gradient-to-r from-primary to-emerald-700 px-4 py-3 flex items-center justify-between">
           <div>
             <p className="text-white font-bold text-sm">Select Time Slot</p>
-            <p className="text-primary-foreground/85 text-[11px]">
+            <p className="text-primary-foreground/85 text-xs">
               {date} {staffId ? '· Filtered by staff' : '· All staff'}{duration > 0 ? ` · ${fmtDur(duration)} slots` : ''}
             </p>
           </div>
@@ -272,7 +272,7 @@ function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, select
           ].map(l => (
             <div key={l.label} className="flex items-center gap-1">
               <div className={`w-2.5 h-2.5 rounded-sm ${l.color}`} />
-              <span className="text-[10px] text-gray-500">{l.label}</span>
+              <span className="text-xs text-gray-500">{l.label}</span>
             </div>
           ))}
         </div>
@@ -291,7 +291,7 @@ function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, select
                 onPick(cell.label, end)
                 onClose()
               }}
-              className={`rounded-lg border text-[11px] font-semibold py-1.5 px-1 text-center transition-all ${stateStyle[cell.state]}`}
+              className={`rounded-lg border text-xs font-medium py-1.5 px-1 text-center transition-all ${stateStyle[cell.state]}`}
             >
               {cell.label}
             </button>
@@ -300,7 +300,7 @@ function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, select
 
         {/* Footer */}
         <div className="px-4 py-2.5 border-t bg-gray-50 flex items-center justify-between">
-          <p className="text-[10px] text-gray-400">
+          <p className="text-xs text-gray-400">
             {cells.filter(c => c.state === 'available').length} slots available
           </p>
           <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Close</button>
@@ -729,7 +729,7 @@ export default function BookingsPage() {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white leading-tight">New Booking</h2>
-                  <p className="text-primary-foreground/85 text-[11px]">Fill in the details and pick a time slot</p>
+                  <p className="text-primary-foreground/85 text-xs">Fill in the details and pick a time slot</p>
                 </div>
               </div>
               <button type="button" aria-label="Close"
@@ -747,17 +747,17 @@ export default function BookingsPage() {
               <div className="shrink-0 flex flex-col overflow-y-auto bg-gray-50/60"
                 style={{ width: modalWidths[0], minWidth: 160 }}>
                 <div className="px-5 pt-5 pb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80 mb-4">Who &amp; What</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-primary/80 mb-4">Who &amp; What</p>
 
                   {/* Customer */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Customer *</label>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Customer *</label>
                       {!selectedCustomer && (
                         <button
                           type="button"
                           onClick={() => { setShowQuickCreate(true); setCustSearch(''); setShowCustDropdown(false) }}
-                          className="flex items-center gap-0.5 text-[10px] text-primary hover:text-primary font-semibold transition-colors"
+                          className="flex items-center gap-0.5 text-xs text-primary hover:text-primary font-semibold transition-colors"
                         >
                           <Plus className="w-3 h-3" /> New
                         </button>
@@ -771,7 +771,7 @@ export default function BookingsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 truncate">{selectedCustomer.full_name}</p>
-                          <p className="text-[10px] text-gray-500 truncate">{selectedCustomer.phone || selectedCustomer.email}</p>
+                          <p className="text-xs text-gray-500 truncate">{selectedCustomer.phone || selectedCustomer.email}</p>
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <a href={`/customers/${selectedCustomer.id}`} target="_blank" rel="noopener noreferrer"
@@ -802,11 +802,11 @@ export default function BookingsPage() {
                                 className="w-full text-left px-3 py-2 hover:bg-accent flex items-center gap-2 border-b border-gray-50 last:border-0"
                                 onClick={() => { setSelectedCustomer(c); setShowCustDropdown(false); setCustSearch('') }}>
                                 <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                  <span className="text-[10px] font-bold text-primary">{c.full_name[0].toUpperCase()}</span>
+                                  <span className="text-xs font-bold text-primary">{c.full_name[0].toUpperCase()}</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-gray-900 truncate">{c.full_name}</p>
-                                  <p className="text-[10px] text-gray-400 truncate">{c.phone || c.email}</p>
+                                  <p className="text-xs font-medium text-gray-900 truncate">{c.full_name}</p>
+                                  <p className="text-xs text-gray-400 truncate">{c.phone || c.email}</p>
                                 </div>
                               </button>
                             ))}
@@ -818,7 +818,7 @@ export default function BookingsPage() {
 
                   {/* Service */}
                   <div className="mb-4">
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Service *</label>
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Service *</label>
                     <select
                       className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                       value={selectedService}
@@ -843,12 +843,12 @@ export default function BookingsPage() {
                     {selectedSvc && (
                       <div className="flex items-center justify-between mt-1.5">
                         {svcDuration > 0 && (
-                          <span className="text-[10px] text-primary flex items-center gap-1">
+                          <span className="text-xs text-primary flex items-center gap-1">
                             <Hourglass className="w-2.5 h-2.5" /> {fmtDur(svcDuration)}
                           </span>
                         )}
                         {(selectedSvc.price as number) > 0 && (
-                          <span className="text-[10px] font-semibold text-gray-600">{formatCurrency(selectedSvc.price as number)}</span>
+                          <span className="text-xs font-medium text-gray-600">{formatCurrency(selectedSvc.price as number)}</span>
                         )}
                       </div>
                     )}
@@ -857,7 +857,7 @@ export default function BookingsPage() {
                   {/* Service Provider */}
                   {serviceProviders.length > 0 && (
                     <div className="mb-4">
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">
                         <Users className="w-3 h-3 inline mr-1 text-primary/70" />Service Provider (optional)
                       </label>
                       <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
@@ -883,7 +883,7 @@ export default function BookingsPage() {
                         if (!sp) return null
                         return (
                           <div className="mt-1.5 flex items-center gap-1.5">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
                               sp.isExternal
                                 ? 'bg-amber-50 text-amber-700 border-amber-200'
                                 : 'bg-accent text-primary border-primary/30'
@@ -900,7 +900,7 @@ export default function BookingsPage() {
                   {/* Store / Location */}
                   {stores.length > 1 && (
                     <div className="mb-4">
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">
                         <Building2 className="w-3 h-3 inline mr-1 text-primary/70" />Location
                       </label>
                       <select value={selectedStore} onChange={e => setSelectedStore(e.target.value)}
@@ -915,7 +915,7 @@ export default function BookingsPage() {
 
                   {/* Payment */}
                   <div className="mb-4">
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Payment</label>
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Payment</label>
                     <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
                       className="w-full h-9 px-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="cod">Cash on Delivery</option>
@@ -928,7 +928,7 @@ export default function BookingsPage() {
 
                   {/* Notes */}
                   <div>
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Notes</label>
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Notes</label>
                     <textarea
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                       rows={3}
@@ -946,11 +946,11 @@ export default function BookingsPage() {
               <div className="shrink-0 flex flex-col overflow-y-auto bg-white"
                 style={{ width: modalWidths[1], minWidth: 160 }}>
                 <div className="px-5 pt-5 pb-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80 mb-4">When</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-primary/80 mb-4">When</p>
 
                   {/* Date */}
                   <div className="mb-4">
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
                       <CalendarDays className="w-3 h-3 text-primary/70" /> Date *
                     </label>
                     <input type="date" value={bookingDate} min={today}
@@ -960,7 +960,7 @@ export default function BookingsPage() {
 
                   {/* Time Slot — Picker button + manual inputs */}
                   <div className="mb-3">
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1.5">
                       <Clock className="w-3 h-3 text-primary/70" /> Time Slot
                     </label>
 
@@ -992,24 +992,24 @@ export default function BookingsPage() {
 
                     {/* Manual override inputs */}
                     <details className="group">
-                      <summary className="text-[10px] text-gray-400 cursor-pointer select-none hover:text-primary font-medium list-none flex items-center gap-1">
+                      <summary className="text-xs text-gray-400 cursor-pointer select-none hover:text-primary font-medium list-none flex items-center gap-1">
                         <span className="group-open:hidden">▸</span><span className="hidden group-open:inline">▾</span>
                         Manual entry
                       </summary>
                       <div className="mt-2 space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-gray-400 w-8 shrink-0">Start</span>
+                          <span className="text-xs text-gray-400 w-8 shrink-0">Start</span>
                           <input type="time" value={startTime} onChange={e => handleStartTimeChange(e.target.value)}
                             className="flex-1 h-8 px-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-gray-400 w-8 shrink-0">End</span>
+                          <span className="text-xs text-gray-400 w-8 shrink-0">End</span>
                           <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
                             className="flex-1 h-8 px-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
                         </div>
                         {svcDuration > 0 && startTime && (
                           <button type="button" onClick={applyStandardDuration}
-                            className="flex items-center gap-1 text-[10px] text-primary hover:text-primary font-semibold transition-colors">
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold transition-colors">
                             <Zap className="w-3 h-3" /> Auto-fill {fmtDur(svcDuration)}
                           </button>
                         )}
@@ -1026,13 +1026,13 @@ export default function BookingsPage() {
                         ? <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                         : <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />}
                       <div>
-                        <p className={`text-[10px] font-bold uppercase tracking-wide ${hasConflict ? 'text-red-500' : 'text-emerald-600'}`}>
+                        <p className={`text-xs font-bold uppercase tracking-wide ${hasConflict ? 'text-red-500' : 'text-emerald-600'}`}>
                           {hasConflict ? 'Time Conflict' : 'Slot Available'}
                         </p>
-                        <p className={`text-xs font-semibold ${hasConflict ? 'text-red-700' : 'text-emerald-700'}`}>
+                        <p className={`text-xs font-medium ${hasConflict ? 'text-red-700' : 'text-emerald-700'}`}>
                           {fmtTime12(startTime)} – {fmtTime12(endTime)}
                         </p>
-                        <p className={`text-[10px] ${hasConflict ? 'text-red-400' : 'text-emerald-500'}`}>
+                        <p className={`text-xs ${hasConflict ? 'text-red-400' : 'text-emerald-500'}`}>
                           {hasConflict ? 'Overlaps an existing booking' : fmtDur(selectedDuration)}
                         </p>
                       </div>
@@ -1041,7 +1041,7 @@ export default function BookingsPage() {
 
                   {/* Completion checklist */}
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-1.5">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Ready?</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Ready?</p>
                     {[
                       { label: 'Customer selected', ok: !!selectedCustomer },
                       { label: 'Service selected', ok: !!selectedService },
@@ -1053,7 +1053,7 @@ export default function BookingsPage() {
                         <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${item.ok ? 'bg-emerald-500' : 'bg-gray-200'}`}>
                           {item.ok && <Check className="w-2 h-2 text-white" />}
                         </div>
-                        <span className={`text-[10px] ${item.ok ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{item.label}</span>
+                        <span className={`text-xs ${item.ok ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{item.label}</span>
                       </div>
                     ))}
                   </div>
@@ -1067,9 +1067,9 @@ export default function BookingsPage() {
                 <div className="px-5 pt-5 pb-3 space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Availability</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-primary/80">Availability</p>
                       {(selectedStaff || selectedStore) && (
-                        <p className="text-[9px] text-gray-400 mt-0.5">
+                        <p className="text-xs text-gray-400 mt-0.5">
                           {selectedStaff && `Provider: ${serviceProviders.find(p => p.id === selectedStaff)?.name || '—'}`}
                           {selectedStaff && selectedStore && ' · '}
                           {selectedStore && `Store: ${(stores.find((s: any) => s.id === selectedStore) as any)?.name}`}
@@ -1083,13 +1083,13 @@ export default function BookingsPage() {
                             <button
                               type="button"
                               onClick={() => setShowSlotPicker(true)}
-                              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                              className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
                               <Grid3X3 className="w-3 h-3" /> Pick Slot
                             </button>
                             <button
                               type="button"
                               onClick={() => setShowAllSlots(v => !v)}
-                              className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg transition-colors ${
+                              className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg transition-colors ${
                                 showAllSlots
                                   ? 'bg-indigo-600 text-white'
                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1097,7 +1097,7 @@ export default function BookingsPage() {
                               <Users className="w-3 h-3" />
                               {showAllSlots ? 'All Bookings' : 'Filtered'}
                             </button>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${
                               filteredSlots.length === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                             }`}>
                               {filteredSlots.length}/{activeSlots.length}
@@ -1142,13 +1142,13 @@ export default function BookingsPage() {
                         </div>
                         <div className="flex justify-between mt-1 px-0.5">
                           {['8AM', '11AM', '2PM', '5PM', '8PM', '10PM'].map(l => (
-                            <span key={l} className="text-[9px] text-gray-400">{l}</span>
+                            <span key={l} className="text-xs text-gray-400">{l}</span>
                           ))}
                         </div>
                         <div className="flex items-center gap-4 mt-1.5 flex-wrap">
-                          <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-rose-500 opacity-70" /><span className="text-[9px] text-gray-400">Booked{selectedStaff ? ` (${serviceProviders.find(p=>p.id===selectedStaff)?.name||'same provider'})` : ''}</span></div>
-                          {selectedStaff && <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-amber-400 opacity-70" /><span className="text-[9px] text-gray-400">Other provider</span></div>}
-                          {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2 rounded-sm border ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/40 border-primary'}`} /><span className="text-[9px] text-gray-400">Your slot</span></div>}
+                          <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-rose-500 opacity-70" /><span className="text-xs text-gray-400">Booked{selectedStaff ? ` (${serviceProviders.find(p=>p.id===selectedStaff)?.name||'same provider'})` : ''}</span></div>
+                          {selectedStaff && <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-amber-400 opacity-70" /><span className="text-xs text-gray-400">Other provider</span></div>}
+                          {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2 rounded-sm border ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/40 border-primary'}`} /><span className="text-xs text-gray-400">Your slot</span></div>}
                         </div>
                       </div>
 
@@ -1162,12 +1162,12 @@ export default function BookingsPage() {
                                 <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2">
                                   <Search className="w-4 h-4 text-primary/70" />
                                 </div>
-                                <p className="text-xs font-semibold text-gray-600">No matching bookings</p>
-                                <p className="text-[11px] text-gray-400 mt-1">
+                                <p className="text-xs font-medium text-gray-600">No matching bookings</p>
+                                <p className="text-xs text-gray-400 mt-1">
                                   {activeSlots.length} booking{activeSlots.length > 1 ? 's' : ''} exist on this date
                                 </p>
                                 <button type="button" onClick={() => setShowAllSlots(true)}
-                                  className="mt-2 text-[11px] text-primary font-semibold hover:underline">
+                                  className="mt-2 text-xs text-primary font-semibold hover:underline">
                                   View all bookings →
                                 </button>
                               </>
@@ -1176,8 +1176,8 @@ export default function BookingsPage() {
                                 <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center mb-2">
                                   <CheckCircle className="w-4 h-4 text-emerald-500" />
                                 </div>
-                                <p className="text-xs font-semibold text-gray-600">All clear!</p>
-                                <p className="text-[11px] text-gray-400">No bookings on this date</p>
+                                <p className="text-xs font-medium text-gray-600">All clear!</p>
+                                <p className="text-xs text-gray-400">No bookings on this date</p>
                               </>
                             )}
                           </div>
@@ -1207,7 +1207,7 @@ export default function BookingsPage() {
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <CalendarClock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">
+                        <p className="text-xs font-bold uppercase tracking-widest text-orange-500">
                           Past incomplete ({overdueBookings.length})
                         </p>
                       </div>
@@ -1255,7 +1255,7 @@ export default function BookingsPage() {
                 )}
               </div>
               <button type="button" title="Reset column widths" onClick={resetModalWidths}
-                className="text-[10px] text-gray-400 hover:text-primary font-medium transition-colors px-1">
+                className="text-xs text-gray-400 hover:text-primary font-medium transition-colors px-1">
                 ⊟ Reset layout
               </button>
               <Button variant="cancel" className="h-9 px-4 text-sm" onClick={() => { setShowCreate(false); resetCreateForm() }}>Cancel</Button>
@@ -1288,7 +1288,7 @@ export default function BookingsPage() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5 mb-1">
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-1.5 mb-1">
                   <CalendarDays className="w-3.5 h-3.5 text-primary/70" /> New Date *
                 </label>
                 <input type="date" min={today} value={rescheduleDate}
@@ -1296,7 +1296,7 @@ export default function BookingsPage() {
                   className="w-full h-10 px-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5 mb-1">
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-1.5 mb-1">
                   <Clock className="w-3.5 h-3.5 text-primary/70" /> New Start Time
                 </label>
                 <input type="time" value={rescheduleTime}
@@ -1409,14 +1409,14 @@ export default function BookingsPage() {
               <ResizableTable tableId="bookings" defaultWidths={[120, 160, 150, 100, 100, 90, 110, 80]}>
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Booking #</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Service</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                    <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Created</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Booking #</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Service</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Created</th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">

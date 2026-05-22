@@ -19,7 +19,7 @@ export function Section({
         <div className="flex items-start gap-3">
           {step !== undefined && (
             <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center text-xs font-semibold"
+              className="flex h-7 w-7 shrink-0 items-center justify-center text-xs font-medium"
               style={{
                 borderRadius: "999px",
                 background: "hsl(var(--brand-primary))",

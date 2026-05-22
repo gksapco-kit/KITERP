@@ -271,16 +271,16 @@ function AccountDetailDrawer({
         <div className="px-6 py-4 border-b bg-white flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${badgeClass}`}>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${badgeClass}`}>
                 {account.account_type}
               </span>
               {account.account_subtype && (
-                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                   {account.account_subtype}
                 </span>
               )}
               {account.is_system && (
-                <span className="flex items-center gap-1 text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                   <Shield className="w-2.5 h-2.5" /> System
                 </span>
               )}
@@ -370,7 +370,7 @@ function AccountDetailDrawer({
                   <DetailRow label="Parent Account" value={
                     parent
                       ? <span className="flex items-center gap-1.5">
-                          <span className="font-mono text-gray-400 text-[10px]">{parent.code}</span>
+                          <span className="font-mono text-gray-400 text-xs">{parent.code}</span>
                           <span>{parent.name}</span>
                         </span>
                       : <span className="text-gray-400 italic">Root account</span>
@@ -452,7 +452,7 @@ function AccountDetailDrawer({
                         <div key={ch.id} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
                           <span className="font-mono text-xs text-gray-400 w-14">{ch.code}</span>
                           <span className="flex-1 text-xs text-gray-700">{ch.name}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${chCfg?.color ?? 'bg-gray-100 text-gray-500'}`}>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${chCfg?.color ?? 'bg-gray-100 text-gray-500'}`}>
                             {ch.account_subtype || ch.account_type}
                           </span>
                         </div>
@@ -476,7 +476,7 @@ function AccountDetailDrawer({
                         <span className="flex-1">{sib.name}</span>
                       </div>
                     ))}
-                    {siblings.length === 5 && <p className="px-4 py-1.5 text-[10px] text-gray-400 italic">…and more</p>}
+                    {siblings.length === 5 && <p className="px-4 py-1.5 text-xs text-gray-400 italic">…and more</p>}
                   </div>
                 </div>
               )}
@@ -527,29 +527,29 @@ function AccountDetailDrawer({
                   <div className="rounded-xl border border-gray-100 bg-white p-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <ArrowUpRight className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Total Debit</span>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Debit</span>
                     </div>
                     <p className="font-mono font-bold text-sm text-gray-900">{fmtCcy(totalDebit)}</p>
-                    <p className="text-[10px] text-gray-400">{ledger.filter(r => r.debit > 0).length} entries</p>
+                    <p className="text-xs text-gray-400">{ledger.filter(r => r.debit > 0).length} entries</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-white p-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <ArrowDownLeft className="w-3.5 h-3.5 text-primary/80" />
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Total Credit</span>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Credit</span>
                     </div>
                     <p className="font-mono font-bold text-sm text-gray-900">{fmtCcy(totalCredit)}</p>
-                    <p className="text-[10px] text-gray-400">{ledger.filter(r => r.credit > 0).length} entries</p>
+                    <p className="text-xs text-gray-400">{ledger.filter(r => r.credit > 0).length} entries</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-white p-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <Activity className="w-3.5 h-3.5 text-green-500" />
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Closing Bal.</span>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Closing Bal.</span>
                     </div>
                     <p className={`font-mono font-bold text-sm ${closingBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
                       {fmtCcy(Math.abs(closingBalance))}
-                      {closingBalance < 0 && <span className="text-[10px] ml-1 text-red-400">Cr</span>}
+                      {closingBalance < 0 && <span className="text-xs ml-1 text-red-400">Cr</span>}
                     </p>
-                    <p className="text-[10px] text-gray-400">{ledger.length} transactions</p>
+                    <p className="text-xs text-gray-400">{ledger.length} transactions</p>
                   </div>
                 </div>
               )}
@@ -570,19 +570,19 @@ function AccountDetailDrawer({
                   <table className="w-full text-xs">
                     <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Date</th>
-                        <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Entry No</th>
-                        <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Narration</th>
-                        <th className="px-3 py-2.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Source</th>
-                        <th className="px-3 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Debit</th>
-                        <th className="px-3 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Credit</th>
-                        <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Balance</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Date</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Entry No</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Narration</th>
+                        <th className="px-3 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Source</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Debit</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Credit</th>
+                        <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Balance</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {ledger.map((row, i) => (
                         <tr key={i} className={`hover:bg-primary/10/30 transition-colors ${row.debit > 0 ? '' : 'bg-accent/20'}`}>
-                          <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-[11px]">{row.date}</td>
+                          <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-xs">{row.date}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap">
                             <span className="font-mono font-semibold text-primary">{row.entry_no}</span>
                           </td>
@@ -590,7 +590,7 @@ function AccountDetailDrawer({
                             <span className="line-clamp-2 leading-snug">{row.narration || '—'}</span>
                           </td>
                           <td className="px-3 py-2.5 text-center">
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
                               {SOURCE_LABELS[row.source_type] || row.source_type}
                             </span>
                           </td>
@@ -607,7 +607,7 @@ function AccountDetailDrawer({
                           <td className="px-4 py-2.5 text-right font-mono whitespace-nowrap">
                             <span className={row.balance < 0 ? 'text-red-600' : 'text-gray-900'}>
                               {fmtCcy(Math.abs(row.balance))}
-                              {row.balance < 0 && <span className="text-[9px] ml-0.5 text-red-400">Cr</span>}
+                              {row.balance < 0 && <span className="text-xs ml-0.5 text-red-400">Cr</span>}
                             </span>
                           </td>
                         </tr>
@@ -622,7 +622,7 @@ function AccountDetailDrawer({
                         <td className="px-4 py-2.5 text-right font-mono font-bold">
                           <span className={closingBalance < 0 ? 'text-red-600' : 'text-gray-900'}>
                             {fmtCcy(Math.abs(closingBalance))}
-                            {closingBalance < 0 && <span className="text-[9px] ml-0.5">Cr</span>}
+                            {closingBalance < 0 && <span className="text-xs ml-0.5">Cr</span>}
                           </span>
                         </td>
                       </tr>
@@ -754,14 +754,14 @@ function ConfigPanel({
                   onClick={() => setExpandedType(isExpanded ? null : cfg.type)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${overlapErrors[cfg.type] ? 'bg-red-50 hover:bg-red-50' : ''}`}
                 >
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${cfg.color}`}>
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${cfg.color}`}>
                     {cfg.type}
                   </span>
                   <span className="flex-1 text-xs text-gray-500">
                     {cfg.codeRangeStart}–{cfg.codeRangeEnd} &nbsp;·&nbsp; {cfg.normalBalance} &nbsp;·&nbsp; {cfg.statement}
                   </span>
                   {overlapErrors[cfg.type] && (
-                    <span className="text-[10px] text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full shrink-0 max-w-[160px] truncate">
+                    <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full shrink-0 max-w-[160px] truncate">
                       ⚠ {overlapErrors[cfg.type]}
                     </span>
                   )}
@@ -787,7 +787,7 @@ function ConfigPanel({
                     {/* Row 1: code range + normal balance + statement */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Code Range Start</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Code Range Start</label>
                         <input
                           type="number"
                           value={cfg.codeRangeStart}
@@ -796,7 +796,7 @@ function ConfigPanel({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Code Range End</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Code Range End</label>
                         <input
                           type="number"
                           value={cfg.codeRangeEnd}
@@ -805,7 +805,7 @@ function ConfigPanel({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Normal Balance</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Normal Balance</label>
                         <select
                           value={cfg.normalBalance}
                           onChange={e => update(cfg.type, { normalBalance: e.target.value as NormalBalance })}
@@ -816,7 +816,7 @@ function ConfigPanel({
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Financial Statement</label>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Financial Statement</label>
                         <select
                           value={cfg.statement}
                           onChange={e => update(cfg.type, { statement: e.target.value as Statement })}
@@ -831,7 +831,7 @@ function ConfigPanel({
 
                     {/* Badge colour */}
                     <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Badge Colour</label>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Badge Colour</label>
                       <div className="flex flex-wrap gap-2">
                         {BADGE_OPTIONS.map(opt => (
                           <button
@@ -848,7 +848,7 @@ function ConfigPanel({
                     {/* Subtypes */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Subtypes</label>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Subtypes</label>
                         <button
                           onClick={() => addSubtype(cfg.type)}
                           className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
@@ -1061,10 +1061,10 @@ export default function ChartOfAccounts() {
                 : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
             }`}
           >
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.color}`}>{c.type}</span>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${c.color}`}>{c.type}</span>
             <p className="mt-2 text-xl font-bold text-gray-900">{c.count}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">{c.codeRangeStart}–{c.codeRangeEnd}</p>
-            <p className="text-[10px] text-gray-400">{c.normalBalance} · {c.statement === 'Balance Sheet' ? 'BS' : c.statement === 'Income Statement' ? 'P&L' : '—'}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{c.codeRangeStart}–{c.codeRangeEnd}</p>
+            <p className="text-xs text-gray-400">{c.normalBalance} · {c.statement === 'Balance Sheet' ? 'BS' : c.statement === 'Income Statement' ? 'P&L' : '—'}</p>
           </button>
         ))}
       </div>
@@ -1112,7 +1112,7 @@ export default function ChartOfAccounts() {
             <SlidersHorizontal className="w-4 h-4" />
             Filters
             {activeFilters > 0 && (
-              <span className="bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="bg-primary text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {activeFilters}
               </span>
             )}
@@ -1180,7 +1180,7 @@ export default function ChartOfAccounts() {
       {/* ── Account tree ── */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {/* Column headers */}
-        <div className="grid text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-3 py-2 bg-gray-50 border-b border-gray-100"
+        <div className="grid text-xs font-medium text-gray-400 uppercase tracking-wide px-3 py-2 bg-gray-50 border-b border-gray-100"
           style={{ gridTemplateColumns: '20px 56px 1fr auto auto auto' }}>
           <span />
           <span>Code</span>

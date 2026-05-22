@@ -77,7 +77,7 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
   if (selected) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg">
-        <div className="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-xs font-semibold text-blue-700 flex-shrink-0">
+        <div className="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-xs font-medium text-blue-700 flex-shrink-0">
           {selected.initials || selected.label.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
@@ -116,7 +116,7 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
               onClick={() => pick(opt)}
               className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-50 text-left"
             >
-              <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
                 {opt.initials || opt.label.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">

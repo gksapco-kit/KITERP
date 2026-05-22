@@ -117,13 +117,13 @@ export default function CouponsPage() {
           <ResizableTable tableId="coupons" defaultWidths={[150, 120, 110, 80, 80, 120, 80]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Code</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Discount</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Min Order</th>
-                <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Used</th>
-                <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Active</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Expires</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Code</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Discount</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Min Order</th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Used</th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Active</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Expires</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">

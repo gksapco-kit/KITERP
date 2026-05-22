@@ -40,7 +40,7 @@ export const StorefrontShell = ({ storeName, tagline, nav, basePath, children }:
 
           <Link to={basePath} className="flex flex-col leading-tight min-w-0 flex-1 md:flex-none text-left md:text-center">
             <span className="text-base sm:text-xl tracking-tight truncate" style={{ fontFamily: 'var(--sf-display)' }}>{storeName}</span>
-            {tagline ? <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.18em] opacity-70 truncate">{tagline}</span> : null}
+            {tagline ? <span className="text-xs sm:text-xs uppercase tracking-[0.14em] sm:tracking-[0.18em] opacity-70 truncate">{tagline}</span> : null}
           </Link>
 
           <nav className="hidden md:flex items-center gap-7 text-sm shrink-0">
@@ -56,7 +56,7 @@ export const StorefrontShell = ({ storeName, tagline, nav, basePath, children }:
             <button type="button" className="p-2 relative rounded-md hover:opacity-80" aria-label="Open cart" onClick={() => setCartOpen(true)}>
               <ShoppingBag className="h-5 w-5" />
               {lineCount > 0 ? (
-                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full text-[10px] font-medium flex items-center justify-center px-1" style={{ background: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-primary-foreground))' }}>
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full text-xs font-medium flex items-center justify-center px-1" style={{ background: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-primary-foreground))' }}>
                   {lineCount}
                 </span>
               ) : null}
@@ -187,7 +187,7 @@ export const StorefrontShell = ({ storeName, tagline, nav, basePath, children }:
 
 const FooterCol = ({ title, links }: { title: string; links: string[] }) => (
   <div>
-    <div className="text-[11px] uppercase tracking-[0.18em] opacity-70 mb-3">{title}</div>
+    <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3">{title}</div>
     <ul className="space-y-2">
       {links.map((l) => (
         <li key={l}><a href="#" className="hover:opacity-100 opacity-90">{l}</a></li>

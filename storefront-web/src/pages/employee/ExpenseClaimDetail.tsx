@@ -45,11 +45,11 @@ export default function ExpenseClaimDetail({
         <div className="p-4 space-y-4">
           {status === 'rejected' && claim.decision_note && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-              <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">
+              <p className="text-xs font-medium text-red-800 uppercase tracking-wide mb-1">
                 Rejection reason from HR
               </p>
               <p className="text-sm text-red-900 whitespace-pre-wrap">{String(claim.decision_note)}</p>
-              <p className="text-[11px] text-red-700 mt-2">You can edit and resubmit this claim.</p>
+              <p className="text-xs text-red-700 mt-2">You can edit and resubmit this claim.</p>
             </div>
           )}
           <dl className="text-sm space-y-2">
@@ -64,7 +64,7 @@ export default function ExpenseClaimDetail({
             <div className="flex justify-between gap-4">
               <dt className="text-gray-500">Status</dt>
               <dd>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
               </dd>
             </div>
             <div className="flex justify-between gap-4">
@@ -91,7 +91,7 @@ export default function ExpenseClaimDetail({
             )}
           </dl>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Receipts / uploads</p>
+            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Receipts / uploads</p>
             {receipts.length === 0 ? (
               <p className="text-sm text-gray-400">None attached</p>
             ) : (

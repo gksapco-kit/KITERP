@@ -505,7 +505,7 @@ export default function VendorSignup() {
                         className="h-10"
                       />
                       {errors.business_name && (
-                        <p className="text-[11px] text-red-500 mt-0.5">{errors.business_name.message}</p>
+                        <p className="text-xs text-red-500 mt-0.5">{errors.business_name.message}</p>
                       )}
                     </div>
                     <div>
@@ -527,7 +527,7 @@ export default function VendorSignup() {
                         ))}
                       </select>
                       {errors.business_category && (
-                        <p className="text-[11px] text-red-500 mt-0.5">{errors.business_category.message}</p>
+                        <p className="text-xs text-red-500 mt-0.5">{errors.business_category.message}</p>
                       )}
                     </div>
                   </div>
@@ -541,11 +541,11 @@ export default function VendorSignup() {
                       className="h-10"
                     />
                     {errors.full_name && (
-                      <p className="text-[11px] text-red-500 mt-0.5">{errors.full_name.message}</p>
+                      <p className="text-xs text-red-500 mt-0.5">{errors.full_name.message}</p>
                     )}
                   </div>
 
-                  <p className="text-[11px] text-gray-500">
+                  <p className="text-xs text-gray-500">
                     Provide <strong className="font-medium text-gray-700">either</strong> email <strong className="font-medium text-gray-700">or</strong> phone. After Create My Business, phone sign-ups open a secure popup for your OTP.
                   </p>
                   {/* Row 3 — Phone + Email */}
@@ -575,7 +575,7 @@ export default function VendorSignup() {
                         className="h-10"
                       />
                       {errors.email && (
-                        <p className="text-[11px] text-red-500 mt-0.5">{errors.email.message}</p>
+                        <p className="text-xs text-red-500 mt-0.5">{errors.email.message}</p>
                       )}
                     </div>
                   </div>
@@ -601,7 +601,7 @@ export default function VendorSignup() {
                         </button>
                       </div>
                       {errors.password && (
-                        <p className="text-[11px] text-red-500 mt-0.5">{errors.password.message}</p>
+                        <p className="text-xs text-red-500 mt-0.5">{errors.password.message}</p>
                       )}
                     </div>
                     <div>
@@ -613,7 +613,7 @@ export default function VendorSignup() {
                         className="h-10"
                       />
                       {errors.confirm_password && (
-                        <p className="text-[11px] text-red-500 mt-0.5">{errors.confirm_password.message}</p>
+                        <p className="text-xs text-red-500 mt-0.5">{errors.confirm_password.message}</p>
                       )}
                     </div>
                   </div>
@@ -634,7 +634,7 @@ export default function VendorSignup() {
                   </Button>
                 </form>
 
-                <p className="text-[11px] text-gray-400 text-center mt-3">
+                <p className="text-xs text-gray-400 text-center mt-3">
                   By signing up, you agree to our Terms of Service and Privacy Policy.
                 </p>
               </div>

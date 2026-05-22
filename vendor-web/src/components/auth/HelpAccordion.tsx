@@ -32,7 +32,7 @@ export function HelpAccordion() {
             <span className="text-base">🔑</span>
             <div>
               <p className="font-medium leading-tight">Reset my password</p>
-              <p className="text-[11px] text-gray-500">Send a reset code to your email or phone</p>
+              <p className="text-xs text-gray-500">Send a reset code to your email or phone</p>
             </div>
           </Link>
 
@@ -44,7 +44,7 @@ export function HelpAccordion() {
               <Phone className="w-4 h-4 text-primary shrink-0" />
               <div>
                 <p className="font-medium leading-tight">Call support</p>
-                <p className="text-[11px] text-gray-500 font-mono">{SUPPORT_PHONE}</p>
+                <p className="text-xs text-gray-500 font-mono">{SUPPORT_PHONE}</p>
               </div>
             </a>
           ) : (
@@ -55,7 +55,7 @@ export function HelpAccordion() {
               <Phone className="w-4 h-4 text-primary shrink-0" />
               <div>
                 <p className="font-medium leading-tight">Contact support</p>
-                <p className="text-[11px] text-gray-500">support@kiterp.com</p>
+                <p className="text-xs text-gray-500">support@kiterp.com</p>
               </div>
             </a>
           )}
@@ -69,7 +69,7 @@ export function HelpAccordion() {
             <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0" />
             <div>
               <p className="font-medium leading-tight">Chat with us</p>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-gray-500">
                 {SUPPORT_CHAT_URL ? 'WhatsApp / live chat' : 'support@kiterp.com'}
               </p>
             </div>

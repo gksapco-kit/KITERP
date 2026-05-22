@@ -119,7 +119,7 @@ export default function ThemePreviewPage() {
                   <label key={t.key} className="block">
                     <span className="ck-label flex items-center justify-between">
                       <span>{t.label}</span>
-                      <span className="ck-text-subtle font-mono text-[11px]">{t.key}</span>
+                      <span className="ck-text-subtle font-mono text-xs">{t.key}</span>
                     </span>
                     <input
                       className="ck-input"

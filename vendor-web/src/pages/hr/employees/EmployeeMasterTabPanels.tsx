@@ -42,14 +42,14 @@ export function AddressFields({
     const line = [addr.street, addr.city, addr.state, addr.pincode, addr.country].filter(Boolean).join(', ')
     return (
       <div className="space-y-1">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
         <p className="text-sm text-gray-900">{line || <span className="text-gray-400">—</span>}</p>
       </div>
     )
   }
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
       <input
         className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
         placeholder="Street / House No. / Area"
@@ -165,7 +165,7 @@ export function IdentityTab({
         <div className="flex items-center justify-between mb-1">
           <label className="text-xs font-medium text-gray-500">Employee ID</label>
           {editing && (
-            <div className="flex bg-gray-100 rounded-md p-0.5 text-[11px]">
+            <div className="flex bg-gray-100 rounded-md p-0.5 text-xs">
               <button
                 type="button"
                 onClick={() => {

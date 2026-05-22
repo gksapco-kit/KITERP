@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useStores } from '@/hooks/useVendor'
 import { formatStoreCode } from '@/lib/verification'
+import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 
 export type BusinessUnitScopeMode = 'all' | 'unit' | 'single' | 'none'
 
@@ -19,8 +20,8 @@ export function useBusinessUnitScopeLabel() {
 
     if (stores.length > 1 && !selectedStore) {
       return {
-        label: 'Applies to all business units',
-        heading: 'All Business Units',
+        label: `Applies to all ${BUSINESS_UNIT_STORE_LABEL}`,
+        heading: `All ${BUSINESS_UNIT_STORE_LABEL}`,
         mode: 'all' as const,
         storeId: null as string | null,
         storeName: null as string | null,
@@ -28,7 +29,7 @@ export function useBusinessUnitScopeLabel() {
     }
     if (selectedStore?.id || effective) {
       const name =
-        effective?.name ?? selectedStore?.name ?? 'Business unit'
+        effective?.name ?? selectedStore?.name ?? BUSINESS_UNIT_STORE_LABEL
       const id = effective?.id ?? selectedStore?.id ?? null
       const code = effective ? formatStoreCode(effective) : null
       const heading = code ? `${code} — ${name}` : name
@@ -41,8 +42,8 @@ export function useBusinessUnitScopeLabel() {
       }
     }
     return {
-      label: 'Applies to your business unit',
-      heading: 'Your business unit',
+      label: `Applies to your ${BUSINESS_UNIT_STORE_LABEL}`,
+      heading: `Your ${BUSINESS_UNIT_STORE_LABEL}`,
       mode: 'none' as const,
       storeId: null,
       storeName: null,

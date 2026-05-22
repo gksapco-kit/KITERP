@@ -230,7 +230,7 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
               ))}
             </select>
             {createForAllCompanies && (
-              <p className="text-[11px] text-emerald-800 mt-1">
+              <p className="text-xs text-emerald-800 mt-1">
                 One shared calendar; linked to all listed business units.
               </p>
             )}
@@ -247,17 +247,17 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
                 max={2200}
               />
               {tpl === 'apr_mar' && (
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Apr–Mar: <strong>April</strong> year (e.g. 2026 → 1 Apr 2026–31 Mar 2027).
                 </p>
               )}
               {tpl === 'jul_jun' && (
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Jul–Jun: <strong>July</strong> year (e.g. 2026 → 1 Jul 2026–30 Jun 2027).
                 </p>
               )}
               {tpl === 'jan_dec' && (
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Calendar year <strong>{yearAnchor}</strong>.
                 </p>
               )}
@@ -297,7 +297,7 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
                   {' · '}
                   {formatIsoDate(newFyPreview.start)} — {formatIsoDate(newFyPreview.end)}
                 </p>
-                <p className="text-[11px] text-sky-900/85 mt-1">
+                <p className="text-xs text-sky-900/85 mt-1">
                   <strong>Audit</strong> (below) is post-close: the day <strong>after</strong> this range ends.
                 </p>
               </div>
@@ -328,7 +328,7 @@ export default function CreateCalendarModal({ open, onClose, companies }: Props)
                 onChange={e => { setAuditEnd(e.target.value) }}
               />
             </div>
-            <p className="text-[11px] text-amber-900/80">
+            <p className="text-xs text-amber-900/80">
               A date range spanning more than one month is stored as one audit period per month.
             </p>
             {auditOutOfRangeCreate && (

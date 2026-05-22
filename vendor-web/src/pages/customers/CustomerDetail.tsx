@@ -50,7 +50,7 @@ export default function CustomerDetail() {
               {bal !== 0 ? `${formatCurrency(Math.abs(bal))} ${bal > 0 ? 'Dr' : 'Cr'}` : '—'}
             </p>
             {bal !== 0 && (
-              <p className="text-[10px] text-gray-400">{bal > 0 ? 'Receivable' : 'Advance/Credit'}</p>
+              <p className="text-xs text-gray-400">{bal > 0 ? 'Receivable' : 'Advance/Credit'}</p>
             )}
           </CardContent>
         </Card>

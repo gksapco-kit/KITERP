@@ -472,7 +472,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
 
   return (
     <div ref={ref}>
-      <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+      <Label className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-500 mb-1.5">
         <Tag className="w-3 h-3" /> Groups / Segments
         <span className="text-gray-400 font-normal normal-case tracking-normal">(optional)</span>
       </Label>
@@ -505,7 +505,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
           <button
             type="button"
             onClick={e => { e.stopPropagation(); setOpen(true); inputRef.current?.focus() }}
-            className="shrink-0 flex items-center gap-0.5 text-xs font-semibold text-primary bg-primary/10 border border-primary/30 rounded-full px-2 py-0.5 hover:bg-primary/15 hover:border-primary/40 transition-colors"
+            className="shrink-0 flex items-center gap-0.5 text-xs font-medium text-primary bg-primary/10 border border-primary/30 rounded-full px-2 py-0.5 hover:bg-primary/15 hover:border-primary/40 transition-colors"
           >
             <Plus className="w-3 h-3" /> Add
           </button>
@@ -547,7 +547,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
             ) : (
               <>
                 {!inputVal && (
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 px-3 pt-2 pb-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400 px-3 pt-2 pb-1">
                     Available groups
                   </p>
                 )}
@@ -576,7 +576,7 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
           </div>
         )}
       </div>
-      <p className="text-[10px] text-gray-400 mt-1">
+      <p className="text-xs text-gray-400 mt-1">
         Press Enter or comma to create a new group. Groups persist for future records.
       </p>
     </div>
@@ -790,7 +790,7 @@ function RelationPicker({ value, onChange }: { value: string; onChange: (v: stri
               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-primary/10 text-left">
               <Users className="w-3.5 h-3.5 text-primary/60 shrink-0" />
               <span className="flex-1 text-sm font-medium text-gray-800 truncate">{r.label}</span>
-              <span className="text-[10px] text-gray-400 shrink-0">{r.sub}</span>
+              <span className="text-xs text-gray-400 shrink-0">{r.sub}</span>
             </button>
           ))}
         </div>
@@ -1546,7 +1546,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                   {hasFieldErrs && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {Object.entries(errors).map(([field, msg]) => (
-                        <span key={field} className="inline-flex items-center gap-1 text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200 rounded-full px-2 py-0.5">
+                        <span key={field} className="inline-flex items-center gap-1 text-xs font-medium bg-red-100 text-red-700 border border-red-200 rounded-full px-2 py-0.5">
                           <span className="capitalize">{field.replace(/([A-Z])/g, ' $1').trim()}</span>
                           <span className="font-normal opacity-75">— {msg}</span>
                         </span>
@@ -1631,7 +1631,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     {!suggestionsLoading && gstStatus === 'fetched' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                     {!suggestionsLoading && gstStatus === 'invalid' && <AlertCircle className="w-4 h-4 text-red-500" />}
                     {badge.label && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${badge.color}`}>{badge.label}</span>
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${badge.color}`}>{badge.label}</span>
                     )}
                   </div>
                 </div>
@@ -1678,7 +1678,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                 className="w-full"
               />
               {partyCountry.iso !== 'IN' && (
-                <p className="text-[10px] text-gray-400 mt-1 leading-tight">
+                <p className="text-xs text-gray-400 mt-1 leading-tight">
                   Tax fields adapt to {partyCountry.name}
                 </p>
               )}
@@ -1726,7 +1726,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                 className={`pl-9 ${errors.name ? 'border-red-400' : ''}`}
               />
             </div>
-            <p className="text-[11px] text-gray-400">
+            <p className="text-xs text-gray-400">
               Enter the individual's full name, company name, or trade name
             </p>
             {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
@@ -1734,7 +1734,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
 
           {/* Party Type */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-gray-500 block">Party Type</Label>
+            <Label className="text-xs font-medium uppercase tracking-wide text-gray-500 block">Party Type</Label>
             <div className="flex flex-wrap gap-2 items-center">
 
               {/* Built-in types */}
@@ -1805,7 +1805,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     type="button"
                     onMouseDown={e => e.preventDefault()}
                     onClick={addCustomPartyType}
-                    className="text-xs font-semibold bg-primary text-white px-2.5 py-0.5 rounded-full hover:bg-primary/90 transition-colors whitespace-nowrap"
+                    className="text-xs font-medium bg-primary text-white px-2.5 py-0.5 rounded-full hover:bg-primary/90 transition-colors whitespace-nowrap"
                   >
                     Add
                   </button>
@@ -1827,7 +1827,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
 
           {/* Status & Access Controls */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-gray-500 block">
+            <Label className="text-xs font-medium uppercase tracking-wide text-gray-500 block">
               Status
             </Label>
             <div className="flex flex-wrap gap-2">
@@ -1924,9 +1924,9 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
 
                 {/* Tax / Registration IDs — shown based on partyCountry */}
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
                     <span
-                      className="inline-flex items-center justify-center rounded px-1 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20"
+                      className="inline-flex items-center justify-center rounded px-1 py-0.5 text-xs font-bold bg-primary/10 text-primary border border-primary/20"
                     >{partyCountry.iso}</span>
                     Tax &amp; Registration IDs
                   </p>
@@ -1946,7 +1946,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                           className={`mt-1 text-xs ${field.mono ? 'font-mono' : ''} ${errors[field.key] ? 'border-red-400' : ''}`}
                         />
                         {errors[field.key] && (
-                          <p className="text-[10px] text-red-500 mt-0.5">{errors[field.key]}</p>
+                          <p className="text-xs text-red-500 mt-0.5">{errors[field.key]}</p>
                         )}
                       </div>
                     ))}
@@ -1959,7 +1959,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                   <Input value={website} onChange={e => { setWebsite(e.target.value); clearFieldErr('website') }}
                     placeholder="https://example.com"
                     className={`mt-1 text-sm ${errors.website ? 'border-red-400' : ''}`} />
-                  {errors.website && <p className="text-[10px] text-red-500 mt-0.5">{errors.website}</p>}
+                  {errors.website && <p className="text-xs text-red-500 mt-0.5">{errors.website}</p>}
                 </div>
 
                 {/* Alternate Phone */}
@@ -1976,7 +1976,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     <Label className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" /> Addresses</Label>
                     <button
                       type="button" onClick={addAddr}
-                      className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-full px-2.5 py-1 transition-colors"
+                      className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-full px-2.5 py-1 transition-colors"
                     >
                       <Plus className="w-3 h-3" /> Add Address
                     </button>
@@ -2011,7 +2011,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
 
                         {addresses.length > 1 && (
                           <button type="button" aria-label="Close"
-                            type="button" onClick={() => removeAddr(addr.id)}
+                            onClick={() => removeAddr(addr.id)}
                             className="shrink-0 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                             title="Remove this address"
                           >
@@ -2019,7 +2019,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                           </button>
                         )}
                         {idx === 0 && addresses.length === 1 && addr.type !== 'other' && (
-                          <span className="text-[10px] text-gray-400 italic shrink-0">primary</span>
+                          <span className="text-xs text-gray-400 italic shrink-0">primary</span>
                         )}
                       </div>
 
@@ -2110,7 +2110,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                         <button
                           type="button"
                           onClick={() => setShowTermsInput(true)}
-                          className="shrink-0 flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-lg px-2.5 h-9 transition-colors whitespace-nowrap"
+                          className="shrink-0 flex items-center gap-1 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-lg px-2.5 h-9 transition-colors whitespace-nowrap"
                         >
                           <Plus className="w-3 h-3" /> Custom
                         </button>
@@ -2120,7 +2120,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     {/* Selected term badge */}
                     {paymentTerms && !showTermsInput && (
                       <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/30 text-primary text-xs font-semibold rounded-md px-2.5 py-1">
+                        <span className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/30 text-primary text-xs font-medium rounded-md px-2.5 py-1">
                           <CheckCircle2 className="w-3 h-3 text-primary/60" />
                           {paymentTerms}
                           <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setPaymentTerms('')}
@@ -2134,10 +2134,10 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     {/* Saved custom terms */}
                     {customTerms.length > 0 && !showTermsInput && (
                       <div className="mt-1.5">
-                        <p className="text-[10px] text-gray-400 font-medium mb-1">Saved custom terms</p>
+                        <p className="text-xs text-gray-400 font-medium mb-1">Saved custom terms</p>
                         <div className="flex flex-wrap gap-1">
                           {customTerms.map(t => (
-                            <span key={t} className="inline-flex items-center gap-1 text-[11px] bg-gray-100 text-gray-600 border border-gray-200 rounded-md px-2 py-0.5">
+                            <span key={t} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 border border-gray-200 rounded-md px-2 py-0.5">
                               {t}
                               <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => removeCustomTerm(t)}
                                 className="text-gray-400 hover:text-red-500 transition-colors">
@@ -2159,8 +2159,8 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                       onChange={e => { setOpeningBalance(e.target.value); clearFieldErr('openingBalance') }} placeholder="0.00"
                       className={`mt-1 text-sm ${errors.openingBalance ? 'border-red-400' : ''}`} />
                     {errors.openingBalance
-                      ? <p className="text-[10px] text-red-500 mt-0.5">{errors.openingBalance}</p>
-                      : <p className="text-[10px] text-gray-400 mt-0.5">
+                      ? <p className="text-xs text-red-500 mt-0.5">{errors.openingBalance}</p>
+                      : <p className="text-xs text-gray-400 mt-0.5">
                           {partyType === 'customer' ? '+ve = receivable, -ve = advance/credit' : '+ve = payable, -ve = advance paid'}
                         </p>
                     }
@@ -2171,7 +2171,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                       <Input value={contactPerson} onChange={e => { setContactPerson(e.target.value); clearFieldErr('contactPerson') }}
                         placeholder="Contact name"
                         className={`mt-1 text-sm ${errors.contactPerson ? 'border-red-400' : ''}`} />
-                      {errors.contactPerson && <p className="text-[10px] text-red-500 mt-0.5">{errors.contactPerson}</p>}
+                      {errors.contactPerson && <p className="text-xs text-red-500 mt-0.5">{errors.contactPerson}</p>}
                     </div>
                   )}
                 </div>
@@ -2188,7 +2188,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                 <div className="border rounded-xl overflow-hidden">
                   <div className="px-4 py-2.5 bg-gray-50 border-b flex items-center gap-2">
                     <Landmark className="w-3.5 h-3.5 text-primary/70" />
-                    <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Bank Details</span>
+                    <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Bank Details</span>
                   </div>
                   <div className="p-3 grid grid-cols-2 gap-3">
                     <div>
@@ -2231,7 +2231,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                     </Label>
                     <button
                       type="button" onClick={addCustomField}
-                      className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary bg-accent hover:bg-primary/15 border border-primary/30 rounded-full px-2.5 py-1 transition-colors"
+                      className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary bg-accent hover:bg-primary/15 border border-primary/30 rounded-full px-2.5 py-1 transition-colors"
                     >
                       <Plus className="w-3 h-3" /> Add Field
                     </button>
@@ -2254,7 +2254,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                         <select
                           value={cf.type}
                           onChange={e => updateCustomField(cf.id, { type: e.target.value as CustomFieldType, value: '' })}
-                          className="text-[10px] font-semibold border rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-ring text-primary border-primary/30 w-[90px]"
+                          className="text-xs font-medium border rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-ring text-primary border-primary/30 w-[90px]"
                         >
                           {CUSTOM_FIELD_TYPES.map(t => (
                             <option key={t.value} value={t.value}>{t.label}</option>
@@ -2307,7 +2307,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
 
                       {/* Remove */}
                       <button type="button" aria-label="Close"
-                        type="button" onClick={() => removeCustomField(cf.id)}
+                        onClick={() => removeCustomField(cf.id)}
                         className="shrink-0 mt-0.5 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                         title="Remove field"
                       >
@@ -2346,8 +2346,8 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
-                      {errors.password && <p className="text-[10px] text-red-500">{errors.password}</p>}
-                      <p className="text-[10px] text-gray-400">
+                      {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+                      <p className="text-xs text-gray-400">
                         If left blank, default password is the phone number or <code>Welcome@123</code>
                       </p>
                     </div>
@@ -2379,7 +2379,7 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
       >
         <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border-b border-amber-100">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-          <p className="text-[11px] font-semibold text-amber-700">
+          <p className="text-xs font-medium text-amber-700">
             {suggestions.length} existing record{suggestions.length !== 1 ? 's' : ''} found — click to pre-fill
           </p>
           <button type="button" className="ml-auto p-0.5 hover:bg-amber-100 rounded" onClick={() => setShowSuggestions(false)} aria-label="Dismiss suggestions">
@@ -2410,14 +2410,14 @@ export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: A
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     {sub && <p className="text-xs text-gray-400 truncate max-w-[200px]">{sub}</p>}
                     {matched.length > 0 && (
-                      <span className="text-[9px] font-semibold uppercase tracking-wide text-primary/60 bg-primary/10 px-1.5 py-0.5 rounded">
+                      <span className="text-xs font-medium uppercase tracking-wide text-primary/60 bg-primary/10 px-1.5 py-0.5 rounded">
                         via {matched.join(', ')}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isC ? 'bg-primary/15 text-primary' : 'bg-blue-100 text-blue-700'}`}>{bdg}</span>
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isC ? 'bg-primary/15 text-primary' : 'bg-blue-100 text-blue-700'}`}>{bdg}</span>
                   <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
                 </div>
               </button>

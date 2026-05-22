@@ -356,7 +356,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                                 : 'border-gray-200 hover:border-primary/40 bg-white'
                             }`}>
                             {vDiscount > 0 && (
-                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">-{vDiscount}%</span>
+                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow">-{vDiscount}%</span>
                             )}
                             <div className="flex items-start justify-between">
                               <div>
@@ -370,18 +370,18 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                                 <p className={`text-lg font-extrabold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
                                   {formatCurrency(v.price, v.currency)}
                                 </p>
-                                <p className="text-[11px] text-gray-400">{vShort}</p>
+                                <p className="text-xs text-gray-400">{vShort}</p>
                               </div>
                             </div>
                             {(hasTrial || hasSetup) && (
                               <div className="flex flex-wrap gap-1.5 mt-2">
                                 {hasTrial && (
-                                  <span className="text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">
+                                  <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">
                                     {v.subscription_trial_days}d free trial
                                   </span>
                                 )}
                                 {hasSetup && (
-                                  <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                                  <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
                                     {formatCurrency(v.subscription_setup_fee!, v.currency)} setup
                                   </span>
                                 )}
@@ -416,7 +416,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                               isSelected ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-400 bg-white'
                             }`}>
                             {vDiscount > 0 && (
-                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">-{vDiscount}%</span>
+                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">-{vDiscount}%</span>
                             )}
                             <p className={`text-sm font-semibold ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>{v.name}</p>
                             <p className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>{formatCurrency(v.price, v.currency)}</p>
@@ -424,7 +424,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                               <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price, v.currency)}</p>
                             )}
                             {v.stock_status && v.stock_status !== 'in_stock' && (
-                              <p className="text-[10px] text-amber-600 font-medium mt-0.5">{v.stock_status === 'out_of_stock' ? 'Out of stock' : v.stock_status.replace(/_/g, ' ')}</p>
+                              <p className="text-xs text-amber-600 font-medium mt-0.5">{v.stock_status === 'out_of_stock' ? 'Out of stock' : v.stock_status.replace(/_/g, ' ')}</p>
                             )}
                           </button>
                         )
@@ -452,7 +452,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               ].map((badge) => (
                 <div key={badge.text} className={`text-center p-2.5 rounded-lg ${badge.color}`}>
                   <badge.icon className="w-5 h-5 mx-auto mb-0.5" />
-                  <p className="text-[11px] font-medium leading-tight">{badge.text}</p>
+                  <p className="text-xs font-medium leading-tight">{badge.text}</p>
                 </div>
               ))}
             </div>

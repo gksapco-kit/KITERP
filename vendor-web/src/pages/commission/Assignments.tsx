@@ -335,7 +335,7 @@ export default function AssignmentsPage() {
                       {a.payee_email && <span>{a.payee_email}</span>}
                       {a.payee_phone && <span>{a.payee_phone}</span>}
                       {a.payee_link_type && (
-                        <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-gray-200 rounded px-1">
+                        <span className="text-xs uppercase tracking-wide text-gray-400 border border-gray-200 rounded px-1">
                           {a.payee_link_type.replace('_', ' ')}
                         </span>
                       )}

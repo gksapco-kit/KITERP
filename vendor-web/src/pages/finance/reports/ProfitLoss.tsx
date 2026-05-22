@@ -59,19 +59,19 @@ export default function ProfitLoss() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              <tr className="bg-green-50 dark:bg-green-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-green-700 dark:text-green-300 uppercase">Revenue</td></tr>
+              <tr className="bg-green-50 dark:bg-green-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-medium text-green-700 dark:text-green-300 uppercase">Revenue</td></tr>
               {(data.revenue_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total Revenue" value={data.total_revenue || 0} bold />
-              <tr className="bg-red-50 dark:bg-red-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-red-700 dark:text-red-300 uppercase">Cost of Goods Sold</td></tr>
+              <tr className="bg-red-50 dark:bg-red-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-medium text-red-700 dark:text-red-300 uppercase">Cost of Goods Sold</td></tr>
               {(data.cogs_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total COGS" value={data.total_cogs || 0} bold />
               <tr className="bg-blue-50 dark:bg-blue-500/10 border-t-2 border-blue-300 dark:border-blue-500/30"><td className="px-4 py-2 font-bold text-blue-700 dark:text-blue-300">Gross Profit</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.gross_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-700 dark:text-blue-300'}`}>{fmt(data.gross_profit || 0)}</td></tr>
-              <tr className="bg-orange-50 dark:bg-orange-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-orange-700 dark:text-orange-300 uppercase">Operating Expenses</td></tr>
+              <tr className="bg-orange-50 dark:bg-orange-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-medium text-orange-700 dark:text-orange-300 uppercase">Operating Expenses</td></tr>
               {(data.opex_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total Operating Expenses" value={data.total_opex || 0} bold />
               <tr className="bg-primary/10 border-t-2 border-primary/40"><td className="px-4 py-2 font-bold text-primary">Operating Profit (EBIT)</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.operating_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-primary'}`}>{fmt(data.operating_profit || 0)}</td></tr>
               {(data.other_income_lines || []).length > 0 && <>
-                <tr className="bg-teal-50 dark:bg-teal-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-semibold text-teal-700 dark:text-teal-300 uppercase">Other Income / Expenses</td></tr>
+                <tr className="bg-teal-50 dark:bg-teal-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-medium text-teal-700 dark:text-teal-300 uppercase">Other Income / Expenses</td></tr>
                 {data.other_income_lines.map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               </>}
               <tr className="bg-muted border-t-2 border-border">

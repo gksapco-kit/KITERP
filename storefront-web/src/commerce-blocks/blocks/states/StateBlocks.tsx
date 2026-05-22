@@ -347,7 +347,7 @@ export function ErrorState({
           <Icon className="h-7 w-7" />
         </div>
       </div>
-      <div className="text-xs font-semibold uppercase tracking-wider text-destructive">
+      <div className="text-xs font-medium uppercase tracking-wider text-destructive">
         {e.code}
       </div>
       <h3 className="mt-1 text-xl font-semibold">{e.title}</h3>

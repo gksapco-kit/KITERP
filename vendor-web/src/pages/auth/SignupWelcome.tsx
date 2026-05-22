@@ -157,9 +157,9 @@ function HeaderEmailVerify({ hint }: { hint: string }) {
     <div className="flex max-w-[58%] flex-col items-end gap-0.5 text-right sm:max-w-[50%]">
       <div className="flex items-center gap-1.5">
         <Mail className="h-3.5 w-3.5 shrink-0 text-blue-600 sm:h-4 sm:w-4" aria-hidden />
-        <p className="text-[11px] font-semibold leading-tight text-blue-900 sm:text-xs">Verify your email</p>
+        <p className="text-xs font-medium leading-tight text-blue-900 sm:text-xs">Verify your email</p>
       </div>
-      <p className="hidden text-[9px] leading-snug text-blue-800/85 sm:block">Dev / inbox code:</p>
+      <p className="hidden text-xs leading-snug text-blue-800/85 sm:block">Dev / inbox code:</p>
       <p className="font-mono text-sm font-bold leading-none tracking-widest text-blue-950 sm:text-base">{hint}</p>
     </div>
   )
@@ -233,7 +233,7 @@ export default function SignupWelcome() {
         <TopConfetti />
 
         <div className="signup-welcome-pop relative z-10 mx-auto flex w-full max-w-lg min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-3 py-2 text-center sm:px-5">
-          <div className="inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border border-white/90 bg-white/95 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm sm:px-3 sm:text-[11px]">
+          <div className="inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border border-white/90 bg-white/95 px-2.5 py-0.5 text-xs font-medium uppercase tracking-[0.12em] text-slate-700 shadow-sm sm:px-3 sm:text-xs">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -262,32 +262,32 @@ export default function SignupWelcome() {
             <div className="flex shrink-0 items-start justify-between gap-2">
               <div className="flex min-w-0 items-start gap-2 text-left">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500 shadow-sm sm:h-10 sm:w-10 sm:rounded-xl">
-                  <Store className="h-4 w-4 text-white sm:h-[1.15rem] sm:w-[1.15rem]" strokeWidth={1.75} aria-hidden />
+                  <Store className="h-4 w-4 text-white sm:h-[1.15rem] sm:w-[1.15rem]" strokeWidth={2} aria-hidden />
                 </div>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="truncate text-sm font-bold text-slate-900 sm:text-base">{businessDisplay}</span>
-                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200/80 sm:text-[10px]">
+                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200/80 sm:text-xs">
                       <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3" strokeWidth={3} aria-hidden />
                       LIVE
                     </span>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-slate-500 sm:text-[12px]">
+                  <p className="mt-0.5 text-xs text-slate-500 sm:text-[12px]">
                     {categoryLabel} · Owned by {displayGreet === 'there' ? 'you' : displayGreet}
                   </p>
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Plan</p>
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Plan</p>
                 <p className="text-xs font-bold text-slate-900 sm:text-sm">{planLabel}</p>
               </div>
             </div>
 
             <div className="mt-2 flex shrink-0 items-center justify-between border-t border-slate-100 pt-2 sm:mt-3 sm:pt-2.5">
-              <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
                 Launch roadmap
               </span>
-              <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-amber-800/90">
+              <span className="text-xs font-bold uppercase tracking-[0.12em] text-amber-800/90">
                 {complete} of {TOTAL_STEPS} complete
               </span>
             </div>
@@ -316,7 +316,7 @@ export default function SignupWelcome() {
                       <div className="flex w-[4.1rem] shrink-0 flex-col items-center sm:w-[4.85rem]">
                         <div
                           className={cn(
-                            'flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold sm:h-9 sm:w-9 sm:text-xs',
+                            'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold sm:h-9 sm:w-9 sm:text-xs',
                             doneEmerald &&
                               'bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/25',
                             doneAmber &&
@@ -330,7 +330,7 @@ export default function SignupWelcome() {
                         </div>
                         <span
                           className={cn(
-                            'mt-1 text-center text-[8px] font-semibold uppercase leading-tight tracking-tight sm:text-[9px]',
+                            'mt-1 text-center text-[8px] font-semibold uppercase leading-tight tracking-tight sm:text-xs',
                             done && i === 1 && 'text-amber-900',
                             done && i !== 1 && 'text-emerald-800',
                             current && 'text-red-700',
@@ -350,7 +350,7 @@ export default function SignupWelcome() {
                         {current && (
                           <Link
                             to={nextHref}
-                            className="mt-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow-sm transition-colors hover:bg-amber-600 sm:mt-1 sm:px-2 sm:text-[9px]"
+                            className="mt-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow-sm transition-colors hover:bg-amber-600 sm:mt-1 sm:px-2 sm:text-xs"
                           >
                             Next
                           </Link>
@@ -375,7 +375,7 @@ export default function SignupWelcome() {
 
           <Link
             to={tourHref(state.offeringType)}
-            className="mt-1 shrink-0 text-[11px] font-medium text-slate-500 transition-colors hover:text-slate-800 sm:mt-1.5 sm:text-[13px]"
+            className="mt-1 shrink-0 text-xs font-medium text-slate-500 transition-colors hover:text-slate-800 sm:mt-1.5 sm:text-[13px]"
           >
             {state.offeringType === 'services' ? 'Open services catalog' : 'Take a 60-second catalog tour'}
           </Link>

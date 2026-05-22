@@ -115,7 +115,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
           <button
             type="button"
             onClick={() => setIsPublished(p => !p)}
-            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
               isPublished
                 ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                 : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
@@ -136,7 +136,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Title */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1">Post Title *</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Post Title *</label>
             <input
               value={title}
               onChange={e => handleTitleChange(e.target.value)}
@@ -148,7 +148,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
 
           {/* Excerpt */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1">Excerpt / Summary</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Excerpt / Summary</label>
             <textarea
               value={excerpt}
               onChange={e => setExcerpt(e.target.value)}
@@ -161,8 +161,8 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
           {/* Content */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-gray-600">Content (Markdown or plain text)</label>
-              <span className="text-[10px] text-gray-400">~{readingMins} min read · {wordCount(content)} words</span>
+              <label className="text-xs font-medium text-gray-600">Content (Markdown or plain text)</label>
+              <span className="text-xs text-gray-400">~{readingMins} min read · {wordCount(content)} words</span>
             </div>
             <textarea
               value={content}
@@ -178,7 +178,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
         <div className="w-64 shrink-0 border-l bg-gray-50 overflow-y-auto p-4 space-y-5">
           {/* Cover image */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Cover image</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1.5">Cover image</label>
             <input
               ref={coverFileRef}
               type="file"
@@ -197,7 +197,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               {coverUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
               {coverUploading ? 'Uploading…' : 'Upload image'}
             </Button>
-            <p className="text-[10px] text-gray-400 mb-1.5">Or paste a URL</p>
+            <p className="text-xs text-gray-400 mb-1.5">Or paste a URL</p>
             <div className="relative">
               <ImageIcon className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
               <input
@@ -219,7 +219,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
 
           {/* Slug */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1.5">URL Slug</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1.5">URL Slug</label>
             <input
               value={slug}
               onChange={e => setSlug(e.target.value)}
@@ -230,7 +230,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
 
           {/* Author */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Author Name</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1.5">Author Name</label>
             <input
               value={authorName}
               onChange={e => setAuthorName(e.target.value)}
@@ -241,7 +241,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
 
           {/* Category */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Category</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1.5">Category</label>
             <input
               value={category}
               onChange={e => setCategory(e.target.value)}
@@ -252,7 +252,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
 
           {/* Tags */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Tags (comma-separated)</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1.5">Tags (comma-separated)</label>
             <input
               value={tagsRaw}
               onChange={e => setTagsRaw(e.target.value)}
@@ -262,7 +262,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
             {tagsRaw && (
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {tagsRaw.split(',').map(t => t.trim()).filter(Boolean).map(t => (
-                  <span key={t} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{t}</span>
+                  <span key={t} className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{t}</span>
                 ))}
               </div>
             )}
@@ -270,7 +270,7 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
 
           {/* Status info */}
           {initial && (
-            <div className="text-[10px] text-gray-400 space-y-1 border-t pt-3">
+            <div className="text-xs text-gray-400 space-y-1 border-t pt-3">
               <div>Created: {fmtDate(initial.created_at)}</div>
               {initial.published_at && <div>Published: {fmtDate(initial.published_at)}</div>}
             </div>
@@ -410,7 +410,7 @@ export default function BlogManagerPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start gap-2 flex-wrap">
                   <h3 className="text-sm font-semibold text-gray-900 flex-1 min-w-0 line-clamp-1">{post.title}</h3>
-                  <span className={cn('shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full',
+                  <span className={cn('shrink-0 text-xs font-bold px-2 py-0.5 rounded-full',
                     post.is_published ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                   )}>
                     {post.is_published ? 'Published' : 'Draft'}
@@ -419,7 +419,7 @@ export default function BlogManagerPage() {
                 {post.excerpt && (
                   <p className="text-xs text-gray-500 mt-1 line-clamp-2">{post.excerpt}</p>
                 )}
-                <div className="flex items-center gap-3 mt-2 flex-wrap text-[10px] text-gray-400">
+                <div className="flex items-center gap-3 mt-2 flex-wrap text-xs text-gray-400">
                   {post.category && (
                     <span className="flex items-center gap-1">
                       <Tag className="w-3 h-3" />{post.category}
@@ -453,7 +453,7 @@ export default function BlogManagerPage() {
                     size="sm"
                     disabled={publishBusy}
                     title="Remove post from your public blog"
-                    className="h-8 gap-1.5 text-xs font-semibold border-amber-200 text-amber-800 hover:bg-amber-50"
+                    className="h-8 gap-1.5 text-xs font-medium border-amber-200 text-amber-800 hover:bg-amber-50"
                     onClick={() => publishMutation.mutate({ id: post.id, publish: false })}
                   >
                     {publishBusy ? (
@@ -469,7 +469,7 @@ export default function BlogManagerPage() {
                     size="sm"
                     disabled={publishBusy}
                     title="Make this post visible on your business front blog"
-                    className="h-8 gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="h-8 gap-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
                     onClick={() => publishMutation.mutate({ id: post.id, publish: true })}
                   >
                     {publishBusy ? (
@@ -491,7 +491,7 @@ export default function BlogManagerPage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => { deleteMutation.mutate(post.id); setDeleteConfirmId(null) }}
-                      className="px-2 py-1 text-[10px] font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700"
+                      className="px-2 py-1 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700"
                     >
                       Confirm
                     </button>

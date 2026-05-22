@@ -219,7 +219,7 @@ function ProfileHero() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-bold text-gray-900 truncate">{user?.full_name}</h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-accent text-primary border border-primary/30">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-accent text-primary border border-primary/30">
                 <ShieldCheck className="w-3 h-3" />
                 {role}
               </span>
@@ -237,7 +237,7 @@ function ProfileHero() {
               />
               <VerifiedBadge level={vendorVerificationLevel(vendor)} label={`Business ${vendorVerificationLevel(vendor) === 'verified' ? 'verified' : vendorVerificationLevel(vendor) === 'in_review' ? 'in review' : vendorVerificationLevel(vendor) === 'rejected' ? 'rejected' : 'unverified'}`} />
               {memberSince && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                <span className="inline-flex items-center gap-1 text-xs text-gray-500">
                   <Calendar className="w-3 h-3" />
                   Member since {memberSince}
                 </span>
@@ -275,12 +275,12 @@ function ProfileHero() {
 
 function VerifiedChip({ label, verified }: { label: string; verified: boolean }) {
   return verified ? (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">
       <CheckCircle2 className="w-3 h-3" />
       {label} verified
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
       <AlertCircle className="w-3 h-3" />
       {label} not verified
     </span>
@@ -350,7 +350,7 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
                 className="pl-9 bg-gray-50 text-gray-600"
               />
             </div>
-            <p className="text-[11px] text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               To change your email, use the <span className="font-medium">Verification &amp; contact</span> section below.
             </p>
           </div>
@@ -463,7 +463,7 @@ function SecuritySection({ open, toggle }: { open: boolean; toggle: () => void }
                     />
                   ))}
                 </div>
-                <p className={cn('text-[11px] font-medium', strength.textColor)}>
+                <p className={cn('text-xs font-medium', strength.textColor)}>
                   {strength.label}
                 </p>
               </div>
@@ -480,12 +480,12 @@ function SecuritySection({ open, toggle }: { open: boolean; toggle: () => void }
               placeholder="Repeat new password"
             />
             {confirm.length > 0 && !matches && (
-              <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1">
+              <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" /> Passwords don't match
               </p>
             )}
             {confirm.length > 0 && matches && (
-              <p className="text-[11px] text-green-600 mt-1 flex items-center gap-1">
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Passwords match
               </p>
             )}
@@ -520,10 +520,10 @@ function SecuritySection({ open, toggle }: { open: boolean; toggle: () => void }
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-700">Two-factor authentication</p>
-                <p className="text-[11px] text-gray-500">Add an extra layer of security to your account.</p>
+                <p className="text-xs text-gray-500">Add an extra layer of security to your account.</p>
               </div>
             </div>
-            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+            <span className="text-xs font-medium uppercase tracking-wider px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
               Coming soon
             </span>
           </div>
@@ -620,7 +620,7 @@ function RolePermissionsSection({ open, toggle }: { open: boolean; toggle: () =>
       open={open}
       toggle={toggle}
       badge={role && (
-        <span className="text-[10px] font-semibold px-2 py-1 rounded bg-accent text-primary border border-primary/30">
+        <span className="text-xs font-medium px-2 py-1 rounded bg-accent text-primary border border-primary/30">
           {role.role_name}
         </span>
       )}
@@ -647,14 +647,14 @@ function RolePermissionsSection({ open, toggle }: { open: boolean; toggle: () =>
                   <p className="text-xs text-gray-400 text-center py-4">No permissions match "{filter}"</p>
                 ) : filtered.map(group => (
                   <div key={group.ns}>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">
                       {group.ns}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {group.items.map(p => (
                         <span
                           key={p}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-mono bg-gray-50 text-gray-700 border border-gray-200"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-mono bg-gray-50 text-gray-700 border border-gray-200"
                         >
                           <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
                           {p}
@@ -675,7 +675,7 @@ function RolePermissionsSection({ open, toggle }: { open: boolean; toggle: () =>
 function InfoTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{label}</p>
       <p className="text-sm font-semibold text-gray-800 mt-0.5 truncate">{value}</p>
     </div>
   )
@@ -743,7 +743,7 @@ function ActivitySection({ open, toggle }: { open: boolean; toggle: () => void }
               </span>
               <div className="flex flex-col">
                 <p className="text-sm font-medium text-gray-900">{e.title}</p>
-                <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
+                <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                   <span>{e.meta}</span>
                   <span>·</span>
                   <span className="inline-flex items-center gap-1">
@@ -786,7 +786,7 @@ function QuickLinks() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 truncate">{item.label}</p>
-                <p className="text-[11px] text-gray-500 truncate">{item.desc}</p>
+                <p className="text-xs text-gray-500 truncate">{item.desc}</p>
               </div>
             </Link>
           ))}
@@ -846,7 +846,7 @@ function IdentifiersSection({ open, toggle }: { open: boolean; toggle: () => voi
             >
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">{r.label}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">{r.description}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{r.description}</p>
               </div>
               <IdChip label="" code={r.code} fullValue={r.full} className="shrink-0" />
             </div>
@@ -942,7 +942,7 @@ function EmailVerifyCard() {
       }
       footer={
         hint ? (
-          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">
             Dev mode — no SMTP configured. Auto-filled code: <span className="font-mono font-semibold">{hint}</span>
           </p>
         ) : null
@@ -1015,12 +1015,12 @@ function PhoneVerifyCard() {
       footer={
         <>
           {hint && (
-            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">
               Dev mode — no SMS provider configured. Auto-filled OTP: <span className="font-mono font-semibold">{hint}</span>
             </p>
           )}
           {!user?.phone && (
-            <p className="text-[11px] text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 mt-2">
               Add a phone number above in Personal Information first.
             </p>
           )}
@@ -1132,7 +1132,7 @@ function EmailChangeCard() {
             </Button>
           </div>
           {hint && (
-            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
               Dev mode — auto-filled code: <span className="font-mono font-semibold">{hint}</span>
             </p>
           )}
@@ -1289,13 +1289,13 @@ function DocumentRow({
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-semibold text-gray-900">{meta.label}</p>
               {required && (
-                <span className="text-[10px] font-semibold uppercase text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">Required</span>
+                <span className="text-xs font-medium uppercase text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">Required</span>
               )}
               {statusBadge}
             </div>
-            <p className="text-[11px] text-gray-500 mt-0.5">{meta.hint}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{meta.hint}</p>
             {doc && (
-              <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-500">
+              <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
                 <span className="truncate max-w-[200px]" title={doc.file_name || ''}>{doc.file_name || 'Document'}</span>
                 {doc.file_url && (
                   <a
@@ -1310,7 +1310,7 @@ function DocumentRow({
               </div>
             )}
             {doc?.status === 'rejected' && doc.rejection_reason && (
-              <p className="text-[11px] text-red-600 mt-1">Rejected: {doc.rejection_reason}</p>
+              <p className="text-xs text-red-600 mt-1">Rejected: {doc.rejection_reason}</p>
             )}
           </div>
         </div>
@@ -1349,7 +1349,7 @@ function DangerZone() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-red-200 bg-red-50/40">
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-900">Sign out</p>
-            <p className="text-[11px] text-gray-500">End your current session on this device.</p>
+            <p className="text-xs text-gray-500">End your current session on this device.</p>
           </div>
           <Button
             variant="outline"

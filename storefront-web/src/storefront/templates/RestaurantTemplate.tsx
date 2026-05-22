@@ -76,7 +76,7 @@ const RestaurantHome = ({ liveCatalog = false }: { liveCatalog?: boolean }) => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-8 md:px-12 pb-12 sm:pb-16 text-white w-full min-w-0">
-          <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.22em] sm:tracking-[0.3em] opacity-80">
+          <span className="text-xs sm:text-xs uppercase tracking-[0.22em] sm:tracking-[0.3em] opacity-80">
             {c('hero.badge', 'Seasonal · Tasting menu')}
           </span>
           <h1 className="text-[clamp(1.5rem,4vw_+_0.45rem,2.85rem)] sm:text-[clamp(1.85rem,4.2vw_+_0.45rem,3.35rem)] md:text-[clamp(2.1rem,4.5vw_+_0.45rem,3.6rem)] lg:text-[clamp(2.35rem,5vw_+_0.5rem,4.25rem)] mt-3 mb-4 max-w-full sm:max-w-3xl leading-[1.08] sm:leading-[1.02] hyphens-none break-words" style={{ fontFamily: 'var(--sf-display)' }}>
@@ -99,7 +99,7 @@ const RestaurantHome = ({ liveCatalog = false }: { liveCatalog?: boolean }) => {
       {/* Menu */}
       <section data-edit-id="menu" className="max-w-5xl mx-auto px-6 sm:px-12 py-20" id="menu">
         <div className="text-center mb-12">
-          <span className="text-[11px] uppercase tracking-[0.3em] opacity-70">
+          <span className="text-xs uppercase tracking-[0.3em] opacity-70">
             {c('menu.season', 'Spring menu')}
           </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl mt-2" style={{ fontFamily: 'var(--sf-display)' }}>
@@ -128,7 +128,7 @@ const RestaurantHome = ({ liveCatalog = false }: { liveCatalog?: boolean }) => {
                       <p className="text-sm opacity-70 mt-1">{item.description}</p>
                       <div className="mt-3 flex items-center gap-3">
                         {item.badges?.[0] ? (
-                          <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 border" style={{ borderColor: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-accent))' }}>{item.badges[0]}</span>
+                          <span className="text-xs uppercase tracking-[0.2em] px-2 py-0.5 border" style={{ borderColor: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-accent))' }}>{item.badges[0]}</span>
                         ) : null}
                         <button onClick={() => { const v = item.variants[0]; addToCart({ productId: item.id, variantId: v.id, quantity: 1, name: item.title, variantLabel: v.name, imageUrl: item.images[0]?.url, unitPrice: v.price, inStock: v.inStock }) }} className="text-xs underline opacity-80 hover:opacity-100">
                           Add to order

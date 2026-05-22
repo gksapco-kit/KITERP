@@ -46,16 +46,16 @@ export default function ESSLayout() {
       <aside className="w-56 shrink-0 bg-white border-r flex flex-col h-full min-h-0">
         {/* Portal header */}
         <div className="shrink-0 px-4 py-4 border-b bg-slate-800">
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Employee Portal (ESS)</p>
+          <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Employee Portal (ESS)</p>
           <p className="text-sm font-semibold text-white mt-0.5 truncate">Hello, {name}</p>
           {outletLabel && (
-            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-300 leading-tight">
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-300 leading-tight">
               <Store className="w-3.5 h-3.5 shrink-0 text-slate-400" />
               <span className="truncate" title={outletLabel}>{outletLabel}</span>
             </p>
           )}
           {loginBranch && !hideLoginBranchLine && (
-            <p className="mt-1.5 text-[10px] text-slate-400 leading-tight truncate" title={`${loginBranch.name ?? ''} ${loginBranch.code ?? ''}`}>
+            <p className="mt-1.5 text-xs text-slate-400 leading-tight truncate" title={`${loginBranch.name ?? ''} ${loginBranch.code ?? ''}`}>
               Login link: {loginBranch.name ?? 'Store'}
               {loginBranch.code ? ` (${loginBranch.code})` : ''}
             </p>

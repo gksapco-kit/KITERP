@@ -39,7 +39,7 @@ export default function ESSTicketDetailPage() {
         <h1 className="text-2xl font-bold text-gray-900">{String(t.subject)}</h1>
         <p className="text-sm text-gray-500 mt-1">
           {String(t.category ?? 'Other')} · Priority <strong>{String(t.priority)}</strong>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded ml-2 ${stat.color}`}>{stat.label}</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded ml-2 ${stat.color}`}>{stat.label}</span>
         </p>
       </header>
       {t.description ? (

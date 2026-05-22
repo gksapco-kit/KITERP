@@ -36,8 +36,8 @@ interface ProductImageUploadProps {
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf'
 
 function MediaBadge({ type }: { type: string }) {
-  if (type === 'video') return <span className="absolute top-1 right-1 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>
-  if (type === 'model3d') return <span className="absolute top-1 right-1 bg-cyan-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>
+  if (type === 'video') return <span className="absolute top-1 right-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>
+  if (type === 'model3d') return <span className="absolute top-1 right-1 bg-cyan-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>
   return null
 }
 
@@ -53,7 +53,7 @@ function MediaPreview({ item }: { item: ProductImage }) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
         <Box className="w-10 h-10" />
-        <span className="text-[10px] mt-1 font-medium">3D Model</span>
+        <span className="text-xs mt-1 font-medium">3D Model</span>
       </div>
     )
   }
@@ -157,7 +157,7 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, d
           <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Film className="w-3 h-3" />Videos</span>
           <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Box className="w-3 h-3" />3D Models</span>
         </div>
-        <p className="text-[10px] text-gray-300 mt-1">Images: 5 MB &middot; Videos: 50 MB &middot; 3D (GLB/GLTF): 30 MB</p>
+        <p className="text-xs text-gray-300 mt-1">Images: 5 MB &middot; Videos: 50 MB &middot; 3D (GLB/GLTF): 30 MB</p>
         <input
           ref={inputRef}
           type="file"
@@ -182,7 +182,7 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, d
                 <MediaPreview item={item} />
                 <MediaBadge type={item.media_type || 'image'} />
                 {item.is_primary && (
-                  <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                  <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
                     <Star className="w-3 h-3" />Primary
                   </span>
                 )}
@@ -314,7 +314,7 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, di
           <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Film className="w-3 h-3" />Videos</span>
           <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Box className="w-3 h-3" />3D Models</span>
         </div>
-        <p className="text-[10px] text-gray-300 mt-1">Images: 5 MB &middot; Videos: 50 MB &middot; 3D (GLB/GLTF): 30 MB</p>
+        <p className="text-xs text-gray-300 mt-1">Images: 5 MB &middot; Videos: 50 MB &middot; 3D (GLB/GLTF): 30 MB</p>
         <input
           ref={inputRef}
           type="file"
@@ -335,7 +335,7 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, di
                 <MediaPreview item={asProductImage} />
                 <MediaBadge type={item.media_type || 'image'} />
                 {item.is_primary && (
-                  <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                  <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
                     <Star className="w-3 h-3" />Primary
                   </span>
                 )}

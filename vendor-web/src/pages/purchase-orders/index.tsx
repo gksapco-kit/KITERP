@@ -214,13 +214,13 @@ export default function PurchaseOrdersPage() {
               <ResizableTable tableId="purchase-orders" defaultWidths={[110, 160, 100, 100, 200, 110, 110]}>
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">PO #</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Supplier</th>
-                    <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Items / Variants</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Order Date</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Expected</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">PO #</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Supplier</th>
+                    <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Items / Variants</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Order Date</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Expected</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -519,7 +519,7 @@ function CreatePOModal({
                 <button
                   type="button"
                   onClick={() => setShowQuickSupplier(v => !v)}
-                  className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-medium"
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
                 >
                   <UserPlus className="w-3 h-3" /> New Supplier
                 </button>
@@ -540,7 +540,7 @@ function CreatePOModal({
               {showQuickSupplier && (
                 <div className="border border-blue-200 rounded-lg bg-blue-50/60 p-3 space-y-2 mt-1">
                   <div className="flex items-center justify-between mb-0.5">
-                    <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                    <p className="text-xs font-medium text-blue-700 flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5" /> Quick Create Supplier
                     </p>
                     <button type="button" aria-label="Close" type="button" onClick={() => setShowQuickSupplier(false)} className="text-gray-400 hover:text-gray-600">
@@ -569,7 +569,7 @@ function CreatePOModal({
                         // Save current state hint and navigate to full form
                         navigate('/master-data/new?returnTo=purchase-orders&kind=supplier')
                       }}
-                      className="flex items-center gap-1 text-[11px] text-primary hover:text-primary hover:underline"
+                      className="flex items-center gap-1 text-xs text-primary hover:text-primary hover:underline"
                     >
                       <ExternalLink className="w-3 h-3" /> Full Details
                     </button>
@@ -679,7 +679,7 @@ function CreatePOModal({
                     {/* Row 3: qty + unit cost + line total */}
                     <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
                       <div className="space-y-0.5">
-                        <span className="text-[10px] text-gray-400 uppercase tracking-wide">Qty</span>
+                        <span className="text-xs text-gray-400 uppercase tracking-wide">Qty</span>
                         <Input
                           type="number"
                           min={1}
@@ -691,7 +691,7 @@ function CreatePOModal({
                         />
                       </div>
                       <div className="space-y-0.5">
-                        <span className="text-[10px] text-gray-400 uppercase tracking-wide">Unit Cost (₹)</span>
+                        <span className="text-xs text-gray-400 uppercase tracking-wide">Unit Cost (₹)</span>
                         <Input
                           type="number"
                           min={0}
@@ -704,7 +704,7 @@ function CreatePOModal({
                         />
                       </div>
                       <div className="space-y-0.5 text-right">
-                        <span className="text-[10px] text-gray-400 uppercase tracking-wide">Total</span>
+                        <span className="text-xs text-gray-400 uppercase tracking-wide">Total</span>
                         <div className="h-8 flex items-center justify-end text-sm font-semibold text-gray-700 tabular-nums min-w-[80px]">
                           {formatCurrency(lineTotal)}
                         </div>

@@ -21,7 +21,7 @@ export default function AuditPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><History className="w-6 h-6 text-blue-500" /> Audit Log</h1>
         <p className="text-sm text-gray-500 mt-1">Every CRUD Action Against CRM Data Is Recorded Here For Compliance.</p>
       </div>
@@ -45,12 +45,12 @@ export default function AuditPage() {
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="w-8"></th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">When</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actor</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Action</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Entity</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Path</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden xl:table-cell">IP</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">When</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actor</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Entity</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Path</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell">IP</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -67,12 +67,12 @@ export default function AuditPage() {
                       <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{formatDateTime(a.created_at)}</td>
                       <td className="px-4 py-3 text-xs">
                         <span className="text-gray-800">{a.actor_type}</span>
-                        {a.actor_id && <p className="font-mono text-gray-400 text-[10px]">{a.actor_id.slice(0, 8)}</p>}
+                        {a.actor_id && <p className="font-mono text-gray-400 text-xs">{a.actor_id.slice(0, 8)}</p>}
                       </td>
                       <td className="px-4 py-3"><Badge variant={a.action === 'delete' ? 'destructive' : a.action === 'create' ? 'success' : 'soft'}>{a.action}</Badge></td>
                       <td className="px-4 py-3 text-xs">
                         <span className="font-medium">{a.entity}</span>
-                        {a.entity_id && <p className="font-mono text-gray-400 text-[10px]">{a.entity_id.slice(0, 8)}</p>}
+                        {a.entity_id && <p className="font-mono text-gray-400 text-xs">{a.entity_id.slice(0, 8)}</p>}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600 hidden lg:table-cell font-mono">{a.request_path || '—'}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 hidden xl:table-cell">{a.ip || '—'}</td>
@@ -90,7 +90,7 @@ export default function AuditPage() {
                               <pre className="bg-white border rounded-md p-2 overflow-x-auto">{JSON.stringify(a.after ?? null, null, 2)}</pre>
                             </div>
                           </div>
-                          {a.user_agent && <p className="text-[10px] text-gray-400 mt-2">{a.user_agent}</p>}
+                          {a.user_agent && <p className="text-xs text-gray-400 mt-2">{a.user_agent}</p>}
                         </td>
                       </tr>
                     )}

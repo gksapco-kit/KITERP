@@ -221,7 +221,7 @@ function TypeDropdown({
         <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto">
           {COMPANY_TYPE_GROUPS.map((group) => (
             <div key={group}>
-              <p className="px-4 pt-2 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-50 sticky top-0">
+              <p className="px-4 pt-2 pb-0.5 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 sticky top-0">
                 {group}
               </p>
               {COMPANY_TYPES.filter((t) => t.group === group).map(({ value: v, label, icon: ItemIcon }) => (
@@ -635,7 +635,7 @@ export default function Register() {
                   </div>
                 </form>
 
-                <p className="mt-3 text-center text-[11px] text-slate-500 sm:text-xs">
+                <p className="mt-3 text-center text-xs text-slate-500 sm:text-xs">
                   By signing up, you agree to our{' '}
                   <a href="#" className="text-[hsl(204.42deg_94.86%_48.34%)] hover:underline">Terms</a>
                   {' '}and{' '}

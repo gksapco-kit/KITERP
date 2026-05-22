@@ -16,7 +16,7 @@ export function EmployeeTabBar({
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
-            className={`flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium border-b-2 transition-colors ${
+            className={`flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${
               isActive
                 ? 'border-blue-600 text-blue-600 bg-blue-50/40'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -35,7 +35,7 @@ export function EmployeeTabBar({
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
-            className={`flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium border-b-2 transition-colors ${
+            className={`flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${
               isActive
                 ? 'border-blue-600 text-blue-600 bg-blue-50/40'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'

@@ -250,7 +250,7 @@ export default function NotificationsPage() {
               </div>
               <div className="mt-auto flex items-end justify-between gap-1">
                 <div>
-                  <p className="text-[11px] font-medium leading-tight text-muted-foreground">{meta.label}</p>
+                  <p className="text-xs font-medium leading-tight text-muted-foreground">{meta.label}</p>
                   <p
                     className={cn(
                       'text-xl font-bold leading-tight',
@@ -261,7 +261,7 @@ export default function NotificationsPage() {
                   </p>
                 </div>
                 {byType.unread > 0 && (
-                  <span className="mb-0.5 inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                  <span className="mb-0.5 inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
                     {byType.unread}
                   </span>
                 )}
@@ -307,7 +307,7 @@ export default function NotificationsPage() {
             <SlidersHorizontal className="h-4 w-4" />
             Filter
             {activeFiltersCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                 {activeFiltersCount}
               </span>
             )}
@@ -319,13 +319,13 @@ export default function NotificationsPage() {
         {showFilters && (
           <div className="space-y-3 rounded-xl border border-border bg-card p-3">
             <div>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Status</p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setUnreadOnly(false)}
                   className={cn(
-                    'flex select-none items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-150',
+                    'flex select-none items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-150',
                     !unreadOnly
                       ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                       : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-accent hover:text-primary',
@@ -337,7 +337,7 @@ export default function NotificationsPage() {
                   type="button"
                   onClick={() => setUnreadOnly(true)}
                   className={cn(
-                    'flex select-none items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-150',
+                    'flex select-none items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-150',
                     unreadOnly
                       ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                       : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-accent hover:text-primary',

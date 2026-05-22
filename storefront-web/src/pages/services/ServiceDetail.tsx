@@ -78,20 +78,20 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
                   ? themeUi.gradientDayOpen
                   : 'bg-gray-50 border border-gray-100 text-gray-300'
               }`}>
-              <p className="font-bold text-[11px]">{label}</p>
+              <p className="font-bold text-xs">{label}</p>
               {isOpen ? (
                 <div className="mt-1 space-y-1">
                   {slots.map((slot, si) => (
                     <div key={si}>
                       <p className="font-semibold">{slot.start_time}</p>
-                      <p className={`text-[10px] ${themeUi.textSecondaryTone}`}>to</p>
+                      <p className={`text-xs ${themeUi.textSecondaryTone}`}>to</p>
                       <p className="font-semibold">{slot.end_time}</p>
                       {si < slots.length - 1 && <div className={`border-t ${themeUi.mutedLine} my-1`} />}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="mt-1.5 text-[10px]">Closed</p>
+                <p className="mt-1.5 text-xs">Closed</p>
               )}
             </div>
           )
@@ -142,7 +142,7 @@ function PlanSelector({
                     {vPriceType === 'per_unit' && ` · per ${UOM_LABELS[plan.uom] || plan.uom || 'unit'}`}
                   </p>
                   {plan.description && (
-                    <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">{plan.description}</p>
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">{plan.description}</p>
                   )}
                 </div>
                 <div className="text-right shrink-0">
@@ -151,7 +151,7 @@ function PlanSelector({
                       <p className={`text-lg font-extrabold ${isSelected ? themeUi.textPrimaryStrong : 'text-gray-900'}`}>
                         {formatCurrency(plan.price, currency)}
                       </p>
-                      <p className="text-[11px] text-gray-400">{vShort}</p>
+                      <p className="text-xs text-gray-400">{vShort}</p>
                     </>
                   ) : (
                     <p className="text-sm text-amber-600 font-medium">Quote</p>
@@ -161,17 +161,17 @@ function PlanSelector({
               {(hasTrial || hasSetup || plan.duration_minutes) && (
                 <div className="flex flex-wrap gap-1.5 mt-2.5">
                   {hasTrial && (
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                       {plan.subscription_trial_days}d free trial
                     </span>
                   )}
                   {hasSetup && (
-                    <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                       {formatCurrency(plan.subscription_setup_fee!, currency)} setup
                     </span>
                   )}
                   {plan.duration_minutes ? (
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-0.5 ${themeUi.pillDuration}`}>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-0.5 ${themeUi.pillDuration}`}>
                       <Clock className="w-2.5 h-2.5" />{plan.duration_minutes}m
                     </span>
                   ) : null}
@@ -267,10 +267,10 @@ function BookingModal({
 
           {availability && availability.some(s => s.is_available) && (
             <div className={`rounded-xl p-3 border ${themeUi.bgSoftPanel} ${themeUi.borderPrimarySoft}`}>
-              <p className={`text-[11px] font-bold mb-1.5 uppercase tracking-wider ${themeUi.textPrimary}`}>Available days</p>
+              <p className={`text-xs font-bold mb-1.5 uppercase tracking-wider ${themeUi.textPrimary}`}>Available days</p>
               <div className="flex gap-1.5 flex-wrap">
                 {[...availability].filter(s => s.is_available).sort((a, b) => a.day_of_week - b.day_of_week).map(s => (
-                  <span key={s.id ?? `${s.day_of_week}-${s.start_time}-${s.end_time}`} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${themeUi.dayChip}`}>
+                  <span key={s.id ?? `${s.day_of_week}-${s.start_time}-${s.end_time}`} className={`text-xs font-medium px-2 py-0.5 rounded-full ${themeUi.dayChip}`}>
                     {DAYS[s.day_of_week]} {s.start_time}–{s.end_time}
                   </span>
                 ))}
@@ -297,7 +297,7 @@ function BookingModal({
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Preferred Time</label>
             <Input type="time" value={startTime} min={timeBoundsForDate?.start} max={timeBoundsForDate?.end}
               onChange={(e) => setStartTime(e.target.value)} className="h-11" />
-            <p className="text-[11px] text-gray-400 mt-1">Leave blank if no preference</p>
+            <p className="text-xs text-gray-400 mt-1">Leave blank if no preference</p>
           </div>
 
           <div>
@@ -611,20 +611,20 @@ export default function ServiceDetail() {
           {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
             {service.category && (
-              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${themeUi.pillSecondary}`}>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${themeUi.pillSecondary}`}>
                 {service.category}
               </span>
             )}
             {sf.brand && service.brand && (
-              <span className="text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{service.brand}</span>
+              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{service.brand}</span>
             )}
             {sf.service_mode && service.service_mode && (
-              <span className={`text-[11px] font-medium px-2 py-1 rounded-lg flex items-center gap-1 ${themeUi.pillPrimary}`}>
+              <span className={`text-xs font-medium px-2 py-1 rounded-lg flex items-center gap-1 ${themeUi.pillPrimary}`}>
                 <Monitor className="w-3 h-3" /> {SERVICE_MODE_LABELS[service.service_mode] || service.service_mode.replace(/_/g, ' ')}
               </span>
             )}
             {isSubscription && (
-              <span className={`text-[11px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${themeUi.pillAccentBold}`}>
+              <span className={`text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${themeUi.pillAccentBold}`}>
                 <Repeat className="w-3 h-3" /> Subscription
               </span>
             )}
@@ -923,10 +923,10 @@ export default function ServiceDetail() {
 
             {/* Trust badges */}
             <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
-              <div className="flex items-center gap-2 text-[11px] text-gray-500">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Shield className="w-3.5 h-3.5 text-emerald-500" /> Verified Vendor
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-gray-500">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Star className="w-3.5 h-3.5 text-amber-500" /> Quality Assured
               </div>
             </div>

@@ -93,7 +93,7 @@ export default function BlogGridBlock({ site, style, props }: Props) {
                   <p className="text-sm text-gray-500 line-clamp-3 mb-4 flex-1">{p.excerpt}</p>
                 )}
                 <span
-                  className="text-xs font-semibold inline-flex items-center gap-1 mt-auto"
+                  className="text-xs font-medium inline-flex items-center gap-1 mt-auto"
                   style={{ color: style.primary_color }}
                 >
                   Read more →

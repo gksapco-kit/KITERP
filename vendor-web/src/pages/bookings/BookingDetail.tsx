@@ -278,7 +278,7 @@ export default function BookingDetail() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-gray-900">{b.booking_number as string}</h1>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge.bg} ${badge.text}`}>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
                 {badge.label}
               </span>
             </div>
@@ -430,10 +430,10 @@ export default function BookingDetail() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-gray-800 text-xs">{f.author as string}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${typeColor[f.type as string] || typeColor.note}`}>
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${typeColor[f.type as string] || typeColor.note}`}>
                               {f.type as string}
                             </span>
-                            <span className="text-gray-400 text-[11px]">{formatDateTime(f.created_at as string)}</span>
+                            <span className="text-gray-400 text-xs">{formatDateTime(f.created_at as string)}</span>
                           </div>
                           <p className="text-gray-700 mt-0.5">{f.content as string}</p>
                         </div>
@@ -495,8 +495,8 @@ export default function BookingDetail() {
                         </button>
                       </div>
                       <div className="px-2 py-1.5">
-                        <p className="text-[11px] text-gray-500 truncate">{a.filename as string}</p>
-                        <p className="text-[10px] text-gray-400">{a.uploaded_by as string}</p>
+                        <p className="text-xs text-gray-500 truncate">{a.filename as string}</p>
+                        <p className="text-xs text-gray-400">{a.uploaded_by as string}</p>
                       </div>
                     </div>
                   ))}
@@ -531,7 +531,7 @@ export default function BookingDetail() {
                     </h3>
                     {serviceId && (
                       <a href={`/services/${serviceId}`} target="_blank" rel="noopener noreferrer"
-                        className="text-[10px] text-primary hover:text-primary font-medium flex items-center gap-1 transition-colors">
+                        className="text-xs text-primary hover:text-primary font-medium flex items-center gap-1 transition-colors">
                         <Eye className="w-3 h-3" /> Configure in Service
                       </a>
                     )}
@@ -634,15 +634,15 @@ export default function BookingDetail() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           {h.from_status && (
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${STATUS_BADGE[h.from_status as string]?.bg || 'bg-gray-100'} ${STATUS_BADGE[h.from_status as string]?.text || 'text-gray-600'}`}>
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${STATUS_BADGE[h.from_status as string]?.bg || 'bg-gray-100'} ${STATUS_BADGE[h.from_status as string]?.text || 'text-gray-600'}`}>
                               {STATUS_BADGE[h.from_status as string]?.label || h.from_status as string}
                             </span>
                           )}
                           {h.from_status && <ChevronRight className="w-3 h-3 text-gray-300" />}
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${STATUS_BADGE[h.to_status as string]?.bg || 'bg-gray-100'} ${STATUS_BADGE[h.to_status as string]?.text || 'text-gray-600'}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${STATUS_BADGE[h.to_status as string]?.bg || 'bg-gray-100'} ${STATUS_BADGE[h.to_status as string]?.text || 'text-gray-600'}`}>
                             {STATUS_BADGE[h.to_status as string]?.label || h.to_status as string}
                           </span>
-                          <span className="text-[11px] text-gray-400">{formatDateTime(h.changed_at as string)}</span>
+                          <span className="text-xs text-gray-400">{formatDateTime(h.changed_at as string)}</span>
                         </div>
                         {h.changed_by_name && <p className="text-xs text-gray-500 mt-0.5">by {h.changed_by_name as string}</p>}
                         {h.note && <p className="text-xs text-gray-400 mt-0.5 italic">"{h.note as string}"</p>}

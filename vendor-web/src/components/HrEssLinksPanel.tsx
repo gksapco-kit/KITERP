@@ -54,12 +54,12 @@ export default function HrEssLinksPanel({ links, settings, embedded, className }
               <span className="block text-sm font-medium text-foreground">
                 {row.code} — {row.name}
               </span>
-              <span className="block text-[10px] text-muted-foreground">HR & employee login</span>
+              <span className="block text-xs text-muted-foreground">HR & employee login</span>
               <a
                 href={row.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-0.5 block truncate font-mono text-[11px] text-primary/90 underline-offset-2 hover:text-primary hover:underline"
+                className="mt-0.5 block truncate font-mono text-xs text-primary/90 underline-offset-2 hover:text-primary hover:underline"
                 title={row.url}
               >
                 {row.url}
@@ -96,7 +96,7 @@ export default function HrEssLinksPanel({ links, settings, embedded, className }
     return (
       <div className={cn('space-y-1.5', className)}>
         <p className="text-xs font-medium text-foreground">Employee login (ESS)</p>
-        <p className="text-[10px] text-muted-foreground">{scopeHint}</p>
+        <p className="text-xs text-muted-foreground">{scopeHint}</p>
         <div className="overflow-hidden rounded-lg border border-border bg-background">{body}</div>
       </div>
     )
@@ -105,7 +105,7 @@ export default function HrEssLinksPanel({ links, settings, embedded, className }
   return (
     <div className={cn('space-y-2 rounded-lg border border-border bg-card px-3 py-2.5 shadow-sm', className)}>
       <p className="text-xs font-medium text-foreground">Employee login (ESS)</p>
-      <p className="text-[10px] text-muted-foreground">{scopeHint}</p>
+      <p className="text-xs text-muted-foreground">{scopeHint}</p>
       <div className="overflow-hidden rounded-md border border-border">{body}</div>
     </div>
   )

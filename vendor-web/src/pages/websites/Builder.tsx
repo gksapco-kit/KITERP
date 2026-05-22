@@ -606,7 +606,7 @@ function TextPromptPopup({
           </button>
         </div>
         <div className="p-4 space-y-3">
-          {subtitle && <p className="text-[11px] text-gray-500">{subtitle}</p>}
+          {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
           {multiline ? (
             <textarea
               autoFocus
@@ -637,11 +637,11 @@ function TextPromptPopup({
             />
           )}
           {maxLength && (
-            <div className="text-[10px] text-gray-400 text-right">{val.length} / {maxLength}</div>
+            <div className="text-xs text-gray-400 text-right">{val.length} / {maxLength}</div>
           )}
         </div>
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50">
-          <button onClick={onClose} className="btn-cancel flex-1 py-2 rounded-lg text-xs font-semibold text-gray-600 border border-[#ffc954]">Cancel</button>
+          <button onClick={onClose} className="btn-cancel flex-1 py-2 rounded-lg text-xs font-medium text-gray-600 border border-[#ffc954]">Cancel</button>
           <button onClick={commit} className="flex-1 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary/90">{confirmLabel}</button>
         </div>
       </div>
@@ -870,7 +870,7 @@ function LinkEditorPopup({
             <Link2 className="w-4 h-4 shrink-0" />
             <span className="text-sm font-bold truncate">Connect link or ERP item</span>
             {type !== 'none' && currentMeta && (
-              <span className="ml-1 px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-semibold">{currentMeta.label}</span>
+              <span className="ml-1 px-1.5 py-0.5 rounded bg-white/20 text-xs font-medium">{currentMeta.label}</span>
             )}
           </div>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-white/20 shrink-0">
@@ -887,7 +887,7 @@ function LinkEditorPopup({
                 key={g.id}
                 onClick={() => setActiveGroup(g.id)}
                 className={cn(
-                  'px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition-colors border-b-2',
+                  'px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2',
                   active ? 'text-primary border-primary bg-white' : 'text-gray-500 border-transparent hover:text-primary hover:bg-white/60'
                 )}
                 title={g.desc}
@@ -924,8 +924,8 @@ function LinkEditorPopup({
                 >
                   <opt.icon className={cn('w-4 h-4 shrink-0 mt-0.5', active ? 'text-primary' : 'text-gray-500')} />
                   <div className="min-w-0">
-                    <div className="text-[11px] font-semibold text-gray-800">{opt.label}</div>
-                    <div className="text-[9px] text-gray-400 truncate">{opt.desc}</div>
+                    <div className="text-xs font-medium text-gray-800">{opt.label}</div>
+                    <div className="text-xs text-gray-400 truncate">{opt.desc}</div>
                   </div>
                 </button>
               )
@@ -934,7 +934,7 @@ function LinkEditorPopup({
 
           {/* Note for action-type links */}
           {currentMeta?.note && (
-            <div className="p-2 text-[10px] text-emerald-700 bg-emerald-50 rounded-lg border border-emerald-100">
+            <div className="p-2 text-xs text-emerald-700 bg-emerald-50 rounded-lg border border-emerald-100">
               {currentMeta.note}
             </div>
           )}
@@ -942,7 +942,7 @@ function LinkEditorPopup({
           {/* Plain input for URL/email/phone/whatsapp/scroll */}
           {(type === 'url' || type === 'email' || type === 'phone' || type === 'whatsapp' || type === 'scroll') && (
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1 block">
+              <label className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1 block">
                 {type === 'url' ? 'URL' :
                  type === 'email' ? 'Email address' :
                  type === 'phone' ? 'Phone number' :
@@ -962,7 +962,7 @@ function LinkEditorPopup({
           {/* ── Stores multi-select — compact dropdown + chips UI ───────── */}
           {type === 'stores_multi' && (
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400 block">
+              <label className="text-xs font-bold uppercase tracking-wide text-gray-400 block">
                 Connected branches
               </label>
 
@@ -974,7 +974,7 @@ function LinkEditorPopup({
                     return (
                       <span
                         key={code}
-                        className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-white border border-primary/40 text-[11px] font-semibold text-primary shadow-sm"
+                        className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full bg-white border border-primary/40 text-xs font-medium text-primary shadow-sm"
                       >
                         <StoreIcon className="w-3 h-3 text-primary/70 shrink-0" />
                         {item?.title || code}
@@ -990,7 +990,7 @@ function LinkEditorPopup({
                   })}
                 </div>
               ) : (
-                <div className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-200 rounded-xl text-[11px] text-gray-400">
+                <div className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400">
                   <StoreIcon className="w-3.5 h-3.5 opacity-40" />
                   No branches selected yet — pick from the dropdown below
                 </div>
@@ -1002,7 +1002,7 @@ function LinkEditorPopup({
                   <Loader2 className="w-4 h-4 animate-spin text-primary/80" />
                 </div>
               ) : pickableList.length === 0 ? (
-                <div className="text-[11px] text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">
+                <div className="text-xs text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">
                   No stores found — add branches in KITERP first.
                 </div>
               ) : (
@@ -1013,7 +1013,7 @@ function LinkEditorPopup({
                       value={pickerSearch}
                       onChange={e => setPickerSearch(e.target.value)}
                       placeholder="Search stores…"
-                      className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-[11px] focus:outline-none focus:ring-2 focus:ring-ring bg-white"
+                      className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-white"
                     />
                   </div>
                   <div className="max-h-40 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
@@ -1025,7 +1025,7 @@ function LinkEditorPopup({
                           type="button"
                           onClick={() => toggleMultiStore(item)}
                           className={cn(
-                            'w-full flex items-center gap-2.5 px-3 py-2 text-left text-[11px] transition-colors',
+                            'w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors',
                             picked ? 'bg-accent' : 'hover:bg-gray-50'
                           )}
                         >
@@ -1039,10 +1039,10 @@ function LinkEditorPopup({
                             <div className={cn('font-semibold truncate', picked ? 'text-primary' : 'text-gray-800')}>
                               {item.title}
                             </div>
-                            {item.subtitle && <div className="text-[9px] text-gray-400 truncate">{item.subtitle}</div>}
+                            {item.subtitle && <div className="text-xs text-gray-400 truncate">{item.subtitle}</div>}
                           </div>
                           {(item.meta as any)?.code && (
-                            <span className="text-[9px] font-mono text-gray-400 shrink-0 bg-gray-100 px-1.5 py-0.5 rounded">
+                            <span className="text-xs font-mono text-gray-400 shrink-0 bg-gray-100 px-1.5 py-0.5 rounded">
                               {(item.meta as any).code}
                             </span>
                           )}
@@ -1058,7 +1058,7 @@ function LinkEditorPopup({
                         setMultiSelected(allCodes)
                         setTarget(`/stores?branch=${allCodes.map(encodeURIComponent).join(',')}`)
                       }}
-                      className="text-[10px] text-primary font-semibold hover:text-primary"
+                      className="text-xs text-primary font-semibold hover:text-primary"
                     >
                       Select all ({pickableList.length})
                     </button>
@@ -1066,7 +1066,7 @@ function LinkEditorPopup({
                       <button
                         type="button"
                         onClick={() => { setMultiSelected([]); setTarget('/stores') }}
-                        className="text-[10px] text-gray-400 font-semibold hover:text-red-500"
+                        className="text-xs text-gray-400 font-semibold hover:text-red-500"
                       >
                         Clear all
                       </button>
@@ -1081,7 +1081,7 @@ function LinkEditorPopup({
           {resource && type !== 'stores_multi' && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <label className="text-xs font-bold uppercase tracking-wide text-gray-400">
                   Pick from live {resource}
                 </label>
                 {pickableList.length > 6 && (
@@ -1091,7 +1091,7 @@ function LinkEditorPopup({
                       value={pickerSearch}
                       onChange={e => setPickerSearch(e.target.value)}
                       placeholder="Search…"
-                      className="pl-6 pr-2 py-1 border border-gray-200 rounded-md text-[10px] w-32 focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="pl-6 pr-2 py-1 border border-gray-200 rounded-md text-xs w-32 focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                 )}
@@ -1101,9 +1101,9 @@ function LinkEditorPopup({
                   <Loader2 className="w-4 h-4 animate-spin text-primary/80" />
                 </div>
               ) : filteredList.length === 0 ? (
-                <div className="text-[11px] text-gray-400 text-center py-6 border border-dashed border-gray-200 rounded-lg">
+                <div className="text-xs text-gray-400 text-center py-6 border border-dashed border-gray-200 rounded-lg">
                   {pickerSearch ? 'No matches for ' : 'No live '}<b>{pickerSearch || resource}</b>{pickerSearch ? '.' : ' yet.'}
-                  {!pickerSearch && <div className="mt-1 text-[10px] text-gray-400">Add them inside KITERP first.</div>}
+                  {!pickerSearch && <div className="mt-1 text-xs text-gray-400">Add them inside KITERP first.</div>}
                 </div>
               ) : (
                 <div className="max-h-56 overflow-y-auto border border-gray-100 rounded-lg p-1 space-y-0.5 bg-gray-50/50">
@@ -1128,11 +1128,11 @@ function LinkEditorPopup({
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-gray-800 truncate">{item.title}</div>
-                          <div className="text-[9px] text-gray-400 truncate">
+                          <div className="text-xs text-gray-400 truncate">
                             {item.subtitle || <span className="font-mono">{resolved}</span>}
                           </div>
                         </div>
-                        {item.price_formatted && <div className="text-[10px] text-primary font-bold shrink-0">{item.price_formatted}</div>}
+                        {item.price_formatted && <div className="text-xs text-primary font-bold shrink-0">{item.price_formatted}</div>}
                         {picked && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                       </button>
                     )
@@ -1145,20 +1145,20 @@ function LinkEditorPopup({
           {/* Portal / action routes: show the target for transparency + allow override */}
           {currentMeta?.route && !resource && (
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1 block">Target route</label>
+              <label className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1 block">Target route</label>
               <input
                 value={target || currentMeta.route}
                 onChange={e => setTarget(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono"
               />
-              <p className="text-[10px] text-gray-400 mt-1">Default route for {currentMeta.label}. Customize if your site uses a different path.</p>
+              <p className="text-xs text-gray-400 mt-1">Default route for {currentMeta.label}. Customize if your site uses a different path.</p>
             </div>
           )}
 
           {/* Label override */}
           {type !== 'none' && (
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1 block">Button label (optional)</label>
+              <label className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1 block">Button label (optional)</label>
               <input
                 value={label}
                 onChange={e => setLabel(e.target.value)}
@@ -1183,10 +1183,10 @@ function LinkEditorPopup({
 
         {/* Footer */}
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50 shrink-0">
-          <div className="flex-1 text-[10px] text-gray-500 truncate font-mono">
+          <div className="flex-1 text-xs text-gray-500 truncate font-mono">
             {type === 'none' ? 'No link' : (target || currentMeta?.route || '—')}
           </div>
-          <button onClick={onClose} className="btn-cancel px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 border border-[#ffc954]">Cancel</button>
+          <button onClick={onClose} className="btn-cancel px-3 py-2 rounded-lg text-xs font-medium text-gray-600 border border-[#ffc954]">Cancel</button>
           <button onClick={save} className="px-4 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary/90 flex items-center gap-1.5">
             <Link2 className="w-3 h-3" /> Save link
           </button>
@@ -1261,7 +1261,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
       >
         {a.icon && <a.icon className="w-3.5 h-3.5 shrink-0" />}
         <span className="flex-1">{a.label}</span>
-        {a.shortcut && <span className="text-[9px] text-gray-400 font-mono">{a.shortcut}</span>}
+        {a.shortcut && <span className="text-xs text-gray-400 font-mono">{a.shortcut}</span>}
         {a.children && <ChevronRight className="w-3 h-3 text-gray-400" />}
       </button>
     )
@@ -2309,7 +2309,7 @@ function BlockPreview({
       <button
         type="button"
         onClick={e => { e.stopPropagation(); addItem(arrayKey, template) }}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-primary/40 text-primary hover:border-primary hover:bg-accent text-xs font-semibold transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-primary/40 text-primary hover:border-primary hover:bg-accent text-xs font-medium transition-colors"
       >
         <Plus className="w-3.5 h-3.5" /> {label}
       </button>
@@ -2365,7 +2365,7 @@ function BlockPreview({
         {canEdit && onEditPropLink && (
           <button
             className={cn(
-              'absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-bold text-white opacity-0 group-hover/ctabtn:opacity-100 transition-opacity whitespace-nowrap z-20',
+              'absolute -top-5 left-0 px-1.5 py-0.5 rounded text-xs font-bold text-white opacity-0 group-hover/ctabtn:opacity-100 transition-opacity whitespace-nowrap z-20',
               isLinked ? 'bg-emerald-500' : 'bg-gray-500',
             )}
             onMouseDown={e => {
@@ -2565,7 +2565,7 @@ function BlockPreview({
                     <img src={mediaUrl(logoSrc as string)} className="h-8 object-contain" alt="logo" />
                     {canEdit && (
                       <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover/logo:opacity-100 transition-opacity bg-black/40 rounded">
-                        <label title="Replace logo" className="cursor-pointer p-1 bg-white/90 rounded text-[9px] font-bold text-gray-700 hover:bg-white flex items-center gap-0.5">
+                        <label title="Replace logo" className="cursor-pointer p-1 bg-white/90 rounded text-xs font-bold text-gray-700 hover:bg-white flex items-center gap-0.5">
                           <Upload className="w-3 h-3" />
                           <input type="file" accept="image/*" className="hidden" onChange={async e => {
                             const file = e.target.files?.[0]; e.target.value = ''
@@ -2576,7 +2576,7 @@ function BlockPreview({
                             } catch { toast.error('Upload failed') }
                           }} />
                         </label>
-                        <button type="button" aria-label="Close" title="Remove logo" type="button" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-[9px] font-bold text-red-600 hover:bg-white">
+                        <button type="button" aria-label="Close" title="Remove logo" type="button" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-xs font-bold text-red-600 hover:bg-white">
                 <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -2587,7 +2587,7 @@ function BlockPreview({
                   <div className="flex items-center gap-2">
                     <InlineEditableText value={brandName} placeholder="Your Brand" editable={canEdit} as="span" onCommit={v => commitProp('brand', v)} />
                     {canEdit && (
-                      <label title="Upload logo" className="cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-0.5 text-[9px] font-bold whitespace-nowrap">
+                      <label title="Upload logo" className="cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-0.5 text-xs font-bold whitespace-nowrap">
                         <Upload className="w-3 h-3" /> Logo
                         <input type="file" accept="image/*" className="hidden" onChange={async e => {
                           const file = e.target.files?.[0]; e.target.value = ''
@@ -2604,7 +2604,7 @@ function BlockPreview({
               }
               </div>
               {(p as any).tagline ? (
-                <div className="text-[10px] uppercase tracking-[0.18em] opacity-70 mt-0.5" style={{ color: navTextCol }}>
+                <div className="text-xs uppercase tracking-[0.18em] opacity-70 mt-0.5" style={{ color: navTextCol }}>
                   <InlineEditableText
                     value={String((p as any).tagline)}
                     placeholder="Tagline"
@@ -2655,7 +2655,7 @@ function BlockPreview({
                         links.splice(i, 1)
                         commitProp('nav_links', links)
                       }}
-                      className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
+                      className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
                     >×</button>
                   )}
                 </div>
@@ -2667,7 +2667,7 @@ function BlockPreview({
                     const links = [...(p.nav_links as any[] || []), { label: 'New Link', url: '/' }]
                     commitProp('nav_links', links)
                   }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-primary hover:bg-accent border border-dashed border-primary/40"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-primary hover:bg-accent border border-dashed border-primary/40"
                 ><Plus className="w-3 h-3" /> Link</button>
               )}
             </div>
@@ -2774,7 +2774,7 @@ function BlockPreview({
                     placeholder="AUTUMN / WINTER"
                     editable={isEditing}
                     as="div"
-                    className="text-[11px] uppercase tracking-[0.3em] opacity-70 mb-2"
+                    className="text-xs uppercase tracking-[0.3em] opacity-70 mb-2"
                     style={{ color: heroText }}
                     onCommit={v => commitProp('eyebrow', v)}
                   />
@@ -2875,7 +2875,7 @@ function BlockPreview({
                           onEditPropLink('cta_primary', { x: rect.left, y: rect.bottom + 4 })
                         }}
                         className={cn(
-                          'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-[9px] shadow-md transition-opacity',
+                          'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
                           (p as any).cta_primary_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
                         )}
                         title={(p as any).cta_primary_url ? `Linked → ${(p as any).cta_primary_url}` : 'Connect link / ERP item'}
@@ -2917,7 +2917,7 @@ function BlockPreview({
                           onEditPropLink('cta_secondary', { x: rect.left, y: rect.bottom + 4 })
                         }}
                         className={cn(
-                          'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-[9px] shadow-md transition-opacity',
+                          'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
                           (p as any).cta_secondary_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
                         )}
                         title={(p as any).cta_secondary_url ? `Linked → ${(p as any).cta_secondary_url}` : 'Connect link / ERP item'}
@@ -3108,7 +3108,7 @@ function BlockPreview({
               </div>
             )}
             {!isLive && dsType === 'kpis' && (
-              <p className="text-center text-gray-400 text-[10px] mt-4">Loading live KPIs…</p>
+              <p className="text-center text-gray-400 text-xs mt-4">Loading live KPIs…</p>
             )}
           </section>
         )
@@ -3188,7 +3188,7 @@ function BlockPreview({
               </div>
             )}
             {dsType === 'testimonials' && !isLive && (
-              <p className="text-center text-[10px] text-gray-400 mt-4 flex items-center justify-center gap-1">
+              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                 <Database className="w-3 h-3" /> No reviews yet — ask customers to leave one to see them here live.
               </p>
             )}
@@ -3236,7 +3236,7 @@ function BlockPreview({
                               feats.splice(fi, 1)
                               editItem('plans', i, 'features', feats as any)
                             }}
-                            className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
+                            className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
                           >×</button>
                         )}
                       </li>
@@ -3355,7 +3355,7 @@ function BlockPreview({
                       onEditPropLink('cta_label', { x: rect.left, y: rect.bottom + 4 })
                     }}
                     className={cn(
-                      'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-[9px] shadow-md transition-opacity',
+                      'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
                       (p as any).cta_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
                     )}
                     title={(p as any).cta_url ? `Linked → ${(p as any).cta_url}` : 'Connect link / ERP item'}
@@ -3565,9 +3565,9 @@ function BlockPreview({
                 </button>
                 {canEdit
                   ? <InlineEditableText value={(p as any).form_hint as string || ''} placeholder="Helper hint…" editable as="p" multiline
-                      className="text-[10px] text-gray-400 text-center" style={{}}
+                      className="text-xs text-gray-400 text-center" style={{}}
                       onCommit={v => commitProp('form_hint', v)} />
-                  : ((p as any).form_hint || <p className="text-[10px] text-gray-400 text-center">Messages from your published site are captured as CRM leads automatically.</p>)}
+                  : ((p as any).form_hint || <p className="text-xs text-gray-400 text-center">Messages from your published site are captured as CRM leads automatically.</p>)}
               </div>
             </div>
           </section>
@@ -3594,7 +3594,7 @@ function BlockPreview({
               ))}
             </div>
             {isLive && (
-              <p className="text-center text-[10px] text-emerald-600 mt-3 font-semibold">Live · your top customers</p>
+              <p className="text-center text-xs text-emerald-600 mt-3 font-semibold">Live · your top customers</p>
             )}
           </section>
         )
@@ -3686,7 +3686,7 @@ function BlockPreview({
                           >×</button>
                         )}
                         <InlineEditableText value={col.title || ''} placeholder="Column title" editable={canEdit} as="div"
-                          className="text-[11px] uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}
+                          className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}
                           onCommit={v => editColTitle(footerCols, colIdx, v)} />
                         {col.links.map((l, linkIdx) => (
                           <div key={linkIdx} className="relative group/line flex items-center gap-1 mb-2">
@@ -3696,7 +3696,7 @@ function BlockPreview({
                             {canEdit && (
                               <button type="button" title="Remove link"
                                 onClick={e => { e.stopPropagation(); removeColLink(footerCols, colIdx, linkIdx) }}
-                                className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
+                                className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
                               >×</button>
                             )}
                           </div>
@@ -3704,7 +3704,7 @@ function BlockPreview({
                         {canEdit && (
                           <button type="button"
                             onClick={e => { e.stopPropagation(); addColLink(footerCols, colIdx) }}
-                            className="text-[10px] inline-flex items-center gap-1 mt-1 opacity-70 hover:opacity-100"
+                            className="text-xs inline-flex items-center gap-1 mt-1 opacity-70 hover:opacity-100"
                             style={{ color: footerLinkColor }}
                           ><Plus className="w-3 h-3" /> Add link</button>
                         )}
@@ -3718,7 +3718,7 @@ function BlockPreview({
                             const next = [...footerCols, { title: 'New Column', links: ['Link one'] }]
                             onPropsUpdate?.({ ...block.props, footer_columns: next } as BlockProps)
                           }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 border-dashed text-xs font-semibold transition-colors"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 border-dashed text-xs font-medium transition-colors"
                           style={{ borderColor: footerBorder, color: footerLinkColor }}
                         ><Plus className="w-3.5 h-3.5" /> Add column</button>
                       </div>
@@ -3727,25 +3727,25 @@ function BlockPreview({
                 ) : hasLiveLinks ? (
                   <>
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Pages</div>
+                      <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Pages</div>
                       {liveNavLinks.slice(0, 6).map(pg => (
                         <div key={pg.id} className="text-sm mb-2 opacity-90 cursor-pointer hover:opacity-100" style={{ color: footerLinkColor }}>{pg.title}</div>
                       ))}
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Contact</div>
+                      <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Contact</div>
                       {pmeta.email && <div className="text-sm mb-2 opacity-90" style={{ color: footerLinkColor }}>{pmeta.email}</div>}
                       {pmeta.phone && <div className="text-sm mb-2 opacity-90" style={{ color: footerLinkColor }}>{pmeta.phone}</div>}
                       {pmeta.address && <div className="text-sm mb-2 opacity-90" style={{ color: footerLinkColor }}>{pmeta.address}</div>}
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Follow</div>
+                      <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Follow</div>
                       {Object.entries(socialLinks).filter(([, url]) => !!url).slice(0, 5).map(([k]) => (
                         <div key={k} className="text-sm mb-2 capitalize opacity-90 cursor-pointer hover:opacity-100" style={{ color: footerLinkColor }}>{k}</div>
                       ))}
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Legal</div>
+                      <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Legal</div>
                       {['Terms', 'Privacy', 'Refund'].map(l => (
                         <div key={l} className="text-sm mb-2 opacity-90 cursor-pointer hover:opacity-100" style={{ color: footerLinkColor }}>{l}</div>
                       ))}
@@ -3762,7 +3762,7 @@ function BlockPreview({
                     e.stopPropagation()
                     onPropsUpdate?.({ ...block.props, footer_columns: [{ title: 'New Column', links: ['Link one'] }] } as BlockProps)
                   }}
-                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-dashed text-xs font-semibold"
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-dashed text-xs font-medium"
                   style={{ borderColor: footerBorder, color: footerTitleColor }}
                 ><Plus className="w-3.5 h-3.5" /> Add first column</button>
               </div>
@@ -3877,14 +3877,14 @@ function BlockPreview({
           return (
             <div className="border-t py-20 sm:py-24 px-6 max-w-4xl mx-auto text-center" style={{ borderColor: `${text_color}18`, backgroundColor: bg_color }}>
               {(p.subtitle || canEdit) && (
-                <div className="text-[11px] uppercase tracking-[0.3em] opacity-70 mb-3" style={{ color: text_color }}>
+                <div className="text-xs uppercase tracking-[0.3em] opacity-70 mb-3" style={{ color: text_color }}>
                   <InlineEditableText value={(p.subtitle as string) || ''} placeholder="Our craft" editable={canEdit} as="span" onCommit={v => commitProp('subtitle', v)} />
                 </div>
               )}
               {IET('title', 'h2', 'text-3xl sm:text-4xl md:text-5xl mb-6 text-balance', { fontFamily: font_heading, color: text_color }, title)}
               {IET('description', 'p', 'opacity-80 max-w-2xl mx-auto text-pretty text-base leading-relaxed', { color: text_color }, desc, true)}
               {isLive && (
-                <div className="flex items-center justify-center gap-1.5 mt-6 text-[10px] text-emerald-600 font-semibold">
+                <div className="flex items-center justify-center gap-1.5 mt-6 text-xs text-emerald-600 font-semibold">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · synced with your vendor profile
                 </div>
               )}
@@ -3900,11 +3900,11 @@ function BlockPreview({
               }
             </div>
             <div className="flex-1 space-y-4">
-              {(p.eyebrow || canEdit) && IET('eyebrow', 'div', 'text-xs font-semibold uppercase tracking-wide', { color: primary_color }, 'Our Story')}
+              {(p.eyebrow || canEdit) && IET('eyebrow', 'div', 'text-xs font-medium uppercase tracking-wide', { color: primary_color }, 'Our Story')}
               {IET('title', 'h2', 'text-3xl font-bold', { fontFamily: font_heading }, 'About Us')}
               {IET('description', 'p', 'text-gray-500 text-sm leading-relaxed', {}, 'Tell your story here.', true)}
               {isLive && (
-                <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-semibold">
+                <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · synced with your vendor profile
                 </div>
               )}
@@ -3962,7 +3962,7 @@ function BlockPreview({
                         : <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-12 h-12 text-gray-300" /></div>}
                     </div>
                     <div>
-                      <span className="text-[11px] uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
+                      <span className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
                         Featured{(featuredOne as any).brand != null && String((featuredOne as any).brand).trim() !== '' ? ` · ${(featuredOne as any).brand}` : ''}
                       </span>
                       <h3 className="text-3xl sm:text-4xl lg:text-5xl mt-3 mb-4 text-balance" style={{ fontFamily: font_heading, color: text_color }}>
@@ -4009,10 +4009,10 @@ function BlockPreview({
                         ? <img src={mediaUrl(prod.image_url)} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={prod?.title} />
                         : <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>}
                       {p.show_badges && prod?.meta?.is_featured && (
-                        <span style={{ backgroundColor: primary_color, color: '#fff' }} className="absolute top-3 left-3 text-[10px] uppercase tracking-[0.2em] px-2 py-1">Featured</span>
+                        <span style={{ backgroundColor: primary_color, color: '#fff' }} className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
                       )}
                       <div
-                        className="absolute bottom-3 left-3 right-3 h-10 text-[10px] uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-semibold"
+                        className="absolute bottom-3 left-3 right-3 h-10 text-xs uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-semibold"
                         style={{ backgroundColor: text_color, color: bg_color }}
                       >
                         Quick add
@@ -4029,7 +4029,7 @@ function BlockPreview({
                 ))}
               </div>
               {(isLive || isTemplateBlock) && liveProducts.length === 0 && !liveLoading && (
-                <p className="text-center text-[10px] text-gray-400 mt-4 flex items-center justify-center gap-1">
+                <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                   <Database className="w-3 h-3" /> No products yet — add some in your catalog and they will appear here.
                 </p>
               )}
@@ -4054,25 +4054,25 @@ function BlockPreview({
                       : <ShoppingBag className="w-8 h-8 text-gray-300" />
                     }
                     {p.show_badges && prod?.meta?.is_featured && (
-                      <span style={{ backgroundColor: accent_color }} className="absolute top-2 left-2 text-[9px] text-white font-bold px-1.5 py-0.5 rounded">Featured</span>
+                      <span style={{ backgroundColor: accent_color }} className="absolute top-2 left-2 text-xs text-white font-bold px-1.5 py-0.5 rounded">Featured</span>
                     )}
                     {p.show_badges && prod?.meta?.offer_label && (
-                      <span style={{ backgroundColor: '#ef4444' }} className="absolute top-2 right-2 text-[9px] text-white font-bold px-1.5 py-0.5 rounded">{prod.meta.offer_label}</span>
+                      <span style={{ backgroundColor: '#ef4444' }} className="absolute top-2 right-2 text-xs text-white font-bold px-1.5 py-0.5 rounded">{prod.meta.offer_label}</span>
                     )}
                   </div>
                   <div className="p-3">
                     <div className="font-semibold text-xs truncate">{prod?.title || `Product ${i + 1}`}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{prod?.price_formatted || (prod?.price != null ? `₹${prod.price}` : '₹999')}</div>
                     {prod?.meta?.stock_status === 'out_of_stock'
-                      ? <div className="text-[10px] text-red-500 font-semibold mt-1">Out of stock</div>
-                      : <button style={{ backgroundColor: primary_color, borderRadius: r, color: '#fff' }} className="mt-2 px-3 py-1.5 text-xs font-semibold w-full">Add to Cart</button>
+                      ? <div className="text-xs text-red-500 font-semibold mt-1">Out of stock</div>
+                      : <button style={{ backgroundColor: primary_color, borderRadius: r, color: '#fff' }} className="mt-2 px-3 py-1.5 text-xs font-medium w-full">Add to Cart</button>
                     }
                   </div>
                 </div>
               ))}
             </div>
             {(isLive || isTemplateBlock) && liveProducts.length === 0 && !liveLoading && (
-              <p className="text-center text-[10px] text-gray-400 mt-4 flex items-center justify-center gap-1">
+              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                 <Database className="w-3 h-3" /> No products yet — add some in your catalog and they'll appear here.
               </p>
             )}
@@ -4116,7 +4116,7 @@ function BlockPreview({
                     className="text-sm text-gray-500"
                     style={{}}
                     onCommit={v => editItem('features', i, 'desc', v)} />
-                  {f.duration && <div className="text-[10px] text-gray-400">{f.duration} min</div>}
+                  {f.duration && <div className="text-xs text-gray-400">{f.duration} min</div>}
                   {f.price && <div style={{ color: primary_color }} className="text-xs font-bold">From {f.price}</div>}
                 </div>
               ))}
@@ -4127,7 +4127,7 @@ function BlockPreview({
               </div>
             )}
             {dsType === 'services' && !isLive && !liveLoading && (
-              <p className="text-center text-[10px] text-gray-400 mt-4 flex items-center justify-center gap-1">
+              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                 <Database className="w-3 h-3" /> No services yet — add some and they'll appear here live.
               </p>
             )}
@@ -4257,12 +4257,12 @@ function BlockPreview({
               <div style={{ borderRadius: r, border: `1px solid ${primary_color}22` }} className="p-4 bg-white shadow-sm text-left">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-bold text-gray-600">Order #12345</span>
-                  <span style={{ backgroundColor: `${primary_color}15`, color: primary_color }} className="text-[10px] font-bold px-2 py-0.5 rounded-full">In Transit</span>
+                  <span style={{ backgroundColor: `${primary_color}15`, color: primary_color }} className="text-xs font-bold px-2 py-0.5 rounded-full">In Transit</span>
                 </div>
                 {['Order Placed', 'Processing', 'Shipped', 'Delivered'].map((step, i) => (
                   <div key={i} className="flex items-center gap-2 py-1">
                     <div style={{ backgroundColor: i < 3 ? primary_color : '#e5e7eb', borderRadius: '50%' }} className="w-2 h-2 shrink-0" />
-                    <span className={`text-[11px] ${i < 3 ? 'text-gray-700 font-semibold' : 'text-gray-400'}`}>{step}</span>
+                    <span className={`text-xs ${i < 3 ? 'text-gray-700 font-semibold' : 'text-gray-400'}`}>{step}</span>
                   </div>
                 ))}
               </div>
@@ -4278,7 +4278,7 @@ function BlockPreview({
             <div className="max-w-sm mx-auto space-y-3">
               {['Service Type', 'Quantity', 'Delivery Window'].map(label => (
                 <div key={label} className="text-left space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">{label}</label>
+                  <label className="text-xs font-medium text-gray-600">{label}</label>
                   <select style={{ borderRadius: r }} className="w-full px-3 py-2 border border-gray-200 text-sm">
                     <option>Select...</option>
                   </select>
@@ -4294,8 +4294,8 @@ function BlockPreview({
         return (
           <div className="py-8 px-8 relative" style={{ backgroundColor: bg_color }}>
             <div className="absolute top-2 right-2 flex gap-1">
-              <span className="text-[9px] bg-primary text-white px-2 py-0.5 rounded font-bold">A/B Test</span>
-              <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">Variant A — {(p as any).split || 50}%</span>
+              <span className="text-xs bg-primary text-white px-2 py-0.5 rounded font-bold">A/B Test</span>
+              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">Variant A — {(p as any).split || 50}%</span>
             </div>
             <div className="text-center">
               <h2 style={{ fontFamily: font_heading, color: text_color }} className="text-2xl font-bold mb-4">{va.headline || 'Variant A Headline'}</h2>
@@ -4311,11 +4311,11 @@ function BlockPreview({
         return (
           <div className="py-8 px-8 relative" style={{ backgroundColor: bg_color }}>
             <div className="absolute top-2 right-2">
-              <span className="text-[9px] bg-amber-500 text-white px-2 py-0.5 rounded font-bold">Personalized</span>
+              <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded font-bold">Personalized</span>
             </div>
             <div className="text-center space-y-2">
               <p style={{ color: text_color }} className="text-sm font-semibold">{(p as any).default_content || 'Default message for all visitors'}</p>
-              <p className="text-[10px] text-gray-400">
+              <p className="text-xs text-gray-400">
                 Rule: <strong>{(p as any).rule || 'device'}</strong> — configure in Properties panel
               </p>
             </div>
@@ -4371,7 +4371,7 @@ function BlockPreview({
                             <div className="font-semibold text-sm truncate">{it.title}</div>
                             {it.price && <div className="text-xs font-bold" style={{ color: primary_color }}>{it.price}</div>}
                           </div>
-                          {it.desc && <div className="text-[11px] text-gray-500 line-clamp-2 mt-0.5">{it.desc}</div>}
+                          {it.desc && <div className="text-xs text-gray-500 line-clamp-2 mt-0.5">{it.desc}</div>}
                         </div>
                       </div>
                     ))}
@@ -4380,7 +4380,7 @@ function BlockPreview({
               ))}
             </div>
             {isTemplateBlock && groups.length === 0 && !liveLoading && (
-              <p className="text-center text-[10px] text-gray-400 mt-4 flex items-center justify-center gap-1">
+              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                 <Database className="w-3 h-3" /> No products available yet.
               </p>
             )}
@@ -4444,7 +4444,7 @@ function BlockPreview({
                     : <div className="w-full h-full flex items-center justify-center"><Camera className="w-8 h-8 text-gray-300" /></div>
                   }
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end p-3">
-                    <div className="text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">{it.title}</div>
+                    <div className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">{it.title}</div>
                   </div>
                 </div>
               ))}
@@ -4472,7 +4472,7 @@ function BlockPreview({
               <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
                 <div>
                   {(eyebrow || canEdit) && (
-                    <div className="text-[11px] uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
+                    <div className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
                       <InlineEditableText
                         value={eyebrow || ''}
                         placeholder="Shop by category"
@@ -4552,7 +4552,7 @@ function BlockPreview({
                     }
                   </div>
                   <div className="p-4">
-                    <div className="text-[10px] text-gray-400 mb-1">{post.date || ''}</div>
+                    <div className="text-xs text-gray-400 mb-1">{post.date || ''}</div>
                     <div className="font-semibold text-sm mb-1 line-clamp-2">{post.title}</div>
                     <div className="text-xs text-gray-500 line-clamp-2">{post.excerpt}</div>
                   </div>
@@ -4560,11 +4560,11 @@ function BlockPreview({
               ))}
             </div>
             {isTemplateBlock ? (
-              <p className="text-center text-[10px] text-gray-400 mt-4">
+              <p className="text-center text-xs text-gray-400 mt-4">
                 Once you mark a page as page type <b>"blog"</b> in the editor, it will show up here.
               </p>
             ) : (
-              <p className="text-center text-[10px] text-gray-400 mt-4 flex items-center justify-center gap-1">
+              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                 <Database className="w-3 h-3" /> Edit posts in the Properties panel or connect a CMS via External API
               </p>
             )}
@@ -4610,7 +4610,7 @@ function BlockPreview({
                 <MapPin className="w-10 h-10 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Add an address to show the map</p>
                 {dsType === 'profile' && liveProfile && !hasMapLocation && (
-                  <p className="text-[10px] text-emerald-600 font-semibold mt-2 flex items-center gap-1">
+                  <p className="text-xs text-emerald-600 font-semibold mt-2 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
                     Set address in your vendor profile
                   </p>
@@ -4618,7 +4618,7 @@ function BlockPreview({
               </div>
             )}
             {dsType === 'profile' && liveProfile && hasMapLocation && mapSrc && (
-              <p className="text-center text-[10px] text-emerald-600 font-semibold mt-3 flex items-center justify-center gap-1">
+              <p className="text-center text-xs text-emerald-600 font-semibold mt-3 flex items-center justify-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
                 Live from your vendor profile
               </p>
@@ -4649,7 +4649,7 @@ function BlockPreview({
               ))}
             </div>
             {entries.length > 0 && dsType === 'profile' && (
-              <p className="text-center text-[10px] text-emerald-600 mt-3 font-semibold">Live · from your vendor profile</p>
+              <p className="text-center text-xs text-emerald-600 mt-3 font-semibold">Live · from your vendor profile</p>
             )}
           </section>
         )
@@ -4669,7 +4669,7 @@ function BlockPreview({
               {[{ v: days, l: 'Days' }, { v: hours, l: 'Hours' }, { v: mins, l: 'Mins' }, { v: secs, l: 'Secs' }].map(({ v, l }) => (
                 <div key={l} className="flex flex-col items-center">
                   <div className="text-4xl font-black text-white bg-white/20 rounded-xl w-16 h-16 flex items-center justify-center">{String(v).padStart(2, '0')}</div>
-                  <div className="text-[10px] text-white/70 mt-1 uppercase tracking-widest">{l}</div>
+                  <div className="text-xs text-white/70 mt-1 uppercase tracking-widest">{l}</div>
                 </div>
               ))}
             </div>
@@ -4694,7 +4694,7 @@ function BlockPreview({
       case 'payment_methods_strip':
         return (
           <div className="py-6 px-8 text-center" style={{ backgroundColor: effectiveStyle.surface_color }}>
-            {(p.title || canEdit) && IET('title', 'p', 'text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3', {}, 'Secure Payments')}
+            {(p.title || canEdit) && IET('title', 'p', 'text-xs font-medium text-gray-400 uppercase tracking-widest mb-3', {}, 'Secure Payments')}
             <div className="flex items-center justify-center gap-3 flex-wrap">
               {(['Visa', 'MC', 'UPI', 'GPay', 'COD'] as string[]).map((m: string) => (
                 <div key={m} className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-gray-500 bg-white">{m}</div>
@@ -4744,7 +4744,7 @@ function BlockPreview({
                 <div className="flex gap-2">
                   <div style={{ backgroundColor: primary_color, borderRadius: r }} className="flex-1 h-11 flex items-center justify-center text-white font-semibold text-sm">Add to Cart</div>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
+                <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · connected to your product catalog
                 </div>
               </div>
@@ -4792,7 +4792,7 @@ function BlockPreview({
                 </div>
               ))}
             </div>
-            {reviews.length > 0 && <p className="text-center text-[10px] text-emerald-600 mt-4 font-semibold">Live · from your verified reviews</p>}
+            {reviews.length > 0 && <p className="text-center text-xs text-emerald-600 mt-4 font-semibold">Live · from your verified reviews</p>}
           </div>
         )
       }
@@ -4804,20 +4804,20 @@ function BlockPreview({
             {(p.subtitle || canEdit) && IET('subtitle', 'p', 'text-sm text-gray-400 mb-8', {}, 'Select a service and choose your preferred time')}
             <div className="space-y-4">
               <div className="border border-gray-200 rounded-xl p-4 text-left">
-                <div className="text-xs font-semibold text-gray-400 uppercase mb-2">1. Select Service</div>
+                <div className="text-xs font-medium text-gray-400 uppercase mb-2">1. Select Service</div>
                 <div className="h-10 bg-gray-50 rounded-lg border border-gray-200 flex items-center px-3 text-sm text-gray-400">Choose a service…</div>
               </div>
               <div className="border border-gray-200 rounded-xl p-4 text-left">
-                <div className="text-xs font-semibold text-gray-400 uppercase mb-2">2. Pick a Date</div>
+                <div className="text-xs font-medium text-gray-400 uppercase mb-2">2. Pick a Date</div>
                 <div className="grid grid-cols-7 gap-1">{Array.from({ length: 7 }).map((_, i) => (
-                  <div key={i} className="text-[10px] text-center py-1.5 rounded cursor-pointer hover:bg-accent" style={i === 2 ? { backgroundColor: primary_color, color: '#fff', borderRadius: r } : { color: text_color }}>{i + 15}</div>
+                  <div key={i} className="text-xs text-center py-1.5 rounded cursor-pointer hover:bg-accent" style={i === 2 ? { backgroundColor: primary_color, color: '#fff', borderRadius: r } : { color: text_color }}>{i + 15}</div>
                 ))}</div>
               </div>
               <div style={{ backgroundColor: primary_color, borderRadius: r }} className="h-11 flex items-center justify-center text-white font-semibold text-sm">
                 {IET('cta_label', 'span', '', {}, 'Confirm Booking')}
               </div>
             </div>
-            <div className="flex items-center justify-center gap-1 mt-4 text-[10px] text-emerald-600 font-semibold">
+            <div className="flex items-center justify-center gap-1 mt-4 text-xs text-emerald-600 font-semibold">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · connects to your services
             </div>
           </div>
@@ -5119,7 +5119,7 @@ function InlineMediaPicker({
 
   return (
     <div className="relative">
-      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">{label}</label>
+      <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">{label}</label>
 
       {/* Image thumbnail / trigger */}
       <div
@@ -5134,17 +5134,17 @@ function InlineMediaPicker({
             <img src={resolved} className="w-full h-full object-cover" alt=""
               onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3' }} />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span className="text-white text-[10px] font-bold">Change Image</span>
+              <span className="text-white text-xs font-bold">Change Image</span>
             </div>
             <button
               onClick={e => { e.stopPropagation(); onChange('') }}
-              className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
             >✕</button>
           </>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-400">
             <ImageIcon className="w-6 h-6 opacity-40" />
-            <span className="text-[10px]">Click to add image</span>
+            <span className="text-xs">Click to add image</span>
           </div>
         )}
       </div>
@@ -5157,7 +5157,7 @@ function InlineMediaPicker({
             {(['library', 'url'] as const).map(t => (
               <button key={t}
                 onClick={() => setTab(t)}
-                className={cn('flex-1 py-2 text-[10px] font-bold transition-colors',
+                className={cn('flex-1 py-2 text-xs font-bold transition-colors',
                   tab === t ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-500 hover:text-gray-700')}
               >
                 {t === 'library' ? 'Media Library' : 'Paste URL'}
@@ -5174,14 +5174,14 @@ function InlineMediaPicker({
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={uploadMedia.isPending}
-                className="w-full py-1.5 border border-dashed border-primary/40 rounded-lg text-[10px] text-primary font-bold hover:bg-accent flex items-center justify-center gap-1"
+                className="w-full py-1.5 border border-dashed border-primary/40 rounded-lg text-xs text-primary font-bold hover:bg-accent flex items-center justify-center gap-1"
               >
                 {uploadMedia.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                 Upload New
               </button>
               {/* Library grid */}
               {mediaList.length === 0 ? (
-                <div className="py-4 text-center text-[10px] text-gray-400">No media yet. Upload an image.</div>
+                <div className="py-4 text-center text-xs text-gray-400">No media yet. Upload an image.</div>
               ) : (
                 <div className="grid grid-cols-4 gap-1 max-h-40 overflow-y-auto">
                   {mediaList.map(m => {
@@ -5207,11 +5207,11 @@ function InlineMediaPicker({
                 value={urlInput}
                 onChange={e => setUrlInput(e.target.value)}
                 placeholder="https://example.com/image.jpg"
-                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <button
                 onClick={() => { if (urlInput) { onChange(urlInput); setOpen(false) } }}
-                className="w-full py-1.5 bg-primary text-white rounded-lg text-[10px] font-bold hover:bg-primary/90"
+                className="w-full py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90"
               >
                 Use This URL
               </button>
@@ -5284,19 +5284,19 @@ function SubItemEditor({
     <div className="space-y-3">
       {/* Layout controls */}
       <div className="bg-gray-50 rounded-xl p-3 space-y-3 border border-gray-100">
-        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Layout & Spacing</div>
+        <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">Layout & Spacing</div>
 
         {/* Columns */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium text-gray-600">Columns</span>
-            <span className="text-[10px] font-mono text-primary font-bold">{columns}</span>
+            <span className="text-xs font-medium text-gray-600">Columns</span>
+            <span className="text-xs font-mono text-primary font-bold">{columns}</span>
           </div>
           <div className="flex gap-1">
             {[1,2,3,4,5,6].map(n => (
               <button key={n}
                 onClick={() => onColumnsChange(n)}
-                className={cn('flex-1 py-1.5 rounded text-[10px] font-bold border transition-colors',
+                className={cn('flex-1 py-1.5 rounded text-xs font-bold border transition-colors',
                   columns === n ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40')}
               >{n}</button>
             ))}
@@ -5306,15 +5306,15 @@ function SubItemEditor({
         {/* Gap */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium text-gray-600">Gap between items</span>
+            <span className="text-xs font-medium text-gray-600">Gap between items</span>
             <div className="flex items-center gap-1">
               <input
                 type="number" min={0} max={80} step={4}
                 value={gap}
                 onChange={e => onGapChange(Math.max(0, Number(e.target.value)))}
-                className="w-12 px-1 py-0.5 border border-gray-200 rounded text-[10px] font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-12 px-1 py-0.5 border border-gray-200 rounded text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <span className="text-[10px] text-gray-400">px</span>
+              <span className="text-xs text-gray-400">px</span>
             </div>
           </div>
           <input type="range" min={0} max={80} step={4} value={gap}
@@ -5325,8 +5325,8 @@ function SubItemEditor({
         {/* Item size */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium text-gray-600">Card size</span>
-            <span className="text-[10px] font-mono text-primary font-bold">{itemSize}px</span>
+            <span className="text-xs font-medium text-gray-600">Card size</span>
+            <span className="text-xs font-mono text-primary font-bold">{itemSize}px</span>
           </div>
           <input type="range" min={80} max={320} step={8} value={itemSize}
             onChange={e => onItemSizeChange(Number(e.target.value))}
@@ -5337,12 +5337,12 @@ function SubItemEditor({
       {/* Items list */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
             {schema.itemLabel}s ({items.length})
           </span>
           <button
             onClick={addItem}
-            className="flex items-center gap-0.5 px-2 py-1 bg-primary text-white text-[10px] font-bold rounded-lg hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-0.5 px-2 py-1 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-3 h-3" /> Add {schema.itemLabel}
           </button>
@@ -5384,10 +5384,10 @@ function SubItemEditor({
                   <img src={thumb} className="w-7 h-7 rounded-lg object-cover shrink-0 border border-gray-100" alt="" />
                 ) : (
                   <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-primary font-bold text-[10px]">{(title[0] || '?').toUpperCase()}</span>
+                    <span className="text-primary font-bold text-xs">{(title[0] || '?').toUpperCase()}</span>
                   </div>
                 )}
-                <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{title}</span>
+                <span className="text-xs font-medium text-gray-700 flex-1 truncate">{title}</span>
                 <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => duplicateItem(idx)}
@@ -5424,17 +5424,17 @@ function SubItemEditor({
                           onChange={e => updateItem(idx, { [field.key]: e.target.checked })}
                           className="rounded accent-primary w-4 h-4"
                         />
-                        <span className="text-xs font-semibold text-gray-700">{field.label}</span>
+                        <span className="text-xs font-medium text-gray-700">{field.label}</span>
                       </label>
                     )
                     if (field.type === 'select') return (
                       <div key={field.key} className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
                         <div className="flex gap-1">
                           {(field.options || []).map(opt => (
                             <button key={opt}
                               onClick={() => updateItem(idx, { [field.key]: Number(opt) || opt })}
-                              className={cn('flex-1 py-1 rounded border text-[10px] font-bold transition-colors',
+                              className={cn('flex-1 py-1 rounded border text-xs font-bold transition-colors',
                                 String(item[field.key]) === opt ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40')}
                             >{opt}</button>
                           ))}
@@ -5443,7 +5443,7 @@ function SubItemEditor({
                     )
                     if (field.type === 'emoji') return (
                       <div key={field.key} className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
                         <div className="flex gap-1.5 flex-wrap">
                           {['✨','⚡','🚀','🎯','💡','🛡️','🔥','💎','🌟','🎨','🔧','📱','🌍','❤️','🏆'].map(e => (
                             <button key={e}
@@ -5463,7 +5463,7 @@ function SubItemEditor({
                     )
                     if (field.type === 'textarea') return (
                       <div key={field.key} className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
                         <textarea
                           value={item[field.key] || ''}
                           onChange={e => updateItem(idx, { [field.key]: e.target.value })}
@@ -5475,7 +5475,7 @@ function SubItemEditor({
                     // default: text / number
                     return (
                       <div key={field.key} className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
                         <input
                           type={field.type === 'number' ? 'number' : 'text'}
                           value={item[field.key] || ''}
@@ -5564,7 +5564,7 @@ function PropsInputRow({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
-        <label className="text-xs font-semibold text-gray-700 flex-1 select-none">{label}</label>
+        <label className="text-xs font-medium text-gray-700 flex-1 select-none">{label}</label>
         {hasHistory && (
           <button
             onMouseDown={e => { e.preventDefault(); onUndo() }}
@@ -5582,7 +5582,7 @@ function PropsInputRow({
               onLink({ x: rect.left, y: rect.bottom + 6 })
             }}
             className={cn(
-              'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all border',
+              'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold transition-all border',
               linkTarget
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                 : 'bg-white text-gray-500 border-gray-200 hover:text-primary hover:border-primary/40 hover:bg-accent',
@@ -5597,7 +5597,7 @@ function PropsInputRow({
           onMouseDown={e => { e.preventDefault(); onAI() }}
           disabled={isGenerating}
           className={cn(
-            'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all',
+            'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold transition-all',
             queued > 0
               ? 'bg-primary text-white shadow-sm'
               : 'text-primary hover:bg-accent border border-primary/30'
@@ -5723,8 +5723,8 @@ function BlockBreakpointStyles({
   return (
     <div className="space-y-2 pt-1 border-t border-gray-100">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold text-gray-600">Block Styles</label>
-        <div className="flex rounded-lg overflow-hidden border border-gray-200 text-[10px]">
+        <label className="text-xs font-medium text-gray-600">Block Styles</label>
+        <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs">
           {(['desktop', 'tablet', 'mobile'] as Breakpoint[]).map(b => (
             <button
               key={b}
@@ -5738,7 +5738,7 @@ function BlockBreakpointStyles({
       </div>
       {STYLE_FIELDS.map(({ key, label, type, options, min, max, step }) => (
         <div key={key} className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-500 w-20 shrink-0">{label}</span>
+          <span className="text-xs text-gray-500 w-20 shrink-0">{label}</span>
           {type === 'color' && (
             <input
               type="color"
@@ -5753,7 +5753,7 @@ function BlockBreakpointStyles({
                 value={(bpStyle[key] as number) ?? 0}
                 onChange={e => updateBpProp(key, Number(e.target.value))}
                 className="flex-1 accent-primary h-1" />
-              <span className="text-[10px] text-gray-400 w-8 text-right">{(bpStyle[key] as number) ?? 0}</span>
+              <span className="text-xs text-gray-400 w-8 text-right">{(bpStyle[key] as number) ?? 0}</span>
             </>
           )}
           {type === 'select' && (
@@ -5770,7 +5770,7 @@ function BlockBreakpointStyles({
       {Object.keys(styleOverrides[bp] || {}).length > 0 && (
         <button
           onClick={() => onChange({ ...styleOverrides, [bp]: {} })}
-          className="text-[10px] text-red-400 hover:text-red-600"
+          className="text-xs text-red-400 hover:text-red-600"
         >✕ Reset {bp} styles</button>
       )}
     </div>
@@ -5837,7 +5837,7 @@ function BranchVisibilitySelector({
             </label>
           ))}
           {branches.length === 0 && (
-            <p className="text-[10px] text-gray-400">No branch stores found</p>
+            <p className="text-xs text-gray-400">No branch stores found</p>
           )}
         </div>
       )}
@@ -6010,14 +6010,14 @@ function PropsEditor({
 
   const bgStyleField = p.bg_style !== undefined && (
     <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-gray-600">Background Style</label>
+      <label className="text-xs font-medium text-gray-600">Background Style</label>
       <div className="grid grid-cols-5 gap-1">
         {['gradient','minimal','image','dark','split'].map(s => (
           <button
             key={s}
             onClick={() => onUpdate({ bg_style: s as any })}
             className={cn(
-              'py-1.5 text-[9px] font-bold rounded border transition-colors',
+              'py-1.5 text-xs font-bold rounded border transition-colors',
               p.bg_style === s ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40'
             )}
           >
@@ -6031,7 +6031,7 @@ function PropsEditor({
   // Gradient presets (shown when bg_style=gradient)
   const gradientField = p.bg_style === 'gradient' && (
     <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-gray-600">Gradient Preset</label>
+      <label className="text-xs font-medium text-gray-600">Gradient Preset</label>
       <div className="grid grid-cols-4 gap-1.5">
         {GRADIENT_PRESETS.map(g => (
           <button
@@ -6048,24 +6048,24 @@ function PropsEditor({
       </div>
       <div className="grid grid-cols-2 gap-1.5">
         <div>
-          <label className="text-[10px] text-gray-500">From</label>
+          <label className="text-xs text-gray-500">From</label>
           <input type="color" value={(p as any).gradient_from || '#64C3A0'}
             onChange={e => onUpdate({ gradient_from: e.target.value } as any)}
             className="w-full h-8 rounded border border-gray-200 cursor-pointer p-0.5" />
         </div>
         <div>
-          <label className="text-[10px] text-gray-500">To</label>
+          <label className="text-xs text-gray-500">To</label>
           <input type="color" value={(p as any).gradient_to || '#13624A'}
             onChange={e => onUpdate({ gradient_to: e.target.value } as any)}
             className="w-full h-8 rounded border border-gray-200 cursor-pointer p-0.5" />
         </div>
       </div>
       <div>
-        <label className="text-[10px] text-gray-500">Direction</label>
+        <label className="text-xs text-gray-500">Direction</label>
         <select
           value={(p as any).gradient_dir || '135deg'}
           onChange={e => onUpdate({ gradient_dir: e.target.value } as any)}
-          className="w-full px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+          className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
         >
           {[['135deg','↘ Diagonal'],['to right','→ Horizontal'],['to bottom','↓ Vertical'],['to top right','↗ Top-Right'],['circle at center','◉ Radial']].map(([v,l]) => (
             <option key={v} value={v}>{l}</option>
@@ -6083,9 +6083,9 @@ function PropsEditor({
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-1.5">
-          <label className="text-xs font-semibold text-gray-600 flex-1">{label}</label>
+          <label className="text-xs font-medium text-gray-600 flex-1">{label}</label>
           {currentUrl && (
-            <button onClick={() => onUpdate({ [fieldKey]: '' })} className="text-[9px] text-red-400 hover:text-red-600">✕ Clear</button>
+            <button onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
           )}
         </div>
         {/* Large image preview or drop zone */}
@@ -6112,7 +6112,7 @@ function PropsEditor({
               {!imgOk && (
                 <div className="w-full h-24 flex flex-col items-center justify-center text-gray-400 gap-1">
                   <ImageIcon className="w-6 h-6 opacity-40" />
-                  <span className="text-[10px]">Cannot preview (URL may be invalid)</span>
+                  <span className="text-xs">Cannot preview (URL may be invalid)</span>
                 </div>
               )}
               <div className="absolute top-1.5 right-1.5 flex gap-1">
@@ -6126,7 +6126,7 @@ function PropsEditor({
           ) : (
             <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-gray-400 w-full">
               <ImageIcon className="w-7 h-7 opacity-30" />
-              <span className="text-[10px] text-center">No image set<br />Upload in Media tab → Use in Block</span>
+              <span className="text-xs text-center">No image set<br />Upload in Media tab → Use in Block</span>
             </div>
           )}
         </div>
@@ -6138,7 +6138,7 @@ function PropsEditor({
           placeholder="Paste URL or use Media tab →"
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono"
         />
-        {hint && <p className="text-[10px] text-gray-400">{hint}</p>}
+        {hint && <p className="text-xs text-gray-400">{hint}</p>}
       </div>
     )
   }, [block.id, p, onUpdate])
@@ -6170,12 +6170,12 @@ function PropsEditor({
 
   const layoutField = p.layout !== undefined && (
     <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-gray-600">Layout</label>
+      <label className="text-xs font-medium text-gray-600">Layout</label>
       <div className="grid grid-cols-3 gap-1">
         {['centered','split','minimal','left','right','full'].map(l => (
           <button key={l}
             onClick={() => onUpdate({ layout: l })}
-            className={cn('py-1.5 text-[10px] font-bold rounded border transition-colors',
+            className={cn('py-1.5 text-xs font-bold rounded border transition-colors',
               p.layout === l ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40')}
           >{l.charAt(0).toUpperCase() + l.slice(1)}</button>
         ))}
@@ -6193,11 +6193,11 @@ function PropsEditor({
     <div className="space-y-4 p-4">
       {/* Header + Smart Design */}
       <div className="flex items-center gap-2">
-        <div className="px-2 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase flex-1">{block.label || block.block_type}</div>
+        <div className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-bold uppercase flex-1">{block.label || block.block_type}</div>
         <button
           onClick={handleSmartDesign}
           disabled={smartLoading}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-primary to-info text-white text-[10px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-primary to-info text-white text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
           title="AI: Generate smart design for this block"
         >
           {smartLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
@@ -6208,7 +6208,7 @@ function PropsEditor({
       {/* Quick Block Presets */}
       {BLOCK_QUICK_PRESETS[block.block_type] && (
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Quick Presets</label>
+          <label className="text-xs font-bold uppercase tracking-wide text-gray-400">Quick Presets</label>
           <div className="grid grid-cols-2 gap-1.5">
             {BLOCK_QUICK_PRESETS[block.block_type].map((preset, i) => (
               <button
@@ -6216,8 +6216,8 @@ function PropsEditor({
                 onClick={() => { onUpdate(preset.props as any); toast.success(`"${preset.label}" preset applied!`) }}
                 className="py-2 px-3 rounded-xl border border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-all group"
               >
-                <div className="text-[10px] font-bold text-gray-700 group-hover:text-primary">{preset.label}</div>
-                {preset.desc && <div className="text-[9px] text-gray-400 mt-0.5">{preset.desc}</div>}
+                <div className="text-xs font-bold text-gray-700 group-hover:text-primary">{preset.label}</div>
+                {preset.desc && <div className="text-xs text-gray-400 mt-0.5">{preset.desc}</div>}
               </button>
             ))}
           </div>
@@ -6233,7 +6233,7 @@ function PropsEditor({
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-bold text-gray-800">Block link</div>
-              <p className="text-[10px] text-gray-500 leading-snug">
+              <p className="text-xs text-gray-500 leading-snug">
                 Make this whole block clickable. Buttons and form fields inside the block still keep their own clicks.
               </p>
             </div>
@@ -6261,19 +6261,19 @@ function PropsEditor({
       {/* ── Nav block — Logo ── */}
       {block.block_type === 'nav' && (
         <div className="space-y-2 pb-2 border-b border-gray-100">
-          <label className="text-xs font-semibold text-gray-600">Brand Logo</label>
+          <label className="text-xs font-medium text-gray-600">Brand Logo</label>
           <ImagePickerField label="Logo Image" fieldKey="brand_logo" />
           {p.brand_logo && (
             <button
               type="button"
               onClick={() => onUpdate({ brand_logo: '' } as any)}
-              className="text-[10px] text-red-500 hover:text-red-700 font-semibold"
+              className="text-xs text-red-500 hover:text-red-700 font-semibold"
             >
               ✕ Remove logo (show text instead)
             </button>
           )}
           {!p.brand_logo && (
-            <p className="text-[10px] text-gray-400">Upload a logo to replace the brand name text. SVG or PNG with transparent background works best.</p>
+            <p className="text-xs text-gray-400">Upload a logo to replace the brand name text. SVG or PNG with transparent background works best.</p>
           )}
         </div>
       )}
@@ -6282,21 +6282,21 @@ function PropsEditor({
       {block.block_type === 'nav' && pages && pages.length > 0 && (
         <div className="space-y-2 pb-1 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-gray-600 flex-1">Pages in Nav</label>
+            <label className="text-xs font-medium text-gray-600 flex-1">Pages in Nav</label>
             <button
               onClick={() => {
                 const synced = pages.map(pg => ({ label: pg.title, url: `/${pg.slug}` }))
                 onUpdate({ nav_links: synced } as any)
                 toast.success('Nav synced with all pages!')
               }}
-              className="flex items-center gap-1 text-[10px] text-primary hover:text-primary font-semibold"
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
             >
               <RefreshCw className="w-3 h-3" /> Sync All
             </button>
             {onAddPage && (
               <button
                 onClick={onAddPage}
-                className="flex items-center gap-1 text-[10px] text-primary hover:text-primary font-semibold"
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
               >
                 <Plus className="w-3 h-3" /> New Page
               </button>
@@ -6310,7 +6310,7 @@ function PropsEditor({
                 <div key={pg.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-gray-700 truncate">{pg.title}</div>
-                    <div className="text-[10px] text-gray-400 font-mono">/{pg.slug}</div>
+                    <div className="text-xs text-gray-400 font-mono">/{pg.slug}</div>
                   </div>
                   <button
                     onClick={() => {
@@ -6322,7 +6322,7 @@ function PropsEditor({
                       }
                     }}
                     className={cn(
-                      'shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors',
+                      'shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors',
                       isInNav
                         ? 'bg-primary/10 text-primary border-primary/40 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
                         : 'bg-white text-gray-500 border-gray-200 hover:border-primary/60 hover:bg-accent hover:text-primary'
@@ -6334,7 +6334,7 @@ function PropsEditor({
               )
             })}
           </div>
-          <p className="text-[10px] text-gray-400">Toggle pages above or use "Sync All" to rebuild nav from all pages.</p>
+          <p className="text-xs text-gray-400">Toggle pages above or use "Sync All" to rebuild nav from all pages.</p>
         </div>
       )}
 
@@ -6380,7 +6380,7 @@ function PropsEditor({
 
       {/* Shadow / decoration */}
       <div className="space-y-1.5 pt-1 border-t border-gray-100">
-        <label className="text-xs font-semibold text-gray-600">Block Shadow</label>
+        <label className="text-xs font-medium text-gray-600">Block Shadow</label>
         <div className="grid grid-cols-4 gap-1">
           {SHADOW_PRESETS.map(sh => (
             <button
@@ -6388,7 +6388,7 @@ function PropsEditor({
               onClick={() => onUpdate({ block_shadow: sh.value } as any)}
               title={sh.label}
               className={cn(
-                'py-2 rounded-lg border text-[9px] font-bold transition-all text-center',
+                'py-2 rounded-lg border text-xs font-bold transition-all text-center',
                 (p as any).block_shadow === sh.value ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40'
               )}
               style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
@@ -6401,14 +6401,14 @@ function PropsEditor({
 
       {/* Section Spacing */}
       <div className="space-y-3 pt-1 border-t border-gray-100">
-        <label className="text-xs font-semibold text-gray-600">Section Spacing</label>
+        <label className="text-xs font-medium text-gray-600">Section Spacing</label>
         {([
           { label: 'Padding Top', key: 'padding_top', val: paddingTop, set: setPaddingTop },
           { label: 'Padding Bottom', key: 'padding_bottom', val: paddingBottom, set: setPaddingBottom },
         ] as const).map(({ label, key, val, set }) => (
           <div key={key} className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium text-gray-600">{label}</span>
+              <span className="text-xs font-medium text-gray-600">{label}</span>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
@@ -6419,9 +6419,9 @@ function PropsEditor({
                     set(n)
                     onUpdate({ [key]: n } as any)
                   }}
-                  className="w-14 px-1.5 py-0.5 border border-gray-200 rounded text-[11px] font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-14 px-1.5 py-0.5 border border-gray-200 rounded text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <span className="text-[10px] text-gray-400">px</span>
+                <span className="text-xs text-gray-400">px</span>
               </div>
             </div>
             <div className="relative">
@@ -6448,18 +6448,18 @@ function PropsEditor({
 
       {/* Origins / Section Shape Dividers */}
       <div className="space-y-3 pt-1 border-t border-gray-100">
-        <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+        <label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
           <svg viewBox="0 0 20 10" className="w-4 h-4 fill-current text-primary/80"><path d="M0,10 C5,0 10,10 15,3 C17,1 18,5 20,4 L20,10 Z"/></svg>
           Origins (Section Shapes)
         </label>
         <div className="space-y-2.5">
           <div>
-            <div className="text-[10px] font-medium text-gray-500 mb-1.5">Top Edge Shape</div>
+            <div className="text-xs font-medium text-gray-500 mb-1.5">Top Edge Shape</div>
             <div className="grid grid-cols-3 gap-1">
               {SHAPE_OPTIONS.map(({ id, label }) => (
                 <button key={`top-${id}`}
                   onClick={() => onUpdate({ top_shape: id === 'none' ? null : id } as any)}
-                  className={cn('py-1.5 px-1 text-[9px] font-semibold rounded border transition-colors text-center truncate',
+                  className={cn('py-1.5 px-1 text-xs font-medium rounded border transition-colors text-center truncate',
                     ((p as any).top_shape || 'none') === id
                       ? 'bg-primary text-white border-primary'
                       : 'text-gray-500 border-gray-200 hover:border-primary/40')}
@@ -6468,12 +6468,12 @@ function PropsEditor({
             </div>
           </div>
           <div>
-            <div className="text-[10px] font-medium text-gray-500 mb-1.5">Bottom Edge Shape</div>
+            <div className="text-xs font-medium text-gray-500 mb-1.5">Bottom Edge Shape</div>
             <div className="grid grid-cols-3 gap-1">
               {SHAPE_OPTIONS.map(({ id, label }) => (
                 <button key={`bot-${id}`}
                   onClick={() => onUpdate({ bottom_shape: id === 'none' ? null : id } as any)}
-                  className={cn('py-1.5 px-1 text-[9px] font-semibold rounded border transition-colors text-center truncate',
+                  className={cn('py-1.5 px-1 text-xs font-medium rounded border transition-colors text-center truncate',
                     ((p as any).bottom_shape || 'none') === id
                       ? 'bg-primary text-white border-primary'
                       : 'text-gray-500 border-gray-200 hover:border-primary/40')}
@@ -6490,7 +6490,7 @@ function PropsEditor({
               />
               <div>
                 <div className="text-xs font-medium text-gray-700">Shape Fill Color</div>
-                <div className="text-[10px] text-gray-400">Match next section's background</div>
+                <div className="text-xs text-gray-400">Match next section's background</div>
               </div>
             </div>
           )}
@@ -6499,12 +6499,12 @@ function PropsEditor({
 
       {/* Composition — Tile highlights, font scale, color overrides */}
       <div className="space-y-3 pt-1 border-t border-gray-100">
-        <label className="text-xs font-semibold text-gray-600">Composition</label>
+        <label className="text-xs font-medium text-gray-600">Composition</label>
 
 
         {/* Font size px: step + preset (same as canvas bar) */}
         <div className="space-y-1.5">
-          <div className="text-[10px] font-medium text-gray-500">Font size (px)</div>
+          <div className="text-xs font-medium text-gray-500">Font size (px)</div>
           <div className="inline-flex w-full max-w-sm items-center gap-1 rounded-lg border border-gray-700 bg-gray-900 p-1">
             <button
               type="button"
@@ -6533,7 +6533,7 @@ function PropsEditor({
               <ChevronDown className="w-3 h-3 text-sky-400" strokeWidth={2.5} />
             </button>
             <select
-              className="h-8 min-w-[4.5rem] flex-[1.2] rounded border border-gray-600 bg-gray-950 px-2 text-xs font-semibold text-white outline-none focus-visible:ring-1 focus-visible:ring-sky-500"
+              className="h-8 min-w-[4.5rem] flex-[1.2] rounded border border-gray-600 bg-gray-950 px-2 text-xs font-medium text-white outline-none focus-visible:ring-1 focus-visible:ring-sky-500"
               value={
                 typeof (p as any).font_size_px === 'number' && (p as any).font_size_px > 0 && Number.isFinite((p as any).font_size_px)
                   ? String(Math.round((p as any).font_size_px))
@@ -6551,12 +6551,12 @@ function PropsEditor({
               ))}
             </select>
           </div>
-          <p className="text-[9px] text-gray-400">Px sizing overrides XS–2X scale. Auto uses theme + scale only.</p>
+          <p className="text-xs text-gray-400">Px sizing overrides XS–2X scale. Auto uses theme + scale only.</p>
         </div>
 
         {/* Text case — same options as the canvas typography menu */}
         <div className="space-y-1.5">
-          <div className="text-[10px] font-medium text-gray-500">Text case</div>
+          <div className="text-xs font-medium text-gray-500">Text case</div>
           <div className="rounded-lg border border-gray-200 bg-gray-900 overflow-hidden">
             {TEXT_CASE_MENU_ROWS.map(row => (
               <button
@@ -6580,7 +6580,7 @@ function PropsEditor({
               </button>
             ))}
           </div>
-          <p className="text-[9px] text-gray-400">Default clears CSS case. Sentence / toggle rewrite stored text (skips URLs and nav links).</p>
+          <p className="text-xs text-gray-400">Default clears CSS case. Sentence / toggle rewrite stored text (skips URLs and nav links).</p>
         </div>
 
         {/* Text color override */}
@@ -6592,10 +6592,10 @@ function PropsEditor({
           />
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-gray-700">Section Text Color</div>
-            <div className="text-[10px] text-gray-400">Override theme for this block</div>
+            <div className="text-xs text-gray-400">Override theme for this block</div>
           </div>
           {(p as any).text_color_override && (
-            <button onClick={() => onUpdate({ text_color_override: null } as any)} className="text-[10px] text-red-400 hover:text-red-600 shrink-0">✕ Clear</button>
+            <button onClick={() => onUpdate({ text_color_override: null } as any)} className="text-xs text-red-400 hover:text-red-600 shrink-0">✕ Clear</button>
           )}
         </div>
 
@@ -6608,16 +6608,16 @@ function PropsEditor({
           />
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-gray-700">Block Background</div>
-            <div className="text-[10px] text-gray-400">Override background color</div>
+            <div className="text-xs text-gray-400">Override background color</div>
           </div>
           {(p as any).bg_color_override && (
-            <button onClick={() => onUpdate({ bg_color_override: null } as any)} className="text-[10px] text-red-400 hover:text-red-600 shrink-0">✕ Clear</button>
+            <button onClick={() => onUpdate({ bg_color_override: null } as any)} className="text-xs text-red-400 hover:text-red-600 shrink-0">✕ Clear</button>
           )}
         </div>
 
         {/* Tile / card colors */}
         <div>
-          <div className="text-[10px] font-medium text-gray-500 mb-1.5">Tile / Card Highlights</div>
+          <div className="text-xs font-medium text-gray-500 mb-1.5">Tile / Card Highlights</div>
           <div className="grid grid-cols-2 gap-2">
             {([
               { key: 'tile_bg',     label: 'Tile BG',    hint: 'Card background' },
@@ -6632,8 +6632,8 @@ function PropsEditor({
                   className="w-7 h-7 rounded border border-gray-200 cursor-pointer p-0.5 shrink-0"
                 />
                 <div>
-                  <div className="text-[10px] font-semibold text-gray-700">{label}</div>
-                  <div className="text-[9px] text-gray-400">{hint}</div>
+                  <div className="text-xs font-medium text-gray-700">{label}</div>
+                  <div className="text-xs text-gray-400">{hint}</div>
                 </div>
               </div>
             ))}
@@ -6641,7 +6641,7 @@ function PropsEditor({
           {((p as any).tile_bg || (p as any).tile_accent || (p as any).tile_text || (p as any).tile_border) && (
             <button
               onClick={() => onUpdate({ tile_bg: null, tile_accent: null, tile_text: null, tile_border: null } as any)}
-              className="mt-1.5 text-[10px] text-red-400 hover:text-red-600"
+              className="mt-1.5 text-xs text-red-400 hover:text-red-600"
             >✕ Clear all tile colors</button>
           )}
         </div>
@@ -6649,7 +6649,7 @@ function PropsEditor({
 
       {/* Visibility */}
       <div className="space-y-2 pt-1 border-t border-gray-100">
-        <label className="text-xs font-semibold text-gray-600">Visibility</label>
+        <label className="text-xs font-medium text-gray-600">Visibility</label>
         {[
           { key: 'visible', label: 'Visible' },
           { key: 'visible_on_mobile', label: 'Show on Mobile' },
@@ -6682,7 +6682,7 @@ function PropsEditor({
 
       {/* Animation */}
       <div className="space-y-2 pt-1 border-t border-gray-100">
-        <label className="text-xs font-semibold text-gray-600">Scroll Animation</label>
+        <label className="text-xs font-medium text-gray-600">Scroll Animation</label>
         <div className="grid grid-cols-4 gap-1">
           {[
             { id: 'none', label: '⊘ None' },
@@ -6696,7 +6696,7 @@ function PropsEditor({
           ].map(a => (
             <button key={a.id}
               onClick={() => onUpdate({ animation: a.id === 'none' ? null : a.id } as any)}
-              className={cn('py-1.5 px-1 text-[9px] font-semibold rounded-lg border transition-colors text-center',
+              className={cn('py-1.5 px-1 text-xs font-medium rounded-lg border transition-colors text-center',
                 (block.animation || 'none') === a.id ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40')}
             >{a.label}</button>
           ))}
@@ -6704,11 +6704,11 @@ function PropsEditor({
         {block.animation && block.animation !== 'none' && (
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <label className="text-[10px] text-gray-500 w-16 shrink-0">Delay (ms)</label>
+              <label className="text-xs text-gray-500 w-16 shrink-0">Delay (ms)</label>
               <input type="range" min={0} max={1000} step={100} defaultValue={block.animation_delay || 0}
                 onChange={e => onUpdate({ animation_delay: Number(e.target.value) } as any)}
                 className="flex-1 accent-primary h-1" />
-              <span className="text-[10px] text-gray-500 w-10 text-right">{block.animation_delay || 0}ms</span>
+              <span className="text-xs text-gray-500 w-10 text-right">{block.animation_delay || 0}ms</span>
             </div>
           </div>
         )}
@@ -6787,7 +6787,7 @@ function StylePanel({
             type="button"
             onClick={() => setStyleDetailsExpanded(false)}
             className={cn(
-              'flex-1 py-2 text-xs font-semibold rounded-lg transition-all',
+              'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
               !styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
             )}
           >
@@ -6797,7 +6797,7 @@ function StylePanel({
             type="button"
             onClick={() => setStyleDetailsExpanded(true)}
             className={cn(
-              'flex-1 py-2 text-xs font-semibold rounded-lg transition-all',
+              'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
               styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
             )}
           >
@@ -6805,7 +6805,7 @@ function StylePanel({
           </button>
         </div>
         {!styleDetailsExpanded && (
-          <p className="text-[10px] text-gray-400 leading-snug mb-0">Presets, colors, typography, spacing, and dark mode are hidden. Choose Expanded to edit them.</p>
+          <p className="text-xs text-gray-400 leading-snug mb-0">Presets, colors, typography, spacing, and dark mode are hidden. Choose Expanded to edit them.</p>
         )}
       </div>
 
@@ -6818,7 +6818,7 @@ function StylePanel({
           <button
             onClick={handleAITheme}
             disabled={aiTheme.isPending}
-            className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-bold bg-gradient-to-r from-primary to-info text-white hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-0.5 px-2 py-1 rounded text-xs font-bold bg-gradient-to-r from-primary to-info text-white hover:opacity-90 disabled:opacity-50"
           >
             {aiTheme.isPending ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Wand2 className="w-2.5 h-2.5" />}
             AI Theme
@@ -6837,7 +6837,7 @@ function StylePanel({
                 <div style={{ background: t.colors.accent_color }} />
                 <div style={{ background: t.colors.bg_color, border: '1px solid #e5e7eb' }} />
               </div>
-              <div className="text-[9px] font-medium text-gray-500 text-center py-0.5 bg-white">{t.label}</div>
+              <div className="text-xs font-medium text-gray-500 text-center py-0.5 bg-white">{t.label}</div>
             </button>
           ))}
         </div>
@@ -6864,7 +6864,7 @@ function StylePanel({
               />
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium text-gray-700">{label}</div>
-                <div className="text-[10px] text-gray-400 font-mono">{(style as any)[key]}</div>
+                <div className="text-xs text-gray-400 font-mono">{(style as any)[key]}</div>
               </div>
             </div>
           ))}
@@ -6878,7 +6878,7 @@ function StylePanel({
           {(['presets','custom'] as const).map(t => (
             <button key={t}
               onClick={() => setGradientTab(t)}
-              className={cn('flex-1 py-1 text-[10px] font-bold rounded border transition-colors',
+              className={cn('flex-1 py-1 text-xs font-bold rounded border transition-colors',
                 gradientTab === t ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200')}
             >{t === 'presets' ? 'Presets' : 'Custom'}</button>
           ))}
@@ -6900,13 +6900,13 @@ function StylePanel({
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-gray-500">From Color</label>
+                <label className="text-xs text-gray-500">From Color</label>
                 <input type="color" value={(style as any).gradient_from || '#64C3A0'}
                   onChange={e => onChange({ gradient_from: e.target.value } as any)}
                   className="w-full h-9 rounded border border-gray-200 cursor-pointer p-0.5" />
               </div>
               <div>
-                <label className="text-[10px] text-gray-500">To Color</label>
+                <label className="text-xs text-gray-500">To Color</label>
                 <input type="color" value={(style as any).gradient_to || '#13624A'}
                   onChange={e => onChange({ gradient_to: e.target.value } as any)}
                   className="w-full h-9 rounded border border-gray-200 cursor-pointer p-0.5" />
@@ -6915,7 +6915,7 @@ function StylePanel({
             <select
               value={(style as any).gradient_dir || '135deg'}
               onChange={e => onChange({ gradient_dir: e.target.value } as any)}
-              className="w-full px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
             >
               {[['135deg','↘ Diagonal'],['to right','→ Horizontal'],['to bottom','↓ Vertical'],['to top right','↗ Top-Right']].map(([v,l]) => (
                 <option key={v} value={v}>{l}</option>
@@ -6930,7 +6930,7 @@ function StylePanel({
         {(style as any).site_gradient && (
           <button
             onClick={() => onChange({ site_gradient: '' } as any)}
-            className="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 transition-colors"
+            className="mt-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
           >✕ Remove gradient</button>
         )}
       </div>
@@ -6944,7 +6944,7 @@ function StylePanel({
               key={sh.label}
               onClick={() => onChange({ shadow_style: sh.value } as any)}
               title={sh.label}
-              className={cn('py-2 rounded-lg border text-[9px] font-bold transition-all text-center',
+              className={cn('py-2 rounded-lg border text-xs font-bold transition-all text-center',
                 (style as any).shadow_style === sh.value ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40'
               )}
               style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
@@ -6993,7 +6993,7 @@ function StylePanel({
                   <button
                     key={v}
                     onClick={() => onChange({ [key]: v } as any)}
-                    className={cn('py-1.5 text-[9px] font-bold rounded border transition-colors',
+                    className={cn('py-1.5 text-xs font-bold rounded border transition-colors',
                       (style as any)[key] === v ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
                     )}
                   >
@@ -7015,7 +7015,7 @@ function StylePanel({
             { key: 'font_family_body', label: 'Body Font', opts: ['Inter', 'Lato', 'Open Sans', 'Nunito', 'Roboto', 'Source Sans Pro', 'DM Sans'] },
           ].map(({ key, label, opts }) => (
             <div key={key}>
-              <label className="text-[10px] text-gray-500 mb-1 block">{label}</label>
+              <label className="text-xs text-gray-500 mb-1 block">{label}</label>
               <select
                 value={(style as any)[key] || opts[0]}
                 onChange={e => onChange({ [key]: e.target.value } as any)}
@@ -7032,12 +7032,12 @@ function StylePanel({
             { key: 'line_height', label: 'Line Height', min: 120, max: 200, step: 10, unit: '%' },
           ].map(({ key, label, min, max, step, unit }) => (
             <div key={key} className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-500 w-20 shrink-0">{label}</span>
+              <span className="text-xs text-gray-500 w-20 shrink-0">{label}</span>
               <input type="range" min={min} max={max} step={step}
                 value={(style as any)[key] || (min + max) / 2}
                 onChange={e => onChange({ [key]: Number(e.target.value) } as any)}
                 className="flex-1 accent-primary h-1" />
-              <span className="text-[10px] text-gray-400 w-12 text-right">{(style as any)[key] || (min + max) / 2}{unit}</span>
+              <span className="text-xs text-gray-400 w-12 text-right">{(style as any)[key] || (min + max) / 2}{unit}</span>
             </div>
           ))}
         </div>
@@ -7070,7 +7070,7 @@ function StylePanel({
                   className="w-8 h-8 rounded border border-gray-200 cursor-pointer p-0.5 flex-shrink-0"
                 />
                 <span className="text-xs text-gray-600">{label}</span>
-                <span className="text-[10px] text-gray-400 font-mono ml-auto">{(style as any)[key] || '#1a1a2e'}</span>
+                <span className="text-xs text-gray-400 font-mono ml-auto">{(style as any)[key] || '#1a1a2e'}</span>
               </div>
             ))}
           </div>
@@ -7129,7 +7129,7 @@ function CheckoutStyleSection({
 
       {/* Layout picker */}
       <div className="mb-4">
-        <div className="text-[10px] font-semibold text-gray-500 mb-2">Page Layout</div>
+        <div className="text-xs font-medium text-gray-500 mb-2">Page Layout</div>
         <div className="space-y-1.5">
           {CHECKOUT_LAYOUT_OPTS.map(o => (
             <button
@@ -7143,8 +7143,8 @@ function CheckoutStyleSection({
               )}
             >
               <div>
-                <div className={cn('text-xs font-semibold', current === o.id || (!current && o.id === 'two-column') ? 'text-primary' : 'text-gray-700')}>{o.label}</div>
-                <div className="text-[10px] text-gray-400 mt-0.5">{o.desc}</div>
+                <div className={cn('text-xs font-medium', current === o.id || (!current && o.id === 'two-column') ? 'text-primary' : 'text-gray-700')}>{o.label}</div>
+                <div className="text-xs text-gray-400 mt-0.5">{o.desc}</div>
               </div>
               {(current === o.id || (!current && o.id === 'two-column')) && (
                 <div className="w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center shrink-0">
@@ -7162,7 +7162,7 @@ function CheckoutStyleSection({
       <div>
         <button
           onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-wide"
+          className="w-full flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wide"
         >
           <span>Advanced Checkout Tokens</span>
           <svg className={cn('w-3.5 h-3.5 transition-transform', open ? 'rotate-180' : '')} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -7171,25 +7171,25 @@ function CheckoutStyleSection({
         </button>
         {open && (
           <div className="mt-2 space-y-2">
-            <p className="text-[10px] text-gray-400 leading-relaxed">
+            <p className="text-xs text-gray-400 leading-relaxed">
               Override individual checkout CSS variables. Colors should be HSL triplets like <code className="bg-gray-100 px-1 rounded">222 47% 11%</code>. Leave blank to inherit from Style panel.
             </p>
             {CHECKOUT_TOKEN_FIELDS.map(({ key, label }) => (
               <div key={key}>
-                <label className="text-[10px] font-medium text-gray-500 block mb-0.5">{label}</label>
+                <label className="text-xs font-medium text-gray-500 block mb-0.5">{label}</label>
                 <input
                   type="text"
                   placeholder={`e.g. ${key === '--radius-md' ? '10px' : key.includes('font') ? 'Inter' : '222 47% 11%'}`}
                   value={overrides[key] ?? ''}
                   onChange={e => setTokenOverride(key, e.target.value)}
-                  className="w-full px-2 py-1.5 text-[11px] border border-gray-200 rounded-lg focus:border-primary/60 focus:outline-none font-mono"
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-primary/60 focus:outline-none font-mono"
                 />
               </div>
             ))}
             {Object.keys(overrides).length > 0 && (
               <button
                 onClick={() => onChange({ checkout_token_overrides: {} } as any)}
-                className="text-[10px] text-red-400 hover:text-red-600 transition-colors"
+                className="text-xs text-red-400 hover:text-red-600 transition-colors"
               >
                 ✕ Clear all overrides
               </button>
@@ -7379,7 +7379,7 @@ function DataSourcePanel({
         <Database className="w-4 h-4 text-primary/80" />
         <span className="text-xs font-bold text-gray-700">Data Connections</span>
       </div>
-      <p className="text-[10px] text-gray-400">Connect <strong>{block.label || block.block_type}</strong> to live KITERP data or any external API.</p>
+      <p className="text-xs text-gray-400">Connect <strong>{block.label || block.block_type}</strong> to live KITERP data or any external API.</p>
 
       {/* Auto-connect CTA (if block has a suggested source and isn't already connected) */}
       {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
@@ -7400,15 +7400,15 @@ function DataSourcePanel({
             {ds.auto ? 'Auto-connected: ' : 'Connected: '}
             {DATA_SOURCES.find(s => s.id === normalizedDsType)?.label || normalizedDsType}
           </span>
-          <span className="ml-auto text-[10px] text-emerald-600 font-semibold">{liveItems.length} live</span>
-          <button onClick={() => onUpdate(null)} className="text-[10px] text-red-500 hover:text-red-700">Disconnect</button>
+          <span className="ml-auto text-xs text-emerald-600 font-semibold">{liveItems.length} live</span>
+          <button onClick={() => onUpdate(null)} className="text-xs text-red-500 hover:text-red-700">Disconnect</button>
         </div>
       )}
 
       {/* Recommended sources */}
       {recommended.length > 0 && (
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2">Recommended for this block</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Recommended for this block</div>
           <div className="space-y-1.5">
             {recommended.map(source => (
               <button
@@ -7423,8 +7423,8 @@ function DataSourcePanel({
               >
                 <source.icon className="w-4 h-4 text-primary/80 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-gray-700">{source.label}</div>
-                  <div className="text-[10px] text-gray-400">{source.desc}</div>
+                  <div className="text-xs font-medium text-gray-700">{source.label}</div>
+                  <div className="text-xs text-gray-400">{source.desc}</div>
                 </div>
                 {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-primary/80" />}
               </button>
@@ -7435,7 +7435,7 @@ function DataSourcePanel({
 
       {/* All other internal sources */}
       <div>
-        <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2">All KITERP Data</div>
+        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">All KITERP Data</div>
         <div className="space-y-1.5">
           {others.map(source => (
             <button
@@ -7450,8 +7450,8 @@ function DataSourcePanel({
             >
               <source.icon className="w-4 h-4 text-gray-500 shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold text-gray-700">{source.label}</div>
-                <div className="text-[10px] text-gray-400">{source.desc}</div>
+                <div className="text-xs font-medium text-gray-700">{source.label}</div>
+                <div className="text-xs text-gray-400">{source.desc}</div>
               </div>
               {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-primary/80" />}
             </button>
@@ -7462,7 +7462,7 @@ function DataSourcePanel({
       {/* Limit control */}
       {normalizedDsType && normalizedDsType !== 'external_api' && normalizedDsType !== 'profile' && (
         <div className="space-y-1">
-          <label className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Item Limit</label>
+          <label className="text-xs font-bold uppercase tracking-wide text-gray-400">Item Limit</label>
           <input
             type="number"
             min={1} max={50}
@@ -7477,10 +7477,10 @@ function DataSourcePanel({
       {canPickItems && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+            <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
               Pick Items {(ds?.selected_ids?.length || 0) > 0 ? `(${ds.selected_ids.length})` : '(all)'}
             </div>
-            <button onClick={refreshInternal} className="text-[10px] text-primary/80 flex items-center gap-1">
+            <button onClick={refreshInternal} className="text-xs text-primary/80 flex items-center gap-1">
               <RefreshCcw className="w-3 h-3" /> Refresh
             </button>
           </div>
@@ -7504,7 +7504,7 @@ function DataSourcePanel({
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-gray-700 truncate">{item.title}</div>
                     {item.price_formatted && (
-                      <div className="text-[10px] text-gray-400">{item.price_formatted}</div>
+                      <div className="text-xs text-gray-400">{item.price_formatted}</div>
                     )}
                   </div>
                 </label>
@@ -7521,8 +7521,8 @@ function DataSourcePanel({
       {!canPickItems && normalizedDsType && normalizedDsType !== 'external_api' && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Live Preview</div>
-            <button onClick={refreshInternal} className="text-[10px] text-primary/80 flex items-center gap-1">
+            <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Live Preview</div>
+            <button onClick={refreshInternal} className="text-xs text-primary/80 flex items-center gap-1">
               <RefreshCcw className="w-3 h-3" /> Refresh
             </button>
           </div>
@@ -7535,9 +7535,9 @@ function DataSourcePanel({
                   {item.image_url && <img src={mediaUrl(item.image_url)} className="w-6 h-6 rounded object-cover shrink-0" alt="" />}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-700 truncate">{item.title}</div>
-                    {item.subtitle && <div className="text-[10px] text-gray-400 truncate">{item.subtitle}</div>}
+                    {item.subtitle && <div className="text-xs text-gray-400 truncate">{item.subtitle}</div>}
                   </div>
-                  {item.rating != null && <div className="text-[10px] text-amber-500">{'★'.repeat(Math.min(5, item.rating))}</div>}
+                  {item.rating != null && <div className="text-xs text-amber-500">{'★'.repeat(Math.min(5, item.rating))}</div>}
                 </div>
               ))}
               {liveItems.length === 0 && <p className="text-xs text-center text-gray-400 py-3">No items yet.</p>}
@@ -7548,7 +7548,7 @@ function DataSourcePanel({
 
       {/* External API */}
       <div>
-        <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2">External API</div>
+        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">External API</div>
         <div className="space-y-2.5">
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600">URL</label>
@@ -7574,7 +7574,7 @@ function DataSourcePanel({
               <label className="text-xs font-medium text-gray-600">Headers</label>
               <button
                 onClick={() => setApiHeaders(prev => [...prev, { key: '', value: '' }])}
-                className="text-[10px] text-primary/80 hover:text-primary"
+                className="text-xs text-primary/80 hover:text-primary"
               >
                 + Add
               </button>
@@ -7610,7 +7610,7 @@ function DataSourcePanel({
             <button
               onClick={handleTestApi}
               disabled={!apiUrl || loadingPreview}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/30 text-primary text-xs font-semibold hover:bg-accent disabled:opacity-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/30 text-primary text-xs font-medium hover:bg-accent disabled:opacity-50 transition-colors"
             >
               {loadingPreview ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plug className="w-3 h-3" />}
               Test
@@ -7618,17 +7618,17 @@ function DataSourcePanel({
             <button
               onClick={handleSaveApi}
               disabled={!apiUrl}
-              className="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               Save
             </button>
           </div>
           {preview.length > 0 && (
             <div className="space-y-1">
-              <div className="text-[10px] font-bold text-gray-400">Preview ({preview.length} items)</div>
+              <div className="text-xs font-bold text-gray-400">Preview ({preview.length} items)</div>
               <div className="max-h-32 overflow-y-auto border border-gray-100 rounded-lg p-2 space-y-1">
                 {preview.map((item, i) => (
-                  <div key={i} className="text-[10px] text-gray-600 font-mono bg-gray-50 rounded px-2 py-1 truncate">
+                  <div key={i} className="text-xs text-gray-600 font-mono bg-gray-50 rounded px-2 py-1 truncate">
                     {JSON.stringify(item).slice(0, 80)}…
                   </div>
                 ))}
@@ -7873,7 +7873,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         <button
           onClick={() => { setShowInsert(v => !v); setShowBlocks(false); setShowAnim(false); setShowShapes(false); setShowCase(false) }}
           className={cn(
-            'flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors',
+            'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-colors',
             showInsert ? 'bg-primary/90 text-white' : 'bg-primary text-white hover:bg-primary/90'
           )}
         >
@@ -7885,8 +7885,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         {showInsert && (
           <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden w-56">
             <div className="px-3 py-2 bg-accent border-b border-primary/20">
-              <div className="text-[10px] font-bold text-primary">Insert inside this section</div>
-              <div className="text-[9px] text-primary/80 mt-0.5">Elements are draggable & resizable within the block</div>
+              <div className="text-xs font-bold text-primary">Insert inside this section</div>
+              <div className="text-xs text-primary/80 mt-0.5">Elements are draggable & resizable within the block</div>
             </div>
             <div className="p-2 space-y-0.5">
               {ELEMENT_INSERT_TYPES.map(({ type, label, desc }) => (
@@ -7900,18 +7900,18 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 >
                   <span className="text-base leading-none mt-0.5">{label.split(' ')[0]}</span>
                   <div>
-                    <div className="text-[10px] font-semibold text-gray-800 group-hover:text-primary">{label.slice(label.indexOf(' ') + 1)}</div>
-                    <div className="text-[9px] text-gray-400">{desc}</div>
+                    <div className="text-xs font-medium text-gray-800 group-hover:text-primary">{label.slice(label.indexOf(' ') + 1)}</div>
+                    <div className="text-xs text-gray-400">{desc}</div>
                   </div>
                 </button>
               ))}
             </div>
             {overlayCount > 0 && (
               <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-[9px] text-gray-500">{overlayCount} element{overlayCount !== 1 ? 's' : ''} in this section</span>
+                <span className="text-xs text-gray-500">{overlayCount} element{overlayCount !== 1 ? 's' : ''} in this section</span>
                 <button
                   onMouseDown={e => { e.stopPropagation(); onUpdate({ overlays: [] } as any); setShowInsert(false) }}
-                  className="text-[9px] text-red-400 hover:text-red-600 font-semibold"
+                  className="text-xs text-red-400 hover:text-red-600 font-semibold"
                 >Clear all</button>
               </div>
             )}
@@ -7923,18 +7923,18 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       <div className="relative">
         <button
           onClick={() => { setShowBlocks(v => !v); setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowCase(false) }}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300 text-gray-600 text-[10px] font-semibold hover:border-primary/60 hover:bg-accent transition-colors"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300 text-gray-600 text-xs font-medium hover:border-primary/60 hover:bg-accent transition-colors"
           title="Add a new block section after this one"
         >
           <Layers className="w-3 h-3" /> Block
         </button>
         {showBlocks && (
           <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl p-2 grid grid-cols-2 gap-0.5 w-44">
-            <div className="col-span-2 text-[9px] font-bold text-gray-400 uppercase tracking-wide px-2 py-1">Add section after this</div>
+            <div className="col-span-2 text-xs font-bold text-gray-400 uppercase tracking-wide px-2 py-1">Add section after this</div>
             {QUICK_INSERT_TYPES.map(({ type, label }) => (
               <button key={type}
                 onMouseDown={e => { e.stopPropagation(); onInsertAfter(type); setShowBlocks(false) }}
-                className="text-left px-2 py-1.5 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-accent hover:text-primary transition-colors"
+                className="text-left px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:bg-accent hover:text-primary transition-colors"
               >{label}</button>
             ))}
           </div>
@@ -7958,7 +7958,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             updateTextStyle({ font_size_px: next, text_scale: null })
           }}
         >
-          <span className="text-[11px] font-bold leading-none">A</span>
+          <span className="text-xs font-bold leading-none">A</span>
           <ChevronUp className="w-2.5 h-2.5 text-sky-400 shrink-0" strokeWidth={2.75} />
         </button>
         <button
@@ -7971,12 +7971,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             updateTextStyle({ font_size_px: next, text_scale: null })
           }}
         >
-          <span className="text-[11px] font-bold leading-none">A</span>
+          <span className="text-xs font-bold leading-none">A</span>
           <ChevronDown className="w-2.5 h-2.5 text-sky-400 shrink-0" strokeWidth={2.75} />
         </button>
         <div className="w-px h-4 self-center bg-gray-600 mx-0.5 shrink-0" />
         <select
-          className="h-6 min-w-[3.5rem] cursor-pointer rounded border-0 bg-gray-900 py-0 pl-1.5 pr-1 text-[11px] font-semibold text-white outline-none focus-visible:ring-1 focus-visible:ring-sky-500"
+          className="h-6 min-w-[3.5rem] cursor-pointer rounded border-0 bg-gray-900 py-0 pl-1.5 pr-1 text-xs font-medium text-white outline-none focus-visible:ring-1 focus-visible:ring-sky-500"
           value={
             typeof (typographySource as any).font_size_px === 'number' && (typographySource as any).font_size_px > 0 && Number.isFinite((typographySource as any).font_size_px)
               ? String(Math.round((typographySource as any).font_size_px))
@@ -8005,7 +8005,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             setShowInsert(false); setShowBlocks(false); setShowAnim(false); setShowShapes(false)
           }}
           className={cn(
-            'flex items-center gap-0.5 h-6 px-1.5 rounded-lg border text-[9px] font-bold transition-colors',
+            'flex items-center gap-0.5 h-6 px-1.5 rounded-lg border text-xs font-bold transition-colors',
             showCase || currentTextCaseMenuId(typographySource as any) !== 'default'
               ? 'border-primary bg-accent text-primary'
               : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-accent',
@@ -8094,7 +8094,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         <button
           onClick={() => { setShowAnim(v => !v); setShowInsert(false); setShowShapes(false); setShowCase(false) }}
           title="Scroll animation"
-          className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors border',
+          className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors border',
             block.animation && block.animation !== 'none'
               ? 'bg-blue-100 text-blue-700 border-blue-200'
               : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent')}
@@ -8104,7 +8104,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         </button>
         {showAnim && (
           <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl p-2">
-            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Scroll Animation</div>
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Scroll Animation</div>
             <div className="grid grid-cols-4 gap-1 w-36">
               {CANVAS_ANIM_OPTIONS.map(({ id, label, title }) => (
                 <button key={id}
@@ -8119,13 +8119,13 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             </div>
             {block.animation && block.animation !== 'none' && (
               <div className="mt-2 flex items-center gap-2">
-                <label className="text-[9px] text-gray-500 shrink-0">Delay</label>
+                <label className="text-xs text-gray-500 shrink-0">Delay</label>
                 <input type="range" min={0} max={1000} step={100}
                   defaultValue={block.animation_delay || 0}
                   onChange={e => onUpdate({ animation_delay: Number(e.target.value) } as any)}
                   className="flex-1 accent-primary h-1"
                 />
-                <span className="text-[9px] text-gray-500 w-10">{block.animation_delay || 0}ms</span>
+                <span className="text-xs text-gray-500 w-10">{block.animation_delay || 0}ms</span>
               </div>
             )}
           </div>
@@ -8139,7 +8139,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         <button
           onClick={() => { setShowShapes(v => !v); setShowInsert(false); setShowAnim(false); setShowCase(false) }}
           title="Section shape dividers"
-          className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors border',
+          className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors border',
             ((p as any).top_shape && (p as any).top_shape !== 'none') || ((p as any).bottom_shape && (p as any).bottom_shape !== 'none')
               ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
               : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent')}
@@ -8150,24 +8150,24 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         {showShapes && (
           <>
             <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl p-3 w-72">
-              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-2">Top Edge Shape</div>
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Top Edge Shape</div>
               <div className="grid grid-cols-3 gap-1 mb-3">
                 {SHAPE_OPTIONS.map(({ id, label }) => (
                   <button key={`db-top-${id}`}
                     onClick={() => onUpdate({ top_shape: id === 'none' ? null : id } as any)}
-                    className={cn('py-1 px-1 text-[9px] font-semibold rounded border transition-colors text-center truncate',
+                    className={cn('py-1 px-1 text-xs font-medium rounded border transition-colors text-center truncate',
                       ((p as any).top_shape || 'none') === id
                         ? 'bg-primary text-white border-primary'
                         : 'text-gray-500 border-gray-200 hover:border-primary/40')}
                   >{label}</button>
                 ))}
               </div>
-              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-2">Bottom Edge Shape</div>
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Bottom Edge Shape</div>
               <div className="grid grid-cols-3 gap-1 mb-3">
                 {SHAPE_OPTIONS.map(({ id, label }) => (
                   <button key={`db-bot-${id}`}
                     onClick={() => onUpdate({ bottom_shape: id === 'none' ? null : id } as any)}
-                    className={cn('py-1 px-1 text-[9px] font-semibold rounded border transition-colors text-center truncate',
+                    className={cn('py-1 px-1 text-xs font-medium rounded border transition-colors text-center truncate',
                       ((p as any).bottom_shape || 'none') === id
                         ? 'bg-primary text-white border-primary'
                         : 'text-gray-500 border-gray-200 hover:border-primary/40')}
@@ -8181,7 +8181,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                     onChange={e => onUpdate({ shape_color: e.target.value } as any)}
                     className="w-8 h-8 rounded border border-gray-200 cursor-pointer p-0.5"
                   />
-                  <span className="text-[10px] text-gray-600">Shape fill color</span>
+                  <span className="text-xs text-gray-600">Shape fill color</span>
                 </div>
               )}
             </div>
@@ -8191,12 +8191,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
 
       {/* FONT LABEL */}
       <div className="flex items-center gap-1 ml-1" title="Font family (change in Style panel)">
-        <span className="text-[9px] text-gray-400">Font</span>
-        <span className="text-[9px] font-semibold text-gray-600">→ Style tab</span>
+        <span className="text-xs text-gray-400">Font</span>
+        <span className="text-xs font-medium text-gray-600">→ Style tab</span>
       </div>
 
       {/* Block label */}
-      <div className="ml-auto text-[9px] text-gray-400 font-mono truncate max-w-[80px]">
+      <div className="ml-auto text-xs text-gray-400 font-mono truncate max-w-[80px]">
         {block.label || block.block_type}
       </div>
 
@@ -10171,7 +10171,7 @@ export default function WebsiteBuilder() {
                   key={p.id}
                   onClick={() => { setActivePageId(p.id); setSelectedBlockId(null) }}
                   className={cn(
-                    'px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all',
+                    'px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all',
                     activePageId === p.id ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
                   )}
                 >
@@ -10186,7 +10186,7 @@ export default function WebsiteBuilder() {
               onClick={() => void startStorefrontOverlayPreview()}
               title="Reload preview from your current unsaved edits (new draft snapshot)"
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold transition-colors',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-medium transition-colors',
                 sfOverlayLoading && 'opacity-60 cursor-not-allowed',
               )}
             >
@@ -10200,7 +10200,7 @@ export default function WebsiteBuilder() {
             <div className="w-px h-5 bg-gray-700" />
             <button type="button" aria-label="Close"
               onClick={() => setShowFullPreview(false)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-medium transition-colors"
             >
                 <X className="w-3.5 h-3.5" /> Exit Preview
             </button>
@@ -10269,11 +10269,11 @@ export default function WebsiteBuilder() {
             <Globe className="w-4 h-4 text-primary/70 shrink-0" />
             <span className="text-sm font-bold truncate max-w-[180px]">{site.name}</span>
             {isTemplateMode ? (
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold tracking-wide bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40 whitespace-nowrap">
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-bold tracking-wide bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40 whitespace-nowrap">
                 Template Edit — {templateModeName}
               </span>
             ) : (
-              <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wide', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
+              <span className={cn('text-xs px-2 py-0.5 rounded-full font-bold tracking-wide', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
                 {site.is_published ? 'Live' : 'Draft'}
               </span>
             )}
@@ -10316,7 +10316,7 @@ export default function WebsiteBuilder() {
               setShowFullPreview(true)
             }}
             title="Full-screen preview — real business front (draft snapshot), same rendering as Open in browser"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium transition-colors"
           >
             <Eye className="w-3.5 h-3.5" /> Preview
           </button>
@@ -10344,7 +10344,7 @@ export default function WebsiteBuilder() {
           {/* Submissions inbox */}
           <button
             onClick={() => navigate(`/websites/${siteId}/submissions`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium transition-colors"
             title="View form & booking submissions from your site"
           >
             <Mail className="w-3.5 h-3.5" /> Inbox
@@ -10381,7 +10381,7 @@ export default function WebsiteBuilder() {
               )}
             </button>
             {lastSavedAt && !styleDirty && !blocksDirty && !isSaving && (
-              <span className="absolute -bottom-4 text-[9px] text-gray-500 whitespace-nowrap">
+              <span className="absolute -bottom-4 text-xs text-gray-500 whitespace-nowrap">
                 {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
@@ -10433,11 +10433,11 @@ export default function WebsiteBuilder() {
               <div className="fixed inset-0 z-40" onClick={() => setStorePopover(false)} />
               <div className="absolute right-0 top-10 z-50 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-200 w-80 p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                  <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
                     {site.is_published ? '✅ Live URL' : '🔒 Preview URL (not live)'}
                   </div>
                   {site.is_published && (
-                    <span className="text-[9px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">PUBLISHED</span>
+                    <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">PUBLISHED</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3">
@@ -10451,19 +10451,19 @@ export default function WebsiteBuilder() {
                       toast.success('Link copied to clipboard!')
                       setStorePopover(false)
                     }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
                   >
                     <Copy className="w-3.5 h-3.5" /> Copy URL
                   </button>
                   <button
                     onClick={() => { window.open(siteTestUrl, '_blank'); setStorePopover(false) }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary hover:bg-blue-500 text-white text-xs font-medium transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" /> Open ↗
                   </button>
                 </div>
                 {!site.is_published && (
-                  <p className="text-[10px] text-amber-600 mt-2 text-center">⚠ Publish the site first so visitors can see it live.</p>
+                  <p className="text-xs text-amber-600 mt-2 text-center">⚠ Publish the site first so visitors can see it live.</p>
                 )}
               </div>
             </>
@@ -10478,7 +10478,7 @@ export default function WebsiteBuilder() {
               key={page.id}
               onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
               className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all',
+                'flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all',
                 activePageId === page.id
                   ? 'bg-primary text-white shadow-sm shadow-primary/40'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/70'
@@ -10487,7 +10487,7 @@ export default function WebsiteBuilder() {
               <FileText className="w-3 h-3 shrink-0" />
               {page.title}
               {page.is_homepage && (
-                <span className={cn('text-[9px] rounded px-1 font-bold', activePageId === page.id ? 'bg-white/20 text-white' : 'bg-gray-700 text-gray-400')}>
+                <span className={cn('text-xs rounded px-1 font-bold', activePageId === page.id ? 'bg-white/20 text-white' : 'bg-gray-700 text-gray-400')}>
                   Home
                 </span>
               )}
@@ -10495,7 +10495,7 @@ export default function WebsiteBuilder() {
           ))}
           <button
             onClick={handleAddPage}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] text-gray-500 hover:bg-gray-700/70 hover:text-gray-300 transition-colors whitespace-nowrap ml-1"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs text-gray-500 hover:bg-gray-700/70 hover:text-gray-300 transition-colors whitespace-nowrap ml-1"
           >
             <Plus className="w-3 h-3" /> Add Page
           </button>
@@ -10528,7 +10528,7 @@ export default function WebsiteBuilder() {
                       key={id}
                       onClick={() => setLeftPanel(id)}
                       title={label}
-                      className={cn('flex-1 py-2.5 flex flex-col items-center gap-0.5 text-[9px] font-semibold transition-colors', leftPanel === id ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600')}
+                      className={cn('flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors', leftPanel === id ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600')}
                     >
                       <Icon className="w-4 h-4" />
                     </button>
@@ -10540,7 +10540,7 @@ export default function WebsiteBuilder() {
 
               {/* Template edit mode banner */}
               {isTemplateMode && (
-                <div className="mx-3 mt-2 mb-1 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[10px] text-amber-800 font-semibold leading-snug shrink-0">
+                <div className="mx-3 mt-2 mb-1 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 font-semibold leading-snug shrink-0">
                   <span className="font-extrabold">Template edit mode</span>
                   <br />
                   <span className="font-normal opacity-80">
@@ -10567,7 +10567,7 @@ export default function WebsiteBuilder() {
                         <button
                           key={cat.id}
                           onClick={() => setBlockCategory(cat.id)}
-                          className={cn('px-2 py-0.5 rounded text-[10px] font-semibold transition-colors', blockCategory === cat.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100')}
+                          className={cn('px-2 py-0.5 rounded text-xs font-medium transition-colors', blockCategory === cat.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100')}
                         >
                           {cat.label}
                         </button>
@@ -10593,14 +10593,14 @@ export default function WebsiteBuilder() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-semibold text-gray-700 group-hover:text-primary truncate">{def.label}</span>
+                                <span className="text-xs font-medium text-gray-700 group-hover:text-primary truncate">{def.label}</span>
                                 {liveSource && (
                                   <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-bold bg-emerald-100 text-emerald-700 shrink-0">
                                     <Zap className="w-2 h-2" />LIVE
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[10px] text-gray-400 truncate">
+                              <div className="text-xs text-gray-400 truncate">
                                 {liveLabel ? <>Auto-binds to <span className="text-emerald-600 font-semibold">{liveLabel}</span></> : def.desc}
                               </div>
                             </div>
@@ -10614,7 +10614,7 @@ export default function WebsiteBuilder() {
                 {/* PAGES panel */}
                 {leftPanel === 'pages' && (
                   <div className="p-3 space-y-2">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">
+                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">
                       {localPages.length} page{localPages.length !== 1 ? 's' : ''}
                     </div>
                     {localPages.map(page => {
@@ -10631,10 +10631,10 @@ export default function WebsiteBuilder() {
                           <span className="text-base shrink-0 leading-none" title={page.page_type || 'page'}>{pageTypeLabel}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1">
-                              <span className="text-xs font-semibold truncate">{page.title}</span>
+                              <span className="text-xs font-medium truncate">{page.title}</span>
                               {page.is_homepage && <span className="text-[8px] bg-primary/20 text-primary rounded px-1 font-bold shrink-0">HOME</span>}
                             </div>
-                            <div className="text-[10px] text-gray-400 font-mono">/{page.slug}</div>
+                            <div className="text-xs text-gray-400 font-mono">/{page.slug}</div>
                           </div>
                           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                             {/* Set as homepage */}
@@ -10650,7 +10650,7 @@ export default function WebsiteBuilder() {
                                     })
                                     .catch(() => toast.error('Failed to set homepage'))
                                 }}
-                                className="p-1 hover:bg-primary/15 hover:text-primary rounded text-[9px] font-bold transition-colors"
+                                className="p-1 hover:bg-primary/15 hover:text-primary rounded text-xs font-bold transition-colors"
                               >
                                 🏠
                               </button>
@@ -10714,7 +10714,7 @@ export default function WebsiteBuilder() {
                     <button onClick={handleAddPage} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-xs text-primary font-semibold hover:bg-accent hover:border-primary/60 transition-colors mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add New Page
                     </button>
-                    <p className="text-[10px] text-gray-400 text-center pt-1">
+                    <p className="text-xs text-gray-400 text-center pt-1">
                       {isTemplateMode
                         ? 'Template sandbox — add or reorder pages anytime. Hover a row for homepage, nav, duplicate, delete.'
                         : 'Hover a page for actions. Use 🏠 to set homepage, + Nav to add to nav.'}
@@ -10725,7 +10725,7 @@ export default function WebsiteBuilder() {
                 {/* LAYERS panel */}
                 {leftPanel === 'layers' && (
                   <div className="p-3 space-y-1">
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2">
+                    <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">
                       {activePage?.title || 'Select a page'} — {activeBlocks.length} blocks
                     </div>
                     {activeBlocks.map((block, idx) => (
@@ -10751,7 +10751,7 @@ export default function WebsiteBuilder() {
                 {leftPanel === 'templates' && (
                   <div className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-tight pt-0.5">
+                      <div className="text-xs font-bold text-gray-400 uppercase tracking-wide leading-tight pt-0.5">
                         Website Templates
                       </div>
                       {isTemplateMode && (
@@ -10760,7 +10760,7 @@ export default function WebsiteBuilder() {
                           disabled={!siteId || applyingTemplateInline || clearingTemplateSandbox}
                           onClick={() => { void handleClearTemplateSandbox() }}
                           className={cn(
-                            'shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors',
+                            'shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors',
                             siteId && !applyingTemplateInline && !clearingTemplateSandbox
                               ? 'border-gray-200 text-gray-700 hover:bg-gray-50'
                               : 'border-gray-100 text-gray-300 cursor-not-allowed',
@@ -10770,7 +10770,7 @@ export default function WebsiteBuilder() {
                         </button>
                       )}
                     </div>
-                    <p className="text-[10px] text-gray-500 leading-snug">
+                    <p className="text-xs text-gray-500 leading-snug">
                       Click a template to load it on the canvas. Edit freely, then click <strong className="text-primary">Apply</strong> in the toolbar to publish it live.
                     </p>
                     <div className="relative">
@@ -10832,16 +10832,16 @@ export default function WebsiteBuilder() {
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-xs font-semibold text-gray-800 truncate">{tpl.name}</span>
+                                  <span className="text-xs font-medium text-gray-800 truncate">{tpl.name}</span>
                                   {sel && !isLoadingThis && (
                                     <span className="shrink-0 text-[8px] px-1.5 py-0.5 rounded-full bg-primary text-white font-bold leading-none">Loaded</span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                   {tpl.category && (
-                                    <span className="text-[9px] text-primary font-medium truncate">{tpl.category}</span>
+                                    <span className="text-xs text-primary font-medium truncate">{tpl.category}</span>
                                   )}
-                                  <span className="text-[9px] text-gray-400">{pageCount} pg</span>
+                                  <span className="text-xs text-gray-400">{pageCount} pg</span>
                                 </div>
                                 <span className="inline-flex -space-x-0.5 mt-1">
                                   {palette.slice(0, 4).map((c, i) => (
@@ -10916,7 +10916,7 @@ export default function WebsiteBuilder() {
                           })
                           toast.success(`Connected ${disconnected.length} block${disconnected.length !== 1 ? 's' : ''} to live data`)
                         }}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-primary to-emerald-700 text-white font-bold text-[10px] hover:opacity-90 transition-opacity shadow-sm"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-primary to-emerald-700 text-white font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
                         title="Auto-connect remaining blocks to KITERP live data"
                       >
                         <Zap className="w-2.5 h-2.5" />
@@ -10942,7 +10942,7 @@ export default function WebsiteBuilder() {
                 onClick={() => { void handleCopyTemplateJson() }}
                 title="Copy site JSON (current canvas and style). Use Import elsewhere or keep as backup."
                 className={cn(
-                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors',
+                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors',
                   siteId && !applyingTemplateInline && !clearingTemplateSandbox && !resettingCanvasFromServer
                     ? 'border-primary/30 text-primary bg-accent/80 hover:bg-accent'
                     : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
@@ -10956,7 +10956,7 @@ export default function WebsiteBuilder() {
                 onClick={handleUndo}
                 title="Undo last block change (Ctrl+Z)"
                 className={cn(
-                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors',
+                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors',
                   canUndo
                     ? 'border-gray-200 text-gray-700 hover:bg-gray-50 bg-white'
                     : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
@@ -10975,7 +10975,7 @@ export default function WebsiteBuilder() {
                 onClick={() => { void handleResetCanvasFromServer() }}
                 title="Reload last saved site from the server (discards unsaved canvas and style changes)"
                 className={cn(
-                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors',
+                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors',
                   siteId && !resettingCanvasFromServer && !applyingTemplateInline && !clearingTemplateSandbox
                     ? 'border-gray-200 text-gray-700 hover:bg-gray-50 bg-white'
                     : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
@@ -10999,7 +10999,7 @@ export default function WebsiteBuilder() {
           {/* Store owner setup assistant — keeps hidden features visible */}
           <div className="px-4 py-2 bg-white border-b border-gray-200 hidden">
             <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
-              <div className="shrink-0 flex items-center gap-1.5 pr-1 text-[10px] font-bold text-gray-500">
+              <div className="shrink-0 flex items-center gap-1.5 pr-1 text-xs font-bold text-gray-500">
                 <CheckCircle2 className="w-3.5 h-3.5 text-primary/80" />
                 Setup {completedSetup}/{setupItems.length}
               </div>
@@ -11018,8 +11018,8 @@ export default function WebsiteBuilder() {
                 >
                   <item.icon className="w-3.5 h-3.5 shrink-0" />
                   <span className="min-w-0">
-                    <span className="block text-[10px] font-bold leading-tight">{item.label}</span>
-                    <span className="block text-[9px] opacity-75 leading-tight truncate max-w-[120px]">{item.desc}</span>
+                    <span className="block text-xs font-bold leading-tight">{item.label}</span>
+                    <span className="block text-xs opacity-75 leading-tight truncate max-w-[120px]">{item.desc}</span>
                   </span>
                   {item.done ? <Check className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />}
                 </button>
@@ -11074,12 +11074,12 @@ export default function WebsiteBuilder() {
                         <Zap className="w-4 h-4" />
                         Add Live ERP Starter Pack
                       </button>
-                      <p className="text-[10px] text-gray-400">
+                      <p className="text-xs text-gray-400">
                         9 blocks auto-wired to your products, services, team, stats & CRM
                       </p>
                       <button
                         onClick={() => setLeftPanel('blocks')}
-                        className="mt-2 px-4 py-2 border border-primary/40 text-primary text-xs font-semibold rounded-lg hover:bg-accent transition-colors"
+                        className="mt-2 px-4 py-2 border border-primary/40 text-primary text-xs font-medium rounded-lg hover:bg-accent transition-colors"
                       >
                         Or browse all blocks
                       </button>
@@ -11148,7 +11148,7 @@ export default function WebsiteBuilder() {
                             return (
                               <button
                                 onClick={e => { e.stopPropagation(); setSelectedBlockId(block.id); setRightPanel('data'); setRightCollapsed(false) }}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors text-[9px] font-bold"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors text-xs font-bold"
                                 title={`Connected to ${label}. Click to edit data source.`}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -11164,7 +11164,7 @@ export default function WebsiteBuilder() {
                                   handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as any)
                                   toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`)
                                 }}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/30 text-primary-foreground/85 hover:bg-accent/50 transition-colors text-[9px] font-bold"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/30 text-primary-foreground/85 hover:bg-accent/50 transition-colors text-xs font-bold"
                                 title={`One-click connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`}
                               >
                                 <Zap className="w-2.5 h-2.5" />
@@ -11193,7 +11193,7 @@ export default function WebsiteBuilder() {
                           className={cn(
                             'flex items-center gap-0.5 rounded px-1 transition-all duration-200',
                             armedDeleteId === block.id
-                              ? 'bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 animate-pulse'
+                              ? 'bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 animate-pulse'
                               : 'p-0.5 text-gray-400 hover:text-red-400'
                           )}
                         >
@@ -11205,13 +11205,13 @@ export default function WebsiteBuilder() {
 
                       {/* Block label chip + saving indicator */}
                       <div className={cn(
-                        'absolute bottom-1 left-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary/80 text-white transition-opacity pointer-events-none',
+                        'absolute bottom-1 left-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold bg-primary/80 text-white transition-opacity pointer-events-none',
                         selectedBlockId === block.id ? 'opacity-0' : 'opacity-0 group-hover:opacity-70'
                       )}>
                         {catalogBlockLabel(block)}
                       </div>
                       {savingBlockId === block.id && (
-                        <div className="absolute bottom-1 right-1 z-20 flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/90 text-white text-[9px] font-bold pointer-events-none">
+                        <div className="absolute bottom-1 right-1 z-20 flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/90 text-white text-xs font-bold pointer-events-none">
                           <Loader2 className="w-2.5 h-2.5 animate-spin" /> Saving…
                         </div>
                       )}
@@ -11357,7 +11357,7 @@ export default function WebsiteBuilder() {
                     key={id}
                     onClick={() => setRightPanel(id)}
                     title={label}
-                    className={cn('flex-1 py-2 flex flex-col items-center gap-0.5 text-[9px] font-semibold transition-colors', rightPanel === id ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50')}
+                    className={cn('flex-1 py-2 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors', rightPanel === id ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50')}
                   >
                     <Icon className="w-4 h-4" />
                     <span className="leading-none">{label}</span>
@@ -11388,7 +11388,7 @@ export default function WebsiteBuilder() {
                         <button
                           type="button"
                           onClick={() => { setRightPanel('ai'); setRightCollapsed(false) }}
-                          className="w-full py-2 rounded-xl bg-primary hover:bg-primary/90 text-xs font-semibold text-white flex items-center justify-center gap-1"
+                          className="w-full py-2 rounded-xl bg-primary hover:bg-primary/90 text-xs font-medium text-white flex items-center justify-center gap-1"
                         >
                           <Sparkles className="w-3.5 h-3.5" /> AI Help
                         </button>
@@ -11413,7 +11413,7 @@ export default function WebsiteBuilder() {
                         onClick={handleSaveCanvas}
                         disabled={isSaving || (!styleDirty && !blocksDirty)}
                         className={cn(
-                          'w-full py-2.5 rounded-xl text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all duration-300',
+                          'w-full py-2.5 rounded-xl text-white text-xs font-medium flex items-center justify-center gap-2 transition-all duration-300',
                           saveFlash
                             ? 'bg-emerald-500 scale-[1.02]'
                             : styleDirty || blocksDirty
@@ -11425,7 +11425,7 @@ export default function WebsiteBuilder() {
                         {saveFlash ? 'Saved!' : isSaving ? 'Saving…' : styleDirty || blocksDirty ? 'Save canvas & styles' : 'No unsaved changes'}
                       </button>
                       {lastSavedAt && (
-                        <p className="text-[10px] text-gray-400 text-center mt-1.5">
+                        <p className="text-xs text-gray-400 text-center mt-1.5">
                           Last saved at {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       )}
@@ -11606,7 +11606,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
           { id: 'headless', label: 'Headless API' },
         ] as const).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={cn('flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-colors', tab === t.id ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100')}>
+            className={cn('flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors', tab === t.id ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100')}>
             {t.label}
           </button>
         ))}
@@ -11617,13 +11617,13 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
         {tab === 'i18n' && (
           <>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700">Primary Language</label>
+              <label className="text-xs font-medium text-gray-700">Primary Language</label>
               <select value={lang} onChange={e => setLang(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs">
                 {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label} ({l.code})</option>)}
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700">Currency</label>
+              <label className="text-xs font-medium text-gray-700">Currency</label>
               <select value={currency} onChange={e => {
                 const c = CURRENCIES.find(x => x.code === e.target.value)
                 setCurrency(e.target.value)
@@ -11634,11 +11634,11 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Symbol</label>
+                <label className="text-xs font-medium text-gray-700">Symbol</label>
                 <input value={currSymbol} onChange={e => setCurrSymbol(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs" />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Position</label>
+                <label className="text-xs font-medium text-gray-700">Position</label>
                 <select value={currPos} onChange={e => setCurrPos(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs">
                   <option value="before">Before (₹999)</option>
                   <option value="after">After (999₹)</option>
@@ -11646,15 +11646,15 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700">Location / Region</label>
+              <label className="text-xs font-medium text-gray-700">Location / Region</label>
               <input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Mumbai, India" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700">Timezone</label>
+              <label className="text-xs font-medium text-gray-700">Timezone</label>
               <input value={timezone} onChange={e => setTimezone(e.target.value)} placeholder="e.g. Asia/Kolkata" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs" />
             </div>
             <div className="pt-1 border-t border-gray-100">
-              <div className="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-wide">Preview</div>
+              <div className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Preview</div>
               <p className="text-xs text-gray-600">
                 A product priced at <strong>1000</strong> will show as:{' '}
                 <strong>{currPos === 'before' ? `${currSymbol}1,000` : `1,000${currSymbol}`}</strong>
@@ -11672,13 +11672,13 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
           <>
             <div className="space-y-3">
               <div>
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Branding</p>
-                <p className="text-[10px] text-gray-400 mb-2">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Branding</p>
+                <p className="text-xs text-gray-400 mb-2">
                   Used in the browser tab, search results and social-share previews.
                 </p>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Favicon URL</label>
+                <label className="text-xs font-medium text-gray-700">Favicon URL</label>
                 <input
                   value={faviconUrl}
                   onChange={e => setFaviconUrl(e.target.value)}
@@ -11688,12 +11688,12 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                 {faviconUrl && (
                   <div className="flex items-center gap-2 pt-1">
                     <img src={faviconUrl} alt="" className="w-5 h-5 rounded border border-gray-200" />
-                    <span className="text-[10px] text-gray-400">Preview</span>
+                    <span className="text-xs text-gray-400">Preview</span>
                   </div>
                 )}
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Logo URL</label>
+                <label className="text-xs font-medium text-gray-700">Logo URL</label>
                 <input
                   value={logoUrl}
                   onChange={e => setLogoUrl(e.target.value)}
@@ -11702,14 +11702,14 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Default OG / Share Image URL</label>
+                <label className="text-xs font-medium text-gray-700">Default OG / Share Image URL</label>
                 <input
                   value={ogImageUrl}
                   onChange={e => setOgImageUrl(e.target.value)}
                   placeholder="https://cdn.example.com/og-cover.jpg"
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs"
                 />
-                <p className="text-[10px] text-gray-400">
+                <p className="text-xs text-gray-400">
                   Recommended 1200×630. Pages without their own OG image fall back to this one.
                 </p>
               </div>
@@ -11717,13 +11717,13 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
 
             <div className="pt-3 border-t border-gray-100 space-y-3">
               <div>
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Analytics</p>
-                <p className="text-[10px] text-gray-400">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Analytics</p>
+                <p className="text-xs text-gray-400">
                   Tracking only fires after visitors accept your cookie banner.
                 </p>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Google Analytics 4 ID</label>
+                <label className="text-xs font-medium text-gray-700">Google Analytics 4 ID</label>
                 <input
                   value={gaId}
                   onChange={e => setGaId(e.target.value)}
@@ -11732,7 +11732,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Meta (Facebook) Pixel ID</label>
+                <label className="text-xs font-medium text-gray-700">Meta (Facebook) Pixel ID</label>
                 <input
                   value={pixelId}
                   onChange={e => setPixelId(e.target.value)}
@@ -11741,26 +11741,26 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Custom &lt;head&gt; code</label>
+                <label className="text-xs font-medium text-gray-700">Custom &lt;head&gt; code</label>
                 <textarea
                   value={headCode}
                   onChange={e => setHeadCode(e.target.value)}
                   rows={5}
                   placeholder="<!-- GTM, verification meta tags, etc. -->"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-[11px] font-mono resize-y"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono resize-y"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Custom &lt;body&gt; code</label>
+                <label className="text-xs font-medium text-gray-700">Custom &lt;body&gt; code</label>
                 <textarea
                   value={bodyCode}
                   onChange={e => setBodyCode(e.target.value)}
                   rows={3}
                   placeholder="<!-- Chat widget script, GTM noscript, etc. -->"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-[11px] font-mono resize-y"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono resize-y"
                 />
               </div>
-              <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-lg p-2">
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg p-2">
                 Custom code is rendered as-is. Only paste snippets from sources you trust.
               </p>
             </div>
@@ -11779,19 +11779,19 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
         {/* REDIRECTS TAB */}
         {tab === 'redirects' && (
           <>
-            <p className="text-[10px] text-gray-500">Set up URL redirects so old links always point to the right page.</p>
+            <p className="text-xs text-gray-500">Set up URL redirects so old links always point to the right page.</p>
             <div className="space-y-2">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">From Path</label>
+                <label className="text-xs font-bold text-gray-500 uppercase">From Path</label>
                 <input value={newFrom} onChange={e => setNewFrom(e.target.value)} placeholder="/old-page" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs" />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">To Path</label>
+                <label className="text-xs font-bold text-gray-500 uppercase">To Path</label>
                 <input value={newTo} onChange={e => setNewTo(e.target.value)} placeholder="/new-page or https://..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs" />
               </div>
               <div className="flex gap-2 items-end">
                 <div className="flex-1 space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Type</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase">Type</label>
                   <select value={newCode} onChange={e => setNewCode(Number(e.target.value) as 301 | 302)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs">
                     <option value={301}>301 Permanent</option>
                     <option value={302}>302 Temporary</option>
@@ -11803,9 +11803,9 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
               </div>
             </div>
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
-              {redirects.length === 0 && <p className="text-[10px] text-gray-400 text-center py-4">No redirects yet</p>}
+              {redirects.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No redirects yet</p>}
               {(redirects as any[]).map((r: any) => (
-                <div key={r.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-xl text-[10px]">
+                <div key={r.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-xl text-xs">
                   <span className={cn('shrink-0 px-1.5 py-0.5 rounded font-bold', r.status_code === 301 ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600')}>{r.status_code}</span>
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="truncate text-gray-600">{r.from_path}</div>
@@ -11828,7 +11828,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-gray-700">Headless API Mode</p>
-                  <p className="text-[10px] text-gray-500">Expose your site content as a JSON API for custom frontends (Next.js, Vue, mobile).</p>
+                  <p className="text-xs text-gray-500">Expose your site content as a JSON API for custom frontends (Next.js, Vue, mobile).</p>
                 </div>
                 <div className={cn('w-8 h-5 rounded-full shrink-0 transition-colors cursor-pointer flex items-center', siteHeadless ? 'bg-primary' : 'bg-gray-300')}
                   onClick={() => siteHeadless ? disableHeadless.mutateAsync().catch(() => {}) : enableHeadless.mutateAsync().catch(() => {})}>
@@ -11837,15 +11837,15 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
               </div>
               {siteHeadless && headlessToken && (
                 <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">API Token</div>
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">API Token</div>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 text-[9px] bg-white border border-gray-200 px-2 py-1.5 rounded-lg font-mono truncate">{headlessToken}</code>
+                    <code className="flex-1 text-xs bg-white border border-gray-200 px-2 py-1.5 rounded-lg font-mono truncate">{headlessToken}</code>
                     <button onClick={() => { navigator.clipboard.writeText(headlessToken); toast.success('Token copied!') }} className="shrink-0 p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20">
                       <Copy className="w-3 h-3" />
                     </button>
                   </div>
-                  <div className="text-[10px] font-bold text-gray-500 mt-2">Endpoint</div>
-                  <code className="block text-[9px] bg-white border border-gray-200 px-2 py-1.5 rounded-lg font-mono break-all">
+                  <div className="text-xs font-bold text-gray-500 mt-2">Endpoint</div>
+                  <code className="block text-xs bg-white border border-gray-200 px-2 py-1.5 rounded-lg font-mono break-all">
                     GET /api/v1/public/sites/{(site as any).subdomain || '{subdomain}'}<br/>
                     Authorization: Bearer {headlessToken.slice(0, 12)}...
                   </code>
@@ -11853,7 +11853,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
               )}
             </div>
             <div className="space-y-2">
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Sitemap</div>
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">Sitemap</div>
               <button onClick={async () => {
                 try {
                   const xml = await websiteApi.getSitemap(siteId)
@@ -11863,10 +11863,10 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                   a.href = url; a.download = 'sitemap.xml'; a.click()
                   toast.success('Sitemap downloaded!')
                 } catch { toast.error('Failed to generate sitemap') }
-              }} className="w-full py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2">
+              }} className="w-full py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2">
                 <Download className="w-3.5 h-3.5" /> Download sitemap.xml
               </button>
-              <p className="text-[10px] text-gray-400">Upload this file to your domain root or submit it to Google Search Console.</p>
+              <p className="text-xs text-gray-400">Upload this file to your domain root or submit it to Google Search Console.</p>
             </div>
 
             {/* P2.6 robots.txt editor */}
@@ -11907,7 +11907,7 @@ function RobotsTxtEditor({ siteId, site }: { siteId: string; site: WebsiteSite }
     <div className="space-y-2 pt-2 border-t border-gray-100">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between text-[10px] font-bold text-gray-500 uppercase tracking-wide"
+        className="w-full flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-wide"
       >
         <span>robots.txt Editor</span>
         <svg className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -11919,16 +11919,16 @@ function RobotsTxtEditor({ siteId, site }: { siteId: string; site: WebsiteSite }
             value={value || defaultRobots}
             onChange={e => setValue(e.target.value)}
             placeholder={defaultRobots}
-            className="w-full text-[11px] font-mono border border-gray-200 rounded-lg p-2 resize-y focus:ring-1 focus:ring-ring focus:border-primary/60 outline-none"
+            className="w-full text-xs font-mono border border-gray-200 rounded-lg p-2 resize-y focus:ring-1 focus:ring-ring focus:border-primary/60 outline-none"
           />
           <button
             onClick={save}
             disabled={saving}
-            className="w-full py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50"
+            className="w-full py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save robots.txt'}
           </button>
-          <p className="text-[10px] text-gray-400">
+          <p className="text-xs text-gray-400">
             This is served at your domain's /robots.txt. The sitemap URL is automatically appended if not present.
           </p>
         </div>
@@ -12011,7 +12011,7 @@ function SEOPanel({
       {/* Tab switcher */}
       <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
         {(['page', 'site'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={cn('flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors', tab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
+          <button key={t} onClick={() => setTab(t)} className={cn('flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors', tab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
             {t === 'page' ? '📄 This Page' : '🌐 Site-wide'}
           </button>
         ))}
@@ -12032,47 +12032,47 @@ function SEOPanel({
           {/* AI result preview */}
           {aiResult && (
             <div className="p-3 bg-accent border border-primary/30 rounded-xl space-y-2">
-              <div className="text-[10px] font-bold text-primary uppercase tracking-wide">AI Suggestion</div>
+              <div className="text-xs font-bold text-primary uppercase tracking-wide">AI Suggestion</div>
               <div className="space-y-1">
-                <p className="text-[10px] font-semibold text-gray-700">Title: {aiResult.seo_title}</p>
-                <p className="text-[10px] text-gray-600 line-clamp-2">{aiResult.seo_description}</p>
-                <p className="text-[10px] text-primary">Focus: <strong>{aiResult.focus_keyword}</strong></p>
+                <p className="text-xs font-medium text-gray-700">Title: {aiResult.seo_title}</p>
+                <p className="text-xs text-gray-600 line-clamp-2">{aiResult.seo_description}</p>
+                <p className="text-xs text-primary">Focus: <strong>{aiResult.focus_keyword}</strong></p>
               </div>
               <div className="flex gap-2">
-                <button onClick={applyAI} className="flex-1 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg">Apply</button>
-                <button onClick={() => setAiResult(null)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-500 text-[10px] rounded-lg">Dismiss</button>
+                <button onClick={applyAI} className="flex-1 py-1.5 bg-primary text-white text-xs font-bold rounded-lg">Apply</button>
+                <button onClick={() => setAiResult(null)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-500 text-xs rounded-lg">Dismiss</button>
               </div>
             </div>
           )}
 
           <div className="space-y-1">
             <div className="flex justify-between">
-              <label className="text-xs font-semibold text-gray-700">SEO Title</label>
-              <span className={cn('text-[10px]', titleLen > 60 ? 'text-red-500' : titleLen > 50 ? 'text-amber-500' : 'text-gray-400')}>{titleLen}/60</span>
+              <label className="text-xs font-medium text-gray-700">SEO Title</label>
+              <span className={cn('text-xs', titleLen > 60 ? 'text-red-500' : titleLen > 50 ? 'text-amber-500' : 'text-gray-400')}>{titleLen}/60</span>
             </div>
             <input value={seoTitle} onChange={e => setSeoTitle(e.target.value)} placeholder={`${activePage.title} | ${site.name}`} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
 
           <div className="space-y-1">
             <div className="flex justify-between">
-              <label className="text-xs font-semibold text-gray-700">Meta Description</label>
-              <span className={cn('text-[10px]', descLen > 160 ? 'text-red-500' : descLen > 140 ? 'text-amber-500' : 'text-gray-400')}>{descLen}/160</span>
+              <label className="text-xs font-medium text-gray-700">Meta Description</label>
+              <span className={cn('text-xs', descLen > 160 ? 'text-red-500' : descLen > 140 ? 'text-amber-500' : 'text-gray-400')}>{descLen}/160</span>
             </div>
             <textarea value={seoDesc} onChange={e => setSeoDesc(e.target.value)} placeholder="Describe this page in 150-160 characters..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-700">OG / Social Image URL</label>
+            <label className="text-xs font-medium text-gray-700">OG / Social Image URL</label>
             <input value={ogImage} onChange={e => setOgImage(e.target.value)} placeholder="https://... or /uploads/..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
             {ogImage && <img src={mediaUrl(ogImage)} className="w-full h-20 object-cover rounded-xl border border-gray-100 mt-1" alt="OG preview" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
           </div>
 
           {/* SERP preview */}
           <div className="p-3 bg-white border border-gray-200 rounded-xl">
-            <div className="text-[9px] text-gray-400 mb-1.5 font-semibold uppercase tracking-wide">Search Preview</div>
-            <div className="text-[11px] text-blue-700 font-semibold truncate">{seoTitle || `${activePage.title} | ${site.name}`}</div>
-            <div className="text-[10px] text-green-700">{(site as any).custom_domain || `${site.name?.toLowerCase().replace(/\s/g, '')}.site`}/{activePage.slug}</div>
-            <div className="text-[10px] text-gray-600 mt-0.5 line-clamp-2">{seoDesc || 'No meta description set. Add one to improve search ranking.'}</div>
+            <div className="text-xs text-gray-400 mb-1.5 font-semibold uppercase tracking-wide">Search Preview</div>
+            <div className="text-xs text-blue-700 font-semibold truncate">{seoTitle || `${activePage.title} | ${site.name}`}</div>
+            <div className="text-xs text-green-700">{(site as any).custom_domain || `${site.name?.toLowerCase().replace(/\s/g, '')}.site`}/{activePage.slug}</div>
+            <div className="text-xs text-gray-600 mt-0.5 line-clamp-2">{seoDesc || 'No meta description set. Add one to improve search ranking.'}</div>
           </div>
 
           <button
@@ -12084,23 +12084,23 @@ function SEOPanel({
 
           {/* AI Block Suggestions */}
           <div className="border-t border-gray-100 pt-3 space-y-2">
-            <div className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+            <div className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-primary/80" /> AI Layout Suggestions
             </div>
-            <button onClick={handleSuggestBlocks} disabled={suggestBlocks.isPending} className="w-full py-2 border border-primary/30 text-primary text-xs font-semibold rounded-xl hover:bg-accent flex items-center justify-center gap-2">
+            <button onClick={handleSuggestBlocks} disabled={suggestBlocks.isPending} className="w-full py-2 border border-primary/30 text-primary text-xs font-medium rounded-xl hover:bg-accent flex items-center justify-center gap-2">
               {suggestBlocks.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Suggest Blocks for this Page
             </button>
             {suggestResult && (
               <div className="space-y-1.5">
-                <p className="text-[10px] text-gray-500 italic">{suggestResult.reasoning}</p>
+                <p className="text-xs text-gray-500 italic">{suggestResult.reasoning}</p>
                 <div className="space-y-1">
                   {suggestResult.blocks?.map((b: any, i: number) => (
                     <div key={i} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-                      <span className="text-[10px] font-bold text-primary shrink-0">{i + 1}.</span>
+                      <span className="text-xs font-bold text-primary shrink-0">{i + 1}.</span>
                       <div>
-                        <div className="text-[10px] font-semibold text-gray-700">{b.label}</div>
-                        <div className="text-[9px] text-gray-400">{b.reason}</div>
+                        <div className="text-xs font-medium text-gray-700">{b.label}</div>
+                        <div className="text-xs text-gray-400">{b.reason}</div>
                       </div>
                     </div>
                   ))}
@@ -12114,15 +12114,15 @@ function SEOPanel({
       {tab === 'site' && (
         <div className="space-y-3">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-700">Site SEO Title</label>
+            <label className="text-xs font-medium text-gray-700">Site SEO Title</label>
             <input value={siteTitle} onChange={e => setSiteTitle(e.target.value)} placeholder={site.name} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-700">Site Meta Description</label>
+            <label className="text-xs font-medium text-gray-700">Site Meta Description</label>
             <textarea value={siteDesc} onChange={e => setSiteDesc(e.target.value)} placeholder="Overall site description for search engines..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-700">Keywords (comma-separated)</label>
+            <label className="text-xs font-medium text-gray-700">Keywords (comma-separated)</label>
             <input value={siteKw} onChange={e => setSiteKw(e.target.value)} placeholder="keyword1, keyword2, keyword3..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <button
@@ -12222,7 +12222,7 @@ function AIStudioPanel({
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={cn('px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors', tab === t.id ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
+            className={cn('px-2.5 py-1 rounded-lg text-xs font-medium transition-colors', tab === t.id ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
           >
             {t.label}
           </button>
@@ -12234,11 +12234,11 @@ function AIStudioPanel({
         {tab === 'generate' && (
           <>
             <div className="p-3 bg-gradient-to-r from-accent to-info/15 border border-primary/20 rounded-xl">
-              <p className="text-xs font-semibold text-primary mb-0.5">One-Prompt Site Generator</p>
-              <p className="text-[10px] text-primary">Describe your business and AI builds the full site structure, copy, and theme instantly.</p>
+              <p className="text-xs font-medium text-primary mb-0.5">One-Prompt Site Generator</p>
+              <p className="text-xs text-primary">Describe your business and AI builds the full site structure, copy, and theme instantly.</p>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-600">Business Description *</label>
+              <label className="text-xs font-medium text-gray-600">Business Description *</label>
               <textarea
                 value={genBizDesc}
                 onChange={e => setGenBizDesc(e.target.value)}
@@ -12248,11 +12248,11 @@ function AIStudioPanel({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-600">Niche (optional)</label>
+                <label className="text-xs font-medium text-gray-600">Niche (optional)</label>
                 <input value={genNiche} onChange={e => setGenNiche(e.target.value)} placeholder="saas, restaurant, law..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-600">Tone</label>
+                <label className="text-xs font-medium text-gray-600">Tone</label>
                 <select value={genTone} onChange={e => setGenTone(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs">
                   {[
                     { id: 'professional', label: '💼 Professional' },
@@ -12302,13 +12302,13 @@ function AIStudioPanel({
             {genResult && (
               <div className="space-y-3">
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <div className="text-[10px] font-bold text-emerald-600 mb-1">AI Generated Site Preview</div>
+                  <div className="text-xs font-bold text-emerald-600 mb-1">AI Generated Site Preview</div>
                   <p className="text-xs font-bold text-gray-800">{genResult.site_name}</p>
-                  <p className="text-[10px] text-gray-500 italic">{genResult.tagline}</p>
-                  <p className="text-[10px] text-gray-500 mt-1">{genResult.summary}</p>
+                  <p className="text-xs text-gray-500 italic">{genResult.tagline}</p>
+                  <p className="text-xs text-gray-500 mt-1">{genResult.summary}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {genResult.pages?.map((pg: any) => (
-                      <span key={pg.slug} className="text-[9px] bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 font-semibold">{pg.title}</span>
+                      <span key={pg.slug} className="text-xs bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 font-semibold">{pg.title}</span>
                     ))}
                   </div>
                   <div className="flex gap-1 mt-2">
@@ -12354,7 +12354,7 @@ function AIStudioPanel({
         {tab === 'text' && (
           <>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-600">Tone</label>
+              <label className="text-xs font-medium text-gray-600">Tone</label>
               <select value={tone} onChange={e => setTone(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs">
                 {[
                   { id: 'professional', label: '💼 Professional' },
@@ -12371,7 +12371,7 @@ function AIStudioPanel({
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-600">What do you need?</label>
+              <label className="text-xs font-medium text-gray-600">What do you need?</label>
               <textarea
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
@@ -12388,7 +12388,7 @@ function AIStudioPanel({
                 } catch { toast.error('AI text generation failed') }
               }}
               disabled={!prompt || isLoading}
-              className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Generate Text
@@ -12397,12 +12397,12 @@ function AIStudioPanel({
               <div className="space-y-2">
                 <div className="p-3 bg-accent border border-primary/20 rounded-lg">
                   <p className="text-xs text-gray-700">{result}</p>
-                  <button onClick={() => { navigator.clipboard.writeText(result); toast.success('Copied!') }} className="mt-2 text-[10px] text-primary hover:underline">Copy</button>
+                  <button onClick={() => { navigator.clipboard.writeText(result); toast.success('Copied!') }} className="mt-2 text-xs text-primary hover:underline">Copy</button>
                 </div>
                 {alternatives.map((alt, i) => (
                   <div key={i} className="p-3 bg-gray-50 border border-gray-100 rounded-lg">
                     <p className="text-xs text-gray-600">{alt}</p>
-                    <button onClick={() => { navigator.clipboard.writeText(alt); toast.success('Copied!') }} className="mt-2 text-[10px] text-primary hover:underline">Copy</button>
+                    <button onClick={() => { navigator.clipboard.writeText(alt); toast.success('Copied!') }} className="mt-2 text-xs text-primary hover:underline">Copy</button>
                   </div>
                 ))}
               </div>
@@ -12438,13 +12438,13 @@ function AIStudioPanel({
               className="w-full py-8 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center gap-2 text-primary/80 hover:bg-accent transition-colors disabled:opacity-50"
             >
               {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
-              <span className="text-xs font-semibold">{isLoading ? 'Analyzing...' : 'Upload Screenshot'}</span>
-              <span className="text-[10px] text-gray-400">PNG, JPG, WebP</span>
+              <span className="text-xs font-medium">{isLoading ? 'Analyzing...' : 'Upload Screenshot'}</span>
+              <span className="text-xs text-gray-400">PNG, JPG, WebP</span>
             </button>
             {screenshotResult && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-700">
+                  <span className="text-xs font-medium text-gray-700">
                     Detected: {screenshotResult.website_type} ({Math.round(screenshotResult.confidence * 100)}% confidence)
                   </span>
                 </div>
@@ -12453,10 +12453,10 @@ function AIStudioPanel({
                     <div key={c} style={{ backgroundColor: c }} className="w-5 h-5 rounded" title={c} />
                   ))}
                 </div>
-                <div className="text-[10px] text-gray-500">{screenshotResult.detected_sections?.join(', ')}</div>
+                <div className="text-xs text-gray-500">{screenshotResult.detected_sections?.join(', ')}</div>
                 <button
                   onClick={() => { onAddBlocks(screenshotResult.suggested_blocks); toast.success(`${screenshotResult.suggested_blocks.length} blocks added!`) }}
-                  className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg"
+                  className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg"
                 >
                   Apply {screenshotResult.suggested_blocks?.length} Blocks to Page
                 </button>
@@ -12472,7 +12472,7 @@ function AIStudioPanel({
               Paste any website URL. AI extracts its design language — colors, fonts, layout — and generates a similar structure.
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-600">Website URL</label>
+              <label className="text-xs font-medium text-gray-600">Website URL</label>
               <input
                 value={url}
                 onChange={e => setUrl(e.target.value)}
@@ -12489,7 +12489,7 @@ function AIStudioPanel({
                 } catch { toast.error('Clone analysis failed') }
               }}
               disabled={!url || isLoading}
-              className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
               Analyze & Clone Style
@@ -12497,7 +12497,7 @@ function AIStudioPanel({
             {cloneResult && (
               <div className="space-y-3">
                 <div className="p-3 bg-gray-50 rounded-lg">
-                  <div className="text-[10px] font-bold text-gray-400 mb-2">Detected Color Palette</div>
+                  <div className="text-xs font-bold text-gray-400 mb-2">Detected Color Palette</div>
                   <div className="flex gap-1">
                     {cloneResult.color_palette?.map((c: string) => (
                       <div key={c} style={{ backgroundColor: c }} className="w-6 h-6 rounded" title={c} />
@@ -12505,10 +12505,10 @@ function AIStudioPanel({
                   </div>
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-600">{cloneResult.layout_notes}</div>
-                <button onClick={() => onApplyStyle(cloneResult.style_config)} className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg">
+                <button onClick={() => onApplyStyle(cloneResult.style_config)} className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg">
                   Apply Style to Site
                 </button>
-                <button onClick={() => onAddBlocks(cloneResult.detected_blocks)} className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg">
+                <button onClick={() => onAddBlocks(cloneResult.detected_blocks)} className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg">
                   Add Detected Blocks
                 </button>
               </div>
@@ -12528,7 +12528,7 @@ function AIStudioPanel({
                 } catch { toast.error('Review failed') }
               }}
               disabled={isLoading}
-              className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Run AI UX Review
@@ -12539,14 +12539,14 @@ function AIStudioPanel({
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className={cn('text-3xl font-extrabold', uxReview.score >= 80 ? 'text-emerald-600' : uxReview.score >= 60 ? 'text-amber-600' : 'text-red-600')}>{uxReview.score}</div>
                   <div>
-                    <div className="text-xs font-semibold">UX Score</div>
-                    <div className="text-[10px] text-gray-400">{uxReview.score >= 80 ? 'Great!' : uxReview.score >= 60 ? 'Good, some improvements' : 'Needs work'}</div>
+                    <div className="text-xs font-medium">UX Score</div>
+                    <div className="text-xs text-gray-400">{uxReview.score >= 80 ? 'Great!' : uxReview.score >= 60 ? 'Good, some improvements' : 'Needs work'}</div>
                   </div>
                 </div>
                 {/* Issues */}
                 {uxReview.issues?.length > 0 && (
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Issues</div>
+                    <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1.5">Issues</div>
                     {uxReview.issues.map((issue: any, i: number) => (
                       <div key={i} className={cn('flex gap-2 p-2 rounded-lg mb-1 text-xs', issue.severity === 'high' ? 'bg-red-50 text-red-700' : issue.severity === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-600')}>
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -12558,7 +12558,7 @@ function AIStudioPanel({
                 {/* Strengths */}
                 {uxReview.strengths?.length > 0 && (
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Strengths</div>
+                    <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1.5">Strengths</div>
                     {uxReview.strengths.map((s: string, i: number) => (
                       <div key={i} className="flex gap-2 p-2 rounded-lg mb-1 text-xs bg-emerald-50 text-emerald-700">
                         <Check className="w-3.5 h-3.5 shrink-0 mt-0.5" />{s}
@@ -12569,7 +12569,7 @@ function AIStudioPanel({
                 {/* Suggestions */}
                 {uxReview.suggestions?.length > 0 && (
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Suggestions</div>
+                    <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1.5">Suggestions</div>
                     {uxReview.suggestions.slice(0, 5).map((s: any, i: number) => (
                       <div key={i} className="flex gap-2 p-2 rounded-lg mb-1 text-xs bg-blue-50 text-blue-700">
                         <Zap className="w-3.5 h-3.5 shrink-0 mt-0.5" />{s.message}
@@ -12597,7 +12597,7 @@ function AIStudioPanel({
           <>
             <div className="text-xs text-gray-500">Describe your brand and AI generates a complete matching theme.</div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-600">Brand Description</label>
+              <label className="text-xs font-medium text-gray-600">Brand Description</label>
               <textarea
                 value={brandDesc}
                 onChange={e => setBrandDesc(e.target.value)}
@@ -12607,11 +12607,11 @@ function AIStudioPanel({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-600">Industry</label>
+                <label className="text-xs font-medium text-gray-600">Industry</label>
                 <input value={industry} onChange={e => setIndustry(e.target.value)} placeholder="Fashion, SaaS..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-600">Mood</label>
+                <label className="text-xs font-medium text-gray-600">Mood</label>
                 <select value={mood} onChange={e => setMood(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs">
                   {['professional', 'playful', 'luxury', 'minimal', 'bold'].map(m => <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>)}
                 </select>
@@ -12625,7 +12625,7 @@ function AIStudioPanel({
                 } catch { toast.error('Theme generation failed') }
               }}
               disabled={!brandDesc || isLoading}
-              className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
               Generate Theme
@@ -12634,7 +12634,7 @@ function AIStudioPanel({
               <div className="space-y-3">
                 <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-600">{themeResult.mood_description}</div>
                 <div>
-                  <div className="text-[10px] font-bold text-gray-400 mb-1.5">Color Palette</div>
+                  <div className="text-xs font-bold text-gray-400 mb-1.5">Color Palette</div>
                   <div className="flex gap-1">
                     {themeResult.color_palette?.map((c: string) => (
                       <div key={c} style={{ backgroundColor: c }} className="w-7 h-7 rounded-lg" title={c} />
@@ -12645,7 +12645,7 @@ function AIStudioPanel({
                   <span className="font-semibold">Heading:</span> {themeResult.font_pairing?.heading} &nbsp;|&nbsp;
                   <span className="font-semibold">Body:</span> {themeResult.font_pairing?.body}
                 </div>
-                <button onClick={() => onApplyStyle(themeResult.style_config)} className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90">
+                <button onClick={() => onApplyStyle(themeResult.style_config)} className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90">
                   Apply This Theme
                 </button>
               </div>
@@ -12852,7 +12852,7 @@ function ImageGenPanel({
       {blockCtx && (
         <div className="px-3 py-2 bg-accent border border-primary/20 rounded-lg flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-primary/80 shrink-0" />
-          <span className="text-[10px] text-primary">
+          <span className="text-xs text-primary">
             Showing suggestions for <strong>{selectedBlock?.block_type?.replace(/_/g, ' ')}</strong> block
           </span>
         </div>
@@ -12861,11 +12861,11 @@ function ImageGenPanel({
       {/* Prompt + Enhance */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-gray-700">Image Description</label>
+          <label className="text-xs font-medium text-gray-700">Image Description</label>
           <button
             onClick={handleEnhance}
             disabled={!prompt.trim() || aiEnhance.isPending}
-            className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 disabled:opacity-40 transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 disabled:opacity-40 transition-colors"
           >
             {aiEnhance.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
             Enhance with AI
@@ -12880,19 +12880,19 @@ function ImageGenPanel({
         {/* Enhanced prompt preview */}
         {enhancedPrompt && (
           <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
-            <div className="flex items-center gap-1 text-[9px] font-bold text-amber-600 uppercase tracking-wide">
+            <div className="flex items-center gap-1 text-xs font-bold text-amber-600 uppercase tracking-wide">
               <Wand2 className="w-3 h-3" /> AI-Enhanced Prompt
             </div>
-            <p className="text-[10px] text-gray-700 leading-relaxed line-clamp-3">{enhancedPrompt}</p>
+            <p className="text-xs text-gray-700 leading-relaxed line-clamp-3">{enhancedPrompt}</p>
             <div className="flex gap-1.5">
               <button
                 onClick={() => handleGenerate(true)}
                 disabled={aiImage.isPending}
-                className="flex-1 py-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-lg hover:bg-amber-600 flex items-center justify-center gap-1"
+                className="flex-1 py-1.5 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 flex items-center justify-center gap-1"
               >
                 <Sparkles className="w-3 h-3" /> Generate Enhanced
               </button>
-              <button onClick={() => { setPrompt(enhancedPrompt); setEnhancedPrompt('') }} className="px-2 py-1.5 bg-white border border-amber-200 text-amber-600 text-[10px] rounded-lg hover:bg-amber-50">
+              <button onClick={() => { setPrompt(enhancedPrompt); setEnhancedPrompt('') }} className="px-2 py-1.5 bg-white border border-amber-200 text-amber-600 text-xs rounded-lg hover:bg-amber-50">
                 Use as prompt
               </button>
             </div>
@@ -12907,7 +12907,7 @@ function ImageGenPanel({
             <button
               key={cat}
               onClick={() => setPromptCat(cat === 'Context' ? 'Popular' : cat as any)}
-              className={cn('px-2 py-0.5 rounded-full text-[9px] font-bold transition-colors', (cat === 'Context' && blockCtx) || promptCat === cat ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}
+              className={cn('px-2 py-0.5 rounded-full text-xs font-bold transition-colors', (cat === 'Context' && blockCtx) || promptCat === cat ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}
             >
               {cat}
             </button>
@@ -12918,7 +12918,7 @@ function ImageGenPanel({
             <button
               key={i}
               onClick={() => { setPrompt(qp); setEnhancedPrompt('') }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-accent hover:text-primary text-[10px] text-gray-600 transition-colors border border-transparent hover:border-primary/30 truncate"
+              className="w-full text-left px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-accent hover:text-primary text-xs text-gray-600 transition-colors border border-transparent hover:border-primary/30 truncate"
             >
               {qp}
             </button>
@@ -12928,7 +12928,7 @@ function ImageGenPanel({
 
       {/* Style picker */}
       <div>
-        <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Visual Style</label>
+        <label className="text-xs font-medium text-gray-700 mb-1.5 block">Visual Style</label>
         <div className="grid grid-cols-5 gap-1">
           {IMAGE_STYLES.map(s => (
             <button
@@ -12936,7 +12936,7 @@ function ImageGenPanel({
               onClick={() => setStyle(s.id)}
               title={s.desc}
               className={cn(
-                'py-2 px-1 rounded-xl border text-[9px] font-bold transition-all flex flex-col items-center gap-0.5',
+                'py-2 px-1 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-0.5',
                 style === s.id
                   ? 'bg-primary text-white border-primary shadow-md'
                   : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent'
@@ -12951,7 +12951,7 @@ function ImageGenPanel({
 
       {/* Aspect ratio */}
       <div>
-        <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Aspect Ratio</label>
+        <label className="text-xs font-medium text-gray-700 mb-1.5 block">Aspect Ratio</label>
         <div className="grid grid-cols-4 gap-1">
           {ASPECT_RATIOS.map(ar => (
             <button
@@ -12959,7 +12959,7 @@ function ImageGenPanel({
               onClick={() => setRatio(ar.id)}
               title={ar.hint}
               className={cn(
-                'py-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-0.5',
+                'py-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-0.5',
                 ratio === ar.id ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40'
               )}
             >
@@ -12972,17 +12972,17 @@ function ImageGenPanel({
 
       {/* Advanced: negative prompt */}
       <div>
-        <button onClick={() => setShowAdvanced(v => !v)} className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600">
+        <button onClick={() => setShowAdvanced(v => !v)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600">
           <ChevronRight className={cn('w-3 h-3 transition-transform', showAdvanced && 'rotate-90')} /> Advanced options
         </button>
         {showAdvanced && (
           <div className="mt-1.5 space-y-1.5">
-            <label className="text-[10px] font-semibold text-gray-600">Negative Prompt (what to avoid)</label>
+            <label className="text-xs font-medium text-gray-600">Negative Prompt (what to avoid)</label>
             <input
               value={negativePrompt}
               onChange={e => setNegativePrompt(e.target.value)}
               placeholder="blurry, low quality, watermark, text..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[10px] focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         )}
@@ -13013,16 +13013,16 @@ function ImageGenPanel({
               onError={e => { (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${Math.random()}/640/360` }}
             />
             <div className="absolute top-2 left-2 flex gap-1">
-              <div className="bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">AI Generated</div>
+              <div className="bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full">AI Generated</div>
               {activeResult.saved && (
-                <div className="bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                <div className="bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
                   <Check className="w-2.5 h-2.5" /> Saved
                 </div>
               )}
             </div>
           </div>
           <div className="p-3 space-y-2">
-            <p className="text-[10px] text-gray-500 line-clamp-2 italic">"{activeResult.prompt}"</p>
+            <p className="text-xs text-gray-500 line-clamp-2 italic">"{activeResult.prompt}"</p>
             <div className="flex gap-2">
               <button
                 onClick={() => onApplyImage(activeResult.url)}
@@ -13043,19 +13043,19 @@ function ImageGenPanel({
               <button
                 onClick={() => handleSaveToLibrary(activeResult.url, activeResult.prompt)}
                 disabled={saveUrl.isPending}
-                className="w-full py-1.5 border border-emerald-200 text-emerald-600 text-[10px] font-semibold rounded-xl hover:bg-emerald-50 flex items-center justify-center gap-1.5 transition-colors"
+                className="w-full py-1.5 border border-emerald-200 text-emerald-600 text-xs font-medium rounded-xl hover:bg-emerald-50 flex items-center justify-center gap-1.5 transition-colors"
               >
                 {saveUrl.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                 Save to Media Library
               </button>
             )}
             {selectedBlock && applyToImageLayer && (
-              <p className="text-[10px] text-emerald-700 text-center bg-emerald-50 py-1.5 rounded-lg">
+              <p className="text-xs text-emerald-700 text-center bg-emerald-50 py-1.5 rounded-lg">
                 Applying to the selected image layer on the canvas
               </p>
             )}
             {!selectedBlock && (
-              <p className="text-[10px] text-amber-600 text-center bg-amber-50 py-1.5 rounded-lg">
+              <p className="text-xs text-amber-600 text-center bg-amber-50 py-1.5 rounded-lg">
                 ← Click a block on the canvas to apply this image
               </p>
             )}
@@ -13067,8 +13067,8 @@ function ImageGenPanel({
       {history.length > 1 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">History ({history.length})</span>
-            <button onClick={() => setHistory([])} className="text-[10px] text-gray-400 hover:text-red-400">Clear</button>
+            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">History ({history.length})</span>
+            <button onClick={() => setHistory([])} className="text-xs text-gray-400 hover:text-red-400">Clear</button>
           </div>
           <div className="grid grid-cols-3 gap-1.5">
             {history.map((img, i) => (
@@ -13082,8 +13082,8 @@ function ImageGenPanel({
               >
                 <img src={img.url} className="w-full h-full object-cover" alt="" />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 p-1">
-                  <button onClick={e => { e.stopPropagation(); onApplyImage(img.url) }} className="px-2 py-1 bg-primary rounded text-[9px] font-bold text-white">Use</button>
-                  {!img.saved && <button onClick={e => { e.stopPropagation(); handleSaveToLibrary(img.url, img.prompt) }} className="px-2 py-1 bg-white rounded text-[9px] font-bold text-gray-700">Save</button>}
+                  <button onClick={e => { e.stopPropagation(); onApplyImage(img.url) }} className="px-2 py-1 bg-primary rounded text-xs font-bold text-white">Use</button>
+                  {!img.saved && <button onClick={e => { e.stopPropagation(); handleSaveToLibrary(img.url, img.prompt) }} className="px-2 py-1 bg-white rounded text-xs font-bold text-gray-700">Save</button>}
                 </div>
                 {img.saved && <div className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></div>}
               </div>

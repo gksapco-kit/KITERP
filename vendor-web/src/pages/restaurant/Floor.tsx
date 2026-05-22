@@ -58,7 +58,7 @@ export default function RestaurantFloorPage() {
             onClick={() => navigate(`/pos?table=${encodeURIComponent(t.id)}`)}
             className="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
           >
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
               {t.zone_name || 'Floor'}
             </p>
             <p className="text-lg font-bold text-gray-900 mt-1">{t.label}</p>

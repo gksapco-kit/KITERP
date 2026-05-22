@@ -37,7 +37,7 @@ export function EventListing({ layout = "grid", showTag = true, cta = "Get ticke
               <div className="flex flex-1 flex-col">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    {showTag && <Badge variant="secondary" className="mb-1 text-[10px]">{e.tag}</Badge>}
+                    {showTag && <Badge variant="secondary" className="mb-1 text-xs">{e.tag}</Badge>}
                     <h3 className="text-base font-semibold">{e.title}</h3>
                     <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{e.date}</span>
@@ -73,7 +73,7 @@ export function EventListing({ layout = "grid", showTag = true, cta = "Get ticke
                   {e.tag}
                 </Badge>
               )}
-              <div className="absolute bottom-3 left-3 rounded-md bg-foreground/90 px-2 py-1 text-xs font-semibold text-background backdrop-blur">
+              <div className="absolute bottom-3 left-3 rounded-md bg-foreground/90 px-2 py-1 text-xs font-medium text-background backdrop-blur">
                 {e.date}
               </div>
             </div>
@@ -164,7 +164,7 @@ export function TicketPicker({ showSeating = true, cta = "Continue to checkout" 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">{t.name}</span>
-                        {t.popular && <Badge className="text-[10px]">Popular</Badge>}
+                        {t.popular && <Badge className="text-xs">Popular</Badge>}
                       </div>
                       <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
                         {t.perks.map((p) => (
@@ -211,12 +211,12 @@ export function TicketPicker({ showSeating = true, cta = "Continue to checkout" 
 
           {showSeating && (
             <div className="mt-6 overflow-hidden rounded-lg border border-border">
-              <div className="border-b border-border bg-muted/30 p-3 text-xs font-semibold uppercase text-muted-foreground">
+              <div className="border-b border-border bg-muted/30 p-3 text-xs font-medium uppercase text-muted-foreground">
                 Seating chart
               </div>
               <div className="p-6">
                 <div className="mx-auto h-2 w-3/4 rounded-full bg-foreground/80" />
-                <div className="mt-1 text-center text-[10px] uppercase tracking-wider text-muted-foreground">Stage</div>
+                <div className="mt-1 text-center text-xs uppercase tracking-wider text-muted-foreground">Stage</div>
                 <div className="mt-6 grid gap-1.5">
                   {Array.from({ length: 6 }).map((_, row) => (
                     <div key={row} className="flex justify-center gap-1">
@@ -237,7 +237,7 @@ export function TicketPicker({ showSeating = true, cta = "Continue to checkout" 
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 flex flex-wrap justify-center gap-3 text-[11px] text-muted-foreground">
+                <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-muted-foreground">
                   <Legend className="bg-primary/30" label="Available" />
                   <Legend className="bg-primary" label="Selected" />
                   <Legend className="bg-muted" label="Taken" />

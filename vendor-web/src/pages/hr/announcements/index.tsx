@@ -49,13 +49,13 @@ export default function AnnouncementsPage() {
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       {a.pinned && <Pin className="w-3 h-3 text-orange-500 shrink-0" />}
                       <h3 className="font-semibold text-gray-900">{a.title}</h3>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${stat.color}`}>{stat.label}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase">
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${stat.color}`}>{stat.label}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase">
                         {a.category ?? 'general'}
                       </span>
                     </div>
                     <p className="text-sm text-gray-700 line-clamp-2 whitespace-pre-line">{a.body}</p>
-                    <p className="text-[11px] text-gray-400 mt-1.5">
+                    <p className="text-xs text-gray-400 mt-1.5">
                       Audience: {a.audience ?? 'all'}
                       {a.publish_at && <> · Publish {new Date(a.publish_at).toLocaleString()}</>}
                       {a.expires_at && <> · Expires {new Date(a.expires_at).toLocaleString()}</>}

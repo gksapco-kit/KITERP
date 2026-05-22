@@ -45,12 +45,12 @@ export function ProductCard({
         {showTags && (
           <div className="absolute left-2 top-2 flex flex-wrap gap-1">
             {onSale && (
-              <Badge variant="destructive" className="text-[10px]">
+              <Badge variant="destructive" className="text-xs">
                 Sale
               </Badge>
             )}
             {product.tags.slice(0, 1).map((t) => (
-              <Badge key={t} variant="secondary" className="text-[10px]">
+              <Badge key={t} variant="secondary" className="text-xs">
                 {t}
               </Badge>
             ))}

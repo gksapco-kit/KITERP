@@ -39,7 +39,7 @@ export default function TicketDetailPage() {
 
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">{ticket.number}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">{ticket.number}</p>
           <h1 className="text-2xl font-bold text-gray-900">{ticket.subject}</h1>
         </div>
         <div className="flex gap-2 items-center flex-wrap">

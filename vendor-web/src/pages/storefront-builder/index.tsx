@@ -1409,7 +1409,7 @@ export default function StorefrontBuilderPage() {
           </div>
           <div>
             <h1 className="text-sm font-bold text-gray-900">Business Front Builder</h1>
-            <p className="text-[10px] text-gray-400">{vendor?.display_name || vendor?.business_name}</p>
+            <p className="text-xs text-gray-400">{vendor?.display_name || vendor?.business_name}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1512,7 +1512,7 @@ export default function StorefrontBuilderPage() {
           <div className="flex border-b bg-gray-50">
             {tabConfig.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={cn('flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors', activeTab === tab.id ? 'text-primary bg-white border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600')}>
+                className={cn('flex-1 flex flex-col items-center gap-0.5 py-2 text-xs font-medium transition-colors', activeTab === tab.id ? 'text-primary bg-white border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600')}>
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
               </button>
@@ -1527,12 +1527,12 @@ export default function StorefrontBuilderPage() {
               <div className="p-3 space-y-3">
                 <div className="flex gap-2 p-2.5 bg-accent rounded-xl border border-primary/20">
                   <LayoutTemplate className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-primary leading-snug">
+                  <p className="text-xs text-primary leading-snug">
                     <strong>Click a template</strong> to preview it in the builder. Use <strong>Edit</strong> in the header (or <strong>Apply &amp; Save</strong> in the preview bar) to apply that template and edit it. <strong>Cancel</strong> in the bar discards the preview. Open <strong>Style</strong> for colours, fonts, spacing, and checkout layout.
                   </p>
                 </div>
 
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1">Homepage templates</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1">Homepage templates</p>
 
                 {(TEMPLATES.length > 5 && !showMoreTemplates ? TEMPLATES.slice(0, 5) : TEMPLATES).map(tpl => {
                   const isActive = draft.template_id === tpl.id
@@ -1566,17 +1566,17 @@ export default function StorefrontBuilderPage() {
                           )}
                           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                           <div className="absolute top-2 right-2 flex flex-wrap justify-end gap-1">
-                            {isActive && <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-primary text-white font-bold shadow"><Check className="w-2.5 h-2.5" /> Applied</span>}
-                            {isPreviewing && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 font-bold shadow">Preview</span>}
-                            {tpl.tag && !isActive && !isPreviewing && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/90 text-amber-800 font-bold shadow">{tpl.tag}</span>}
+                            {isActive && <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full bg-primary text-white font-bold shadow"><Check className="w-2.5 h-2.5" /> Applied</span>}
+                            {isPreviewing && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 font-bold shadow">Preview</span>}
+                            {tpl.tag && !isActive && !isPreviewing && <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/90 text-amber-800 font-bold shadow">{tpl.tag}</span>}
                           </div>
-                          <p className="absolute bottom-2 left-2.5 right-14 text-[11px] font-bold text-white drop-shadow-md leading-snug line-clamp-2">{tpl.name}</p>
+                          <p className="absolute bottom-2 left-2.5 right-14 text-xs font-bold text-white drop-shadow-md leading-snug line-clamp-2">{tpl.name}</p>
                         </div>
 
                         <div className="p-3 bg-white space-y-2">
-                          <p className="text-[10px] text-gray-500 leading-snug">{tpl.description}</p>
-                          <p className="text-[9px] text-gray-400">{tpl.sectionOrder.length} homepage sections.</p>
-                          <p className="text-[9px] font-medium text-primary pt-0.5">
+                          <p className="text-xs text-gray-500 leading-snug">{tpl.description}</p>
+                          <p className="text-xs text-gray-400">{tpl.sectionOrder.length} homepage sections.</p>
+                          <p className="text-xs font-medium text-primary pt-0.5">
                             {isPreviewing ? 'Previewing — use Cancel in the bar above' : 'Click to preview in the builder'}
                           </p>
                         </div>
@@ -1597,7 +1597,7 @@ export default function StorefrontBuilderPage() {
             {/* ── SECTIONS TAB ── */}
             {activeTab === 'sections' && (
               <div className="p-3 space-y-3">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1">Page Sections (drag to reorder)</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1">Page Sections (drag to reorder)</p>
                 <div className="space-y-1">
                   {draft.sections.map((sec, idx) => {
                     const def = SECTION_DEFS.find(d => d.id === sec.id)
@@ -1624,7 +1624,7 @@ export default function StorefrontBuilderPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={cn('text-xs font-medium truncate', sec.visible ? 'text-gray-900' : 'text-gray-400')}>{def.label}</p>
-                            {!sec.visible && <p className="text-[9px] text-amber-500 font-medium">hidden</p>}
+                            {!sec.visible && <p className="text-xs text-amber-500 font-medium">hidden</p>}
                           </div>
                         </button>
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1642,7 +1642,7 @@ export default function StorefrontBuilderPage() {
                   })}
                 </div>
                 <div className="pt-1">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Add Section</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Add Section</p>
                   <div className="space-y-1">
                     {SECTION_DEFS.filter(def => !draft.sections.find(s => s.id === def.id)).map(def => (
                       <button key={def.id} onClick={() => addSection(def)}
@@ -1664,7 +1664,7 @@ export default function StorefrontBuilderPage() {
             {activeTab === 'style' && (
               <div className="p-3 space-y-4">
                 <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Checkout Layout</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Checkout Layout</p>
                   <div className="space-y-1.5">
                     {([
                       { id: 'two-column' as const, label: 'Two-column', desc: 'Form left, order summary right' },
@@ -1682,8 +1682,8 @@ export default function StorefrontBuilderPage() {
                           )}
                         >
                           <div>
-                            <p className={cn('text-xs font-semibold', active ? 'text-primary' : 'text-gray-700')}>{o.label}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">{o.desc}</p>
+                            <p className={cn('text-xs font-medium', active ? 'text-primary' : 'text-gray-700')}>{o.label}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{o.desc}</p>
                           </div>
                           {active && (
                             <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
@@ -1697,13 +1697,13 @@ export default function StorefrontBuilderPage() {
                 </div>
 
                 <div className="pt-1 border-t border-gray-100">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Theme and appearance</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Theme and appearance</p>
                   <div className="flex gap-1.5 p-0.5 rounded-xl bg-gray-100">
                     <button
                       type="button"
                       onClick={() => setStyleDetailsExpanded(false)}
                       className={cn(
-                        'flex-1 py-2 text-xs font-semibold rounded-lg transition-all',
+                        'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
                         !styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
                       )}
                     >
@@ -1713,7 +1713,7 @@ export default function StorefrontBuilderPage() {
                       type="button"
                       onClick={() => setStyleDetailsExpanded(true)}
                       className={cn(
-                        'flex-1 py-2 text-xs font-semibold rounded-lg transition-all',
+                        'flex-1 py-2 text-xs font-medium rounded-lg transition-all',
                         styleDetailsExpanded ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
                       )}
                     >
@@ -1721,7 +1721,7 @@ export default function StorefrontBuilderPage() {
                     </button>
                   </div>
                   {!styleDetailsExpanded && (
-                    <p className="text-[10px] text-gray-400 px-1 mt-2 leading-snug">Palettes, colors, fonts, radius, spacing, motion, and dark mode are hidden. Choose Expanded to edit them.</p>
+                    <p className="text-xs text-gray-400 px-1 mt-2 leading-snug">Palettes, colors, fonts, radius, spacing, motion, and dark mode are hidden. Choose Expanded to edit them.</p>
                   )}
                 </div>
 
@@ -1729,7 +1729,7 @@ export default function StorefrontBuilderPage() {
                   <div className="space-y-4 pt-1">
                     {/* Quick palettes */}
                     <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Quick Palettes</p>
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Quick Palettes</p>
                       <div className="grid grid-cols-4 gap-1.5">
                         {COLOR_PALETTES.map(pal => (
                           <button key={pal.name} onClick={() => updateStyle({ primary_color: pal.primary, secondary_color: pal.secondary, accent_color: pal.accent })}
@@ -1738,7 +1738,7 @@ export default function StorefrontBuilderPage() {
                               <div className="w-3.5 h-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: pal.primary }} />
                               <div className="w-3.5 h-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: pal.accent }} />
                             </div>
-                            <span className="text-[9px] text-gray-400">{pal.name}</span>
+                            <span className="text-xs text-gray-400">{pal.name}</span>
                           </button>
                         ))}
                       </div>
@@ -1746,7 +1746,7 @@ export default function StorefrontBuilderPage() {
 
                     {/* Custom colors */}
                     <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Custom Colors</p>
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Custom Colors</p>
                       {[
                         { key: 'primary_color' as const, label: 'Primary', desc: 'Buttons & headings' },
                         { key: 'secondary_color' as const, label: 'Secondary', desc: 'Hover & accents' },
@@ -1761,22 +1761,22 @@ export default function StorefrontBuilderPage() {
                           </label>
                           <div className="flex-1">
                             <p className="text-xs font-medium text-gray-700">{item.label}</p>
-                            <p className="text-[10px] text-gray-400">{item.desc}</p>
+                            <p className="text-xs text-gray-400">{item.desc}</p>
                           </div>
-                          <Input value={draft.style[item.key]} onChange={e => updateStyle({ [item.key]: e.target.value })} className="w-20 h-7 text-[11px] font-mono px-2" />
+                          <Input value={draft.style[item.key]} onChange={e => updateStyle({ [item.key]: e.target.value })} className="w-20 h-7 text-xs font-mono px-2" />
                         </div>
                       ))}
                     </div>
 
                     {/* Fonts */}
                     <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Heading Font</p>
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Heading Font</p>
                       <div className="grid grid-cols-2 gap-1.5">
                         {FONTS.map(f => (
                           <button key={f.id} onClick={() => updateStyle({ font_heading: f.id })}
                             className={cn('text-left rounded-lg border-2 p-2 transition-colors', draft.style.font_heading === f.id ? 'border-primary bg-accent' : 'border-gray-100 hover:border-gray-300')}>
-                            <p className="text-xs font-semibold text-gray-900">{f.name}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5" style={{ fontFamily: f.id }}>{f.specimen}</p>
+                            <p className="text-xs font-medium text-gray-900">{f.name}</p>
+                            <p className="text-xs text-gray-400 mt-0.5" style={{ fontFamily: f.id }}>{f.specimen}</p>
                           </button>
                         ))}
                       </div>
@@ -1784,7 +1784,7 @@ export default function StorefrontBuilderPage() {
 
                     {/* Borders */}
                     <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Border Radius</p>
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Border Radius</p>
                       <div className="flex gap-1.5">
                         {(['sharp', 'rounded', 'pill'] as const).map(val => (
                           <button key={val} onClick={() => updateStyle({ border_radius: val })}
@@ -1797,11 +1797,11 @@ export default function StorefrontBuilderPage() {
 
                     {/* Spacing */}
                     <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Spacing</p>
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Spacing</p>
                       <div className="flex gap-1.5">
                         {(['compact', 'comfortable', 'spacious'] as const).map(val => (
                           <button key={val} onClick={() => updateStyle({ spacing: val })}
-                            className={cn('flex-1 py-2 text-[11px] font-medium capitalize rounded-lg transition-colors', draft.style.spacing === val ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                            className={cn('flex-1 py-2 text-xs font-medium capitalize rounded-lg transition-colors', draft.style.spacing === val ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
                             {val}
                           </button>
                         ))}
@@ -1810,11 +1810,11 @@ export default function StorefrontBuilderPage() {
 
                     {/* Animation */}
                     <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Animations</p>
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">Animations</p>
                       <div className="flex gap-1.5">
                         {(['none', 'subtle', 'expressive'] as const).map(val => (
                           <button key={val} onClick={() => updateStyle({ animation: val })}
-                            className={cn('flex-1 py-2 text-[11px] font-medium capitalize rounded-lg transition-colors', draft.style.animation === val ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                            className={cn('flex-1 py-2 text-xs font-medium capitalize rounded-lg transition-colors', draft.style.animation === val ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
                             {val}
                           </button>
                         ))}
@@ -1825,7 +1825,7 @@ export default function StorefrontBuilderPage() {
                     <div className="flex items-center justify-between px-1">
                       <div>
                         <p className="text-xs font-medium text-gray-700">Dark Mode</p>
-                        <p className="text-[10px] text-gray-400">Dark background, light text</p>
+                        <p className="text-xs text-gray-400">Dark background, light text</p>
                       </div>
                       <button onClick={() => updateStyle({ dark_mode: !draft.style.dark_mode })}>
                         {draft.style.dark_mode ? <ToggleRight className="w-8 h-8 text-primary/80" /> : <ToggleLeft className="w-8 h-8 text-gray-300" />}
@@ -1842,7 +1842,7 @@ export default function StorefrontBuilderPage() {
                 <div className="flex-1 overflow-y-auto p-3 space-y-3">
                   <div className="flex items-center gap-2 p-2 bg-accent rounded-xl border border-primary/20">
                     <Sparkles className="w-4 h-4 text-primary/80 shrink-0" />
-                    <p className="text-[11px] text-primary">Describe your brand or what to change in plain language</p>
+                    <p className="text-xs text-primary">Describe your brand or what to change in plain language</p>
                   </div>
                   {aiMessages.map((msg, i) => (
                     <div key={i} className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
@@ -1857,7 +1857,7 @@ export default function StorefrontBuilderPage() {
                         </div>
                         {msg.role === 'ai' && msg.patch && (
                           <button onClick={() => applyAIPatch(msg.patch!)}
-                            className="mt-1.5 flex items-center gap-1 text-[10px] text-primary hover:text-primary font-medium bg-accent hover:bg-primary/15 px-2 py-1 rounded-lg transition-colors">
+                            className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:text-primary font-medium bg-accent hover:bg-primary/15 px-2 py-1 rounded-lg transition-colors">
                             <Check className="w-3 h-3" />
                             Apply to preview
                           </button>
@@ -1891,7 +1891,7 @@ export default function StorefrontBuilderPage() {
                   <div className="flex flex-wrap gap-1 mt-2">
                     {['Dark & bold', 'Warm tones', 'Minimal clean', 'Add employee portal', 'Show me more'].map(s => (
                       <button key={s} onClick={() => { setAiInput(s); setTimeout(handleAiSubmit, 50) }}
-                        className="text-[10px] px-2 py-0.5 bg-gray-100 hover:bg-primary/15 hover:text-primary rounded-full text-gray-500 transition-colors">
+                        className="text-xs px-2 py-0.5 bg-gray-100 hover:bg-primary/15 hover:text-primary rounded-full text-gray-500 transition-colors">
                         {s}
                       </button>
                     ))}
@@ -1903,7 +1903,7 @@ export default function StorefrontBuilderPage() {
             {/* ── MODULES TAB ── */}
             {activeTab === 'modules' && (
               <div className="p-3 space-y-2">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-3">Business Front Modules</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-3">Business Front Modules</p>
                 {[
                   { key: 'ess_portal' as const, label: 'Employee Portal (ESS)', desc: 'Staff can access HR self-service from the business front', icon: UserCheck, warning: 'Requires HR module' },
                   { key: 'crm_widget' as const, label: 'Live Chat Widget', desc: 'Floating chat support via your CRM inbox', icon: Sparkles, warning: 'Requires CRM module' },
@@ -1919,9 +1919,9 @@ export default function StorefrontBuilderPage() {
                         <item.icon className={cn('w-4 h-4', draft.modules[item.key] ? 'text-primary' : 'text-gray-400')} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-900">{item.label}</p>
-                        <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{item.desc}</p>
-                        {item.warning && draft.modules[item.key] && <p className="text-[10px] text-amber-500 mt-0.5">⚠ {item.warning}</p>}
+                        <p className="text-xs font-medium text-gray-900">{item.label}</p>
+                        <p className="text-xs text-gray-400 leading-tight mt-0.5">{item.desc}</p>
+                        {item.warning && draft.modules[item.key] && <p className="text-xs text-amber-500 mt-0.5">⚠ {item.warning}</p>}
                       </div>
                       <button onClick={() => updateModules({ [item.key]: !draft.modules[item.key] })}>
                         {draft.modules[item.key] ? <ToggleRight className="w-7 h-7 text-primary/80" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
@@ -1929,11 +1929,11 @@ export default function StorefrontBuilderPage() {
                     </div>
                     {item.key === 'ess_portal' && draft.modules.ess_portal && (
                       <div className="mt-2.5 pt-2.5 border-t border-primary/20">
-                        <p className="text-[10px] font-medium text-gray-500 mb-1.5">Employee portal access</p>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">Employee portal access</p>
                         {(['hidden', 'footer_link', 'dedicated_page'] as const).map(opt => (
                           <label key={opt} className="flex items-center gap-2 py-1 cursor-pointer">
                             <input type="radio" name="ess_access" value={opt} checked={draft.modules.ess_access === opt} onChange={() => updateModules({ ess_access: opt })} className="accent-primary" />
-                            <span className="text-[11px] text-gray-600 capitalize">{opt.replace('_', ' ')}</span>
+                            <span className="text-xs text-gray-600 capitalize">{opt.replace('_', ' ')}</span>
                           </label>
                         ))}
                       </div>
@@ -1948,8 +1948,8 @@ export default function StorefrontBuilderPage() {
                       <MapPin className={cn('w-4 h-4', draft.modules.store_locator ? 'text-primary' : 'text-gray-400')} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-900">Store Locator</p>
-                      <p className="text-[10px] text-gray-400 leading-tight mt-0.5">Show your branch / location cards on the business front</p>
+                      <p className="text-xs font-medium text-gray-900">Store Locator</p>
+                      <p className="text-xs text-gray-400 leading-tight mt-0.5">Show your branch / location cards on the business front</p>
                     </div>
                     <button onClick={() => updateModules({ store_locator: !draft.modules.store_locator })}>
                       {draft.modules.store_locator ? <ToggleRight className="w-7 h-7 text-primary/80" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
@@ -1961,14 +1961,14 @@ export default function StorefrontBuilderPage() {
 
                       {/* Stores to display */}
                       <div>
-                        <p className="text-[10px] font-semibold text-gray-500 mb-1.5">Stores to display</p>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">Stores to display</p>
                         <div className="flex flex-wrap gap-1.5">
                           {[3, 6, 10, 0].map(n => (
                             <button
                               key={n}
                               onClick={() => updateModules({ store_locator_limit: n })}
                               className={cn(
-                                'text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors',
+                                'text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors',
                                 draft.modules.store_locator_limit === n
                                   ? 'bg-primary text-white border-primary'
                                   : 'border-gray-200 text-gray-600 hover:border-primary/40'
@@ -1982,14 +1982,14 @@ export default function StorefrontBuilderPage() {
 
                       {/* Layout */}
                       <div>
-                        <p className="text-[10px] font-semibold text-gray-500 mb-1.5">Display layout</p>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">Display layout</p>
                         <div className="flex gap-1.5">
                           {(['grid', 'list'] as const).map(l => (
                             <button
                               key={l}
                               onClick={() => updateModules({ store_locator_layout: l })}
                               className={cn(
-                                'flex-1 text-[11px] py-1 rounded-lg border font-medium capitalize transition-colors',
+                                'flex-1 text-xs py-1 rounded-lg border font-medium capitalize transition-colors',
                                 draft.modules.store_locator_layout === l
                                   ? 'bg-primary text-white border-primary'
                                   : 'border-gray-200 text-gray-600 hover:border-primary/40'
@@ -2003,14 +2003,14 @@ export default function StorefrontBuilderPage() {
 
                       {/* City filter */}
                       <div>
-                        <p className="text-[10px] font-semibold text-gray-500 mb-1.5">Location filter</p>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">Location filter</p>
                         <div className="flex gap-1.5">
                           {([['none', 'None'], ['city', 'By City']] as const).map(([v, l]) => (
                             <button
                               key={v}
                               onClick={() => updateModules({ store_locator_filter: v })}
                               className={cn(
-                                'flex-1 text-[11px] py-1 rounded-lg border font-medium transition-colors',
+                                'flex-1 text-xs py-1 rounded-lg border font-medium transition-colors',
                                 draft.modules.store_locator_filter === v
                                   ? 'bg-primary text-white border-primary'
                                   : 'border-gray-200 text-gray-600 hover:border-primary/40'
@@ -2020,7 +2020,7 @@ export default function StorefrontBuilderPage() {
                             </button>
                           ))}
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-1">Show city tabs so customers can browse by location</p>
+                        <p className="text-xs text-gray-400 mt-1">Show city tabs so customers can browse by location</p>
                       </div>
 
                       {/* Geo sort */}
@@ -2032,8 +2032,8 @@ export default function StorefrontBuilderPage() {
                           className="w-3.5 h-3.5 accent-primary"
                         />
                         <div>
-                          <span className="text-[11px] font-medium text-gray-700">Detect user location</span>
-                          <p className="text-[10px] text-gray-400 leading-tight">Sort stores by proximity to visitor's location</p>
+                          <span className="text-xs font-medium text-gray-700">Detect user location</span>
+                          <p className="text-xs text-gray-400 leading-tight">Sort stores by proximity to visitor's location</p>
                         </div>
                       </label>
 
@@ -2046,28 +2046,28 @@ export default function StorefrontBuilderPage() {
             {/* ── SEO TAB ── */}
             {activeTab === 'seo' && (
               <div className="p-3 space-y-4">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1">Search Engine Optimisation</p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1">Search Engine Optimisation</p>
                 <div className="space-y-3">
                   <div>
                     <Label className="text-xs text-gray-600">Page Title</Label>
                     <Input className="mt-1 h-8 text-xs" value={draft.seo.page_title} onChange={e => updateSeo({ page_title: e.target.value })} placeholder={`${vendor?.display_name || 'Your Store'} — Official Store`} />
-                    <p className="text-[10px] text-gray-400 mt-0.5">{draft.seo.page_title.length}/60 chars</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{draft.seo.page_title.length}/60 chars</p>
                   </div>
                   <div>
                     <Label className="text-xs text-gray-600">Meta Description</Label>
                     <textarea className="mt-1 w-full rounded-md border px-3 py-2 text-xs resize-none outline-none focus:border-primary/60 focus:ring-1 focus:ring-ring" rows={3} value={draft.seo.meta_description} onChange={e => updateSeo({ meta_description: e.target.value })} placeholder="Welcome to our store…" />
-                    <p className="text-[10px] text-gray-400">{draft.seo.meta_description.length}/160 chars</p>
+                    <p className="text-xs text-gray-400">{draft.seo.meta_description.length}/160 chars</p>
                   </div>
                   <div>
                     <Label className="text-xs text-gray-600">OG Image URL</Label>
                     <Input className="mt-1 h-8 text-xs" value={draft.seo.og_image_url} onChange={e => updateSeo({ og_image_url: e.target.value })} placeholder="https://..." />
-                    <p className="text-[10px] text-gray-400 mt-0.5">1200×630px recommended</p>
+                    <p className="text-xs text-gray-400 mt-0.5">1200×630px recommended</p>
                   </div>
                   <div className="rounded-xl border p-3 bg-gray-50">
-                    <p className="text-[11px] font-semibold text-gray-500 mb-2">Google Preview</p>
+                    <p className="text-xs font-medium text-gray-500 mb-2">Google Preview</p>
                     <p className="text-xs text-blue-600 font-medium leading-tight truncate">{draft.seo.page_title || `${vendor?.display_name || 'Your Store'}`}</p>
-                    <p className="text-[10px] text-green-700 mt-0.5">{storeUrl}</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5 leading-snug line-clamp-2">{draft.seo.meta_description || 'Welcome to our store. Browse our products and services.'}</p>
+                    <p className="text-xs text-green-700 mt-0.5">{storeUrl}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-snug line-clamp-2">{draft.seo.meta_description || 'Welcome to our store. Browse our products and services.'}</p>
                   </div>
                 </div>
               </div>
@@ -2079,8 +2079,8 @@ export default function StorefrontBuilderPage() {
                 {!mediaSiteId ? (
                   <div className="p-4 space-y-3 text-center">
                     <Camera className="w-10 h-10 text-primary/50 mx-auto" />
-                    <p className="text-xs font-semibold text-gray-700">Create a website first</p>
-                    <p className="text-[10px] text-gray-500 leading-snug">
+                    <p className="text-xs font-medium text-gray-700">Create a website first</p>
+                    <p className="text-xs text-gray-500 leading-snug">
                       Media uploads and AI adjustments are stored on your builder site. Create or open a site, then return here.
                     </p>
                     <Button asChild variant="outline" size="sm" className="w-full text-xs">
@@ -2090,7 +2090,7 @@ export default function StorefrontBuilderPage() {
                 ) : (
                   <>
                     <div className="px-3 py-2 border-b bg-accent/80 shrink-0">
-                      <p className="text-[10px] text-primary leading-snug">
+                      <p className="text-xs text-primary leading-snug">
                         Upload, pick from your library, tune with sliders, then <span className="font-semibold">Apply AI</span> for server-side adjustments. Use{' '}
                         <span className="font-semibold">Media studio</span> on any section image to set where the result goes.
                       </p>
@@ -2124,12 +2124,12 @@ export default function StorefrontBuilderPage() {
             </div>
             <div className="flex items-center gap-3">
               {previewWidth && (
-                <div className="flex items-center gap-1.5 text-[10px] font-mono bg-gray-900 text-white px-2 py-1 rounded-md">
+                <div className="flex items-center gap-1.5 text-xs font-mono bg-gray-900 text-white px-2 py-1 rounded-md">
                   <span>{previewWidth}px</span>
                   <button onClick={() => setPreviewWidth(null)} className="text-gray-400 hover:text-white transition-colors ml-0.5">×</button>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-[10px] text-gray-400">
+              <div className="flex items-center gap-2 text-xs text-gray-400">
                 <MousePointer className="w-3 h-3" />
                 Click a section to edit
               </div>
@@ -2191,7 +2191,7 @@ export default function StorefrontBuilderPage() {
                     <div className="w-3 h-3 rounded-full bg-yellow-400" />
                     <div className="w-3 h-3 rounded-full bg-green-400" />
                   </div>
-                  <div className="flex-1 bg-white rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono truncate">{storeUrl}</div>
+                  <div className="flex-1 bg-white rounded-md px-3 py-1 text-xs text-gray-500 font-mono truncate">{storeUrl}</div>
                 </div>
 
                 {/* Template preview banner */}
@@ -2240,19 +2240,19 @@ export default function StorefrontBuilderPage() {
           <div className="border-b">
             <div className="flex">
               <button onClick={() => setPanelMode('properties')}
-                className={cn('flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2', panelMode === 'properties' ? 'border-primary text-primary bg-white' : 'border-transparent text-gray-400 hover:text-gray-600 bg-gray-50')}>
+                className={cn('flex-1 py-2.5 text-xs font-medium transition-colors border-b-2', panelMode === 'properties' ? 'border-primary text-primary bg-white' : 'border-transparent text-gray-400 hover:text-gray-600 bg-gray-50')}>
                 Structure
               </button>
               <button onClick={() => setPanelMode('pages')}
-                className={cn('flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2', panelMode === 'pages' ? 'border-primary text-primary bg-white' : 'border-transparent text-gray-400 hover:text-gray-600 bg-gray-50')}>
+                className={cn('flex-1 py-2.5 text-xs font-medium transition-colors border-b-2', panelMode === 'pages' ? 'border-primary text-primary bg-white' : 'border-transparent text-gray-400 hover:text-gray-600 bg-gray-50')}>
                 Pages & Routes
               </button>
             </div>
             {panelMode === 'properties' && selectedSection && selectedDef && (
               <div className="flex items-center gap-2 px-3 py-2 bg-accent border-t border-primary/20">
                 <selectedDef.icon className="w-3.5 h-3.5 text-primary/80 shrink-0" />
-                <p className="text-[11px] text-primary font-semibold flex-1">{selectedDef.label}</p>
-                <span className="text-[9px] text-primary/70 font-medium">editing</span>
+                <p className="text-xs text-primary font-semibold flex-1">{selectedDef.label}</p>
+                <span className="text-xs text-primary/70 font-medium">editing</span>
               </div>
             )}
           </div>
@@ -2273,19 +2273,19 @@ export default function StorefrontBuilderPage() {
                 <div className="flex items-start gap-2 p-3 bg-accent rounded-xl border border-primary/20">
                   <Pencil className="w-3.5 h-3.5 text-primary/80 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-[11px] font-semibold text-primary">Click a section to edit</p>
-                    <p className="text-[10px] text-primary mt-0.5 leading-snug">Text fields appear <strong>inline in the preview</strong>. This panel shows layout, size &amp; visibility controls.</p>
+                    <p className="text-xs font-medium text-primary">Click a section to edit</p>
+                    <p className="text-xs text-primary mt-0.5 leading-snug">Text fields appear <strong>inline in the preview</strong>. This panel shows layout, size &amp; visibility controls.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/80">
                   <Layers className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-700">Add or reorder sections</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">Use the <strong>Sections</strong> tab in the left panel — drag to reorder, or use <strong>Add Section</strong> for new blocks.</p>
+                    <p className="text-xs font-medium text-gray-700">Add or reorder sections</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-snug">Use the <strong>Sections</strong> tab in the left panel — drag to reorder, or use <strong>Add Section</strong> for new blocks.</p>
                     <button
                       type="button"
                       onClick={() => setActiveTab('sections')}
-                      className="mt-2 text-[10px] font-semibold text-primary hover:text-primary"
+                      className="mt-2 text-xs font-medium text-primary hover:text-primary"
                     >
                       Open Sections tab →
                     </button>
@@ -2304,13 +2304,13 @@ export default function StorefrontBuilderPage() {
                     <div className="flex items-start gap-2">
                       <EyeOff className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-semibold text-amber-800">Section is hidden</p>
-                        <p className="text-[10px] text-amber-600 mt-0.5 leading-snug">This section won't appear on your business front. You can still edit its settings below.</p>
+                        <p className="text-xs font-medium text-amber-800">Section is hidden</p>
+                        <p className="text-xs text-amber-600 mt-0.5 leading-snug">This section won't appear on your business front. You can still edit its settings below.</p>
                       </div>
                     </div>
                     <button
                       onClick={() => toggleSection(selectedSection.id)}
-                      className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                      className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" /> Make Visible
                     </button>
@@ -2381,7 +2381,7 @@ function LinkEditor({ value, onChange }: LinkEditorProps) {
     <div className="space-y-1.5 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
       <div className="flex items-center gap-1.5 mb-1">
         <Link2 className="w-3 h-3 text-gray-400" />
-        <span className="text-[10px] text-gray-400 font-medium">Link type</span>
+        <span className="text-xs text-gray-400 font-medium">Link type</span>
       </div>
       <select value={type} onChange={e => setType(e.target.value)} className={FIELD_CLASS}>
         {LINK_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -2397,7 +2397,7 @@ function LinkEditor({ value, onChange }: LinkEditorProps) {
           className={FIELD_CLASS} />
       )}
       {type === 'booking' && (
-        <p className="text-[10px] text-primary bg-accent rounded-lg px-2 py-1">Links to your live booking calendar</p>
+        <p className="text-xs text-primary bg-accent rounded-lg px-2 py-1">Links to your live booking calendar</p>
       )}
     </div>
   )
@@ -2425,7 +2425,7 @@ function FieldTypographyRow({
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2 border-t border-primary/20/70">
-      <span className="text-[9px] font-semibold text-gray-500 shrink-0">Colour</span>
+      <span className="text-xs font-medium text-gray-500 shrink-0">Colour</span>
       <label className="relative w-6 h-6 rounded-md border border-gray-200 overflow-hidden cursor-pointer shrink-0 shadow-sm">
         <input
           type="color"
@@ -2440,9 +2440,9 @@ function FieldTypographyRow({
         onChange={e => setPatch({ [fcKey]: e.target.value })}
         onFocus={() => onFieldAction?.(fieldKey)}
         placeholder="default"
-        className={cn(FIELD_CLASS, 'w-[92px] font-mono text-[10px] py-1 px-1.5')}
+        className={cn(FIELD_CLASS, 'w-[92px] font-mono text-xs py-1 px-1.5')}
       />
-      <span className="text-[9px] font-semibold text-gray-500 shrink-0">Size (px)</span>
+      <span className="text-xs font-medium text-gray-500 shrink-0">Size (px)</span>
       <input
         type="range"
         min={8}
@@ -2460,13 +2460,13 @@ function FieldTypographyRow({
         value={sizeVal}
         onChange={e => setPatch({ [fsKey]: e.target.value })}
         onFocus={() => onFieldAction?.(fieldKey)}
-        className={cn(FIELD_CLASS, 'w-14 text-center text-[10px] py-1 px-1')}
+        className={cn(FIELD_CLASS, 'w-14 text-center text-xs py-1 px-1')}
       />
       {(colorVal || sizeVal) && (
         <button
           type="button"
           onClick={() => { onUpdate({ [fcKey]: '', [fsKey]: '' } as Partial<SectionProps>); onFieldAction?.(fieldKey) }}
-          className="text-[9px] font-medium text-gray-400 hover:text-red-500 ml-auto"
+          className="text-xs font-medium text-gray-400 hover:text-red-500 ml-auto"
         >
           Reset
         </button>
@@ -2546,16 +2546,16 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
         <div className="mb-3">
           <div className="flex items-center gap-1.5 mb-2 px-0.5">
             <Pencil className="w-3 h-3 text-primary/80" />
-            <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Edit Text Content</span>
+            <span className="text-xs font-bold text-primary uppercase tracking-wider">Edit Text Content</span>
           </div>
           <div className="divide-y divide-gray-100 rounded-xl border border-primary/20 bg-accent/70 overflow-hidden">
             {contentFields.map(field => (
               <div key={field.key} className={cn('px-3 py-2.5 transition-opacity', isHidden(field.key) ? 'opacity-40' : '')}>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-semibold text-gray-600">{field.label}</label>
+                  <label className="text-xs font-medium text-gray-600">{field.label}</label>
                   {field.hideable && (
                     <button onClick={() => toggleHidden(field.key)} title={isHidden(field.key) ? 'Show on website' : 'Hide from website'}
-                      className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(field.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
+                      className={cn('flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(field.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
                       {isHidden(field.key) ? <><EyeOff className="w-2.5 h-2.5" /> hidden</> : <><Eye className="w-2.5 h-2.5" /> visible</>}
                     </button>
                   )}
@@ -2579,22 +2579,22 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
           {contentFields.length > 0 && (
             <div className="flex items-center gap-1.5 mb-2 px-0.5 pt-1">
               <Settings2 className="w-3 h-3 text-gray-400" />
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Layout & Settings</span>
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Layout & Settings</span>
             </div>
           )}
       {structureFields.map(field => (
         <div key={field.key} className={cn('py-3 first:pt-1 transition-opacity', isHidden(field.key) ? 'opacity-40' : '')}>
           {/* Field header row */}
           <div className="flex items-center justify-between mb-1.5">
-            <Label className="text-[11px] text-gray-600 font-semibold">{field.label}</Label>
+            <Label className="text-xs text-gray-600 font-semibold">{field.label}</Label>
             {field.hideable && (
               <button onClick={() => toggleHidden(field.key)} title={isHidden(field.key) ? 'Show on website' : 'Hide from website'}
-                className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(field.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
+                className={cn('flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(field.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
                 {isHidden(field.key) ? <><EyeOff className="w-2.5 h-2.5" /> hidden</> : <><Eye className="w-2.5 h-2.5" /> visible</>}
               </button>
             )}
           </div>
-          {field.description && <p className="text-[9px] text-gray-400 mb-1.5 leading-snug">{field.description}</p>}
+          {field.description && <p className="text-xs text-gray-400 mb-1.5 leading-snug">{field.description}</p>}
 
           {/* Link */}
           {field.type === 'link' && (
@@ -2620,15 +2620,15 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
               {field.subFields[val(field.key)].map(sf => (
                 <div key={sf.key}>
                   <div className="flex items-center justify-between mb-1">
-                    <Label className="text-[11px] text-gray-500 font-medium">{sf.label}</Label>
+                    <Label className="text-xs text-gray-500 font-medium">{sf.label}</Label>
                     {sf.hideable && (
                       <button onClick={() => toggleHidden(sf.key)} title={isHidden(sf.key) ? 'Show on website' : 'Hide from website'}
-                        className={cn('flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(sf.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
+                        className={cn('flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium transition-colors', isHidden(sf.key) ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-100 text-gray-400 hover:bg-accent hover:text-primary/80')}>
                         {isHidden(sf.key) ? <><EyeOff className="w-2.5 h-2.5" /> hidden</> : <><Eye className="w-2.5 h-2.5" /> visible</>}
                       </button>
                     )}
                   </div>
-                  {sf.description && <p className="text-[9px] text-gray-400 mb-1.5 leading-snug">{sf.description}</p>}
+                  {sf.description && <p className="text-xs text-gray-400 mb-1.5 leading-snug">{sf.description}</p>}
                   {sf.type === 'text' && (
                     <input value={val(sf.key)} onChange={e => set(sf.key)(e.target.value)} onFocus={() => onFieldAction?.(sf.key)} placeholder={sf.placeholder} className={FIELD_CLASS} />
                   )}
@@ -2650,7 +2650,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                     <div className="space-y-1.5">
                       <div className="flex gap-1.5">
                         <button type="button" onClick={() => onMediaUpload.current?.click()}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-[11px] text-gray-500 hover:border-primary/60 hover:text-primary transition-colors">
+                          className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-primary/60 hover:text-primary transition-colors">
                           <ImageIcon className="w-3.5 h-3.5" />
                           {val(sf.key) ? 'Change' : 'Upload'}
                         </button>
@@ -2658,7 +2658,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                           <button
                             type="button"
                             onClick={() => { onOpenMediaStudio(sf.key, sf.label); onFieldAction?.(sf.key) }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-semibold bg-primary text-white hover:bg-primary/90 transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors"
                           >
                             <Wand2 className="w-3.5 h-3.5" />
                             Media studio
@@ -2692,7 +2692,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
           {field.type === 'toggle' && (
             <button onClick={() => { onUpdate({ [field.key]: !(p[field.key] as boolean) }); onFieldAction?.(field.key) }} className="flex items-center gap-2">
               {p[field.key] ? <ToggleRight className="w-7 h-7 text-primary/80" /> : <ToggleLeft className="w-7 h-7 text-gray-300" />}
-              <span className="text-[11px] text-gray-500">{p[field.key] ? 'On' : 'Off'}</span>
+              <span className="text-xs text-gray-500">{p[field.key] ? 'On' : 'Off'}</span>
             </button>
           )}
           {/* Number — draggable slider */}
@@ -2722,8 +2722,8 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                   <GripHorizontal className={cn('w-3.5 h-3.5 shrink-0 transition-colors', isDragging ? 'text-primary/80' : 'text-gray-400')} />
                 </div>
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-[9px] text-gray-400">{min}{field.unit || ''}</span>
-                  <span className="text-[9px] text-gray-400">{max}{field.unit || ''}</span>
+                  <span className="text-xs text-gray-400">{min}{field.unit || ''}</span>
+                  <span className="text-xs text-gray-400">{max}{field.unit || ''}</span>
                 </div>
               </div>
             )
@@ -2743,7 +2743,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
             <div className="space-y-1.5">
               <div className="flex gap-1.5">
                 <button type="button" onClick={() => onImageUpload(field.key)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-[11px] text-gray-500 hover:border-primary/60 hover:text-primary transition-colors">
+                  className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-primary/60 hover:text-primary transition-colors">
                   <ImageIcon className="w-3.5 h-3.5" />
                   Upload
                 </button>
@@ -2751,7 +2751,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                   <button
                     type="button"
                     onClick={() => { onOpenMediaStudio(field.key, field.label); onFieldAction?.(field.key) }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[11px] font-semibold bg-primary text-white hover:bg-primary/90 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors"
                   >
                     <Wand2 className="w-3.5 h-3.5" />
                     Media studio
@@ -2778,12 +2778,12 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
       <div className="mt-4 pt-3 border-t border-gray-100">
         <div className="flex items-center gap-1.5 mb-3 px-0.5">
           <Sliders className="w-3 h-3 text-gray-400" />
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Section Style</span>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Section Style</span>
         </div>
         <div className="space-y-3">
           {/* Background color */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-600 block mb-1">Background Color</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Background Color</label>
             <div className="flex items-center gap-2">
               <label className="relative w-7 h-7 rounded-lg border-2 border-gray-200 overflow-hidden cursor-pointer shrink-0 shadow-sm">
                 <input type="color" value={(section.props._bg_color as string) || '#ffffff'}
@@ -2803,7 +2803,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
           </div>
           {/* Text color */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-600 block mb-1">Text Color Override</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Text Color Override</label>
             <div className="flex items-center gap-2">
               <label className="relative w-7 h-7 rounded-lg border-2 border-gray-200 overflow-hidden cursor-pointer shrink-0 shadow-sm">
                 <input type="color" value={(section.props._text_color as string) || '#111827'}
@@ -2823,24 +2823,24 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
           </div>
           {/* Padding top */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-600 block mb-1">Padding Top</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Padding Top</label>
             <div className="flex items-center gap-2">
               <input type="range" min={0} max={80} step={4}
                 value={parseInt((section.props._padding_top as string) || '0')}
                 onChange={e => onUpdate({ _padding_top: e.target.value })}
                 className="flex-1 h-1.5 accent-primary" />
-              <span className="text-[10px] font-mono text-gray-500 w-8 text-right">{String(section.props._padding_top ?? '0')}px</span>
+              <span className="text-xs font-mono text-gray-500 w-8 text-right">{String(section.props._padding_top ?? '0')}px</span>
             </div>
           </div>
           {/* Padding bottom */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-600 block mb-1">Padding Bottom</label>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Padding Bottom</label>
             <div className="flex items-center gap-2">
               <input type="range" min={0} max={80} step={4}
                 value={parseInt((section.props._padding_bottom as string) || '0')}
                 onChange={e => onUpdate({ _padding_bottom: e.target.value })}
                 className="flex-1 h-1.5 accent-primary" />
-              <span className="text-[10px] font-mono text-gray-500 w-8 text-right">{String(section.props._padding_bottom ?? '0')}px</span>
+              <span className="text-xs font-mono text-gray-500 w-8 text-right">{String(section.props._padding_bottom ?? '0')}px</span>
             </div>
           </div>
         </div>
@@ -2874,7 +2874,7 @@ function PagesPanel({ modules, businessFrontBase, onNavigatePreview }: { modules
     <div className="p-3 space-y-2">
       <div className="flex items-start gap-2 p-2.5 bg-blue-50 rounded-xl border border-blue-100 mb-1">
         <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-        <p className="text-[10px] text-blue-700 leading-snug">Every page on your business front website. Pages marked <span className="font-bold">EDITABLE</span> can be customised from this builder.</p>
+        <p className="text-xs text-blue-700 leading-snug">Every page on your business front website. Pages marked <span className="font-bold">EDITABLE</span> can be customised from this builder.</p>
       </div>
 
       {pages.map(pg => (
@@ -2886,22 +2886,22 @@ function PagesPanel({ modules, businessFrontBase, onNavigatePreview }: { modules
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-xs font-semibold text-gray-900 truncate">{pg.label}</p>
+                <p className="text-xs font-medium text-gray-900 truncate">{pg.label}</p>
                 {pg.editableInBuilder && <span className="text-[8px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold shrink-0">EDITABLE</span>}
               </div>
-              <p className="text-[10px] text-gray-400 font-mono truncate">{pg.route}</p>
+              <p className="text-xs text-gray-400 font-mono truncate">{pg.route}</p>
             </div>
             <ChevronRight className={cn('w-3.5 h-3.5 text-gray-300 shrink-0 transition-transform', expanded === pg.route && 'rotate-90')} />
           </button>
 
           {expanded === pg.route && (
             <div className="px-3 pb-3 pt-2 border-t border-gray-50 bg-white space-y-2.5">
-              <p className="text-[10px] text-gray-600 leading-snug">{pg.description}</p>
+              <p className="text-xs text-gray-600 leading-snug">{pg.description}</p>
               <div>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">What customers see on this page</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">What customers see on this page</p>
                 <ul className="space-y-1">
                   {pg.features.map(f => (
-                    <li key={f} className="flex items-start gap-1.5 text-[10px] text-gray-600">
+                    <li key={f} className="flex items-start gap-1.5 text-xs text-gray-600">
                       <Check className="w-2.5 h-2.5 text-primary/70 shrink-0 mt-0.5" />{f}
                     </li>
                   ))}
@@ -2910,7 +2910,7 @@ function PagesPanel({ modules, businessFrontBase, onNavigatePreview }: { modules
               {pg.editorHint && (
                 <div className="flex items-start gap-1.5 p-2 bg-accent rounded-lg border border-primary/20">
                   <Wand2 className="w-3 h-3 text-primary/80 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-primary">{pg.editorHint}</p>
+                  <p className="text-xs text-primary">{pg.editorHint}</p>
                 </div>
               )}
               <div className="flex gap-1.5">
@@ -2919,7 +2919,7 @@ function PagesPanel({ modules, businessFrontBase, onNavigatePreview }: { modules
                   return previewRoute ? (
                     <button
                       onClick={() => onNavigatePreview(previewRoute)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-primary/30 text-[11px] font-medium text-primary hover:border-primary/60 hover:bg-accent transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-primary/30 text-xs font-medium text-primary hover:border-primary/60 hover:bg-accent transition-colors"
                     >
                       <Eye className="w-3 h-3" />
                       Open in preview
@@ -2927,7 +2927,7 @@ function PagesPanel({ modules, businessFrontBase, onNavigatePreview }: { modules
                   ) : (
                     <div
                       title="This page cannot be previewed inside the builder"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-gray-200 text-[11px] font-medium text-gray-300 cursor-not-allowed"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-gray-200 text-xs font-medium text-gray-300 cursor-not-allowed"
                     >
                       <Eye className="w-3 h-3" />
                       Preview N/A
@@ -2938,7 +2938,7 @@ function PagesPanel({ modules, businessFrontBase, onNavigatePreview }: { modules
                   href={routeUrl(pg.route)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-600 hover:border-primary/60 hover:text-primary hover:bg-accent transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:border-primary/60 hover:text-primary hover:bg-accent transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" />
                   Open in business front
@@ -2951,15 +2951,15 @@ function PagesPanel({ modules, businessFrontBase, onNavigatePreview }: { modules
 
       {hiddenPages.length > 0 && (
         <div className="pt-2">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 mb-2">Locked — enable in Modules tab</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-1 mb-2">Locked — enable in Modules tab</p>
           {hiddenPages.map(pg => (
             <div key={pg.route} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-dashed border-gray-200 mb-1.5 opacity-50">
               <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
                 <pg.icon className="w-3.5 h-3.5 text-gray-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-gray-500 truncate">{pg.label}</p>
-                <p className="text-[9px] text-gray-400 font-mono">{pg.route}</p>
+                <p className="text-xs font-medium text-gray-500 truncate">{pg.label}</p>
+                <p className="text-xs text-gray-400 font-mono">{pg.route}</p>
               </div>
               <EyeOff className="w-3.5 h-3.5 text-gray-300 shrink-0" />
             </div>
@@ -3041,7 +3041,7 @@ function InlineSectionEditor({
     >
       <div className="px-2.5 py-1 flex items-center gap-1.5 bg-accent border-b border-primary/20">
         <Pencil className="w-2.5 h-2.5 text-primary/80" />
-        <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Edit Content</span>
+        <span className="text-xs font-bold text-primary uppercase tracking-wider">Edit Content</span>
       </div>
       <div className="p-2 space-y-1.5">
         {textFields.map(field => (
@@ -3052,14 +3052,14 @@ function InlineSectionEditor({
                 value={(sectionProps[field.key] as string) || ''}
                 onChange={e => onUpdateProp(field.key, e.target.value)}
                 rows={2}
-                className="flex-1 text-[10px] border border-gray-200 rounded px-1.5 py-1 resize-none outline-none focus:border-primary/60 bg-white"
+                className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-1 resize-none outline-none focus:border-primary/60 bg-white"
                 placeholder={field.placeholder}
               />
             ) : (
               <input
                 value={(sectionProps[field.key] as string) || ''}
                 onChange={e => onUpdateProp(field.key, e.target.value)}
-                className="flex-1 text-[10px] border border-gray-200 rounded px-1.5 py-1 outline-none focus:border-primary/60 bg-white"
+                className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-1 outline-none focus:border-primary/60 bg-white"
                 placeholder={field.placeholder}
               />
             )}
@@ -3335,7 +3335,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
 
         {/* Hover hint — only when nothing is selected and no actions toolbar */}
         {!selectedSectionId && !hasActions && (
-          <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white/90 backdrop-blur-sm text-[9px] text-gray-600 font-semibold px-1.5 py-0.5 rounded-full shadow-sm border border-gray-200 pointer-events-none z-20">
+          <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white/90 backdrop-blur-sm text-xs text-gray-600 font-semibold px-1.5 py-0.5 rounded-full shadow-sm border border-gray-200 pointer-events-none z-20">
             <MousePointer className="w-2.5 h-2.5" /> click to edit
           </div>
         )}
@@ -3373,17 +3373,17 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                 : <def.icon className="w-3.5 h-3.5 text-white" />}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-[11px] font-bold leading-tight">{def.label}</p>
+              <p className="text-white text-xs font-bold leading-tight">{def.label}</p>
               {isFieldActive && activeFieldDef ? (
-                <p className="text-amber-100 text-[9px] leading-snug truncate font-medium">
+                <p className="text-amber-100 text-xs leading-snug truncate font-medium">
                   ✏ Editing: <span className="text-white font-bold">{activeFieldDef.label}</span>
                 </p>
               ) : (
-                <p className="text-primary-foreground/85 text-[9px] leading-snug truncate">{def.description}</p>
+                <p className="text-primary-foreground/85 text-xs leading-snug truncate">{def.description}</p>
               )}
             </div>
             {!isFieldActive && (
-              <div className="shrink-0 flex items-center gap-1 text-[9px] text-primary/50 font-medium whitespace-nowrap">
+              <div className="shrink-0 flex items-center gap-1 text-xs text-primary/50 font-medium whitespace-nowrap">
                 <Pencil className="w-2.5 h-2.5" /> Edit above · Structure →
               </div>
             )}
@@ -3438,7 +3438,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
 
       {/* Browse-mode status bar */}
       {isBrowse && (
-        <div className="px-3 py-1.5 flex items-center gap-2 text-[9px] font-medium sticky top-[52px] z-10" style={{ backgroundColor: s.primary_color, color: '#fff' }}>
+        <div className="px-3 py-1.5 flex items-center gap-2 text-xs font-medium sticky top-[52px] z-10" style={{ backgroundColor: s.primary_color, color: '#fff' }}>
           <span className="flex items-center gap-1 opacity-90"><Check className="w-3 h-3" /> Live Preview — click anything to navigate</span>
           <div className="ml-auto flex items-center gap-0.5 opacity-70">
             <Pencil className="w-2.5 h-2.5" /> Click Edit to resume editing
@@ -3448,7 +3448,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
 
       {/* Breadcrumb when on an inner page */}
       {previewRoute !== '/' && (
-        <div className="px-3 py-1.5 flex items-center gap-1.5 text-[10px] border-b border-gray-200 bg-gray-50 text-gray-500">
+        <div className="px-3 py-1.5 flex items-center gap-1.5 text-xs border-b border-gray-200 bg-gray-50 text-gray-500">
           <button type="button" onClick={navigateTo('/')} className="flex items-center gap-0.5 font-medium hover:underline" style={{ color: s.primary_color }}>
             <ArrowLeft className="w-3 h-3" /> Home
           </button>
@@ -3472,17 +3472,17 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
         <div style={{ padding: spacing }}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold" style={{ fontFamily: s.font_heading }}>All Products</h2>
-            <div className="text-[9px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>
+            <div className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>
               {products.length > 0 ? `${products.length} items` : 'No products yet'}
             </div>
           </div>
           {/* Filter row */}
           <div className="flex items-center gap-1.5 mb-3">
             <div className="flex-1 h-7 rounded-lg border flex items-center px-2 gap-1" style={{ borderColor, backgroundColor: cardBg }}>
-              <span className="text-[9px]" style={{ color: subTextColor }}>Search products…</span>
+              <span className="text-xs" style={{ color: subTextColor }}>Search products…</span>
             </div>
-            <div className="h-7 px-2 rounded-lg border text-[9px] flex items-center" style={{ borderColor, backgroundColor: cardBg, color: subTextColor }}>Filter</div>
-            <div className="h-7 px-2 rounded-lg border text-[9px] flex items-center" style={{ borderColor, backgroundColor: cardBg, color: subTextColor }}>Sort</div>
+            <div className="h-7 px-2 rounded-lg border text-xs flex items-center" style={{ borderColor, backgroundColor: cardBg, color: subTextColor }}>Filter</div>
+            <div className="h-7 px-2 rounded-lg border text-xs flex items-center" style={{ borderColor, backgroundColor: cardBg, color: subTextColor }}>Sort</div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {products.length > 0
@@ -3495,8 +3495,8 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                         ? <img src={imgUrl} alt={product.name} className="w-full object-cover" style={{ height: '80px' }} />
                         : <div className="flex items-center justify-center" style={{ height: '80px', backgroundColor: s.primary_color + '10' }}><Package className="w-6 h-6" style={{ color: s.primary_color + '50' }} /></div>}
                       <div className="p-2">
-                        <p className="text-[10px] font-semibold truncate" style={{ color: textColor }}>{product.name}</p>
-                        <p className="text-[10px] font-bold mt-0.5" style={{ color: s.primary_color }}>{product.currency} {product.price?.toLocaleString()}</p>
+                        <p className="text-xs font-medium truncate" style={{ color: textColor }}>{product.name}</p>
+                        <p className="text-xs font-bold mt-0.5" style={{ color: s.primary_color }}>{product.currency} {product.price?.toLocaleString()}</p>
                       </div>
                     </div>
                   )
@@ -3508,7 +3508,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   </div>
                 ))}
           </div>
-          <div className="mt-3 p-2.5 rounded-xl text-center text-[10px] border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
+          <div className="mt-3 p-2.5 rounded-xl text-center text-xs border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
             <span className="font-semibold">This page auto-renders your products</span> — manage them in the <strong>Products</strong> tab.
           </div>
         </div>
@@ -3519,15 +3519,15 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
         <div style={{ padding: spacing }}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold" style={{ fontFamily: s.font_heading }}>All Services</h2>
-            <div className="text-[9px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>
+            <div className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>
               {services.length > 0 ? `${services.length} services` : 'No services yet'}
             </div>
           </div>
           <div className="flex items-center gap-1.5 mb-3">
             <div className="flex-1 h-7 rounded-lg border flex items-center px-2" style={{ borderColor, backgroundColor: cardBg }}>
-              <span className="text-[9px]" style={{ color: subTextColor }}>Search services…</span>
+              <span className="text-xs" style={{ color: subTextColor }}>Search services…</span>
             </div>
-            <div className="h-7 px-2 rounded-lg border text-[9px] flex items-center" style={{ borderColor, backgroundColor: cardBg, color: subTextColor }}>Category</div>
+            <div className="h-7 px-2 rounded-lg border text-xs flex items-center" style={{ borderColor, backgroundColor: cardBg, color: subTextColor }}>Category</div>
           </div>
           <div className="space-y-2">
             {services.length > 0
@@ -3540,11 +3540,11 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                         ? <img src={imgUrl} alt={svc.name} className="rounded-lg object-cover shrink-0" style={{ width: '48px', height: '48px' }} />
                         : <div className="rounded-lg flex items-center justify-center shrink-0" style={{ width: '48px', height: '48px', backgroundColor: s.primary_color + '15' }}><Wrench className="w-5 h-5" style={{ color: s.primary_color }} /></div>}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-semibold truncate" style={{ color: textColor }}>{svc.name}</p>
-                        {svc.short_description && <p className="text-[9px] truncate mt-0.5" style={{ color: subTextColor }}>{svc.short_description}</p>}
-                        <p className="text-[10px] font-bold mt-1" style={{ color: s.primary_color }}>{priceLabel}</p>
+                        <p className="text-xs font-medium truncate" style={{ color: textColor }}>{svc.name}</p>
+                        {svc.short_description && <p className="text-xs truncate mt-0.5" style={{ color: subTextColor }}>{svc.short_description}</p>}
+                        <p className="text-xs font-bold mt-1" style={{ color: s.primary_color }}>{priceLabel}</p>
                       </div>
-                      <div className="self-center text-[9px] px-2 py-1 rounded-lg font-semibold text-white shrink-0" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Book</div>
+                      <div className="self-center text-xs px-2 py-1 rounded-lg font-semibold text-white shrink-0" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Book</div>
                     </div>
                   )
                 })
@@ -3555,7 +3555,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   </div>
                 ))}
           </div>
-          <div className="mt-3 p-2.5 rounded-xl text-center text-[10px] border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
+          <div className="mt-3 p-2.5 rounded-xl text-center text-xs border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
             <span className="font-semibold">This page auto-renders your services</span> — manage them in the <strong>Services</strong> tab.
           </div>
         </div>
@@ -3571,16 +3571,16 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
           <div style={{ padding: spacing }}>
             <h2 className="text-sm font-bold mb-3" style={{ fontFamily: s.font_heading }}>{(p2.headline as string) || 'About Us'}</h2>
             {aboutImg && <img src={aboutImg} alt="about" className="w-full object-cover rounded-xl mb-3" style={{ height: '100px', border: `1px solid ${borderColor}` }} />}
-            {(p2.subtitle as string) && <p className="text-[10px] font-semibold mb-2" style={{ color: s.primary_color }}>{p2.subtitle as string}</p>}
+            {(p2.subtitle as string) && <p className="text-xs font-medium mb-2" style={{ color: s.primary_color }}>{p2.subtitle as string}</p>}
             {aboutDesc
-              ? <p className="text-[10px] leading-relaxed" style={{ color: subTextColor }}>{aboutDesc}</p>
+              ? <p className="text-xs leading-relaxed" style={{ color: subTextColor }}>{aboutDesc}</p>
               : [1,2,3,4].map(i => <div key={i} className="h-1.5 rounded mb-1.5" style={{ backgroundColor: borderColor, width: i === 4 ? '60%' : '100%' }} />)}
             {(p2.cta_primary as string) && (
-              <div className="mt-3 inline-block text-[10px] px-3 py-1.5 font-semibold text-white" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>
+              <div className="mt-3 inline-block text-xs px-3 py-1.5 font-semibold text-white" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>
                 {p2.cta_primary as string}
               </div>
             )}
-            <div className="mt-4 p-2.5 rounded-xl text-center text-[10px] border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
+            <div className="mt-4 p-2.5 rounded-xl text-center text-xs border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
               Edit this content in the <strong>About Us</strong> section on the home preview.
             </div>
           </div>
@@ -3600,12 +3600,12 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               : <div className="flex items-center justify-center rounded-xl mb-3" style={{ height: '130px', backgroundColor: s.primary_color + '10', border: `1px solid ${borderColor}` }}><Package className="w-10 h-10" style={{ color: s.primary_color + '50' }} /></div>}
             <h2 className="text-sm font-bold" style={{ fontFamily: s.font_heading, color: textColor }}>{prod.name}</h2>
             <p className="text-base font-bold mt-1" style={{ color: s.primary_color }}>{prod.currency} {prod.price?.toLocaleString()}</p>
-            {prod.description && <p className="text-[10px] mt-2 leading-relaxed line-clamp-4" style={{ color: subTextColor }}>{prod.description}</p>}
+            {prod.description && <p className="text-xs mt-2 leading-relaxed line-clamp-4" style={{ color: subTextColor }}>{prod.description}</p>}
             <div className="mt-3 flex gap-2">
-              <div className="flex-1 py-2 text-center text-[10px] font-bold text-white rounded-lg" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Add to Cart</div>
-              <div className="flex-1 py-2 text-center text-[10px] font-semibold rounded-lg border" style={{ borderColor, color: textColor, borderRadius: brStyle }}>Wishlist</div>
+              <div className="flex-1 py-2 text-center text-xs font-bold text-white rounded-lg" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Add to Cart</div>
+              <div className="flex-1 py-2 text-center text-xs font-medium rounded-lg border" style={{ borderColor, color: textColor, borderRadius: brStyle }}>Wishlist</div>
             </div>
-            <div className="mt-3 p-2.5 rounded-xl text-center text-[10px] border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
+            <div className="mt-3 p-2.5 rounded-xl text-center text-xs border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
               Manage product details in the <strong>Products</strong> tab.
             </div>
           </div>
@@ -3625,13 +3625,13 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               : <div className="flex items-center justify-center rounded-xl mb-3" style={{ height: '130px', backgroundColor: s.primary_color + '10', border: `1px solid ${borderColor}` }}><Wrench className="w-10 h-10" style={{ color: s.primary_color + '50' }} /></div>}
             <h2 className="text-sm font-bold" style={{ fontFamily: s.font_heading, color: textColor }}>{svc.name}</h2>
             <p className="text-base font-bold mt-1" style={{ color: s.primary_color }}>{priceLabel}</p>
-            {svc.duration_minutes && <p className="text-[10px] mt-0.5" style={{ color: subTextColor }}>Duration: {svc.duration_minutes} min</p>}
-            {(svc.short_description || svc.description) && <p className="text-[10px] mt-2 leading-relaxed line-clamp-4" style={{ color: subTextColor }}>{svc.short_description || svc.description}</p>}
+            {svc.duration_minutes && <p className="text-xs mt-0.5" style={{ color: subTextColor }}>Duration: {svc.duration_minutes} min</p>}
+            {(svc.short_description || svc.description) && <p className="text-xs mt-2 leading-relaxed line-clamp-4" style={{ color: subTextColor }}>{svc.short_description || svc.description}</p>}
             <div className="mt-3 flex gap-2">
-              <div className="flex-1 py-2 text-center text-[10px] font-bold text-white rounded-lg" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Book Now</div>
-              <div className="flex-1 py-2 text-center text-[10px] font-semibold rounded-lg border" style={{ borderColor, color: textColor, borderRadius: brStyle }}>Enquire</div>
+              <div className="flex-1 py-2 text-center text-xs font-bold text-white rounded-lg" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Book Now</div>
+              <div className="flex-1 py-2 text-center text-xs font-medium rounded-lg border" style={{ borderColor, color: textColor, borderRadius: brStyle }}>Enquire</div>
             </div>
-            <div className="mt-3 p-2.5 rounded-xl text-center text-[10px] border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
+            <div className="mt-3 p-2.5 rounded-xl text-center text-xs border" style={{ backgroundColor: s.primary_color + '08', borderColor: s.primary_color + '25', color: s.primary_color }}>
               Manage service details in the <strong>Services</strong> tab.
             </div>
           </div>
@@ -3647,7 +3647,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
         if (renderId === 'announcement_bar') return (
           <SectionWrapper key={sec.id} id={sec.id}>
             <div
-              className="text-center py-2 text-[11px] font-medium text-white"
+              className="text-center py-2 text-xs font-medium text-white"
               style={{
                 backgroundColor: (props.announcement_color as string) || s.primary_color,
                 ...fieldTypographyStyle(props as HomeSectionProps, 'announcement_text'),
@@ -3683,7 +3683,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                 const b = props[bk] as string
                 if (!b) return null
                 return (
-                  <span key={bk} className="text-[10px] font-medium flex items-center gap-1" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, bk) }}>
+                  <span key={bk} className="text-xs font-medium flex items-center gap-1" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, bk) }}>
                     <Truck className="w-3 h-3" style={{ color: s.primary_color }} />{b}
                   </span>
                 )
@@ -3703,11 +3703,11 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               <div style={{ padding: spacing, paddingBottom: isThisSelected ? '60px' : spacing }}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-bold" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'title') }}>{(props.title as string) || 'Featured Products'}</h3>
-                  <button onClick={navigateTo('/products')} className="text-[10px] flex items-center gap-0.5 hover:underline" style={{ color: s.primary_color }}>See all <ChevronRight className="w-3 h-3" /></button>
+                  <button onClick={navigateTo('/products')} className="text-xs flex items-center gap-0.5 hover:underline" style={{ color: s.primary_color }}>See all <ChevronRight className="w-3 h-3" /></button>
                 </div>
                 {hasReal && (
                   <div className="flex items-center gap-1 mb-2">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>● Live data from your store</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>● Live data from your store</span>
                   </div>
                 )}
                 <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
@@ -3725,11 +3725,11 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                           </div>
                         )}
                         <div className="p-2">
-                          <p className="text-[10px] font-semibold leading-tight truncate" style={{ color: textColor }}>{product.name}</p>
+                          <p className="text-xs font-medium leading-tight truncate" style={{ color: textColor }}>{product.name}</p>
                           <div className="flex items-center gap-0.5 mt-1">
                             {[1,2,3,4,5].map(n => <Star key={n} className="w-2 h-2" fill={n <= 4 ? s.accent_color : 'none'} style={{ color: n <= 4 ? s.accent_color : '#d1d5db' }} />)}
                           </div>
-                          <p className="text-[10px] font-bold mt-1" style={{ color: s.primary_color }}>{product.currency} {price?.toLocaleString()}</p>
+                          <p className="text-xs font-bold mt-1" style={{ color: s.primary_color }}>{product.currency} {price?.toLocaleString()}</p>
                         </div>
                       </div>
                     )
@@ -3737,7 +3737,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                     <div key={i} style={{ backgroundColor: cardBg, borderRadius: brStyle, border: `1px solid ${borderColor}` }} className="overflow-hidden">
                       <div className="flex flex-col items-center justify-center gap-1" style={{ height: `${cardH}px`, backgroundColor: s.primary_color + '08' }}>
                         <Package className="w-6 h-6" style={{ color: s.primary_color + '40' }} />
-                        <p className="text-[9px]" style={{ color: subTextColor }}>Your product</p>
+                        <p className="text-xs" style={{ color: subTextColor }}>Your product</p>
                       </div>
                       <div className="p-2">
                         <div className="h-2 w-2/3 rounded mb-1.5" style={{ backgroundColor: borderColor }} />
@@ -3747,7 +3747,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   ))}
                 </div>
                 {!hasReal && (
-                  <p className="text-[10px] text-center mt-2" style={{ color: subTextColor }}>Add products to your store to see them here</p>
+                  <p className="text-xs text-center mt-2" style={{ color: subTextColor }}>Add products to your store to see them here</p>
                 )}
               </div>
             </SectionWrapper>
@@ -3771,13 +3771,13 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               <div style={{ padding: spacing, paddingBottom: isThisSelected ? '60px' : spacing }}>
                 <div className="flex items-center justify-between mb-0.5">
                   <h3 className="text-sm font-bold" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'title') }}>{(props.title as string) || 'Our Services'}</h3>
-                  <button onClick={navigateTo('/services')} className="text-[10px] flex items-center gap-0.5 hover:underline" style={{ color: s.primary_color }}>See all <ChevronRight className="w-3 h-3" /></button>
+                  <button onClick={navigateTo('/services')} className="text-xs flex items-center gap-0.5 hover:underline" style={{ color: s.primary_color }}>See all <ChevronRight className="w-3 h-3" /></button>
                 </div>
-                {showSvcSubtitle && <p className="text-[9px] mb-2 mt-0.5" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{(props.subtitle as string) || 'Professional services tailored for you'}</p>}
+                {showSvcSubtitle && <p className="text-xs mb-2 mt-0.5" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{(props.subtitle as string) || 'Professional services tailored for you'}</p>}
                 {!showSvcSubtitle && <div className="mb-3" />}
                 {hasReal && (
                   <div className="flex items-center gap-1 mb-2">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>● Live data from your store</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>● Live data from your store</span>
                   </div>
                 )}
                 <div className="space-y-2">
@@ -3792,7 +3792,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                           <div className="rounded-lg flex items-center justify-center shrink-0" style={{ width: `${svcCardH}px`, height: `${svcCardH}px`, backgroundColor: s.primary_color + '15' }}><Wrench className="w-4 h-4" style={{ color: s.primary_color }} /></div>
                         ))}
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-semibold truncate" style={{ color: textColor }}>{svc.name}</p>
+                          <p className="text-xs font-medium truncate" style={{ color: textColor }}>{svc.name}</p>
                           {showSvcRating && (svc.avg_rating ?? 0) > 0 && (
                             <div className="flex items-center gap-0.5 mt-0.5">
                               {[1,2,3,4,5].map(n => (
@@ -3800,10 +3800,10 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                               ))}
                             </div>
                           )}
-                          {showSvcDesc && svc.short_description && <p className="text-[9px] truncate mt-0.5" style={{ color: subTextColor }}>{svc.short_description}</p>}
+                          {showSvcDesc && svc.short_description && <p className="text-xs truncate mt-0.5" style={{ color: subTextColor }}>{svc.short_description}</p>}
                           <div className="flex items-center gap-2 mt-1">
-                            {showSvcPrice && <p className="text-[10px] font-bold" style={{ color: s.primary_color }}>{priceLabel}</p>}
-                            {showSvcDuration && svc.duration_minutes && <p className="text-[9px]" style={{ color: subTextColor }}>{svc.duration_minutes} min</p>}
+                            {showSvcPrice && <p className="text-xs font-bold" style={{ color: s.primary_color }}>{priceLabel}</p>}
+                            {showSvcDuration && svc.duration_minutes && <p className="text-xs" style={{ color: subTextColor }}>{svc.duration_minutes} min</p>}
                           </div>
                         </div>
                       </div>
@@ -3819,7 +3819,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                     </div>
                   ))}
                   {!hasReal && (
-                    <p className="text-[10px] text-center mt-1" style={{ color: subTextColor }}>Add services to your store to see them here</p>
+                    <p className="text-xs text-center mt-1" style={{ color: subTextColor }}>Add services to your store to see them here</p>
                   )}
                 </div>
               </div>
@@ -3838,18 +3838,18 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               <div style={{ padding: spacing, paddingBottom: selectedSectionId === sec.id ? '52px' : spacing }}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-bold" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'title') }}>{(props.title as string) || 'Shop by Category'}</h3>
-                  <span className="text-[10px]" style={{ color: s.primary_color }}>View all</span>
+                  <span className="text-xs" style={{ color: s.primary_color }}>View all</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {sampleCategories.map((cat, i) => (
                     <div key={i} style={{ backgroundColor: s.primary_color + '18', borderRadius: brStyle, border: `1px solid ${s.primary_color}25` }}
                       className="flex flex-col items-center justify-center gap-1.5 py-3 px-1 text-center">
                       <span className="text-xl leading-none">{cat.emoji}</span>
-                      <p className="text-[10px] font-semibold leading-tight" style={{ color: textColor }}>{cat.name}</p>
+                      <p className="text-xs font-medium leading-tight" style={{ color: textColor }}>{cat.name}</p>
                     </div>
                   ))}
                 </div>
-                <p className="text-[9px] text-center mt-2 italic" style={{ color: subTextColor }}>Categories from your store will appear here</p>
+                <p className="text-xs text-center mt-2 italic" style={{ color: subTextColor }}>Categories from your store will appear here</p>
               </div>
             </SectionWrapper>
           )
@@ -3859,7 +3859,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
           <SectionWrapper key={sec.id} id={sec.id}>
             <div style={{ margin: `0 ${spacing}`, marginBottom: spacing, borderRadius: brStyle, padding: spacing, textAlign: 'center', background: `linear-gradient(135deg, ${s.accent_color}22, ${s.primary_color}22)`, border: `1px dashed ${s.accent_color}` }}>
               <p className="text-xs font-bold" style={{ color: s.accent_color, ...fieldTypographyStyle(props as HomeSectionProps, 'headline') }}>{(props.headline as string) || 'Special Offers'}</p>
-              {props.subtitle && <p className="text-[10px] mt-0.5" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{props.subtitle as string}</p>}
+              {props.subtitle && <p className="text-xs mt-0.5" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{props.subtitle as string}</p>}
             </div>
           </SectionWrapper>
         )
@@ -3896,13 +3896,13 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               <div style={{ padding: spacing }} className="flex gap-4">
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-bold mb-1" style={{ fontFamily: s.font_heading, color: textColor, ...fieldTypographyStyle(props as HomeSectionProps, 'headline') }}>{(props.headline as string) || 'About Us'}</h3>
-                  {aboutTagline && <p className="text-[9px] font-semibold mb-1.5" style={{ color: s.primary_color, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{aboutTagline}</p>}
+                  {aboutTagline && <p className="text-xs font-medium mb-1.5" style={{ color: s.primary_color, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{aboutTagline}</p>}
                   {aboutDesc
-                    ? <p className="text-[9px] leading-relaxed line-clamp-4" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'description') }}>{aboutDesc}</p>
+                    ? <p className="text-xs leading-relaxed line-clamp-4" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'description') }}>{aboutDesc}</p>
                     : [1,2,3].map(i => <div key={i} className="h-1.5 rounded mb-1.5" style={{ backgroundColor: borderColor, width: i === 3 ? '60%' : '100%' }} />)
                   }
                   {aboutCta && (
-                    <div className="mt-2 inline-block text-[9px] px-2.5 py-1 font-semibold text-white" style={{ backgroundColor: s.primary_color, borderRadius: brStyle, ...fieldTypographyStyle(props as HomeSectionProps, 'cta_primary') }}>
+                    <div className="mt-2 inline-block text-xs px-2.5 py-1 font-semibold text-white" style={{ backgroundColor: s.primary_color, borderRadius: brStyle, ...fieldTypographyStyle(props as HomeSectionProps, 'cta_primary') }}>
                       {aboutCta}
                     </div>
                   )}
@@ -3936,19 +3936,19 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                     {address && (
                       <div className="flex items-start gap-1.5">
                         <MapPin className="w-3 h-3 mt-0.5 shrink-0" style={{ color: s.primary_color }} />
-                        <p className="text-[9px] leading-snug" style={{ color: subTextColor }}>{address}</p>
+                        <p className="text-xs leading-snug" style={{ color: subTextColor }}>{address}</p>
                       </div>
                     )}
                     {phone && (
                       <div className="flex items-center gap-1.5">
                         <Wrench className="w-3 h-3 shrink-0" style={{ color: s.primary_color }} />
-                        <p className="text-[9px]" style={{ color: subTextColor }}>{phone}</p>
+                        <p className="text-xs" style={{ color: subTextColor }}>{phone}</p>
                       </div>
                     )}
                     {email && (
                       <div className="flex items-center gap-1.5">
                         <Mail className="w-3 h-3 shrink-0" style={{ color: s.primary_color }} />
-                        <p className="text-[9px] truncate" style={{ color: subTextColor }}>{email}</p>
+                        <p className="text-xs truncate" style={{ color: subTextColor }}>{email}</p>
                       </div>
                     )}
                     {!address && !phone && !email && [MapPin, Wrench, Mail].map((Icon, i) => (
@@ -3969,10 +3969,10 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
             <div style={{ backgroundColor: s.primary_color + '10', padding: spacing, textAlign: 'center' }}>
               <Mail className="w-6 h-6 mx-auto mb-2" style={{ color: s.primary_color }} />
               <h3 className="text-sm font-bold mb-1" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'headline') }}>{(props.headline as string) || 'Stay in the loop'}</h3>
-              {props.subtitle && <p className="text-[10px] mb-3" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{props.subtitle as string}</p>}
+              {props.subtitle && <p className="text-xs mb-3" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{props.subtitle as string}</p>}
               <div className="flex gap-1.5 max-w-xs mx-auto">
                 <div className="flex-1 h-8 rounded-lg border" style={{ borderColor, backgroundColor: cardBg }} />
-                <div className="h-8 px-3 rounded-lg text-[10px] font-semibold text-white flex items-center" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Subscribe</div>
+                <div className="h-8 px-3 rounded-lg text-xs font-medium text-white flex items-center" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Subscribe</div>
               </div>
             </div>
           </SectionWrapper>
@@ -3986,7 +3986,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                 <div key={i} style={{ backgroundColor: cardBg, borderRadius: brStyle, border: `1px solid ${borderColor}` }} className="flex items-center gap-2 p-2 mb-1.5">
                   <Briefcase className="w-4 h-4 shrink-0" style={{ color: s.primary_color }} />
                   <div className="flex-1"><div className="h-1.5 w-1/2 rounded" style={{ backgroundColor: borderColor }} /></div>
-                  <div className="h-5 px-2 rounded-full text-[9px] font-semibold text-white flex items-center" style={{ backgroundColor: s.primary_color, borderRadius: '999px' }}>Apply</div>
+                  <div className="h-5 px-2 rounded-full text-xs font-medium text-white flex items-center" style={{ backgroundColor: s.primary_color, borderRadius: '999px' }}>Apply</div>
                 </div>
               ))}
             </div>
@@ -3999,10 +3999,10 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               <div style={{ backgroundColor: cardBg, border: `1px solid ${borderColor}`, borderRadius: brStyle, borderLeft: `3px solid ${s.primary_color}` }} className="flex items-center gap-3 p-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: s.primary_color + '15' }}><UserCheck className="w-5 h-5" style={{ color: s.primary_color }} /></div>
                 <div className="flex-1">
-                  <p className="text-xs font-semibold" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'headline') }}>{(props.headline as string) || 'Employee Portal'}</p>
-                  <p className="text-[10px] mt-0.5" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{(props.subtitle as string) || 'Access your self-service dashboard'}</p>
+                  <p className="text-xs font-medium" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'headline') }}>{(props.headline as string) || 'Employee Portal'}</p>
+                  <p className="text-xs mt-0.5" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{(props.subtitle as string) || 'Access your self-service dashboard'}</p>
                 </div>
-                <div className="h-7 px-3 rounded-lg text-[10px] font-semibold text-white flex items-center" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Login</div>
+                <div className="h-7 px-3 rounded-lg text-xs font-medium text-white flex items-center" style={{ backgroundColor: s.primary_color, borderRadius: brStyle }}>Login</div>
               </div>
             </div>
           </SectionWrapper>
@@ -4012,8 +4012,8 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
           <SectionWrapper key={sec.id} id={sec.id}>
             <div style={{ margin: `0 ${spacing}`, marginBottom: spacing, borderRadius: brStyle, padding: spacing, textAlign: 'center', background: `linear-gradient(135deg, ${s.primary_color}, ${s.secondary_color})` }}>
               <p className="text-sm font-bold text-white" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'headline') }}>{(props.headline as string) || 'Ready to get started?'}</p>
-              {props.subtitle && <p className="text-[10px] text-white/80 mt-0.5" style={fieldTypographyStyle(props as HomeSectionProps, 'subtitle')}>{props.subtitle as string}</p>}
-              <div className="mt-3 inline-block px-4 py-1.5 text-[11px] font-bold rounded-lg" style={{ backgroundColor: s.accent_color, color: '#1e293b', borderRadius: brStyle, ...fieldTypographyStyle(props as HomeSectionProps, 'cta_primary') }}>
+              {props.subtitle && <p className="text-xs text-white/80 mt-0.5" style={fieldTypographyStyle(props as HomeSectionProps, 'subtitle')}>{props.subtitle as string}</p>}
+              <div className="mt-3 inline-block px-4 py-1.5 text-xs font-bold rounded-lg" style={{ backgroundColor: s.accent_color, color: '#1e293b', borderRadius: brStyle, ...fieldTypographyStyle(props as HomeSectionProps, 'cta_primary') }}>
                 {(props.cta_primary as string) || 'Get Started'}
               </div>
             </div>
@@ -4029,13 +4029,13 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   <div key={i} style={{ backgroundColor: cardBg, borderRadius: brStyle, border: `1px solid ${borderColor}` }} className="p-2.5 flex items-start gap-2">
                     <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: s.primary_color }} />
                     <div>
-                      <p className="text-[10px] font-semibold" style={{ color: textColor }}>{loc.city} Store {loc.tag && <span className="ml-1 text-[8px] px-1 py-0.5 rounded font-bold" style={{ backgroundColor: s.primary_color + '20', color: s.primary_color }}>{loc.tag}</span>}</p>
+                      <p className="text-xs font-medium" style={{ color: textColor }}>{loc.city} Store {loc.tag && <span className="ml-1 text-[8px] px-1 py-0.5 rounded font-bold" style={{ backgroundColor: s.primary_color + '20', color: s.primary_color }}>{loc.tag}</span>}</p>
                       <div className="h-1.5 w-16 rounded mt-1" style={{ backgroundColor: borderColor }} />
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-[9px] text-center mt-2 italic" style={{ color: subTextColor }}>Your branch locations will appear here</p>
+              <p className="text-xs text-center mt-2 italic" style={{ color: subTextColor }}>Your branch locations will appear here</p>
             </div>
           </SectionWrapper>
         )
@@ -4051,7 +4051,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   return (
                     <div key={n} className="py-2">
                       <p className="text-base font-bold leading-none" style={{ color: s.primary_color, ...fieldTypographyStyle(props as HomeSectionProps, `stat_${n}_value`) }}>{val || '—'}</p>
-                      <p className="text-[9px] mt-1 leading-snug" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, `stat_${n}_label`) }}>{lbl || ''}</p>
+                      <p className="text-xs mt-1 leading-snug" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, `stat_${n}_label`) }}>{lbl || ''}</p>
                     </div>
                   )
                 })}
@@ -4078,12 +4078,12 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   {faqDisplay.map((f, i) => (
                     <div key={`${f.n}-${i}`} style={{ backgroundColor: cardBg, borderRadius: brStyle, border: `1px solid ${borderColor}` }} className="overflow-hidden">
                       <div className="flex items-center justify-between px-3 py-2">
-                        <p className="text-[10px] font-semibold" style={{ color: textColor, ...fieldTypographyStyle(props as HomeSectionProps, `faq_${f.n}_q`) }}>{f.q}</p>
+                        <p className="text-xs font-medium" style={{ color: textColor, ...fieldTypographyStyle(props as HomeSectionProps, `faq_${f.n}_q`) }}>{f.q}</p>
                         <ChevronRight className="w-3 h-3 shrink-0" style={{ color: subTextColor }} />
                       </div>
                       {i === 0 && f.a && (
                         <div className="px-3 pb-2 border-t" style={{ borderColor }}>
-                          <p className="text-[9px] leading-relaxed mt-1.5" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, `faq_${f.n}_a`) }}>{f.a}</p>
+                          <p className="text-xs leading-relaxed mt-1.5" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, `faq_${f.n}_a`) }}>{f.a}</p>
                         </div>
                       )}
                     </div>
@@ -4110,10 +4110,10 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                     const ni = String(i + 1)
                     return (
                     <div key={i} style={{ backgroundColor: i === 1 ? s.primary_color : cardBg, borderRadius: brStyle, border: `2px solid ${i === 1 ? s.primary_color : borderColor}` }} className="p-2.5 flex flex-col gap-1.5">
-                      <p className="text-[10px] font-bold" style={{ color: i === 1 ? '#fff' : textColor, ...fieldTypographyStyle(props as HomeSectionProps, `plan_${ni}_name`) }}>{pl.name}</p>
+                      <p className="text-xs font-bold" style={{ color: i === 1 ? '#fff' : textColor, ...fieldTypographyStyle(props as HomeSectionProps, `plan_${ni}_name`) }}>{pl.name}</p>
                       <p className="text-sm font-extrabold leading-none" style={{ color: i === 1 ? '#fff' : s.primary_color, ...fieldTypographyStyle(props as HomeSectionProps, `plan_${ni}_price`) }}>{pl.price}</p>
                       {pl.desc && <p className="text-[8px] leading-snug flex-1" style={{ color: i === 1 ? 'rgba(255,255,255,0.75)' : subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, `plan_${ni}_desc`) }}>{pl.desc}</p>}
-                      <div className="mt-1 text-center text-[9px] font-bold py-1 rounded" style={{ backgroundColor: i === 1 ? s.accent_color : s.primary_color + '18', color: i === 1 ? '#1e293b' : s.primary_color, borderRadius: brStyle, ...fieldTypographyStyle(props as HomeSectionProps, `plan_${ni}_cta`) }}>
+                      <div className="mt-1 text-center text-xs font-bold py-1 rounded" style={{ backgroundColor: i === 1 ? s.accent_color : s.primary_color + '18', color: i === 1 ? '#1e293b' : s.primary_color, borderRadius: brStyle, ...fieldTypographyStyle(props as HomeSectionProps, `plan_${ni}_cta`) }}>
                         {pl.cta}
                       </div>
                     </div>
@@ -4141,7 +4141,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                     </div>
                   ))}
                 </div>
-                <p className="text-[9px] text-center mt-2 italic" style={{ color: subTextColor }}>Upload photos above to populate your gallery</p>
+                <p className="text-xs text-center mt-2 italic" style={{ color: subTextColor }}>Upload photos above to populate your gallery</p>
               </div>
             </SectionWrapper>
           )
@@ -4152,7 +4152,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
             <div style={{ padding: spacing }}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'title') }}>{(props.title as string) || 'Latest News & Updates'}</h3>
-                <span className="text-[10px]" style={{ color: s.primary_color }}>View all</span>
+                <span className="text-xs" style={{ color: s.primary_color }}>View all</span>
               </div>
               <div className="space-y-2">
                 {['New product launch', 'Store update', 'Customer story'].map((title, i) => (
@@ -4161,14 +4161,14 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                       <FileText className="w-4 h-4 m-auto mt-3" style={{ color: s.primary_color + '60' }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-semibold truncate" style={{ color: textColor }}>{title}</p>
+                      <p className="text-xs font-medium truncate" style={{ color: textColor }}>{title}</p>
                       <div className="h-1.5 w-3/4 rounded mt-1.5" style={{ backgroundColor: borderColor }} />
                       <p className="text-[8px] mt-1.5" style={{ color: subTextColor }}>Apr 2026</p>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-[9px] text-center mt-2 italic" style={{ color: subTextColor }}>Publish blog posts in the Blog section to populate</p>
+              <p className="text-xs text-center mt-2 italic" style={{ color: subTextColor }}>Publish blog posts in the Blog section to populate</p>
             </div>
           </SectionWrapper>
         )
@@ -4184,7 +4184,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: s.primary_color }}>
                     <PlayCircle className="w-6 h-6 text-white" />
                   </div>
-                  <p className="text-[9px]" style={{ color: s.dark_mode ? 'rgba(255,255,255,0.55)' : subTextColor }}>{vidUrl ? 'Video configured' : 'Paste a YouTube or Vimeo URL above'}</p>
+                  <p className="text-xs" style={{ color: s.dark_mode ? 'rgba(255,255,255,0.55)' : subTextColor }}>{vidUrl ? 'Video configured' : 'Paste a YouTube or Vimeo URL above'}</p>
                 </div>
               </div>
             </SectionWrapper>
@@ -4210,11 +4210,11 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
                   {display.map(n => (
                     <div key={n.key} style={{ backgroundColor: n.color + '18', border: `1px solid ${n.color}40`, borderRadius: brStyle }} className="flex items-center gap-1.5 px-3 py-1.5">
                       <Globe className="w-3 h-3" style={{ color: n.color }} />
-                      <span className="text-[10px] font-semibold" style={{ color: n.color }}>{n.label}</span>
+                      <span className="text-xs font-medium" style={{ color: n.color }}>{n.label}</span>
                     </div>
                   ))}
                 </div>
-                {!active.length && <p className="text-[9px] mt-2 italic" style={{ color: subTextColor }}>Add your social links in the panel</p>}
+                {!active.length && <p className="text-xs mt-2 italic" style={{ color: subTextColor }}>Add your social links in the panel</p>}
               </div>
             </SectionWrapper>
           )
@@ -4226,11 +4226,11 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               <div style={{ backgroundColor: s.primary_color + '08', border: `1px solid ${s.primary_color}30`, borderRadius: brStyle }} className="p-4 text-center">
                 <Calendar className="w-8 h-8 mx-auto mb-2" style={{ color: s.primary_color }} />
                 <h3 className="text-sm font-bold" style={{ fontFamily: s.font_heading, ...fieldTypographyStyle(props as HomeSectionProps, 'title') }}>{(props.title as string) || 'Book an Appointment'}</h3>
-                {props.subtitle && <p className="text-[10px] mt-1" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{props.subtitle as string}</p>}
-                <div className="mt-3 inline-block px-5 py-2 text-[11px] font-bold text-white" style={{ backgroundColor: s.primary_color, borderRadius: brStyle, ...fieldTypographyStyle(props as HomeSectionProps, 'cta_label') }}>
+                {props.subtitle && <p className="text-xs mt-1" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{props.subtitle as string}</p>}
+                <div className="mt-3 inline-block px-5 py-2 text-xs font-bold text-white" style={{ backgroundColor: s.primary_color, borderRadius: brStyle, ...fieldTypographyStyle(props as HomeSectionProps, 'cta_label') }}>
                   {(props.cta_label as string) || 'Book Now'}
                 </div>
-                <p className="text-[9px] mt-2 italic" style={{ color: subTextColor }}>Links to your live booking calendar</p>
+                <p className="text-xs mt-2 italic" style={{ color: subTextColor }}>Links to your live booking calendar</p>
               </div>
             </div>
           </SectionWrapper>
@@ -4276,10 +4276,10 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
           )
           const textEl = (
             <div style={{ flex: 1, padding: '0 12px' }}>
-              {subtitle && <p className="text-[9px] uppercase tracking-widest mb-2" style={{ color: s.primary_color, opacity: 0.8, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{subtitle}</p>}
+              {subtitle && <p className="text-xs uppercase tracking-widest mb-2" style={{ color: s.primary_color, opacity: 0.8, ...fieldTypographyStyle(props as HomeSectionProps, 'subtitle') }}>{subtitle}</p>}
               <p className="text-sm font-bold leading-tight mb-2" style={{ fontFamily: s.font_heading, color: textColor, ...fieldTypographyStyle(props as HomeSectionProps, 'headline') }}>{headline}</p>
-              <p className="text-[10px] leading-relaxed" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'description') }}>{desc}</p>
-              {cta && <div className="mt-2 text-[10px] font-semibold" style={{ color: s.primary_color, borderBottom: `1px solid ${s.primary_color}40`, display: 'inline-block', paddingBottom: '1px', ...fieldTypographyStyle(props as HomeSectionProps, 'cta_primary') }}>{cta} →</div>}
+              <p className="text-xs leading-relaxed" style={{ color: subTextColor, ...fieldTypographyStyle(props as HomeSectionProps, 'description') }}>{desc}</p>
+              {cta && <div className="mt-2 text-xs font-medium" style={{ color: s.primary_color, borderBottom: `1px solid ${s.primary_color}40`, display: 'inline-block', paddingBottom: '1px', ...fieldTypographyStyle(props as HomeSectionProps, 'cta_primary') }}>{cta} →</div>}
             </div>
           )
           return (
@@ -4323,22 +4323,22 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
               <div style={{ padding: spacing }}>
                 <div className="flex items-end justify-between mb-3">
                   <h3 className="text-sm font-bold" style={{ fontFamily: s.font_heading, color: textColor, ...fieldTypographyStyle(props as HomeSectionProps, 'title') }}>{(props.title as string) || 'Care, by department.'}</h3>
-                  <span className="text-[10px]" style={{ color: s.primary_color, borderBottom: `1px solid ${s.primary_color}40` }}>{viewAllLabel}</span>
+                  <span className="text-xs" style={{ color: s.primary_color, borderBottom: `1px solid ${s.primary_color}40` }}>{viewAllLabel}</span>
                 </div>
-                {hasServices && <div className="flex items-center gap-1 mb-2"><span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>● Live services from your store</span></div>}
+                {hasServices && <div className="flex items-center gap-1 mb-2"><span className="text-xs px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: s.primary_color + '15', color: s.primary_color }}>● Live services from your store</span></div>}
                 <div className="grid grid-cols-2 gap-1.5">
                   {(displayServices ?? sampleSpecialties.map(name => ({ id: name, name }))).slice(0, 6).map((item: any, i) => {
                     const Icon = icons[i % icons.length]
                     return (
                       <div key={item.id || i} style={{ backgroundColor: cardBg, border: `1px solid ${borderColor}`, borderRadius: brStyle }} className="p-2.5">
                         <Icon className="w-4 h-4 mb-1.5" style={{ color: s.primary_color }} />
-                        <p className="text-[10px] font-semibold" style={{ color: textColor }}>{item.name}</p>
+                        <p className="text-xs font-medium" style={{ color: textColor }}>{item.name}</p>
                         <p className="text-[8px] mt-0.5" style={{ color: s.primary_color, borderBottom: `1px solid ${s.primary_color}30`, display: 'inline-block' }}>{ctaLabel}</p>
                       </div>
                     )
                   })}
                 </div>
-                {!hasServices && <p className="text-[9px] text-center mt-2 italic" style={{ color: subTextColor }}>Add services to populate specialties</p>}
+                {!hasServices && <p className="text-xs text-center mt-2 italic" style={{ color: subTextColor }}>Add services to populate specialties</p>}
               </div>
             </SectionWrapper>
           )
@@ -4356,7 +4356,7 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
           return (
             <SectionWrapper key={sec.id} id={sec.id}>
               <div style={{ backgroundColor: stripBg, padding: '8px 16px', borderTop: bgStyle === 'light' ? `1px solid ${borderColor}` : undefined, borderBottom: bgStyle === 'light' ? `1px solid ${borderColor}` : undefined }}>
-                <div className="grid grid-cols-3 gap-3 text-[9px]" style={{ color: stripText }}>
+                <div className="grid grid-cols-3 gap-3 text-xs" style={{ color: stripText }}>
                   <div style={{ color: col1Color, fontWeight: 600, ...fieldTypographyStyle(props as HomeSectionProps, 'col_1') }}>{(props.col_1 as string) || '● Emergency open 24/7'}</div>
                   <div style={{ opacity: 0.88, ...fieldTypographyStyle(props as HomeSectionProps, 'col_2') }}>{(props.col_2 as string) || 'Walk-in lab · Mon–Sat 7:00–19:00'}</div>
                   <div style={{ opacity: 0.88, ...fieldTypographyStyle(props as HomeSectionProps, 'col_3') }}>{(props.col_3 as string) || 'Free consultation available'}</div>
@@ -4377,12 +4377,12 @@ function StorefrontPreviewInner({ draft, vendor, selectedSectionId, onSelectSect
           padding: spacing,
           borderTop: `1px solid ${borderColor}`,
         }}
-        className="text-[10px] flex flex-col gap-2"
+        className="text-xs flex flex-col gap-2"
       >
         <div className="flex items-center gap-2">
           <span className="font-semibold text-xs" style={{ color: s.dark_mode ? '#fff' : textColor }}>{vendor?.display_name || 'Your Store'}</span>
           {draft.modules.ess_portal && draft.modules.ess_access === 'footer_link' && (
-            <span className="px-2 py-0.5 rounded-full text-[9px] border" style={{ borderColor, color: subTextColor }}>Employee Login</span>
+            <span className="px-2 py-0.5 rounded-full text-xs border" style={{ borderColor, color: subTextColor }}>Employee Login</span>
           )}
         </div>
         <div className="flex gap-3" style={{ color: subTextColor }}>

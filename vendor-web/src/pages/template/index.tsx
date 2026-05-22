@@ -384,7 +384,7 @@ export default function TemplatePage() {
                             {s.label}
                             {(draft.header_style || 'classic') === s.id && <Check className="w-3.5 h-3.5 text-blue-600" />}
                           </p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{s.desc}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
                         </button>
                       ))}
                     </div>
@@ -454,7 +454,7 @@ export default function TemplatePage() {
                             {s.label}
                             {(draft.card_style || 'default') === s.id && <Check className="w-3.5 h-3.5 text-blue-600" />}
                           </p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{s.desc}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
                         </button>
                       ))}
                     </div>
@@ -485,7 +485,7 @@ export default function TemplatePage() {
                     ].map((s) => (
                       <button key={s.id} onClick={() => updateDraft({ button_radius: s.id })}
                         className={`rounded-xl border-2 p-3 transition-all ${(draft.button_radius || 'rounded') === s.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                        <div className={`mx-auto mb-2 h-7 w-20 flex items-center justify-center text-[10px] font-bold text-white ${s.cls}`} style={{ backgroundColor: draft.colors?.primary || '#2563eb' }}>
+                        <div className={`mx-auto mb-2 h-7 w-20 flex items-center justify-center text-xs font-bold text-white ${s.cls}`} style={{ backgroundColor: draft.colors?.primary || '#2563eb' }}>
                           Button
                         </div>
                         <p className="text-sm font-medium text-center flex items-center justify-center gap-1">
@@ -514,7 +514,7 @@ export default function TemplatePage() {
                           {s.label}
                           {(draft.hero_height || 'medium') === s.id && <Check className="w-3.5 h-3.5 text-blue-600" />}
                         </p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{s.desc}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
                       </button>
                     ))}
                   </div>
@@ -537,7 +537,7 @@ export default function TemplatePage() {
                           {s.label}
                           {(draft.footer_style || 'standard') === s.id && <Check className="w-3.5 h-3.5 text-blue-600" />}
                         </p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{s.desc}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
                       </button>
                     ))}
                   </div>
@@ -631,7 +631,7 @@ export default function TemplatePage() {
                     <span className="font-bold text-sm" style={{ fontFamily: draft.font }}>{vendor?.display_name || 'Store'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-0.5 rounded text-white text-[10px]" style={{ backgroundColor: draft.colors.primary }}>Products</span>
+                    <span className="px-2 py-0.5 rounded text-white text-xs" style={{ backgroundColor: draft.colors.primary }}>Products</span>
                     <ShoppingBag className="w-4 h-4 text-gray-400" />
                   </div>
                 </div>
@@ -639,7 +639,7 @@ export default function TemplatePage() {
                 <>
                   <div className="bg-white border-b px-4 py-2.5 flex flex-col items-center gap-1.5">
                     <span className="font-bold text-sm" style={{ fontFamily: draft.font, color: draft.colors.primary }}>{vendor?.display_name || 'Store'}</span>
-                    <div className="flex items-center gap-1 text-[10px] text-white">
+                    <div className="flex items-center gap-1 text-xs text-white">
                       {['Home', 'Products', 'Services'].map(l => (
                         <span key={l} className="px-2 py-0.5 rounded" style={{ backgroundColor: draft.colors.primary }}>{l}</span>
                       ))}
@@ -654,7 +654,7 @@ export default function TemplatePage() {
                       <ShoppingBag className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="px-4 py-1.5 flex gap-3 text-[10px] text-white" style={{ backgroundColor: draft.colors.primary }}>
+                  <div className="px-4 py-1.5 flex gap-3 text-xs text-white" style={{ backgroundColor: draft.colors.primary }}>
                     {['Home', 'Products', 'Services', 'Policies'].map(l => (
                       <span key={l} className="opacity-90">{l}</span>
                     ))}
@@ -681,14 +681,14 @@ export default function TemplatePage() {
                     }}>
                       {draft.hero_title || `Welcome to ${vendor?.display_name || 'Store'}`}
                     </h2>
-                    <p className="text-[10px] mt-1" style={{
+                    <p className="text-xs mt-1" style={{
                       color: (isGrad || isDark) ? 'rgba(255,255,255,0.75)' : '#6b7280',
                     }}>
                       {draft.hero_subtitle || 'Quality products and services'}
                     </p>
                     <div className="mt-3 flex justify-center gap-2">
-                      <div className={`px-2.5 py-1 text-[10px] font-semibold text-white ${br}`} style={{ backgroundColor: draft.colors.accent }}>Shop Now</div>
-                      <div className={`px-2.5 py-1 text-[10px] font-semibold border ${br}`} style={{
+                      <div className={`px-2.5 py-1 text-xs font-medium text-white ${br}`} style={{ backgroundColor: draft.colors.accent }}>Shop Now</div>
+                      <div className={`px-2.5 py-1 text-xs font-medium border ${br}`} style={{
                         borderColor: (isGrad || isDark) ? 'rgba(255,255,255,0.4)' : draft.colors.primary,
                         color: (isGrad || isDark) ? '#ffffff' : draft.colors.primary,
                       }}>Services</div>
@@ -701,7 +701,7 @@ export default function TemplatePage() {
               {draft.sections.trust_badges && (
                 <div className="bg-white border-y px-4 py-2 flex justify-around">
                   {['Free Shipping', 'Secure Pay', 'Easy Returns'].map((t) => (
-                    <span key={t} className="text-[10px] font-medium text-gray-500 flex items-center gap-1">
+                    <span key={t} className="text-xs font-medium text-gray-500 flex items-center gap-1">
                       <Truck className="w-3 h-3" style={{ color: draft.colors.primary }} />{t}
                     </span>
                   ))}
@@ -713,7 +713,7 @@ export default function TemplatePage() {
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-bold" style={{ fontFamily: draft.font }}>Featured Products</h3>
-                    <span className="text-[10px] flex items-center gap-0.5" style={{ color: draft.colors.primary }}>See all <ChevronRight className="w-3 h-3" /></span>
+                    <span className="text-xs flex items-center gap-0.5" style={{ color: draft.colors.primary }}>See all <ChevronRight className="w-3 h-3" /></span>
                   </div>
                   <div className={`grid gap-2 ${draft.product_layout === 'grid-3' ? 'grid-cols-3' : 'grid-cols-4'}`}>
                     {Array.from({ length: draft.product_layout === 'grid-3' ? 3 : 4 }).map((_, i) => (
@@ -762,7 +762,7 @@ export default function TemplatePage() {
                   border: `1px dashed ${draft.colors.accent}`,
                 }}>
                   <p className="text-xs font-bold" style={{ color: draft.colors.accent }}>Special Offers</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">Up to 50% off on selected items</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Up to 50% off on selected items</p>
                 </div>
               )}
 
@@ -772,7 +772,7 @@ export default function TemplatePage() {
                   background: `linear-gradient(135deg, ${draft.colors.primary}, ${draft.colors.secondary})`,
                 }}>
                   <p className="text-sm font-bold">Ready to get started?</p>
-                  <div className="mt-2 inline-block px-3 py-1 text-[10px] font-bold rounded-lg" style={{ backgroundColor: draft.colors.accent, color: '#1e293b' }}>
+                  <div className="mt-2 inline-block px-3 py-1 text-xs font-bold rounded-lg" style={{ backgroundColor: draft.colors.accent, color: '#1e293b' }}>
                     Browse Products
                   </div>
                 </div>

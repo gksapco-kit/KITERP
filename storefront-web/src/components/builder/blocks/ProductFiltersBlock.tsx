@@ -75,7 +75,7 @@ export default function ProductFiltersBlock({ site, style, props, liveItems }: P
 
       {showCategory && categories.length > 0 && (
         <div>
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Category</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Category</p>
           <ul className="space-y-1.5">
             <li>
               <button
@@ -99,7 +99,7 @@ export default function ProductFiltersBlock({ site, style, props, liveItems }: P
                 >
                   <span className="truncate">{cat.title}</span>
                   {cat.meta?.count != null && (
-                    <span className="text-[11px] text-gray-400 ml-2">{Number(cat.meta.count)}</span>
+                    <span className="text-xs text-gray-400 ml-2">{Number(cat.meta.count)}</span>
                   )}
                 </button>
               </li>
@@ -110,7 +110,7 @@ export default function ProductFiltersBlock({ site, style, props, liveItems }: P
 
       {showPrice && (
         <div>
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Price ({site.currency_symbol})</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Price ({site.currency_symbol})</p>
           <div className="flex gap-2">
             <input
               type="number"
@@ -136,7 +136,7 @@ export default function ProductFiltersBlock({ site, style, props, liveItems }: P
         <button
           type="button"
           onClick={apply}
-          className="flex-1 py-2 text-xs font-semibold rounded-lg text-white"
+          className="flex-1 py-2 text-xs font-medium rounded-lg text-white"
           style={{ backgroundColor: style.primary_color }}
         >
           Apply
@@ -144,7 +144,7 @@ export default function ProductFiltersBlock({ site, style, props, liveItems }: P
         <button
           type="button"
           onClick={clear}
-          className="flex-1 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+          className="flex-1 py-2 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
         >
           Clear
         </button>

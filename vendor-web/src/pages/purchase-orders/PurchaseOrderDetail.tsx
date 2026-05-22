@@ -298,7 +298,7 @@ export default function PurchaseOrderDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{po.po_number}</h1>
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${badge.bg} ${badge.text}`}>{badge.label}</span>
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
             </div>
             <p className="text-sm text-gray-500 mt-1">Supplier: <span className="font-medium text-gray-700">{po.supplier_name}</span></p>
           </div>
@@ -367,7 +367,7 @@ export default function PurchaseOrderDetail() {
       {editingHeader ? (
         <Card className="border-blue-200 bg-blue-50/20">
           <CardContent className="pt-5">
-            <p className="text-xs font-semibold text-blue-700 uppercase mb-4">Editing Purchase Order</p>
+            <p className="text-xs font-medium text-blue-700 uppercase mb-4">Editing Purchase Order</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Supplier</Label>
@@ -459,14 +459,14 @@ export default function PurchaseOrderDetail() {
           <ResizableTable tableId="po-lines" defaultWidths={[220, 130, 110, 80, 80, 80, 90, 90, isDraft ? 60 : 0]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Product</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Variant</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Barcode / SKU</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ordered</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Received</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Remaining</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Unit Cost</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Product</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Variant</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Barcode / SKU</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ordered</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Received</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Remaining</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Unit Cost</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
                 {isDraft && <th className="px-3 py-3" />}
               </tr>
             </thead>
@@ -588,9 +588,9 @@ export default function PurchaseOrderDetail() {
             <ResizableTable tableId="po-receipts" defaultWidths={[150, 300, 200]}>
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Items Received</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Notes</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Items Received</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -704,7 +704,7 @@ function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVaria
   return (
     <div className={`mx-4 mb-4 border border-dashed rounded-xl p-4 ${isScanPrefill ? 'border-green-300 bg-green-50/30' : 'border-blue-300 bg-blue-50/30'}`}>
       <div className="flex items-center gap-2 mb-3">
-        <p className={`text-xs font-semibold uppercase ${isScanPrefill ? 'text-green-700' : 'text-blue-700'}`}>
+        <p className={`text-xs font-medium uppercase ${isScanPrefill ? 'text-green-700' : 'text-blue-700'}`}>
           {isScanPrefill ? '📷 Add Item from Barcode Scan' : 'New Line Item'}
         </p>
         {isScanPrefill && (
@@ -892,7 +892,7 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
       {/* Draft: Edit item */}
       {isDraft && (
         <div className="border-t pt-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Edit Line Item</p>
+          <p className="text-xs font-medium text-gray-500 uppercase mb-3">Edit Line Item</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {variants.length > 0 && (
               <div className="space-y-1">
@@ -926,7 +926,7 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
       {/* Receive: per-item stock-in with inventory fields */}
       {canReceive && item.quantity_received < item.quantity_ordered && (
         <div className="border-t pt-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-3">
+          <p className="text-xs font-medium text-gray-500 uppercase mb-3">
             Receive Stock
             <span className="ml-2 font-normal text-amber-600">
               {item.quantity_ordered - item.quantity_received} remaining

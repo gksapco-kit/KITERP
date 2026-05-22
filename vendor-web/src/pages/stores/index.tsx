@@ -22,6 +22,7 @@ import {
   Scale, Car, Home, Plane,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { useVendorStore } from '@/stores/vendorStore'
 import { toast } from 'sonner'
 import {
@@ -291,7 +292,7 @@ function StoreModal({
               <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
                 {COMPANY_TYPE_GROUPS.map(group => (
                   <div key={group}>
-                    <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-50 sticky top-0">
+                    <p className="px-4 pt-2.5 pb-1 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 sticky top-0">
                       {group}
                     </p>
                     {COMPANY_TYPES.filter(t => t.group === group).map(({ value, label, icon: Icon }) => (
@@ -524,7 +525,7 @@ function BusinessUnitStatsChips({ stores }: { stores: StoreRecord[] }) {
   const activeCount = stores.filter((s) => s.is_active).length
   const staffTotal = stores.reduce((a, s) => a + (s.staff_count ?? 0), 0)
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
       <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-0.5">
         <span className="font-semibold tabular-nums text-indigo-600">{stores.length}</span>
         units
@@ -587,7 +588,7 @@ function StoreCard({
             <p className="truncate text-sm font-semibold leading-tight text-foreground" title={store.name}>
               {store.name}
             </p>
-            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Business unit
             </p>
             <p className="truncate font-mono text-xs text-muted-foreground" title={unitCode}>
@@ -596,11 +597,11 @@ function StoreCard({
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             {isSelected ? (
-              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-semibold text-primary-foreground">
+              <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
                 In use
               </span>
             ) : store.is_default ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                 <Star className="h-2.5 w-2.5" />
                 Default
               </span>
@@ -609,13 +610,13 @@ function StoreCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2 py-1.5 text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2 py-1.5 text-xs text-muted-foreground">
           <span className="tabular-nums">{store.inventory_count ?? 0} SKUs</span>
           <span className="text-border">·</span>
           <span className="tabular-nums">{store.staff_count ?? 0} staff</span>
           <span
             className={cn(
-              'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+              'rounded-full px-1.5 py-0.5 text-xs font-medium',
               store.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground',
             )}
           >
@@ -800,10 +801,10 @@ export default function StoresPage({ embeddedInSettings = false }: StoresPagePro
                   embeddedInSettings ? 'text-base' : 'text-lg',
                 )}
               >
-                {embeddedInSettings ? 'Branches & locations' : 'Business Units'}
+                {embeddedInSettings ? BUSINESS_UNIT_STORE_LABEL : 'Business Units'}
               </h2>
               {stores.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
                   <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5">
                     <span className="font-semibold tabular-nums text-indigo-600">{stores.length}</span>
                     <span className="text-muted-foreground">units</span>
@@ -819,14 +820,14 @@ export default function StoresPage({ embeddedInSettings = false }: StoresPagePro
                 </div>
               )}
               {selectedStore && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                   <Check className="h-3 w-3" />
                   {selectedStore.name}
                 </span>
               )}
             </div>
             {!embeddedInSettings && (
-              <p className="mt-1 hidden text-[11px] text-muted-foreground md:block">
+              <p className="mt-1 hidden text-xs text-muted-foreground md:block">
                 Use in app to filter the dashboard; star marks your default branch.
               </p>
             )}

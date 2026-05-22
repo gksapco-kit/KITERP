@@ -127,7 +127,7 @@ export default function ESSDashboard() {
                 <li key={a.id} className="p-3">
                   <p className="text-sm font-medium text-gray-900">{a.title}</p>
                   <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{a.body}</p>
-                  <p className="text-[10px] text-gray-400 mt-1 uppercase">{a.category ?? 'general'}</p>
+                  <p className="text-xs text-gray-400 mt-1 uppercase">{a.category ?? 'general'}</p>
                 </li>
               ))}
             </ul>

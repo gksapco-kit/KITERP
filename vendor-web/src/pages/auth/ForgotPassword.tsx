@@ -241,7 +241,7 @@ export default function ForgotPassword() {
                       autoFocus
                     />
                   </div>
-                  <p className="text-[11px] text-gray-400">
+                  <p className="text-xs text-gray-400">
                     We'll send a 6-digit code to this email address.
                   </p>
                 </div>
@@ -256,7 +256,7 @@ export default function ForgotPassword() {
                     inferCountryFromLocation
                     placeholder="Mobile number"
                   />
-                  <p className="text-[11px] text-gray-400">
+                  <p className="text-xs text-gray-400">
                     We'll send a 6-digit OTP to this number.{' '}
                     <span className="text-amber-600 font-medium">
                       Dev mode: OTP shown in-app (no SMS sent).
@@ -338,7 +338,7 @@ export default function ForgotPassword() {
                   />
                 ))}
               </div>
-              <p className="text-[11px] text-gray-400">
+              <p className="text-xs text-gray-400">
                 Sent to {maskedTarget}. Valid for 10 minutes.
               </p>
             </div>

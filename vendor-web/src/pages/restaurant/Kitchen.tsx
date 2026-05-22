@@ -71,7 +71,7 @@ export default function RestaurantKitchenPage() {
                   {ticket.table_label ? `Table ${ticket.table_label}` : 'Takeaway / counter'}
                 </p>
               </div>
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+              <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
                 ticket.kitchen_ticket_status === 'new' ? 'bg-blue-100 text-blue-700'
                   : ticket.kitchen_ticket_status === 'preparing' ? 'bg-amber-100 text-amber-800'
                   : ticket.kitchen_ticket_status === 'ready' ? 'bg-emerald-100 text-emerald-800'

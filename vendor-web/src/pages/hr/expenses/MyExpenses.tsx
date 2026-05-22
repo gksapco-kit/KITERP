@@ -60,7 +60,7 @@ export default function MyExpensesPage() {
                     </td>
                     <td className="py-2 px-4 text-xs text-gray-500">{c.expense_date ?? '—'}</td>
                     <td className="py-2 px-4">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
                     </td>
                     <td className="py-2 px-4 text-sm">
                       <div className="flex items-center gap-1">

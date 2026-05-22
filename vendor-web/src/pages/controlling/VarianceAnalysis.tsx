@@ -211,7 +211,7 @@ export default function VarianceAnalysisPage() {
           { label: 'Scrap variance', value: totals.scrap, help: 'Scrap cost deviation from plan' },
         ].map(({ label, value, help }) => (
           <div key={label} className="rounded-lg border border-border bg-card p-3 text-card-foreground" title={help}>
-            <p className="text-[11px] text-muted-foreground mb-1">{label}</p>
+            <p className="text-xs text-muted-foreground mb-1">{label}</p>
             <VariancePill value={value} />
           </div>
         ))}
@@ -289,15 +289,15 @@ export default function VarianceAnalysisPage() {
                       onClick={() => setExpandedId(isExpanded ? null : o.id)}
                     >
                       <td className="px-4 py-3">
-                        <p className="font-mono text-xs font-semibold text-foreground">{o.order_no}</p>
+                        <p className="font-mono text-xs font-medium text-foreground">{o.order_no}</p>
                         {o.title && (
-                          <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">{o.title}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[180px]">{o.title}</p>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           <span className="text-xs font-medium text-muted-foreground">{o.order_kind}</span>
-                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium w-fit', statusColor(o.status))}>
+                          <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium w-fit', statusColor(o.status))}>
                             {o.status}
                           </span>
                         </div>
@@ -331,7 +331,7 @@ export default function VarianceAnalysisPage() {
                         <td colSpan={9} className="px-4 py-4">
                           <div className="rounded-lg border border-border bg-card overflow-hidden">
                             <div className="px-3 py-2 border-b border-border bg-muted/40">
-                              <h3 className="text-xs font-semibold text-foreground">
+                              <h3 className="text-xs font-medium text-foreground">
                                 Cost lines — {o.order_no}
                               </h3>
                             </div>

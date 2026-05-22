@@ -12,7 +12,7 @@ function DietTags({ diet }: { diet: Diet[] }) {
         <span
           key={d}
           title={dietLabels[d].description}
-          className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-border bg-background px-1 text-[10px] font-medium text-muted-foreground"
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-border bg-background px-1 text-xs font-medium text-muted-foreground"
         >
           {dietLabels[d].label}
         </span>
@@ -190,7 +190,7 @@ export function AllergenLegend({ compact = false }: LegendProps) {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {entries.map(([key, val]) => (
             <div key={key} className="flex items-center gap-2 text-sm">
-              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-border bg-background px-1.5 text-[11px] font-medium">
+              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-border bg-background px-1.5 text-xs font-medium">
                 {val.label}
               </span>
               <span className="text-muted-foreground">{val.description}</span>

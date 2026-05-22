@@ -134,7 +134,7 @@ export default function NavBlock({ site, style, props, liveItems, branchCode: br
 
   const branchSheet = showBranchPicker ? (
     <div>
-      <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">Store location</p>
+      <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Store location</p>
       <div className="flex flex-col gap-0.5">
         <button
           type="button"

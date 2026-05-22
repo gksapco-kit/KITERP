@@ -59,7 +59,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             <span className={cn(
-              'text-[10px] font-bold px-2 py-0.5 rounded-full',
+              'text-xs font-bold px-2 py-0.5 rounded-full',
               sub.form_type === 'contact' ? 'bg-blue-100 text-blue-700' :
               sub.form_type === 'newsletter' ? 'bg-emerald-100 text-emerald-700' :
               sub.form_type === 'booking' ? 'bg-amber-100 text-amber-700' :
@@ -72,7 +72,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {sub.crm_lead_id && (
-            <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">CRM Lead</span>
+            <span className="text-xs bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">CRM Lead</span>
           )}
           <span className="text-xs text-gray-400 flex items-center gap-1">
             <Calendar className="w-3 h-3" />
@@ -93,7 +93,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
               ...Object.fromEntries(otherFields.map(([k, v]) => [k.replace(/_/g, ' '), String(v)])),
             }).map(([label, value]) => (
               <div key={label} className={cn(label === 'Message' ? 'sm:col-span-2' : '')}>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
                 <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{value != null && value !== '' ? String(value) : '—'}</p>
               </div>
             ))}
@@ -320,7 +320,7 @@ function ChatsTab() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate text-gray-900">{c.visitor_name || c.visitor_email || c.visitor_id || 'Visitor'}</p>
-                    <p className="text-[11px] text-gray-400">{formatDateTime(c.last_message_at)}</p>
+                    <p className="text-xs text-gray-400">{formatDateTime(c.last_message_at)}</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
@@ -368,9 +368,9 @@ function ChatsTab() {
                 return (
                   <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                     <div className={cn('max-w-[75%] rounded-2xl px-4 py-2.5 text-sm', mine ? 'bg-primary text-white' : bot ? 'bg-primary/10 text-primary' : 'bg-white border border-gray-200 text-gray-900 shadow-sm')}>
-                      {bot && <p className="text-[10px] uppercase font-bold mb-1 opacity-60">Bot</p>}
+                      {bot && <p className="text-xs uppercase font-bold mb-1 opacity-60">Bot</p>}
                       <p className="whitespace-pre-wrap">{m.body}</p>
-                      <p className={cn('text-[10px] mt-1.5', mine ? 'text-primary-foreground/85' : 'text-gray-400')}>{formatDateTime(m.created_at)}</p>
+                      <p className={cn('text-xs mt-1.5', mine ? 'text-primary-foreground/85' : 'text-gray-400')}>{formatDateTime(m.created_at)}</p>
                     </div>
                   </div>
                 )
@@ -409,7 +409,7 @@ export default function InboxPage() {
     <div className="space-y-5">
       {/* Page header */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Overview</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Overview</p>
         <h1 className="text-2xl font-bold text-foreground">Inbox</h1>
         <p className="text-sm text-muted-foreground mt-1">Chats from your website widget and form submissions — all in one place.</p>
       </div>

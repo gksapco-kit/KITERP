@@ -20,12 +20,12 @@ const FEATURE_META: Record<string, { label: string; icon: typeof Smartphone }> =
 
 function PlanBadge({ current, featured }: { current?: boolean; featured?: boolean }) {
   if (current) return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
       <Check className="w-3 h-3" /> Current Plan
     </span>
   )
   if (featured) return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
       <Zap className="w-3 h-3" /> Popular
     </span>
   )

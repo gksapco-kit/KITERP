@@ -98,7 +98,7 @@ function CyclesTab() {
                   <tr key={c.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <Link to={`/hr/performance/cycles/${c.id}`} className="text-sm font-medium text-blue-700 hover:underline">{c.name}</Link>
-                      {c.description && <p className="text-[11px] text-gray-500">{c.description}</p>}
+                      {c.description && <p className="text-xs text-gray-500">{c.description}</p>}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">{c.period_start} → {c.period_end}</td>
                     <td className="py-3 px-4 text-xs text-gray-500">{c.review_type}</td>
@@ -280,7 +280,7 @@ function CycleModal({ existing, onClose }: { existing?: ReviewCycle | null; onCl
                     </button>
                   </div>
                 ))}
-                <p className="text-[11px] text-gray-500">
+                <p className="text-xs text-gray-500">
                   Total weight: {kpis.reduce((s, k) => s + (Number(k.weight) || 0), 0)}%
                 </p>
               </div>
@@ -346,7 +346,7 @@ function GoalsTab() {
                 <tr key={g.id} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <p className="text-sm font-medium">{g.title}</p>
-                    {g.description && <p className="text-[11px] text-gray-500">{g.description}</p>}
+                    {g.description && <p className="text-xs text-gray-500">{g.description}</p>}
                   </td>
                   <td className="py-3 px-4 text-xs text-gray-500">{g.category ?? '—'}</td>
                   <td className="py-3 px-4">

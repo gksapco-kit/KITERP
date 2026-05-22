@@ -82,7 +82,7 @@ export function ResourcePicker({
               {showFeatures && (
                 <ul className="mt-3 flex flex-wrap gap-1.5">
                   {r.features.map((f) => (
-                    <Badge key={f} variant="outline" className="text-[10px] font-normal">
+                    <Badge key={f} variant="outline" className="text-xs font-normal">
                       {f}
                     </Badge>
                   ))}
@@ -139,7 +139,7 @@ export function BookingWizard({ layout = "horizontal", showLabels = true }: Wiza
                   <button
                     onClick={() => setStep(i)}
                     className={cn(
-                      "flex h-7 w-7 items-center justify-center rounded-full border-2 bg-card text-xs font-semibold transition-colors",
+                      "flex h-7 w-7 items-center justify-center rounded-full border-2 bg-card text-xs font-medium transition-colors",
                       reached
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border text-muted-foreground",
@@ -150,7 +150,7 @@ export function BookingWizard({ layout = "horizontal", showLabels = true }: Wiza
                   {showLabels && (
                     <>
                       <div className="mt-2 text-xs font-medium">{s.label}</div>
-                      <div className="text-[10px] text-muted-foreground">{s.description}</div>
+                      <div className="text-xs text-muted-foreground">{s.description}</div>
                     </>
                   )}
                 </li>
@@ -165,7 +165,7 @@ export function BookingWizard({ layout = "horizontal", showLabels = true }: Wiza
                 <li key={s.id} className="flex items-start gap-3">
                   <div
                     className={cn(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold",
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-medium",
                       reached
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border text-muted-foreground",
@@ -318,7 +318,7 @@ export function PastBookings({
                   <h4 className="font-medium">{b.service}</h4>
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
                       meta.className,
                     )}
                   >
@@ -329,7 +329,7 @@ export function PastBookings({
                   {b.date} · {b.time}
                   {b.withWho && ` · with ${b.withWho}`}
                 </div>
-                <div className="mt-1 text-[11px] text-muted-foreground">{b.id}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{b.id}</div>
               </div>
               <div className="flex items-center gap-3 sm:flex-col sm:items-end">
                 <div className="text-right text-sm font-semibold">

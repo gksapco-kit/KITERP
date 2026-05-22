@@ -179,9 +179,9 @@ export default function ESSExpensesPage() {
                     </td>
                     <td className="py-2 px-4 text-xs text-gray-500">{c.expense_date ?? '—'}</td>
                     <td className="py-2 px-4">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
                       {c.status === 'rejected' && c.decision_note && (
-                        <p className="text-[10px] text-red-600 mt-1 max-w-[140px] truncate" title={c.decision_note}>
+                        <p className="text-xs text-red-600 mt-1 max-w-[140px] truncate" title={c.decision_note}>
                           {c.decision_note}
                         </p>
                       )}

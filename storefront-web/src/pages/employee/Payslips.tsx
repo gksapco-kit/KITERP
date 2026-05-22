@@ -27,7 +27,7 @@ function PayslipModal({ id, onClose }: { id: string; onClose: () => void }) {
             </div>
             {(s.earnings ?? []).length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Earnings</p>
+                <p className="text-xs font-medium uppercase text-gray-500 mb-2">Earnings</p>
                 <div className="bg-green-50 rounded-lg divide-y">
                   {(s.earnings as any[]).map((e: any, i: number) => (
                     <div key={i} className="flex justify-between px-3 py-2 text-sm">
@@ -40,7 +40,7 @@ function PayslipModal({ id, onClose }: { id: string; onClose: () => void }) {
             )}
             {(s.deductions ?? []).length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Deductions</p>
+                <p className="text-xs font-medium uppercase text-gray-500 mb-2">Deductions</p>
                 <div className="bg-red-50 rounded-lg divide-y">
                   {(s.deductions as any[]).map((d: any, i: number) => (
                     <div key={i} className="flex justify-between px-3 py-2 text-sm">
@@ -127,7 +127,7 @@ export default function ESSPayslipsPage() {
                     {s.currency ?? 'INR'} {Number(s.net_pay ?? 0).toFixed(2)}
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${STATUS_COLOR[s.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_COLOR[s.status] ?? 'bg-gray-100 text-gray-600'}`}>
                       {s.status}
                     </span>
                   </td>

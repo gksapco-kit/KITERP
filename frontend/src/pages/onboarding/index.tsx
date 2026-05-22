@@ -123,7 +123,7 @@ export default function OnboardingBasic() {
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-gray-400">
                     <Store className="w-8 h-8" />
-                    <span className="text-[10px] font-medium">Add Logo</span>
+                    <span className="text-xs font-medium">Add Logo</span>
                   </div>
                 )}
               </button>
@@ -153,7 +153,7 @@ export default function OnboardingBasic() {
                   <div className="flex flex-col items-center gap-1 text-gray-400">
                     <Image className="w-8 h-8" />
                     <span className="text-xs font-medium">Add Store Banner</span>
-                    <span className="text-[10px]">Recommended: 1200 x 400</span>
+                    <span className="text-xs">Recommended: 1200 x 400</span>
                   </div>
                 )}
               </button>

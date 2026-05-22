@@ -131,7 +131,7 @@ function ProgressIndicator({ current }: { current: number }) {
         return (
           <li key={s} className="flex flex-1 items-center gap-2">
             <span
-              className="flex h-6 w-6 items-center justify-center text-xs font-semibold"
+              className="flex h-6 w-6 items-center justify-center text-xs font-medium"
               style={{
                 borderRadius: "999px",
                 background: done ? "hsl(var(--success))" : active ? "hsl(var(--brand-primary))" : "hsl(var(--surface-muted))",

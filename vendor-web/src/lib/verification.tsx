@@ -147,10 +147,10 @@ export function VerifiedBadge({
   const m = map[level]
   const sizeCls =
     size === 'xs'
-      ? 'text-[9px] px-1.5 py-0.5 gap-0.5'
+      ? 'text-xs px-1.5 py-0.5 gap-0.5'
       : size === 'md'
         ? 'text-xs px-2.5 py-1 gap-1.5'
-        : 'text-[10px] px-2 py-0.5 gap-1'
+        : 'text-xs px-2 py-0.5 gap-1'
   const iconCls = size === 'md' ? 'w-3.5 h-3.5' : 'w-3 h-3'
   return (
     <span

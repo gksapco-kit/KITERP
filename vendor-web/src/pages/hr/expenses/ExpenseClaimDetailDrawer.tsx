@@ -178,7 +178,7 @@ export default function ExpenseClaimDetailDrawer({
                   <dt className="text-gray-500">Status</dt>
                   <dd>
                     {st && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
                     )}
                   </dd>
                 </div>
@@ -202,7 +202,7 @@ export default function ExpenseClaimDetailDrawer({
                 )}
                 {c.decision_note && (
                   <div className="px-3 py-2 bg-red-50/80">
-                    <dt className="text-red-700 text-xs font-semibold mb-1">
+                    <dt className="text-red-700 text-xs font-medium mb-1">
                       {c.status === 'rejected' ? 'Rejection reason' : 'Decision note'}
                     </dt>
                     <dd className="text-red-900 whitespace-pre-wrap">{c.decision_note}</dd>
@@ -238,7 +238,7 @@ export default function ExpenseClaimDetailDrawer({
                     <li key={d.id} className="flex items-center justify-between gap-2 text-sm border rounded-lg px-3 py-2">
                       <div className="min-w-0">
                         <p className="font-medium truncate">{d.document_name}</p>
-                        <p className="text-[11px] text-gray-500 capitalize">{d.document_type?.replace('_', ' ')}</p>
+                        <p className="text-xs text-gray-500 capitalize">{d.document_type?.replace('_', ' ')}</p>
                       </div>
                       {d.file_url && (
                         <a
@@ -274,7 +274,7 @@ export default function ExpenseClaimDetailDrawer({
                       }`}
                     >
                       <span className="truncate">{ec.title}</span>
-                      <span className={`text-[10px] px-1 py-0.5 rounded shrink-0 ${ecs.color}`}>{ecs.label}</span>
+                      <span className={`text-xs px-1 py-0.5 rounded shrink-0 ${ecs.color}`}>{ecs.label}</span>
                     </button>
                   )
                 })}

@@ -301,7 +301,7 @@ export default function ControllingSetupPage() {
                   >
                     <span className="font-mono text-primary font-semibold">{p.code}</span>
                     <span className="text-gray-700 flex-1 min-w-[100px]">{p.name}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                       p.overhead_type === 'direct' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
                     }`}>{p.overhead_type ?? 'indirect'}</span>
                     <span className="text-gray-400 text-xs">{(p.formula_type ?? 'fixed_rate').replace(/_/g, ' ')}</span>
@@ -314,7 +314,7 @@ export default function ControllingSetupPage() {
 
           {poolForRates && (
             <div className="border-t border-gray-100 pt-3 space-y-2">
-              <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Rates for selected pool</h3>
+              <h3 className="text-xs font-medium text-gray-600 uppercase tracking-wide">Rates for selected pool</h3>
               <div className="flex flex-wrap gap-2 items-end">
                 <input
                   type="date"

@@ -71,7 +71,7 @@ function StatusBadge({ status }: { status: string }) {
   }
   const cls = map[status?.toLowerCase()] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
   return (
-    <span className={cn('inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold capitalize', cls)}>
+    <span className={cn('inline-block rounded px-1.5 py-0.5 text-xs font-medium capitalize', cls)}>
       {status}
     </span>
   )
@@ -118,7 +118,7 @@ function NavResults({
     <div ref={listRef} className="overflow-y-auto max-h-[380px] divide-y divide-border/50">
       {grouped.map((group) => (
         <div key={group.title} className="py-1">
-          <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             {group.title}
           </p>
           {group.items.map((entry) => {
@@ -145,7 +145,7 @@ function NavResults({
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm font-medium truncate">{entry.label}</span>
                   {entry.description && (
-                    <span className={cn('block text-[10px] truncate', isActive ? 'text-primary/70' : 'text-muted-foreground')}>
+                    <span className={cn('block text-xs truncate', isActive ? 'text-primary/70' : 'text-muted-foreground')}>
                       {entry.description}
                     </span>
                   )}
@@ -208,7 +208,7 @@ function RecordResults({
   if (!active) {
     return (
       <div className="p-4">
-        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Browse by category</p>
+        <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Browse by category</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {ENTITY_CATEGORIES.map((cat) => {
             const Icon = cat.icon
@@ -223,8 +223,8 @@ function RecordResults({
                 onClick={() => {/* focuses search input with category prefix */}}
               >
                 <Icon className={cn('w-5 h-5 shrink-0', cat.color)} />
-                <p className="text-xs font-semibold text-foreground">{cat.label}</p>
-                <p className="text-[10px] text-muted-foreground leading-snug">{cat.description}</p>
+                <p className="text-xs font-medium text-foreground">{cat.label}</p>
+                <p className="text-xs text-muted-foreground leading-snug">{cat.description}</p>
               </button>
             )
           })}
@@ -387,12 +387,12 @@ function RecordGroup({
       <div className="flex items-center justify-between px-4 py-1.5">
         <div className="flex items-center gap-1.5">
           <Icon className={cn('w-3.5 h-3.5 shrink-0', color)} />
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-          <span className="text-[10px] text-muted-foreground">({count})</span>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+          <span className="text-xs text-muted-foreground">({count})</span>
         </div>
         <button
           onClick={onViewAll}
-          className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+          className="text-xs text-primary hover:underline flex items-center gap-0.5"
         >
           View all <ArrowRight className="w-2.5 h-2.5" />
         </button>
@@ -547,7 +547,7 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <kbd className="hidden shrink-0 sm:inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+          <kbd className="hidden shrink-0 sm:inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
             Esc
           </kbd>
           <button
@@ -565,7 +565,7 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
           <button
             onClick={() => setTab('navigate')}
             className={cn(
-              'flex items-center gap-1.5 px-1 py-2.5 text-xs font-semibold border-b-2 mr-4 transition-colors',
+              'flex items-center gap-1.5 px-1 py-2.5 text-xs font-medium border-b-2 mr-4 transition-colors',
               tab === 'navigate'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -574,7 +574,7 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
             <Navigation className="w-3.5 h-3.5" />
             Navigate
             {filteredNavCount > 0 && (
-              <span className={cn('ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold', tab === 'navigate' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
+              <span className={cn('ml-0.5 rounded px-1.5 py-0.5 text-xs font-bold', tab === 'navigate' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
                 {filteredNavCount}
               </span>
             )}
@@ -582,7 +582,7 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
           <button
             onClick={() => setTab('records')}
             className={cn(
-              'flex items-center gap-1.5 px-1 py-2.5 text-xs font-semibold border-b-2 transition-colors',
+              'flex items-center gap-1.5 px-1 py-2.5 text-xs font-medium border-b-2 transition-colors',
               tab === 'records'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -613,7 +613,7 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
 
         {/* Footer */}
         <div className="border-t border-border bg-muted/40 px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {tab === 'navigate' && (
               <>
                 <span className="flex items-center gap-1">
@@ -631,7 +631,7 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
               close
             </span>
           </div>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono">⌘K</kbd>
             {' '}to open anytime
           </span>

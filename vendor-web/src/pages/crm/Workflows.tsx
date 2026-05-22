@@ -121,7 +121,7 @@ export default function WorkflowsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
           <h1 className="text-2xl font-bold text-gray-900">Workflow Automation</h1>
         </div>
         <Button onClick={() => setShowCreate(true)}>

@@ -64,7 +64,7 @@ export function HeroSection({
             </div>
             <div className="order-1 flex min-w-0 flex-col justify-between gap-6 xl:order-2 xl:col-span-6 xl:gap-8 xl:pl-1">
               <div className="min-w-0 space-y-4 sm:space-y-5">
-                <p className="text-[10px] uppercase tracking-[0.18em] opacity-60 sm:text-xs sm:tracking-[0.2em]" style={fieldTypographyStyle(props, 'editorial_kicker')}>{kicker}</p>
+                <p className="text-xs uppercase tracking-[0.18em] opacity-60 sm:text-xs sm:tracking-[0.2em]" style={fieldTypographyStyle(props, 'editorial_kicker')}>{kicker}</p>
                 <h1
                   className="max-w-full hyphens-none text-balance break-normal font-display font-light tracking-[-0.02em] text-[clamp(0.78rem,min(2.05vw_+_0.26rem,0.34rem_+_3.6dvh),1.18rem)] sm:text-[clamp(0.8rem,min(2.2vw_+_0.28rem,0.36rem_+_3.85dvh),1.25rem)] md:text-[clamp(0.84rem,min(2.35vw_+_0.3rem,0.38rem_+_4dvh),1.38rem)] lg:text-[clamp(0.88rem,min(2.5vw_+_0.32rem,0.4rem_+_4.15dvh),1.52rem)] xl:text-[clamp(1.1rem,2.1vw_+_0.42rem,2.2rem)] 2xl:text-[clamp(1.15rem,2.25vw_+_0.45rem,2.45rem)] leading-[1.18] sm:leading-[1.12] md:leading-[1.08] xl:leading-[1.1] 2xl:leading-[1.06]"
                   style={fieldTypographyStyle(props, 'headline', { fluidMaxPx: true })}
@@ -104,7 +104,7 @@ export function HeroSection({
           <div className="absolute inset-0 bg-gradient-to-b from-resto-bg/40 via-transparent to-resto-bg" />
         </div>
         <div className="relative z-[1] h-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 flex flex-col justify-end py-10 sm:py-0 sm:pb-20 pb-14 min-h-0 min-w-0 w-full">
-          <p className="text-[10px] sm:text-xs uppercase tracking-[0.22em] sm:tracking-[0.3em] text-resto-accent mb-3 sm:mb-6" style={fieldTypographyStyle(props, 'editorial_kicker')}>{kicker}</p>
+          <p className="text-xs sm:text-xs uppercase tracking-[0.22em] sm:tracking-[0.3em] text-resto-accent mb-3 sm:mb-6" style={fieldTypographyStyle(props, 'editorial_kicker')}>{kicker}</p>
           <h1
             className="font-display font-light text-[clamp(1rem,2.2vw_+_0.28rem,1.7rem)] sm:text-[clamp(1.2rem,2.9vw_+_0.35rem,2.1rem)] md:text-[clamp(1.5rem,3.8vw_+_0.38rem,2.95rem)] lg:text-[clamp(1.85rem,4.8vw_+_0.4rem,4rem)] leading-[1.12] sm:leading-[1.06] md:leading-[0.98] lg:leading-[0.88] tracking-tight max-w-full text-resto-ink break-normal hyphens-none flex flex-col gap-1.5 sm:gap-1"
             style={fieldTypographyStyle(props, 'headline', { fluidMaxPx: true })}

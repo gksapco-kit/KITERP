@@ -93,7 +93,7 @@ function PoliciesTab() {
                   <tr key={p.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <Link to={`/hr/compliance/policies/${p.id}`} className="text-sm font-medium text-blue-700 hover:underline">{p.title}</Link>
-                      {p.summary && <p className="text-[11px] text-gray-500 line-clamp-1">{p.summary}</p>}
+                      {p.summary && <p className="text-xs text-gray-500 line-clamp-1">{p.summary}</p>}
                     </td>
                     <td className="py-3 px-4 text-xs text-gray-500">{p.category ?? '—'}</td>
                     <td className="py-3 px-4 text-sm text-gray-700">v{p.version}</td>
@@ -307,7 +307,7 @@ function CertificationsTab() {
                     <td className="py-3 px-4 text-sm">{empMap.get(c.employee_id) ?? c.employee_id.slice(0, 8)}</td>
                     <td className="py-3 px-4">
                       <p className="text-sm font-medium">{c.name}</p>
-                      {c.cert_number && <p className="text-[11px] text-gray-500">#{c.cert_number}</p>}
+                      {c.cert_number && <p className="text-xs text-gray-500">#{c.cert_number}</p>}
                     </td>
                     <td className="py-3 px-4 text-xs text-gray-500">{c.type ?? '—'}</td>
                     <td className="py-3 px-4 text-sm text-gray-600">{c.issued_by ?? '—'}</td>

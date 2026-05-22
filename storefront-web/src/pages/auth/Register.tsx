@@ -120,7 +120,7 @@ export default function Register() {
             </div>
           </div>
 
-          <p className="absolute bottom-4 text-white/35 text-[11px]">Powered by KITERP</p>
+          <p className="absolute bottom-4 text-white/35 text-xs">Powered by KITERP</p>
         </div>
 
         {/* ── Right form panel ── */}

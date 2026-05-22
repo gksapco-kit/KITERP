@@ -81,7 +81,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
           <div>
             {eyebrow && (
-              <span className="text-[11px] uppercase tracking-[0.3em] opacity-70 block" style={{ color: textColor }}>
+              <span className="text-xs uppercase tracking-[0.3em] opacity-70 block" style={{ color: textColor }}>
                 {eyebrow}
               </span>
             )}
@@ -141,7 +141,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                   )}
                 </div>
                 <div>
-                  <span className="text-[11px] uppercase tracking-[0.3em] opacity-70" style={{ color: textColor }}>
+                  <span className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: textColor }}>
                     Featured{(featuredOne.meta as any)?.brand != null && String((featuredOne.meta as any).brand).trim() !== '' ? ` · ${(featuredOne.meta as any).brand}` : ''}
                   </span>
                   <h3 className="text-3xl sm:text-4xl lg:text-5xl mt-3 mb-4 text-balance" style={{ fontFamily: style.font_heading, color: textColor }}>
@@ -190,11 +190,11 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>
                       )}
                       {showBadges && !!item.meta?.is_featured && (
-                        <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="absolute top-3 left-3 text-[10px] uppercase tracking-[0.2em] px-2 py-1">Featured</span>
+                        <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
                       )}
                       {!isPh && (
                         <div
-                          className="absolute bottom-3 left-3 right-3 h-10 text-[10px] uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-semibold"
+                          className="absolute bottom-3 left-3 right-3 h-10 text-xs uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-semibold"
                           style={{ backgroundColor: textColor, color: style.bg_color }}
                         >
                           Quick add
@@ -214,7 +214,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       type="button"
                       onClick={e => handleAddToCart(e, item)}
                       disabled={outOfStock}
-                      className="mt-3 w-full py-2 text-xs font-semibold rounded-lg text-white disabled:opacity-50"
+                      className="mt-3 w-full py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50"
                       style={{ backgroundColor: style.primary_color }}
                     >
                       {outOfStock ? 'Out of stock' : 'Add to cart'}

@@ -228,7 +228,7 @@ function PurchaseOrdersSection({ supplierId }: { supplierId: string }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
           <ClipboardList className="w-3.5 h-3.5" /> Purchase Orders
           {purchaseOrders.length > 0 && (
             <span className="bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 rounded-full ml-1">
@@ -423,7 +423,7 @@ function SupplierEditModal({ supplier, onClose }: { supplier: Supplier; onClose:
               <Label className="flex items-center gap-1"><IndianRupee className="w-3 h-3" /> Opening Balance</Label>
               <Input type="number" step="0.01" value={openingBalance}
                 onChange={e => setOpeningBalance(e.target.value)} placeholder="0.00" />
-              <p className="text-[10px] text-gray-400">+ve = payable to supplier</p>
+              <p className="text-xs text-gray-400">+ve = payable to supplier</p>
             </div>
           </div>
           {/* Address */}
@@ -544,7 +544,7 @@ function CustomerEditModal({ customer, onClose }: { customer: Customer; onClose:
             <Label className="flex items-center gap-1"><IndianRupee className="w-3 h-3" /> Opening Balance</Label>
             <Input type="number" step="0.01" value={openingBalance}
               onChange={e => setOpeningBalance(e.target.value)} placeholder="0.00" />
-            <p className="text-[10px] text-gray-400">+ve = receivable (Dr) · -ve = advance received (Cr)</p>
+            <p className="text-xs text-gray-400">+ve = receivable (Dr) · -ve = advance received (Cr)</p>
           </div>
           {/* Billing Address */}
           <div className="space-y-1.5">
@@ -636,10 +636,10 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
             <div>
               <h2 className="text-base font-semibold text-gray-900 leading-tight">{record.name}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
                   TYPE_COLORS[record.type] ?? 'bg-gray-50 text-gray-600 border-gray-200'
                 }`}>{record.typeLabel}</span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${stCfg.bg} ${stCfg.text}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${stCfg.bg} ${stCfg.text}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${stCfg.dot}`} />
                   {stCfg.label}
                 </span>
@@ -664,12 +664,12 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
               <div className="bg-gray-50 rounded-xl p-3 text-center">
                 <ShoppingBag className="w-4 h-4 text-primary/60 mx-auto mb-1" />
                 <p className="text-2xl font-bold text-gray-900">{customer.total_orders}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5">Orders</p>
+                <p className="text-xs text-gray-500 mt-0.5">Orders</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3 text-center">
                 <TrendingUp className="w-4 h-4 text-green-400 mx-auto mb-1" />
                 <p className="text-sm font-bold text-gray-900">{formatCurrency(customer.total_spent)}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5">Total Spent</p>
+                <p className="text-xs text-gray-500 mt-0.5">Total Spent</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3 text-center">
                 <IndianRupee className="w-4 h-4 text-orange-400 mx-auto mb-1" />
@@ -678,7 +678,7 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
                     <p className={`text-sm font-bold ${(customer.opening_balance ?? 0) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
                       {formatCurrency(Math.abs(customer.opening_balance ?? 0))}
                     </p>
-                    <p className="text-[10px] text-gray-500">{(customer.opening_balance ?? 0) > 0 ? 'Dr (Receivable)' : 'Cr (Advance)'}</p>
+                    <p className="text-xs text-gray-500">{(customer.opening_balance ?? 0) > 0 ? 'Dr (Receivable)' : 'Cr (Advance)'}</p>
                   </>
                 ) : (
                   <p className="text-sm text-gray-400 pt-1">—</p>
@@ -689,7 +689,7 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
 
           {/* ── Contact Information ── */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Contact Information</h3>
+            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Contact Information</h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-3">
               {supplier?.contact_name && (
                 <div className="flex items-center gap-3">
@@ -744,7 +744,7 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
           {/* ── Business / GST Details ── */}
           {hasBusinessDetails && (
             <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Business Details</h3>
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Business Details</h3>
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                 {record.companyName && (
                   <div className="flex justify-between items-center">
@@ -779,7 +779,7 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
           {/* ── Notes (supplier only) ── */}
           {supplier?.notes && (
             <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Notes</h3>
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Notes</h3>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{supplier.notes}</p>
               </div>
@@ -788,7 +788,7 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
 
           {/* ── Timeline ── */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Timeline</h3>
+            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Timeline</h3>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
@@ -813,14 +813,14 @@ function MasterDataDrawer({ record, onClose, onEdit }: {
 
           {/* ── Status & Access Controls ── */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
               <ShieldAlert className="w-3.5 h-3.5" /> Status &amp; Access Controls
             </h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-3">
               {/* Current status */}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">Current Status</span>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${stCfg.bg} ${stCfg.text}`}>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${stCfg.bg} ${stCfg.text}`}>
                   <span className={`w-2 h-2 rounded-full ${stCfg.dot}`} />
                   {stCfg.label}
                 </span>
@@ -1257,7 +1257,7 @@ export default function MasterDataReport() {
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">Master Data</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">Master Data</p>
           <h1 className="text-2xl font-bold text-gray-900">Customers / Suppliers</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {allRecords.length} total records across all party types
@@ -1296,7 +1296,7 @@ export default function MasterDataReport() {
               <button
                 onClick={clearAll}
                 title="Clear all filters"
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all whitespace-nowrap ${
                   hasActiveFilters
                     ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100 shadow-sm'
                     : 'bg-gray-50 border-gray-200 text-gray-400 cursor-default'
@@ -1305,7 +1305,7 @@ export default function MasterDataReport() {
                 <RotateCcw className={`w-3.5 h-3.5 ${hasActiveFilters ? 'text-red-500' : 'text-gray-300'}`} />
                 Clear Filters
                 {hasActiveFilters && (
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold">
                     {activeFilterCount}
                   </span>
                 )}
@@ -1314,7 +1314,7 @@ export default function MasterDataReport() {
 
             {/* ── Type multi-select (single scrollable row) ── */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-400 shrink-0">Type:</span>
+              <span className="text-xs font-medium text-gray-400 shrink-0">Type:</span>
               <div className="relative flex-1 min-w-0">
                 <div
                   className="flex gap-1.5 overflow-x-auto pb-0.5"
@@ -1323,7 +1323,7 @@ export default function MasterDataReport() {
                   {/* All Types pill — shows selected count when filters active */}
                   <button
                     onClick={() => { setSelectedTypes(new Set()); setPage(1) }}
-                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                       selectedTypes.size === 0
                         ? 'bg-primary border-primary text-white shadow-sm'
                         : 'bg-primary/10 border-primary/40 text-primary hover:bg-primary/15'
@@ -1333,14 +1333,14 @@ export default function MasterDataReport() {
                     {selectedTypes.size > 0 ? (
                       <>
                         <span>{selectedTypes.size} selected</span>
-                        <span className="inline-flex items-center justify-center text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full bg-primary/25 text-primary/80">
+                        <span className="inline-flex items-center justify-center text-xs font-bold min-w-[18px] h-[18px] px-1 rounded-full bg-primary/25 text-primary/80">
                           ×
                         </span>
                       </>
                     ) : (
                       <>
                         All Types
-                        <span className="inline-flex items-center justify-center text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full bg-white/20 text-white">
+                        <span className="inline-flex items-center justify-center text-xs font-bold min-w-[18px] h-[18px] px-1 rounded-full bg-white/20 text-white">
                           {allRecords.length}
                         </span>
                       </>
@@ -1363,14 +1363,14 @@ export default function MasterDataReport() {
                       <button
                         key={tab.value}
                         onClick={() => toggleType(tab.value)}
-                        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                           active
                             ? 'bg-primary border-primary text-white shadow-sm ring-2 ring-primary/30'
                             : 'bg-white border-gray-200 text-gray-600 hover:border-primary/40 hover:text-primary'
                         }`}
                       >
                         {tab.icon} {tab.label}
-                        <span className={`inline-flex items-center justify-center text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full ${
+                        <span className={`inline-flex items-center justify-center text-xs font-bold min-w-[18px] h-[18px] px-1 rounded-full ${
                           active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
                         }`}>{cnt}</span>
                       </button>
@@ -1385,13 +1385,13 @@ export default function MasterDataReport() {
 
             {/* ── Status tabs ── */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-semibold text-gray-400 mr-1">Status:</span>
+              <span className="text-xs font-medium text-gray-400 mr-1">Status:</span>
               {STATUS_FILTER_TABS.map(tab => {
                 const active = statusTab === tab.value
                 const cfg    = tab.value !== 'all' ? STATUS_CFG[tab.value as MasterStatus] : null
                 return (
                   <button key={tab.value} onClick={() => { setStatusTab(tab.value); setPage(1) }}
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                       active
                         ? 'bg-primary border-primary text-white'
                         : 'bg-white border-gray-200 text-gray-600 hover:border-primary/40 hover:text-primary'
@@ -1413,7 +1413,7 @@ export default function MasterDataReport() {
             <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
               <Filter className="w-4 h-4 text-primary/70" />
               Advanced Filters
-              {advActive && <span className="text-[10px] bg-primary/15 text-primary font-bold px-1.5 py-0.5 rounded-full">active</span>}
+              {advActive && <span className="text-xs bg-primary/15 text-primary font-bold px-1.5 py-0.5 rounded-full">active</span>}
             </span>
             <div className="flex items-center gap-2">
               <button onClick={() => { setAdvFilters(EMPTY_ADV); setPage(1) }}
@@ -1421,7 +1421,7 @@ export default function MasterDataReport() {
               <div className="w-px h-4 bg-gray-200" />
               <button
                 onClick={() => setShowAdvFilters(false)}
-                className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors"
               >
                 <ChevronDown className="w-3.5 h-3.5" />
                 Minimise
@@ -1431,7 +1431,7 @@ export default function MasterDataReport() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {/* Has Email */}
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Has Email</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Has Email</label>
               <select value={advFilters.hasEmail} onChange={e => setAdv({ hasEmail: e.target.value as AdvFilters['hasEmail'] })}
                 className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
                 <option value="">Any</option><option value="yes">Yes</option><option value="no">No</option>
@@ -1439,7 +1439,7 @@ export default function MasterDataReport() {
             </div>
             {/* Has Phone */}
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Has Phone</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Has Phone</label>
               <select value={advFilters.hasPhone} onChange={e => setAdv({ hasPhone: e.target.value as AdvFilters['hasPhone'] })}
                 className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
                 <option value="">Any</option><option value="yes">Yes</option><option value="no">No</option>
@@ -1447,7 +1447,7 @@ export default function MasterDataReport() {
             </div>
             {/* Has GST */}
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Has GST / Tax ID</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Has GST / Tax ID</label>
               <select value={advFilters.hasGst} onChange={e => setAdv({ hasGst: e.target.value as AdvFilters['hasGst'] })}
                 className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
                 <option value="">Any</option><option value="yes">Yes</option><option value="no">No</option>
@@ -1455,7 +1455,7 @@ export default function MasterDataReport() {
             </div>
             {/* Credit Limit */}
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Credit Limit</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Credit Limit</label>
               <select value={advFilters.creditLimit} onChange={e => setAdv({ creditLimit: e.target.value as AdvFilters['creditLimit'] })}
                 className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
                 <option value="">Any</option><option value="set">Set</option><option value="none">Not Set</option>
@@ -1463,14 +1463,14 @@ export default function MasterDataReport() {
             </div>
             {/* City / State */}
             <div className="col-span-2">
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">City / State contains</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">City / State contains</label>
               <input type="text" value={advFilters.cityContains} onChange={e => setAdv({ cityContains: e.target.value })}
                 placeholder="e.g. Mumbai, Delhi…"
                 className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
             {/* Balance range */}
             <div className="col-span-2">
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Balance Range (₹)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Balance Range (₹)</label>
               <div className="flex items-center gap-1.5">
                 <input type="number" value={advFilters.balanceMin} onChange={e => setAdv({ balanceMin: e.target.value })}
                   placeholder="Min" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -1481,7 +1481,7 @@ export default function MasterDataReport() {
             </div>
             {/* Total Orders range */}
             <div className="col-span-2">
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Total Orders</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Total Orders</label>
               <div className="flex items-center gap-1.5">
                 <input type="number" value={advFilters.ordersMin} onChange={e => setAdv({ ordersMin: e.target.value })}
                   placeholder="Min" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -1492,7 +1492,7 @@ export default function MasterDataReport() {
             </div>
             {/* Total Spent range */}
             <div className="col-span-2">
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Total Spent (₹)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Total Spent (₹)</label>
               <div className="flex items-center gap-1.5">
                 <input type="number" value={advFilters.spentMin} onChange={e => setAdv({ spentMin: e.target.value })}
                   placeholder="Min" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -1548,16 +1548,16 @@ export default function MasterDataReport() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
               </svg>
               Columns
-              <span className="text-[10px] bg-primary/15 text-primary font-bold px-1 rounded">
+              <span className="text-xs bg-primary/15 text-primary font-bold px-1 rounded">
                 {visibleCols.size}
               </span>
             </button>
             {showColPicker && (
               <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-52">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-gray-700">Show / Hide Columns</span>
+                  <span className="text-xs font-medium text-gray-700">Show / Hide Columns</span>
                   <button onClick={() => setVisibleCols(DEFAULT_VISIBLE_COLS)}
-                    className="text-[10px] text-primary hover:underline">Reset</button>
+                    className="text-xs text-primary hover:underline">Reset</button>
                 </div>
                 <div className="space-y-1">
                   {ALL_COL_DEFS.map(col => (
@@ -1578,7 +1578,7 @@ export default function MasterDataReport() {
                         className="rounded border-gray-300 text-primary focus:ring-primary"
                       />
                       <span className="flex-1 text-gray-700">{col.label}</span>
-                      {col.locked && <span className="text-[9px] text-gray-400 uppercase tracking-wide">locked</span>}
+                      {col.locked && <span className="text-xs text-gray-400 uppercase tracking-wide">locked</span>}
                     </label>
                   ))}
                 </div>
@@ -1629,7 +1629,7 @@ export default function MasterDataReport() {
                       className="rounded border-gray-300 text-primary focus:ring-primary" />
                   </th>
                   {ALL_COL_DEFS.filter(c => visibleCols.has(c.key)).map(col => (
-                    <th key={col.key} className={`px-4 py-3 ${col.key === 'actions' ? 'text-right' : 'text-left'} text-xs font-semibold uppercase tracking-wide text-gray-500`}>
+                    <th key={col.key} className={`px-4 py-3 ${col.key === 'actions' ? 'text-right' : 'text-left'} text-xs font-medium uppercase tracking-wide text-gray-500`}>
                       {col.sortable ? (
                         <button onClick={() => clickSort(col.sortable!)} className="flex items-center gap-1 hover:text-gray-800">
                           {col.label} <SortIcon field={col.sortable} />
@@ -1708,8 +1708,8 @@ export default function MasterDataReport() {
                           })()}
                           <div>
                             <p className="font-semibold text-gray-900 text-sm leading-tight">{r.name}</p>
-                            {r.companyName && <p className="text-[11px] text-gray-400">{r.companyName}</p>}
-                            {!r.companyName && r.phone && <p className="text-[11px] text-gray-400">{r.phone}</p>}
+                            {r.companyName && <p className="text-xs text-gray-400">{r.companyName}</p>}
+                            {!r.companyName && r.phone && <p className="text-xs text-gray-400">{r.phone}</p>}
                           </div>
                         </div>
                       </td>
@@ -1719,7 +1719,7 @@ export default function MasterDataReport() {
                         switch (col.key) {
                           case 'type': return (
                             <td key="type" className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${TYPE_COLORS[r.type] ?? getCustomTypeColor(r.type)}`}>{r.typeLabel}</span>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${TYPE_COLORS[r.type] ?? getCustomTypeColor(r.type)}`}>{r.typeLabel}</span>
                             </td>
                           )
                           case 'contact': return (
@@ -1758,7 +1758,7 @@ export default function MasterDataReport() {
                           )
                           case 'balance': return (
                             <td key="balance" className="px-4 py-3">
-                              {bal !== 0 ? <span className={`text-xs font-semibold ${bal > 0 ? 'text-orange-600' : 'text-green-600'}`}>{formatCurrency(Math.abs(bal))} {bal > 0 ? 'Dr' : 'Cr'}</span> : <span className="text-xs text-gray-300">—</span>}
+                              {bal !== 0 ? <span className={`text-xs font-medium ${bal > 0 ? 'text-orange-600' : 'text-green-600'}`}>{formatCurrency(Math.abs(bal))} {bal > 0 ? 'Dr' : 'Cr'}</span> : <span className="text-xs text-gray-300">—</span>}
                             </td>
                           )
                           case 'totalOrders': return (
@@ -1773,7 +1773,7 @@ export default function MasterDataReport() {
                           )
                           case 'status': return (
                             <td key="status" className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${cfg.bg} ${cfg.text}`}>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} /> {cfg.label}
                               </span>
                             </td>
@@ -1857,10 +1857,10 @@ export default function MasterDataReport() {
               }`}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="text-primary/70">{tab.icon}</span>
-                <span className="text-xs font-semibold text-gray-600">{tab.label}</span>
+                <span className="text-xs font-medium text-gray-600">{tab.label}</span>
               </div>
               <p className="text-2xl font-bold text-gray-900 leading-none">{cnt}</p>
-              <p className="text-[10px] text-gray-400 mt-1">{activ} active</p>
+              <p className="text-xs text-gray-400 mt-1">{activ} active</p>
             </button>
           )
         })}

@@ -49,7 +49,7 @@ export default function MyTrainingPage() {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-gray-900">{e.program?.name ?? `Program ${e.program_id.slice(0, 6)}`}</h3>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${stat.color} shrink-0`}>{stat.label}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${stat.color} shrink-0`}>{stat.label}</span>
                   </div>
                   {e.program?.description && <p className="text-xs text-gray-600 line-clamp-2 mb-2">{e.program.description}</p>}
                   <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">

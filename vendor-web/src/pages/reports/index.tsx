@@ -407,7 +407,7 @@ function Legend({ segments, total, onSegmentClick }: {
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: seg.color }} />
             <span className="text-gray-600 capitalize flex-1 text-xs font-medium">{seg.label}</span>
             <span className="font-semibold text-gray-900 tabular-nums text-xs">{seg.value}</span>
-            <span className="text-[10px] font-semibold w-8 text-right" style={{ color: seg.color }}>{pct}%</span>
+            <span className="text-xs font-medium w-8 text-right" style={{ color: seg.color }}>{pct}%</span>
           </div>
           {/* Mini proportion bar */}
           <div className="h-1 rounded-full bg-gray-100 overflow-hidden">
@@ -489,7 +489,7 @@ function Section({ title, action, children, viewReport, onViewReport }: {
           {viewReport && onViewReport && (
             <button
               onClick={() => onViewReport(viewReport as ReportId)}
-              className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors"
+              className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors"
             >
               <ArrowUpRight className="w-3 h-3" /> View Report
             </button>
@@ -1208,17 +1208,17 @@ export default function ReportsPage() {
       {/* ── Store filter ───────────────────────────────────────────── */}
       {reportStores.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Store:</span>
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Store:</span>
           <div className="flex items-center gap-1 flex-wrap">
             <button
               onClick={() => setSelectedStoreId('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === 'all' ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border ${selectedStoreId === 'all' ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary'}`}>
               All Stores
             </button>
             {reportStores.map(s => (
               <button key={s.id}
                 onClick={() => setSelectedStoreId(s.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border ${selectedStoreId === s.id ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border ${selectedStoreId === s.id ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary'}`}>
                 {s.name}{s.code ? ` · ${s.code}` : ''}
               </button>
             ))}
@@ -1259,7 +1259,7 @@ export default function ReportsPage() {
                     <div className={`p-1.5 rounded-lg shrink-0 ${r.bg}`}><r.icon className={`w-4 h-4 ${r.color}`} /></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900">{r.label}</p>
-                      <p className="text-[11px] text-gray-500 truncate">{r.description}</p>
+                      <p className="text-xs text-gray-500 truncate">{r.description}</p>
                     </div>
                     {activeReport === r.id && <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />}
                   </button>
@@ -1275,7 +1275,7 @@ export default function ReportsPage() {
         <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
           {DATE_RANGES.map(r => (
             <button key={r.value} onClick={() => { setDateRange(r.value); if (r.value !== 'custom') resetToolbar() }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${dateRange === r.value ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${dateRange === r.value ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               {r.label}
             </button>
           ))}
@@ -1304,7 +1304,7 @@ export default function ReportsPage() {
               <div className="p-1.5 bg-green-100 rounded-lg"><MessageCircle className="w-4 h-4 text-green-600" /></div>
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">WhatsApp Report Sharing</h3>
-                <p className="text-[11px] text-gray-500">Each contact has its own report selection, triggers & schedule</p>
+                <p className="text-xs text-gray-500">Each contact has its own report selection, triggers & schedule</p>
               </div>
             </div>
             <button type="button" aria-label="Close" onClick={() => setWaOpen(false)} className="p-1.5 rounded-lg hover:bg-green-100 transition-colors">
@@ -1315,7 +1315,7 @@ export default function ReportsPage() {
           <div className="p-5 space-y-4">
             {/* Add new contact */}
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Contact</p>
+              <p className="text-xs font-medium text-gray-700 mb-3 flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Contact</p>
               <div className="flex flex-wrap gap-2">
                 <PhoneInput value={newNumber} onChange={setNewNumber} defaultCountryIso="IN" />
                 <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="Label (e.g. Owner, Manager)"
@@ -1353,12 +1353,12 @@ export default function ReportsPage() {
                     {/* Summary badges */}
                     <div className="hidden sm:flex items-center gap-1.5">
                       {activeReportCount > 0 && (
-                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{activeReportCount} reports</span>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{activeReportCount} reports</span>
                       )}
                       {activeTriggerCount > 0 && (
-                        <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">{activeTriggerCount} triggers</span>
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">{activeTriggerCount} triggers</span>
                       )}
-                      <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-semibold capitalize">{contact.frequency} {contact.time}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-semibold capitalize">{contact.frequency} {contact.time}</span>
                     </div>
                     {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
@@ -1392,20 +1392,20 @@ export default function ReportsPage() {
 
                       {/* ── Quick preset bundles ── */}
                       <div>
-                        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Quick Presets</p>
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Quick Presets</p>
                         <div className="flex flex-wrap gap-2">
                           {WA_PRESETS.map(p => (
                             <button key={p.label} onClick={() => updateContact(contact.id, { reports: p.reports, smart_triggers: p.triggers })}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-green-300 bg-green-50/50 text-xs font-semibold text-green-800 hover:bg-green-100 transition-colors">
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-green-300 bg-green-50/50 text-xs font-medium text-green-800 hover:bg-green-100 transition-colors">
                               <span>{p.icon}</span> {p.label}
                             </button>
                           ))}
                           <button onClick={() => updateContact(contact.id, { reports: REPORTS.map(r => r.id), smart_triggers: SMART_TRIGGERS.map(t => t.id) })}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 text-xs font-semibold text-blue-800 hover:bg-blue-100 transition-colors">
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors">
                             ⚡ Select All
                           </button>
                           <button onClick={() => updateContact(contact.id, { reports: [], smart_triggers: [] })}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-gray-300 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-gray-300 text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors">
                             Clear All
                           </button>
                         </div>
@@ -1413,13 +1413,13 @@ export default function ReportsPage() {
 
                       {/* ── Schedule ── */}
                       <div>
-                        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                           <Clock className="w-3 h-3" /> Schedule
                         </p>
                         <div className="bg-gray-50 rounded-xl p-3 space-y-3">
                           <div className="flex flex-wrap items-center gap-3">
                             <div>
-                              <p className="text-[10px] text-gray-500 mb-1">Frequency</p>
+                              <p className="text-xs text-gray-500 mb-1">Frequency</p>
                               <select value={contact.frequency}
                                 onChange={e => updateContact(contact.id, { frequency: e.target.value as WaContact['frequency'] })}
                                 className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
@@ -1433,7 +1433,7 @@ export default function ReportsPage() {
 
                             {contact.frequency === 'hourly' && (
                               <div>
-                                <p className="text-[10px] text-gray-500 mb-1">Every (hours)</p>
+                                <p className="text-xs text-gray-500 mb-1">Every (hours)</p>
                                 <input type="number" min={1} max={23}
                                   value={contact.interval_hours ?? 4}
                                   onChange={e => updateContact(contact.id, { interval_hours: Number(e.target.value) })}
@@ -1443,7 +1443,7 @@ export default function ReportsPage() {
 
                             {contact.frequency === 'weekly' && (
                               <div>
-                                <p className="text-[10px] text-gray-500 mb-1">Day of week</p>
+                                <p className="text-xs text-gray-500 mb-1">Day of week</p>
                                 <select value={contact.day_of_week ?? 'mon'}
                                   onChange={e => updateContact(contact.id, { day_of_week: e.target.value })}
                                   className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
@@ -1455,7 +1455,7 @@ export default function ReportsPage() {
                             )}
 
                             <div>
-                              <p className="text-[10px] text-gray-500 mb-1">Send at</p>
+                              <p className="text-xs text-gray-500 mb-1">Send at</p>
                               <input type="time" value={contact.time}
                                 onChange={e => updateContact(contact.id, { time: e.target.value })}
                                 className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-400 bg-white w-24" />
@@ -1482,16 +1482,16 @@ export default function ReportsPage() {
                       {/* ── Reports to share ── */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
                             <FileText className="w-3 h-3" /> Reports to include
-                            <span className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">{contact.reports.length}/{REPORTS.length}</span>
+                            <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">{contact.reports.length}/{REPORTS.length}</span>
                           </p>
                           <div className="flex gap-1">
                             <button onClick={() => updateContact(contact.id, { reports: REPORTS.map(r => r.id) })}
-                              className="text-[10px] text-blue-600 hover:underline font-semibold">All</button>
-                            <span className="text-gray-300 text-[10px]">|</span>
+                              className="text-xs text-blue-600 hover:underline font-semibold">All</button>
+                            <span className="text-gray-300 text-xs">|</span>
                             <button onClick={() => updateContact(contact.id, { reports: [] })}
-                              className="text-[10px] text-gray-500 hover:underline font-semibold">None</button>
+                              className="text-xs text-gray-500 hover:underline font-semibold">None</button>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -1522,16 +1522,16 @@ export default function ReportsPage() {
                       {/* ── Smart triggers ── */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
                             <Zap className="w-3 h-3 text-amber-500" /> Smart Auto-Triggers
-                            <span className="ml-1 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">{contact.smart_triggers.length}/{SMART_TRIGGERS.length}</span>
+                            <span className="ml-1 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">{contact.smart_triggers.length}/{SMART_TRIGGERS.length}</span>
                           </p>
                           <div className="flex gap-1">
                             <button onClick={() => updateContact(contact.id, { smart_triggers: SMART_TRIGGERS.map(t => t.id) })}
-                              className="text-[10px] text-amber-600 hover:underline font-semibold">All</button>
-                            <span className="text-gray-300 text-[10px]">|</span>
+                              className="text-xs text-amber-600 hover:underline font-semibold">All</button>
+                            <span className="text-gray-300 text-xs">|</span>
                             <button onClick={() => updateContact(contact.id, { smart_triggers: [] })}
-                              className="text-[10px] text-gray-500 hover:underline font-semibold">None</button>
+                              className="text-xs text-gray-500 hover:underline font-semibold">None</button>
                           </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -1547,14 +1547,14 @@ export default function ReportsPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className={`text-xs font-semibold ${on ? 'text-amber-800' : 'text-gray-700'}`}>{t.label}</p>
+                                    <p className={`text-xs font-medium ${on ? 'text-amber-800' : 'text-gray-700'}`}>{t.label}</p>
                                     {t.badge && (
-                                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide ${
+                                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide ${
                                         on ? 'bg-amber-200 text-amber-900' : 'bg-gray-100 text-gray-500'
                                       }`}>{t.badge}</span>
                                     )}
                                   </div>
-                                  <p className="text-[10px] text-gray-400 mt-0.5">{t.description}</p>
+                                  <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>
                                 </div>
                                 {on && <CheckCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />}
                               </button>
@@ -1565,9 +1565,9 @@ export default function ReportsPage() {
 
                       {/* ── Message preview ── */}
                       <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4">
-                        <p className="text-[10px] font-semibold text-green-700 mb-2 flex items-center gap-1.5">
+                        <p className="text-xs font-medium text-green-700 mb-2 flex items-center gap-1.5">
                           <Bell className="w-3 h-3" /> WhatsApp Message Preview
-                          <span className="ml-auto text-[9px] text-gray-400 font-normal">Based on current data</span>
+                          <span className="ml-auto text-xs text-gray-400 font-normal">Based on current data</span>
                         </p>
                         {/* Mockup phone bubble */}
                         <div className="bg-white rounded-xl p-3 shadow-sm border border-green-100 mb-3">
@@ -1575,9 +1575,9 @@ export default function ReportsPage() {
                             <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                               <MessageCircle className="w-3 h-3 text-white" />
                             </div>
-                            <span className="text-[11px] font-semibold text-gray-700">KITERP Bot → {contact.label}</span>
+                            <span className="text-xs font-medium text-gray-700">KITERP Bot → {contact.label}</span>
                           </div>
-                          <pre className="text-[11px] text-gray-600 whitespace-pre-wrap font-mono leading-relaxed max-h-36 overflow-y-auto">{buildReportText(contact)}</pre>
+                          <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono leading-relaxed max-h-36 overflow-y-auto">{buildReportText(contact)}</pre>
                         </div>
                         <Button size="sm" onClick={() => sendToContact(contact)}
                           className="bg-green-600 hover:bg-green-700 text-white gap-1.5 text-xs w-full justify-center">
@@ -1596,7 +1596,7 @@ export default function ReportsPage() {
               <p className="text-xs text-gray-500">Chart size in reports:</p>
               {(['sm','md','lg'] as const).map(s => (
                 <button key={s} onClick={() => setChartSize(s)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${chartSize === s ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${chartSize === s ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                   {s === 'sm' ? 'Small' : s === 'md' ? 'Medium' : 'Large'}
                 </button>
               ))}
@@ -1634,7 +1634,7 @@ export default function ReportsPage() {
                 <ReportToolbar search={search} onSearch={setSearch} placeholder="Search by date…" />
                 <div className="overflow-auto max-h-72">
                   <ResizableTable tableId="rpt-daily-sales" defaultWidths={[120, 80, 110, 110]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="date" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Orders" sortKey="orders" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Revenue" sortKey="revenue" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -1671,7 +1671,7 @@ export default function ReportsPage() {
                 return <div key={item.l} className="mb-5 last:mb-0">
                   <div className="flex justify-between text-sm mb-1.5"><span className="font-medium text-gray-700">{item.l}</span><span className="font-semibold text-gray-900">{formatCurrency(item.v)}</span></div>
                   <div className="h-3 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-primary to-info rounded-full transition-all duration-700" style={{ width: `${pct}%` }} /></div>
-                  <p className="text-[11px] text-gray-400 mt-1">{Math.round(pct)}% of annual revenue</p>
+                  <p className="text-xs text-gray-400 mt-1">{Math.round(pct)}% of annual revenue</p>
                 </div>
               })}
             </Section>
@@ -1688,7 +1688,7 @@ export default function ReportsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <Section title="Order Distribution" action={
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-400 hidden sm:block">Click segment to filter</span>
+                  <span className="text-xs text-gray-400 hidden sm:block">Click segment to filter</span>
                   <ChartTypePicker value={statusChart} onChange={setStatusChart} allowed={['pie','donut','hbar']} />
                 </div>
               } viewReport="pos_report" onViewReport={setActiveReport}>
@@ -1712,7 +1712,7 @@ export default function ReportsPage() {
                         <span className="text-sm capitalize text-gray-700 w-24 text-left group-hover:text-blue-600 transition-colors">{seg.label}</span>
                         <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex-1"><div className={`h-full rounded-full ${c.bar}`} style={{ width: `${Math.min(100, (seg.value / statusTotal) * 100)}%` }} /></div>
                         <span className="text-sm font-semibold text-gray-900 tabular-nums w-8 text-right">{seg.value}</span>
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full w-12 text-center ${c.badge}`}>{Math.round((seg.value / statusTotal) * 100)}%</span>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-12 text-center ${c.badge}`}>{Math.round((seg.value / statusTotal) * 100)}%</span>
                         <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
                       </button>
                     )
@@ -1739,7 +1739,7 @@ export default function ReportsPage() {
                   onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-top-products" defaultWidths={[40, 240, 100, 90]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <th className="py-2 pr-2 w-8">#</th>
                       <SortHeader label="Product" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Price" sortKey="price" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -1780,7 +1780,7 @@ export default function ReportsPage() {
                 <ReportToolbar search={search} onSearch={setSearch} placeholder="Search by name or email…" />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-top-customers" defaultWidths={[40, 200, 80, 100]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <th className="py-2 pr-2 w-8">#</th>
                       <SortHeader label="Customer" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Orders" sortKey="orders" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -1818,7 +1818,7 @@ export default function ReportsPage() {
               {methodSegs.length > 0 && (
                 <Section title="Payment Method Breakdown" action={
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-400 hidden sm:block">Click to filter</span>
+                    <span className="text-xs text-gray-400 hidden sm:block">Click to filter</span>
                     <ChartTypePicker value={posChart} onChange={setPosChart} allowed={['hbar','pie','donut']} />
                   </div>
                 } viewReport="orders_status" onViewReport={setActiveReport}>
@@ -1835,7 +1835,7 @@ export default function ReportsPage() {
                   filterOptions={Object.keys(posStats.byMethod).map(m => ({ value: m, label: m }))} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-pos-orders" defaultWidths={[100, 100, 140, 90, 100, 90]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="created_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Order #" sortKey="order_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4">Customer</th>
@@ -1877,7 +1877,7 @@ export default function ReportsPage() {
               {bSegs.length > 0 && (
                 <Section title="Booking Status Distribution" action={
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-400 hidden sm:block">Click to filter</span>
+                    <span className="text-xs text-gray-400 hidden sm:block">Click to filter</span>
                     <ChartTypePicker value={bookingsChart} onChange={setBookingsChart} allowed={['pie','donut','hbar']} />
                   </div>
                 } viewReport="invoices_report" onViewReport={setActiveReport}>
@@ -1894,7 +1894,7 @@ export default function ReportsPage() {
                   filterOptions={Object.keys(bookingStats.byStatus).map(s => ({ value: s, label: s }))} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-bookings" defaultWidths={[100, 120, 160, 150, 90]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="booking_date" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Booking #" sortKey="booking_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4">Service</th>
@@ -1946,7 +1946,7 @@ export default function ReportsPage() {
                   filterLabel="Status" filterValue={filterVal} filterOptions={[{ value: 'paid', label: 'Paid' }, { value: 'unpaid', label: 'Unpaid' }]} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-invoices" defaultWidths={[100, 110, 150, 90, 90]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="created_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Order #" sortKey="order_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4">Customer</th>
@@ -1987,7 +1987,7 @@ export default function ReportsPage() {
                   filterOptions={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-coupons" defaultWidths={[120, 90, 100, 80, 80]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Code" sortKey="code" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4">Type</th>
                       <SortHeader label="Discount" sortKey="discount_value" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -2046,7 +2046,7 @@ export default function ReportsPage() {
                   filterOptions={[{ value: 'out', label: 'Out of Stock' }, { value: 'low', label: 'Low (<10)' }, { value: 'ok', label: 'In Stock (10+)' }]} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-inventory-value" defaultWidths={[240, 90, 100, 110, ...reportStores.map(() => 90)]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Product" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label={selectedStoreId !== 'all' ? 'Store Stock' : 'Total Stock'} sortKey="stock" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Price" sortKey="price" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -2113,10 +2113,10 @@ export default function ReportsPage() {
                     <div key={r.id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50/50 transition-colors">
                       <div className="flex items-center gap-0.5 mb-1.5">
                         {[1, 2, 3, 4, 5].map(s => <Star key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />)}
-                        <span className="text-[11px] text-gray-400 ml-1.5 font-medium">{r.rating}/5</span>
+                        <span className="text-xs text-gray-400 ml-1.5 font-medium">{r.rating}/5</span>
                       </div>
                       {r.comment && <p className="text-sm text-gray-600 line-clamp-2">{r.comment}</p>}
-                      <p className="text-[11px] text-gray-400 mt-1.5">{r.customer_name || 'Customer'} &middot; {r.created_at ? formatDate(r.created_at) : ''}</p>
+                      <p className="text-xs text-gray-400 mt-1.5">{r.customer_name || 'Customer'} &middot; {r.created_at ? formatDate(r.created_at) : ''}</p>
                     </div>
                   ))}
                   {reviews.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No reviews yet.</p>}
@@ -2146,7 +2146,7 @@ export default function ReportsPage() {
                     Latest: <strong>{prodHistory[0].orderNo}</strong> · {prodHistory[0].status.replace('_',' ')} · {prodHistory[0].progress}%
                   </p>
                   <button onClick={() => { setProdModal(true); setProdTab('history') }}
-                    className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1">
+                    className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
                     <ChevronRight className="w-3 h-3" /> View History
                   </button>
                 </div>
@@ -2181,7 +2181,7 @@ export default function ReportsPage() {
                 <div className="flex items-center bg-muted rounded-xl p-1 gap-0.5">
                   {(['all','shortage','sufficient'] as const).map(f => (
                     <button key={f} onClick={() => setMrpStatusFilter(f)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${mrpStatusFilter === f ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${mrpStatusFilter === f ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                       {f === 'all' ? 'All' : f === 'shortage' ? '⚠ Short' : '✓ OK'}
                     </button>
                   ))}
@@ -2199,12 +2199,12 @@ export default function ReportsPage() {
                 {/* Column config */}
                 <div className="relative">
                   <button onClick={() => setMrpColsOpen(v => !v)}
-                    className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpColsOpen ? 'border-primary/60 text-primary' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpColsOpen ? 'border-primary/60 text-primary' : 'border-gray-200 hover:bg-gray-50'}`}>
                     <Settings2 className="w-3.5 h-3.5" /> Columns
                   </button>
                   {mrpColsOpen && (
                     <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-3 min-w-[200px]">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Optional Columns</p>
+                      <p className="text-xs font-bold text-gray-500 uppercase mb-2">Optional Columns</p>
                       {MRP_OPTIONAL_COLS.map(col => (
                         <label key={col.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-lg px-1">
                           <input type="checkbox" checked={mrpOptCols.has(col.id)}
@@ -2225,7 +2225,7 @@ export default function ReportsPage() {
                 {/* Share / Export panel */}
                 <div className="relative">
                   <button onClick={() => setMrpShareOpen(v => !v)}
-                    className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpShareOpen ? 'border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpShareOpen ? 'border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}`}>
                     <Download className="w-3.5 h-3.5" /> Export &amp; Share
                   </button>
                   {mrpShareOpen && (
@@ -2269,21 +2269,21 @@ export default function ReportsPage() {
               {(mrpOrderFilter || mrpStatusFilter !== 'all' || mrpActionFilter !== 'all') && (
                 <div className="flex flex-wrap gap-1.5">
                   {mrpOrderFilter && (
-                    <span className="inline-flex items-center gap-1 text-[11px] bg-primary/12 text-primary px-2.5 py-1 rounded-full font-semibold">
+                    <span className="inline-flex items-center gap-1 text-xs bg-primary/12 text-primary px-2.5 py-1 rounded-full font-semibold">
                       Order: {mrpOrderFilter}
                       <button type="button" aria-label="Close" onClick={() => setMrpOrderFilter('')}>
                 <X className="w-2.5 h-2.5" /></button>
                     </span>
                   )}
                   {mrpStatusFilter !== 'all' && (
-                    <span className="inline-flex items-center gap-1 text-[11px] bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-semibold capitalize">
+                    <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-semibold capitalize">
                       {mrpStatusFilter} only
                       <button type="button" aria-label="Close" onClick={() => setMrpStatusFilter('all')}>
                 <X className="w-2.5 h-2.5" /></button>
                     </span>
                   )}
                   {mrpActionFilter !== 'all' && (
-                    <span className="inline-flex items-center gap-1 text-[11px] bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full font-semibold capitalize">
+                    <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full font-semibold capitalize">
                       Action: {mrpActionFilter}
                       <button type="button" aria-label="Close" onClick={() => setMrpActionFilter('all')}>
                 <X className="w-2.5 h-2.5" /></button>
@@ -2317,7 +2317,7 @@ export default function ReportsPage() {
                 <div className="overflow-auto">
                   <ResizableTable tableId="rpt-mrp" defaultWidths={[40, 200, 130, 90, 90, 80, 90, 90, 130, 80]}>
                     <thead className="sticky top-0 bg-white z-10 border-b">
-                      <tr className="text-left text-xs font-semibold text-gray-500 uppercase">
+                      <tr className="text-left text-xs font-medium text-gray-500 uppercase">
                         <th className="py-3 px-4 w-8">
                           <input type="checkbox"
                             checked={mrpFiltered.length > 0 && mrpSelected.size === mrpFiltered.length}
@@ -2363,16 +2363,16 @@ export default function ReportsPage() {
                                     {row.name}
                                     <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                   </p>
-                                  <p className="text-[11px] text-gray-400 md:hidden mt-0.5">{row.sku} · {row.category}</p>
+                                  <p className="text-xs text-gray-400 md:hidden mt-0.5">{row.sku} · {row.category}</p>
                                 </button>
                               </td>
                               <td className="py-3 pr-3 hidden md:table-cell">
                                 <p className="text-xs font-mono text-gray-600">{row.sku}</p>
-                                <p className="text-[11px] text-gray-400">{row.category}</p>
+                                <p className="text-xs text-gray-400">{row.category}</p>
                               </td>
                               <td className="py-3 pr-3 text-right">
                                 <span className="font-semibold text-gray-900">{row.required_qty}</span>
-                                <span className="text-[11px] text-gray-400 ml-0.5">u</span>
+                                <span className="text-xs text-gray-400 ml-0.5">u</span>
                               </td>
                               <td className="py-3 pr-3 text-right">
                                 <span className={`font-semibold ${row.available_stock === 0 ? 'text-red-600' : row.available_stock < 10 ? 'text-amber-600' : 'text-gray-900'}`}>
@@ -2407,11 +2407,11 @@ export default function ReportsPage() {
                                   <div className="flex flex-wrap gap-1">
                                     {row.order_refs.slice(0, 2).map(ref => (
                                       <button key={ref} onClick={() => setMrpOrderFilter(ref)}
-                                        className="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5 rounded font-mono font-semibold transition-colors">
+                                        className="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5 rounded font-mono font-semibold transition-colors">
                                         {ref}
                                       </button>
                                     ))}
-                                    {row.order_refs.length > 2 && <span className="text-[10px] text-gray-400">+{row.order_refs.length - 2}</span>}
+                                    {row.order_refs.length > 2 && <span className="text-xs text-gray-400">+{row.order_refs.length - 2}</span>}
                                   </div>
                                 ) : <span className="text-xs text-gray-400">—</span>}
                               </td>
@@ -2419,16 +2419,16 @@ export default function ReportsPage() {
                                 {isShortage ? (
                                   <div className="flex items-center gap-1 flex-wrap">
                                     <button onClick={() => { setMrpSelected(new Set([row.product_id])); setPoModal(true) }}
-                                      className="flex items-center gap-1 text-[10px] font-bold bg-primary hover:bg-primary/90 text-white px-2 py-1 rounded-lg transition-colors">
+                                      className="flex items-center gap-1 text-xs font-bold bg-primary hover:bg-primary/90 text-white px-2 py-1 rounded-lg transition-colors">
                                       <Truck className="w-2.5 h-2.5" /> PO
                                     </button>
                                     <button onClick={() => { setMrpSelected(new Set([row.product_id])); setProdTab('new'); setProdModal(true) }}
-                                      className="flex items-center gap-1 text-[10px] font-bold bg-primary hover:bg-primary/90 text-white px-2 py-1 rounded-lg transition-colors">
+                                      className="flex items-center gap-1 text-xs font-bold bg-primary hover:bg-primary/90 text-white px-2 py-1 rounded-lg transition-colors">
                                       <Hammer className="w-2.5 h-2.5" /> Produce
                                     </button>
                                   </div>
                                 ) : (
-                                  <span className="text-[11px] text-green-600 font-semibold flex items-center gap-1">
+                                  <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
                                     <CheckCircle className="w-3 h-3" /> OK
                                   </span>
                                 )}
@@ -2465,7 +2465,7 @@ export default function ReportsPage() {
                                         {row.order_refs.length > 0
                                           ? row.order_refs.map(ref => (
                                             <button key={ref} onClick={() => setMrpOrderFilter(ref)}
-                                              className="text-[11px] bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-1 rounded-lg font-mono font-semibold transition-colors">
+                                              className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-1 rounded-lg font-mono font-semibold transition-colors">
                                               📦 {ref}
                                             </button>
                                           ))
@@ -2475,11 +2475,11 @@ export default function ReportsPage() {
                                     <div className="bg-white rounded-xl p-3 border border-gray-100 flex gap-2 col-span-2 sm:col-span-3 lg:col-span-5">
                                       <p className="text-gray-500 text-xs">Quick Actions:</p>
                                       <button onClick={() => { setMrpSelected(new Set([row.product_id])); setPoModal(true) }}
-                                        className="text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                                        className="text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
                                         <Truck className="w-3 h-3" /> Create Purchase Order
                                       </button>
                                       <button onClick={() => { setMrpSelected(new Set([row.product_id])); setProdTab('new'); setProdModal(true) }}
-                                        className="text-[11px] font-bold text-primary bg-accent hover:bg-primary/12 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                                        className="text-xs font-bold text-primary bg-accent hover:bg-primary/12 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
                                         <Factory className="w-3 h-3" /> Plan Production
                                       </button>
                                     </div>
@@ -2550,7 +2550,7 @@ export default function ReportsPage() {
               {/* Supplier with autocomplete */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="relative">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Supplier Name</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Supplier Name</label>
                   <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
                     <Search className="w-3.5 h-3.5 text-gray-400 ml-3 shrink-0" />
                     <input
@@ -2570,7 +2570,7 @@ export default function ReportsPage() {
                   {/* Recent suppliers dropdown */}
                   {poSupplierOpen && savedSuppliers.length > 0 && (
                     <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase px-3 pt-2 pb-1">Recent Suppliers</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase px-3 pt-2 pb-1">Recent Suppliers</p>
                       {savedSuppliers.filter(s => !poSupplier || s.toLowerCase().includes(poSupplier.toLowerCase())).slice(0, 6).map(s => (
                         <button key={s} onClick={() => { setPoSupplier(s); setPoSupplierOpen(false) }}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 text-gray-700 font-medium">
@@ -2582,12 +2582,12 @@ export default function ReportsPage() {
                   {poSupplierOpen && <div className="fixed inset-0 z-20" onClick={() => setPoSupplierOpen(false)} />}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Expected Delivery</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Expected Delivery</label>
                   <input type="date" value={poDelivery} onChange={e => setPoDelivery(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Payment Terms</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Payment Terms</label>
                   <select value={poPaymentTerms} onChange={e => setPoPaymentTerms(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <option>Net 30</option><option>Net 15</option><option>Net 60</option>
@@ -2595,7 +2595,7 @@ export default function ReportsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">PO Reference</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">PO Reference</label>
                   <input value={poRef} onChange={e => setPoRef(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
@@ -2603,10 +2603,10 @@ export default function ReportsPage() {
 
               {/* Line items */}
               <div>
-                <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><PackagePlus className="w-3.5 h-3.5 text-blue-500" /> Items to Order</p>
+                <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5"><PackagePlus className="w-3.5 h-3.5 text-blue-500" /> Items to Order</p>
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <ResizableTable tableId="rpt-po-lines" defaultWidths={[200, 90, 100, 100]}>
-                    <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-gray-500 uppercase">
+                    <thead className="bg-gray-50 border-b"><tr className="text-xs font-medium text-gray-500 uppercase">
                       <th className="py-2 px-3 text-left">Product</th>
                       <th className="py-2 px-3 text-right">Qty</th>
                       <th className="py-2 px-3 text-right">Unit Price</th>
@@ -2639,7 +2639,7 @@ export default function ReportsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Notes / Special Requirements</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Notes / Special Requirements</label>
                 <textarea value={poNotes} onChange={e => setPoNotes(e.target.value)} rows={2}
                   placeholder="Delivery instructions, quality requirements, packaging notes…"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400" />
@@ -2677,7 +2677,7 @@ export default function ReportsPage() {
               <div className="flex items-center bg-white border border-gray-200 rounded-xl p-0.5 gap-0.5">
                 {(['new','history'] as const).map(t => (
                   <button key={t} onClick={() => setProdTab(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${prodTab === t ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${prodTab === t ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                     {t === 'new' ? '+ New Order' : `📋 History (${prodHistory.length})`}
                   </button>
                 ))}
@@ -2690,7 +2690,7 @@ export default function ReportsPage() {
               <div className="p-6 space-y-5">
                 {/* Template picker */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-2">Order Template</p>
+                  <p className="text-xs font-medium text-gray-600 mb-2">Order Template</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {PROD_TEMPLATES.map(t => (
                       <button key={t.id} onClick={() => { setProdTemplate(t.id); if (t.defaultNotes) setProdNotes(t.defaultNotes) }}
@@ -2699,8 +2699,8 @@ export default function ReportsPage() {
                         }`}>
                         <span className="text-lg leading-none">{t.emoji}</span>
                         <div>
-                          <p className={`text-xs font-semibold leading-tight ${prodTemplate === t.id ? 'text-primary' : 'text-gray-700'}`}>{t.label}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{t.description}</p>
+                          <p className={`text-xs font-medium leading-tight ${prodTemplate === t.id ? 'text-primary' : 'text-gray-700'}`}>{t.label}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 leading-tight">{t.description}</p>
                         </div>
                       </button>
                     ))}
@@ -2710,22 +2710,22 @@ export default function ReportsPage() {
                 {/* Order details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Work Order Ref</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Work Order Ref</label>
                     <input value={prodRef} onChange={e => setProdRef(e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Team / Department</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Team / Department</label>
                     <input value={prodTeam} onChange={e => setProdTeam(e.target.value)} placeholder="e.g. Assembly Line A"
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Target Completion Date</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Target Completion Date</label>
                     <input type="date" value={prodTarget} onChange={e => setProdTarget(e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Status</label>
                     <select value={prodStatus} onChange={e => setProdStatus(e.target.value as typeof prodStatus)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="draft">📝 Draft</option>
@@ -2739,22 +2739,22 @@ export default function ReportsPage() {
                 {/* Progress */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-semibold text-gray-600">Completion Progress</label>
+                    <label className="text-xs font-medium text-gray-600">Completion Progress</label>
                     <span className="text-xs font-bold text-primary">{prodProgress}%</span>
                   </div>
                   <input type="range" min={0} max={100} step={5} value={prodProgress} onChange={e => setProdProgress(Number(e.target.value))}
                     className="w-full accent-primary" />
-                  <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
                     <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
                   </div>
                 </div>
 
                 {/* Items to produce */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-primary/80" /> Items to Manufacture</p>
+                  <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-primary/80" /> Items to Manufacture</p>
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
                     <ResizableTable tableId="rpt-manufacture" defaultWidths={[220, 90, 100]}>
-                      <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-gray-500 uppercase">
+                      <thead className="bg-gray-50 border-b"><tr className="text-xs font-medium text-gray-500 uppercase">
                         <th className="py-2 px-3 text-left">Product</th>
                         <th className="py-2 px-3 text-right">Qty</th>
                         <th className="py-2 px-3 text-right hidden sm:table-cell">Priority</th>
@@ -2785,7 +2785,7 @@ export default function ReportsPage() {
 
                 {/* Stock dispatches */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                  <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
                     <PackagePlus className="w-3.5 h-3.5 text-green-500" /> Stock Dispatches from Production
                   </p>
                   {stockDispatches.length > 0 && (
@@ -2837,7 +2837,7 @@ export default function ReportsPage() {
 
                 {/* File attachments */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                  <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-gray-400" /> Attachments (images, documents)
                   </p>
                   {prodAttachments.length > 0 && (
@@ -2871,7 +2871,7 @@ export default function ReportsPage() {
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Instructions / Notes</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Instructions / Notes</label>
                   <textarea value={prodNotes} onChange={e => setProdNotes(e.target.value)} rows={3}
                     placeholder="Raw materials needed, machine assignments, quality checks, safety notes…"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
@@ -2903,8 +2903,8 @@ export default function ReportsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-mono text-sm font-bold text-primary">{entry.orderNo}</span>
-                          <span className="text-[10px] bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-semibold">{entry.template}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                          <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-semibold">{entry.template}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                             entry.status === 'completed' ? 'bg-green-100 text-green-800' :
                             entry.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                             entry.status === 'on_hold' ? 'bg-amber-100 text-amber-800' :

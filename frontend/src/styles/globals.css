@@ -92,8 +92,28 @@ img.leaflet-tile {
   * {
     @apply border-border;
   }
+  html {
+    text-rendering: optimizeLegibility;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  svg {
+    shape-rendering: geometricPrecision;
+  }
+  svg.lucide {
+    stroke-width: 2;
+  }
+}
+
+@layer components {
+  .type-badge {
+    @apply text-xs font-medium leading-4;
+  }
+  .type-caption {
+    @apply text-xs font-normal leading-4 text-muted-foreground;
   }
 }
 

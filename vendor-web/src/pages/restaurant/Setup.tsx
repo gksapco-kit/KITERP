@@ -107,11 +107,11 @@ export default function RestaurantSetupPage() {
         <h2 className="font-semibold text-gray-800">Tables</h2>
         <div className="flex flex-wrap gap-2 items-end">
           <div>
-            <label className="text-[10px] uppercase text-gray-400 font-semibold block mb-1">Label</label>
+            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Label</label>
             <Input placeholder="T1, B12…" value={tableLabel} onChange={e => setTableLabel(e.target.value)} className="h-9 text-sm w-32" />
           </div>
           <div>
-            <label className="text-[10px] uppercase text-gray-400 font-semibold block mb-1">Zone</label>
+            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Zone</label>
             <select
               value={tableZone}
               onChange={e => setTableZone(e.target.value)}

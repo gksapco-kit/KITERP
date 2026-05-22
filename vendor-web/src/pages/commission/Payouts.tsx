@@ -20,7 +20,7 @@ function RunDetail({ runId }: { runId: string }) {
   const fmtCurrency = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
   return (
     <div className="px-6 py-4 border-t border-gray-100">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Payee Breakdown</h4>
+      <h4 className="text-xs font-medium text-gray-500 uppercase mb-3">Payee Breakdown</h4>
       <table className="w-full text-sm">
         <thead><tr className="border-b border-gray-100">
           <th className="text-left py-2 text-xs text-gray-500">Payee</th>
@@ -37,7 +37,7 @@ function RunDetail({ runId }: { runId: string }) {
               <td className="py-2 text-right font-medium text-gray-900">{fmtCurrency(item.total_amount)}</td>
               <td className="py-2 text-right text-gray-600">{item.total_points}</td>
               <td className="py-2 text-right">
-                <span className={`px-1.5 py-0.5 rounded text-[10px] ${item.status === 'paid' ? 'bg-primary/12 text-primary' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-xs ${item.status === 'paid' ? 'bg-primary/12 text-primary' : 'bg-gray-100 text-gray-500'}`}>
                   {item.status}
                 </span>
               </td>

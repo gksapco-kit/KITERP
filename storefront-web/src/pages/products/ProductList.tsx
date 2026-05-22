@@ -401,7 +401,7 @@ export default function ProductList() {
                     title="Total matching your filters"
                   >
                     <span className="text-lg font-bold leading-none tabular-nums text-gray-900">{totalCount}</span>
-                    <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
                       {filterType === 'products' ? 'products' : filterType === 'services' ? 'services' : 'items'}
                     </span>
                   </div>
@@ -410,7 +410,7 @@ export default function ProductList() {
 
               <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Refine</span>
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Refine</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
@@ -541,11 +541,11 @@ export default function ProductList() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                       {/* Badges */}
                       <div className="absolute top-2 left-2 flex gap-1.5">
-                        <span className="text-white text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: isProduct ? theme.colors.primary : theme.colors.accent }}>
+                        <span className="text-white text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: isProduct ? theme.colors.primary : theme.colors.accent }}>
                           {isProduct ? 'Product' : 'Service'}
                         </span>
                         {isProduct && item.compare_at_price && item.compare_at_price > item.price && (
-                          <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                             -{Math.round((1 - item.price / item.compare_at_price) * 100)}%
                           </span>
                         )}
@@ -583,12 +583,12 @@ export default function ProductList() {
                         )}
                         {!hasStock && (
                           <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                            <span className="text-xs font-semibold text-gray-500 bg-white px-2 py-1 rounded-full shadow-sm">Out of Stock</span>
+                            <span className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded-full shadow-sm">Out of Stock</span>
                           </div>
                         )}
                       </div>
                       <div className="pt-2.5 px-1">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: theme.colors.accent }}>
+                        <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: theme.colors.accent }}>
                           {isProduct ? 'Product' : 'Service'}
                         </p>
                         <h3 className="text-sm font-medium text-gray-800 line-clamp-2 group-hover:text-gray-900">{item.name}</h3>

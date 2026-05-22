@@ -222,7 +222,7 @@ export default function CostCenters() {
           <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
             <Building2 className="w-4 h-4 text-gray-400" />
             Business Units
-            <span className="text-[11px] font-normal text-gray-400 ml-1">({companies.length})</span>
+            <span className="text-xs font-normal text-gray-400 ml-1">({companies.length})</span>
           </h2>
           <Link
             to="/stores"
@@ -260,7 +260,7 @@ export default function CostCenters() {
                 <span className="font-mono font-bold">{co.code}</span>
                 <span>{co.name}</span>
                 {co.is_default && (
-                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">Default</span>
+                  <span className="text-xs bg-emerald-100 text-emerald-700 px-1 rounded">Default</span>
                 )}
               </button>
             ))}
@@ -359,7 +359,7 @@ export default function CostCenters() {
                   : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
                 <Tag className="w-4 h-4 text-gray-400 shrink-0" />
                 <span className="font-semibold text-sm text-gray-700 flex-1 text-left">{groupName}</span>
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${badgeCls}`}>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${badgeCls}`}>
                   {items.length} center{items.length !== 1 ? 's' : ''}
                 </span>
               </button>
@@ -441,7 +441,7 @@ export default function CostCenters() {
                   {/* Cost Center Code + Group — side by side */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide">
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
                         Cost Center Code <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
@@ -456,7 +456,7 @@ export default function CostCenters() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide">
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
                         Department Group
                       </label>
                       <select
@@ -472,7 +472,7 @@ export default function CostCenters() {
 
                   {/* Name */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
                       Name <span className="text-red-400">*</span>
                     </label>
                     <input
@@ -485,7 +485,7 @@ export default function CostCenters() {
 
                   {/* Description */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide">
                       Description
                     </label>
                     <textarea
@@ -499,9 +499,9 @@ export default function CostCenters() {
 
                   {/* Business unit — optional */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
                       Business Unit
-                      <span className="text-[10px] font-normal text-gray-400 normal-case tracking-normal">(optional)</span>
+                      <span className="text-xs font-normal text-gray-400 normal-case tracking-normal">(optional)</span>
                     </label>
                     <select
                       value={ccForm.company_id}
@@ -513,7 +513,7 @@ export default function CostCenters() {
                         <option key={co.id} value={co.id}>{co.code} — {co.name}</option>
                       ))}
                     </select>
-                    <p className="text-[11px] text-gray-400 mt-1">
+                    <p className="text-xs text-gray-400 mt-1">
                       Leave blank to automatically use the default business unit.
                     </p>
                   </div>
@@ -555,7 +555,7 @@ export default function CostCenters() {
                       },
                     ].map(({ icon: Icon, label, value, mono, cls }) => (
                       <div key={label} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">
                           <Icon className="w-3 h-3" />
                           {label}
                         </div>
@@ -569,7 +569,7 @@ export default function CostCenters() {
 
                   {/* ID */}
                   <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">
                       <Info className="w-3 h-3" /> System ID
                     </div>
                     <p className="font-mono text-xs text-gray-500 break-all">{ccDialog.editing.id}</p>
@@ -577,7 +577,7 @@ export default function CostCenters() {
 
                   {/* Timestamps */}
                   <div>
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                    <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5" /> Activity Log
                     </h3>
                     <div className="space-y-0 relative">
@@ -612,7 +612,7 @@ export default function CostCenters() {
                   {/* Description (read-only) */}
                   {ccDialog.editing.description && (
                     <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">
                         <FileText className="w-3 h-3" /> Description
                       </div>
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">{ccDialog.editing.description}</p>
@@ -685,7 +685,7 @@ function CCRow({
           <p className="text-xs text-gray-400 truncate mt-0.5">{cc.description}</p>
         )}
         {cc.parent_id && (
-          <p className="text-[11px] text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-400 mt-0.5">
             ↳ Under: {allCC.find(c => c.id === cc.parent_id)?.name || cc.parent_id.slice(0, 8)}
           </p>
         )}
@@ -694,12 +694,12 @@ function CCRow({
       {/* Group badge */}
       <div className="shrink-0 w-44">
         {cc.cc_group ? (
-          <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${badgeCls}`}>
+          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${badgeCls}`}>
             <Tag className="w-2.5 h-2.5" />
             {cc.cc_group}
           </span>
         ) : (
-          <span className="text-[11px] text-gray-300">—</span>
+          <span className="text-xs text-gray-300">—</span>
         )}
       </div>
 

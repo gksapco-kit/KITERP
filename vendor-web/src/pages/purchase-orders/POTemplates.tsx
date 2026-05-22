@@ -121,7 +121,7 @@ function AccordionSection({ title, children, defaultOpen = false, badge }: {
       >
         <span className="flex items-center gap-2">
           {title}
-          {badge && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">{badge}</span>}
+          {badge && <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">{badge}</span>}
         </span>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
@@ -137,7 +137,7 @@ function ToggleRow({ label, hint, checked, onChange }: {
     <label className="flex items-center justify-between py-1.5 cursor-pointer gap-3">
       <div>
         <span className="text-sm text-gray-700">{label}</span>
-        {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
+        {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
       </div>
       <button
         type="button"
@@ -234,7 +234,7 @@ function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; 
         onTouchMove={draw}
         onTouchEnd={stopDraw}
       />
-      <p className="text-[10px] text-gray-400 text-center">Draw your signature above using mouse or touch</p>
+      <p className="text-xs text-gray-400 text-center">Draw your signature above using mouse or touch</p>
       <div className="flex gap-2">
         <Button type="button" variant="outline" size="sm" className="flex-1 gap-1.5" onClick={clearCanvas}>
           <Eraser className="w-3.5 h-3.5" /> Clear
@@ -462,7 +462,7 @@ export default function POTemplatesPage() {
               const Icon = t.icon
               return (
                 <button key={t.id} onClick={() => setSettingsTab(t.id)}
-                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-semibold transition-all border-b-2 ${settingsTab === t.id ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-all border-b-2 ${settingsTab === t.id ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                   <Icon className="w-3.5 h-3.5" />
                   {t.label}
                 </button>
@@ -491,8 +491,8 @@ export default function POTemplatesPage() {
                     )}
                     <div className="w-full rounded-md overflow-hidden border border-gray-100"
                       dangerouslySetInnerHTML={{ __html: tmpl.svg(settings.color) }} />
-                    <p className="mt-1.5 text-xs font-semibold text-gray-800">{tmpl.name}</p>
-                    <p className="text-[10px] text-gray-500 leading-tight">{tmpl.desc}</p>
+                    <p className="mt-1.5 text-xs font-medium text-gray-800">{tmpl.name}</p>
+                    <p className="text-xs text-gray-500 leading-tight">{tmpl.desc}</p>
                   </button>
                 ))}
               </div>
@@ -547,7 +547,7 @@ export default function POTemplatesPage() {
                       <span><Upload className="w-3.5 h-3.5" /> {logoUrl ? 'Change Logo' : 'Upload Logo'}</span>
                     </Button>
                   </label>
-                  <p className="text-[10px] text-gray-400 mt-1.5">PNG, JPG, SVG · Max 2 MB</p>
+                  <p className="text-xs text-gray-400 mt-1.5">PNG, JPG, SVG · Max 2 MB</p>
                 </div>
               </div>
               <ToggleRow label="Show logo on PO" checked={settings.show_logo} onChange={v => set('show_logo', v)} />
@@ -576,7 +576,7 @@ export default function POTemplatesPage() {
                   ) : (
                     <div className="h-14 w-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1">
                       <Pen className="w-5 h-5 text-gray-300" />
-                      <span className="text-[10px] text-gray-400">No signature</span>
+                      <span className="text-xs text-gray-400">No signature</span>
                     </div>
                   )}
                   <div className="flex-1">
@@ -585,7 +585,7 @@ export default function POTemplatesPage() {
                       {uploadingSignature ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                       {settings.signature_url ? 'Change Signature' : 'Upload Signature'}
                     </Button>
-                    <p className="text-[10px] text-gray-400 mt-1.5">PNG, JPG · transparent background recommended</p>
+                    <p className="text-xs text-gray-400 mt-1.5">PNG, JPG · transparent background recommended</p>
                   </div>
                 </div>
               ) : (
@@ -622,7 +622,7 @@ export default function POTemplatesPage() {
           {/* ── Content Tab ── */}
           {settingsTab === 'content' && <>
             <AccordionSection title="Party Details" badge="Sold To · Ship To" defaultOpen>
-              <p className="text-[11px] text-gray-500 -mt-1 mb-2">Sold To = your company (buyer). Ship To = delivery location.</p>
+              <p className="text-xs text-gray-500 -mt-1 mb-2">Sold To = your company (buyer). Ship To = delivery location.</p>
               <ToggleRow label="Show Sold To / Bill To party" hint="Your company as the purchasing entity" checked={settings.show_sold_to} onChange={v => set('show_sold_to', v)} />
               <ToggleRow label="Show Ship To / Deliver To" hint="Delivery warehouse or site address" checked={settings.show_ship_to} onChange={v => set('show_ship_to', v)} />
               <ToggleRow label="Show supplier address" checked={settings.show_supplier_address} onChange={v => set('show_supplier_address', v)} />
@@ -652,7 +652,7 @@ export default function POTemplatesPage() {
             </AccordionSection>
 
             <AccordionSection title="Tax Details" badge="GST" defaultOpen>
-              <p className="text-[11px] text-gray-500 -mt-1 mb-2">When enabled, CGST, SGST and IGST are shown as separate rows in the totals.</p>
+              <p className="text-xs text-gray-500 -mt-1 mb-2">When enabled, CGST, SGST and IGST are shown as separate rows in the totals.</p>
               <ToggleRow label="Show tax breakdown (CGST / SGST / IGST)" checked={settings.show_tax_breakdown} onChange={v => set('show_tax_breakdown', v)} />
             </AccordionSection>
 

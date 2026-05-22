@@ -379,7 +379,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
 
           {/* Date range — future dates allowed on To */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Date Range *</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Date Range *</p>
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 w-7">From</span>
@@ -414,7 +414,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
 
           {/* Default status */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Default Status</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Default Status</p>
             <div className="flex flex-wrap gap-1.5">
               {STATUS_OPTS.map(s => {
                 const cfg = STATUS_CONFIG[s]
@@ -434,7 +434,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
 
           {/* Default work from */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Default Work From</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Default Work From</p>
             <div className="flex gap-1.5 flex-wrap">
               {WORK_FROM_OPTS.map(({ value, label, icon: Icon }) => (
                 <button key={value} type="button" onClick={() => setGlobalWF(value)}
@@ -464,7 +464,7 @@ function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeMod
           {/* Employees */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                 Employees
                 <span className="ml-1 text-gray-400 font-normal normal-case">
                   {selected.length === 0 ? '(all active)' : `(${selected.length} selected)`}

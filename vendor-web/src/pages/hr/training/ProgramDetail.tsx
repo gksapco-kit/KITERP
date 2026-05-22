@@ -32,7 +32,7 @@ export default function ProgramDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900">{p.name}</h1>
           <p className="text-sm text-gray-500 mt-1">
             {p.category ?? 'General'} · {p.estimated_hours ?? 0}h ·{' '}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+            <span className={`text-xs px-1.5 py-0.5 rounded ${
               p.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
             }`}>{p.status}</span>
             {p.is_mandatory && <span className="ml-2 text-orange-600 text-xs font-medium">Mandatory</span>}
@@ -64,10 +64,10 @@ export default function ProgramDetailPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <Icon className="w-4 h-4 text-gray-500" />
                       <h3 className="font-medium text-gray-900">{c.title}</h3>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 uppercase">
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 uppercase">
                         {c.content_type}
                       </span>
-                      {c.is_required && <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">Required</span>}
+                      {c.is_required && <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">Required</span>}
                     </div>
                     <p className="text-xs text-gray-500">
                       {c.duration_min ? <>{c.duration_min} min · </> : null}

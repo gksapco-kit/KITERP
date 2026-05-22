@@ -350,7 +350,7 @@ export function AssignRmToAccountsModal({
                                   <div className="flex flex-wrap items-center gap-2">
                                     <p className="font-medium leading-tight">{v.business_name || v.display_name}</p>
                                     {onThisRm && (
-                                      <span className="text-[10px] uppercase tracking-wide font-semibold text-primary shrink-0 px-1.5 py-0.5 rounded bg-primary/10">
+                                      <span className="text-xs uppercase tracking-wide font-semibold text-primary shrink-0 px-1.5 py-0.5 rounded bg-primary/10">
                                         This RM
                                       </span>
                                     )}
@@ -359,7 +359,7 @@ export function AssignRmToAccountsModal({
                                     <p className="text-xs text-muted-foreground truncate">{v.display_name}</p>
                                   )}
                                   <p className="text-xs text-muted-foreground font-mono truncate">{v.slug}</p>
-                                  <p className="text-[11px] text-muted-foreground">
+                                  <p className="text-xs text-muted-foreground">
                                     Subdomain: {v.subdomain || '—'}
                                   </p>
                                 </div>
@@ -385,13 +385,13 @@ export function AssignRmToAccountsModal({
                             </td>
                             <td className="px-3 py-2 align-top text-muted-foreground max-w-[10rem]">
                               <p className="truncate">{v.industry || '—'}</p>
-                              <p className="text-[11px] truncate capitalize">{v.business_type}</p>
+                              <p className="text-xs truncate capitalize">{v.business_type}</p>
                             </td>
                             <td className="px-3 py-2 align-top text-muted-foreground">
                               <div className="space-y-0.5 max-w-[13rem]">
                                 <p className="font-medium text-foreground truncate">{loginLine}</p>
                                 {rm && (rm.email || rm.phone) && rm.full_name && (
-                                  <p className="text-[11px] truncate">{rm.full_name}</p>
+                                  <p className="text-xs truncate">{rm.full_name}</p>
                                 )}
                               </div>
                             </td>

@@ -359,7 +359,7 @@ export function EssMarkRangeModal({ open, onClose }: { open: boolean; onClose: (
           </p>
 
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Date Range *</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Date Range *</p>
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 w-7">From</span>
@@ -401,7 +401,7 @@ export function EssMarkRangeModal({ open, onClose }: { open: boolean; onClose: (
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Default Status</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Default Status</p>
             <div className="flex flex-wrap gap-1.5">
               {STATUS_OPTS.map((s) => {
                 const cfg = STATUS_CONFIG[s]
@@ -425,7 +425,7 @@ export function EssMarkRangeModal({ open, onClose }: { open: boolean; onClose: (
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Default Work From</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Default Work From</p>
             <div className="flex gap-1.5 flex-wrap">
               {WORK_FROM_OPTS.map(({ value, label, icon: Icon }) => (
                 <button

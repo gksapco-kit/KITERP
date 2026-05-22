@@ -167,7 +167,7 @@ export default function RelationshipManagerPage() {
                     <span className={statusBadge(q.status)}>{q.status.replace('_', ' ')}</span>
                   </div>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{q.body}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {q.created_at ? new Date(q.created_at).toLocaleString() : ''}
                   </p>
                 </li>

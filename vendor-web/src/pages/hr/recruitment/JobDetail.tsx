@@ -52,7 +52,7 @@ function AddCandidateToJobModal({ jobId, onClose }: { jobId: string; onClose: ()
               }}
               className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b">
               <p className="text-sm font-medium">{c.full_name}</p>
-              <p className="text-[11px] text-gray-500">{c.email ?? c.phone ?? c.current_designation ?? ''}</p>
+              <p className="text-xs text-gray-500">{c.email ?? c.phone ?? c.current_designation ?? ''}</p>
             </button>
           ))}
         </div>
@@ -192,16 +192,16 @@ export default function JobDetailPage() {
               {(grouped[stage.key] ?? []).map(app => (
                 <div key={app.id} className="bg-white border rounded-lg p-2 shadow-sm">
                   <p className="text-sm font-medium text-gray-900">{app.candidate?.full_name ?? '—'}</p>
-                  <p className="text-[11px] text-gray-500 mb-1">{app.candidate?.current_designation ?? ''}</p>
+                  <p className="text-xs text-gray-500 mb-1">{app.candidate?.current_designation ?? ''}</p>
                   {app.rating ? (
-                    <p className="text-[11px] text-amber-600 flex items-center gap-0.5">
+                    <p className="text-xs text-amber-600 flex items-center gap-0.5">
                       <Star className="w-3 h-3 fill-amber-500 text-amber-500" /> {app.rating}/5
                     </p>
                   ) : null}
                   <div className="flex items-center justify-between mt-2 pt-2 border-t">
                     <select defaultValue={app.current_stage}
                       onChange={e => moveStage.mutate({ id: app.id, stage: e.target.value })}
-                      className="text-[11px] border rounded px-1 py-0.5">
+                      className="text-xs border rounded px-1 py-0.5">
                       {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                     </select>
                     <button onClick={() => setScheduleFor(app)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Schedule interview">
@@ -209,7 +209,7 @@ export default function JobDetailPage() {
                     </button>
                   </div>
                   {app.interviews && app.interviews.length > 0 && (
-                    <div className="mt-1 text-[10px] text-gray-500 flex items-center gap-1">
+                    <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
                       <UsersIcon className="w-3 h-3" /> {app.interviews.length} round{app.interviews.length === 1 ? '' : 's'}
                     </div>
                   )}

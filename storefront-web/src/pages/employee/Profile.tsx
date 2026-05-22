@@ -22,7 +22,7 @@ function Section({ title, icon: Icon, children }: { title: string; icon: React.E
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">{label}</p>
       <p className="text-sm text-gray-800">{value || <span className="text-gray-400">—</span>}</p>
     </div>
   )

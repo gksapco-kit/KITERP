@@ -45,11 +45,11 @@ export function WinePairing({
                 <p className="mt-2 text-sm italic text-muted-foreground">"{w.notes}"</p>
               )}
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Pairs with:
                 </span>
                 {w.pairs.map((p) => (
-                  <Badge key={p} variant="outline" className="text-[10px]">
+                  <Badge key={p} variant="outline" className="text-xs">
                     {p}
                   </Badge>
                 ))}
@@ -94,7 +94,7 @@ export function ComboMenu({ layout = "grid", cta = "Order combo" }: ComboProps) 
             <div className="mt-4 flex-1 space-y-3">
               {c.includes.map((step) => (
                 <div key={step.label} className="rounded-md border border-border bg-card p-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {step.label}
                   </div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -172,7 +172,7 @@ export function NutritionTable({ showSodium = true, compact = false }: Nutrition
                       )}
                     >
                       {c.label}
-                      {sortKey === c.key && <span className="text-[10px]">{asc ? "▲" : "▼"}</span>}
+                      {sortKey === c.key && <span className="text-xs">{asc ? "▲" : "▼"}</span>}
                     </button>
                   </th>
                 ))}

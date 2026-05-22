@@ -43,7 +43,7 @@ export function FitnessScheduler({
     <div className="bg-background p-6">
       <Header />
       <div className="overflow-hidden rounded-lg border border-border">
-        <div className="grid grid-cols-[110px_1fr_120px_140px_120px] items-center gap-4 border-b border-border bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="grid grid-cols-[110px_1fr_120px_140px_120px] items-center gap-4 border-b border-border bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           <div>Time</div>
           <div>Class</div>
           <div>Intensity</div>
@@ -64,7 +64,7 @@ export function FitnessScheduler({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className={cn("text-[10px]", TYPE_COLOR[c.type])}>
+                  <Badge variant="secondary" className={cn("text-xs", TYPE_COLOR[c.type])}>
                     {c.type}
                   </Badge>
                   <span className="truncate text-sm font-medium">{c.name}</span>
@@ -115,7 +115,7 @@ function ClassCard({ c, showInstructor, cta }: { c: FitnessClass; showInstructor
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between">
-        <Badge variant="secondary" className={cn("text-[10px]", TYPE_COLOR[c.type])}>
+        <Badge variant="secondary" className={cn("text-xs", TYPE_COLOR[c.type])}>
           {c.type}
         </Badge>
         <div className="text-xs text-muted-foreground">{c.duration} min</div>

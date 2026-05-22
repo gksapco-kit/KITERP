@@ -77,7 +77,7 @@ export function ProductList({
               {showTags && p.tags.length > 0 && (
                 <div className="mt-1 flex gap-1">
                   {p.tags.slice(0, 2).map((t) => (
-                    <span key={t} className="rounded bg-accent px-1.5 py-0.5 text-[10px] text-accent-foreground">
+                    <span key={t} className="rounded bg-accent px-1.5 py-0.5 text-xs text-accent-foreground">
                       {t}
                     </span>
                   ))}

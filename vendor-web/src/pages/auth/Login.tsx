@@ -200,7 +200,7 @@ export default function Login() {
                     see <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">{`{"status":"healthy"}`}</code>.
                   </li>
                 </ol>
-                <p className="text-[10px] text-red-700/80 dark:text-red-300/80 mt-1.5 break-all">
+                <p className="text-xs text-red-700/80 dark:text-red-300/80 mt-1.5 break-all">
                   Health check URL used: {getBackendHealthUrl()}
                 </p>
                 <button
@@ -243,7 +243,7 @@ export default function Login() {
                 >
                   <Store className="w-3.5 h-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
                   <span className="min-w-0 flex-1 truncate">{v.name}</span>
-                  <span className="text-[10px] font-mono text-amber-800 dark:text-amber-300 shrink-0">{v.slug}</span>
+                  <span className="text-xs font-mono text-amber-800 dark:text-amber-300 shrink-0">{v.slug}</span>
                 </button>
               ))}
             </div>
@@ -282,10 +282,10 @@ export default function Login() {
 
           <div className="w-full space-y-1">
             <div className="flex min-h-[1.745625rem] items-center justify-between gap-2">
-              <Label htmlFor="password" className="text-xs font-semibold text-foreground">
+              <Label htmlFor="password" className="text-xs font-medium text-foreground">
                 Password
               </Label>
-              <span className="invisible shrink-0 select-none whitespace-nowrap text-xs font-semibold text-foreground" aria-hidden>
+              <span className="invisible shrink-0 select-none whitespace-nowrap text-xs font-medium text-foreground" aria-hidden>
                 Use phone instead
               </span>
             </div>
@@ -349,7 +349,7 @@ export default function Login() {
             <Link
               to="/register"
               className={cn(
-                'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
+                'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                 'bg-gradient-to-r from-sky-50 to-blue-50 text-[hsl(204.42deg_94.86%_48.34%)]',
                 'border border-sky-200/60',
                 'hover:from-sky-100 hover:to-blue-100 hover:border-sky-300/80 hover:underline',
@@ -406,7 +406,7 @@ export default function Login() {
                 <span className="text-sm">🔑</span>
                 <div className="min-w-0">
                   <p className="font-medium leading-tight">Reset my password</p>
-                  <p className="text-[10px] text-muted-foreground">Send a reset code to your email</p>
+                  <p className="text-xs text-muted-foreground">Send a reset code to your email</p>
                 </div>
               </Link>
 
@@ -422,7 +422,7 @@ export default function Login() {
                   <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium leading-tight">Call support</p>
-                    <p className="text-[10px] text-muted-foreground font-mono">{SUPPORT_PHONE}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{SUPPORT_PHONE}</p>
                   </div>
                 </a>
               ) : (
@@ -436,7 +436,7 @@ export default function Login() {
                   <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium leading-tight">Contact support</p>
-                    <p className="text-[10px] text-muted-foreground">support@kiterp.com</p>
+                    <p className="text-xs text-muted-foreground">support@kiterp.com</p>
                   </div>
                 </a>
               )}
@@ -454,7 +454,7 @@ export default function Login() {
                 <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <div className="min-w-0">
                   <p className="font-medium leading-tight">Chat with us</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {SUPPORT_CHAT_URL ? 'WhatsApp / live chat' : 'support@kiterp.com'}
                   </p>
                 </div>

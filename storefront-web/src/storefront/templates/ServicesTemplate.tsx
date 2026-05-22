@@ -54,7 +54,7 @@ const ServicesHome = () => {
       {/* Hero */}
       <section data-edit-id="hero" className="px-6 sm:px-12 py-20 lg:py-28">
         <div className="max-w-5xl mx-auto text-center">
-          <span className="text-[11px] uppercase tracking-[0.3em] opacity-70">
+          <span className="text-xs uppercase tracking-[0.3em] opacity-70">
             {c('hero.badge', 'Bookings open · Spring')}
           </span>
           <h1 className="text-[clamp(1.75rem,4vw_+_0.5rem,2.75rem)] sm:text-[clamp(2.1rem,4.5vw_+_0.5rem,3.35rem)] md:text-[clamp(2.35rem,5vw_+_0.45rem,3.85rem)] lg:text-[clamp(2.65rem,5.5vw,4.5rem)] mt-4 mb-6 text-balance" style={{ fontFamily: 'var(--sf-display)' }}>
@@ -143,7 +143,7 @@ const ServicesHome = () => {
           </p>
           <div className="grid lg:grid-cols-[1fr_1.2fr] gap-6 border" style={{ borderColor: 'hsl(var(--sf-border))' }}>
             <div className="p-6 border-r" style={{ borderColor: 'hsl(var(--sf-border))', background: 'hsl(var(--sf-muted) / 0.3)' }}>
-              <div className="text-[11px] uppercase tracking-[0.18em] opacity-70 mb-3">Service</div>
+              <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3">Service</div>
               <ul className="space-y-2">
                 {services.map((s) => (
                   <li key={s.id}>
@@ -155,7 +155,7 @@ const ServicesHome = () => {
                       }}>
                       <div className="flex flex-col">
                         <span className="text-sm">{s.name}</span>
-                        <span className="text-[11px] opacity-70">{s.durationMinutes} min</span>
+                        <span className="text-xs opacity-70">{s.durationMinutes} min</span>
                       </div>
                       <span className="text-sm">{formatMoney(s.price)}</span>
                     </button>
@@ -164,7 +164,7 @@ const ServicesHome = () => {
               </ul>
             </div>
             <div className="p-6">
-              <div className="text-[11px] uppercase tracking-[0.18em] opacity-70 mb-3 flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /> Available · Tomorrow</div>
+              <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3 flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /> Available · Tomorrow</div>
               <div className="grid grid-cols-3 gap-2">
                 {SLOTS.map((t) => (
                   <button key={t} onClick={() => setSlot(t)} className="py-3 border text-sm transition-colors"

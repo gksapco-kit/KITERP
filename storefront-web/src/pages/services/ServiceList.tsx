@@ -97,7 +97,7 @@ export default function ServiceList() {
             </h3>
             <div className="space-y-5">
               <div>
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Search</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Search</label>
                 <form onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}>
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -114,7 +114,7 @@ export default function ServiceList() {
 
               {categories.length > 0 && (
                 <div>
-                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 block">Category</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Category</label>
                   <button onClick={() => { setCategory(''); setPage(1) }}
                     className={`w-full text-left px-2 py-1.5 rounded-lg text-sm transition-colors ${!category ? `${themeUi.pillPrimary} font-semibold` : 'text-gray-600 hover:bg-gray-50'}`}>
                     All Categories
@@ -174,7 +174,7 @@ export default function ServiceList() {
               </form>
               {categories.length > 0 && (
                 <div>
-                  <label className="text-[11px] font-bold text-gray-400 uppercase mb-1.5 block">Category</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-1.5 block">Category</label>
                   <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1) }}
                     className={`w-full h-9 rounded-lg border text-sm px-2 bg-white ${themeUi.focusRing}`}>
                     <option value="">All Categories</option>

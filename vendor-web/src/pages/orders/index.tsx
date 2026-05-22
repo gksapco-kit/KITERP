@@ -277,14 +277,14 @@ export default function Orders() {
                     className="h-4 w-4 rounded border-gray-300 accent-blue-600"
                   />
                 </th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Order</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Items</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Source</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Action</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Items</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Source</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -398,7 +398,7 @@ function OrderReservationBadge({ orderId }: { orderId: string }) {
   const active = ((data || []) as Array<{ status: string }>).filter(r => r.status === 'active')
   if (active.length === 0) return null
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+    <span className="inline-flex items-center gap-1 text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
       <Lock className="w-2.5 h-2.5" /> Reserved
     </span>
   )
