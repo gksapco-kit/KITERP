@@ -75,7 +75,7 @@ export default function RestaurantSetupPage() {
           <Link to="/restaurant/floor"><ArrowLeft className="w-4 h-4" /></Link>
         </Button>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Restaurant setup</h1>
+          <h1 className="text-xl font-bold text-gray-900">Restaurant Setup</h1>
           <p className="text-sm text-gray-500">Zones group tables for your floor plan.</p>
         </div>
       </div>

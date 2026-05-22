@@ -35,9 +35,9 @@ export default function RestaurantKitchenPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <ChefHat className="w-6 h-6 text-orange-600" /> Kitchen board
+            <ChefHat className="w-6 h-6 text-orange-600" /> Kitchen Board
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Tickets from restaurant POS checkouts today (UTC day).</p>
+          <p className="text-sm text-gray-500 mt-1">Tickets From Restaurant POS Checkouts Today (UTC Day).</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <label className="flex items-center gap-2 text-xs text-gray-600">

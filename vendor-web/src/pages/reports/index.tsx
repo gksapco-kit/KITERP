@@ -1194,7 +1194,7 @@ export default function ReportsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-gray-900">Reports & Insights</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Analyse your store performance with downloadable reports</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Analyse Your Store Performance With Downloadable Reports</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleCSV} className="gap-1.5 text-xs"><Download className="w-3.5 h-3.5" /> CSV</Button>

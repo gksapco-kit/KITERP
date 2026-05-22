@@ -10752,7 +10752,7 @@ export default function WebsiteBuilder() {
                   <div className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-tight pt-0.5">
-                        Website templates
+                        Website Templates
                       </div>
                       {isTemplateMode && (
                         <button

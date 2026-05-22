@@ -97,7 +97,7 @@ export default function StorefrontDisplayPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Business Front Display</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Control which fields are visible to customers on your product and service pages.
+          Control Which Fields Are Visible To Customers On Your Product And Service Pages.
         </p>
       </div>
 

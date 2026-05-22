@@ -18,7 +18,7 @@ export default function RestaurantFloorPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <UtensilsCrossed className="w-6 h-6 text-amber-600" /> Restaurant floor
+            <UtensilsCrossed className="w-6 h-6 text-amber-600" /> Restaurant Floor
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Tap a table to open POS with that table tagged — tickets appear on the kitchen board after checkout.
@@ -29,7 +29,7 @@ export default function RestaurantFloorPage() {
             <Link to="/restaurant/setup" className="gap-1"><Settings className="w-4 h-4" /> Table setup</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/restaurant/kitchen" className="gap-1"><ChefHat className="w-4 h-4" /> Kitchen board</Link>
+            <Link to="/restaurant/kitchen" className="gap-1"><ChefHat className="w-4 h-4" /> Kitchen Board</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/pos">Retail POS</Link>

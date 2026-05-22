@@ -947,7 +947,7 @@ export default function DocumentTemplatesPage() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <FileText className="w-6 h-6 text-indigo-600" /> Document Templates
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Configure and preview printable templates for your business documents. Each template is fully customisable.</p>
+          <p className="text-sm text-gray-500 mt-1">Configure And Preview Printable Templates For Your Business Documents. Each Template Is Fully Customisable.</p>
         </div>
 
         {categories.map(cat => (

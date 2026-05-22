@@ -243,7 +243,7 @@ export default function TeamPage() {
             Staff Access Control
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage users, roles, and permissions for your workspace
+            Manage Users, Roles, And Permissions For Your Workspace
           </p>
         </div>
         {canInvite && (

@@ -69,8 +69,8 @@ export default function FinanceDashboard() {
             {[
               ['Chart of Accounts', '/finance/coa'],
               ['Journal Entries', '/finance/journal'],
-              ['Posting periods', '/finance/periods'],
-              ['GL field rules', '/finance/field-rules'],
+              ['Posting Periods', '/finance/periods'],
+              ['GL Field Rules', '/finance/field-rules'],
               ['Trial Balance', '/finance/trial-balance'],
               ['P&L Report', '/finance/reports/pnl'],
               ['AR Aging', '/finance/ar'],

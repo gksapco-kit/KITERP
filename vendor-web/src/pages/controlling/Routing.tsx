@@ -541,7 +541,7 @@ export default function RoutingPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Work Centres &amp; Routing</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Define machines and labour stations with their rates, then build production routings
+          Define Machines And Labour Stations With Their Rates, Then Build Production Routings
           with step-by-step operations linked to work centres.
         </p>
       </div>

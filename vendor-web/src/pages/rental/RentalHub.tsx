@@ -7,7 +7,7 @@ export default function RentalHubPage() {
       <div>
         <h1 className="text-xl font-bold text-gray-900">Rentals</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Run equipment or space rentals using bookings (pickup/return windows) and catalog items as rental SKUs.
+          Run Equipment Or Space Rentals Using Bookings (Pickup/Return Windows) And Catalog Items As Rental SKUs.
           A dedicated rental engine can extend this later with deposits and asset schedules.
         </p>
       </div>

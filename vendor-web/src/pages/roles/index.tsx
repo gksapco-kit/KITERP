@@ -178,7 +178,7 @@ export default function RolesPage() {
             Roles & Permissions
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Define custom roles to control team member access
+            Define Custom Roles To Control Team Member Access
           </p>
         </div>
         {canManageRoles && (

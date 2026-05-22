@@ -207,7 +207,7 @@ export default function PlansPage() {
           <CreditCard className="w-6 h-6 text-blue-600" /> Billing & Plans
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Upgrade or downgrade your plan at any time. Changes take effect immediately.
+          Upgrade Or Downgrade Your Plan At Any Time. Changes Take Effect Immediately.
         </p>
       </div>
 

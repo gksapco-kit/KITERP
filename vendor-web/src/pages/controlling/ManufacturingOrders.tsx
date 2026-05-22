@@ -93,9 +93,9 @@ export default function ControllingManufacturingOrdersPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Factory className="w-7 h-7 text-primary" /> Manufacturing &amp; project orders
+            <Factory className="w-7 h-7 text-primary" /> Manufacturing &amp; Project Orders
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Planned vs actual cost lines, variance, WIP on open statuses.</p>
+          <p className="text-sm text-gray-500 mt-1">Planned Vs Actual Cost Lines, Variance, WIP On Open Statuses.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
           {companies.length > 0 && (

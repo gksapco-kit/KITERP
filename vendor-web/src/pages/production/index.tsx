@@ -702,7 +702,7 @@ export default function ProductionOrdersPage() {
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Factory className="w-6 h-6 text-primary" /> Production Orders
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage Make-to-Order &amp; Make-to-Stock production workflows</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage Make-To-Order &amp; Make-To-Stock Production Workflows</p>
             <p className="text-xs mt-2 px-2.5 py-1 rounded-lg border bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-200 inline-block">
               {storeId ? (
                 <>Showing orders for <strong>{selectedStore?.name}</strong></>

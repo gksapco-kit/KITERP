@@ -32,7 +32,7 @@ export default function ControllingDashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Controlling (CO)</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Product cost planning, manufacturing and project orders, planned vs actual, WIP.
+            Product Cost Planning, Manufacturing And Project Orders, Planned Vs Actual, WIP.
           </p>
         </div>
         {companies.length > 0 && (
@@ -108,9 +108,9 @@ export default function ControllingDashboardPage() {
           <h2 className="font-semibold text-gray-800 mb-3">Planning &amp; Cost Setup</h2>
           <ul className="space-y-2">
             {[
-              ['/controlling/product-costs', 'Product cost planning', 'Standard / planned costs & BOM roll-up', Boxes],
-              ['/controlling/setup', 'Activities & overhead', 'Activity types and overhead pools / rates', Gauge],
-              ['/controlling/cost-allocations', 'Cost allocations', 'Period-end CC-to-CC cost center allocations', GitMerge],
+              ['/controlling/product-costs', 'Product Cost Planning', 'Standard / Planned Costs & BOM Roll-Up', Boxes],
+              ['/controlling/setup', 'Activities & Overhead Setup', 'Activity Types And Overhead Pools / Rates', Gauge],
+              ['/controlling/cost-allocations', 'Cost Allocations', 'Period-End CC-To-CC Cost Center Allocations', GitMerge],
             ].map(([to, label, desc, Icon]) => (
               <li key={to as string}>
                 <Link
@@ -134,10 +134,10 @@ export default function ControllingDashboardPage() {
           <h2 className="font-semibold text-gray-800 mb-3">Production &amp; Orders</h2>
           <ul className="space-y-2">
             {[
-              ['/controlling/orders', 'Manufacturing orders', 'Assembly, process, internal orders & variance', Factory],
-              ['/controlling/internal-orders', 'Internal & project orders', 'Budget vs actual for internal orders & projects', FolderOpen],
-              ['/controlling/goods-movements', 'Goods movements', 'Component issues (261), FG receipts (101)', Package],
-              ['/controlling/activity-confirmations', 'Activity confirmations', 'Time entry and activity cost posting', Clock],
+              ['/controlling/orders', 'Manufacturing & Project Orders', 'Assembly, Process, Internal Orders & Variance', Factory],
+              ['/controlling/internal-orders', 'Internal & Project Orders', 'Budget Vs Actual For Internal Orders & Projects', FolderOpen],
+              ['/controlling/goods-movements', 'Goods Movements', 'Component Issues (261), FG Receipts (101)', Package],
+              ['/controlling/activity-confirmations', 'Activity Confirmations', 'Time Entry And Activity Cost Posting', Clock],
             ].map(([to, label, desc, Icon]) => (
               <li key={to as string}>
                 <Link
@@ -161,8 +161,8 @@ export default function ControllingDashboardPage() {
           <h2 className="font-semibold text-gray-800 mb-3">Reporting &amp; Period End</h2>
           <ul className="space-y-2">
             {[
-              ['/controlling/wip', 'WIP report', 'Work in process by project, order kind, or status', Layers],
-              ['/controlling/period-end', 'Period-end closing', 'Variance runs, allocations, close checklist', CalendarClock],
+              ['/controlling/wip', 'WIP Report', 'Work In Process By Project, Order Kind, Or Status', Layers],
+              ['/controlling/period-end', 'Period-End Closing', 'Variance Runs, Allocations, Close Checklist', CalendarClock],
             ].map(([to, label, desc, Icon]) => (
               <li key={to as string}>
                 <Link

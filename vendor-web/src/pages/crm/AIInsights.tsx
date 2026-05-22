@@ -52,7 +52,7 @@ export default function AIInsightsPage() {
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Sparkles className="w-6 h-6 text-primary/80" /> AI Insights
         </h1>
-        <p className="text-sm text-gray-500 mt-1">AI-powered summaries, next-best-action recommendations and predictive lead scoring.</p>
+        <p className="text-sm text-gray-500 mt-1">AI-Powered Summaries, Next-Best-Action Recommendations And Predictive Lead Scoring.</p>
       </div>
 
       <Card>

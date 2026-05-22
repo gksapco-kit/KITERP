@@ -5,26 +5,26 @@ import {
 } from 'lucide-react'
 
 const tiles: { to: string; title: string; desc: string; icon: typeof BarChart3 }[] = [
-  { to: '/reports', title: 'Reports & BI', desc: 'Sales, inventory, and operational reports.', icon: BarChart3 },
-  { to: '/document-templates', title: 'Documents', desc: 'Invoice & PDF templates — extend to a full library later.', icon: LayoutTemplate },
-  { to: '/invoices', title: 'Invoices & signing', desc: 'PDF trail and signature capture on invoices.', icon: FileText },
-  { to: '/hr/expenses', title: 'Finance expenses', desc: 'Vendor expense claims (finance visibility).', icon: ClipboardCheck },
-  { to: '/crm/campaigns', title: 'Email marketing', desc: 'Campaigns and templates under CRM.', icon: Megaphone },
-  { to: '/crm/segments', title: 'Segments', desc: 'Audience segments for outreach.', icon: Mail },
-  { to: '/controlling/internal-orders', title: 'Projects', desc: 'Internal & project manufacturing orders.', icon: Factory },
-  { to: '/hr/attendance', title: 'Timesheets (attendance)', desc: 'Clock-based attendance; CO shop-floor time uses manufacturing.', icon: ClipboardList },
-  { to: '/crm/tickets', title: 'Field & support', desc: 'Tickets and knowledge base as service hub.', icon: Truck },
-  { to: '/crm/inbox', title: 'Discuss / inbox', desc: 'CRM inbox for customer conversations.', icon: MessageSquare },
-  { to: '/hr/training', title: 'eLearning', desc: 'Training programs & enrollments (employee self-service uses Employee portal).', icon: GraduationCap },
+  { to: '/reports', title: 'Reports & BI', desc: 'Sales, Inventory, And Operational Reports.', icon: BarChart3 },
+  { to: '/document-templates', title: 'Documents', desc: 'Invoice & PDF Templates — Extend To A Full Library Later.', icon: LayoutTemplate },
+  { to: '/invoices', title: 'Invoices & Signing', desc: 'PDF Trail And Signature Capture On Invoices.', icon: FileText },
+  { to: '/hr/expenses', title: 'Finance Expenses', desc: 'Vendor Expense Claims (Finance Visibility).', icon: ClipboardCheck },
+  { to: '/crm/campaigns', title: 'Email Marketing', desc: 'Campaigns And Templates Under CRM.', icon: Megaphone },
+  { to: '/crm/segments', title: 'Segments', desc: 'Audience Segments For Outreach.', icon: Mail },
+  { to: '/controlling/internal-orders', title: 'Projects', desc: 'Internal & Project Manufacturing Orders.', icon: Factory },
+  { to: '/hr/attendance', title: 'Timesheets (Attendance)', desc: 'Clock-Based Attendance; CO Shop-Floor Time Uses Manufacturing.', icon: ClipboardList },
+  { to: '/crm/tickets', title: 'Field & Support', desc: 'Tickets And Knowledge Base As Service Hub.', icon: Truck },
+  { to: '/crm/inbox', title: 'Discuss / Inbox', desc: 'CRM Inbox For Customer Conversations.', icon: MessageSquare },
+  { to: '/hr/training', title: 'eLearning', desc: 'Training Programs & Enrollments (Employee Self-Service Uses Employee Portal).', icon: GraduationCap },
 ]
 
 export default function WorkspaceHubPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Workspace apps</h1>
+        <h1 className="text-xl font-bold text-foreground">Workspace Apps</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Shortcuts to capabilities across finance, sales, marketing, services, and HR — without duplicating full Odoo-style standalone apps.
+          Shortcuts To Capabilities Across Finance, Sales, Marketing, Services, And HR — Without Duplicating Full Odoo-Style Standalone Apps.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

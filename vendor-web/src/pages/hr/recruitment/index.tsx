@@ -331,7 +331,7 @@ export default function RecruitmentPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Recruitment</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage jobs, candidates and interviews</p>
+          <p className="text-sm text-gray-500 mt-1">Manage Jobs, Candidates And Interviews</p>
         </div>
       </div>
 

@@ -23,7 +23,7 @@ export default function AuditPage() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><History className="w-6 h-6 text-blue-500" /> Audit Log</h1>
-        <p className="text-sm text-gray-500 mt-1">Every CRUD action against CRM data is recorded here for compliance.</p>
+        <p className="text-sm text-gray-500 mt-1">Every CRUD Action Against CRM Data Is Recorded Here For Compliance.</p>
       </div>
 
       <Card><CardContent className="pt-6">

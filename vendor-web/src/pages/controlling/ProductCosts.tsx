@@ -106,9 +106,9 @@ export default function ControllingProductCostsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Boxes className="w-7 h-7 text-primary" /> Product cost planning
+            <Boxes className="w-7 h-7 text-primary" /> Product Cost Planning
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Standard costs, BOM explosion, material / activity / overhead breakdown.</p>
+          <p className="text-sm text-gray-500 mt-1">Standard Costs, BOM Explosion, Material / Activity / Overhead Breakdown.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
           {companies.length > 0 && (

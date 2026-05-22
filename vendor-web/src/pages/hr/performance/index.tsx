@@ -34,7 +34,7 @@ export default function PerformancePage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Performance</h1>
-          <p className="text-sm text-gray-500 mt-1">Review cycles, goals and KPIs</p>
+          <p className="text-sm text-gray-500 mt-1">Review Cycles, Goals And KPIs</p>
         </div>
       </div>
       <div className="flex border-b mb-5 gap-1">

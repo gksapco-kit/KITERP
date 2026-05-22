@@ -165,9 +165,9 @@ export default function ControllingSetupPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Layers className="w-7 h-7 text-primary" /> Activities &amp; overhead
+            <Layers className="w-7 h-7 text-primary" /> Activities &amp; Overhead Setup
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Drivers for activity-based costing and overhead absorption.</p>
+          <p className="text-sm text-gray-500 mt-1">Drivers For Activity-Based Costing And Overhead Absorption.</p>
         </div>
         {companies.length > 0 && (
           <label className="flex flex-col gap-1 text-xs text-gray-600">
@@ -347,7 +347,7 @@ export default function ControllingSetupPage() {
         <div>
           <h2 className="font-semibold text-gray-800">CO — GL accounts (settlement)</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Map WIP, finished goods, and COGS for production completion and cost-of-goods postings.
+            Map WIP, Finished Goods, And COGS For Production Completion And Cost-Of-Goods Postings.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">

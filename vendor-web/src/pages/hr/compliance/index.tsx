@@ -26,7 +26,7 @@ export default function CompliancePage() {
     <div className="p-6">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-gray-900">Compliance</h1>
-        <p className="text-sm text-gray-500 mt-1">Policies, certifications and audit trail</p>
+        <p className="text-sm text-gray-500 mt-1">Policies, Certifications And Audit Trail</p>
       </div>
       <div className="flex border-b mb-5 gap-1">
         {[

@@ -61,7 +61,7 @@ export default function RelationshipManagerPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <UsersRound className="w-7 h-7 text-primary" />
-          Relationship manager
+          Relationship Manager
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Your platform relationship manager is your main contact for account questions. Send them a message below.

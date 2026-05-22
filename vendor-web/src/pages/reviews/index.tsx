@@ -181,7 +181,7 @@ export default function ReviewsPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <MessageSquare className="w-6 h-6" /> Reviews
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Manage customer reviews for your products and services</p>
+          <p className="text-sm text-gray-500 mt-1">Manage Customer Reviews For Your Products And Services</p>
         </div>
       </div>
 

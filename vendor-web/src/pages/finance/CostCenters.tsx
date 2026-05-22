@@ -205,7 +205,7 @@ export default function CostCenters() {
             Cost Centers
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage cost centers grouped by department and assigned to business units
+            Manage Cost Centers Grouped By Department And Assigned To Business Units
           </p>
         </div>
         <button

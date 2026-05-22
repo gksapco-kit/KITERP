@@ -92,7 +92,7 @@ export default function IntegrationsPage() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
         <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
-        <p className="text-sm text-gray-500 mt-1">Connect external providers to send emails, SMS, WhatsApp, run AI, sync calendars and more.</p>
+        <p className="text-sm text-gray-500 mt-1">Connect External Providers To Send Emails, SMS, WhatsApp, Run AI, Sync Calendars And More.</p>
       </div>
 
       {isLoading ? (

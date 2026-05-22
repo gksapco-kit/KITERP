@@ -23,7 +23,7 @@ export default function AnnouncementsPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Announcements</h1>
-          <p className="text-sm text-gray-500 mt-1">Broadcast company news, updates and notices</p>
+          <p className="text-sm text-gray-500 mt-1">Broadcast Company News, Updates And Notices</p>
         </div>
         <button onClick={() => setShowNew(true)}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">

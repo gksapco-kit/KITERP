@@ -30,8 +30,8 @@ export default function ControllingWipReportPage() {
       </Link>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">WIP report</h1>
-          <p className="text-sm text-gray-500 mt-1">Open orders (draft / released / in progress) by project, kind, or status.</p>
+          <h1 className="text-2xl font-bold text-gray-900">WIP Report</h1>
+          <p className="text-sm text-gray-500 mt-1">Open Orders (Draft / Released / In Progress) By Project, Kind, Or Status.</p>
         </div>
         <div className="flex flex-wrap gap-3 items-end">
           {companies.length > 0 && (

@@ -70,7 +70,7 @@ export default function WebsiteTemplateGalleryPage() {
               <Sparkles className="w-4 h-4" />
               Configuration
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Website templates</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Website Templates</h1>
             <p className="text-sm text-gray-600 mt-1 max-w-xl">
               Browse full-site layouts, preview pages and live ERP blocks, then apply to one of your sites. You can also open templates from the builder’s <b>Templates</b> tab.
             </p>

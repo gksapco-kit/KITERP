@@ -372,7 +372,7 @@ export default function ModulesPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Module Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Choose a module below, then configure enablement and options in the panel.
+          Choose A Module Below, Then Configure Enablement And Options In The Panel.
         </p>
       </div>
 

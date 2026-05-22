@@ -148,7 +148,7 @@ export default function VarianceAnalysisPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Variance Analysis</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Cross-order planned vs actual cost analysis with price, usage, overhead and scrap variance breakdown.
+          Cross-Order Planned Vs Actual Cost Analysis With Price, Usage, Overhead And Scrap Variance Breakdown.
         </p>
       </div>
 

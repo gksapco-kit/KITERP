@@ -25,7 +25,7 @@ export default function HelpdeskPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Helpdesk &amp; Grievances</h1>
-          <p className="text-sm text-gray-500 mt-1">Track and resolve employee tickets</p>
+          <p className="text-sm text-gray-500 mt-1">Track And Resolve Employee Tickets</p>
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="border rounded px-3 py-2 text-sm">

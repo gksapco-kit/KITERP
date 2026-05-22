@@ -14,7 +14,7 @@ export default function DesignationsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Designations</h1>
-          <p className="text-sm text-gray-500 mt-1">Job titles and seniority levels</p>
+          <p className="text-sm text-gray-500 mt-1">Job Titles And Seniority Levels</p>
         </div>
         <button
           onClick={() => setModal({ open: true, desig: null })}

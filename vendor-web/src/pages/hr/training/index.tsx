@@ -33,7 +33,7 @@ export default function TrainingPage() {
     <div className="p-6">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-gray-900">Training Management</h1>
-        <p className="text-sm text-gray-500 mt-1">Build programs, courses, quizzes and track enrollments</p>
+        <p className="text-sm text-gray-500 mt-1">Build Programs, Courses, Quizzes And Track Enrollments</p>
       </div>
       <div className="flex border-b mb-5 gap-1">
         {[
