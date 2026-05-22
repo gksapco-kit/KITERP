@@ -38,12 +38,12 @@ const SLOT_STATUS_DOT: Record<string, string> = {
 }
 
 const statusBadge: Record<string, { bg: string; text: string; label: string }> = {
-  pending: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Pending' },
-  confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Confirmed' },
+  pending: { bg: 'bg-amber-50 dark:bg-amber-950/50', text: 'text-amber-700 dark:text-amber-300', label: 'Pending' },
+  confirmed: { bg: 'bg-blue-50 dark:bg-blue-950/50', text: 'text-blue-700 dark:text-blue-300', label: 'Confirmed' },
   in_progress: { bg: 'bg-accent', text: 'text-primary', label: 'In Progress' },
-  completed: { bg: 'bg-green-50', text: 'text-green-700', label: 'Completed' },
-  cancelled: { bg: 'bg-red-50', text: 'text-red-700', label: 'Cancelled' },
-  no_show: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'No Show' },
+  completed: { bg: 'bg-green-50 dark:bg-green-950/50', text: 'text-green-700 dark:text-green-300', label: 'Completed' },
+  cancelled: { bg: 'bg-red-50 dark:bg-red-950/50', text: 'text-red-700 dark:text-red-300', label: 'Cancelled' },
+  no_show: { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-300', label: 'No Show' },
 }
 
 // ── Compact horizontal booking card ─────────────────────────────────────────

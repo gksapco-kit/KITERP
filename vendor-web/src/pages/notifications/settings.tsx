@@ -570,7 +570,7 @@ export default function NotificationSettingsPage() {
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
 
       {/* ── Delivery Channels ─────────────────────────────────────────────── */}
       <SectionCard id="sec-channels" icon={Bell} iconColor="text-blue-600" title="Delivery Channels" subtitle="Choose how notifications reach you." dimmed={isDisabled}>
@@ -915,7 +915,7 @@ export default function NotificationSettingsPage() {
                 )}
                 <div className="space-y-3">
                   {prefs.schedule_slots.map((slot, idx) => (
-                    <div key={slot.id} className="border border-gray-200 rounded-xl p-3 bg-gray-50/50 space-y-3">
+                    <div key={slot.id} className="border border-border rounded-xl p-3 bg-muted/30 space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-semibold text-gray-700">
                           {prefs.schedule_mode === 'quiet' ? `Silence period ${idx + 1}` : `Window ${idx + 1}`}

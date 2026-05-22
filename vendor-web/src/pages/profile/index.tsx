@@ -15,12 +15,13 @@ import {
 import { useMyVendor, useVendorDocuments, useUploadVendorDocument, useSubmitVendorForReview } from '@/hooks/useVendor'
 import {
   User as UserIcon, Mail, Phone as PhoneIcon, Camera, Loader2, Save, ShieldCheck,
-  KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
+  KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle,
   Activity, LogOut, Bell, Store as StoreIcon, UsersRound, CreditCard, ShieldAlert,
   Lock, Clock, Monitor, Smartphone, Calendar, FileCheck2, Upload, Hash, FileText,
   ExternalLink, RefreshCcw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { toast } from 'sonner'
 import {
   IdChip, formatShortId, formatVendorCode, VerifiedBadge,
@@ -65,7 +66,7 @@ export default function ProfilePage() {
 
       <ProfileHero />
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <IdentifiersSection
           open={openSection === 'identifiers'}
           toggle={() => toggle('identifiers')}
@@ -115,27 +116,16 @@ function SectionWrapper({
   badge?: ReactNode
 }) {
   return (
-    <Card>
-      <button
-        onClick={toggle}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors rounded-t-xl"
-      >
-        <div className="flex items-center gap-3 text-left">
-          <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center shrink-0">
-            <Icon className="w-4.5 h-4.5 text-primary" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">{title}</p>
-            {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {badge}
-          {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-        </div>
-      </button>
-      {open && <CardContent className="pt-2 pb-6 border-t">{children}</CardContent>}
-    </Card>
+    <CollapsibleSection
+      title={title}
+      subtitle={subtitle}
+      icon={Icon}
+      open={open}
+      toggle={toggle}
+      badge={badge}
+    >
+      {children}
+    </CollapsibleSection>
   )
 }
 
@@ -873,7 +863,7 @@ function VerificationSection({ open, toggle }: { open: boolean; toggle: () => vo
   const level = userVerificationLevel(user)
   return (
     <SectionWrapper
-      title="Verification & contact"
+      title="Verification & Contact"
       subtitle="Verify your email and phone, or change your email address"
       icon={ShieldCheck}
       open={open}
@@ -1199,7 +1189,7 @@ function BusinessVerificationSection({ open, toggle }: { open: boolean; toggle: 
 
   return (
     <SectionWrapper
-      title="Business verification"
+      title="Business Verification"
       subtitle="Upload KYC documents to get a verified badge on your business and stores"
       icon={FileCheck2}
       open={open}

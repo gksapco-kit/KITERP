@@ -255,7 +255,7 @@ function KPI({ label, value, sub, icon: Icon, color }: {
   icon: React.ElementType; color: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className="bg-card rounded-xl border border-border p-4">
       <div className="flex items-center gap-2 mb-2">
         <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center', color)}>
           <Icon className="w-3.5 h-3.5" />
@@ -296,7 +296,7 @@ function LedgerTable({
   return (
     <div className="overflow-auto">
       <table className="w-full text-xs whitespace-nowrap">
-        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+        <thead className="bg-muted border-b border-border sticky top-0 z-10">
           <tr>
             <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Date</th>
             <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Entry No</th>
@@ -421,7 +421,7 @@ function SummaryView({ fromDate, toDate }: { fromDate: string; toDate: string })
             onClick={() => setTypeFilter(t)}
             className={cn(
               'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-              typeFilter === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              typeFilter === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-muted-foreground hover:bg-accent'
             )}
           >
             {t}
@@ -434,9 +434,9 @@ function SummaryView({ fromDate, toDate }: { fromDate: string; toDate: string })
           <RefreshCw className="w-4 h-4 animate-spin" /> Loading summary…
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-xs">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-muted border-b border-border">
               <tr>
                 <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Code</th>
                 <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Account Name</th>
@@ -451,7 +451,7 @@ function SummaryView({ fromDate, toDate }: { fromDate: string; toDate: string })
               {rows.length === 0
                 ? <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">No data in this period</td></tr>
                 : rows.map((r: any) => (
-                  <tr key={r.account_id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={r.account_id} className="hover:bg-accent transition-colors">
                     <td className="px-4 py-2.5 font-mono text-gray-500">{r.code}</td>
                     <td className="px-3 py-2.5 text-gray-800 font-medium max-w-[200px] truncate">{r.name}</td>
                     <td className="px-3 py-2.5">
@@ -598,7 +598,7 @@ export default function GLReport() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Left sidebar: dimension picker ── */}
-        <div className="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto">
+        <div className="w-56 bg-card border-r border-border flex flex-col shrink-0 overflow-y-auto">
           <div className="px-4 py-3 border-b border-gray-100">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Report By</p>
           </div>
@@ -611,7 +611,7 @@ export default function GLReport() {
                   'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm transition-all',
                   activeDim === d.id
                     ? 'bg-primary/10 text-primary font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50',
+                    : 'text-muted-foreground hover:bg-accent',
                 )}
               >
                 <d.icon className={cn('w-4 h-4 shrink-0', activeDim === d.id ? 'text-primary' : 'text-gray-400')} />
@@ -628,7 +628,7 @@ export default function GLReport() {
         <div className="flex-1 overflow-auto flex flex-col">
 
           {/* ── Controls bar ── */}
-          <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 flex-wrap shrink-0">
+          <div className="bg-card border-b border-border px-6 py-3 flex items-center gap-3 flex-wrap shrink-0">
             {/* Dimension badge */}
             <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border', dim.color)}>
               {dim.label}
@@ -692,7 +692,7 @@ export default function GLReport() {
 
             <button
               onClick={() => refetch()}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-600 hover:bg-gray-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-muted-foreground hover:bg-accent"
             >
               <RefreshCw className="w-3 h-3" /> Refresh
             </button>
@@ -770,7 +770,7 @@ export default function GLReport() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-4">
+              <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
                 {/* Selected record header */}
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50">
                   <dim.icon className="w-4 h-4 text-gray-400" />

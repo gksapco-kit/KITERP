@@ -54,7 +54,7 @@ export default function CashFlow() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {isLoading ? (
           <p className="p-8 text-center text-gray-500">Loading…</p>
         ) : !data ? (
@@ -64,7 +64,7 @@ export default function CashFlow() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-100 text-xs text-gray-500 uppercase">
+              <tr className="bg-muted text-xs text-muted-foreground uppercase">
                 <th className="px-4 py-2 text-left">Activity</th>
                 <th className="px-4 py-2 text-right">Inflows</th>
                 <th className="px-4 py-2 text-right">Outflows</th>

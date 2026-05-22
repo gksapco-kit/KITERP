@@ -89,9 +89,9 @@ export default function FieldRuleConfig() {
   return (
     <div className="p-6 max-w-5xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <ListChecks className="w-7 h-7 text-primary" />
-          GL field configuration
+          GL Field Configuration
         </h1>
         <p className="text-sm text-gray-500 mt-1 max-w-2xl">
           Define whether journal header fields are <strong>optional</strong>, <strong>mandatory</strong>, or <strong>hidden</strong>.

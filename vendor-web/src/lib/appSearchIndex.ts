@@ -36,6 +36,13 @@ export interface NavSearchEntry {
 
 const KEYWORD_HINTS: Record<string, string[]> = {
   'Dashboard':                            ['home', 'analytics', 'overview', 'charts', 'summary'],
+  'Business Profile':                     ['settings', 'config', 'profile', 'business', 'brand', 'logo', 'offering'],
+  'Contact Information':                  ['settings', 'email', 'phone', 'contact', 'support'],
+  'Addresses':                            ['settings', 'address', 'location', 'hq', 'headquarters'],
+  'Tax & Compliance':                     ['settings', 'tax', 'gst', 'gstin', 'pan', 'compliance'],
+  'Offline Business Hours':               ['settings', 'hours', 'opening hours', 'business hours'],
+  'Online Orders':                        ['settings', 'order hours', 'order acceptance', 'online orders'],
+  'About':                                ['settings', 'version', 'about', 'changelog', 'support'],
   'Settings':                             ['config', 'profile', 'tax', 'address', 'business', 'preferences', 'setup'],
   'POS':                                  ['point of sale', 'cashier', 'billing', 'till', 'retail', 'counter', 'cash register'],
   'P&L Statement':                        ['profit', 'loss', 'income', 'pnl', 'statement', 'profit loss'],
@@ -115,7 +122,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   {
     kind: 'nav', id: 'settings-profile',
     label: 'Business Profile',
-    description: 'Settings → Business profile',
+    description: 'Settings → Business Profile',
     section: 'Settings', sectionId: 'my-kit',
     to: '/settings?section=profile',
     keywords: [
@@ -137,8 +144,8 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   },
   {
     kind: 'nav', id: 'settings-address',
-    label: 'Business Address',
-    description: 'Settings → Address',
+    label: 'Addresses',
+    description: 'Settings → Addresses',
     section: 'Settings', sectionId: 'my-kit',
     to: '/settings?section=address',
     keywords: [
@@ -160,7 +167,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   {
     kind: 'nav', id: 'settings-hours',
     label: 'Offline Business Hours',
-    description: 'Settings → Offline business hours',
+    description: 'Settings → Offline Business Hours',
     section: 'Settings', sectionId: 'my-kit',
     to: '/settings?section=hours-availability',
     keywords: [
@@ -172,8 +179,8 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   },
   {
     kind: 'nav', id: 'settings-order-acceptance',
-    label: 'Online Orders & Order Hours',
-    description: 'Settings → Online orders',
+    label: 'Online Orders',
+    description: 'Settings → Online Orders',
     section: 'Settings', sectionId: 'my-kit',
     to: '/settings?section=order-acceptance',
     keywords: [
@@ -221,7 +228,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   },
   {
     kind: 'nav', id: 'settings-about',
-    label: 'About & Version',
+    label: 'About',
     description: 'Settings → About',
     section: 'Settings', sectionId: 'my-kit',
     to: '/settings?section=about',

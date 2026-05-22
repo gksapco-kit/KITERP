@@ -504,10 +504,10 @@ function Section({ title, action, children, viewReport, onViewReport }: {
 function ChartTypePicker({ value, onChange, allowed }: { value: ChartType; onChange: (t: ChartType) => void; allowed?: ChartType[] }) {
   const list = allowed ? CHART_TYPES.filter(c => allowed.includes(c.type)) : CHART_TYPES
   return (
-    <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg">
+    <div className="flex items-center gap-0.5 bg-muted p-0.5 rounded-lg">
       {list.map(c => (
         <button key={c.type} onClick={() => onChange(c.type)} title={c.label}
-          className={`p-1.5 rounded-md transition-all ${value === c.type ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+          className={`p-1.5 rounded-md transition-all ${value === c.type ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
           <c.icon className="w-3.5 h-3.5" />
         </button>
       ))}
@@ -2178,10 +2178,10 @@ export default function ReportsPage() {
                 </div>
 
                 {/* Status filter pills */}
-                <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
+                <div className="flex items-center bg-muted rounded-xl p-1 gap-0.5">
                   {(['all','shortage','sufficient'] as const).map(f => (
                     <button key={f} onClick={() => setMrpStatusFilter(f)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${mrpStatusFilter === f ? 'bg-white shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700'}`}>
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${mrpStatusFilter === f ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                       {f === 'all' ? 'All' : f === 'shortage' ? '⚠ Short' : '✓ OK'}
                     </button>
                   ))}
@@ -2189,7 +2189,7 @@ export default function ReportsPage() {
 
                 {/* Action filter */}
                 <select value={mrpActionFilter} onChange={e => setMrpActionFilter(e.target.value as 'all' | 'buy' | 'produce' | 'sufficient')}
-                  className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-ring">
+                  className="text-xs border border-border rounded-lg px-2.5 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="all">All Actions</option>
                   <option value="buy">Buy (PO)</option>
                   <option value="produce">Produce</option>

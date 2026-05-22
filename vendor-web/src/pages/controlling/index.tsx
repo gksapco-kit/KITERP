@@ -92,7 +92,7 @@ export default function ControllingDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="font-semibold text-gray-800 mb-3">WIP snapshot</h2>
+          <h2 className="font-semibold text-foreground mb-3">WIP Snapshot</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Planned value (open orders)</span>

@@ -187,7 +187,7 @@ export default function ControllingSetupPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
-          <h2 className="font-semibold text-gray-800">Activity types</h2>
+          <h2 className="font-semibold text-foreground">Activity Types</h2>
           <div className="flex flex-wrap gap-2 items-end">
             <input
               placeholder="Code"
@@ -231,7 +231,7 @@ export default function ControllingSetupPage() {
 
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
           <div>
-            <h2 className="font-semibold text-gray-800">Overhead pools</h2>
+            <h2 className="font-semibold text-foreground">Overhead Pools</h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Define both <strong>direct</strong> (machine/operation-driven) and <strong>indirect</strong>
               (period allocation) overhead pools with their absorption formula.
@@ -345,7 +345,7 @@ export default function ControllingSetupPage() {
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
         <div>
-          <h2 className="font-semibold text-gray-800">CO — GL accounts (settlement)</h2>
+          <h2 className="font-semibold text-foreground">CO — GL Accounts (Settlement)</h2>
           <p className="text-sm text-gray-500 mt-1">
             Map WIP, Finished Goods, And COGS For Production Completion And Cost-Of-Goods Postings.
           </p>

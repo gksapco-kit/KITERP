@@ -46,7 +46,7 @@ export default function CostAnalysis() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-card rounded-xl border border-border p-5">
               <h2 className="font-semibold text-gray-800 mb-3">Fixed vs Variable Costs</h2>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -65,7 +65,7 @@ export default function CostAnalysis() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="bg-card rounded-xl border border-border p-5">
               <h2 className="font-semibold text-gray-800 mb-3">Cost Reduction Opportunities</h2>
               <ul className="space-y-2">
                 {(data.recommendations || []).length === 0 ? (
@@ -79,7 +79,7 @@ export default function CostAnalysis() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
             <div className="px-4 py-3 border-b bg-gray-50">
               <h2 className="font-semibold text-gray-800">Cost by Account</h2>
             </div>

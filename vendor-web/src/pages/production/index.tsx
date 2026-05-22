@@ -128,17 +128,17 @@ const TEMPLATES = [
 ]
 
 const STATUS_CONFIG: Record<POStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  draft:         { label: 'Draft',        color: 'text-gray-600',   bg: 'bg-gray-100',    icon: CircleDot },
-  confirmed:     { label: 'Confirmed',    color: 'text-blue-700',   bg: 'bg-blue-100',    icon: CheckSquare },
-  in_production: { label: 'In Production',color: 'text-amber-700',  bg: 'bg-amber-100',   icon: Factory },
+  draft:         { label: 'Draft',        color: 'text-gray-600 dark:text-gray-300',   bg: 'bg-gray-100 dark:bg-gray-800',    icon: CircleDot },
+  confirmed:     { label: 'Confirmed',    color: 'text-blue-700 dark:text-blue-300',   bg: 'bg-blue-100 dark:bg-blue-950/50',    icon: CheckSquare },
+  in_production: { label: 'In Production',color: 'text-amber-700 dark:text-amber-300',  bg: 'bg-amber-100 dark:bg-amber-950/50',   icon: Factory },
   qc:            { label: 'QC Check',     color: 'text-primary', bg: 'bg-primary/10',  icon: BadgeAlert },
-  completed:     { label: 'Completed',    color: 'text-green-700',  bg: 'bg-green-100',   icon: CheckCircle },
-  on_hold:       { label: 'On Hold',      color: 'text-orange-700', bg: 'bg-orange-100',  icon: PauseCircle },
-  cancelled:     { label: 'Cancelled',    color: 'text-red-700',    bg: 'bg-red-100',     icon: X },
+  completed:     { label: 'Completed',    color: 'text-green-700 dark:text-green-300',  bg: 'bg-green-100 dark:bg-green-950/50',   icon: CheckCircle },
+  on_hold:       { label: 'On Hold',      color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-950/50',  icon: PauseCircle },
+  cancelled:     { label: 'Cancelled',    color: 'text-red-700 dark:text-red-300',    bg: 'bg-red-100 dark:bg-red-950/50',     icon: X },
 }
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; dot: string }> = {
-  low:    { label: 'Low',    color: 'text-gray-500',   dot: 'bg-gray-400' },
+  low:    { label: 'Low',    color: 'text-muted-foreground',   dot: 'bg-gray-400' },
   medium: { label: 'Medium', color: 'text-blue-600',   dot: 'bg-blue-400' },
   high:   { label: 'High',   color: 'text-orange-600', dot: 'bg-orange-400' },
   urgent: { label: 'Urgent', color: 'text-red-600',    dot: 'bg-red-500' },
@@ -193,7 +193,7 @@ function ProgressBar({ value, status }: { value: number; status: POStatus }) {
       <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${value}%` }} />
       </div>
-      <span className="text-[11px] font-semibold text-gray-500 w-7 text-right">{value}%</span>
+      <span className="text-[11px] font-semibold text-muted-foreground w-7 text-right">{value}%</span>
     </div>
   )
 }
@@ -721,12 +721,12 @@ export default function ProductionOrdersPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {[
             { label: 'Total Orders', value: stats.total, icon: ClipboardList, bg: 'bg-accent', color: 'text-primary' },
-            { label: 'MTO (Customer)', value: stats.mto, icon: ShoppingCart, bg: 'bg-indigo-50', color: 'text-indigo-600' },
-            { label: 'MTS (Stock)', value: stats.mts, icon: Package, bg: 'bg-teal-50', color: 'text-teal-600' },
-            { label: 'In Production', value: stats.inProd, icon: Factory, bg: 'bg-amber-50', color: 'text-amber-600' },
-            { label: 'Completed', value: stats.completed, icon: CheckCircle, bg: 'bg-green-50', color: 'text-green-600' },
-            { label: 'Draft', value: stats.draft, icon: CircleDot, bg: 'bg-gray-100', color: 'text-gray-600' },
-            { label: 'Urgent', value: stats.urgent, icon: AlertCircle, bg: 'bg-red-50', color: 'text-red-600' },
+            { label: 'MTO (Customer)', value: stats.mto, icon: ShoppingCart, bg: 'bg-indigo-50 dark:bg-indigo-950/40', color: 'text-indigo-600 dark:text-indigo-300' },
+            { label: 'MTS (Stock)', value: stats.mts, icon: Package, bg: 'bg-teal-50 dark:bg-teal-950/40', color: 'text-teal-600 dark:text-teal-300' },
+            { label: 'In Production', value: stats.inProd, icon: Factory, bg: 'bg-amber-50 dark:bg-amber-950/40', color: 'text-amber-600 dark:text-amber-300' },
+            { label: 'Completed', value: stats.completed, icon: CheckCircle, bg: 'bg-green-50 dark:bg-green-950/40', color: 'text-green-600 dark:text-green-300' },
+            { label: 'Draft', value: stats.draft, icon: CircleDot, bg: 'bg-gray-100 dark:bg-gray-800', color: 'text-gray-600 dark:text-gray-300' },
+            { label: 'Urgent', value: stats.urgent, icon: AlertCircle, bg: 'bg-red-50 dark:bg-red-950/40', color: 'text-red-600 dark:text-red-300' },
           ].map(s => (
             <button key={s.label} onClick={() => {
               if (s.label === 'MTO (Customer)') setTypeFilter('mto')
@@ -764,7 +764,7 @@ export default function ProductionOrdersPage() {
 
         {/* ── Toolbar ────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 flex-1 min-w-[180px] max-w-sm shadow-sm">
+          <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 flex-1 min-w-[180px] max-w-sm shadow-sm">
             <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by ref, product, customer…"
               className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
@@ -783,7 +783,7 @@ export default function ProductionOrdersPage() {
           </div>
 
           <button onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-white transition-colors ${showFilters ? 'border-primary/60 text-primary' : 'border-gray-200 hover:bg-gray-50'}`}>
+            className={`flex items-center gap-1.5 text-xs font-semibold border rounded-lg px-3 py-1.5 bg-card transition-colors ${showFilters ? 'border-primary/60 text-primary' : 'border-border hover:bg-accent'}`}>
             <Filter className="w-3.5 h-3.5" /> More Filters
           </button>
 
@@ -796,7 +796,7 @@ export default function ProductionOrdersPage() {
         </div>
 
         {showFilters && (
-          <div className="flex flex-wrap gap-3 bg-white border border-gray-200 rounded-2xl p-4">
+          <div className="flex flex-wrap gap-3 bg-card border border-border rounded-2xl p-4">
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Status</p>
               <div className="flex flex-wrap gap-1">
@@ -828,13 +828,13 @@ export default function ProductionOrdersPage() {
           {/* List */}
           <div className={`${viewOrderId ? 'hidden lg:block lg:w-[44%] shrink-0' : 'w-full'} space-y-2`}>
             {ordersLoading ? (
-              <div className="bg-white rounded-2xl border border-gray-200 text-center py-16 text-gray-400">
+              <div className="bg-card rounded-2xl border border-border text-center py-16 text-gray-400">
                 Loading production orders…
               </div>
             ) : filtered.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-200 text-center py-20 text-gray-400">
+              <div className="bg-card rounded-2xl border border-border text-center py-20 text-gray-400">
                 <Factory className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p className="font-semibold text-gray-500">No production orders yet</p>
+                <p className="font-semibold text-muted-foreground">No production orders yet</p>
                 <p className="text-sm mt-1">Click "New Order" to create your first MTO or MTS order.</p>
                 <Button onClick={() => { setShowCreate(true); setCreateType(null) }} className="mt-4 bg-primary hover:bg-primary/90 text-white gap-1.5 text-sm">
                   <Plus className="w-3.5 h-3.5" /> New Order
@@ -864,7 +864,7 @@ export default function ProductionOrdersPage() {
             const curStepIdx = WORKFLOW_STEPS.findIndex(s => s.status === order.status)
 
             return (
-              <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="flex-1 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 {/* Panel header */}
                 <div className={`px-5 py-4 border-b flex items-start gap-3 ${order.type === 'mto' ? 'bg-indigo-50' : 'bg-teal-50'}`}>
                   <div className={`p-2 rounded-xl ${order.type === 'mto' ? 'bg-indigo-100' : 'bg-teal-100'}`}>
@@ -876,7 +876,7 @@ export default function ProductionOrdersPage() {
                       <TypeBadge type={order.type} />
                       <StatusBadge status={order.status} />
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       Created {new Date(order.created_at).toLocaleDateString('en-IN')} · Template: {order.template}
                     </p>
                   </div>
@@ -886,17 +886,17 @@ export default function ProductionOrdersPage() {
                       <BarChart3 className="w-3.5 h-3.5" /> MRP
                     </button>
                     <button onClick={() => exportXLS(order)} title="Export Excel"
-                      className="p-1.5 hover:bg-white/70 rounded-lg text-gray-500 transition-colors"><Download className="w-4 h-4" /></button>
+                      className="p-1.5 hover:bg-accent rounded-lg text-muted-foreground transition-colors"><Download className="w-4 h-4" /></button>
                     <button onClick={() => deleteOrder(order.id)} title="Delete"
                       className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
                     <button type="button" aria-label="Close" onClick={() => setViewOrderId(null)}
-                      className="p-1.5 hover:bg-white/70 rounded-lg text-gray-400 transition-colors">
+                      className="p-1.5 hover:bg-accent rounded-lg text-muted-foreground transition-colors">
                 <X className="w-4 h-4" /></button>
                   </div>
                 </div>
 
                 {/* Workflow stepper */}
-                <div className="px-5 py-3 border-b bg-white overflow-x-auto">
+                <div className="px-5 py-3 border-b border-border bg-card overflow-x-auto">
                   <div className="flex items-center gap-0 min-w-max">
                     {WORKFLOW_STEPS.map((step, i) => {
                       const done = i < curStepIdx
@@ -909,7 +909,7 @@ export default function ProductionOrdersPage() {
                               cancelled ? 'border-red-300 bg-red-50 text-red-400' :
                               done ? 'border-green-500 bg-green-500 text-white' :
                               active ? 'border-primary bg-primary text-white' :
-                              'border-gray-200 bg-white text-gray-400'
+                              'border-border bg-card text-muted-foreground'
                             }`}>
                               {done ? <CheckCircle className="w-3.5 h-3.5" /> : <span className="text-[10px] font-bold">{i + 1}</span>}
                             </div>
@@ -928,7 +928,7 @@ export default function ProductionOrdersPage() {
                 <div className="flex border-b bg-gray-50/60">
                   {(['details', 'items', 'stock', 'history'] as const).map(tab => (
                     <button key={tab} onClick={() => setDetailTab(tab)}
-                      className={`flex-1 text-xs font-semibold py-2.5 capitalize transition-all border-b-2 ${detailTab === tab ? 'border-primary text-primary bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                      className={`flex-1 text-xs font-semibold py-2.5 capitalize transition-all border-b-2 ${detailTab === tab ? 'border-primary text-primary bg-card' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                       {tab === 'stock' ? 'Stock Dispatch' : tab === 'history' ? 'Attachments' : tab}
                     </button>
                   ))}
@@ -972,17 +972,17 @@ export default function ProductionOrdersPage() {
                               <input type="number" min={0} max={100} value={editProgress} onChange={e => setEditProgress(Number(e.target.value))}
                                 className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Progress%" />
                               <button onClick={() => applyStatusEdit(order)} className="bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90">Save</button>
-                              <button onClick={() => setEditStatus('')} className="px-2 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-xs">✕</button>
+                              <button onClick={() => setEditStatus('')} className="px-2 py-1.5 text-muted-foreground hover:bg-gray-100 rounded-lg text-xs">✕</button>
                             </div>
                           </div>
                         )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-500 mb-1">Priority</p><PriorityDot priority={order.priority} /></div>
-                        <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-500 mb-1">Team</p><p className="font-semibold">{order.team || '—'}</p></div>
-                        <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-500 mb-1">Target Date</p><p className="font-semibold">{order.target_date}</p></div>
-                        <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-500 mb-1">Template</p><p className="font-semibold">{order.template}</p></div>
+                        <div className="bg-gray-50 rounded-xl p-3"><p className="text-muted-foreground mb-1">Priority</p><PriorityDot priority={order.priority} /></div>
+                        <div className="bg-gray-50 rounded-xl p-3"><p className="text-muted-foreground mb-1">Team</p><p className="font-semibold">{order.team || '—'}</p></div>
+                        <div className="bg-gray-50 rounded-xl p-3"><p className="text-muted-foreground mb-1">Target Date</p><p className="font-semibold">{order.target_date}</p></div>
+                        <div className="bg-gray-50 rounded-xl p-3"><p className="text-muted-foreground mb-1">Template</p><p className="font-semibold">{order.template}</p></div>
                       </div>
 
                       {order.type === 'mto' ? (
@@ -1020,7 +1020,7 @@ export default function ProductionOrdersPage() {
                       {/* Assignees — inline editable */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs text-gray-500 font-semibold flex items-center gap-1.5">
+                          <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
                             <Users className="w-3.5 h-3.5" /> Assigned To
                           </p>
                           {!editAssigneesMode && (
@@ -1039,7 +1039,7 @@ export default function ProductionOrdersPage() {
                             <div className="flex gap-1 mb-1">
                               {(['team', 'supplier'] as const).map(tab => (
                                 <button key={tab} onClick={() => setDetailAssigneeTab(tab)}
-                                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${detailAssigneeTab === tab ? 'bg-primary text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
+                                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${detailAssigneeTab === tab ? 'bg-primary text-white' : 'bg-card text-muted-foreground border border-border hover:bg-accent'}`}>
                                   {tab === 'team' ? '👤 Team' : '🚚 Supplier'}
                                 </button>
                               ))}
@@ -1051,10 +1051,10 @@ export default function ProductionOrdersPage() {
                                 onChange={e => { setDetailAssigneeSearch(e.target.value); setDetailAssigneeDropOpen(true) }}
                                 onFocus={() => setDetailAssigneeDropOpen(true)}
                                 placeholder={detailAssigneeTab === 'team' ? 'Search team member…' : 'Search supplier / vendor…'}
-                                className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-white"
+                                className="w-full border border-border rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-card"
                               />
                               {detailAssigneeDropOpen && (detailAssigneeTab === 'team' ? filteredDetailTeam : filteredDetailSuppliers).length > 0 && (
-                                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden max-h-44 overflow-y-auto">
+                                <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-30 overflow-hidden max-h-44 overflow-y-auto">
                                   {(detailAssigneeTab === 'team' ? filteredDetailTeam : filteredDetailSuppliers).map((m: any) => (
                                     <button key={m.id}
                                       onClick={() => addDetailAssignee({
@@ -1124,7 +1124,7 @@ export default function ProductionOrdersPage() {
                       {/* Instructions / Notes — inline editable */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs text-gray-500 font-semibold">Instructions / Notes</p>
+                          <p className="text-xs text-muted-foreground font-semibold">Instructions / Notes</p>
                           {!editNotesMode && (
                             <button
                               onClick={() => openNotesEdit(order)}
@@ -1142,7 +1142,7 @@ export default function ProductionOrdersPage() {
                               onChange={e => setDetailEditNotes(e.target.value)}
                               rows={3}
                               placeholder="Production instructions, quality requirements, safety notes…"
-                              className="w-full border border-primary/40 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring bg-white"
+                              className="w-full border border-primary/40 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring bg-card"
                               autoFocus
                             />
                             <div className="flex gap-2">
@@ -1170,7 +1170,7 @@ export default function ProductionOrdersPage() {
                     <div className="space-y-3">
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         <ResizableTable tableId="production-bom" defaultWidths={[40, 200, 120, 80, 90, 90, 80]}>
-                          <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-gray-500 uppercase">
+                          <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-muted-foreground uppercase">
                             <th className="py-2 px-3 text-center w-8">#</th>
                             <th className="py-2 px-3 text-left">Item</th>
                             <th className="py-2 px-3 text-left hidden sm:table-cell">Variant / SKU</th>
@@ -1183,14 +1183,14 @@ export default function ProductionOrdersPage() {
                             {order.items.map((item, idx) => (
                               <tr key={`${item.product_id}__${item.variant_id ?? idx}`} className="hover:bg-gray-50">
                                 <td className="py-2.5 px-3 text-center">
-                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-[10px] font-bold text-gray-500">{idx + 1}</span>
+                                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-[10px] font-bold text-muted-foreground">{idx + 1}</span>
                                 </td>
                                 <td className="py-2.5 px-3 font-medium text-sm">{item.name}</td>
                                 <td className="py-2.5 px-3 hidden sm:table-cell">
                                   {item.variant_sku
                                     ? <span className="font-mono text-xs text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">{item.variant_sku}</span>
                                     : item.sku
-                                      ? <span className="font-mono text-xs text-gray-500">{item.sku}</span>
+                                      ? <span className="font-mono text-xs text-muted-foreground">{item.sku}</span>
                                       : <span className="text-gray-300 text-xs">—</span>
                                   }
                                 </td>
@@ -1201,7 +1201,7 @@ export default function ProductionOrdersPage() {
                                 </td>
                                 <td className="py-2.5 px-3 text-right font-semibold">{item.qty}</td>
                                 <td className="py-2.5 px-3 text-right">
-                                  <span className={`font-semibold ${(item.produced ?? 0) >= item.qty ? 'text-green-600' : 'text-gray-500'}`}>{item.produced ?? 0}</span>
+                                  <span className={`font-semibold ${(item.produced ?? 0) >= item.qty ? 'text-green-600' : 'text-muted-foreground'}`}>{item.produced ?? 0}</span>
                                 </td>
                                 <td className="py-2.5 px-3 text-right hidden sm:table-cell"><PriorityDot priority={item.priority} /></td>
                               </tr>
@@ -1225,7 +1225,7 @@ export default function ProductionOrdersPage() {
                   {detailTab === 'stock' && (
                     <div className="space-y-4">
                       <div className="grid grid-cols-3 gap-3 text-xs">
-                        <div className="bg-gray-50 rounded-xl p-3 text-center"><p className="text-gray-500 mb-1">Total Required</p><p className="text-xl font-bold text-gray-800">{totalRequired}</p></div>
+                        <div className="bg-gray-50 rounded-xl p-3 text-center"><p className="text-muted-foreground mb-1">Total Required</p><p className="text-xl font-bold text-gray-800">{totalRequired}</p></div>
                         <div className="bg-green-50 rounded-xl p-3 text-center"><p className="text-green-600 mb-1">Sent to Stock</p><p className="text-xl font-bold text-green-700">{totalDispatched}</p></div>
                         <div className="bg-amber-50 rounded-xl p-3 text-center"><p className="text-amber-600 mb-1">Remaining</p><p className="text-xl font-bold text-amber-700">{Math.max(0, totalRequired - totalDispatched)}</p></div>
                       </div>
@@ -1233,7 +1233,7 @@ export default function ProductionOrdersPage() {
                       {order.stock_dispatches.length > 0 && (
                         <div className="border border-gray-200 rounded-xl overflow-hidden">
                           <ResizableTable tableId="production-dispatches" defaultWidths={[120, 80, 100, 200]}>
-                            <thead className="bg-gray-50 border-b"><tr className="font-semibold text-gray-500 uppercase">
+                            <thead className="bg-gray-50 border-b"><tr className="font-semibold text-muted-foreground uppercase">
                               <th className="py-2 px-3 text-left">Date</th>
                               <th className="py-2 px-3 text-right">Qty</th>
                               <th className="py-2 px-3">By</th>
@@ -1245,7 +1245,7 @@ export default function ProductionOrdersPage() {
                                   <td className="py-2 px-3 text-gray-600">{d.date}</td>
                                   <td className="py-2 px-3 text-right font-bold text-green-700">{d.qty}</td>
                                   <td className="py-2 px-3 text-gray-600">{d.by || '—'}</td>
-                                  <td className="py-2 px-3 text-gray-500">{d.notes || '—'}</td>
+                                  <td className="py-2 px-3 text-muted-foreground">{d.notes || '—'}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1332,7 +1332,7 @@ export default function ProductionOrdersPage() {
                                 <p className="text-xs font-semibold text-gray-800 truncate">{a.name}</p>
                                 <p className="text-[10px] text-gray-400">{(a.size / 1024).toFixed(1)} KB</p>
                               </div>
-                              <a href={a.dataUrl} download={a.name} className="p-1 hover:bg-gray-200 rounded-lg text-gray-500 shrink-0">
+                              <a href={a.dataUrl} download={a.name} className="p-1 hover:bg-gray-200 rounded-lg text-muted-foreground shrink-0">
                                 <Download className="w-3.5 h-3.5" />
                               </a>
                             </div>
@@ -1439,16 +1439,16 @@ export default function ProductionOrdersPage() {
       {/* ── Create Order Drawer ──────────────────────────────────────────────── */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowCreate(false); setCreateType(null) }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             {/* Step 1: choose type */}
             {!createType ? (
               <div>
                 <div className="flex items-center gap-3 px-6 py-5 border-b bg-gradient-to-r from-accent to-primary/10">
                   <div className="p-2 bg-primary/12 rounded-xl"><Factory className="w-5 h-5 text-primary" /></div>
-                  <div className="flex-1"><h2 className="font-bold text-gray-900">New Production Order</h2><p className="text-xs text-gray-500">Choose the production type</p></div>
+                  <div className="flex-1"><h2 className="font-bold text-gray-900">New Production Order</h2><p className="text-xs text-muted-foreground">Choose the production type</p></div>
                   <button type="button" aria-label="Close" onClick={() => setShowCreate(false)} className="p-2 hover:bg-primary/12 rounded-xl">
-                <X className="w-4 h-4 text-gray-500" /></button>
+                <X className="w-4 h-4 text-muted-foreground" /></button>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1491,13 +1491,13 @@ export default function ProductionOrdersPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h2 className="font-bold text-gray-900">{createType === 'mto' ? 'Make to Order' : 'Make to Stock'} Order</h2>
-                      <span className="text-xs font-mono bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-lg">{formRef}</span>
+                      <span className="text-xs font-mono bg-card border border-border text-gray-600 px-2 py-0.5 rounded-lg">{formRef}</span>
                     </div>
-                    <p className="text-xs text-gray-500">{createType === 'mto' ? 'Customer-specific production' : 'Stock replenishment production'}</p>
+                    <p className="text-xs text-muted-foreground">{createType === 'mto' ? 'Customer-specific production' : 'Stock replenishment production'}</p>
                   </div>
                   <button onClick={() => setCreateType(null)} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 mr-2"><ChevronDown className="w-3 h-3 rotate-90" /> Back</button>
-                  <button type="button" aria-label="Close" onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }} className="p-2 hover:bg-white/70 rounded-xl">
-                <X className="w-4 h-4 text-gray-500" /></button>
+                  <button type="button" aria-label="Close" onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }} className="p-2 hover:bg-accent rounded-xl">
+                <X className="w-4 h-4 text-muted-foreground" /></button>
                 </div>
                 <div className="p-6 space-y-5">
 
@@ -1550,7 +1550,7 @@ export default function ProductionOrdersPage() {
                       {/* Customer search */}
                       <div className="relative">
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Search Customer</label>
-                        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-white focus-within:ring-2 focus-within:ring-indigo-400">
+                        <div className="flex items-center border border-border rounded-xl overflow-hidden bg-card focus-within:ring-2 focus-within:ring-indigo-400">
                           <Search className="w-3.5 h-3.5 text-gray-400 ml-3 shrink-0" />
                           <input
                             value={customerSearch}
@@ -1568,7 +1568,7 @@ export default function ProductionOrdersPage() {
                         </div>
                         {/* Customer dropdown */}
                         {customerDropOpen && !selectedCustomerId && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden max-h-52 overflow-y-auto">
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-30 overflow-hidden max-h-52 overflow-y-auto">
                             {filteredCustomers.length > 0 ? filteredCustomers.map((c: { id: string; full_name: string; phone?: string; email?: string }) => (
                               <button key={c.id} onClick={() => selectCustomer(c)}
                                 className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 border-b last:border-b-0 flex items-start gap-2.5">
@@ -1582,7 +1582,7 @@ export default function ProductionOrdersPage() {
                                 </div>
                               </button>
                             )) : (
-                              <div className="px-3 py-3 text-xs text-gray-500 text-center">No customers found</div>
+                              <div className="px-3 py-3 text-xs text-muted-foreground text-center">No customers found</div>
                             )}
                             <button onClick={() => { setCustomerDropOpen(false); setShowNewCustomer(true) }}
                               className="w-full text-left px-3 py-2.5 bg-indigo-50 text-indigo-700 text-xs font-semibold flex items-center gap-2 hover:bg-indigo-100 transition-colors border-t">
@@ -1595,13 +1595,13 @@ export default function ProductionOrdersPage() {
 
                       {/* Selected customer chip */}
                       {selectedCustomerId && (
-                        <div className="flex items-center gap-2 bg-white border border-indigo-300 rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-2 bg-card border border-indigo-300 dark:border-indigo-700 rounded-xl px-3 py-2">
                           <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
                             <span className="text-xs font-bold text-indigo-600">{formCustomerName?.[0]?.toUpperCase()}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-800">{formCustomerName}</p>
-                            <p className="text-xs text-gray-500">{formCustomerPhone}{formCustomerPhone && formCustomerEmail ? ' · ' : ''}{formCustomerEmail}</p>
+                            <p className="text-xs text-muted-foreground">{formCustomerPhone}{formCustomerPhone && formCustomerEmail ? ' · ' : ''}{formCustomerEmail}</p>
                           </div>
                           <button type="button" aria-label="Close" onClick={() => { setSelectedCustomerId(''); setCustomerSearch(''); setFormCustomerName(''); setFormCustomerPhone(''); setFormCustomerEmail('') }}
                             className="p-1 hover:bg-gray-100 rounded-lg">
@@ -1611,7 +1611,7 @@ export default function ProductionOrdersPage() {
 
                       {/* Create new customer inline */}
                       {showNewCustomer && (
-                        <div className="bg-white rounded-xl border border-indigo-200 p-3 space-y-2">
+                        <div className="bg-card rounded-xl border border-indigo-200 dark:border-indigo-800 p-3 space-y-2">
                           <p className="text-xs font-bold text-indigo-700 flex items-center gap-1"><Plus className="w-3 h-3" /> New Customer</p>
                           <input value={newCustName} onChange={e => setNewCustName(e.target.value)} placeholder="Full name *"
                             className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
@@ -1669,13 +1669,13 @@ export default function ProductionOrdersPage() {
                     <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-primary/80" /> Items to Produce</p>
                     {/* Tab + search row */}
                     <div className="flex gap-2 mb-2">
-                      <div className="flex items-center bg-gray-100 rounded-xl p-0.5 shrink-0">
+                      <div className="flex items-center bg-muted rounded-xl p-0.5 shrink-0">
                         <button onClick={() => setItemTab('product')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'product' ? 'bg-white shadow-sm text-primary' : 'text-gray-500'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'product' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
                           <Package className="w-3 h-3" /> Product
                         </button>
                         <button onClick={() => setItemTab('service')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'service' ? 'bg-white shadow-sm text-primary' : 'text-gray-500'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${itemTab === 'service' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
                           <Layers className="w-3 h-3" /> Service
                         </button>
                       </div>
@@ -1694,7 +1694,7 @@ export default function ProductionOrdersPage() {
                         type="button"
                         onClick={() => setShowCameraScanner(true)}
                         title="Scan barcode"
-                        className="flex items-center gap-1 px-2.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-accent hover:border-primary/40 text-gray-500 hover:text-primary transition-colors shrink-0"
+                        className="flex items-center gap-1 px-2.5 py-2 rounded-xl border border-border bg-card hover:bg-accent hover:border-primary/40 text-muted-foreground hover:text-primary transition-colors shrink-0"
                       >
                         {scanLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
                       </button>
@@ -1734,7 +1734,7 @@ export default function ProductionOrdersPage() {
                     {formItems.length > 0 && (
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         <ResizableTable tableId="production-form-bom" defaultWidths={[40, 200, 120, 80, 80, 40]}>
-                          <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-gray-500 uppercase">
+                          <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-muted-foreground uppercase">
                             <th className="py-2 px-3 text-center w-8">#</th>
                             <th className="py-2 px-3 text-left">Item</th>
                             <th className="py-2 px-3 text-left hidden sm:table-cell">Variant / SKU</th>
@@ -1748,12 +1748,12 @@ export default function ProductionOrdersPage() {
                               return (
                                 <tr key={rowKey} className="hover:bg-gray-50">
                                   <td className="py-2 px-3 text-center">
-                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-[10px] font-bold text-gray-500">{idx + 1}</span>
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-[10px] font-bold text-muted-foreground">{idx + 1}</span>
                                   </td>
                                   <td className="py-2 px-3 font-medium text-sm">{item.name}</td>
                                   <td className="py-2 px-3 hidden sm:table-cell">
                                     {item.variant_sku
-                                      ? <span className="font-mono text-xs text-gray-500">{item.variant_sku}</span>
+                                      ? <span className="font-mono text-xs text-muted-foreground">{item.variant_sku}</span>
                                       : item.sku
                                         ? <span className="font-mono text-xs text-gray-400">{item.sku}</span>
                                         : <span className="text-gray-300 text-xs">—</span>
@@ -1793,13 +1793,13 @@ export default function ProductionOrdersPage() {
                   <div>
                     <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-primary/80" /> Assign To (Employee / Vendor)</p>
                     <div className="flex gap-2 mb-2">
-                      <div className="flex items-center bg-gray-100 rounded-xl p-0.5 shrink-0">
+                      <div className="flex items-center bg-muted rounded-xl p-0.5 shrink-0">
                         <button onClick={() => setAssigneeTab('team')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'team' ? 'bg-white shadow-sm text-primary' : 'text-gray-500'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'team' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
                           <User className="w-3 h-3" /> Employee
                         </button>
                         <button onClick={() => setAssigneeTab('supplier')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'supplier' ? 'bg-white shadow-sm text-primary' : 'text-gray-500'}`}>
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${assigneeTab === 'supplier' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>
                           <Truck className="w-3 h-3" /> Vendor
                         </button>
                       </div>
@@ -1810,7 +1810,7 @@ export default function ProductionOrdersPage() {
                           placeholder={assigneeTab === 'team' ? 'Search team member…' : 'Search supplier / vendor…'}
                           className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                         {assigneeDropOpen && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden max-h-44 overflow-y-auto">
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-30 overflow-hidden max-h-44 overflow-y-auto">
                             {(assigneeTab === 'team' ? filteredTeam : filteredSuppliers).map((m: { id: string; full_name?: string; company_name?: string; role?: string; email?: string }) => (
                               <button key={m.id}
                                 onClick={() => addAssignee({ id: m.id, name: assigneeTab === 'team' ? (m.full_name || '') : (m.company_name || ''), role: m.role || (assigneeTab === 'team' ? 'Team Member' : 'Vendor'), type: assigneeTab })}
@@ -1872,7 +1872,7 @@ export default function ProductionOrdersPage() {
                         ))}
                       </div>
                     )}
-                    <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-dashed border-gray-300 rounded-xl px-4 py-2.5 hover:bg-gray-100 text-sm text-gray-500 transition-colors">
+                    <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-dashed border-gray-300 rounded-xl px-4 py-2.5 hover:bg-gray-100 text-sm text-muted-foreground transition-colors">
                       <Paperclip className="w-4 h-4" /> Attach images or documents
                       <input type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={handleAttachFile} className="hidden" />
                     </label>
@@ -1896,11 +1896,11 @@ export default function ProductionOrdersPage() {
       {/* ── Variant Picker Modal ─────────────────────────────────────────────── */}
       {variantPickerProduct && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setVariantPickerProduct(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{variantPickerProduct.name}</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Select a variant to add to the order</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Select a variant to add to the order</p>
               </div>
               <button type="button" aria-label="Close" onClick={() => setVariantPickerProduct(null)} className="p-1 rounded hover:bg-gray-100">
                 <X className="w-4 h-4 text-gray-400" />
@@ -1935,7 +1935,7 @@ export default function ProductionOrdersPage() {
                       </p>
                     </div>
                     <div className="text-right ml-3 shrink-0">
-                      <p className="text-xs text-gray-500">Stock: {v.quantity ?? '—'}</p>
+                      <p className="text-xs text-muted-foreground">Stock: {v.quantity ?? '—'}</p>
                       <Plus className="w-3.5 h-3.5 text-primary/70 ml-auto mt-1" />
                     </div>
                   </button>
@@ -1991,7 +1991,7 @@ function ProductionOrderCard({
 
   return (
     <div
-      className={`w-full bg-white rounded-2xl border transition-all hover:shadow-md cursor-pointer ${isActive ? 'border-primary/60 shadow-md ring-2 ring-primary/15' : 'border-gray-200 hover:border-gray-300'}`}
+      className={`w-full bg-card rounded-2xl border transition-all hover:shadow-md cursor-pointer ${isActive ? 'border-primary/60 shadow-md ring-2 ring-primary/15' : 'border-border hover:border-border/80'}`}
       onClick={onSelect}
     >
       <div className="px-4 py-3">
@@ -2013,7 +2013,7 @@ function ProductionOrderCard({
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-1 truncate">
+            <p className="text-xs text-muted-foreground mt-1 truncate">
               {order.type === 'mto'
                 ? `Customer: ${order.customer_name || '—'} · Order: ${order.order_ref || '—'}`
                 : `Stock replenishment · Target: ${order.target_stock_level ?? '—'} units`}

@@ -15,7 +15,7 @@ import {
   Shuffle, ClipboardCheck, Wand2, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
-  GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
+  GripVertical, SlidersHorizontal, Database, Search, ExternalLink, MapPin, ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -115,19 +115,50 @@ function pathnameMatchesNavItem(pathname: string, navPath: string): boolean {
   return pathname.startsWith(`${navPath}/`)
 }
 
-/** Pick the single best-matching nav item (longest path wins — avoids parent + child both active). */
-function resolveActiveNavTo(pathname: string, items: NavItem[]): string | null {
+/** Pick the single best-matching nav item (longest path wins; query params must match when present). */
+function resolveActiveNavTo(pathname: string, search: string, items: NavItem[]): string | null {
+  const locParams = new URLSearchParams(search)
   let bestTo: string | null = null
-  let bestLen = -1
+  let bestScore = -1
+
   for (const item of items) {
+    const qIdx = item.to.indexOf('?')
     const path = navItemPath(item.to)
     if (!pathnameMatchesNavItem(pathname, path)) continue
-    if (path.length > bestLen) {
-      bestLen = path.length
-      bestTo = item.to
+
+    if (qIdx >= 0) {
+      const itemParams = new URLSearchParams(item.to.slice(qIdx + 1))
+      let paramsMatch = true
+      itemParams.forEach((value, key) => {
+        if (locParams.get(key) !== value) paramsMatch = false
+      })
+      if (!paramsMatch) continue
+      const score = path.length + 1000
+      if (score > bestScore) {
+        bestScore = score
+        bestTo = item.to
+      }
+    } else if (pathname === '/settings' && locParams.has('section')) {
+      continue
+    } else {
+      const score = path.length
+      if (score > bestScore) {
+        bestScore = score
+        bestTo = item.to
+      }
     }
   }
   return bestTo
+}
+
+const SETTINGS_SECTION_TITLES: Record<string, string> = {
+  profile: 'Business Profile',
+  contact: 'Contact Information',
+  address: 'Addresses',
+  tax: 'Tax & Compliance',
+  'hours-availability': 'Offline Business Hours',
+  'order-acceptance': 'Online Orders',
+  about: 'About',
 }
 
 interface NavSection {
@@ -155,7 +186,13 @@ const allSections: NavSection[] = [
     icon: Sparkles,
     items: [
       { to: '/', icon: BarChart3, label: 'Dashboard', alwaysShow: true },
-      { to: '/settings', icon: Settings, label: 'Settings', alwaysShow: true },
+      { to: '/settings?section=profile', icon: Store, label: 'Business Profile', alwaysShow: true, groupLabel: 'Settings' },
+      { to: '/settings?section=contact', icon: Phone, label: 'Contact Information', alwaysShow: true },
+      { to: '/settings?section=address', icon: MapPin, label: 'Addresses', alwaysShow: true },
+      { to: '/settings?section=tax', icon: FileText, label: 'Tax & Compliance', alwaysShow: true },
+      { to: '/settings?section=hours-availability', icon: Clock, label: 'Offline Business Hours', alwaysShow: true },
+      { to: '/settings?section=order-acceptance', icon: ShoppingBag, label: 'Online Orders', alwaysShow: true },
+      { to: '/settings?section=about', icon: Info, label: 'About', alwaysShow: true },
       { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/workspace', icon: LayoutGrid, label: 'Workspace Apps', alwaysShow: true },
@@ -1059,8 +1096,8 @@ export default function DashboardLayout() {
   )
 
   const activeNavTo = useMemo(
-    () => resolveActiveNavTo(location.pathname, flatVisibleNavItems),
-    [location.pathname, flatVisibleNavItems],
+    () => resolveActiveNavTo(location.pathname, location.search, flatVisibleNavItems),
+    [location.pathname, location.search, flatVisibleNavItems],
   )
 
   function resetNavOrderToDefaults() {
@@ -1234,8 +1271,16 @@ export default function DashboardLayout() {
   const roleBadge = vendorRole?.role_name || 'Member'
   const { heading: settingsScopeHeading } = useBusinessUnitScopeLabel()
 
+  const settingsSection = new URLSearchParams(location.search).get('section')
+  const settingsSectionTitle =
+    location.pathname === '/settings' && settingsSection
+      ? SETTINGS_SECTION_TITLES[settingsSection]
+      : null
+
   const pageTitle =
-    location.pathname === '/settings'
+    settingsSectionTitle
+      ? `${settingsSectionTitle} — Settings`
+      : location.pathname === '/settings'
       ? `Settings — ${settingsScopeHeading}`
       : pageTitles[location.pathname] ||
         (location.pathname.startsWith('/products/') ? 'Product Details' :
@@ -1244,7 +1289,7 @@ export default function DashboardLayout() {
          location.pathname.startsWith('/customers/') ? 'Customer Details' :
          location.pathname.startsWith('/invoices/') ? 'Invoice Details' :
          location.pathname.startsWith('/purchase-orders/') ? 'Purchase Order' :
-         location.pathname.startsWith('/controlling/orders/') ? 'CO manufacturing order' :
+         location.pathname.startsWith('/controlling/orders/') ? 'CO Manufacturing Order' :
          'Dashboard')
 
   const storePickerMenu = storePickerOpen ? (
@@ -1851,13 +1896,13 @@ export default function DashboardLayout() {
               {location.pathname === '/settings' ? (
                 <div
                   className="flex min-w-0 items-baseline gap-1.5 overflow-hidden sm:gap-2"
-                  title={`Settings — ${settingsScopeHeading}`}
+                  title={pageTitle}
                 >
                   <h1 className="shrink-0 text-sm font-semibold text-foreground sm:text-base lg:text-lg">
-                    Settings
+                    {settingsSectionTitle ?? 'Settings'}
                   </h1>
                   <span className="hidden min-w-0 truncate text-xs font-medium text-muted-foreground md:inline sm:text-sm">
-                    {settingsScopeHeading}
+                    {settingsSectionTitle ? `Settings · ${settingsScopeHeading}` : settingsScopeHeading}
                   </span>
                 </div>
               ) : (

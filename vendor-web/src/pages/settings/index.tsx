@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import type { Vendor } from '@/types'
 import { ImageCropModal } from '@/components/common/ImageCropModal'
 import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/vendorAppMeta'
@@ -163,17 +164,18 @@ export default function SettingsPage() {
 
       <div
         key={scopeStoreId ?? 'all-units'}
-        className="space-y-2"
+        className="space-y-4"
       >
-        <p className="flex flex-wrap items-center gap-2 px-0.5 text-xs text-muted-foreground">
+        <p className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Settings scope:</span>
-          <span className="rounded-md border border-border bg-muted/40 px-2 py-0.5 font-medium text-foreground">
+          <span className="rounded-md border border-border bg-background px-2 py-0.5 font-medium text-foreground">
             {scopeLabel}
           </span>
           {scopeMode === 'all' && (
             <span className="text-[11px]">Change unit in the top bar</span>
           )}
         </p>
+        <div className="flex flex-col gap-4">
         <div id="settings-section-profile">
           <ProfileSection
             vendor={vendor}
@@ -225,8 +227,9 @@ export default function SettingsPage() {
             onSave={updateVendor}
           />
         </div>
+        </div>
       </div>
-      <div id="settings-section-about" className="mt-2">
+      <div id="settings-section-about" className="mt-6 border-t border-border pt-6">
         <AboutSection
           open={openSection === 'about'}
           toggle={() => setOpenSection(openSection === 'about' ? null : 'about')}
@@ -260,52 +263,16 @@ function SectionWrapper({
   children: React.ReactNode
 }) {
   const { label: scopeLabel } = useBusinessUnitScopeLabel()
-  const subtitle = subtitleOverride ?? scopeLabel
   return (
-    <Card
-      className={cn(
-        'overflow-hidden border shadow-sm transition-colors',
-        open && 'border-primary/25 bg-primary/[0.04]',
-      )}
+    <CollapsibleSection
+      title={title}
+      icon={Icon}
+      subtitle={subtitleOverride ?? scopeLabel}
+      open={open}
+      toggle={toggle}
     >
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={open}
-        className={cn(
-          'flex w-full items-center gap-3 px-3 py-3 text-left transition-colors sm:px-3.5',
-          'hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-        )}
-      >
-        <span
-          className={cn(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-            'bg-primary/10 text-primary ring-1 ring-inset ring-primary/15',
-          )}
-          aria-hidden
-        >
-          <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-snug text-foreground">{title}</p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground" title={subtitle}>
-            {subtitle}
-          </p>
-        </div>
-        <ChevronDown
-          className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-            open && 'rotate-180',
-          )}
-          aria-hidden
-        />
-      </button>
-      {open && (
-        <CardContent className="border-t border-border bg-muted/20 px-3 pb-4 pt-3 sm:px-4">
-          {children}
-        </CardContent>
-      )}
-    </Card>
+      {children}
+    </CollapsibleSection>
   )
 }
 
@@ -495,7 +462,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   return (
-    <SectionWrapper title="Business profile" icon={Store} open={open} toggle={toggle}>
+    <SectionWrapper title="Business Profile" icon={Store} open={open} toggle={toggle}>
       {/* Image crop modal */}
       {cropFile && cropTarget && (
         <ImageCropModal
@@ -1362,7 +1329,7 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
 
   return (
     <SectionWrapper
-      title="Online orders"
+      title="Online Orders"
       subtitle="When customers can place orders online"
       icon={ShoppingBag}
       open={open}

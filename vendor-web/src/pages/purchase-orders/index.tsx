@@ -28,13 +28,13 @@ import {
 const PO_PENDING_SUPPLIER_KEY = 'po_pending_supplier'
 
 const statusBadge: Record<string, { bg: string; text: string; label: string }> = {
-  draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft' },
-  sent: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Sent' },
-  ordered: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Ordered' },
-  partial_received: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Partial' },
-  received: { bg: 'bg-green-50', text: 'text-green-700', label: 'Received' },
+  draft: { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-300', label: 'Draft' },
+  sent: { bg: 'bg-blue-50 dark:bg-blue-950/50', text: 'text-blue-700 dark:text-blue-300', label: 'Sent' },
+  ordered: { bg: 'bg-blue-50 dark:bg-blue-950/50', text: 'text-blue-700 dark:text-blue-300', label: 'Ordered' },
+  partial_received: { bg: 'bg-amber-50 dark:bg-amber-950/50', text: 'text-amber-700 dark:text-amber-300', label: 'Partial' },
+  received: { bg: 'bg-green-50 dark:bg-green-950/50', text: 'text-green-700 dark:text-green-300', label: 'Received' },
   closed: { bg: 'bg-accent', text: 'text-primary', label: 'Closed' },
-  cancelled: { bg: 'bg-red-50', text: 'text-red-700', label: 'Cancelled' },
+  cancelled: { bg: 'bg-red-50 dark:bg-red-950/50', text: 'text-red-700 dark:text-red-300', label: 'Cancelled' },
 }
 
 // Prefill data set by barcode scan to pass into CreatePOModal
