@@ -3,7 +3,7 @@ import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { authApi } from '@/api/auth'
 import { useVendorSignup } from '@/hooks/useAuth'
@@ -12,9 +12,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { HelpAccordion } from '@/components/auth/HelpAccordion'
+import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
+import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import {
-  Loader2, Eye, EyeOff, Store, Check, ChevronDown, Pencil, Plus, X,
-  Rocket, Users, BarChart3, ShieldCheck, Smartphone,
+  Loader2, Eye, EyeOff, Check, ChevronDown, Pencil, Plus, X,
+  Rocket, Smartphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { COMPANY_TYPES, COMPANY_TYPE_GROUPS } from '@/data/companyTypes'
@@ -191,14 +193,15 @@ function TypeDropdown({
         onClick={() => setOpen((v) => !v)}
         className={cn(
           'flex h-10 min-h-10 w-full items-center gap-2 rounded-lg border bg-white px-3 text-sm transition-all',
-          open ? 'border-primary/60 ring-1 ring-primary/25' : 'border-gray-200 hover:border-gray-300',
+          open ? 'ring-1' : 'border-gray-200 hover:border-gray-300',
           error ? 'border-red-400' : '',
         )}
+        style={open ? { borderColor: SIGNUP_BRAND, boxShadow: `0 0 0 1px ${SIGNUP_BRAND}40` } : undefined}
       >
         {Icon ? (
           <>
-            <span className="w-5 h-5 rounded bg-blue-100 flex items-center justify-center shrink-0">
-              <Icon className="w-3 h-3 text-blue-600" />
+            <span className="w-5 h-5 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${SIGNUP_BRAND}22` }}>
+              <Icon className="w-3 h-3" style={{ color: SIGNUP_BRAND }} />
             </span>
             <span className="flex-1 text-left font-medium text-gray-800">{preset!.label}</span>
           </>
@@ -230,20 +233,23 @@ function TypeDropdown({
                   type="button"
                   onClick={() => select(v)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-4 py-1.5 text-left hover:bg-blue-50 transition-colors',
-                    value === v && 'bg-blue-50',
+                    'w-full flex items-center gap-3 px-4 py-1.5 text-left transition-colors',
+                    value === v && '',
                   )}
+                  style={value === v ? { backgroundColor: `${SIGNUP_BRAND}15` } : undefined}
+                  onMouseEnter={(e) => { if (value !== v) e.currentTarget.style.backgroundColor = `${SIGNUP_BRAND}0d` }}
+                  onMouseLeave={(e) => { if (value !== v) e.currentTarget.style.backgroundColor = '' }}
                 >
                   <span className={cn(
                     'w-6 h-6 rounded-lg flex items-center justify-center shrink-0',
-                    value === v ? 'bg-primary' : 'bg-gray-100',
+                    value === v ? 'bg-[#64C3A0]' : 'bg-gray-100',
                   )}>
                     <ItemIcon className={cn('w-3 h-3', value === v ? 'text-white' : 'text-gray-500')} />
                   </span>
-                  <span className={cn('flex-1 text-sm', value === v ? 'font-semibold text-blue-700' : 'text-gray-700')}>
+                  <span className={cn('flex-1 text-sm', value === v ? 'font-semibold' : 'text-gray-700')} style={value === v ? { color: SIGNUP_BRAND_HOVER } : undefined}>
                     {label}
                   </span>
-                  {value === v && <Check className="w-3 h-3 text-blue-600 shrink-0" />}
+                  {value === v && <Check className="w-3 h-3 shrink-0" style={{ color: SIGNUP_BRAND }} />}
                 </button>
               ))}
             </div>
@@ -280,15 +286,6 @@ function TypeDropdown({
     </div>
   )
 }
-
-// ── Feature bullet list ────────────────────────────────────────────────────
-
-const FEATURES = [
-  { icon: Rocket,      title: 'Quick Setup',        desc: 'Live in under 5 minutes.' },
-  { icon: Users,       title: 'Customer Portal',    desc: 'Logins, orders & bookings.' },
-  { icon: BarChart3,   title: 'Full Dashboard',     desc: 'Orders, inventory, POS, reports.' },
-  { icon: ShieldCheck, title: 'Secure & Trusted',   desc: 'SSL & payments built-in.' },
-]
 
 // ── Main page (standalone layout — not wrapped in AuthLayout) ──────────────
 
@@ -472,60 +469,12 @@ export default function Register() {
   const inputClass = 'h-10 text-sm'
 
   return (
-    <div className="vendor-register flex min-h-dvh min-h-screen w-full flex-col bg-slate-50">
-      <header className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link to="/register" className="flex items-center gap-2">
-            <Store className="h-5 w-5 text-primary" aria-hidden />
-            <span className="text-base font-semibold text-slate-900">KITERP</span>
-          </Link>
-          <p className="text-xs text-slate-600 sm:text-sm">
-            Already a vendor?{' '}
-            <Link to="/login" className="font-semibold text-[hsl(204.42deg_94.86%_48.34%)] hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </header>
-
-      <main className="flex-1 w-full">
-        <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-5 lg:py-6">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6 lg:gap-8 md:items-start">
-
-            {/* Marketing — tablet/desktop only */}
-            <aside className="hidden md:block md:sticky md:top-4">
-              <h1 className="text-xl font-bold leading-tight text-slate-900 lg:text-2xl">
-                Start selling online{' '}
-                <span className="text-[hsl(204.42deg_94.86%_48.34%)]">in minutes</span>
-              </h1>
-              <p className="mt-2 text-sm leading-snug text-slate-600">
-                Branded store, orders, inventory, and reports — one dashboard.
-              </p>
-              <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                {FEATURES.map((f) => (
-                  <li key={f.title} className="flex items-start gap-2.5 rounded-lg bg-white px-3 py-2.5 shadow-sm ring-1 ring-slate-200/80">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
-                      <f.icon className="h-4 w-4 text-primary" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold text-slate-900">{f.title}</span>
-                      <span className="block text-xs text-slate-500">{f.desc}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-4 flex items-center gap-1.5 text-xs text-slate-500">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden />
-                Secured by KITERP
-              </p>
-            </aside>
-
-            {/* Signup form */}
-            <section className="w-full min-w-0">
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md sm:p-5">
-                <div className="mb-4 border-b border-slate-100 pb-3">
-                  <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Create your business</h2>
-                  <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Fill in the details below to get started.</p>
+    <>
+    <VendorSignupShell homeHref="/register" signInHref="/login">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
+                <div className="mb-5">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Create your business</h2>
+                  <p className="mt-1 text-sm text-slate-500">Fill in the details below to get started.</p>
                 </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
@@ -607,12 +556,14 @@ export default function Register() {
                     </div>
                   </div>
 
-                  <div className="pt-3">
+                  <div className="pt-2">
                   <Button
                     type="submit"
                     size="lg"
-                    className="h-11 w-full rounded-lg border-0 text-base font-semibold text-white shadow-sm hover:opacity-95"
-                    style={{ backgroundColor: '#64c3a0' }}
+                    className="h-11 w-full rounded-xl text-base font-semibold text-white shadow-sm hover:opacity-95"
+                    style={{ backgroundColor: SIGNUP_BRAND }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND_HOVER }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND }}
                     disabled={signupMut.isPending || otpModalOpen || checkingContact}
                   >
                     {checkingContact ? (
@@ -635,22 +586,18 @@ export default function Register() {
                   </div>
                 </form>
 
-                <p className="mt-3 text-center text-xs text-slate-500 sm:text-xs">
+                <p className="mt-4 text-center text-xs leading-relaxed text-slate-500">
                   By signing up, you agree to our{' '}
-                  <a href="#" className="text-[hsl(204.42deg_94.86%_48.34%)] hover:underline">Terms</a>
+                  <a href="#" className="font-medium hover:underline" style={{ color: SIGNUP_BRAND }}>Terms</a>
                   {' '}and{' '}
-                  <a href="#" className="text-[hsl(204.42deg_94.86%_48.34%)] hover:underline">Privacy Policy</a>.
+                  <a href="#" className="font-medium hover:underline" style={{ color: SIGNUP_BRAND }}>Privacy Policy</a>.
                 </p>
 
-                <div className="mt-3 border-t border-slate-100 pt-3">
+                <div className="mt-4 border-t border-slate-100 pt-4">
                   <HelpAccordion />
                 </div>
               </div>
-            </section>
-
-          </div>
-        </div>
-      </main>
+    </VendorSignupShell>
 
       {otpModalOpen && pendingPhoneSignup ? (
         <div
@@ -676,8 +623,8 @@ export default function Register() {
             </button>
 
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-3 ring-4 ring-blue-500/10">
-                <Smartphone className="w-7 h-7 text-blue-600" />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ring-4" style={{ backgroundColor: `${SIGNUP_BRAND}18`, boxShadow: `0 0 0 4px ${SIGNUP_BRAND}1a` }}>
+                <Smartphone className="w-7 h-7" style={{ color: SIGNUP_BRAND }} />
               </div>
               <h3 id="vendor-otp-title" className="text-xl font-bold text-slate-900 sm:text-2xl">
                 Verify your phone
@@ -690,7 +637,7 @@ export default function Register() {
 
             {sendPhoneOtpMut.isPending ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-600">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <Loader2 className="w-5 h-5 animate-spin" style={{ color: SIGNUP_BRAND }} />
                 Sending code…
               </div>
             ) : (
@@ -705,14 +652,15 @@ export default function Register() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && modalOtp.replace(/\D/g, '').length === 6) submitPhoneSignupWithOtp()
                   }}
-                  className="h-14 text-center text-2xl font-semibold tracking-[0.35em] font-mono border-slate-200 focus-visible:ring-blue-500"
+                  className="h-14 text-center text-2xl font-semibold tracking-[0.35em] font-mono border-slate-200 focus-visible:ring-[#64C3A0]"
                   autoFocus
                 />
 
                 <div className="mt-5 flex flex-col gap-3">
                   <Button
                     type="button"
-                    className="w-full min-h-12 rounded-xl bg-primary px-4 py-3 text-lg font-bold hover:bg-primary/90 sm:min-h-14 sm:text-xl"
+                    className="w-full min-h-12 rounded-xl px-4 py-3 text-lg font-bold text-white sm:min-h-14 sm:text-xl"
+                    style={{ backgroundColor: SIGNUP_BRAND }}
                     disabled={signupMut.isPending || modalOtp.replace(/\D/g, '').length !== 6}
                     onClick={submitPhoneSignupWithOtp}
                   >
@@ -743,6 +691,6 @@ export default function Register() {
           </div>
         </div>
       ) : null}
-    </div>
+    </>
   )
 }

@@ -7,7 +7,9 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { Store, Loader2, ShieldCheck, Rocket, Users, BarChart3, Eye, EyeOff, Check, Smartphone, X } from 'lucide-react'
+import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
+import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
+import { Loader2, Rocket, Eye, EyeOff, Check, Smartphone, X } from 'lucide-react'
 import axios from 'axios'
 import { vendorAppUrl } from '@/lib/appUrls'
 
@@ -421,82 +423,29 @@ export default function VendorSignup() {
     }
   }
 
+  const fieldLabel = 'mb-1 block text-sm font-medium text-slate-700'
+  const fieldRow = 'grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3'
+
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b shrink-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2">
-            <Store className="w-6 h-6 text-blue-600" />
-            <span className="font-bold text-base text-gray-900">KITERP</span>
-          </a>
-          <a href={`${vendorAppUrl}/login`} className="text-sm text-gray-500 hover:text-gray-700">
-            Already a vendor? <span className="text-blue-600 font-medium">Sign in</span>
-          </a>
-        </div>
-      </header>
-
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <div className="h-full max-w-6xl mx-auto px-4 py-4 sm:py-6">
-          <div className="grid h-full lg:grid-cols-[1fr_1.2fr] gap-6 lg:gap-10 items-stretch">
-            {/* Left — Benefits (compact, hidden on small screens) */}
-            <div className="hidden lg:flex flex-col justify-center pr-2">
-              <h1 className="text-2xl xl:text-3xl font-bold text-gray-900 leading-tight">
-                Start selling online<br />
-                <span className="text-blue-600">in minutes</span>
-              </h1>
-              <p className="mt-2 text-sm text-gray-500">
-                Create your branded store, manage products & services, accept orders, and grow your business.
-              </p>
-
-              <div className="space-y-3 mt-5">
-                {[
-                  { icon: Rocket, title: 'Quick Setup', desc: 'Live in under 5 minutes.' },
-                  { icon: Users, title: 'Customer Portal', desc: 'Logins, orders & bookings.' },
-                  { icon: BarChart3, title: 'Full Dashboard', desc: 'Orders, inventory, POS, reports.' },
-                  { icon: ShieldCheck, title: 'Secure & Trusted', desc: 'SSL & payments built-in.' },
-                ].map((f) => (
-                  <div key={f.title} className="flex gap-3 items-start">
-                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                      <f.icon className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm leading-tight">{f.title}</h3>
-                      <p className="text-xs text-gray-500 leading-snug">{f.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <p className="flex items-center gap-1.5 mt-6 text-xs text-gray-400">
-                <ShieldCheck className="w-3.5 h-3.5" /> Secured by KITERP
-              </p>
-            </div>
-
-            {/* Right — Signup Form (no internal scroll) */}
-            <div className="h-full flex items-center justify-center min-h-0">
-              <div className="w-full bg-white rounded-2xl border shadow-xl p-5 sm:p-6 max-h-full">
-                <div className="text-center mb-3 lg:hidden">
-                  <Store className="w-8 h-8 text-blue-600 mx-auto mb-1" />
-                </div>
-                <div className="mb-4">
-                  <h2 className="text-xl font-bold text-gray-900">Create your Business</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Fill in the details below to get started
-                  </p>
+    <>
+    <VendorSignupShell homeHref="/vendor/signup" signInHref={`${vendorAppUrl}/login`}>
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
+                <div className="mb-5">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Create your business</h2>
+                  <p className="mt-1 text-sm text-slate-500">Fill in the details below to get started.</p>
                 </div>
 
                 {error && (
-                  <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                     {error}
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
                   {/* Row 1 — Business Name + Business Category */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className={fieldRow}>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">
+                      <label className={fieldLabel}>
                         Business Name / Brand
                       </label>
                       <Input
@@ -509,13 +458,13 @@ export default function VendorSignup() {
                       )}
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">
+                      <label className={fieldLabel}>
                         Business Category
                       </label>
                       <select
                         {...register('business_category')}
                         defaultValue=""
-                        className="w-full h-10 px-3 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full h-10 px-3 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#64C3A0] focus:border-[#64C3A0]"
                       >
                         <option value="" disabled>Select category…</option>
                         {BUSINESS_CATEGORIES.map((g) => (
@@ -534,7 +483,7 @@ export default function VendorSignup() {
 
                   {/* Row 2 — Full Name (alone) */}
                   <div>
-                    <label className="text-xs font-medium text-gray-700 mb-1 block">Full Name</label>
+                    <label className={fieldLabel}>Full Name</label>
                     <Input
                       {...register('full_name')}
                       placeholder="Your full name"
@@ -545,13 +494,13 @@ export default function VendorSignup() {
                     )}
                   </div>
 
-                  <p className="text-xs text-gray-500">
-                    Provide <strong className="font-medium text-gray-700">either</strong> email <strong className="font-medium text-gray-700">or</strong> phone. After Create My Business, phone sign-ups open a secure popup for your OTP.
+                  <p className="text-xs leading-snug text-slate-500">
+                    Email <span className="text-slate-400">or</span> phone required. Phone signups use OTP after submit.
                   </p>
                   {/* Row 3 — Phone + Email */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className={fieldRow}>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Phone Number</label>
+                      <label className={fieldLabel}>Phone Number</label>
                       <Controller
                         control={control}
                         name="phone"
@@ -567,7 +516,7 @@ export default function VendorSignup() {
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Contact Email</label>
+                      <label className={fieldLabel}>Contact Email</label>
                       <Input
                         {...register('email')}
                         type="email"
@@ -581,9 +530,9 @@ export default function VendorSignup() {
                   </div>
 
                   {/* Row 4 — Password + Confirm Password */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className={fieldRow}>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Password</label>
+                      <label className={fieldLabel}>Password</label>
                       <div className="relative">
                         <Input
                           {...register('password')}
@@ -605,7 +554,7 @@ export default function VendorSignup() {
                       )}
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-1 block">Confirm Password</label>
+                      <label className={fieldLabel}>Confirm Password</label>
                       <Input
                         {...register('confirm_password')}
                         type="password"
@@ -620,28 +569,36 @@ export default function VendorSignup() {
 
                   <Button
                     type="submit"
-                    className="w-full h-11 font-bold text-sm bg-primary hover:bg-primary/90 mt-1"
+                    className="mt-1 h-11 w-full rounded-xl text-base font-semibold text-white shadow-sm hover:opacity-95"
+                    style={{ backgroundColor: SIGNUP_BRAND }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND_HOVER }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND }}
                     disabled={loading || otpModalOpen || checkingContact}
                   >
                     {checkingContact ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Checking…
+                      </>
                     ) : loading && !otpModalOpen ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating account…
+                      </>
                     ) : (
-                      <Rocket className="w-4 h-4 mr-2" />
+                      <>
+                        <Rocket className="mr-2 h-4 w-4" />
+                        Create your business
+                      </>
                     )}
-                    {checkingContact ? 'Checking…' : 'Create My Business'}
                   </Button>
                 </form>
 
-                <p className="text-xs text-gray-400 text-center mt-3">
+                <p className="mt-4 text-center text-xs leading-relaxed text-slate-500">
                   By signing up, you agree to our Terms of Service and Privacy Policy.
                 </p>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    </VendorSignupShell>
 
       {otpModalOpen && pendingPhoneSignup ? (
         <div
@@ -667,8 +624,8 @@ export default function VendorSignup() {
             </button>
 
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-3 ring-4 ring-blue-500/10">
-                <Smartphone className="w-7 h-7 text-blue-600" />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ring-4" style={{ backgroundColor: `${SIGNUP_BRAND}18`, boxShadow: `0 0 0 4px ${SIGNUP_BRAND}1a` }}>
+                <Smartphone className="w-7 h-7" style={{ color: SIGNUP_BRAND }} />
               </div>
               <h3 id="sf-vendor-otp-title" className="text-lg font-bold text-slate-900">
                 Verify your phone
@@ -681,7 +638,7 @@ export default function VendorSignup() {
 
             {modalOtpSending ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-600">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <Loader2 className="w-5 h-5 animate-spin" style={{ color: SIGNUP_BRAND }} />
                 Sending code…
               </div>
             ) : (
@@ -696,14 +653,15 @@ export default function VendorSignup() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && modalOtp.replace(/\D/g, '').length === 6) void submitPhoneWithOtp()
                   }}
-                  className="h-14 text-center text-2xl font-semibold tracking-[0.35em] font-mono border-slate-200 focus-visible:ring-blue-500"
+                  className="h-14 text-center text-2xl font-semibold tracking-[0.35em] font-mono border-slate-200 focus-visible:ring-[#64C3A0]"
                   autoFocus
                 />
 
                 <div className="flex flex-col gap-2 mt-5">
                   <Button
                     type="button"
-                    className="w-full h-11 font-bold bg-primary hover:bg-primary/90"
+                    className="w-full h-11 font-bold text-white"
+                    style={{ backgroundColor: SIGNUP_BRAND }}
                     disabled={loading || modalOtp.replace(/\D/g, '').length !== 6}
                     onClick={() => void submitPhoneWithOtp()}
                   >
@@ -728,6 +686,6 @@ export default function VendorSignup() {
           </div>
         </div>
       ) : null}
-    </div>
+    </>
   )
 }
