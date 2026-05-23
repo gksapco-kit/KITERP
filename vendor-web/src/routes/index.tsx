@@ -203,6 +203,10 @@ export const router = createBrowserRouter([
     element: <Register />,
   },
   {
+    path: '/signup',
+    element: <Register />,
+  },
+  {
     path: '/welcome',
     element: (
       <ProtectedRoute>
