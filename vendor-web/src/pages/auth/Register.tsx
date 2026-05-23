@@ -192,7 +192,7 @@ function TypeDropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'flex h-10 min-h-10 w-full items-center gap-2 rounded-lg border bg-white px-3 text-sm transition-all',
+          'flex h-9 min-h-9 w-full items-center gap-2 rounded-lg border bg-white px-3 text-sm transition-all',
           open ? 'ring-1' : 'border-gray-200 hover:border-gray-300',
           error ? 'border-red-400' : '',
         )}
@@ -464,20 +464,20 @@ export default function Register() {
     })
   }
 
-  const fieldLabel = 'mb-1 block text-sm font-medium text-slate-700'
-  const fieldRow = 'grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3'
-  const inputClass = 'h-10 text-sm'
+  const fieldLabel = 'mb-0.5 block text-xs font-medium text-slate-700'
+  const fieldRow = 'grid grid-cols-1 gap-2 sm:grid-cols-2'
+  const inputClass = 'h-9 text-sm'
 
   return (
     <>
     <VendorSignupShell homeHref="/register" signInHref="/login">
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
-                <div className="mb-5">
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Create your business</h2>
-                  <p className="mt-1 text-sm text-slate-500">Fill in the details below to get started.</p>
+              <div className="w-full rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm md:p-4">
+                <div className="mb-2">
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Create your business</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">Fill in the details below to get started.</p>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
                   <div className={fieldRow}>
                     <div>
                       <label className={fieldLabel}>Business Name / Brand</label>
@@ -506,8 +506,8 @@ export default function Register() {
                     {errors.full_name && <p className="mt-0.5 text-xs text-red-500">{errors.full_name.message}</p>}
                   </div>
 
-                  <p className="text-xs leading-snug text-slate-500">
-                    Email <span className="text-slate-400">or</span> phone required. Phone signups use OTP after submit.
+                  <p className="text-[11px] leading-snug text-slate-500">
+                    Email or phone required. Phone signups use OTP after submit.
                   </p>
 
                   <div className={fieldRow}>
@@ -556,11 +556,11 @@ export default function Register() {
                     </div>
                   </div>
 
-                  <div className="pt-2">
+                  <div className="pt-1">
                   <Button
                     type="submit"
                     size="lg"
-                    className="h-11 w-full rounded-xl text-base font-semibold text-white shadow-sm hover:opacity-95"
+                    className="h-10 w-full rounded-lg text-sm font-semibold text-white shadow-sm hover:opacity-95"
                     style={{ backgroundColor: SIGNUP_BRAND }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND_HOVER }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND }}
@@ -586,14 +586,14 @@ export default function Register() {
                   </div>
                 </form>
 
-                <p className="mt-4 text-center text-xs leading-relaxed text-slate-500">
+                <p className="mt-2 text-center text-[11px] leading-snug text-slate-500">
                   By signing up, you agree to our{' '}
                   <a href="#" className="font-medium hover:underline" style={{ color: SIGNUP_BRAND }}>Terms</a>
                   {' '}and{' '}
                   <a href="#" className="font-medium hover:underline" style={{ color: SIGNUP_BRAND }}>Privacy Policy</a>.
                 </p>
 
-                <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="mt-2 border-t border-slate-100 pt-2">
                   <HelpAccordion />
                 </div>
               </div>

@@ -14,7 +14,7 @@ export function HelpAccordion() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 transition-colors',
+          'w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 transition-colors',
           open ? 'bg-accent' : 'hover:bg-gray-50',
         )}
       >

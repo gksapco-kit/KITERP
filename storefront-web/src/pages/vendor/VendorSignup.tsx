@@ -423,25 +423,26 @@ export default function VendorSignup() {
     }
   }
 
-  const fieldLabel = 'mb-1 block text-sm font-medium text-slate-700'
-  const fieldRow = 'grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3'
+  const fieldLabel = 'mb-0.5 block text-xs font-medium text-slate-700'
+  const fieldRow = 'grid grid-cols-1 gap-2 sm:grid-cols-2'
+  const inputClass = 'h-9 text-sm'
 
   return (
     <>
     <VendorSignupShell homeHref="/vendor/signup" signInHref={`${vendorAppUrl}/login`}>
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
-                <div className="mb-5">
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Create your business</h2>
-                  <p className="mt-1 text-sm text-slate-500">Fill in the details below to get started.</p>
+              <div className="w-full rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm md:p-4">
+                <div className="mb-2">
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Create your business</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">Fill in the details below to get started.</p>
                 </div>
 
                 {error && (
-                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
                     {error}
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
                   {/* Row 1 — Business Name + Business Category */}
                   <div className={fieldRow}>
                     <div>
@@ -451,7 +452,7 @@ export default function VendorSignup() {
                       <Input
                         {...register('business_name')}
                         placeholder="e.g. Fresh Mart"
-                        className="h-10"
+                        className={inputClass}
                       />
                       {errors.business_name && (
                         <p className="text-xs text-red-500 mt-0.5">{errors.business_name.message}</p>
@@ -464,7 +465,7 @@ export default function VendorSignup() {
                       <select
                         {...register('business_category')}
                         defaultValue=""
-                        className="w-full h-10 px-3 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#64C3A0] focus:border-[#64C3A0]"
+                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#64C3A0] focus:border-[#64C3A0]"
                       >
                         <option value="" disabled>Select category…</option>
                         {BUSINESS_CATEGORIES.map((g) => (
@@ -487,15 +488,15 @@ export default function VendorSignup() {
                     <Input
                       {...register('full_name')}
                       placeholder="Your full name"
-                      className="h-10"
+                      className={inputClass}
                     />
                     {errors.full_name && (
                       <p className="text-xs text-red-500 mt-0.5">{errors.full_name.message}</p>
                     )}
                   </div>
 
-                  <p className="text-xs leading-snug text-slate-500">
-                    Email <span className="text-slate-400">or</span> phone required. Phone signups use OTP after submit.
+                  <p className="text-[11px] leading-snug text-slate-500">
+                    Email or phone required. Phone signups use OTP after submit.
                   </p>
                   {/* Row 3 — Phone + Email */}
                   <div className={fieldRow}>
@@ -521,7 +522,7 @@ export default function VendorSignup() {
                         {...register('email')}
                         type="email"
                         placeholder="Optional if you use phone"
-                        className="h-10"
+                        className={inputClass}
                       />
                       {errors.email && (
                         <p className="text-xs text-red-500 mt-0.5">{errors.email.message}</p>
@@ -538,7 +539,7 @@ export default function VendorSignup() {
                           {...register('password')}
                           type={showPw ? 'text' : 'password'}
                           placeholder="Min. 8 characters"
-                          className="h-10 pr-9"
+                          className={`${inputClass} pr-9`}
                         />
                         <button
                           type="button"
@@ -559,7 +560,7 @@ export default function VendorSignup() {
                         {...register('confirm_password')}
                         type="password"
                         placeholder="Re-enter password"
-                        className="h-10"
+                        className={inputClass}
                       />
                       {errors.confirm_password && (
                         <p className="text-xs text-red-500 mt-0.5">{errors.confirm_password.message}</p>
@@ -569,7 +570,7 @@ export default function VendorSignup() {
 
                   <Button
                     type="submit"
-                    className="mt-1 h-11 w-full rounded-xl text-base font-semibold text-white shadow-sm hover:opacity-95"
+                    className="h-10 w-full rounded-lg text-sm font-semibold text-white shadow-sm hover:opacity-95"
                     style={{ backgroundColor: SIGNUP_BRAND }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND_HOVER }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND }}
@@ -594,7 +595,7 @@ export default function VendorSignup() {
                   </Button>
                 </form>
 
-                <p className="mt-4 text-center text-xs leading-relaxed text-slate-500">
+                <p className="mt-2 text-center text-[11px] leading-snug text-slate-500">
                   By signing up, you agree to our Terms of Service and Privacy Policy.
                 </p>
               </div>
