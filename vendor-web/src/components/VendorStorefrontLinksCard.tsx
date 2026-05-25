@@ -90,10 +90,12 @@ function LinkRow({
         <Icon className={cn('h-3.5 w-3.5 text-primary', iconClassName)} />
       </span>
       <div className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-foreground">{label}</span>
-        {hint ? (
-          <span className="block text-xs text-muted-foreground">{hint}</span>
-        ) : null}
+        <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-snug">
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          {hint ? (
+            <span className="truncate text-xs text-muted-foreground">{hint}</span>
+          ) : null}
+        </p>
         <a
           href={href}
           target="_blank"

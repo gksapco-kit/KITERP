@@ -1,4 +1,4 @@
-import { useForm, Controller, useFieldArray } from 'react-hook-form'
+import { useForm, FormProvider, Controller, useFieldArray, type FieldErrors } from 'react-hook-form'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -22,7 +22,22 @@ import {
   Factory,
 } from 'lucide-react'
 import { BOMEditor } from '@/components/mrp/BOMEditor'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import {
+  FormPageWithNav,
+  FormSectionNav,
+  FormField,
+  handleFormInvalid,
+  formDisplayCompact,
+  formEditLayout,
+  formInputScopeClass,
+  formLabelClass,
+  formSectionSurfaceClass,
+  formSelectClass,
+  formTextareaClass,
+  useFormActiveSection,
+} from '@/components/common/FormSectionNav'
+import type { FormSectionDef } from '@/components/common/FormSectionNav'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
@@ -36,7 +51,7 @@ const optInt = z.coerce.number().int().optional().or(z.literal('').transform(() 
 
 const variantRowSchema = z.object({
   id: z.string().optional(),  // DB id — present for saved variants, absent for new ones
-  name: z.string().max(255),
+  name: z.string().min(1, 'Variant name is required').max(255, 'Variant name cannot exceed 255 characters'),
   sku: optStr,
   barcode: optStr,
   uom: z.string().default('piece'),
@@ -91,10 +106,10 @@ const variantRowSchema = z.object({
 
 const schema = z.object({
   // Basic
-  name: z.string().min(2, 'Product name must be at least 2 characters').max(255),
+  name: z.string().min(2, 'Product name must be at least 2 characters').max(255, 'Product name cannot exceed 255 characters'),
   slug: z.string().max(255).regex(/^[a-z0-9-]*$/, 'Slug can only contain lowercase letters, numbers, and hyphens').optional().or(z.literal('')),
   description: optStr,
-  short_description: z.string().max(500).optional().or(z.literal('')),
+  short_description: z.string().max(500, 'Short description cannot exceed 500 characters').optional().or(z.literal('')),
   brand: optStr,
   product_type: z.string().default('physical'),
   category: optStr,
@@ -190,66 +205,73 @@ type FormData = z.infer<typeof schema>
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-function Section({ title, icon: Icon, open, onToggle, children, surface = 'standard', surfaceHint }: {
+function Section({ title, icon: Icon, open, onToggle, children, surface = 'standard', surfaceHint, sectionId }: {
   title: string
   icon: React.ElementType
   open: boolean
   onToggle: () => void
   children: React.ReactNode
-  /** Subtle visual split: product (catalog identity) vs variants (sellable SKUs) — same page, different accent. */
   surface?: 'standard' | 'product' | 'variants'
-  /** Optional line under title when surface is product or variants (e.g. subscription vs physical). */
   surfaceHint?: string
+  sectionId?: string
 }) {
+  const activeFormSection = useFormActiveSection()
+  const scrollActive = !!sectionId && activeFormSection === sectionId
   const isProduct = surface === 'product'
   const isVariants = surface === 'variants'
   return (
     <Card
+      id={sectionId ? `form-section-${sectionId}` : undefined}
       className={cn(
         'overflow-hidden',
-        isProduct && 'border-l-[3px] border-l-blue-500/75 ring-1 ring-blue-100/70',
-        isVariants && 'border-l-[3px] border-l-indigo-500/75 ring-1 ring-indigo-100/70',
+        formDisplayCompact.scrollMarginEdit,
+        formSectionSurfaceClass(scrollActive),
+        isProduct && 'border-l-[3px] border-l-blue-500/75',
+        isVariants && 'border-l-[3px] border-l-indigo-500/75',
+        scrollActive && isProduct && 'ring-2 ring-blue-400/40',
+        scrollActive && isVariants && 'ring-2 ring-indigo-400/40',
       )}
     >
       <button
         type="button"
         onClick={onToggle}
         className={cn(
-          'flex w-full items-center justify-between gap-3 rounded-t-xl px-6 py-4 transition-colors',
+          formEditLayout.sectionHeaderBtn,
+          'rounded-t-xl transition-colors',
           !isProduct && !isVariants && 'hover:bg-accent/80 dark:hover:bg-secondary/60',
           isProduct && 'bg-gradient-to-r from-blue-50/80 via-white to-white hover:from-blue-50 dark:from-blue-950/40 dark:via-card dark:to-card dark:hover:from-blue-950/60',
           isVariants && 'bg-gradient-to-r from-indigo-50/80 via-white to-white hover:from-indigo-50 dark:from-indigo-950/40 dark:via-card dark:to-card dark:hover:from-indigo-950/60',
         )}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
           <Icon
             className={cn(
-              'w-5 h-5 shrink-0',
+              'h-4 w-4 shrink-0 sm:h-[1.125rem] sm:w-[1.125rem]',
               isProduct && 'text-blue-600',
               isVariants && 'text-indigo-600',
               !isProduct && !isVariants && 'text-muted-foreground',
             )}
           />
-          <div className="flex flex-col items-start min-w-0 text-left gap-0.5">
-            <span className="font-semibold text-gray-900 leading-tight">{title}</span>
+          <div className="flex min-w-0 flex-col items-start gap-0 text-left leading-tight">
+            <span className="text-sm font-semibold text-gray-900">{title}</span>
             {isProduct && (
-              <span className="text-xs font-medium text-blue-600/80 uppercase tracking-wide">
+              <span className="text-[0.625rem] font-medium uppercase tracking-wide text-blue-600/80 sm:text-[0.65rem]">
                 {surfaceHint ?? 'Main product'}
               </span>
             )}
             {isVariants && (
-              <span className="text-xs font-medium text-indigo-600/80 uppercase tracking-wide">
+              <span className="text-[0.625rem] font-medium uppercase tracking-wide text-indigo-600/80 sm:text-[0.65rem]">
                 {surfaceHint ?? 'SKUs & options'}
               </span>
             )}
           </div>
         </div>
-        {open ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground dark:text-foreground/80" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground dark:text-foreground/80" />}
+        {open ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />}
       </button>
       {open && (
         <CardContent
           className={cn(
-            'border-t pb-6 pt-0',
+            formEditLayout.sectionContent,
             !isProduct && !isVariants && 'border-border bg-muted/15 dark:bg-black/20',
             isProduct && 'border-blue-100/60 bg-gradient-to-b from-blue-50/25 to-card dark:border-blue-900/50 dark:from-blue-950/30 dark:to-card',
             isVariants && 'border-indigo-100/60 bg-gradient-to-b from-indigo-50/25 to-card dark:border-indigo-900/50 dark:from-indigo-950/30 dark:to-card',
@@ -262,14 +284,22 @@ function Section({ title, icon: Icon, open, onToggle, children, surface = 'stand
   )
 }
 
-function Field({ label, required, error, children }: {
-  label: string; required?: boolean; error?: string; children: React.ReactNode
-}) {
+const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£' }
+
+function InputWithSuffix({ suffix, className, ...props }: React.ComponentProps<typeof Input> & { suffix: string }) {
   return (
-    <div className="space-y-1.5">
-      <Label>{label}{required && ' *'}</Label>
-      {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+    <div className="relative">
+      <Input className={cn('w-full pr-7', className)} {...props} />
+      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">{suffix}</span>
+    </div>
+  )
+}
+
+function InputWithPrefix({ prefix, className, ...props }: React.ComponentProps<typeof Input> & { prefix: string }) {
+  return (
+    <div className="relative">
+      <Input className={cn('w-full pl-7', className)} {...props} />
+      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">{prefix}</span>
     </div>
   )
 }
@@ -278,23 +308,23 @@ function Toggle({ label, checked, onChange }: {
   label: string; checked: boolean; onChange: (v: boolean) => void
 }) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer select-none">
+    <label className="flex cursor-pointer select-none items-center gap-2">
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-gray-200'}`}
+        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-gray-200'}`}
       >
-        <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
       </button>
-      <span className="text-sm text-gray-700">{label}</span>
+      <span className="text-xs text-gray-700 sm:text-sm">{label}</span>
     </label>
   )
 }
 
-const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
-const textareaCls = 'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none'
+const selectCls = formSelectClass
+const textareaCls = formTextareaClass
 
 function safeJsonStr(v: unknown): string {
   if (!v) return ''
@@ -715,34 +745,94 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
   const hasBasePrice = product.price > 0
   const hasBasePricing = hasBasePrice || product.compare_at_price || product.cost_price || product.is_on_sale || product.discount_percentage || product.discount_amount
   const pType = product.product_type || 'physical'
-  const isPhysical = pType === 'physical'
-  const isDigital = pType === 'digital' || pType === 'bundle' || product.is_digital
+  const isBundleView = pType === 'bundle'
+  const isDigital = pType === 'digital' || isBundleView || product.is_digital
   const isSubscription = pType === 'subscription' || product.is_subscription
+  const productAddons: any[] = product.addons || []
+  const changeHistory: any[] = product.change_history || []
+  const [activeViewSection, setActiveViewSection] = useState<string | null>(null)
+  const sectionCls = (key: string) =>
+    cn(formDisplayCompact.scrollMarginView, formSectionSurfaceClass(activeViewSection === key))
+
+  const viewSections: FormSectionDef[] = useMemo(() => [
+    { key: 'basic',            label: 'Product Information', icon: Package, hint: 'Core identity — name, type, category, and descriptions.' },
+    { key: 'media',            label: 'Product Media',       icon: Eye,         visible: images.length > 0, hint: 'Images, video, and 3D assets shown on the business front.' },
+    { key: 'pricing',          label: 'Pricing',             icon: IndianRupee, visible: !hasVariants || hasBasePricing, hint: 'Base price, compare-at, cost, and sale settings.' },
+    { key: 'variants',         label: isBundleView ? 'Bundle Items' : isSubscription ? 'Subscription Plans' : 'Variants & Options', icon: Layers, visible: hasVariants || isBundleView, hint: 'SKUs, stock, and per-variant pricing.' },
+    { key: 'returns',          label: 'Return & Warranty',   icon: RotateCcw,   visible: !isDigital && !!(product.return_days || product.warranty_period_days || product.warranty_type || product.refund_policy || product.return_policy || product.return_conditions || product.is_returnable === false), hint: 'Return window, warranty, and refund rules.' },
+    { key: 'shipping',         label: 'Shipping & Tax',      icon: Truck,       visible: pType !== 'digital', hint: 'Weight, dimensions, shipping class, and delivery.' },
+    { key: 'storefrontOptions',label: 'Business Front',      icon: Globe, hint: 'Quote requests and customer-facing options.' },
+    { key: 'visibility',       label: 'Visibility',          icon: Eye, hint: 'Status, featured flags, and catalog visibility.' },
+    { key: 'addons',           label: 'Add-ons',             icon: Link2, hint: 'Linked products or services sold with this item.' },
+    { key: 'merch',            label: 'Merchandising',       icon: Tag,         visible: merchMappings.length > 0, hint: 'Cross-sell and upsell relationships.' },
+    { key: 'seo',              label: 'SEO & Metadata',      icon: Search, hint: 'Search titles, descriptions, and social preview.' },
+    { key: 'advanced',         label: 'Advanced',            icon: Settings, hint: 'Custom attributes, specifications, and JSON fields.' },
+    { key: 'digital',          label: 'Digital Product',     icon: Download,    visible: isDigital, hint: 'Download limits, expiry, and file delivery.' },
+    { key: 'reports',          label: 'Reports',             icon: BarChart3, hint: 'Views, purchases, and version summary.' },
+    { key: 'pricing-rules',    label: 'Advanced Pricing',    icon: DollarSign,  visible: priceRules.length > 0, hint: 'Party, location, quantity, and channel price rules.' },
+    { key: 'history',          label: 'Change History',      icon: Clock, hint: 'Who changed what and when — open the full report to export.' },
+  ], [images.length, hasVariants, hasBasePricing, isBundleView, isSubscription, isDigital, pType, product, merchMappings.length, priceRules.length])
+
+  const viewCompleted = useMemo<Set<string>>(() => {
+    const s = new Set<string>()
+    if (images.length > 0) s.add('media')
+    if (product.name) s.add('basic')
+    if (product.price) s.add('pricing')
+    if (hasVariants) s.add('variants')
+    if (product.requires_shipping !== undefined) s.add('shipping')
+    if (product.is_visible !== undefined) s.add('visibility')
+    if (product.meta_title || product.meta_description) s.add('seo')
+    if (productAddons.length > 0) s.add('addons')
+    if (merchMappings.length > 0) s.add('merch')
+    if (priceRules.length > 0) s.add('pricing-rules')
+    if (changeHistory.length > 0) s.add('history')
+    s.add('reports')
+    return s
+  }, [product, images, hasVariants, productAddons.length, merchMappings.length, priceRules.length, changeHistory.length])
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 pb-20">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
-          <h1 className="text-2xl font-bold">{product.name}</h1>
+    <FormPageWithNav
+      activeSectionKey={activeViewSection}
+      nav={(
+        <FormSectionNav
+          sections={viewSections}
+          openSections={{}}
+          visitedSections={new Set(viewSections.filter(s => s.visible !== false).map(s => s.key))}
+          completedSections={viewCompleted}
+          hasErrorSections={new Set()}
+          scrollOffset={80}
+          stickyTopClass="top-14"
+          onActiveSectionChange={setActiveViewSection}
+          onNavigate={(key) => {
+            setActiveViewSection(key)
+            document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+        />
+      )}
+    >
+    <div className={formDisplayCompact.pageGap}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={onBack}><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
+          <h1 className="truncate text-lg font-bold sm:text-xl">{product.name}</h1>
           <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium ${
             product.status === 'active' ? 'bg-green-100 text-green-700' :
             product.status === 'archived' ? 'bg-red-50 text-red-600' :
             'bg-gray-100 text-gray-700'
           }`}>{product.status}</span>
         </div>
-        <Button onClick={onEdit} className="gap-2"><Pencil className="w-4 h-4" />Edit Product</Button>
+        <Button onClick={onEdit} size="sm" className="h-8 gap-1.5 shrink-0"><Pencil className="w-3.5 h-3.5" />Edit Product</Button>
       </div>
 
       {/* Media */}
       {images.length > 0 && (
-        <Card>
+        <Card id="form-section-media" className={sectionCls('media')}>
           <CardContent className="p-4">
             <div className="flex gap-3 overflow-x-auto">
               {images.map((img: any) => {
                 const mt = img.media_type || 'image'
                 return (
-                  <div key={img.id} className="w-28 h-28 rounded-lg overflow-hidden border bg-gray-50 shrink-0 relative">
+                  <div key={img.id} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-gray-50 sm:h-24 sm:w-24">
                     {mt === 'video' ? (
                       <video src={mediaUrl(img.url)} className="w-full h-full object-cover" muted playsInline onMouseOver={e => (e.target as HTMLVideoElement).play()} onMouseOut={e => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0 }} />
                     ) : mt === 'model3d' ? (
@@ -765,22 +855,19 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       )}
 
       {/* Basic Info */}
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <Package className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold text-gray-900">Basic Information</span>
+      <Card id="form-section-basic" className={sectionCls('basic')}>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className={formDisplayCompact.sectionHeader}>
+            <Package className={formDisplayCompact.sectionHeaderIcon} />
+            <span className={formDisplayCompact.sectionHeaderTitle}>Basic Information</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3">
+          <div className={formDisplayCompact.fieldGrid}>
             <DisplayField label="Product Name" value={product.name} />
-            <DisplayField label="Slug" value={product.slug} />
             <DisplayField label="Brand" value={product.brand} />
             <DisplayField label="Type" value={<span className="px-2 py-0.5 text-xs rounded-full font-medium bg-blue-50 text-blue-700 capitalize">{product.product_type || 'physical'}</span>} />
             <DisplayField label="Category" value={product.category} />
             <DisplayField label="Subcategory" value={product.subcategory} />
             <DisplayField label="Unit of Measure" value={uomLabel} />
-            <DisplayField label="SKU" value={product.sku} />
-            <DisplayField label="Barcode" value={product.barcode} />
           </div>
           {product.short_description && (
             <DisplayField label="Short Description" value={product.short_description} />
@@ -802,21 +889,21 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
 
       {/* Pricing — hide when variants carry all pricing and base is zero */}
       {(!hasVariants || hasBasePricing) && (
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <IndianRupee className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Pricing</span>
+        <Card id="form-section-pricing" className={sectionCls('pricing')}>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <IndianRupee className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Pricing</span>
               {hasVariants && <span className="text-xs text-gray-400">(base product)</span>}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
               <DisplayField label="Price" value={<span className="text-lg font-bold text-gray-900">{symbol}{product.price?.toLocaleString()}</span>} />
               <DisplayField label="Compare at Price" value={product.compare_at_price ? `${symbol}${product.compare_at_price.toLocaleString()}` : null} />
               <DisplayField label="Cost Price" value={product.cost_price ? `${symbol}${product.cost_price.toLocaleString()}` : null} />
               <DisplayField label="Currency" value={product.currency} />
             </div>
             {(product.is_on_sale || product.discount_percentage || product.discount_amount) && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3 pt-2 border-t">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5 pt-2 border-t">
                 <DisplayField label="On Sale" value={product.is_on_sale ? 'Yes' : 'No'} />
                 <DisplayField label="Discount %" value={product.discount_percentage ? `${product.discount_percentage}%` : null} />
                 <DisplayField label="Discount Amount" value={product.discount_amount ? `${symbol}${product.discount_amount}` : null} />
@@ -830,17 +917,16 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       )}
 
       {/* Tax — only show if there's actual tax info */}
-      {(product.is_taxable || product.tax_rate || product.hsn_code || product.gst_rate) && (
+      {(product.is_taxable || product.tax_rate || product.gst_rate) && (
         <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <Receipt className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Tax</span>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <Receipt className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Tax</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3">
+            <div className={formDisplayCompact.fieldGrid}>
               <DisplayField label="Taxable" value={product.is_taxable ? 'Yes' : 'No'} />
               <DisplayField label="Tax Rate" value={product.tax_rate != null ? `${product.tax_rate}%` : null} />
-              <DisplayField label="HSN Code" value={product.hsn_code} />
               <DisplayField label="GST Rate" value={product.gst_rate != null ? `${product.gst_rate}%` : null} />
             </div>
           </CardContent>
@@ -850,12 +936,12 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       {/* Inventory — hide base inventory when variants carry all stock */}
       {!hasVariants && (
         <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <Boxes className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Inventory</span>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <Boxes className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Inventory</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
               <DisplayField label="Quantity" value={
                 <span className={`font-semibold ${product.quantity <= (product.low_stock_threshold || 5) ? 'text-red-600' : 'text-gray-900'}`}>
                   {product.quantity}
@@ -881,11 +967,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
 
       {/* Variants */}
       {product.variants?.length > 0 && (
-        <Card>
+        <Card id="form-section-variants" className={sectionCls('variants')}>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="w-4 h-4 text-gray-500" />
-              <span className="font-semibold text-gray-900">Variants ({product.variants.length})</span>
+              <span className={formDisplayCompact.sectionHeaderTitle}>Variants ({product.variants.length})</span>
               <span className="ml-auto text-xs text-gray-400">
                 {product.variants.filter((v: any) => v.quantity <= (v.low_stock_threshold ?? 5)).length} low stock
               </span>
@@ -1005,13 +1091,13 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
 
       {/* Return & Warranty — only if any relevant data is set */}
       {(product.return_days || product.warranty_period_days || product.warranty_type || product.refund_policy || product.return_policy || product.return_conditions || product.is_returnable === false) && (
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <RotateCcw className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Return & Warranty</span>
+        <Card id="form-section-returns" className={sectionCls('returns')}>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <RotateCcw className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Return & Warranty</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
               <DisplayField label="Returnable" value={product.is_returnable ? 'Yes' : 'No'} />
               <DisplayField label="Return Days" value={product.return_days} />
               <DisplayField label="Refund Policy" value={product.refund_policy ? product.refund_policy.replace('_', ' ') : null} />
@@ -1031,12 +1117,12 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       {/* Lifecycle — only if any date is set */}
       {(product.manufacture_date || product.expiration_date || product.best_before_date) && (
         <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <Package className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Product Lifecycle</span>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <Package className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Product Lifecycle</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3">
+            <div className={formDisplayCompact.fieldGrid}>
               <DisplayField label="Manufacture Date" value={product.manufacture_date} />
               <DisplayField label="Expiration Date" value={product.expiration_date} />
               <DisplayField label="Best Before Date" value={product.best_before_date} />
@@ -1047,13 +1133,13 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
 
       {/* Shipping */}
       {pType !== 'digital' && (
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <Truck className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Shipping & Delivery</span>
+        <Card id="form-section-shipping" className={sectionCls('shipping')}>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <Truck className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Shipping & Delivery</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
               <DisplayField label="Requires Shipping" value={product.requires_shipping ? 'Yes' : 'No'} />
               <DisplayField label="Weight" value={product.weight_kg ? `${product.weight_kg} kg` : null} />
               <DisplayField label="Dimensions" value={
@@ -1071,13 +1157,13 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       )}
 
       {/* Visibility */}
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <Eye className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold text-gray-900">Visibility & Marketing</span>
+      <Card id="form-section-visibility" className={sectionCls('visibility')}>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className={formDisplayCompact.sectionHeader}>
+            <Eye className={formDisplayCompact.sectionHeaderIcon} />
+            <span className={formDisplayCompact.sectionHeaderTitle}>Visibility & Marketing</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
             <DisplayField label="Status" value={product.status ? product.status.charAt(0).toUpperCase() + product.status.slice(1) : null} />
             <DisplayField label="Visible" value={product.is_visible ? 'Yes' : 'No'} />
             <DisplayField label="Featured" value={product.is_featured ? 'Yes' : 'No'} />
@@ -1088,13 +1174,13 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       </Card>
 
       {/* SEO & Metadata */}
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <Search className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold text-gray-900">SEO & Metadata</span>
+      <Card id="form-section-seo" className={sectionCls('seo')}>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className={formDisplayCompact.sectionHeader}>
+            <Search className={formDisplayCompact.sectionHeaderIcon} />
+            <span className={formDisplayCompact.sectionHeaderTitle}>SEO & Metadata</span>
           </div>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1.5">
             <DisplayField label="Meta Title" value={product.meta_title} />
             <DisplayField label="Canonical URL" value={product.canonical_url} />
           </div>
@@ -1110,7 +1196,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           ) : (
             <DisplayField label="Meta Keywords" value={null} />
           )}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1.5">
             <DisplayField label="OG Image URL" value={product.og_image_url ? (
               <a href={product.og_image_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs break-all">{product.og_image_url}</a>
             ) : null} />
@@ -1119,11 +1205,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       </Card>
 
       {/* Advanced — Attributes, Specifications, Custom Fields */}
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <Settings className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold text-gray-900">Advanced Features</span>
+      <Card id="form-section-advanced" className={sectionCls('advanced')}>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className={formDisplayCompact.sectionHeader}>
+            <Settings className={formDisplayCompact.sectionHeaderIcon} />
+            <span className={formDisplayCompact.sectionHeaderTitle}>Advanced Features</span>
           </div>
           <DisplayField label="Attributes" value={
             hasJsonContent(product.attributes) ? <JsonDisplay data={product.attributes} /> : null
@@ -1139,13 +1225,13 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
 
       {/* Digital Product */}
       {isDigital && (
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <Download className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Digital Product</span>
+        <Card id="form-section-digital" className={sectionCls('digital')}>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <Download className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Digital Product</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3">
+            <div className={formDisplayCompact.fieldGrid}>
               <DisplayField label="Is Digital" value={product.is_digital ? 'Yes' : 'No'} />
               <DisplayField label="Download Limit" value={product.download_limit} />
               <DisplayField label="Download Expiry (days)" value={product.download_expiry_days} />
@@ -1160,10 +1246,10 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       {/* Subscription Plans */}
       {isSubscription && product.variants && product.variants.length > 0 && (
         <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <Repeat className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Subscription Plans</span>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <Repeat className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Subscription Plans</span>
             </div>
             <div className="space-y-3">
               {product.variants.filter((v: { is_active?: boolean }) => v.is_active !== false).map((v: { id: string; name?: string; price?: number; uom?: string; price_type?: string; subscription_interval?: string; subscription_trial_days?: number; subscription_setup_fee?: number; subscription_billing_cycles?: number; subscription_schedule_modes?: string[] }) => {
@@ -1206,23 +1292,23 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       )}
 
       {/* Reports */}
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <BarChart3 className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold text-gray-900">Statistics</span>
+      <Card id="form-section-reports" className={sectionCls('reports')}>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className={formDisplayCompact.sectionHeader}>
+            <BarChart3 className={formDisplayCompact.sectionHeaderIcon} />
+            <span className={formDisplayCompact.sectionHeaderTitle}>Statistics</span>
           </div>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="rounded-lg border p-4">
-              <p className="text-2xl font-bold">{product.view_count ?? 0}</p>
-              <p className="text-xs text-gray-500 mt-1">Views</p>
+          <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
+            <div className="rounded-lg border p-2 sm:p-2.5">
+              <p className="text-lg font-bold sm:text-xl">{product.view_count ?? 0}</p>
+              <p className="text-[0.65rem] text-gray-500 mt-0.5">Views</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-2xl font-bold">{product.purchase_count ?? 0}</p>
-              <p className="text-xs text-gray-500 mt-1">Purchases</p>
+            <div className="rounded-lg border p-2 sm:p-2.5">
+              <p className="text-lg font-bold sm:text-xl">{product.purchase_count ?? 0}</p>
+              <p className="text-[0.65rem] text-gray-500 mt-0.5">Purchases</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-2xl font-bold">v{product.version_number ?? 1}</p>
+            <div className="rounded-lg border p-2 sm:p-2.5">
+              <p className="text-lg font-bold sm:text-xl">v{product.version_number ?? 1}</p>
               <p className="text-xs text-gray-500 mt-1">Version</p>
             </div>
           </div>
@@ -1230,11 +1316,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
       </Card>
 
       {/* Business Front Options */}
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <ToggleRight className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold text-gray-900">Business Front Options</span>
+      <Card id="form-section-storefrontOptions" className={sectionCls('storefrontOptions')}>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className={formDisplayCompact.sectionHeader}>
+            <ToggleRight className={formDisplayCompact.sectionHeaderIcon} />
+            <span className={formDisplayCompact.sectionHeaderTitle}>Business Front Options</span>
           </div>
           <div className="divide-y rounded-lg border">
             <div className="flex items-center justify-between px-4 py-3">
@@ -1290,11 +1376,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
 
       {/* Merchandising */}
       {(merchMappings.length > 0) && (
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <Link2 className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Merchandising</span>
+        <Card id="form-section-merch" className={sectionCls('merch')}>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <Link2 className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Merchandising</span>
             </div>
             {(['cross_sell', 'upsell'] as const).map(relType => {
               const rows = merchMappings.filter(m => m.relation_type === relType)
@@ -1332,11 +1418,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
 
       {/* Advanced Pricing */}
       {priceRules.length > 0 && (
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <DollarSign className="w-5 h-5 text-gray-500" />
-              <span className="font-semibold text-gray-900">Advanced Pricing Rules</span>
+        <Card id="form-section-pricing-rules" className={sectionCls('pricing-rules')}>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <DollarSign className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Advanced Pricing Rules</span>
               <span className="text-xs bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5 font-medium">{priceRules.length}</span>
             </div>
             {(['party', 'location', 'scheduled', 'quantity', 'channel'] as const).map(ruleType => {
@@ -1389,35 +1475,109 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Change History — link to report */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
+      {/* Add-ons */}
+      {productAddons.length > 0 && (
+        <Card id="form-section-addons" className={sectionCls('addons')}>
+          <CardContent className={formDisplayCompact.cardBodyTight}>
+            <div className="flex items-center gap-3 mb-1">
+              <Link2 className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Add-ons & Linked Services</span>
+            </div>
+            <div className="space-y-2">
+              {productAddons.map((addon: any, i: number) => (
+                <div key={i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <span className="font-medium text-foreground">{addon.name || addon.linked_product_id || addon.id || `Add-on ${i + 1}`}</span>
+                    {addon.addon_type && <span className="ml-2 text-xs text-muted-foreground capitalize">{addon.addon_type}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {addon.optional !== undefined && <span>{addon.optional ? 'Optional' : 'Required'}</span>}
+                    {addon.booking_trigger && <span className="capitalize">{addon.booking_trigger.replace(/_/g, ' ')}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Change History */}
+      <Card id="form-section-history" className={sectionCls('history')}>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-gray-500" />
+              <Clock className="w-5 h-5 text-gray-500 shrink-0" />
               <div>
-                <span className="font-semibold text-gray-900">Change History</span>
-                <span className="text-xs text-gray-400 ml-2">{(product.change_history || []).length} entries &middot; v{product.version_number || 1}</span>
+                <span className={formDisplayCompact.sectionHeaderTitle}>Change History</span>
+                <span className="text-xs text-gray-400 ml-2">{changeHistory.length} entries &middot; v{product.version_number || 1}</span>
+                <p className="mt-1 text-xs text-muted-foreground max-w-md">
+                  Each save creates a version. Recent edits appear below; export the full audit trail for every field change.
+                </p>
               </div>
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 shrink-0"
               onClick={() => navigate(`/products/${product.id}/audit`)}
             >
               <FileDown className="w-4 h-4" />
               View Full Report
             </Button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 mt-4 pt-4 border-t">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 pt-2 border-t">
             <DisplayField label="Created At" value={product.created_at ? new Date(product.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null} />
             <DisplayField label="Updated At" value={product.updated_at ? new Date(product.updated_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null} />
             <DisplayField label="Published At" value={product.published_at ? new Date(product.published_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null} />
           </div>
+          {changeHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center">
+              No edits recorded yet. Changes will appear here after you save the product in edit mode.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {[...changeHistory].reverse().map((h: any, i: number) => {
+                const changes = h.changes || {}
+                const isCreation = changes._action?.new === 'Product created'
+                const changedFields = Object.keys(changes).filter(k => k !== '_action')
+                return (
+                  <div key={i} className="text-xs border rounded-lg p-2.5 bg-muted/20">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="font-semibold text-gray-700">v{h.version ?? '?'}</span>
+                      <span className="text-gray-400">
+                        {h.changed_at ? new Date(h.changed_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </span>
+                      {h.changed_by_name && <span className="text-gray-500">by {h.changed_by_name}</span>}
+                    </div>
+                    {isCreation ? (
+                      <span className="text-green-600 font-medium">Product created</span>
+                    ) : changedFields.length > 0 ? (
+                      <div className="space-y-1">
+                        {changedFields.slice(0, 6).map((field) => (
+                          <div key={field} className="flex flex-wrap gap-1.5 text-gray-600">
+                            <span className="font-medium text-gray-800 capitalize">{field.replace(/_/g, ' ')}:</span>
+                            <span className="text-red-500 line-through max-w-[140px] truncate">{String(changes[field]?.old ?? '(empty)')}</span>
+                            <span>→</span>
+                            <span className="text-green-600 max-w-[140px] truncate">{String(changes[field]?.new ?? '(empty)')}</span>
+                          </div>
+                        ))}
+                        {changedFields.length > 6 && (
+                          <p className="text-gray-400 italic">+{changedFields.length - 6} more fields — see full report</p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic">No field changes recorded</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
+
     </div>
+    </FormPageWithNav>
   )
 }
 
@@ -1448,16 +1608,16 @@ function JsonDisplay({ data }: { data: unknown }) {
 function DisplayField({ label, value }: { label: string; value: React.ReactNode }) {
   if (value == null || value === '' || value === undefined) {
     return (
-      <div className="space-y-0.5">
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</p>
-        <p className="text-sm text-gray-300">—</p>
+      <div className="min-w-0 space-y-0">
+        <p className="text-[0.62rem] font-medium uppercase leading-none tracking-wide text-gray-400">{label}</p>
+        <p className="text-xs leading-snug text-gray-300 sm:text-sm">—</p>
       </div>
     )
   }
   return (
-    <div className="space-y-0.5">
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</p>
-      <div className="text-sm text-gray-900">{value}</div>
+    <div className="min-w-0 space-y-0">
+      <p className="text-[0.62rem] font-medium uppercase leading-none tracking-wide text-gray-400">{label}</p>
+      <div className="text-xs leading-snug text-gray-900 sm:text-sm">{value}</div>
     </div>
   )
 }
@@ -1701,6 +1861,23 @@ const toSlug = (s: string) =>
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
 
+function fieldPathToSection(path: string): string | null {
+  if (path.startsWith('variants')) return 'variants'
+  if (/^(name|slug|brand|product_type|description|short_description|category|subcategory|tags|uom)$/.test(path)) {
+    return 'basic'
+  }
+  if (/^(meta_|og_|canonical|attributes|specifications|custom_fields)/.test(path)) return 'seo'
+  if (/^download/.test(path)) return 'digital'
+  if (/^(weight|length|width|height|shipping|requires_shipping|free_shipping)/.test(path)) return 'shipping'
+  if (/^(return|refund|warranty|is_returnable)/.test(path)) return 'returns'
+  if (/^(status|is_visible|is_featured|is_new|is_best)/.test(path)) return 'visibility'
+  if (/^(allow_quote|quote_form)/.test(path)) return 'storefrontOptions'
+  if (/^(price|compare_at|cost|currency|discount|offer_label|sku|barcode|quantity|tax|gst|hsn)/.test(path)) {
+    return 'variants'
+  }
+  return 'basic'
+}
+
 export default function ProductForm() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -1737,13 +1914,28 @@ export default function ProductForm() {
   // Staged variant media for new products (index → files+previews)
   const [pendingVariantMedia, setPendingVariantMedia] = useState<Map<number, { file: File; preview: string }[]>>(new Map())
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ basic: true })
-  const toggle = (key: string) => setOpenSections(p => ({ ...p, [key]: !p[key] }))
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    isEdit ? { basic: true } : { basic: true, variants: true },
+  )
+  const [visitedSections, setVisitedSections] = useState<Set<string>>(new Set(['basic']))
+  const [activeFormSection, setActiveFormSection] = useState<string | null>(null)
+  const toggle = (key: string) => {
+    setOpenSections(p => ({ ...p, [key]: !p[key] }))
+    setVisitedSections(p => new Set(p).add(key))
+  }
+  const openAndScrollTo = (key: string) => {
+    setActiveFormSection(key)
+    setOpenSections(p => ({ ...p, [key]: true }))
+    setVisitedSections(p => new Set(p).add(key))
+    setTimeout(() => {
+      document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }
   const [showCreateCategory, setShowCreateCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [quoteFields, setQuoteFields] = useState<QuoteFormFieldDraft[]>([...DEFAULT_QUOTE_FIELDS])
 
-  const { register, handleSubmit, reset, setValue, getValues, watch, control, formState: { errors } } = useForm<FormData>({
+  const formMethods = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       status: 'active', quantity: 0, price: 0, currency: 'INR', product_type: 'physical', uom: 'piece',
@@ -1753,11 +1945,22 @@ export default function ProductForm() {
       variants: [],
     },
   })
+  const { register, handleSubmit, reset, setValue, getValues, watch, control, formState: { errors } } = formMethods
 
-  const { fields: variantFields, append: appendVariant, remove: removeVariant } = useFieldArray({
+  const onFormInvalid = useCallback((validationErrors: FieldErrors) => {
+    handleFormInvalid(validationErrors, {
+      onFieldPath: (path) => {
+        const section = fieldPathToSection(path)
+        if (section) openAndScrollTo(section)
+      },
+    })
+  }, [])
+
+  const { fields: variantFields, append: appendVariant, remove: removeVariant, replace: replaceVariants } = useFieldArray({
     control,
     name: 'variants',
   })
+  const createVariantSeeded = useRef(false)
 
   // Apply prefill barcode once form is ready (new product only)
   useEffect(() => {
@@ -2153,13 +2356,6 @@ export default function ProductForm() {
     return () => { pendingPreviews.forEach(URL.revokeObjectURL) }
   }, [pendingPreviews])
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    register('name').onChange(e)
-    if (!isEdit) {
-      setValue('slug', toSlug(e.target.value), { shouldValidate: true })
-    }
-  }
-
   const addPendingFiles = (files: FileList | null) => {
     if (!files) return
     const newFiles = Array.from(files)
@@ -2427,13 +2623,40 @@ export default function ProductForm() {
     return_conditions: '',
     color: '',
     attributes_json: JSON.stringify(attrs),
-    subscription_interval: '',
+    subscription_interval: isSubscriptionType ? 'monthly' : '',
     subscription_trial_days: undefined,
     subscription_setup_fee: undefined,
     subscription_billing_cycles: undefined,
     subscription_schedule_modes: ['dates', 'cycles', 'pick_dates', 'weekly', 'recurring'],
     is_active: true,
   })
+
+  // Create page: start with one variant/plan row so fields are immediately editable
+  useEffect(() => {
+    if (isEdit) return
+    if (isBundleType) {
+      if (variantFields.length > 0) replaceVariants([])
+      createVariantSeeded.current = false
+      return
+    }
+    if (variantFields.length === 0 && !createVariantSeeded.current) {
+      appendVariant(makeVariantDefaults(isSubscriptionType ? 'Plan 1' : 'Default', {}))
+      setExpandedVariants({ 0: true })
+      setOpenSections(s => ({ ...s, variants: true }))
+      createVariantSeeded.current = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once per create session; makeVariantDefaults is stable enough for our guards
+  }, [isEdit, isBundleType, variantFields.length, isSubscriptionType])
+
+  useEffect(() => {
+    if (isEdit || isBundleType || variantFields.length !== 1) return
+    const v0 = getValues('variants.0')
+    if (isSubscriptionType && v0?.name === 'Default') {
+      setValue('variants.0.name', 'Plan 1')
+      setValue('variants.0.price_type', 'per_cycle')
+      setValue('variants.0.subscription_interval', 'monthly')
+    }
+  }, [isSubscriptionType, isEdit, isBundleType, variantFields.length, getValues, setValue])
 
   const generateVariantsFromOptions = () => {
     const validRows = optionRows.filter(r => r.name.trim() && r.values.trim())
@@ -2515,6 +2738,45 @@ export default function ProductForm() {
     }
   }
 
+  const formValues = watch()
+  const productSections: FormSectionDef[] = useMemo(() => [
+    { key: 'basic',            label: 'Product Information', icon: Package, hint: 'Name, type, category, and descriptions.' },
+    { key: 'media',            label: 'Product Media',       icon: Eye, visible: isEdit, hint: 'Upload images, video, or 3D models.' },
+    { key: 'variants',         label: isBundleType ? 'Bundle Items' : isSubscriptionType ? 'Subscription Plans' : 'Variants & Options', icon: Layers, visible: !isBundleType, hint: 'SKUs, options, stock, and per-variant pricing.' },
+    { key: 'bundle',           label: 'Bundle Items',        icon: Layers, visible: isBundleType, hint: 'Products included in this bundle.' },
+    { key: 'returns',          label: 'Return & Warranty',   icon: RotateCcw, visible: !isDigitalType && !isBundleType, hint: 'Return window, warranty, and refund policy.' },
+    { key: 'shipping',         label: 'Shipping & Tax',      icon: Truck, visible: !isDigitalType, hint: 'Weight, dimensions, shipping, and tax settings.' },
+    { key: 'storefrontOptions',label: 'Business Front',      icon: Globe, hint: 'Quote requests and storefront display options.' },
+    { key: 'visibility',       label: 'Visibility',          icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
+    { key: 'addons',           label: 'Add-ons',             icon: Link2, hint: 'Optional linked products or services.' },
+    { key: 'merch',            label: 'Merchandising',       icon: Tag, hint: 'Cross-sell and upsell on the business front.' },
+    { key: 'seo',              label: 'SEO & Metadata',      icon: Search, hint: 'Meta title, description, and search preview.' },
+    { key: 'advanced',         label: 'Advanced',            icon: Settings, hint: 'Attributes, specifications, and custom JSON.' },
+    { key: 'digital',          label: 'Digital Product',     icon: Download, visible: isDigitalType || isBundleType, hint: 'Download URL, limits, and expiry.' },
+    { key: 'bom',              label: 'Bill of Materials',   icon: Factory, visible: isEdit && !isBundleType, hint: 'Manufacturing components and quantities.' },
+    { key: 'reports',          label: 'Reports',             icon: BarChart3, visible: isEdit, hint: 'Views, purchases, and version stats (read-only).' },
+  ], [isEdit, isBundleType, isSubscriptionType, isDigitalType])
+
+  const completedSections = useMemo<Set<string>>(() => {
+    const s = new Set<string>()
+    if (formValues.name) s.add('basic')
+    if (isEdit && (product?.images?.length ?? 0) > 0) s.add('media')
+    if ((formValues.variants?.length ?? 0) > 0) s.add('variants')
+    if (formValues.short_description || formValues.description) s.add('storefrontOptions')
+    if (formValues.is_visible !== undefined) s.add('visibility')
+    if (formValues.requires_shipping !== undefined) s.add('shipping')
+    if (formValues.is_returnable !== undefined) s.add('returns')
+    if (formValues.meta_title || formValues.meta_description) s.add('seo')
+    return s
+  }, [formValues, product, isEdit])
+
+  const hasErrorSections = useMemo<Set<string>>(() => {
+    const s = new Set<string>()
+    if (errors.name || errors.product_type) s.add('basic')
+    if (errors.variants) s.add('variants')
+    return s
+  }, [errors])
+
   if (isEdit && isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
 
   if (isViewMode && isEdit && product) {
@@ -2531,16 +2793,32 @@ export default function ProductForm() {
   }
 
   const isSaving = createProduct.isPending || updateProduct.isPending
+
   return (
-    <div className="max-w-4xl mx-auto space-y-4 pb-20">
+    <FormPageWithNav
+      activeSectionKey={activeFormSection}
+      nav={(
+        <FormSectionNav
+          sections={productSections}
+          openSections={openSections}
+          visitedSections={visitedSections}
+          completedSections={completedSections}
+          hasErrorSections={hasErrorSections}
+          onNavigate={openAndScrollTo}
+          onActiveSectionChange={setActiveFormSection}
+          scrollOffset={120}
+          stickyTopClass="top-[7rem]"
+        />
+      )}
+    >
       {/* Sticky top bar */}
-      <div className="sticky top-0 z-30 -mx-4 px-4 py-3 bg-white/95 backdrop-blur border-b shadow-sm">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <div className={formEditLayout.stickyBar}>
+        <div className="flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate('/products')}><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
-            <h1 className="text-xl font-bold">{isEdit ? 'Edit Product' : 'New Product'}</h1>
+            <h1 className="text-base font-bold sm:text-xl">{isEdit ? 'Edit Product' : 'New Product'}</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <Controller name="status" control={control} render={({ field }) => (
               <select
                 value={field.value}
@@ -2561,11 +2839,7 @@ export default function ProductForm() {
             )} />
             <Button
               type="button"
-              onClick={handleSubmit(onSubmit, (validationErrors) => {
-                const firstField = Object.keys(validationErrors)[0]
-                const firstErr = (validationErrors as Record<string, { message?: string }>)[firstField]
-                toast.error(`Validation: ${firstField} — ${firstErr?.message || 'invalid'}`)
-              })}
+              onClick={handleSubmit(onSubmit, onFormInvalid)}
               disabled={isSaving}
               size="sm"
             >
@@ -2578,47 +2852,41 @@ export default function ProductForm() {
 
       {/* Media card for EDIT mode (outside form — instant upload) */}
       {isEdit && product && (
-        <Card><div className="p-6"><h3 className="font-semibold mb-3">Media</h3>
+        <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeFormSection === 'media'))}><div className={formEditLayout.mediaCard}><h3 className={formEditLayout.mediaTitle}>Media</h3>
           <ProductImageUpload images={product.images || []} onUpload={handleUpload} onDelete={handleDelete} onSetPrimary={handleSetPrimary} />
         </div></Card>
       )}
 
       {/* ── Form ──────────────────────────────────────────────── */}
-      <form onSubmit={handleSubmit(onSubmit, (validationErrors) => {
-        toast.error('Please fix the form errors before saving')
-        const firstField = Object.keys(validationErrors)[0]
-        const firstErr = (validationErrors as Record<string, { message?: string }>)[firstField]
-        toast.error(`Validation: ${firstField} — ${firstErr?.message || 'invalid'}`)
-      })} className="space-y-3">
+      <FormProvider {...formMethods}>
+      <form onSubmit={handleSubmit(onSubmit, onFormInvalid)} className={formEditLayout.formStack}>
 
         {/* 1. Basic Information */}
-        <Section title="Basic Information" icon={Package} open={openSections.basic ?? true} onToggle={() => toggle('basic')} surface="product">
-          <div className="space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Name" required error={errors.name?.message}><Input {...register('name')} onChange={handleNameChange} placeholder="Product name" /></Field>
-              <Field label="Slug" required error={errors.slug?.message}><Input {...register('slug')} placeholder="product-slug" readOnly={isEdit} className={isEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''} /></Field>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Brand"><Input {...register('brand')} placeholder="e.g. Samsung" /></Field>
-              <Field label="Product Type">
-                <select {...register('product_type')} className={selectCls}>
+        <Section title="Basic Information" icon={Package} open={openSections.basic ?? true} onToggle={() => toggle('basic')} surface="product" sectionId="basic">
+          <div className={formEditLayout.sectionBody}>
+            <div className="grid grid-cols-3 gap-2 min-w-0 [&>div]:min-w-0 sm:grid-cols-[1.25fr_1fr_1fr]">
+              <FormField label="Name" required><Input className="w-full min-w-0" {...register('name')} placeholder="Product name" /></FormField>
+              <FormField label="Brand"><Input className="w-full min-w-0" {...register('brand')} placeholder="e.g. Samsung" /></FormField>
+              <FormField label="Product Type">
+                <select {...register('product_type')} className={cn(selectCls, 'w-full min-w-0')}>
                   <option value="physical">Physical</option>
                   <option value="digital">Digital</option>
                   <option value="subscription">Subscription</option>
                   <option value="bundle">Bundle</option>
                 </select>
-              </Field>
+              </FormField>
             </div>
             {/* Product type context banner */}
             {productType && productType !== 'physical' && (
-              <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${
-                isDigitalType ? 'bg-blue-50 border-blue-200 text-blue-800' :
-                isSubscriptionType ? 'bg-accent border-primary/30 text-primary' :
-                isBundleType ? 'bg-amber-50 border-amber-200 text-amber-800' : ''
-              }`}>
-                {isDigitalType && <Download className="w-4 h-4 mt-0.5 shrink-0" />}
-                {isSubscriptionType && <Repeat className="w-4 h-4 mt-0.5 shrink-0" />}
-                {isBundleType && <ShoppingBag className="w-4 h-4 mt-0.5 shrink-0" />}
+              <div className={cn(
+                formEditLayout.typeBanner,
+                isDigitalType ? 'border-blue-200 bg-blue-50 text-blue-800' :
+                isSubscriptionType ? 'border-primary/30 bg-accent text-primary' :
+                isBundleType ? 'border-amber-200 bg-amber-50 text-amber-800' : '',
+              )}>
+                {isDigitalType && <Download className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+                {isSubscriptionType && <Repeat className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+                {isBundleType && <ShoppingBag className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
                 <div>
                   {isDigitalType && <><strong>Digital Product:</strong> Shipping, inventory, and return sections are hidden. Add download URL and access limits in the Digital Product section below.</>}
                   {isSubscriptionType && <><strong>Subscription Product:</strong> Each plan/variant carries its own billing interval, per-cycle price, trial period &amp; setup fee. The end user can select their preferred plan on the business front.</>}
@@ -2626,13 +2894,13 @@ export default function ProductForm() {
                 </div>
               </div>
             )}
-            <Field label="Short Description">
+            <FormField label="Short Description">
               <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
-            </Field>
-            <Field label="Description">
-              <textarea {...register('description')} rows={4} className={textareaCls} placeholder="Detailed product description..." />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
+            </FormField>
+            <FormField label="Description">
+              <textarea {...register('description')} rows={3} className={textareaCls} placeholder="Detailed product description..." />
+            </FormField>
+            <div className={cn(formEditLayout.fieldGrid, 'items-start')}>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <Label>Category</Label>
@@ -2682,7 +2950,7 @@ export default function ProductForm() {
                   {productCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
-              <Field label="Subcategory">
+              <FormField label="Subcategory">
                 {(() => {
                   const selectedCat = productCategories.find(c => c.name === watchedCategory)
                   const subs = (selectedCat?.children || []).filter(s => s.applies_to === 'product' || s.applies_to === 'both')
@@ -2695,7 +2963,7 @@ export default function ProductForm() {
                     <Input {...register('subcategory')} placeholder="e.g. Smartphones" />
                   )
                 })()}
-              </Field>
+              </FormField>
             </div>
             {(() => {
               const selectedCat = productCategories.find(c => c.name === watchedCategory)
@@ -2731,32 +2999,24 @@ export default function ProductForm() {
                 </div>
               )
             })()}
-            <Field label="Tags (comma separated)"><Input {...register('tags')} placeholder="tag1, tag2, tag3" /></Field>
-            {/* SKU & Barcode — visible for all non-bundle products so users can always set the product-level barcode */}
-            {!isBundleType && (
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="SKU"><Input {...register('sku')} placeholder="e.g. PROD-001" /></Field>
-                <Field label="Barcode"><Input {...register('barcode')} placeholder="e.g. 1234567890123" /></Field>
-                <Field label="HSN Code"><Input {...register('hsn_code')} placeholder="e.g. 85171300" maxLength={8} /></Field>
-              </div>
-            )}
+            <FormField label="Tags (comma separated)"><Input {...register('tags')} placeholder="tag1, tag2, tag3" /></FormField>
           </div>
         </Section>
 
         {/* ── Media (new product only — staged until product is created) ── */}
         {!isEdit && (
-          <Card>
-            <div className="p-6">
-              <h3 className="font-semibold mb-1">Media</h3>
-              <p className="text-xs text-gray-400 mb-3">Images, videos &amp; 3D models — uploaded after product is created</p>
+          <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeFormSection === 'media'))}>
+            <div className={formEditLayout.mediaCard}>
+              <h3 className={formEditLayout.mediaTitle}>Media</h3>
+              <p className="mb-1 text-[0.6875rem] text-gray-400 sm:text-xs">Images, videos &amp; 3D models — uploaded after product is created</p>
               <div
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={e => { e.preventDefault(); addPendingFiles(e.dataTransfer.files) }}
                 onDragOver={e => e.preventDefault()}
-                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+                className={formDisplayCompact.mediaDropzone}
               >
-                <Upload className="w-8 h-8 mx-auto text-gray-400" />
-                <p className="mt-2 text-sm text-gray-600">Click or drag files here</p>
+                <Upload className="mx-auto h-6 w-6 text-gray-400" />
+                <p className="mt-1 text-xs text-gray-600 sm:text-sm">Click or drag files here</p>
                 <div className="flex items-center justify-center gap-3 mt-2">
                   <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Eye className="w-3 h-3" />Images</span>
                   <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Film className="w-3 h-3" />Videos</span>
@@ -2769,7 +3029,7 @@ export default function ProductForm() {
                   onChange={e => { addPendingFiles(e.target.files); if (fileInputRef.current) fileInputRef.current.value = '' }} />
               </div>
               {pendingFiles.length > 0 && (
-                <div className="grid grid-cols-4 gap-3 mt-4">
+                <div className="mt-2 grid grid-cols-3 gap-1.5 min-[26rem]:grid-cols-4 sm:gap-2 sm:mt-3">
                   {pendingFiles.map((file, i) => {
                     const mt = getMediaType(file)
                     return (
@@ -2806,14 +3066,15 @@ export default function ProductForm() {
             onToggle={() => toggle('variants')}
             surface="variants"
             surfaceHint={isSubscriptionType ? 'Plan tiers & pricing' : undefined}
+            sectionId="variants"
           >
-          <div className="space-y-4 pt-4">
+          <div className={formEditLayout.sectionBody}>
             <p className="text-sm text-gray-600">
               {isSubscriptionType
                 ? 'Each variant represents a subscription plan tier. Set the per-cycle price on each plan.'
                 : 'Each variant has its own UOM, pricing, discount, and stock. Add SKUs for each size, color, or other combination the vendor offers.'}
             </p>
-            {!isSubscriptionType && <div className="rounded-lg border bg-gray-50/80 p-4 space-y-3">
+            {!isSubscriptionType && <div className={cn(formEditLayout.variantCard, 'bg-gray-50/80')}>
               <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">Generate from options</p>
               <p className="text-xs text-gray-500">Define option names and their values. All combinations will be created as variant rows.</p>
               <div className="space-y-2">
@@ -2926,31 +3187,39 @@ export default function ProductForm() {
               </Button>
             </div>
             {variantFields.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-6 border border-dashed rounded-lg">{isSubscriptionType ? 'No plans yet — add at least one subscription plan with a per-cycle price.' : 'No variants yet — optional if you sell a single SKU only.'}</p>
+              <p className="rounded-lg border border-dashed py-4 text-center text-xs text-gray-500 sm:text-sm">
+                {isSubscriptionType
+                  ? 'No plans yet — use Add plan to define pricing.'
+                  : 'No variants yet — use Add variant or generate from options.'}
+              </p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {variantFields.map((vf, index) => {
                   const isActive = watch(`variants.${index}.is_active`)
                   const isExpanded = expandedVariants[index] ?? false
                   const variantName = watch(`variants.${index}.name`)
                   return (
-                  <div key={vf.id} className={`rounded-xl shadow-md transition-all duration-200 ${
+                  <div key={vf.id} className={cn(
+                    'rounded-lg shadow-sm transition-all duration-200',
+                    'focus-within:ring-2 focus-within:ring-indigo-400/40 focus-within:ring-offset-1 focus-within:ring-offset-background',
                     isActive
-                      ? 'border-2 border-indigo-200 bg-gradient-to-br from-white to-indigo-50/30'
-                      : 'border-2 border-gray-300 bg-gray-50 opacity-70'
-                  }`}>
+                      ? 'border border-indigo-200 bg-gradient-to-br from-white to-indigo-50/30'
+                      : 'border border-gray-300 bg-gray-50 opacity-70',
+                  )}>
                     {/* Collapsible header */}
                     <div
-                      className={`flex items-center justify-between gap-3 px-5 py-3 cursor-pointer select-none rounded-t-xl ${
-                        isActive ? 'hover:bg-indigo-50/50' : 'hover:bg-gray-100'
-                      }`}
+                      className={cn(
+                        'flex items-center justify-between gap-2 px-3 py-2 cursor-pointer select-none rounded-t-lg',
+                        isActive ? 'hover:bg-indigo-50/50' : 'hover:bg-gray-100',
+                      )}
                       onClick={() => toggleVariant(index)}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold ${
-                          isActive ? 'bg-indigo-600 text-white' : 'bg-gray-400 text-white'
-                        }`}>{index + 1}</span>
-                        <span className={`text-base font-semibold ${isActive ? 'text-gray-800' : 'text-gray-500'}`}>{isSubscriptionType ? 'Plan' : 'Variant'} {index + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold',
+                          isActive ? 'bg-indigo-600 text-white' : 'bg-gray-400 text-white',
+                        )}>{index + 1}</span>
+                        <span className={cn('text-sm font-semibold', isActive ? 'text-gray-800' : 'text-gray-500')}>{isSubscriptionType ? 'Plan' : 'Variant'} {index + 1}</span>
                         {watch(`variants.${index}.color`) && (
                           <span
                             className="w-4 h-4 rounded-full border border-gray-300 shrink-0"
@@ -2997,10 +3266,10 @@ export default function ProductForm() {
                     </div>
                     {/* Collapsible body */}
                     {isExpanded && (
-                    <div className={`px-4 pb-4 pt-2 space-y-3 border-t ${isActive ? 'border-indigo-100' : 'border-gray-200'}`}>
+                    <div className={cn(formEditLayout.sectionContent, 'space-y-1.5 border-t sm:space-y-2', isActive ? 'border-indigo-100' : 'border-gray-200')}>
                     {/* Identity */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      <Field label="Label" error={(errors.variants as unknown as { [k: number]: { name?: { message?: string } } })?.[index]?.name?.message}>
+                      <FormField label="Label" name={`variants.${index}.name`}>
                         <Input {...register(`variants.${index}.name`, {
                           onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
                             const newName = e.target.value
@@ -3040,10 +3309,10 @@ export default function ProductForm() {
                             }
                           }
                         })} placeholder="e.g. S / Red" />
-                      </Field>
-                      <Field label="SKU"><Input {...register(`variants.${index}.sku`)} placeholder="Optional" /></Field>
-                      <Field label="Barcode"><Input {...register(`variants.${index}.barcode`)} placeholder="Optional" /></Field>
-                      <Field label="UOM">
+                      </FormField>
+                      <FormField label="SKU"><Input {...register(`variants.${index}.sku`)} placeholder="Optional" /></FormField>
+                      <FormField label="Barcode"><Input {...register(`variants.${index}.barcode`)} placeholder="Optional" /></FormField>
+                      <FormField label="UOM">
                         <select {...register(`variants.${index}.uom`)} className={selectCls}>
                           {UOM_GROUPS.map(group => (
                             <optgroup key={group} label={group}>
@@ -3053,7 +3322,7 @@ export default function ProductForm() {
                             </optgroup>
                           ))}
                         </select>
-                      </Field>
+                      </FormField>
                     </div>
                     {/* Color — compact: swatch + input inline */}
                     <div className="flex items-center gap-2">
@@ -3103,7 +3372,7 @@ export default function ProductForm() {
                           </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                          <Field label="Interval">
+                          <FormField label="Interval">
                             <select {...register(`variants.${index}.subscription_interval`)} className={selectCls}>
                               <option value="">Select…</option>
                               <option value="daily">Daily</option><option value="weekly">Weekly</option>
@@ -3111,10 +3380,10 @@ export default function ProductForm() {
                               <option value="quarterly">Quarterly</option><option value="biannual">Half-Yearly</option>
                               <option value="yearly">Yearly</option>
                             </select>
-                          </Field>
-                          <Field label="Max Cycles"><Input type="number" min="0" {...register(`variants.${index}.subscription_billing_cycles`)} placeholder="0 = ∞" /></Field>
-                          <Field label="Trial (days)"><Input type="number" min="0" {...register(`variants.${index}.subscription_trial_days`)} placeholder="14" /></Field>
-                          <Field label="Setup Fee"><Input type="number" step="0.01" min="0" {...register(`variants.${index}.subscription_setup_fee`)} placeholder="99" /></Field>
+                          </FormField>
+                          <FormField label="Max Cycles"><Input type="number" min="0" {...register(`variants.${index}.subscription_billing_cycles`)} placeholder="0 = ∞" /></FormField>
+                          <FormField label="Trial (days)"><Input type="number" min="0" {...register(`variants.${index}.subscription_trial_days`)} placeholder="14" /></FormField>
+                          <FormField label="Setup Fee"><Input type="number" step="0.01" min="0" {...register(`variants.${index}.subscription_setup_fee`)} placeholder="99" /></FormField>
                         </div>
                         {/* Schedule modes allowed for customers */}
                         <div>
@@ -3192,34 +3461,75 @@ export default function ProductForm() {
                       }
                       return (
                         <>
-                          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                            <Field label={priceLabel} error={(errors.variants as unknown as { [k: number]: { price?: { message?: string } } })?.[index]?.price?.message}>
-                              <Input type="number" step="0.01" min="0"
-                                {...register(`variants.${index}.price`)}
-                                onChange={e => {
-                                  register(`variants.${index}.price`).onChange(e)
-                                  syncPriceFields(parseFloat(e.target.value||'0'), parseFloat(String(watch(`variants.${index}.compare_at_price`)||0)))
-                                }}
-                                placeholder={isSubscriptionType && vPriceType === 'per_cycle' ? '499' : '99'} />
-                            </Field>
-                            <Field label="Compare at">
-                              <Input type="number" step="0.01" min="0"
-                                {...register(`variants.${index}.compare_at_price`)}
-                                onChange={e => {
-                                  register(`variants.${index}.compare_at_price`).onChange(e)
-                                  syncPriceFields(parseFloat(String(watch(`variants.${index}.price`)||0)), parseFloat(e.target.value||'0'))
-                                }} />
-                            </Field>
-                            <Field label="Cost"><Input type="number" step="0.01" min="0" {...register(`variants.${index}.cost_price`)} /></Field>
-                            <Field label="Disc %">
-                              <Input type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.discount_percentage`)} placeholder="0" />
-                            </Field>
-                            <Field label="Disc Amt"><Input type="number" step="0.01" min="0" {...register(`variants.${index}.discount_amount`)} placeholder="0" /></Field>
-                            <Field label="Currency">
-                              <select {...register(`variants.${index}.currency`)} className={selectCls}>
-                                <option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
-                              </select>
-                            </Field>
+                          <div className="space-y-2 [&_label]:whitespace-nowrap [&_input[type=number]]:tabular-nums [&_input[type=number]]:[appearance:textfield] [&_input[type=number]]:[-moz-appearance:textfield] [&_input[type=number]]::-webkit-inner-spin-button]:appearance-none [&_input[type=number]]::-webkit-outer-spin-button]:appearance-none">
+                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-[1.35fr_1fr_1fr_minmax(5rem,0.8fr)]">
+                              <FormField label={priceLabel}>
+                                <Input type="number" step="0.01" min="0" className="w-full"
+                                  {...register(`variants.${index}.price`)}
+                                  onChange={e => {
+                                    register(`variants.${index}.price`).onChange(e)
+                                    syncPriceFields(parseFloat(e.target.value||'0'), parseFloat(String(watch(`variants.${index}.compare_at_price`)||0)))
+                                  }}
+                                  placeholder={isSubscriptionType && vPriceType === 'per_cycle' ? '499' : '99'} />
+                              </FormField>
+                              <FormField label="Compare at">
+                                <Input type="number" step="0.01" min="0" className="w-full"
+                                  {...register(`variants.${index}.compare_at_price`)}
+                                  onChange={e => {
+                                    register(`variants.${index}.compare_at_price`).onChange(e)
+                                    syncPriceFields(parseFloat(String(watch(`variants.${index}.price`)||0)), parseFloat(e.target.value||'0'))
+                                  }} />
+                              </FormField>
+                              <FormField label="Cost"><Input type="number" step="0.01" min="0" className="w-full" {...register(`variants.${index}.cost_price`)} /></FormField>
+                              <FormField label="Currency">
+                                <select {...register(`variants.${index}.currency`)} className={cn(selectCls, 'w-full')}>
+                                  <option value="INR">₹ INR</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option><option value="GBP">£ GBP</option>
+                                </select>
+                              </FormField>
+                            </div>
+                            {(() => {
+                              const vCurrency = watch(`variants.${index}.currency`) || 'INR'
+                              const currSym = CURRENCY_SYMBOLS[vCurrency] || vCurrency
+                              const pDisc = parseFloat(String(watch(`variants.${index}.discount_percentage`) || 0))
+                              const pAmt = parseFloat(String(watch(`variants.${index}.discount_amount`) || 0))
+                              const hasPromo = pDisc > 0 || pAmt > 0
+                              return (
+                                <div className="space-y-2 min-w-0 [&>div]:min-w-0">
+                                  <div className={cn(
+                                    'grid gap-2',
+                                    hasPromo
+                                      ? 'grid-cols-3 sm:grid-cols-[4.5rem_minmax(5rem,1fr)_minmax(0,1.25fr)]'
+                                      : 'grid-cols-2 sm:max-w-xs sm:grid-cols-[4.5rem_minmax(0,1fr)]',
+                                  )}>
+                                    <FormField label="Disc %" name={`variants.${index}.discount_percentage`}>
+                                      <InputWithSuffix suffix="%" type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.discount_percentage`)} placeholder="0" />
+                                    </FormField>
+                                    <FormField label="Disc Amt" name={`variants.${index}.discount_amount`}>
+                                      <InputWithPrefix prefix={currSym} type="number" step="0.01" min="0" {...register(`variants.${index}.discount_amount`)} placeholder="0" />
+                                    </FormField>
+                                    {hasPromo && (
+                                      <FormField label="Offer Label">
+                                        <Input
+                                          className="w-full min-w-0"
+                                          {...register(`variants.${index}.offer_label`)}
+                                          placeholder={pDisc > 0 ? `${pDisc.toFixed(1)}% OFF` : 'Flash Sale'}
+                                        />
+                                      </FormField>
+                                    )}
+                                  </div>
+                                  {hasPromo && (
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                      <FormField label="Promo Start">
+                                        <Input type="datetime-local" className="w-full min-w-0 text-xs sm:text-sm" {...register(`variants.${index}.discount_start_date` as any)} />
+                                      </FormField>
+                                      <FormField label="Promo End">
+                                        <Input type="datetime-local" className="w-full min-w-0 text-xs sm:text-sm" {...register(`variants.${index}.discount_end_date` as any)} />
+                                      </FormField>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })()}
                           </div>
                           {/* ── Live price metrics ── */}
                           {(profit != null || autoDiscPct > 0 || compareAt > 0) && (
@@ -3242,66 +3552,45 @@ export default function ProductForm() {
                         </>
                       )
                     })()}
-                    {/* Offer label + promo dates — visible when a discount is active */}
+                    {/* Promo summary — visible when a discount is active */}
                     {(parseFloat(String(watch(`variants.${index}.discount_percentage`) || 0)) > 0 || parseFloat(String(watch(`variants.${index}.discount_amount`) || 0)) > 0) && (() => {
                       const pStart = watch(`variants.${index}.discount_start_date` as any) as string | undefined
                       const pEnd   = watch(`variants.${index}.discount_end_date` as any) as string | undefined
                       const pDisc  = parseFloat(String(watch(`variants.${index}.discount_percentage`) || 0))
                       const pAmt   = parseFloat(String(watch(`variants.${index}.discount_amount`) || 0))
+                      const vCurrency = watch(`variants.${index}.currency`) || 'INR'
+                      const currSym = CURRENCY_SYMBOLS[vCurrency] || '₹'
                       const hasDates = !!(pStart && pEnd)
                       return (
-                        <div className="space-y-2 p-3 bg-orange-50/50 border border-orange-100 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-medium text-orange-600 uppercase tracking-wide flex items-center gap-1">
-                              <Calendar className="w-3 h-3" /> Promotional Discount
-                            </p>
-                            {/* Live discount summary */}
-                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                              {pDisc > 0 && (
-                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
-                                  {pDisc.toFixed(1)}% OFF
-                                </span>
-                              )}
-                              {pAmt > 0 && (
-                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
-                                  ₹{pAmt.toLocaleString()} OFF
-                                </span>
-                              )}
-                              {hasDates && (
-                                <span className="text-xs text-orange-600 px-2 py-0.5 rounded-full bg-white border border-orange-200">
-                                  {new Date(pStart!).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })} → {new Date(pEnd!).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}
-                                </span>
-                              )}
-                            </div>
+                        <div className="flex items-center justify-between gap-2 flex-wrap px-2 py-1.5 bg-orange-50/50 border border-orange-100 rounded-lg">
+                          <p className="text-xs font-medium text-orange-600 uppercase tracking-wide flex items-center gap-1">
+                            <Calendar className="w-3 h-3 shrink-0" /> Promotional Discount
+                          </p>
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            {pDisc > 0 && (
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                                {pDisc.toFixed(1)}% OFF
+                              </span>
+                            )}
+                            {pAmt > 0 && (
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                                {currSym}{pAmt.toLocaleString()} OFF
+                              </span>
+                            )}
+                            {hasDates && (
+                              <span className="text-xs text-orange-600 px-2 py-0.5 rounded-full bg-white border border-orange-200">
+                                {new Date(pStart!).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })} → {new Date(pEnd!).toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}
+                              </span>
+                            )}
                           </div>
-                          <div className="grid grid-cols-3 gap-2">
-                            <Field label="Offer Label">
-                              <Input
-                                {...register(`variants.${index}.offer_label`)}
-                                placeholder={pDisc > 0 ? `${pDisc.toFixed(1)}% OFF` : '"Flash Sale"'}
-                              />
-                            </Field>
-                            <Field label="Promo Start">
-                              <Input type="datetime-local" {...register(`variants.${index}.discount_start_date` as any)} />
-                            </Field>
-                            <Field label="Promo End">
-                              <Input type="datetime-local" {...register(`variants.${index}.discount_end_date` as any)} />
-                            </Field>
-                          </div>
-                          {hasDates && (
-                            <p className="text-xs text-orange-600 flex items-center gap-1.5">
-                              <Clock className="w-3 h-3 shrink-0" />
-                              Offer valid from <strong>{new Date(pStart!).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</strong> to <strong>{new Date(pEnd!).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</strong>
-                            </p>
-                          )}
                         </div>
                       )
                     })()}
                     {/* ── Tax (compact row) ── */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
-                      <Field label="Tax %"><Input type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.tax_rate`)} placeholder="0" /></Field>
-                      <Field label="GST %"><Input type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.gst_rate`)} placeholder="0" /></Field>
-                      <Field label="HSN"><Input {...register(`variants.${index}.hsn_code`)} placeholder="85171290" maxLength={8} /></Field>
+                      <FormField label="Tax %"><Input type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.tax_rate`)} placeholder="0" /></FormField>
+                      <FormField label="GST %"><Input type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.gst_rate`)} placeholder="0" /></FormField>
+                      <FormField label="HSN"><Input {...register(`variants.${index}.hsn_code`)} placeholder="85171290" maxLength={8} /></FormField>
                       <div className="flex items-center pb-1.5">
                         <Controller name={`variants.${index}.is_taxable`} control={control} render={({ field }) => (
                           <Toggle label="Taxable" checked={field.value} onChange={field.onChange} />
@@ -3312,19 +3601,19 @@ export default function ProductForm() {
                     <div className="pt-3 border-t border-gray-100 space-y-2">
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</p>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        <Field label="Qty on hand">
+                        <FormField label="Qty on hand">
                           <Input type="number" min="0" {...register(`variants.${index}.quantity`)}
                             className="border-indigo-200 bg-indigo-50/60 font-semibold" />
-                        </Field>
-                        <Field label="Low stock Alert at"><Input type="number" min="0" {...register(`variants.${index}.low_stock_threshold`)} /></Field>
-                        <Field label="Status">
+                        </FormField>
+                        <FormField label="Low stock Alert at"><Input type="number" min="0" {...register(`variants.${index}.low_stock_threshold`)} /></FormField>
+                        <FormField label="Status">
                           <select {...register(`variants.${index}.stock_status`)} className={selectCls}>
                             <option value="in_stock">In Stock</option><option value="out_of_stock">Out of Stock</option>
                             <option value="backorder">Backorder</option><option value="discontinued">Discontinued</option>
                           </select>
-                        </Field>
-                        <Field label="Reorder at"><Input type="number" min="0" {...register(`variants.${index}.reorder_point`)} /></Field>
-                        <Field label="Weight (kg)"><Input type="number" step="0.001" min="0" placeholder="0.000" {...register(`variants.${index}.weight_kg`)} /></Field>
+                        </FormField>
+                        <FormField label="Reorder at"><Input type="number" min="0" {...register(`variants.${index}.reorder_point`)} /></FormField>
+                        <FormField label="Weight (kg)"><Input type="number" step="0.001" min="0" placeholder="0.000" {...register(`variants.${index}.weight_kg`)} /></FormField>
                       </div>
                     </div>
                     {/* ── Toggles (single compact row) ── */}
@@ -3347,34 +3636,34 @@ export default function ProductForm() {
                     {/* Lifecycle dates — expandable */}
                     {watch(`variants.${index}.show_lifecycle`) && (
                       <div className="grid grid-cols-3 gap-2">
-                        <Field label="Manufactured"><Input type="date" {...register(`variants.${index}.manufacture_date`)} /></Field>
-                        <Field label="Expires"><Input type="date" {...register(`variants.${index}.expiration_date`)} /></Field>
-                        <Field label="Best before"><Input type="date" {...register(`variants.${index}.best_before_date`)} /></Field>
+                        <FormField label="Manufactured"><Input type="date" {...register(`variants.${index}.manufacture_date`)} /></FormField>
+                        <FormField label="Expires"><Input type="date" {...register(`variants.${index}.expiration_date`)} /></FormField>
+                        <FormField label="Best before"><Input type="date" {...register(`variants.${index}.best_before_date`)} /></FormField>
                       </div>
                     )}
                     {/* Return & Warranty — expandable */}
                     {watch('return_warranty_per_variant') && watch(`variants.${index}.show_return_warranty`) && (
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                          <Field label="Return Window (days)"><Input type="number" min="0" {...register(`variants.${index}.return_days`)} placeholder="30" /></Field>
-                          <Field label="Refund Policy">
+                          <FormField label="Return Window (days)"><Input type="number" min="0" {...register(`variants.${index}.return_days`)} placeholder="30" /></FormField>
+                          <FormField label="Refund Policy">
                             <select {...register(`variants.${index}.refund_policy`)} className={selectCls}>
                               <option value="">Select...</option>
                               <option value="full_refund">Full Refund</option>
                               <option value="store_credit">Store Credit</option>
                               <option value="exchange_only">Exchange Only</option>
                             </select>
-                          </Field>
-                          <Field label="Warranty (days)"><Input type="number" min="0" {...register(`variants.${index}.warranty_period_days`)} /></Field>
-                          <Field label="Warranty Type">
+                          </FormField>
+                          <FormField label="Warranty (days)"><Input type="number" min="0" {...register(`variants.${index}.warranty_period_days`)} /></FormField>
+                          <FormField label="Warranty Type">
                             <select {...register(`variants.${index}.warranty_type`)} className={selectCls}>
                               <option value="">None</option>
                               <option value="manufacturer">Manufacturer</option>
                               <option value="vendor">Vendor</option>
                             </select>
-                          </Field>
+                          </FormField>
                         </div>
-                        <Field label="Return Conditions"><Input {...register(`variants.${index}.return_conditions`)} placeholder='e.g. "Unopened, with tags"' className="max-w-lg" /></Field>
+                        <FormField label="Return Conditions"><Input {...register(`variants.${index}.return_conditions`)} placeholder='e.g. "Unopened, with tags"' className="max-w-lg" /></FormField>
                       </div>
                     )}
                     {/* Hidden fields — keep form state but no visible UI */}
@@ -3469,8 +3758,8 @@ export default function ProductForm() {
 
         {/* ── Bundle Items (only for bundle product type) ─────── */}
         {isBundleType && (
-          <Section title="Bundle Items" icon={ShoppingBag} open={!!openSections.bundle} onToggle={() => toggle('bundle')}>
-            <div className="space-y-4 pt-4">
+          <Section title="Bundle Items" icon={ShoppingBag} open={!!openSections.bundle} onToggle={() => toggle('bundle')} sectionId="bundle">
+            <div className={formEditLayout.sectionBody}>
               <p className="text-sm text-gray-500">Select products to include in this bundle. Customers will receive all selected items as a set.</p>
               {allProducts.filter(p => !id || p.id !== id).length === 0 ? (
                 <p className="text-sm text-gray-400 italic">No other products found. Create products first, then add them here.</p>
@@ -3501,7 +3790,7 @@ export default function ProductForm() {
 
         {/* 5c. Pricing & Inventory — bundle only (other types use variant-level pricing) */}
         {isBundleType && <Section title="Pricing & Inventory" icon={IndianRupee} open={openSections.pricing ?? true} onToggle={() => toggle('pricing')}>
-          <div className="space-y-6 pt-4">
+          <div className={formEditLayout.sectionBody}>
 
             {/* Base Pricing */}
             <div>
@@ -3523,7 +3812,7 @@ export default function ProductForm() {
                 return (
                   <>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <Field label="Price *" error={errors.price?.message}>
+                      <FormField label="Price *">
                         <Input type="number" step="0.01" min="0"
                           {...register('price')}
                           onChange={e => {
@@ -3531,8 +3820,8 @@ export default function ProductForm() {
                             syncBasePrices(parseFloat(e.target.value||'0'), parseFloat(String(watch('compare_at_price')||0)))
                           }}
                           placeholder="0.00" />
-                      </Field>
-                      <Field label="Compare At Price">
+                      </FormField>
+                      <FormField label="Compare At Price">
                         <Input type="number" step="0.01" min="0"
                           {...register('compare_at_price')}
                           onChange={e => {
@@ -3540,16 +3829,16 @@ export default function ProductForm() {
                             syncBasePrices(parseFloat(String(watch('price')||0)), parseFloat(e.target.value||'0'))
                           }}
                           placeholder="Original / MRP" />
-                      </Field>
-                      <Field label="Cost Price"><Input type="number" step="0.01" min="0" {...register('cost_price')} placeholder="Your cost" /></Field>
-                      <Field label="Currency">
+                      </FormField>
+                      <FormField label="Cost Price"><Input type="number" step="0.01" min="0" {...register('cost_price')} placeholder="Your cost" /></FormField>
+                      <FormField label="Currency">
                         <select {...register('currency')} className={selectCls}>
                           <option value="INR">INR ₹</option>
                           <option value="USD">USD $</option>
                           <option value="EUR">EUR €</option>
                           <option value="GBP">GBP £</option>
                         </select>
-                      </Field>
+                      </FormField>
                     </div>
                     {(bProfit != null || bAutoDiscPct > 0) && (
                       <div className="flex items-center gap-3 flex-wrap mt-2">
@@ -3571,13 +3860,11 @@ export default function ProductForm() {
               })()}
             </div>
 
-            {/* SKU & Identification */}
+            {/* Unit of Measure */}
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">SKU & Identification</h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Unit of Measure</h4>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="SKU"><Input {...register('sku')} placeholder="e.g. PROD-001" /></Field>
-                <Field label="Barcode"><Input {...register('barcode')} placeholder="e.g. 1234567890123" /></Field>
-                <Field label="Unit of Measure">
+                <FormField label="Unit of Measure">
                   <select {...register('uom')} className={selectCls}>
                     <option value="piece">Piece</option>
                     <option value="kg">Kilogram</option>
@@ -3592,8 +3879,9 @@ export default function ProductForm() {
                     <option value="pair">Pair</option>
                     <option value="dozen">Dozen</option>
                   </select>
-                </Field>
+                </FormField>
               </div>
+              <p className="text-xs text-gray-400 mt-2">SKU, Barcode &amp; HSN are set per variant in the Variants section.</p>
             </div>
 
             {/* Sale & Discounts */}
@@ -3614,15 +3902,15 @@ export default function ProductForm() {
                   <div className="space-y-3">
                     {/* Amounts row */}
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <Field label="Discount %">
+                      <FormField label="Discount %">
                         <Input type="number" step="0.01" min="0" max="100" {...register('discount_percentage')} placeholder="Auto from price gap" />
-                      </Field>
-                      <Field label="Discount Amount">
+                      </FormField>
+                      <FormField label="Discount Amount">
                         <Input type="number" step="0.01" min="0" {...register('discount_amount')} placeholder="₹ off — auto-filled" />
-                      </Field>
-                      <Field label="Offer Label">
+                      </FormField>
+                      <FormField label="Offer Label">
                         <Input {...register('offer_label')} placeholder={bAutoDiscPct2 > 0 ? `${bAutoDiscPct2.toFixed(1)}% OFF` : '"Diwali Sale"'} />
-                      </Field>
+                      </FormField>
                     </div>
                     {/* Discount summary badges */}
                     {(bAutoDiscPct2 > 0 || bAutoDiscAmt2 > 0) && (
@@ -3656,8 +3944,8 @@ export default function ProductForm() {
                         )} />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <Field label="Promo Starts"><Input type="datetime-local" {...register('discount_start_date')} /></Field>
-                        <Field label="Promo Ends"><Input type="datetime-local" {...register('discount_end_date')} /></Field>
+                        <FormField label="Promo Starts"><Input type="datetime-local" {...register('discount_start_date')} /></FormField>
+                        <FormField label="Promo Ends"><Input type="datetime-local" {...register('discount_end_date')} /></FormField>
                       </div>
                       {bPStart && bPEnd && (
                         <p className="text-xs text-orange-700 font-medium flex items-center gap-1.5 bg-white border border-orange-200 rounded-lg px-2.5 py-1.5">
@@ -3679,10 +3967,9 @@ export default function ProductForm() {
                   <Toggle label="Taxable" checked={field.value} onChange={field.onChange} />
                 )} />
                 {watch('is_taxable') && (
-                  <div className="grid grid-cols-3 gap-4">
-                    <Field label="Tax Rate (%)"><Input type="number" step="0.01" min="0" max="100" {...register('tax_rate')} placeholder="e.g. 18" /></Field>
-                    <Field label="HSN Code"><Input {...register('hsn_code')} placeholder="e.g. 6204" /></Field>
-                    <Field label="GST Rate (%)"><Input type="number" step="0.01" min="0" max="100" {...register('gst_rate')} placeholder="e.g. 18" /></Field>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField label="Tax Rate (%)"><Input type="number" step="0.01" min="0" max="100" {...register('tax_rate')} placeholder="e.g. 18" /></FormField>
+                    <FormField label="GST Rate (%)"><Input type="number" step="0.01" min="0" max="100" {...register('gst_rate')} placeholder="e.g. 18" /></FormField>
                   </div>
                 )}
               </div>
@@ -3706,19 +3993,19 @@ export default function ProductForm() {
                     )} />
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Field label="Quantity"><Input type="number" min="0" {...register('quantity')} placeholder="0" /></Field>
-                    <Field label="Low Stock Alert (qty)"><Input type="number" min="0" {...register('low_stock_threshold')} placeholder="5" /></Field>
-                    <Field label="Reorder Point"><Input type="number" min="0" {...register('reorder_point')} placeholder="e.g. 10" /></Field>
-                    <Field label="Reorder Qty"><Input type="number" min="0" {...register('reorder_quantity')} placeholder="e.g. 50" /></Field>
+                    <FormField label="Quantity"><Input type="number" min="0" {...register('quantity')} placeholder="0" /></FormField>
+                    <FormField label="Low Stock Alert (qty)"><Input type="number" min="0" {...register('low_stock_threshold')} placeholder="5" /></FormField>
+                    <FormField label="Reorder Point"><Input type="number" min="0" {...register('reorder_point')} placeholder="e.g. 10" /></FormField>
+                    <FormField label="Reorder Qty"><Input type="number" min="0" {...register('reorder_quantity')} placeholder="e.g. 50" /></FormField>
                   </div>
-                  <Field label="Stock Status">
+                  <FormField label="Stock Status">
                     <select {...register('stock_status')} className={selectCls}>
                       <option value="in_stock">In Stock</option>
                       <option value="out_of_stock">Out of Stock</option>
                       <option value="pre_order">Pre-Order</option>
                       <option value="discontinued">Discontinued</option>
                     </select>
-                  </Field>
+                  </FormField>
                 </div>
               </div>
             )}
@@ -3728,7 +4015,7 @@ export default function ProductForm() {
         {/* 5d. Advanced Pricing Rules — party, location, scheduled, quantity, channel */}
         {isEdit && id && (
           <Section title="Advanced Pricing" icon={DollarSign} open={!!openSections.advancedPricing} onToggle={() => toggle('advancedPricing')}>
-            <div className="space-y-4 pt-4">
+            <div className={formEditLayout.sectionBody}>
               {/* Rule type tabs */}
               <div className="flex flex-wrap gap-1 bg-gray-100 rounded-lg p-1">
                 {([
@@ -3849,8 +4136,8 @@ export default function ProductForm() {
         )}
 
         {/* 6. Return & Warranty — not for digital or bundle */}
-        {!isDigitalType && !isBundleType && <Section title="Return & Warranty" icon={RotateCcw} open={!!openSections.returns} onToggle={() => toggle('returns')}>
-          <div className="space-y-4 pt-4">
+        {!isDigitalType && !isBundleType && <Section title="Return & Warranty" icon={RotateCcw} open={!!openSections.returns} onToggle={() => toggle('returns')} sectionId="returns">
+          <div className={formEditLayout.sectionBody}>
             <Controller name="return_warranty_per_variant" control={control} render={({ field }) => (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200">
                 <Toggle label="Manage per variant" checked={field.value} onChange={field.onChange} />
@@ -3862,26 +4149,26 @@ export default function ProductForm() {
             {!watch('return_warranty_per_variant') && (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Field label="Return Window (days)"><Input type="number" min="0" {...register('return_days')} placeholder="e.g. 30" /></Field>
-                  <Field label="Refund Policy">
+                  <FormField label="Return Window (days)"><Input type="number" min="0" {...register('return_days')} placeholder="e.g. 30" /></FormField>
+                  <FormField label="Refund Policy">
                     <select {...register('refund_policy')} className={selectCls}>
                       <option value="">Select...</option>
                       <option value="full_refund">Full Refund</option>
                       <option value="store_credit">Store Credit</option>
                       <option value="exchange_only">Exchange Only</option>
                     </select>
-                  </Field>
-                  <Field label="Warranty (days)"><Input type="number" min="0" {...register('warranty_period_days')} placeholder="e.g. 365" /></Field>
-                  <Field label="Warranty Type">
+                  </FormField>
+                  <FormField label="Warranty (days)"><Input type="number" min="0" {...register('warranty_period_days')} placeholder="e.g. 365" /></FormField>
+                  <FormField label="Warranty Type">
                     <select {...register('warranty_type')} className={selectCls}>
                       <option value="">None</option>
                       <option value="manufacturer">Manufacturer</option>
                       <option value="vendor">Vendor</option>
                     </select>
-                  </Field>
+                  </FormField>
                 </div>
-                <Field label="Return Policy"><textarea {...register('return_policy')} rows={2} className={textareaCls} placeholder="Describe your return policy..." /></Field>
-                <Field label="Return Conditions"><Input {...register('return_conditions')} placeholder='e.g. "Unopened, with tags, within 30 days"' /></Field>
+                <FormField label="Return Policy"><textarea {...register('return_policy')} rows={2} className={textareaCls} placeholder="Describe your return policy..." /></FormField>
+                <FormField label="Return Conditions"><Input {...register('return_conditions')} placeholder='e.g. "Unopened, with tags, within 30 days"' /></FormField>
               </>
             )}
           </div>
@@ -3889,27 +4176,27 @@ export default function ProductForm() {
 
         {/* 7. Shipping & Delivery — physical and subscription only */}
         {(isPhysical || isSubscriptionType) && (
-          <Section title="Shipping & Delivery" icon={Truck} open={!!openSections.shipping} onToggle={() => toggle('shipping')}>
-            <div className="space-y-4 pt-4">
+          <Section title="Shipping & Delivery" icon={Truck} open={!!openSections.shipping} onToggle={() => toggle('shipping')} sectionId="shipping">
+            <div className={formEditLayout.sectionBody}>
               <Controller name="requires_shipping" control={control} render={({ field }) => (
                 <Toggle label="Requires Shipping" checked={field.value} onChange={field.onChange} />
               )} />
               <div className="grid grid-cols-4 gap-4">
-                <Field label="Weight (kg)"><Input type="number" step="0.001" min="0" {...register('weight_kg')} /></Field>
-                <Field label="Length (cm)"><Input type="number" step="0.01" min="0" {...register('length_cm')} /></Field>
-                <Field label="Width (cm)"><Input type="number" step="0.01" min="0" {...register('width_cm')} /></Field>
-                <Field label="Height (cm)"><Input type="number" step="0.01" min="0" {...register('height_cm')} /></Field>
+                <FormField label="Weight (kg)"><Input type="number" step="0.001" min="0" {...register('weight_kg')} /></FormField>
+                <FormField label="Length (cm)"><Input type="number" step="0.01" min="0" {...register('length_cm')} /></FormField>
+                <FormField label="Width (cm)"><Input type="number" step="0.01" min="0" {...register('width_cm')} /></FormField>
+                <FormField label="Height (cm)"><Input type="number" step="0.01" min="0" {...register('height_cm')} /></FormField>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Field label="Shipping Class">
+                <FormField label="Shipping Class">
                   <select {...register('shipping_class')} className={selectCls}>
                     <option value="">Standard</option>
                     <option value="express">Express</option>
                     <option value="fragile">Fragile</option>
                     <option value="oversized">Oversized</option>
                   </select>
-                </Field>
-                <Field label="Shipping Cost Type">
+                </FormField>
+                <FormField label="Shipping Cost Type">
                   <select {...register('shipping_cost_type')} className={selectCls}>
                     <option value="fixed">Fixed</option>
                     <option value="variable">Variable (by weight)</option>
@@ -3917,9 +4204,9 @@ export default function ProductForm() {
                     <option value="free">Free</option>
                     <option value="calculated">Calculated at checkout</option>
                   </select>
-                </Field>
+                </FormField>
                 {watch('shipping_cost_type') !== 'free' && watch('shipping_cost_type') !== 'calculated' && (
-                  <Field label={
+                  <FormField label={
                     watch('shipping_cost_type') === 'variable' ? 'Cost per kg' :
                     watch('shipping_cost_type') === 'per_uom' ? 'Cost per unit' : 'Shipping Cost'
                   }>
@@ -3927,9 +4214,9 @@ export default function ProductForm() {
                       watch('shipping_cost_type') === 'variable' ? 'Rate per kg' :
                       watch('shipping_cost_type') === 'per_uom' ? 'Rate per unit' : 'Fixed amount'
                     } />
-                  </Field>
+                  </FormField>
                 )}
-                <Field label="Free Shipping Threshold"><Input type="number" step="0.01" min="0" {...register('free_shipping_threshold')} placeholder="Min order for free" /></Field>
+                <FormField label="Free Shipping Threshold"><Input type="number" step="0.01" min="0" {...register('free_shipping_threshold')} placeholder="Min order for free" /></FormField>
               </div>
               {watch('shipping_cost_type') && watch('shipping_cost_type') !== 'fixed' && (
                 <p className="text-xs text-gray-500 mt-1">
@@ -3944,8 +4231,8 @@ export default function ProductForm() {
         )}
 
         {/* Business Front Options */}
-        <Section title="Business Front Options" icon={ToggleRight} open={!!openSections.storefrontOptions} onToggle={() => toggle('storefrontOptions')}>
-          <div className="pt-4 space-y-4">
+        <Section title="Business Front Options" icon={ToggleRight} open={!!openSections.storefrontOptions} onToggle={() => toggle('storefrontOptions')} sectionId="storefrontOptions">
+          <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500">Control how customers interact with this product on the business front.</p>
             <div className="divide-y rounded-lg border">
               <div className="flex items-center justify-between px-4 py-3">
@@ -3975,12 +4262,12 @@ export default function ProductForm() {
         </Section>
 
         {/* 8. Visibility & Marketing — status + business front visibility live in sticky header */}
-        <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')}>
-          <div className="space-y-4 pt-4">
+        <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')} sectionId="visibility">
+          <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
               <span className="font-medium text-gray-700">Draft / Active / Archived</span> and <span className="font-medium text-gray-700">Visible</span> are set in the bar at the top so you can change them without scrolling.
             </p>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1.5">
               <Controller name="is_featured" control={control} render={({ field }) => (
                 <Toggle label="Featured Product" checked={field.value} onChange={field.onChange} />
               )} />
@@ -3995,8 +4282,8 @@ export default function ProductForm() {
         </Section>
 
         {/* 8a-extra: Add-ons & Linked Services */}
-        <Section title="Add-ons & Linked Services" icon={Plus} open={!!openSections.addons} onToggle={() => toggle('addons')}>
-          <div className="space-y-4 pt-4">
+        <Section title="Add-ons & Linked Services" icon={Plus} open={!!openSections.addons} onToggle={() => toggle('addons')} sectionId="addons">
+          <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500">
               Link services or products that can accompany this item — e.g. installation, demo, warranty, maintenance.
               Configure <strong>when booking is triggered</strong> for each add-on based on the order channel and status.
@@ -4150,8 +4437,8 @@ export default function ProductForm() {
         </Section>
 
         {/* 8b. Merchandising */}
-        <Section title="Merchandising" icon={Link2} open={!!openSections.merch} onToggle={() => toggle('merch')}>
-          <div className="space-y-6 pt-4">
+        <Section title="Merchandising" icon={Link2} open={!!openSections.merch} onToggle={() => toggle('merch')} sectionId="merch">
+          <div className={formEditLayout.sectionBody}>
 
             {/* ── Cross-sell & Upsell sections ── */}
             {(['cross_sell', 'upsell'] as const).map(relType => {
@@ -4341,38 +4628,38 @@ export default function ProductForm() {
         </Section>
 
         {/* 9. SEO & Metadata */}
-        <Section title="SEO & Metadata" icon={Search} open={!!openSections.seo} onToggle={() => toggle('seo')}>
-          <div className="space-y-4 pt-4">
-            <Field label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (defaults to product name)" /></Field>
-            <Field label="Meta Description"><textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." /></Field>
-            <Field label="Meta Keywords (comma separated)"><Input {...register('meta_keywords')} placeholder="keyword1, keyword2" /></Field>
+        <Section title="SEO & Metadata" icon={Search} open={!!openSections.seo} onToggle={() => toggle('seo')} sectionId="seo">
+          <div className={formEditLayout.sectionBody}>
+            <FormField label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (defaults to product name)" /></FormField>
+            <FormField label="Meta Description"><textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." /></FormField>
+            <FormField label="Meta Keywords (comma separated)"><Input {...register('meta_keywords')} placeholder="keyword1, keyword2" /></FormField>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="OG Image URL"><Input {...register('og_image_url')} placeholder="https://..." /></Field>
-              <Field label="Canonical URL"><Input {...register('canonical_url')} placeholder="https://..." /></Field>
+              <FormField label="OG Image URL"><Input {...register('og_image_url')} placeholder="https://..." /></FormField>
+              <FormField label="Canonical URL"><Input {...register('canonical_url')} placeholder="https://..." /></FormField>
             </div>
           </div>
         </Section>
 
         {/* 10. Advanced Features */}
-        <Section title="Advanced Features" icon={Settings} open={!!openSections.advanced} onToggle={() => toggle('advanced')}>
-          <div className="space-y-4 pt-4">
-            <Field label="Attributes (JSON)"><textarea {...register('attributes')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"color": ["Red","Blue"], "size": ["S","M","L"]}' /></Field>
-            <Field label="Specifications (JSON)"><textarea {...register('specifications')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"weight": "250g", "material": "Cotton"}' /></Field>
-            <Field label="Custom Fields (JSON)"><textarea {...register('custom_fields')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"vendor_note": "Handle with care"}' /></Field>
+        <Section title="Advanced Features" icon={Settings} open={!!openSections.advanced} onToggle={() => toggle('advanced')} sectionId="advanced">
+          <div className={formEditLayout.sectionBody}>
+            <FormField label="Attributes (JSON)"><textarea {...register('attributes')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"color": ["Red","Blue"], "size": ["S","M","L"]}' /></FormField>
+            <FormField label="Specifications (JSON)"><textarea {...register('specifications')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"weight": "250g", "material": "Cotton"}' /></FormField>
+            <FormField label="Custom Fields (JSON)"><textarea {...register('custom_fields')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"vendor_note": "Handle with care"}' /></FormField>
           </div>
         </Section>
 
         {/* 11. Digital Products — shown for digital and bundle types */}
         {(isDigitalType || isBundleType || product?.is_digital) && (
           <Section title="Digital Product" icon={Download} open={openSections.digital ?? (isDigitalType || isBundleType)} onToggle={() => toggle('digital')}>
-            <div className="space-y-4 pt-4">
+            <div className={formEditLayout.sectionBody}>
               <Controller name="is_digital" control={control} render={({ field }) => (
                 <Toggle label="Is Digital Product" checked={field.value} onChange={field.onChange} />
               )} />
-              <Field label="Download URL"><Input {...register('download_url')} placeholder="https://storage.example.com/file.zip" /></Field>
+              <FormField label="Download URL"><Input {...register('download_url')} placeholder="https://storage.example.com/file.zip" /></FormField>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Download Limit"><Input type="number" min="0" {...register('download_limit')} placeholder="e.g. 5" /></Field>
-                <Field label="Download Expiry (days)"><Input type="number" min="0" {...register('download_expiry_days')} placeholder="e.g. 30" /></Field>
+                <FormField label="Download Limit"><Input type="number" min="0" {...register('download_limit')} placeholder="e.g. 5" /></FormField>
+                <FormField label="Download Expiry (days)"><Input type="number" min="0" {...register('download_expiry_days')} placeholder="e.g. 30" /></FormField>
               </div>
             </div>
           </Section>
@@ -4382,7 +4669,7 @@ export default function ProductForm() {
 
         {/* 13. Bill of Materials (MRP) */}
         {isEdit && id && (
-          <Section title="Bill of Materials (BOM)" icon={Factory} open={!!openSections.bom} onToggle={() => toggle('bom')}>
+          <Section title="Bill of Materials (BOM)" icon={Factory} open={!!openSections.bom} onToggle={() => toggle('bom')} sectionId="bom">
             <div className="pt-4">
               <BOMEditor productId={id} productName={watch('name')} />
             </div>
@@ -4391,8 +4678,8 @@ export default function ProductForm() {
 
         {/* 14. Reports (UI-only links) */}
         {isEdit && (
-          <Section title="Reports & Analytics" icon={BarChart3} open={!!openSections.reports} onToggle={() => toggle('reports')}>
-            <div className="space-y-3 pt-4">
+          <Section title="Reports & Analytics" icon={BarChart3} open={!!openSections.reports} onToggle={() => toggle('reports')} sectionId="reports">
+            <div className={formEditLayout.sectionBody}>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="rounded-lg border p-4">
                   <p className="text-2xl font-bold">{product?.view_count ?? 0}</p>
@@ -4420,6 +4707,10 @@ export default function ProductForm() {
           </Button>
         </div>
       </form>
-    </div>
+      </FormProvider>
+    </FormPageWithNav>
   )
 }
+
+
+

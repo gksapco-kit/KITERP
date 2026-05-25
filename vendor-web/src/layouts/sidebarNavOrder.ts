@@ -3,12 +3,55 @@ const LS_ITEMS = 'kiterp.vendor.sidebar.item-orders'
 /** Ordered `to` paths per section id (links may appear under any visible module). */
 const LS_PLACEMENTS_V2 = 'kiterp.vendor.sidebar.nav-placements-v2'
 
-export function loadSectionIds(defaultIds: string[]): string[] {
+export type NavOrderScope = {
+  userId: string
+  roleKey: string
+}
+
+function scopedKey(base: string, scope: NavOrderScope | null | undefined): string {
+  if (!scope?.userId) return base
+  const role = scope.roleKey || 'member'
+  return `${base}.${scope.userId}.${role}`
+}
+
+function readJson<T>(key: string): T | null {
   try {
-    const raw = localStorage.getItem(LS_SECTION)
-    if (!raw) return [...defaultIds]
-    const parsed = JSON.parse(raw) as string[]
-    if (!Array.isArray(parsed)) return [...defaultIds]
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
+}
+
+/** Prefer scoped storage; fall back to legacy unscoped keys once per scope. */
+function readWithLegacyFallback<T>(
+  scoped: string,
+  legacy: string,
+  migrate: (value: T) => void,
+): T | null {
+  const hit = readJson<T>(scoped)
+  if (hit != null) return hit
+  const old = readJson<T>(legacy)
+  if (old != null) {
+    migrate(old)
+    return old
+  }
+  return null
+}
+
+export function loadSectionIds(defaultIds: string[], scope?: NavOrderScope | null): string[] {
+  try {
+    const key = scopedKey(LS_SECTION, scope)
+    const legacyKey = LS_SECTION
+    const parsed = readWithLegacyFallback<string[]>(key, legacyKey, (v) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(v))
+      } catch {
+        /* ignore */
+      }
+    })
+    if (!parsed || !Array.isArray(parsed)) return [...defaultIds]
     const set = new Set(defaultIds)
     const ordered = parsed.filter((id) => set.has(id))
     for (const id of defaultIds) {
@@ -20,28 +63,33 @@ export function loadSectionIds(defaultIds: string[]): string[] {
   }
 }
 
-export function saveSectionIds(ids: string[]) {
+export function saveSectionIds(ids: string[], scope?: NavOrderScope | null) {
   try {
-    localStorage.setItem(LS_SECTION, JSON.stringify(ids))
+    localStorage.setItem(scopedKey(LS_SECTION, scope), JSON.stringify(ids))
   } catch {
     /* ignore */
   }
 }
 
-export function loadItemOrders(): Record<string, string[]> {
+export function loadItemOrders(scope?: NavOrderScope | null): Record<string, string[]> {
   try {
-    const raw = localStorage.getItem(LS_ITEMS)
-    if (!raw) return {}
-    const o = JSON.parse(raw) as Record<string, string[]>
+    const key = scopedKey(LS_ITEMS, scope)
+    const o = readWithLegacyFallback<Record<string, string[]>>(key, LS_ITEMS, (v) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(v))
+      } catch {
+        /* ignore */
+      }
+    })
     return o && typeof o === 'object' ? o : {}
   } catch {
     return {}
   }
 }
 
-export function saveItemOrders(orders: Record<string, string[]>) {
+export function saveItemOrders(orders: Record<string, string[]>, scope?: NavOrderScope | null) {
   try {
-    localStorage.setItem(LS_ITEMS, JSON.stringify(orders))
+    localStorage.setItem(scopedKey(LS_ITEMS, scope), JSON.stringify(orders))
   } catch {
     /* ignore */
   }
@@ -142,35 +190,47 @@ export function reconcileNavPlacements(
 }
 
 /** Load v2 placements, or migrate from legacy per-section order (same-module only). */
-export function loadNavPlacementsState(sections: { id: string; items: { to: string }[] }[]): Record<string, string[]> {
+export function loadNavPlacementsState(
+  sections: { id: string; items: { to: string }[] }[],
+  scope?: NavOrderScope | null,
+): Record<string, string[]> {
   try {
-    const raw = localStorage.getItem(LS_PLACEMENTS_V2)
-    if (raw) {
-      const o = JSON.parse(raw) as Record<string, string[]>
-      if (o && typeof o === 'object') return reconcileNavPlacements(o, sections)
-    }
+    const key = scopedKey(LS_PLACEMENTS_V2, scope)
+    const raw = readWithLegacyFallback<Record<string, string[]>>(key, LS_PLACEMENTS_V2, (v) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(v))
+      } catch {
+        /* ignore */
+      }
+    })
+    if (raw && typeof raw === 'object') return reconcileNavPlacements(raw, sections)
   } catch {
     /* fall through */
   }
-  const legacy = loadItemOrders()
+  const legacy = loadItemOrders(scope)
   const migrated = migrateLegacyItemOrdersToPlacements(sections, legacy)
   return reconcileNavPlacements(migrated, sections)
 }
 
-export function saveNavPlacementsState(p: Record<string, string[]>) {
+export function saveNavPlacementsState(p: Record<string, string[]>, scope?: NavOrderScope | null) {
   try {
-    localStorage.setItem(LS_PLACEMENTS_V2, JSON.stringify(p))
+    localStorage.setItem(scopedKey(LS_PLACEMENTS_V2, scope), JSON.stringify(p))
   } catch {
     /* ignore */
   }
 }
 
 /** Clear persisted sidebar order so the next load uses built-in defaults. */
-export function clearSavedNavOrder() {
+export function clearSavedNavOrder(scope?: NavOrderScope | null) {
   try {
-    localStorage.removeItem(LS_SECTION)
-    localStorage.removeItem(LS_ITEMS)
-    localStorage.removeItem(LS_PLACEMENTS_V2)
+    const keys = scope
+      ? [
+          scopedKey(LS_SECTION, scope),
+          scopedKey(LS_ITEMS, scope),
+          scopedKey(LS_PLACEMENTS_V2, scope),
+        ]
+      : [LS_SECTION, LS_ITEMS, LS_PLACEMENTS_V2]
+    for (const k of keys) localStorage.removeItem(k)
   } catch {
     /* ignore */
   }

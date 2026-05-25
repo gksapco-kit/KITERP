@@ -226,6 +226,18 @@ export const vendorApi = {
     return response.data
   },
 
+  uploadVendorExtraBanner: async (file: File): Promise<{ banner_url: string; extra_banners: string[] }> => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await apiClient.post('/uploads/vendor/extra-banner', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return response.data
+  },
+
+  removeVendorExtraBanner: async (url: string): Promise<{ extra_banners: string[] }> => {
+    const response = await apiClient.delete('/uploads/vendor/extra-banner', { params: { url } })
+    return response.data
+  },
+
   /** Blog Manager — cover image; returns path to send as ``cover_url`` on create/update. */
   uploadBlogCover: async (file: File): Promise<{ cover_url: string }> => {
     const form = new FormData()

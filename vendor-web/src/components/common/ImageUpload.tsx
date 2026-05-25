@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
+import { formDisplayCompact } from '@/components/common/FormSectionNav'
 import { Button } from '@/components/ui/button'
 import { Upload, X, Star, Loader2, Film, Box, Image as ImageIcon } from 'lucide-react'
 import { ImageCropModal } from './ImageCropModal'
 
-import { mediaUrl } from '@/lib/utils'
+import { cn, mediaUrl } from '@/lib/utils'
 
 function resolveUrl(url: string) {
   return mediaUrl(url)
@@ -126,7 +127,7 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, d
   const modelItems = images.filter(i => i.media_type === 'model3d')
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {cropQueue.length > 0 && (
         <ImageCropModal
           file={cropQueue[0]}
@@ -140,16 +141,17 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, d
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => !disabled && inputRef.current?.click()}
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-          disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:border-blue-400 hover:bg-blue-50/30'
-        }`}
+        className={cn(
+          formDisplayCompact.mediaDropzone,
+          disabled ? 'cursor-not-allowed opacity-50 bg-gray-50' : '',
+        )}
       >
         {uploading ? (
-          <Loader2 className="w-8 h-8 mx-auto text-blue-500 animate-spin" />
+          <Loader2 className="mx-auto h-6 w-6 text-blue-500 animate-spin" />
         ) : (
-          <Upload className="w-8 h-8 mx-auto text-gray-400" />
+          <Upload className="mx-auto h-6 w-6 text-gray-400" />
         )}
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-1 text-xs text-gray-600 sm:text-sm">
           {uploading ? 'Uploading...' : 'Click or drag files here'}
         </p>
         <div className="flex items-center justify-center gap-4 mt-2">
@@ -176,7 +178,7 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, d
           {imageItems.length > 0 && videoItems.length + modelItems.length > 0 && (
             <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" />Images ({imageItems.length})</p>
           )}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-1.5 min-[26rem]:grid-cols-4 sm:gap-2">
             {images.map((item) => (
               <div key={item.id} className="relative group rounded-lg overflow-hidden border bg-gray-50 aspect-square">
                 <MediaPreview item={item} />
@@ -284,7 +286,7 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, di
   }, [handleFiles])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {cropQueue.length > 0 && (
         <ImageCropModal
           file={cropQueue[0]}
@@ -297,16 +299,17 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, di
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => !disabled && inputRef.current?.click()}
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-          disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:border-blue-400 hover:bg-blue-50/30'
-        }`}
+        className={cn(
+          formDisplayCompact.mediaDropzone,
+          disabled ? 'cursor-not-allowed opacity-50 bg-gray-50' : '',
+        )}
       >
         {uploading ? (
-          <Loader2 className="w-8 h-8 mx-auto text-blue-500 animate-spin" />
+          <Loader2 className="mx-auto h-6 w-6 text-blue-500 animate-spin" />
         ) : (
-          <Upload className="w-8 h-8 mx-auto text-gray-400" />
+          <Upload className="mx-auto h-6 w-6 text-gray-400" />
         )}
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-1 text-xs text-gray-600 sm:text-sm">
           {uploading ? 'Uploading...' : 'Click or drag files here'}
         </p>
         <div className="flex items-center justify-center gap-4 mt-2">
@@ -393,7 +396,7 @@ export function ServiceImageUpload({ imageUrl, galleryUrls, onUploadMain, onUplo
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <div>
         <p className="text-sm font-medium mb-2">Main Image</p>
         <div className="flex items-start gap-4">

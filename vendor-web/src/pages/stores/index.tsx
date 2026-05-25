@@ -8,21 +8,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
-  Plus, Store, Users, Package, Search,
+  Plus, Store,
   Edit2, Trash2, Star, StarOff, X, Loader2,
-  ChevronRight, ArrowLeftRight, Link2, Copy, ExternalLink, Check,
+  ChevronRight, ArrowLeftRight, Copy, ExternalLink, Check, ShieldCheck,
   Building2, Heart, Briefcase, Dumbbell, ShoppingBag, Hotel, UtensilsCrossed,
   BedDouble, Tag, ChevronDown, Pencil,
   ShoppingCart, Gem, Sparkles, Monitor, Shirt, Wrench,
   Coffee, Cookie, Zap, ChefHat, Code2, Warehouse, Factory, Truck,
   Stethoscope, Smile, PawPrint, Pill, FlaskConical, Scissors, Leaf,
   Camera, CalendarDays, GraduationCap, BookOpen, Landmark, Calculator,
-  Scale, Car, Home, Plane,
+  Scale, Car, Home, Plane, Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { useVendorStore } from '@/stores/vendorStore'
 import { toast } from 'sonner'
 import {
@@ -32,6 +31,9 @@ import {
 } from '@/lib/verification'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
+import { StoresListToolbar } from '@/components/business-units/StoresListToolbar'
+import { BusinessUnitVisualHero } from '@/components/business-units/BusinessUnitVisualHero'
+import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
 
@@ -519,29 +521,6 @@ function TransferModal({
   )
 }
 
-// ── Inline stats (compact header) ───────────────────────────────────────────
-
-function BusinessUnitStatsChips({ stores }: { stores: StoreRecord[] }) {
-  const activeCount = stores.filter((s) => s.is_active).length
-  const staffTotal = stores.reduce((a, s) => a + (s.staff_count ?? 0), 0)
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-0.5">
-        <span className="font-semibold tabular-nums text-indigo-600">{stores.length}</span>
-        units
-      </span>
-      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-0.5">
-        <span className="font-semibold tabular-nums text-emerald-600">{activeCount}</span>
-        active
-      </span>
-      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-0.5">
-        <span className="font-semibold tabular-nums text-amber-600">{staffTotal}</span>
-        staff
-      </span>
-    </div>
-  )
-}
-
 // ── StoreCard ──────────────────────────────────────────────────────────────
 
 function StoreCard({
@@ -564,109 +543,75 @@ function StoreCard({
   onSetDefault: () => void
   onView: () => void
 }) {
+  const { vendor } = useVendorStore()
   const unitCode = formatStoreCode(store)
+  const visual = getBusinessUnitVisual(store, vendor)
 
   return (
     <Card
       className={cn(
-        'flex min-h-[10.5rem] flex-col border shadow-sm transition-all hover:shadow-md',
+        'flex flex-col overflow-hidden border shadow-sm transition-all hover:shadow-md cursor-pointer',
         isSelected ? 'border-primary ring-1 ring-primary/25' : 'border-border',
-        !store.is_active && 'opacity-80',
+        !store.is_active && 'opacity-90',
       )}
+      onClick={onView}
     >
-      <CardContent className="flex flex-1 flex-col gap-2 p-3">
-        <div className="flex items-start gap-2">
-          <div
-            className={cn(
-              'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-              isSelected ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
+      <BusinessUnitVisualHero store={store} variant="card" />
+      <CardContent className="flex flex-col gap-1 px-1.5 pb-1.5 pt-1.5">
+        {/* Row 1: icon | code+name | badges */}
+        <div className="flex items-start gap-1.5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md overflow-hidden border border-border bg-muted">
+            {visual.logoUrl ? (
+              <img src={visual.logoUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <visual.Icon className="h-6 w-6 text-primary" strokeWidth={1.75} />
             )}
-          >
-            <Store className="h-4 w-4" />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold leading-tight text-foreground" title={store.name}>
-              {store.name}
-            </p>
-            <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Business unit
-            </p>
-            <p className="truncate font-mono text-xs text-muted-foreground" title={unitCode}>
-              {unitCode}
-            </p>
+          <div className="min-w-0 flex-1 pt-0.5">
+            <p className="truncate font-mono text-[0.6rem] text-muted-foreground" title={unitCode}>{unitCode}</p>
+            <p className="truncate text-[0.68rem] font-semibold leading-tight text-foreground" title={store.name}>{store.name}</p>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            {isSelected ? (
-              <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
-                In use
+          <div className="flex shrink-0 flex-row items-center gap-0.5 pt-0.5">
+            {isSelected && (
+              <span title="In use" className="flex h-3 w-3 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Check className="h-1.5 w-1.5" />
               </span>
-            ) : store.is_default ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                <Star className="h-2.5 w-2.5" />
-                Default
+            )}
+            {store.is_default && !isSelected && (
+              <span title="Default" className="flex h-3 w-3 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+                <Star className="h-1.5 w-1.5" />
               </span>
-            ) : null}
-            <VerifiedBadge level={vendorLevel} size="xs" />
+            )}
+            <span title={vendorLevel} className={cn(
+              'flex h-3 w-3 items-center justify-center rounded-full',
+              vendorLevel === 'verified' ? 'bg-emerald-100 text-emerald-600' :
+              vendorLevel === 'partial' ? 'bg-blue-100 text-blue-600' :
+              'bg-muted text-muted-foreground',
+            )}>
+              <ShieldCheck className="h-1.5 w-1.5" />
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2 py-1.5 text-xs text-muted-foreground">
-          <span className="tabular-nums">{store.inventory_count ?? 0} SKUs</span>
-          <span className="text-border">·</span>
-          <span className="tabular-nums">{store.staff_count ?? 0} staff</span>
-          <span
-            className={cn(
-              'rounded-full px-1.5 py-0.5 text-xs font-medium',
-              store.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground',
-            )}
-          >
-            {store.is_active ? 'Active' : 'Off'}
-          </span>
-        </div>
-
-        <div className="mt-auto flex items-center gap-1 border-t border-border pt-2">
-          <Button
-            size="sm"
-            variant={isSelected ? 'default' : 'outline'}
-            className={cn('h-7 flex-1 text-xs', isSelected && 'bg-primary hover:bg-primary/90')}
+        {/* Row 2: action icons — stop propagation so card click doesn't fire */}
+        <div
+          className="flex items-center gap-px border-t border-border pt-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button size="sm" variant={isSelected ? 'default' : 'outline'}
+            className={cn('h-5 flex-1 text-[0.58rem] px-1', isSelected && 'bg-primary hover:bg-primary/90')}
             onClick={onSelect}
           >
-            {isSelected ? (
-              <>
-                <Check className="mr-1 h-3 w-3" />
-                Clear
-              </>
-            ) : (
-              'Use in app'
-            )}
+            {isSelected ? <><Check className="mr-0.5 h-2 w-2" />Clear</> : 'Use'}
           </Button>
-          <Button size="sm" variant="ghost" className="h-7 w-7 shrink-0 p-0" onClick={onView} title="View details">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button size="sm" variant="ghost" className="h-7 w-7 shrink-0 p-0" onClick={onEdit} title="Edit">
-            <Edit2 className="h-3.5 w-3.5" />
-          </Button>
+          <Button size="sm" variant="ghost" className="h-5 w-5 shrink-0 p-0" onClick={onEdit} title="Edit"><Edit2 className="h-2.5 w-2.5" /></Button>
           {!store.is_default && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 shrink-0 p-0"
-              onClick={onSetDefault}
-              title="Set as default"
-            >
-              <StarOff className="h-3.5 w-3.5" />
-            </Button>
+            <Button size="sm" variant="ghost" className="h-5 w-5 shrink-0 p-0" onClick={onSetDefault} title="Set default"><StarOff className="h-2.5 w-2.5" /></Button>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 shrink-0 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
-            onClick={onDelete}
-            title={store.is_default ? 'Default branch cannot be deleted' : 'Delete'}
-            disabled={store.is_default}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          <Button size="sm" variant="ghost"
+            className="h-5 w-5 shrink-0 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+            onClick={onDelete} title="Delete" disabled={store.is_default}
+          ><Trash2 className="h-2.5 w-2.5" /></Button>
         </div>
       </CardContent>
     </Card>
@@ -691,17 +636,34 @@ function StoreDetail({ store, onBack }: { store: StoreRecord; onBack: () => void
 type StoresPageProps = {
   /** Render inside Settings when "All business units" is selected (no back link). */
   embeddedInSettings?: boolean
+  /** Toolbar rendered in Settings header — hide the local title/actions row. */
+  hideToolbar?: boolean
+  listSearch?: string
+  onListSearchChange?: (value: string) => void
+  showTransfer?: boolean
+  onShowTransferChange?: (open: boolean) => void
 }
 
-export default function StoresPage({ embeddedInSettings = false }: StoresPageProps = {}) {
+export default function StoresPage({
+  embeddedInSettings = false,
+  hideToolbar = false,
+  listSearch: listSearchProp,
+  onListSearchChange,
+  showTransfer: showTransferProp,
+  onShowTransferChange,
+}: StoresPageProps = {}) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { vendor, selectedStore, setSelectedStore } = useVendorStore()
   const [modal, setModal] = useState<'create' | 'edit' | null>(null)
   const [editingStore, setEditingStore] = useState<StoreRecord | null>(null)
   const [viewingStore, setViewingStore] = useState<StoreRecord | null>(null)
-  const [showTransfer, setShowTransfer] = useState(false)
-  const [listSearch, setListSearch] = useState('')
+  const [internalShowTransfer, setInternalShowTransfer] = useState(false)
+  const [internalListSearch, setInternalListSearch] = useState('')
+  const showTransfer = showTransferProp ?? internalShowTransfer
+  const setShowTransfer = onShowTransferChange ?? setInternalShowTransfer
+  const listSearch = listSearchProp ?? internalListSearch
+  const setListSearch = onListSearchChange ?? setInternalListSearch
 
   const { data, isLoading } = useStores()
 
@@ -774,97 +736,54 @@ export default function StoresPage({ embeddedInSettings = false }: StoresPagePro
     return <StoreDetail store={fresh} onBack={() => setViewingStore(null)} />
   }
 
-  const activeCount = stores.filter((s) => s.is_active).length
-  const staffTotal = stores.reduce((a, s) => a + (s.staff_count ?? 0), 0)
-
   return (
     <div className="space-y-3">
-      {/* Compact toolbar: title, inline stats, search, actions */}
-      <div className="space-y-2">
-        {!embeddedInSettings && (
-          <button
-            type="button"
-            onClick={() => navigate('/settings')}
-            className="group flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary"
-          >
-            <ChevronRight className="h-3.5 w-3.5 rotate-180 transition-transform group-hover:-translate-x-0.5" />
-            Back to Settings
-          </button>
-        )}
+      {!hideToolbar && (
+        <div className="space-y-2">
+          {!embeddedInSettings && (
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="group flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary"
+            >
+              <ChevronRight className="h-3.5 w-3.5 rotate-180 transition-transform group-hover:-translate-x-0.5" />
+              Back to Settings
+            </button>
+          )}
 
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h2
-                className={cn(
-                  'font-semibold text-foreground',
-                  embeddedInSettings ? 'text-base' : 'text-lg',
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h2 className="text-lg font-semibold text-foreground">Business Units</h2>
+                {selectedStore && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    <Check className="h-3 w-3" />
+                    {selectedStore.name}
+                  </span>
                 )}
-              >
-                {embeddedInSettings ? BUSINESS_UNIT_STORE_LABEL : 'Business Units'}
-              </h2>
-              {stores.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5">
-                    <span className="font-semibold tabular-nums text-indigo-600">{stores.length}</span>
-                    <span className="text-muted-foreground">units</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5">
-                    <span className="font-semibold tabular-nums text-emerald-600">{activeCount}</span>
-                    <span className="text-muted-foreground">active</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5">
-                    <span className="font-semibold tabular-nums text-amber-600">{staffTotal}</span>
-                    <span className="text-muted-foreground">staff</span>
-                  </span>
-                </div>
-              )}
-              {selectedStore && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  <Check className="h-3 w-3" />
-                  {selectedStore.name}
-                </span>
-              )}
-            </div>
-            {!embeddedInSettings && (
-              <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-                Use in app to filter the dashboard; star marks your default branch.
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {stores.length > 0 && (
-              <div className="relative min-w-[10rem] flex-1 sm:max-w-xs">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={listSearch}
-                  onChange={(e) => setListSearch(e.target.value)}
-                  placeholder="Search units…"
-                  className="h-8 pl-8 text-xs"
-                />
               </div>
-            )}
-            {stores.length >= 2 && (
-              <Button variant="outline" size="sm" className="h-8" onClick={copyAllLinks} title="Copy all business front links">
-                <Link2 className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Copy links</span>
-              </Button>
-            )}
-            {stores.length >= 2 && (
-              <Button variant="outline" size="sm" className="h-8" onClick={() => setShowTransfer(true)} title="Transfer stock between units">
-                <ArrowLeftRight className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Transfer</span>
-              </Button>
-            )}
-            <Button size="sm" className="h-8" onClick={() => { setEditingStore(null); setModal('create') }}>
-              <Plus className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden xs:inline sm:inline">New unit</span>
-              <span className="xs:hidden sm:hidden">New</span>
-            </Button>
+              <p className="mt-1 hidden text-xs text-muted-foreground md:block">
+                Each card shows your branch banner and logo — use in app to filter the dashboard.
+              </p>
+            </div>
+
+            <StoresListToolbar
+              stores={stores}
+              listSearch={listSearch}
+              onListSearchChange={setListSearch}
+              onCopyLinks={copyAllLinks}
+              onTransfer={() => setShowTransfer(true)}
+              trailing={
+                <Button size="sm" className="h-8" onClick={() => { setEditingStore(null); setModal('create') }}>
+                  <Plus className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden xs:inline sm:inline">New unit</span>
+                  <span className="xs:hidden sm:hidden">New</span>
+                </Button>
+              }
+            />
           </div>
         </div>
-      </div>
+      )}
 
       {/* Business unit grid */}
       {isLoading ? (
@@ -875,10 +794,16 @@ export default function StoresPage({ embeddedInSettings = false }: StoresPagePro
         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-xl text-center">
           <Store className="w-12 h-12 text-gray-300 mb-3" />
           <p className="font-medium text-gray-600">No business units yet</p>
-          <p className="text-sm text-gray-400 mt-1">Add your first branch or location to get started</p>
-          <Button className="mt-4" onClick={() => { setEditingStore(null); setModal('create') }}>
-            <Plus className="w-4 h-4 mr-2" />Add first business unit
-          </Button>
+          <p className="text-sm text-gray-400 mt-1">
+            {embeddedInSettings
+              ? 'Add business units from the Business Units page in the menu.'
+              : 'Add your first branch or location to get started'}
+          </p>
+          {!embeddedInSettings && (
+            <Button className="mt-4" onClick={() => { setEditingStore(null); setModal('create') }}>
+              <Plus className="w-4 h-4 mr-2" />Add first business unit
+            </Button>
+          )}
         </div>
       ) : filteredStores.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 border border-dashed rounded-xl text-center text-muted-foreground">
@@ -886,7 +811,7 @@ export default function StoresPage({ embeddedInSettings = false }: StoresPagePro
           <Button variant="link" className="mt-2" onClick={() => setListSearch('')}>Clear search</Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-3 gap-2 items-start sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filteredStores.map(store => (
             <StoreCard
               key={store.id}
@@ -914,10 +839,10 @@ export default function StoresPage({ embeddedInSettings = false }: StoresPagePro
           <button
             type="button"
             onClick={() => { setEditingStore(null); setModal('create') }}
-            className="flex min-h-[10.5rem] flex-col items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+            className="flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border py-4 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
           >
-            <Plus className="mb-1.5 h-6 w-6" />
-            <span className="text-xs font-medium">Add unit</span>
+            <Plus className="h-5 w-5" />
+            <span className="text-[0.65rem] font-medium">Add unit</span>
           </button>
           )}
         </div>

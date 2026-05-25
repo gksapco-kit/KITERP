@@ -7,6 +7,8 @@ export interface CollapsibleSectionProps {
   title: string
   icon: ElementType
   subtitle?: string
+  /** Second line below subtitle — e.g. descriptive help text shown alongside the scope label. */
+  helpText?: string
   open: boolean
   toggle: () => void
   children: ReactNode
@@ -18,6 +20,7 @@ export function CollapsibleSection({
   title,
   icon: Icon,
   subtitle,
+  helpText,
   open,
   toggle,
   children,
@@ -52,10 +55,19 @@ export function CollapsibleSection({
           <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-snug text-foreground">{title}</p>
-          {subtitle ? (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground" title={subtitle}>
-              {subtitle}
+          {/* Line 1: title + scope label inline */}
+          <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 leading-snug">
+            <span className="text-sm font-semibold text-foreground">{title}</span>
+            {subtitle ? (
+              <span className="truncate text-xs font-normal text-muted-foreground" title={subtitle}>
+                {subtitle}
+              </span>
+            ) : null}
+          </p>
+          {/* Line 2: descriptive help text */}
+          {helpText ? (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground/80" title={helpText}>
+              {helpText}
             </p>
           ) : null}
         </div>

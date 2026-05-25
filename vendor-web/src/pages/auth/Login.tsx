@@ -16,6 +16,7 @@ import {
   Loader2, Eye, EyeOff, Lock, Phone, MessageCircle, HelpCircle, ChevronDown, ChevronUp, ServerOff, RefreshCw, Store,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { checkBackendReachable, getBackendHealthUrl } from '@/lib/apiHealth'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
 import { extractApiError, parseAmbiguousVendorLogin, type AmbiguousVendorOption } from '@/lib/errorMessages'
@@ -267,7 +268,7 @@ export default function Login() {
                   dense
                   value={field.value ?? ''}
                   onChange={field.onChange}
-                  error={errors.login?.message}
+                  error={errors.login?.message ? formatFormFieldError(errors.login.message, 'Email or Phone') : undefined}
                   defaultCountryIso="IN"
                   inferCountryFromLocation
                   autoFocus

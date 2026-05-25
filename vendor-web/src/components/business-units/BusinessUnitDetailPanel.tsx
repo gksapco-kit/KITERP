@@ -1,8 +1,10 @@
-import { MapPin, Phone, Star, Store } from 'lucide-react'
+import { MapPin, Phone, Star } from 'lucide-react'
 import type { StoreRecord } from '@/api/vendor'
 import { cn } from '@/lib/utils'
+import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { useVendorStore } from '@/stores/vendorStore'
 import VendorStorefrontLinksCard from '@/components/VendorStorefrontLinksCard'
+import { BusinessUnitVisualHero } from '@/components/business-units/BusinessUnitVisualHero'
 import { IdChip, VerifiedBadge, formatStoreCode, vendorVerificationLevel } from '@/lib/verification'
 
 type Props = {
@@ -13,6 +15,7 @@ type Props = {
 
 export default function BusinessUnitDetailPanel({ store, embeddedInSettings = false }: Props) {
   const { vendor } = useVendorStore()
+  const visual = getBusinessUnitVisual(store)
 
   const slug = vendor?.slug?.trim()
 
@@ -23,10 +26,8 @@ export default function BusinessUnitDetailPanel({ store, embeddedInSettings = fa
 
   return (
     <div className={cn('space-y-3', embeddedInSettings && 'rounded-lg border border-border bg-card p-3 shadow-sm')}>
+      <BusinessUnitVisualHero store={store} />
       <div className="flex flex-wrap items-start gap-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Store className="h-4 w-4" />
-        </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h2 className="text-base font-semibold text-foreground">{store.name}</h2>
@@ -46,8 +47,9 @@ export default function BusinessUnitDetailPanel({ store, embeddedInSettings = fa
               {store.is_active ? 'Active' : 'Inactive'}
             </span>
           </div>
+          <p className="mt-0.5 text-xs font-medium text-primary">{visual.typeLabel}</p>
           {store.description && (
-            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{store.description}</p>
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{store.description}</p>
           )}
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <IdChip

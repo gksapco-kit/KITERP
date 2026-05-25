@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -33,68 +34,92 @@ function shareProduct(product: { name: string; price: number; category?: string;
 function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => void }) {
   const [open, setOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+
+  // Position menu anchored to the trigger button via portal
+  useEffect(() => {
+    if (!open || !triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    setPos({
+      top: rect.bottom + window.scrollY + 4,
+      right: window.innerWidth - rect.right,
+    })
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-        setConfirmDelete(false)
-      }
+      if (
+        triggerRef.current?.contains(e.target as Node) ||
+        menuRef.current?.contains(e.target as Node)
+      ) return
+      setOpen(false)
+      setConfirmDelete(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  return (
-    <div ref={ref} className="relative">
-      <Button variant="ghost" size="sm" className="h-8 w-8 p-0"
-        onClick={() => { setOpen(!open); setConfirmDelete(false) }}>
-        <MoreVertical className="w-4 h-4 text-gray-500" />
-      </Button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg border shadow-lg z-50 py-1 animate-in fade-in-0 zoom-in-95">
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { shareProduct(product, 'copy'); setOpen(false) }}>
-            <Copy className="w-4 h-4 text-gray-400" /> Copy Info
-          </button>
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { shareProduct(product, 'whatsapp'); setOpen(false) }}>
-            <MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp
-          </button>
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { shareProduct(product, 'email'); setOpen(false) }}>
-            <Mail className="w-4 h-4 text-blue-500" /> Email
-          </button>
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { shareProduct(product, 'native'); setOpen(false) }}>
-            <Share2 className="w-4 h-4 text-primary/80" /> Share
-          </button>
-          <div className="border-t my-1" />
-          {confirmDelete ? (
-            <div className="px-3 py-2 space-y-2">
-              <p className="text-xs font-medium text-red-600">Delete this product?</p>
-              <div className="flex gap-2">
-                <button className="flex-1 px-2 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
-                  onClick={() => { onDelete(); setOpen(false); setConfirmDelete(false) }}>
-                  Yes, Delete
-                </button>
-                <button className="btn-cancel flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors"
-                  onClick={() => setConfirmDelete(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-              onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="w-4 h-4" /> Delete
+  const menu = open ? createPortal(
+    <div
+      ref={menuRef}
+      style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999 }}
+      className="w-44 bg-white rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95"
+    >
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { shareProduct(product, 'copy'); setOpen(false) }}>
+        <Copy className="w-4 h-4 text-gray-400" /> Copy Info
+      </button>
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { shareProduct(product, 'whatsapp'); setOpen(false) }}>
+        <MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp
+      </button>
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { shareProduct(product, 'email'); setOpen(false) }}>
+        <Mail className="w-4 h-4 text-blue-500" /> Email
+      </button>
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { shareProduct(product, 'native'); setOpen(false) }}>
+        <Share2 className="w-4 h-4 text-primary/80" /> Share
+      </button>
+      <div className="border-t my-1" />
+      {confirmDelete ? (
+        <div className="px-3 py-2 space-y-2">
+          <p className="text-xs font-medium text-red-600">Delete this product?</p>
+          <div className="flex gap-2">
+            <button className="flex-1 px-2 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+              onClick={() => { onDelete(); setOpen(false); setConfirmDelete(false) }}>
+              Yes, Delete
             </button>
-          )}
+            <button className="btn-cancel flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors"
+              onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </button>
+          </div>
         </div>
+      ) : (
+        <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          onClick={() => setConfirmDelete(true)}>
+          <Trash2 className="w-4 h-4" /> Delete
+        </button>
       )}
-    </div>
+    </div>,
+    document.body,
+  ) : null
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md p-0 text-gray-500 hover:bg-gray-100 transition-colors"
+        onClick={() => { setOpen(v => !v); setConfirmDelete(false) }}
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+      {menu}
+    </>
   )
 }
 
@@ -293,8 +318,8 @@ export default function Products() {
 
                 return (
                 <tr key={product.id} className="hover:bg-gray-50/80 cursor-pointer transition-colors group" onClick={() => navigate(`/products/${product.id}`)}>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
+                  <td className="px-5 py-3 max-w-[280px]">
+                    <div className="flex items-center gap-3 min-w-0">
                       {thumbUrl ? (
                         <img src={thumbUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-200/80" />
                       ) : (
@@ -308,28 +333,30 @@ export default function Products() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{product.brand || '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-blue-50 text-blue-700 capitalize">{product.product_type || 'physical'}</span>
+                  <td className="px-4 py-3 max-w-[120px]">
+                    <p className="text-sm text-gray-600 truncate" title={product.brand || undefined}>{product.brand || '—'}</p>
                   </td>
                   <td className="px-4 py-3">
+                    <span className="px-2 py-0.5 text-xs rounded-full font-semibold bg-blue-50 text-blue-700 capitalize whitespace-nowrap">{product.product_type || 'physical'}</span>
+                  </td>
+                  <td className="px-4 py-3 max-w-[110px]">
                     {(() => {
-                      if (!hasVariants) return <span className="text-sm font-medium text-gray-900">{formatCurrency(product.price)}</span>
+                      if (!hasVariants) return <span className="text-sm font-medium text-gray-900 truncate block">{formatCurrency(product.price)}</span>
                       const prices = variants.map((v: any) => v.price).filter((p: number) => p > 0).sort((a: number, b: number) => a - b)
                       if (prices.length === 0) return <span className="text-sm text-gray-400">—</span>
                       const low = prices[0]
                       const high = prices[prices.length - 1]
                       return (
-                        <div>
-                          <span className="text-sm font-medium text-gray-900">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
                             {low === high ? formatCurrency(low) : `${symbol}${low.toLocaleString()} – ${symbol}${high.toLocaleString()}`}
-                          </span>
-                          <p className="text-xs text-gray-400 mt-0.5">{variants.length} variant{variants.length > 1 ? 's' : ''}</p>
+                          </p>
+                          <p className="text-xs text-gray-400">{variants.length} variant{variants.length > 1 ? 's' : ''}</p>
                         </div>
                       )
                     })()}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 max-w-[110px]">
                     {(() => {
                       if (!hasVariants) {
                         const qty = product.quantity ?? 0
@@ -337,9 +364,11 @@ export default function Products() {
                         const isOut = sts === 'out_of_stock' || sts === 'discontinued'
                         const isLow = !isOut && qty <= (product.low_stock_threshold ?? 5)
                         return (
-                          <div>
-                            <span className={`text-sm font-semibold ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>{qty}</span>
-                            <span className={`ml-1.5 text-xs ${isOut ? 'text-red-400' : 'text-gray-400'}`}>{sts.replace(/_/g, ' ')}</span>
+                          <div className="min-w-0">
+                            <p>
+                              <span className={`text-sm font-semibold ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>{qty}</span>
+                              <span className={`ml-1 text-xs ${isOut ? 'text-red-400' : 'text-gray-400'}`}>{sts.replace(/_/g, ' ')}</span>
+                            </p>
                           </div>
                         )
                       }
@@ -348,23 +377,23 @@ export default function Products() {
                       const isAllOut = outCount === variants.length
                       const hasLow = !isAllOut && outCount > 0
                       return (
-                        <div>
-                          <span className={`text-sm font-semibold ${isAllOut ? 'text-red-600' : hasLow ? 'text-amber-600' : 'text-gray-800'}`}>
-                            {totalStock.toLocaleString()}
-                          </span>
-                          <span className="text-xs text-gray-400 ml-1">total</span>
+                        <div className="min-w-0">
+                          <p>
+                            <span className={`text-sm font-semibold ${isAllOut ? 'text-red-600' : hasLow ? 'text-amber-600' : 'text-gray-800'}`}>
+                              {totalStock.toLocaleString()}
+                            </span>
+                            <span className="text-xs text-gray-400 ml-1">total</span>
+                          </p>
                           {outCount > 0 && !isAllOut && (
-                            <p className="text-xs text-red-400 mt-0.5">{outCount} of {variants.length} out of stock</p>
+                            <p className="text-xs text-red-400 truncate">{outCount}/{variants.length} out of stock</p>
                           )}
-                          {isAllOut && (
-                            <p className="text-xs text-red-400 mt-0.5">all out of stock</p>
-                          )}
+                          {isAllOut && <p className="text-xs text-red-400">all out of stock</p>}
                         </div>
                       )
                     })()}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-semibold ${
+                    <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
                       product.status === 'active' ? 'bg-green-100 text-green-700' :
                       product.status === 'archived' ? 'bg-red-50 text-red-600' :
                       'bg-gray-100 text-gray-700'

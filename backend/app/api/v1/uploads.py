@@ -135,6 +135,59 @@ async def upload_vendor_banner(
     return JSONResponse(content={"banner_url": url})
 
 
+@router.post("/vendor/extra-banner")
+async def upload_vendor_extra_banner(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload an additional banner and append it to theme_config['extra_banners']."""
+    from sqlalchemy.orm.attributes import flag_modified
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    url = await _save_file(file, "vendor-banners")
+
+    cfg = dict(vendor.theme_config or {})
+    extras: list = list(cfg.get("extra_banners", []))
+    extras.append(url)
+    cfg["extra_banners"] = extras
+    vendor.theme_config = cfg
+    flag_modified(vendor, "theme_config")
+    await db.commit()
+    return JSONResponse(content={"banner_url": url, "extra_banners": extras})
+
+
+@router.delete("/vendor/extra-banner")
+async def remove_vendor_extra_banner(
+    url: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a single extra banner URL from theme_config['extra_banners']."""
+    from sqlalchemy.orm.attributes import flag_modified
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    cfg = dict(vendor.theme_config or {})
+    extras: list = [u for u in cfg.get("extra_banners", []) if u != url]
+    cfg["extra_banners"] = extras
+    vendor.theme_config = cfg
+    flag_modified(vendor, "theme_config")
+
+    # Also delete the file from disk
+    old_path = UPLOAD_DIR.parent / url.lstrip("/")
+    if old_path.exists():
+        old_path.unlink()
+
+    await db.commit()
+    return JSONResponse(content={"extra_banners": extras})
+
+
 @router.post("/vendor/blog-cover")
 async def upload_vendor_blog_cover(
     file: UploadFile = File(...),

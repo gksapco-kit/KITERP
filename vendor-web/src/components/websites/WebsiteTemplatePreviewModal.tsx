@@ -365,7 +365,7 @@ export function WebsiteTemplatePreviewModal({
                   <ExternalLink className="w-3.5 h-3.5" />
                   Open in browser
                 </a>
-                <button type="button" aria-label="Close"
+                <button
                   type="button"
                   onClick={handleClose}
                   className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600"

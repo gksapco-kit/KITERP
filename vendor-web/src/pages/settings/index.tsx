@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,15 +9,17 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useUpdateVendor, useUpdateStore, useStores } from '@/hooks/useVendor'
 import type { StoreRecord } from '@/api/vendor'
-import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
+import { useBusinessUnitScopeLabel, type BusinessUnitScopeMode } from '@/hooks/useBusinessUnitScope'
 import StoresPage from '@/pages/stores'
+import { StoresListToolbar } from '@/components/business-units/StoresListToolbar'
 import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
+import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { vendorApi } from '@/api/vendor'
 import {
   Save, Loader2, Store, MapPin, FileText, Globe,
   Clock, ChevronDown, ChevronUp, Building2, Phone,
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
-  ChevronRight, Check, Settings2,
+  ChevronRight, Check,
   Info, CheckCircle2, Landmark, HelpCircle, Lock, Building, Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -61,11 +63,23 @@ const OFFERING_OPTIONS = [
   { value: 'both', label: 'Products & Services' },
 ]
 
+function settingsScopeHelpText(mode: BusinessUnitScopeMode, scopeLabel: string): string {
+  const picker = BUSINESS_UNIT_STORE_LABEL
+  switch (mode) {
+    case 'all':
+      return `${scopeLabel}. Change ${picker} in the top bar to edit settings for a single branch.`
+    case 'unit':
+    case 'single':
+      return `${scopeLabel}. Change ${picker} in the top bar to switch branches or view all units.`
+    case 'none':
+      return `${scopeLabel}. Select a ${picker} in the top bar to scope settings to one branch.`
+  }
+}
+
 export default function SettingsPage() {
   const vendor = useVendorStore((s) => s.vendor)
   const selectedStore = useVendorStore((s) => s.selectedStore)
   const { user } = useAuthStore()
-  const navigate = useNavigate()
   const { data: storesData } = useStores()
   const stores = storesData?.stores ?? []
   const { label: scopeLabel, heading: scopeHeading, mode: scopeMode, storeId: scopeStoreId } =
@@ -86,6 +100,7 @@ export default function SettingsPage() {
   const rawSection = searchParams.get('section')
   const sectionParam = (rawSection && VALID_SECTIONS.includes(rawSection as Section) ? rawSection as Section : null)
   const [openSection, setOpenSection] = useState<Section | null>(sectionParam ?? 'profile')
+  const [buListSearch, setBuListSearch] = useState('')
 
   // If the URL ?section= changes (e.g. navigating from universal search), update state + scroll
   useEffect(() => {
@@ -105,55 +120,78 @@ export default function SettingsPage() {
     user.vendor_role.vendor_id === vendor.id &&
     (user.vendor_role.role === 'owner' || user.vendor_role.role === 'platform_staff')
 
+  function copyAllBuLinks() {
+    const base = vendor?.slug ? getCustomerStorefrontBaseUrl(vendor.slug) : ''
+    const lines = stores.map((s) => {
+      const key = s.code || s.id
+      const url = base ? `${base}?branch=${encodeURIComponent(key)}` : key
+      return `${s.name}: ${url}`
+    }).join('\n')
+    navigator.clipboard.writeText(lines).then(() => toast.success(`${stores.length} store links copied!`))
+  }
+
+  const supportAuditChip = showSupportAuditLink ? (
+    <Link
+      to="/settings/support-activity"
+      className="inline-flex items-center gap-1 rounded-full border border-blue-200/80 bg-blue-50/60 px-2 py-0.5 text-[0.68rem] font-medium text-blue-800 hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
+    >
+      <HelpCircle className="h-2.5 w-2.5 shrink-0" />
+      Support audit
+    </Link>
+  ) : null
+
+  const statusChip = (
+    <div
+      className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[0.68rem] text-muted-foreground"
+      title={vendor?.status ?? undefined}
+    >
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${vendor?.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'}`} />
+      {vendorStatusLabel(vendor?.status)}
+    </div>
+  )
+
   return (
     <div className="mx-auto max-w-6xl space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* Single header row: title + toolbar + chips */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
         <h1
-          className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xl font-bold text-foreground"
+          className="flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-1.5 text-lg font-bold text-foreground"
           title={`Settings — ${scopeHeading}`}
         >
-          <span className="shrink-0">Settings</span>
-          <span className="min-w-0 truncate text-base font-semibold text-muted-foreground sm:text-lg">
+          <span>Settings</span>
+          <span className="min-w-0 truncate text-sm font-semibold text-muted-foreground">
             {scopeHeading}
           </span>
         </h1>
-        <div className="flex flex-wrap items-center gap-2">
-          {showSupportAuditLink && (
-            <Link
-              to="/settings/support-activity"
-              className="inline-flex items-center gap-1.5 rounded-full border border-blue-200/80 bg-blue-50/60 px-2.5 py-1 text-xs font-medium text-blue-800 hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
-            >
-              <HelpCircle className="h-3 w-3 shrink-0" />
-              Support audit
-            </Link>
-          )}
-          <div
-            className="flex items-center gap-2 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground"
-            title={vendor?.status ?? undefined}
-          >
-            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${vendor?.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'}`} />
-            {vendorStatusLabel(vendor?.status)}
-          </div>
+
+        {allBusinessUnitsMode && (
+          <StoresListToolbar
+            stores={stores}
+            listSearch={buListSearch}
+            onListSearchChange={setBuListSearch}
+            onCopyLinks={copyAllBuLinks}
+            compact
+          />
+        )}
+
+        <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
+          {supportAuditChip}
+          {statusChip}
         </div>
       </div>
+      <p className="text-[0.7rem] text-muted-foreground leading-snug">
+        {settingsScopeHelpText(scopeMode, scopeLabel)}
+      </p>
 
       {allBusinessUnitsMode ? (
-        <StoresPage embeddedInSettings />
+        <StoresPage
+          embeddedInSettings
+          hideToolbar
+          listSearch={buListSearch}
+          onListSearchChange={setBuListSearch}
+        />
       ) : showUnitDetailInSettings && activeStoreRecord ? (
         <section className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-            <p className="text-xs text-muted-foreground">
-              {BUSINESS_UNIT_STORE_LABEL} details for the selection in the top bar.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/stores')}
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              <Settings2 className="h-3 w-3" />
-              All {BUSINESS_UNIT_STORE_LABEL}
-            </button>
-          </div>
           <BusinessUnitDetailPanel
             key={activeStoreRecord.id}
             store={activeStoreRecord}
@@ -162,20 +200,7 @@ export default function SettingsPage() {
         </section>
       ) : null}
 
-
-      <div
-        key={scopeStoreId ?? 'all-units'}
-        className="space-y-4"
-      >
-        <p className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Settings scope:</span>
-          <span className="rounded-md border border-border bg-background px-2 py-0.5 font-medium text-foreground">
-            {scopeLabel}
-          </span>
-          {scopeMode === 'all' && (
-            <span className="text-xs">Change {BUSINESS_UNIT_STORE_LABEL} in the top bar</span>
-          )}
-        </p>
+      <div key={scopeStoreId ?? 'all-units'} className="space-y-4">
         <div className="flex flex-col gap-4">
         <div id="settings-section-profile">
           <ProfileSection
@@ -251,6 +276,7 @@ function SectionWrapper({
   title,
   icon: Icon,
   subtitle: subtitleOverride,
+  helpText,
   open,
   toggle,
   children,
@@ -259,6 +285,8 @@ function SectionWrapper({
   icon: React.ElementType
   /** Fixed subtitle (e.g. About); omit to use live business-unit scope from the header picker. */
   subtitle?: string
+  /** Optional second line — descriptive help text shown below the scope label. */
+  helpText?: string
   open: boolean
   toggle: () => void
   children: React.ReactNode
@@ -269,6 +297,7 @@ function SectionWrapper({
       title={title}
       icon={Icon}
       subtitle={subtitleOverride ?? scopeLabel}
+      helpText={helpText}
       open={open}
       toggle={toggle}
     >
@@ -386,10 +415,12 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
   })
   const [logoUploading, setLogoUploading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
+  const [extraBannerUploading, setExtraBannerUploading] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
   const [cropTarget, setCropTarget] = useState<'logo' | 'banner' | null>(null)
   const logoRef = useRef<HTMLInputElement>(null)
   const bannerRef = useRef<HTMLInputElement>(null)
+  const extraBannerRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (vendor) {
@@ -455,6 +486,35 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
   const removeLogo = () => onSave.mutate({ logo_url: '' })
   const removeBanner = () => onSave.mutate({ banner_url: '' })
 
+  const handleExtraBannerFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (extraBannerRef.current) extraBannerRef.current.value = ''
+    setExtraBannerUploading(true)
+    try {
+      const { extra_banners } = await vendorApi.uploadVendorExtraBanner(file)
+      if (vendor) setVendor({ ...vendor, theme_config: { ...(vendor.theme_config || {}), extra_banners } })
+      await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+      toast.success('Banner added')
+    } catch {
+      toast.error('Could not upload banner — use a PNG or JPG under 5MB')
+    }
+    setExtraBannerUploading(false)
+  }
+
+  const removeExtraBanner = async (url: string) => {
+    try {
+      const { extra_banners } = await vendorApi.removeVendorExtraBanner(url)
+      if (vendor) setVendor({ ...vendor, theme_config: { ...(vendor.theme_config || {}), extra_banners } })
+      await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+      toast.success('Banner removed')
+    } catch {
+      toast.error('Could not remove banner')
+    }
+  }
+
+  const extraBanners: string[] = (vendor?.theme_config as any)?.extra_banners ?? []
+
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
   const imgUrl = (url?: string | null) => {
     if (!url) return ''
@@ -463,7 +523,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   return (
-    <SectionWrapper title="Business Profile" icon={Store} open={open} toggle={toggle}>
+    <SectionWrapper title="Business Profile" helpText="Name, branding, logo, and banners" icon={Store} open={open} toggle={toggle}>
       {/* Image crop modal */}
       {cropFile && cropTarget && (
         <ImageCropModal
@@ -517,41 +577,81 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
               <span className="mt-0.5 block text-center text-xs text-muted-foreground">Logo</span>
             </div>
 
-            <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFileSelected} />
-            <div className="relative min-w-0 flex-1">
-              <button
-                type="button"
-                onClick={() => bannerRef.current?.click()}
-                title="Upload store banner (1200×400)"
-                className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400 group"
-              >
-                {bannerUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                ) : vendor?.banner_url ? (
-                  <>
-                    <img src={imgUrl(vendor.banner_url)} alt="Banner" className="h-full w-full object-cover" />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Camera className="h-3.5 w-3.5 text-white" />
+            {/* Banners grid: primary + extras + add slot */}
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {/* Primary banner */}
+                <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFileSelected} />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => bannerRef.current?.click()}
+                    title="Upload primary banner (1200×400)"
+                    className="group relative flex h-16 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
+                  >
+                    {bannerUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                    ) : vendor?.banner_url ? (
+                      <>
+                        <img src={imgUrl(vendor.banner_url)} alt="Banner 1" className="h-full w-full object-cover" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                          <Camera className="h-3.5 w-3.5 text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <span className="flex flex-col items-center gap-0.5 text-gray-400">
+                        <ImageIcon className="h-4 w-4" />
+                        <span className="text-[10px]">Primary</span>
+                      </span>
+                    )}
+                  </button>
+                  {vendor?.banner_url && (
+                    <button type="button" aria-label="Remove banner" onClick={removeBanner}
+                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                  <span className="mt-0.5 block text-center text-[10px] text-muted-foreground">Banner 1</span>
+                </div>
+
+                {/* Extra banners */}
+                {extraBanners.map((url, i) => (
+                  <div key={url} className="relative">
+                    <div className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                      <img src={imgUrl(url)} alt={`Banner ${i + 2}`} className="h-full w-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Camera className="h-3.5 w-3.5 text-white" />
+                      </div>
                     </div>
-                  </>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <ImageIcon className="h-4 w-4 shrink-0" />
-                    Add banner
-                  </span>
-                )}
-              </button>
-              {vendor?.banner_url && (
-                <button
-                  type="button"
-                  aria-label="Remove banner"
-                  onClick={removeBanner}
-                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
-                >
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              )}
-              <span className="mt-0.5 block text-center text-xs text-muted-foreground">Banner</span>
+                    <button type="button" aria-label="Remove banner" onClick={() => removeExtraBanner(url)}
+                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                    <span className="mt-0.5 block text-center text-[10px] text-muted-foreground">Banner {i + 2}</span>
+                  </div>
+                ))}
+
+                {/* Add extra banner slot */}
+                <input ref={extraBannerRef} type="file" accept="image/*" className="hidden" onChange={handleExtraBannerFileSelected} />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => extraBannerRef.current?.click()}
+                    title="Add another banner"
+                    className="flex h-16 w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-primary hover:bg-primary/5"
+                  >
+                    {extraBannerUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                    ) : (
+                      <span className="flex flex-col items-center gap-0.5 text-gray-400">
+                        <span className="text-lg leading-none">+</span>
+                        <span className="text-[10px]">Add banner</span>
+                      </span>
+                    )}
+                  </button>
+                  <span className="mt-0.5 block text-center text-[10px] text-muted-foreground opacity-0">·</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -707,7 +807,7 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   return (
-    <SectionWrapper title="Contact Information" icon={Phone} open={open} toggle={toggle}>
+    <SectionWrapper title="Contact Information" helpText="Phone, email, and support details" icon={Phone} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -1030,7 +1130,7 @@ function AddressSection({
     : `Select a ${BUSINESS_UNIT_STORE_LABEL} in the top bar to edit`
 
   return (
-    <SectionWrapper title="Addresses" icon={MapPin} open={open} toggle={toggle}>
+    <SectionWrapper title="Addresses" helpText="Branch location and registered HQ address" icon={MapPin} open={open} toggle={toggle}>
       <div className="grid grid-cols-1 gap-3 pt-2 lg:grid-cols-2 lg:items-stretch">
         <AddressPanelShell
           title={`${BUSINESS_UNIT_STORE_LABEL} address`}
@@ -1125,7 +1225,7 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   return (
-    <SectionWrapper title="Tax & Compliance" icon={FileText} open={open} toggle={toggle}>
+    <SectionWrapper title="Tax & Compliance" helpText="GST, PAN, GSTIN and tax registration details" icon={FileText} open={open} toggle={toggle}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-4">
         <label className="flex items-center gap-3 cursor-pointer">
           <input
@@ -1217,7 +1317,7 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   return (
     <SectionWrapper
       title="Offline Business Hours"
-      subtitle="Business Front opening hours"
+      helpText="Walk-in hours shown on your Business Front"
       icon={Clock}
       open={open}
       toggle={toggle}
@@ -1331,7 +1431,7 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
   return (
     <SectionWrapper
       title="Online Orders"
-      subtitle="When customers can place orders online"
+      helpText="Control when customers can place orders online"
       icon={ShoppingBag}
       open={open}
       toggle={toggle}

@@ -1,4 +1,4 @@
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, FormProvider, Controller, type FieldErrors } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
@@ -22,7 +22,20 @@ import {
   BOOKING_DOC_TYPES, getServiceDocTemplates, setServiceDocTemplates,
   type BookingDocTypeId,
 } from '@/lib/bookingDocuments'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import {
+  FormPageWithNav,
+  FormSectionNav,
+  FormField,
+  handleFormInvalid,
+  formDisplayCompact,
+  formEditLayout,
+  formSectionSurfaceClass,
+  formSelectClass,
+  formTextareaClass,
+  useFormActiveSection,
+} from '@/components/common/FormSectionNav'
+import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -212,10 +225,10 @@ const optNum = z.coerce.number().optional().or(z.literal('').transform(() => und
 const optInt = z.coerce.number().int().optional().or(z.literal('').transform(() => undefined))
 
 const schema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(255),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(255, 'Service name cannot exceed 255 characters'),
   slug: z.string().max(255).regex(/^[a-z0-9-]*$/, 'Slug: lowercase, numbers, hyphens only').optional().or(z.literal('')),
   description: optStr,
-  short_description: z.string().max(500).optional().or(z.literal('')),
+  short_description: z.string().max(500, 'Short description cannot exceed 500 characters').optional().or(z.literal('')),
   brand: optStr,
   service_type: z.string().default('one_time'),
   category: optStr,
@@ -412,44 +425,40 @@ function newPlan(i: number): PlanDraft {
 
 // ── UI Helpers ────────────────────────────────────────────────────
 
-const selectCls = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
-const textareaCls = 'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+const selectCls = formSelectClass
+const textareaCls = formTextareaClass
 
-function Section({ title, icon: Icon, open, onToggle, badge, children }: {
+function Section({ title, icon: Icon, open, onToggle, badge, children, sectionId }: {
   title: string; icon: React.ElementType; open: boolean; onToggle: () => void
-  badge?: React.ReactNode; children: React.ReactNode
+  badge?: React.ReactNode; children: React.ReactNode; sectionId?: string
 }) {
+  const activeFormSection = useFormActiveSection()
+  const scrollActive = !!sectionId && activeFormSection === sectionId
   return (
-    <Card className="overflow-hidden shadow-sm">
+    <Card
+      id={sectionId ? `form-section-${sectionId}` : undefined}
+      className={cn('overflow-hidden shadow-sm', formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(scrollActive))}
+    >
       <button
         type="button"
         onClick={onToggle}
         className={cn(
-          'flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left sm:px-5',
-          'transition-colors hover:bg-accent/80 dark:hover:bg-secondary/60',
+          formEditLayout.sectionHeaderBtn,
+          'rounded-t-xl text-left transition-colors',
+          scrollActive && 'bg-primary/8',
+          'hover:bg-accent/80 dark:hover:bg-secondary/60',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span
-            className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10',
-              'bg-primary/12 text-primary ring-1 ring-inset ring-primary/20',
-              'dark:bg-primary/25 dark:ring-primary/40',
-            )}
-            aria-hidden
-          >
-            <Icon className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" strokeWidth={2} />
-          </span>
-          <span className="min-w-0 truncate text-sm font-semibold leading-snug text-foreground sm:text-base">{title}</span>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Icon className="h-4 w-4 shrink-0 text-primary sm:h-[1.125rem] sm:w-[1.125rem]" strokeWidth={2} aria-hidden />
+          <span className="min-w-0 truncate text-sm font-semibold leading-snug text-foreground">{title}</span>
           {badge ? <span className="shrink-0">{badge}</span> : null}
         </div>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground dark:text-foreground/80">
-          {open ? <ChevronUp className="h-5 w-5" aria-hidden /> : <ChevronDown className="h-5 w-5" aria-hidden />}
-        </span>
+        {open ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />}
       </button>
       {open && (
-        <CardContent className="border-t border-border bg-muted/25 px-4 pb-5 pt-0 dark:bg-black/20 sm:px-6">
+        <CardContent className={cn(formEditLayout.sectionContent, 'border-border bg-muted/20 dark:bg-black/20')}>
           {children}
         </CardContent>
       )}
@@ -457,15 +466,15 @@ function Section({ title, icon: Icon, open, onToggle, badge, children }: {
   )
 }
 
-function Field({ label, error, children, className }: {
-  label: string; error?: string; children: React.ReactNode; className?: string
-}) {
+function FormMediaCard({ children }: { children: React.ReactNode }) {
+  const activeFormSection = useFormActiveSection()
   return (
-    <div className={`space-y-1.5 ${className || ''}`}>
-      <Label className="text-xs font-medium text-gray-600">{label}</Label>
+    <Card
+      id="form-section-media"
+      className={cn('shadow-sm', formSectionSurfaceClass(activeFormSection === 'media'))}
+    >
       {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
-    </div>
+    </Card>
   )
 }
 
@@ -647,7 +656,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
                     {(f.options || []).map((opt, i) => (
                       <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs pl-2 pr-1 py-0.5 rounded-full">
                         {opt}
-                        <button type="button" aria-label="Close" type="button" onClick={() => removeOption(f.key, i)} className="hover:text-red-500 transition-colors">
+                        <button type="button" aria-label="Close" onClick={() => removeOption(f.key, i)} className="hover:text-red-500 transition-colors">
                 <X className="w-3 h-3" /></button>
                       </span>
                     ))}
@@ -765,7 +774,7 @@ function AvailabilityEditor({ availability, onChange }: {
                         onChange={e => updateSlotTime(day, si, 'end_time', e.target.value)}
                         className={timeCls} />
                       {daySlots.filter(s => s.is_available).length > 1 && (
-                        <button type="button" aria-label="Close" type="button" onClick={() => removeSlot(day, si)}
+                        <button type="button" aria-label="Close" onClick={() => removeSlot(day, si)}
                           className="p-0.5 text-gray-300 hover:text-red-500 transition-colors">
                 <X className="w-3.5 h-3.5" />
                         </button>
@@ -818,9 +827,21 @@ export default function ServiceForm() {
   const [viewMode, setViewMode] = useState(searchParams.get('mode') === 'view')
   const [isSaving, setIsSaving] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ basic: true, storefrontOptions: true, subscription: true })
+  const [visitedSections, setVisitedSections] = useState<Set<string>>(new Set(['basic', 'storefrontOptions', 'subscription']))
+  const [activeFormSection, setActiveFormSection] = useState<string | null>(null)
+  const [activeViewSection, setActiveViewSection] = useState<string | null>(null)
   const [availability, setAvailability] = useState<AvailSlot[]>(DEFAULT_AVAILABILITY)
-  const [plans, setPlans] = useState<PlanDraft[]>([])
-  const [expandedPlans, setExpandedPlans] = useState<Record<number, boolean>>({})
+  const [plans, setPlans] = useState<PlanDraft[]>(() => (isEdit ? [] : [newPlan(0)]))
+
+  const insertPlanAt = useCallback((insertAt: number) => {
+    setPlans(p => {
+      const next = [...p]
+      next.splice(insertAt, 0, newPlan(insertAt))
+      return next
+    })
+    setExpandedPlans(ep => ({ ...ep, [insertAt]: true }))
+  }, [])
+  const [expandedPlans, setExpandedPlans] = useState<Record<number, boolean>>(() => (isEdit ? {} : { 0: true }))
   const [expandedPlanSections, setExpandedPlanSections] = useState<Record<string, boolean>>({})
   const [deletingPlanIdx, setDeletingPlanIdx] = useState<number | null>(null)
   const [leadTimeUnit, setLeadTimeUnit] = useState('hours')
@@ -892,9 +913,20 @@ export default function ServiceForm() {
   const [pendingPreviews, setPendingPreviews] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const toggle = (key: string) => setOpenSections(p => ({ ...p, [key]: !p[key] }))
+  const toggle = (key: string) => {
+    setOpenSections(p => ({ ...p, [key]: !p[key] }))
+    setVisitedSections(p => new Set(p).add(key))
+  }
+  const openAndScrollTo = (key: string) => {
+    setActiveFormSection(key)
+    setOpenSections(p => ({ ...p, [key]: true }))
+    setVisitedSections(p => new Set(p).add(key))
+    setTimeout(() => {
+      document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }
 
-  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = useForm<FormData>({
+  const formMethods = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       status: 'active', price_type: 'fixed', currency: 'INR', uom: 'per_session',
@@ -906,6 +938,16 @@ export default function ServiceForm() {
       subscription_price_type: 'per_cycle',
     },
   })
+  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = formMethods
+
+  const onFormInvalid = useCallback((validationErrors: FieldErrors) => {
+    handleFormInvalid(validationErrors, {
+      onFieldPath: (path) => {
+        const section = path.startsWith('variants') ? 'variants' : path.split('.')[0]
+        if (section) openAndScrollTo(section)
+      },
+    })
+  }, [])
 
   const watchedPriceType    = watch('price_type')
   const watchedCategory     = watch('category')
@@ -1114,13 +1156,6 @@ export default function ServiceForm() {
     return () => { pendingPreviews.forEach(URL.revokeObjectURL) }
   }, [])
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    register('name').onChange(e)
-    if (!isEdit) {
-      setValue('slug', toSlug(e.target.value))
-    }
-  }
-
   const onSubmit = async (raw: FormData) => {
     setIsSaving(true)
     try {
@@ -1288,6 +1323,35 @@ export default function ServiceForm() {
     setPendingFiles(p => p.filter((_, i) => i !== index))
   }, [])
 
+  const formValues = watch()
+  const serviceSections: FormSectionDef[] = useMemo(() => [
+    { key: 'basic',             label: 'Basic Information',   icon: Briefcase, hint: 'Name, type, duration, and descriptions.' },
+    { key: 'media',             label: 'Service Media',       icon: Eye, hint: 'Gallery and hero media for bookings.' },
+    { key: 'storefrontOptions', label: 'Business Front',      icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
+    { key: 'subscription',      label: 'Plans',               icon: Repeat, hint: 'Plan tiers, billing cycle, and trial setup.' },
+    { key: 'visibility',        label: 'Visibility',          icon: Eye, hint: 'Status, visibility, and featured flags.' },
+    { key: 'seo',               label: 'SEO & Metadata',      icon: Search, hint: 'Search and social preview metadata.' },
+    { key: 'advanced',          label: 'Advanced',            icon: Settings, hint: 'Extra fields and structured data.' },
+    { key: 'addons',            label: 'Add-ons',             icon: Puzzle, hint: 'Linked products or services at booking.' },
+    { key: 'printDocs',         label: 'Print Documents',     icon: Printer, hint: 'Templates printed with bookings.' },
+    { key: 'stats',             label: 'Statistics',          icon: BarChart3, visible: isEdit, hint: 'Booking and performance summary (read-only).' },
+  ], [isEdit])
+
+  const serviceCompletedSections = useMemo<Set<string>>(() => {
+    const s = new Set<string>()
+    if (formValues.name) s.add('basic')
+    if (plans.length > 0) s.add('subscription')
+    if (formValues.short_description) s.add('storefrontOptions')
+    if (formValues.meta_title || formValues.meta_description) s.add('seo')
+    return s
+  }, [formValues, plans])
+
+  const serviceErrorSections = useMemo<Set<string>>(() => {
+    const s = new Set<string>()
+    if (errors.name) s.add('basic')
+    return s
+  }, [errors])
+
   if (isEdit && isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
 
   // ── Display (View) Mode ──────────────────────────────────────────
@@ -1301,10 +1365,52 @@ export default function ServiceForm() {
       service.price ? `${sym}${service.price.toLocaleString()}` :
       (service.price_min && service.price_max) ? `${sym}${service.price_min}–${sym}${service.price_max}` : 'Quote'
 
+    const svcAddons: any[] = (service as any).addons || []
+    const svcPackages: any[] = (service as any).service_packages || []
+    const svcPrintDocs: string[] = getServiceDocTemplates(service.id as string)
+    const hasMedia = (service as any).media?.length > 0 || !!service.image_url || (service.gallery?.length ?? 0) > 0
+    const sectionCls = (key: string) =>
+      cn(formDisplayCompact.scrollMarginView, formSectionSurfaceClass(activeViewSection === key))
+    const viewNavSections: FormSectionDef[] = [
+      { key: 'basic',             label: 'Basic Information',   icon: Briefcase, hint: 'Name, type, pricing model, and descriptions.' },
+      { key: 'media',             label: 'Service Media',       icon: Eye,         visible: hasMedia, hint: 'Gallery and hero media for the business front.' },
+      { key: 'storefrontOptions', label: 'Business Front',      icon: Globe, hint: 'Booking, quotes, and customer-facing options.' },
+      { key: 'subscription',      label: 'Plans',               icon: Repeat, hint: 'Subscription or plan tiers and billing.' },
+      { key: 'visibility',        label: 'Visibility',          icon: Eye, hint: 'Catalog visibility and marketing flags.' },
+      { key: 'seo',               label: 'SEO & Metadata',      icon: Search, hint: 'Search and social preview metadata.' },
+      { key: 'advanced',          label: 'Advanced',            icon: Settings, hint: 'Extra fields and structured data.' },
+      { key: 'addons',            label: 'Add-ons',             icon: Puzzle, hint: 'Linked products or services at booking.' },
+      { key: 'history',           label: 'Change History',      icon: History, hint: 'Who changed what and when — export via full report.' },
+      { key: 'printDocs',         label: 'Print Documents',     icon: Printer,     visible: svcPrintDocs.length > 0, hint: 'Documents printed with bookings.' },
+    ]
+    const viewNavCompleted = new Set<string>(
+      viewNavSections.filter(s => s.visible !== false).map(s => s.key),
+    )
+    if (history.length > 0) viewNavCompleted.add('history')
+
     return (
-      <div className="max-w-4xl mx-auto space-y-4 pb-20">
+      <FormPageWithNav
+        activeSectionKey={activeViewSection}
+        nav={(
+          <FormSectionNav
+            sections={viewNavSections}
+            openSections={{}}
+            visitedSections={new Set(viewNavSections.filter(s => s.visible !== false).map(s => s.key))}
+            completedSections={viewNavCompleted}
+            hasErrorSections={new Set()}
+            scrollOffset={80}
+            stickyTopClass="top-14"
+            onActiveSectionChange={setActiveViewSection}
+            onNavigate={(key) => {
+              setActiveViewSection(key)
+              document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}
+          />
+        )}
+      >
+      <div className={formDisplayCompact.pageGap}>
         {/* View header */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => navigate('/services')}>
             <ArrowLeft className="w-4 h-4 mr-1" />Services
           </Button>
@@ -1323,10 +1429,10 @@ export default function ServiceForm() {
         </div>
 
         {/* Hero metrics */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className="text-center rounded-lg border p-3">
+        <Card id="form-section-basic" className={sectionCls('basic')}>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+              <div className="rounded-lg border p-2 text-center sm:p-2.5">
                 <p className="text-xl font-bold text-blue-700">{priceDisplay}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{uomLbl}</p>
               </div>
@@ -1346,7 +1452,7 @@ export default function ServiceForm() {
 
             {/* Media strip */}
             {((service as any).media?.length > 0 || service.image_url || service.gallery?.length > 0) && (
-              <div className="flex gap-3 overflow-x-auto mb-4">
+              <div id="form-section-media" className={cn(sectionCls('media'), 'mb-2 flex gap-2 overflow-x-auto sm:gap-3')}>
                 {((service as any).media?.length > 0
                   ? (service as any).media.sort((a: any, b: any) => a.position - b.position)
                   : [
@@ -1356,7 +1462,7 @@ export default function ServiceForm() {
                 ).map((img: any) => {
                   const mt = img.media_type || 'image'
                   return (
-                    <div key={img.id} className="w-28 h-28 rounded-lg overflow-hidden border bg-gray-50 shrink-0 relative">
+                    <div key={img.id} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-gray-50 sm:h-24 sm:w-24">
                       {mt === 'video' ? (
                         <video src={mediaUrl(img.url)} className="w-full h-full object-cover" muted playsInline onMouseOver={e => (e.target as HTMLVideoElement).play()} onMouseOut={e => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0 }} />
                       ) : mt === 'model3d' ? (
@@ -1381,7 +1487,6 @@ export default function ServiceForm() {
               <DisplayField label="Category" value={service.category} />
               <DisplayField label="Subcategory" value={service.subcategory} />
               <DisplayField label="Brand" value={service.brand} />
-              <DisplayField label="Slug" value={service.slug} />
               <DisplayField label="Service Type" value={typeLbl} />
             </div>
             {service.short_description && <p className="text-sm text-gray-500 mt-3 border-t pt-3">{service.short_description}</p>}
@@ -1414,11 +1519,11 @@ export default function ServiceForm() {
         )}
 
         {/* Business Front Options */}
-        <Card>
-          <CardContent className="p-5">
+        <Card id="form-section-storefrontOptions" className={sectionCls('storefrontOptions')}>
+          <CardContent className={formDisplayCompact.cardBody}>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" />Business Front Options</p>
             <div className="divide-y rounded-lg border">
-              <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
                   <CalendarClock className="w-4 h-4 text-blue-600" />
                   <p className="text-sm text-gray-700 font-medium">Booking</p>
@@ -1427,7 +1532,7 @@ export default function ServiceForm() {
                   {service.requires_booking ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
-              <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
                   <Repeat className="w-4 h-4 text-primary" />
                   <p className="text-sm text-gray-700 font-medium">Subscription</p>
@@ -1436,7 +1541,7 @@ export default function ServiceForm() {
                   {(service as any).is_subscription ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
-              <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-4 h-4 text-amber-600" />
                   <p className="text-sm text-gray-700 font-medium">Quote Requests</p>
@@ -1463,6 +1568,7 @@ export default function ServiceForm() {
           </CardContent>
         </Card>
 
+        <span id="form-section-subscription" className={formDisplayCompact.scrollMarginView} />
         {/* Subscription Plans — with per-plan feature details */}
         {(service as any).is_subscription && (service as any).plans?.length > 0 && (
           <Card>
@@ -1578,8 +1684,8 @@ export default function ServiceForm() {
 
         {/* Advanced details */}
         {(service.whats_included?.length || service.whats_not_included?.length || service.service_areas?.length || service.prerequisites) && (
-          <Card>
-            <CardContent className="p-5">
+          <Card id="form-section-advanced" className={sectionCls('advanced')}>
+            <CardContent className={formDisplayCompact.cardBody}>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" />Details</p>
               {service.prerequisites && <div className="mb-3"><p className="text-xs font-medium text-gray-400 uppercase mb-1">Prerequisites</p><p className="text-sm text-gray-700">{service.prerequisites}</p></div>}
               {service.whats_included?.length > 0 && (
@@ -1604,10 +1710,9 @@ export default function ServiceForm() {
           </Card>
         )}
 
-        {/* SEO & Metadata */}
         {(service.meta_title || service.meta_description || service.meta_keywords) && (
-          <Card>
-            <CardContent className="p-5">
+          <Card id="form-section-seo" className={sectionCls('seo')}>
+            <CardContent className={formDisplayCompact.cardBody}>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Search className="w-3.5 h-3.5" />SEO & Metadata</p>
               <div className="space-y-2">
                 <DisplayField label="Meta Title" value={service.meta_title} />
@@ -1629,10 +1734,9 @@ export default function ServiceForm() {
           </Card>
         )}
 
-        {/* Add-ons & Service Packages */}
         {((service as any).addons || (service as any).service_packages) && (
-          <Card>
-            <CardContent className="p-5">
+          <Card id="form-section-addons" className={sectionCls('addons')}>
+            <CardContent className={formDisplayCompact.cardBody}>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" />Add-ons & Packages</p>
               {(service as any).addons && (
                 <div className="mb-3">
@@ -1677,8 +1781,8 @@ export default function ServiceForm() {
         )}
 
         {/* Visibility badges */}
-        <Card>
-          <CardContent className="p-5">
+        <Card id="form-section-visibility" className={sectionCls('visibility')}>
+          <CardContent className={formDisplayCompact.cardBody}>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" />Visibility & Marketing</p>
             <div className="flex gap-2 flex-wrap">
               {service.is_featured  && <span className="text-xs px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-medium">⭐ Featured</span>}
@@ -1691,14 +1795,19 @@ export default function ServiceForm() {
         </Card>
 
         {/* History */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-gray-400" />
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Change History</p>
-                <span className="text-xs bg-gray-100 rounded-full px-2 py-0.5 text-gray-500">v{service.version_number}</span>
-                <span className="text-xs text-gray-400">{(service as any).change_history?.length || 0} entries</span>
+        <Card id="form-section-history" className={sectionCls('history')}>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+              <div className="flex items-start gap-2">
+                <History className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Change History</p>
+                  <span className="text-xs bg-gray-100 rounded-full px-2 py-0.5 text-gray-500">v{service.version_number}</span>
+                  <span className="text-xs text-gray-400 ml-1">{history.length} entries</span>
+                  <p className="mt-1 text-xs text-muted-foreground max-w-md">
+                    Each save creates a version. Recent edits are listed below; use View Full Report for a complete export.
+                  </p>
+                </div>
               </div>
               <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/services/${service.id}/audit`)}>
                 <FileDown className="w-4 h-4" />View Full Report
@@ -1738,71 +1847,114 @@ export default function ServiceForm() {
             )}
           </CardContent>
         </Card>
+
+        {/* Print Documents */}
+        {svcPrintDocs.length > 0 && (
+          <Card id="form-section-printDocs" className={sectionCls('printDocs')}>
+            <CardContent className={cn(formDisplayCompact.cardBodyTight, 'space-y-1.5')}>
+              <div className="flex items-center gap-2 mb-1">
+                <Printer className="w-4 h-4 text-gray-500" />
+                <span className="font-semibold text-gray-800">Print Documents</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {svcPrintDocs.map((docId) => {
+                  const doc = BOOKING_DOC_TYPES.find(d => d.id === docId)
+                  return doc ? (
+                    <span key={docId} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                      {doc.label}
+                    </span>
+                  ) : null
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
       </div>
+      </FormPageWithNav>
     )
   }
 
   // ── Edit / Create Mode ────────────────────────────────────────────
 
   return (
-    <div className="max-w-4xl mx-auto pb-20">
+    <FormPageWithNav
+      activeSectionKey={activeFormSection}
+      nav={(
+        <FormSectionNav
+          sections={serviceSections}
+          openSections={openSections}
+          visitedSections={visitedSections}
+          completedSections={serviceCompletedSections}
+          hasErrorSections={serviceErrorSections}
+          onNavigate={openAndScrollTo}
+          onActiveSectionChange={setActiveFormSection}
+          scrollOffset={120}
+          stickyTopClass="top-[7rem]"
+        />
+      )}
+    >
       {/* Sticky header */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm mb-4">
-        <div className="px-4 py-2 flex items-center gap-2 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={() => isEdit ? setViewMode(true) : navigate('/services')}>
-            <ArrowLeft className="w-4 h-4 mr-1" />{isEdit ? 'View' : 'Back'}
-          </Button>
-          <h1 className="flex-1 text-sm font-semibold truncate text-gray-800">
-            {isEdit ? (service?.name || 'Edit Service') : 'New Service'}
-          </h1>
-          <Controller name="status" control={control} render={({ field }) => (
-            <select {...field} className={`h-8 rounded-md border px-2 text-xs font-medium focus:outline-none ${
-              field.value === 'active'   ? 'border-green-300 bg-green-50 text-green-700' :
-              field.value === 'archived' ? 'border-red-300 bg-red-50 text-red-600' :
-              'border-gray-300 bg-gray-50 text-gray-700'
-            }`}>
-              <option value="active">Active</option>
-              <option value="draft">Draft</option>
-              <option value="archived">Archived</option>
-            </select>
-          )} />
-          <Controller name="is_visible" control={control} render={({ field }) => (
-            <Toggle label="Visible" checked={field.value} onChange={field.onChange} small />
-          )} />
-          <Button size="sm" type="button" disabled={isSaving}
-            onClick={handleSubmit(onSubmit, errs => {
-              const first = Object.keys(errs)[0]
-              toast.error(`Validation: ${first} — ${(errs as any)[first]?.message || 'invalid'}`)
-            })}>
-            {isSaving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-            {isEdit ? 'Save Service' : 'Create Service'}
-          </Button>
+      <div className={formEditLayout.stickyBar}>
+        <div className="flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <Button variant="ghost" size="sm" onClick={() => isEdit ? setViewMode(true) : navigate('/services')}>
+              <ArrowLeft className="w-4 h-4 mr-1" />{isEdit ? 'View' : 'Back'}
+            </Button>
+            <h1 className="text-base font-bold sm:text-xl">
+              {isEdit ? (service?.name || 'Edit Service') : 'New Service'}
+            </h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <Controller name="status" control={control} render={({ field }) => (
+              <select
+                value={field.value}
+                onChange={field.onChange}
+                className={`h-9 rounded-md border px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring ${
+                  field.value === 'active'   ? 'border-green-300 bg-green-50 text-green-700' :
+                  field.value === 'archived' ? 'border-red-300 bg-red-50 text-red-600' :
+                  'border-gray-300 bg-gray-50 text-gray-700'
+                }`}
+              >
+                <option value="active">Active</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+              </select>
+            )} />
+            <Controller name="is_visible" control={control} render={({ field }) => (
+              <Toggle label="Visible" checked={field.value} onChange={field.onChange} />
+            )} />
+            <Button type="button" disabled={isSaving} onClick={handleSubmit(onSubmit, onFormInvalid)}>
+              {isSaving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
+              {isEdit ? 'Save Service' : 'Create Service'}
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Media card — edit mode (instant upload like Product) */}
       {isEdit && service ? (
-        <Card><div className="p-6"><h3 className="font-semibold mb-3">Media</h3>
+        <FormMediaCard><div className={formEditLayout.mediaCard}><h3 className={formEditLayout.mediaTitle}>Media</h3>
           <ServiceMediaUpload
             media={(service as any).media || []}
             onUpload={handleMediaUpload}
             onDelete={handleMediaDelete}
             onSetPrimary={handleMediaSetPrimary}
           />
-        </div></Card>
+        </div></FormMediaCard>
       ) : !isEdit ? (
         /* Media card — create mode (staged until service is created) */
-        <Card><div className="p-6">
-          <h3 className="font-semibold mb-1">Media</h3>
-          <p className="text-xs text-gray-400 mb-3">Images, videos &amp; 3D models — uploaded after service is created</p>
+        <FormMediaCard><div className={formEditLayout.mediaCard}>
+          <h3 className={formEditLayout.mediaTitle}>Media</h3>
+          <p className="mb-1 text-[0.6875rem] text-gray-400 sm:text-xs">Images, videos &amp; 3D models — uploaded after service is created</p>
           <div
             onClick={() => fileInputRef.current?.click()}
             onDrop={e => { e.preventDefault(); addPendingFiles(e.dataTransfer.files) }}
             onDragOver={e => e.preventDefault()}
-            className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+            className={formDisplayCompact.mediaDropzone}
           >
-            <Upload className="w-8 h-8 mx-auto text-gray-400" />
-            <p className="mt-2 text-sm text-gray-600">Click or drag files here</p>
+            <Upload className="mx-auto h-6 w-6 text-gray-400" />
+            <p className="mt-1 text-xs text-gray-600 sm:text-sm">Click or drag files here</p>
             <div className="flex items-center justify-center gap-3 mt-2">
               <span className="inline-flex items-center gap-1 text-xs text-gray-400"><ImageIcon className="w-3 h-3" />Images</span>
               <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Film className="w-3 h-3" />Videos</span>
@@ -1814,8 +1966,8 @@ export default function ServiceForm() {
               className="hidden"
               onChange={e => { addPendingFiles(e.target.files); if (fileInputRef.current) fileInputRef.current.value = '' }} />
           </div>
-          {pendingFiles.length > 0 && (
-            <div className="grid grid-cols-4 gap-3 mt-4">
+            {pendingFiles.length > 0 && (
+            <div className="mt-2 grid grid-cols-3 gap-1.5 min-[26rem]:grid-cols-4 sm:mt-3 sm:gap-2">
               {pendingFiles.map((file, i) => {
                 const mt = getMediaType(file)
                 return (
@@ -1832,7 +1984,7 @@ export default function ServiceForm() {
                     )}
                     {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
                     {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
-                    <button type="button" aria-label="Close" type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" aria-label="Close" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <X className="w-3 h-3" /></button>
                     {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
                   </div>
@@ -1840,32 +1992,29 @@ export default function ServiceForm() {
               })}
             </div>
           )}
-        </div></Card>
+        </div></FormMediaCard>
       ) : null}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+      <FormProvider {...formMethods}>
+      <form onSubmit={handleSubmit(onSubmit, onFormInvalid)} className={formEditLayout.formStack}>
 
         {/* 1. Basic Information */}
-        <Section title="Basic Information" icon={Briefcase} open={openSections.basic ?? true} onToggle={() => toggle('basic')}>
-          <div className="space-y-3 pt-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Service Name *" error={errors.name?.message}>
-                <Input {...register('name')} onChange={handleNameChange} placeholder="e.g. AC Repair & Service" />
-              </Field>
-              <Field label="Slug" error={errors.slug?.message}>
-                <Input {...register('slug')} placeholder="ac-repair-service" readOnly
-                  className="bg-gray-100 text-gray-500 cursor-not-allowed" />
-              </Field>
+        <Section title="Basic Information" icon={Briefcase} open={openSections.basic ?? true} onToggle={() => toggle('basic')} sectionId="basic">
+          <div className={formEditLayout.sectionBody}>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+              <FormField label="Service Name" name="name" required>
+                <Input {...register('name')} placeholder="e.g. AC Repair & Service" />
+              </FormField>
+              <FormField label="Category">
+                <select {...register('category')} className={selectCls}
+                  onChange={e => { register('category').onChange(e); setValue('subcategory', '') }}>
+                  <option value="">Select…</option>
+                  {serviceCategories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+              </FormField>
             </div>
-            <Field label="Category" className="max-w-xs">
-              <select {...register('category')} className={selectCls}
-                onChange={e => { register('category').onChange(e); setValue('subcategory', '') }}>
-                <option value="">Select…</option>
-                {serviceCategories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
-            </Field>
             {watchedCategory && (
-              <Field label="Subcategory" className="max-w-xs">
+              <FormField label="Subcategory" className="w-full sm:max-w-md">
                 {(() => {
                   const selectedCat = serviceCategories.find((c: any) => c.name === watchedCategory)
                   const subs = (selectedCat?.children || []).filter((s: any) => s.applies_to === 'service' || s.applies_to === 'both')
@@ -1878,17 +2027,17 @@ export default function ServiceForm() {
                     <Input {...register('subcategory')} placeholder="e.g. Repair, Installation" />
                   )
                 })()}
-              </Field>
+              </FormField>
             )}
-            <Field label="Short Description">
+            <FormField label="Short Description">
               <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
-            </Field>
-            <Field label="Full Description">
+            </FormField>
+            <FormField label="Full Description">
               <textarea {...register('description')} rows={3} className={textareaCls} placeholder="Detailed service description..." />
-            </Field>
-            <Field label="Tags (comma separated)">
+            </FormField>
+            <FormField label="Tags (comma separated)">
               <Input {...register('tags')} placeholder="repair, home-service, ac, plumbing" />
-            </Field>
+            </FormField>
           </div>
         </Section>
 
@@ -1898,12 +2047,12 @@ export default function ServiceForm() {
           title="Business Front Options"
           icon={ToggleRight}
           open={!!openSections.storefrontOptions}
-          onToggle={() => toggle('storefrontOptions')}
+          onToggle={() => toggle('storefrontOptions')} sectionId="storefrontOptions"
         >
-          <div className="pt-4">
-            <p className="text-xs text-gray-500 mb-3">Control how customers interact with this service on the business front.</p>
+          <div className="pt-2">
+            <p className="mb-2 text-xs text-gray-500">Control how customers interact with this service on the business front.</p>
             <div className="divide-y rounded-lg border">
-              <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-3">
                   <CalendarClock className="w-4 h-4 text-blue-600" />
                   <div>
@@ -1915,7 +2064,7 @@ export default function ServiceForm() {
                   <Toggle checked={field.value} onChange={field.onChange} small />
                 )} />
               </div>
-              <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-3">
                   <Repeat className="w-4 h-4 text-primary" />
                   <div>
@@ -1927,7 +2076,7 @@ export default function ServiceForm() {
                   <Toggle checked={field.value} onChange={field.onChange} small />
                 )} />
               </div>
-              <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-3">
                   <MessageSquare className="w-4 h-4 text-amber-600" />
                   <div>
@@ -1955,15 +2104,45 @@ export default function ServiceForm() {
             )}
 
             {/* Service-Level Weekly Availability */}
-            {watch('requires_booking') && (
-              <div className="mt-4 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">Booking Availability</p>
-                  <p className="text-xs text-gray-400">Set your weekly availability for customer bookings. Plans can override these slots.</p>
+            {watch('requires_booking') && (() => {
+              const isAllDay = serviceAvailability
+                .filter(s => s.is_available)
+                .every(s => s.start_time === '00:00' && s.end_time === '23:59')
+              const toggleAllDay = () => {
+                if (isAllDay) {
+                  setServiceAvailability(serviceAvailability.map(s =>
+                    s.is_available ? { ...s, start_time: '09:00', end_time: '18:00' } : s
+                  ))
+                } else {
+                  setServiceAvailability(serviceAvailability.map(s =>
+                    s.is_available ? { ...s, start_time: '00:00', end_time: '23:59' } : s
+                  ))
+                }
+              }
+              return (
+                <div className="mt-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">Booking Availability</p>
+                      <p className="text-xs text-gray-400">Set your weekly availability for customer bookings. Plans can override these slots.</p>
+                    </div>
+                    <label className="flex cursor-pointer select-none items-center gap-2">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isAllDay}
+                        onClick={toggleAllDay}
+                        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${isAllDay ? 'bg-primary' : 'bg-gray-200'}`}
+                      >
+                        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${isAllDay ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
+                      <span className="text-xs font-medium text-gray-600">Available all day (24 hrs)</span>
+                    </label>
+                  </div>
+                  <AvailabilityEditor availability={serviceAvailability} onChange={setServiceAvailability} />
                 </div>
-                <AvailabilityEditor availability={serviceAvailability} onChange={setServiceAvailability} />
-              </div>
-            )}
+              )
+            })()}
           </div>
         </Section>
 
@@ -1972,51 +2151,56 @@ export default function ServiceForm() {
           title="Plans"
           icon={Layers}
           open={!!openSections.subscription}
-          onToggle={() => toggle('subscription')}
+          onToggle={() => toggle('subscription')} sectionId="subscription"
           badge={
             plans.length > 0
               ? <span className="ml-2 text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">{plans.length} plan{plans.length !== 1 ? 's' : ''}</span>
               : undefined
           }
         >
-          <div className="space-y-4 pt-4">
+          <div className={formEditLayout.sectionBody}>
             {/* Add plan button */}
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Define pricing plans for this service. Plans apply to bookings, subscriptions, and quotes.</p>
               <Button type="button" variant="outline" size="sm"
-                onClick={() => { setPlans(p => [...p, newPlan(p.length)]); setExpandedPlans(p => ({ ...p, [plans.length]: true })) }}>
+                onClick={() => insertPlanAt(plans.length)}>
                 <Plus className="w-4 h-4 mr-1" />Add plan
               </Button>
             </div>
 
             {plans.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-6 border border-dashed rounded-lg">
-                No plans yet — add a plan to define pricing, scheduling, and options.
+              <p className="rounded-lg border border-dashed py-4 text-center text-xs text-gray-500 sm:text-sm">
+                No plans yet — use Add plan to define pricing, scheduling, and options.
               </p>
             ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {plans.map((plan, idx) => {
                       const isExpanded = expandedPlans[idx] ?? false
                       const uomLbl = UOM_OPTIONS.find(u => u.value === plan.uom)?.label || plan.uom
                       const priceLabel = plan.service_frequency === 'recurring' && plan.price_type === 'per_cycle' ? 'Price / Cycle' : `Price / ${uomLbl}`
                       return (
-                        <div key={plan._key} className={`rounded-xl shadow-md transition-all duration-200 ${
+                        <div key={plan._key} className="space-y-2">
+                        <div className={cn(
+                          'rounded-lg shadow-sm transition-all duration-200',
+                          'focus-within:ring-2 focus-within:ring-primary/35 focus-within:ring-offset-1 focus-within:ring-offset-background',
                           plan.is_active
-                            ? 'border-2 border-primary/30 bg-gradient-to-br from-white to-accent/30'
-                            : 'border-2 border-gray-300 bg-gray-50 opacity-70'
-                        }`}>
+                            ? 'border border-primary/30 bg-gradient-to-br from-white to-accent/30'
+                            : 'border border-gray-300 bg-gray-50 opacity-70',
+                        )}>
                           {/* Collapsible header — matches product variant header */}
                           <div
-                            className={`flex items-center justify-between gap-3 px-5 py-3 cursor-pointer select-none rounded-t-xl ${
-                              plan.is_active ? 'hover:bg-accent/80' : 'hover:bg-gray-100'
-                            }`}
+                            className={cn(
+                              'flex items-center justify-between gap-2 px-3 py-2 cursor-pointer select-none rounded-t-lg',
+                              plan.is_active ? 'hover:bg-accent/80' : 'hover:bg-gray-100',
+                            )}
                             onClick={() => setExpandedPlans(p => ({ ...p, [idx]: !p[idx] }))}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold ${
-                                plan.is_active ? 'bg-primary text-white' : 'bg-gray-400 text-white'
-                              }`}>{idx + 1}</span>
-                              <span className={`text-base font-semibold ${plan.is_active ? 'text-gray-800' : 'text-gray-500'}`}>Plan {idx + 1}</span>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold',
+                                plan.is_active ? 'bg-primary text-white' : 'bg-gray-400 text-white',
+                              )}>{idx + 1}</span>
+                              <span className={cn('text-sm font-semibold', plan.is_active ? 'text-gray-800' : 'text-gray-500')}>Plan {idx + 1}</span>
                               {plan.name && (
                                 <span className={`text-sm font-medium ${plan.is_active ? 'text-primary' : 'text-gray-400'}`}>— {plan.name}</span>
                               )}
@@ -2046,19 +2230,19 @@ export default function ServiceForm() {
 
                           {/* Collapsible body */}
                           {isExpanded && (
-                            <div className={`px-4 pb-4 pt-2 space-y-3 border-t ${plan.is_active ? 'border-primary/20' : 'border-gray-200'}`}>
+                            <div className={cn(formEditLayout.sectionContent, 'space-y-1.5 border-t sm:space-y-2', plan.is_active ? 'border-primary/20' : 'border-gray-200')}>
                               {/* Identity */}
                               <div className="grid grid-cols-2 gap-2">
-                                <Field label="Plan Name">
+                                <FormField label="Plan Name">
                                   <Input value={plan.name}
                                     onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
                                     placeholder="e.g. Basic / Premium" />
-                                </Field>
-                                <Field label="Description">
+                                </FormField>
+                                <FormField label="Description">
                                   <Input value={plan.description}
                                     onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, description: e.target.value } : x))}
                                     placeholder="Short plan description" />
-                                </Field>
+                                </FormField>
                               </div>
 
                               {/* Service Configuration */}
@@ -2081,14 +2265,14 @@ export default function ServiceForm() {
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                  <Field label="Delivery Mode">
+                                  <FormField label="Delivery Mode">
                                     <select value={plan.service_mode}
                                       onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_mode: e.target.value } : x))}
                                       className={selectCls}>
                                       {SERVICE_MODE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                                     </select>
-                                  </Field>
-                                  <Field label="UOM">
+                                  </FormField>
+                                  <FormField label="UOM">
                                     <select value={plan.uom}
                                       onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, uom: e.target.value } : x))}
                                       className={selectCls}>
@@ -2100,12 +2284,12 @@ export default function ServiceForm() {
                                         </optgroup>
                                       ))}
                                     </select>
-                                  </Field>
-                                  <Field label={`Qty / ${UOM_OPTIONS.find(u => u.value === plan.uom)?.label?.replace(/\s*\(.*\)/, '') || 'Unit'}`}>
+                                  </FormField>
+                                  <FormField label={`Qty / ${UOM_OPTIONS.find(u => u.value === plan.uom)?.label?.replace(/\s*\(.*\)/, '') || 'Unit'}`}>
                                     <Input type="number" min="0" step="any" value={plan.duration_minutes}
                                       onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, duration_minutes: e.target.value } : x))}
                                       placeholder={plan.uom === 'hour' ? '2' : plan.uom === 'day' ? '1' : plan.uom === 'session' ? '1' : plan.uom === 'month' ? '1' : '1'} />
-                                  </Field>
+                                  </FormField>
                                 </div>
                               </div>
 
@@ -2128,29 +2312,29 @@ export default function ServiceForm() {
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                    <Field label="Interval">
+                                    <FormField label="Interval">
                                       <select value={plan.subscription_interval}
                                         onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, subscription_interval: e.target.value } : x))}
                                         className={selectCls}>
                                         <option value="">Select…</option>
                                         {SUBSCRIPTION_INTERVALS.map(si => <option key={si.value} value={si.value}>{si.label}</option>)}
                                       </select>
-                                    </Field>
-                                    <Field label="Max Cycles">
+                                    </FormField>
+                                    <FormField label="Max Cycles">
                                       <Input type="number" min="0" value={plan.subscription_billing_cycles}
                                         onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, subscription_billing_cycles: e.target.value } : x))}
                                         placeholder="0 = ∞" />
-                                    </Field>
-                                    <Field label="Trial (days)">
+                                    </FormField>
+                                    <FormField label="Trial (days)">
                                       <Input type="number" min="0" value={plan.subscription_trial_days}
                                         onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, subscription_trial_days: e.target.value } : x))}
                                         placeholder="14" />
-                                    </Field>
-                                    <Field label="Setup Fee">
+                                    </FormField>
+                                    <FormField label="Setup Fee">
                                       <Input type="number" step="0.01" min="0" value={plan.subscription_setup_fee}
                                         onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, subscription_setup_fee: e.target.value } : x))}
                                         placeholder="99" />
-                                    </Field>
+                                    </FormField>
                                   </div>
                                   <div>
                                     <p className="text-xs font-medium text-gray-500 mb-1.5">Customer scheduling options</p>
@@ -2233,34 +2417,34 @@ export default function ServiceForm() {
                                         return (
                                           <div className="px-3 pb-3 space-y-2">
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                              <Field label={priceLabel}>
+                                              <FormField label={priceLabel}>
                                                 <Input type="number" step="0.01" min="0" value={plan.price}
                                                   onChange={e => {
                                                     setPlans(p => p.map((x, i) => i === idx ? { ...x, price: e.target.value } : x))
                                                     syncPlanPrices(parseFloat(e.target.value||'0'), pCompare)
                                                   }}
                                                   placeholder="499" />
-                                              </Field>
-                                              <Field label="Compare At">
+                                              </FormField>
+                                              <FormField label="Compare At">
                                                 <Input type="number" step="0.01" min="0" value={plan.compare_at_price}
                                                   onChange={e => {
                                                     setPlans(p => p.map((x, i) => i === idx ? { ...x, compare_at_price: e.target.value } : x))
                                                     syncPlanPrices(pPrice, parseFloat(e.target.value||'0'))
                                                   }}
                                                   placeholder="MRP / Regular" />
-                                              </Field>
-                                              <Field label="Cost Price">
+                                              </FormField>
+                                              <FormField label="Cost Price">
                                                 <Input type="number" step="0.01" min="0" value={plan.cost_price}
                                                   onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, cost_price: e.target.value } : x))}
                                                   placeholder="Your cost" />
-                                              </Field>
-                                              <Field label="Currency">
+                                              </FormField>
+                                              <FormField label="Currency">
                                                 <select value={plan.currency}
                                                   onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, currency: e.target.value } : x))}
                                                   className={selectCls}>
                                                   <option value="INR">₹ INR</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option><option value="GBP">£ GBP</option>
                                                 </select>
-                                              </Field>
+                                              </FormField>
                                             </div>
                                             {/* Live price metrics */}
                                             {(autoDiscPct > 0 || profit != null) && (
@@ -2294,33 +2478,33 @@ export default function ServiceForm() {
                                               </div>
                                             )}
                                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                              <Field label="Discount %">
+                                              <FormField label="Discount %">
                                                 <Input type="number" step="0.01" min="0" max="100" value={plan.discount_percentage}
                                                   onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, discount_percentage: e.target.value } : x))} />
-                                              </Field>
-                                              <Field label="Discount Amt">
+                                              </FormField>
+                                              <FormField label="Discount Amt">
                                                 <Input type="number" step="0.01" min="0" value={plan.discount_amount}
                                                   onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, discount_amount: e.target.value } : x))}
                                                   placeholder="Auto from price gap" />
-                                              </Field>
-                                              <Field label="Offer Label">
+                                              </FormField>
+                                              <FormField label="Offer Label">
                                                 <Input value={plan.offer_label}
                                                   onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, offer_label: e.target.value } : x))}
                                                   placeholder={autoDiscPct > 0 ? `${autoDiscPct.toFixed(1)}% OFF` : '"Limited Time"'} />
-                                              </Field>
+                                              </FormField>
                                             </div>
                                             {/* Promotional period */}
                                             <div className="p-2.5 rounded-lg bg-orange-50/50 border border-orange-100 space-y-2">
                                               <p className="text-xs font-medium text-orange-600 flex items-center gap-1"><Calendar className="w-3 h-3" /> Promotional Period</p>
                                               <div className="grid grid-cols-2 gap-2">
-                                                <Field label="Promo Starts">
+                                                <FormField label="Promo Starts">
                                                   <Input type="date" value={plan.discount_start_date}
                                                     onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, discount_start_date: e.target.value } : x))} />
-                                                </Field>
-                                                <Field label="Promo Ends">
+                                                </FormField>
+                                                <FormField label="Promo Ends">
                                                   <Input type="date" value={plan.discount_end_date}
                                                     onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, discount_end_date: e.target.value } : x))} />
-                                                </Field>
+                                                </FormField>
                                               </div>
                                               {plan.discount_start_date && plan.discount_end_date && (
                                                 <p className="text-xs text-orange-700 font-medium flex items-center gap-1.5 bg-white border border-orange-200 rounded-lg px-2 py-1">
@@ -2356,21 +2540,21 @@ export default function ServiceForm() {
                                       {isOpen && (
                                         <div className="px-3 pb-3 space-y-2">
                                           <div className="grid grid-cols-3 gap-2">
-                                            <Field label="Tax Rate (%)">
+                                            <FormField label="Tax Rate (%)">
                                               <Input type="number" step="0.01" min="0" max="100" value={plan.tax_rate}
                                                 onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, tax_rate: e.target.value } : x))}
                                                 placeholder="18" />
-                                            </Field>
-                                            <Field label="SAC Code">
+                                            </FormField>
+                                            <FormField label="SAC Code">
                                               <Input value={plan.sac_code}
                                                 onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, sac_code: e.target.value } : x))}
                                                 placeholder="998311" maxLength={8} />
-                                            </Field>
-                                            <Field label="GST Rate (%)">
+                                            </FormField>
+                                            <FormField label="GST Rate (%)">
                                               <Input type="number" step="0.01" min="0" max="100" value={plan.gst_rate}
                                                 onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, gst_rate: e.target.value } : x))}
                                                 placeholder="18" />
-                                            </Field>
+                                            </FormField>
                                           </div>
                                         </div>
                                       )}
@@ -2400,15 +2584,15 @@ export default function ServiceForm() {
                                           <Toggle label="Requires Booking" checked={plan.requires_booking} small
                                             onChange={v => setPlans(p => p.map((x, i) => i === idx ? { ...x, requires_booking: v } : x))} />
                                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                            <Field label="Max / Slot">
+                                            <FormField label="Max / Slot">
                                               <Input type="number" min="1" value={plan.max_bookings_per_slot}
                                                 onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, max_bookings_per_slot: e.target.value } : x))} />
-                                            </Field>
-                                            <Field label="Advance (days)">
+                                            </FormField>
+                                            <FormField label="Advance (days)">
                                               <Input type="number" min="0" value={plan.advance_booking_days}
                                                 onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, advance_booking_days: e.target.value } : x))} />
-                                            </Field>
-                                            <Field label="Lead Time">
+                                            </FormField>
+                                            <FormField label="Lead Time">
                                               <div className="flex gap-1.5">
                                                 <Input type="number" min="0" className="w-20" value={plan.booking_lead_time_value}
                                                   onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, booking_lead_time_value: e.target.value } : x))}
@@ -2419,28 +2603,28 @@ export default function ServiceForm() {
                                                   {LEAD_TIME_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                                                 </select>
                                               </div>
-                                            </Field>
+                                            </FormField>
                                           </div>
-                                          <Field label="Cancellation Policy">
+                                          <FormField label="Cancellation Policy">
                                             <textarea value={plan.cancellation_policy} rows={2} className={textareaCls}
                                               onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, cancellation_policy: e.target.value } : x))}
                                               placeholder="Free cancellation up to 24 hours before" />
-                                          </Field>
+                                          </FormField>
                                           <div className="grid grid-cols-2 gap-2">
-                                            <Field label="Cancel Window (hrs)">
+                                            <FormField label="Cancel Window (hrs)">
                                               <Input type="number" min="0" value={plan.cancellation_hours}
                                                 onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, cancellation_hours: e.target.value } : x))}
                                                 placeholder="24" />
-                                            </Field>
+                                            </FormField>
                                           </div>
-                                          <Field label="Rescheduling Policy">
+                                          <FormField label="Rescheduling Policy">
                                             <textarea value={plan.rescheduling_policy} rows={2} className={textareaCls}
                                               onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, rescheduling_policy: e.target.value } : x))} />
-                                          </Field>
-                                          <Field label="No-show Policy">
+                                          </FormField>
+                                          <FormField label="No-show Policy">
                                             <textarea value={plan.no_show_policy} rows={2} className={textareaCls}
                                               onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, no_show_policy: e.target.value } : x))} />
-                                          </Field>
+                                          </FormField>
                                         </div>
                                       )}
                                     </div>
@@ -2496,15 +2680,15 @@ export default function ServiceForm() {
                                       {isOpen && (
                                         <div className="px-3 pb-3 space-y-2">
                                           <div className="grid grid-cols-2 gap-2 max-w-xs">
-                                            <Field label="Expiry Date">
+                                            <FormField label="Expiry Date">
                                               <Input type="date" value={plan.service_expiry_date}
                                                 onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, service_expiry_date: e.target.value } : x))} />
-                                            </Field>
-                                            <Field label="Validity (days)">
+                                            </FormField>
+                                            <FormField label="Validity (days)">
                                               <Input type="number" min="0" value={plan.validity_period_days}
                                                 onChange={e => setPlans(p => p.map((x, i) => i === idx ? { ...x, validity_period_days: e.target.value } : x))}
                                                 placeholder="30" />
-                                            </Field>
+                                            </FormField>
                                           </div>
                                           <Toggle label="Renewal Required" checked={plan.renewal_required} small
                                             onChange={v => setPlans(p => p.map((x, i) => i === idx ? { ...x, renewal_required: v } : x))} />
@@ -2518,6 +2702,19 @@ export default function ServiceForm() {
                             </div>
                           )}
                         </div>
+                        <div className="flex justify-center py-0.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full border-gray-200 bg-white px-4 text-gray-700 shadow-sm hover:bg-gray-50"
+                            onClick={() => insertPlanAt(idx + 1)}
+                          >
+                            <Plus className="mr-1 h-4 w-4" />
+                            Add plan
+                          </Button>
+                        </div>
+                        </div>
                       )
                     })}
                   </div>
@@ -2528,9 +2725,9 @@ export default function ServiceForm() {
         {/* Pricing, Tax, Booking, Availability, and Lifecycle are now inside each plan card */}
 
         {/* 8. Visibility & Marketing */}
-        <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')}>
-          <div className="pt-4">
-            <p className="text-xs text-gray-400 bg-blue-50 rounded px-3 py-2 mb-3">Status and visibility are controlled from the top sticky bar.</p>
+        <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')} sectionId="visibility">
+          <div className="pt-2">
+            <p className="mb-2 rounded bg-blue-50 px-3 py-1.5 text-xs text-gray-400">Status and visibility are controlled from the top sticky bar.</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
               <Controller name="is_featured" control={control} render={({ field }) => (
                 <Toggle label="⭐ Featured Service" checked={field.value} onChange={field.onChange} small />
@@ -2546,45 +2743,45 @@ export default function ServiceForm() {
         </Section>
 
         {/* 9. SEO */}
-        <Section title="SEO & Metadata" icon={Search} open={!!openSections.seo} onToggle={() => toggle('seo')}>
-          <div className="space-y-3 pt-4">
-            <Field label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (leave blank to auto-generate)" /></Field>
-            <Field label="Meta Description">
+        <Section title="SEO & Metadata" icon={Search} open={!!openSections.seo} onToggle={() => toggle('seo')} sectionId="seo">
+          <div className={formEditLayout.sectionBody}>
+            <FormField label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (leave blank to auto-generate)" /></FormField>
+            <FormField label="Meta Description">
               <textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." />
-            </Field>
-            <Field label="Meta Keywords (comma separated)">
+            </FormField>
+            <FormField label="Meta Keywords (comma separated)">
               <Input {...register('meta_keywords')} placeholder="ac repair, cooling service, home service" />
-            </Field>
+            </FormField>
           </div>
         </Section>
 
         {/* 10. Advanced Features */}
-        <Section title="Advanced Features" icon={Puzzle} open={!!openSections.advanced} onToggle={() => toggle('advanced')}>
-          <div className="space-y-3 pt-4">
-            <Field label="Prerequisites">
+        <Section title="Advanced Features" icon={Puzzle} open={!!openSections.advanced} onToggle={() => toggle('advanced')} sectionId="advanced">
+          <div className={formEditLayout.sectionBody}>
+            <FormField label="Prerequisites">
               <textarea {...register('prerequisites')} rows={2} className={textareaCls} placeholder="What the customer needs to prepare or have available..." />
-            </Field>
+            </FormField>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="What's Included (comma separated)">
+              <FormField label="What's Included (comma separated)">
                 <Input {...register('whats_included')} placeholder="Inspection, Labor, Parts" />
-              </Field>
-              <Field label="What's Not Included (comma separated)">
+              </FormField>
+              <FormField label="What's Not Included (comma separated)">
                 <Input {...register('whats_not_included')} placeholder="Travel charges, Spare parts above ₹500" />
-              </Field>
+              </FormField>
             </div>
-            <Field label="Service Areas (pin codes or names, comma separated)">
+            <FormField label="Service Areas (pin codes or names, comma separated)">
               <Input {...register('service_areas')} placeholder="560001, 560002, Koramangala, Indiranagar" />
-            </Field>
-            <Field label="Service Packages (JSON array)">
+            </FormField>
+            <FormField label="Service Packages (JSON array)">
               <textarea {...register('service_packages')} rows={3} className={`${textareaCls} font-mono text-xs`}
                 placeholder='[{"name":"Basic","price":999,"includes":["2hr service","1 visit"]},{"name":"Premium","price":1999}]' />
-            </Field>
+            </FormField>
           </div>
         </Section>
 
         {/* Add-ons & Linked Services/Products */}
-        <Section title="Add-ons & Linked Items" icon={Plus} open={!!openSections.addons} onToggle={() => toggle('addons')}>
-          <div className="space-y-4 pt-4">
+        <Section title="Add-ons & Linked Items" icon={Plus} open={!!openSections.addons} onToggle={() => toggle('addons')} sectionId="addons">
+          <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500">
               Attach products or services that can be sold or booked alongside this service — e.g. spare parts, installation, warranty, follow-up sessions.
               Set <strong>when booking is triggered</strong> based on the order channel or status.
@@ -2650,7 +2847,7 @@ export default function ServiceForm() {
                         <input type="checkbox" checked={addon.optional} onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, optional: e.target.checked } : a))} className="rounded" />
                         Optional
                       </label>
-                      <button type="button" aria-label="Close" type="button" onClick={() => setServiceAddons(p => p.filter((_, i) => i !== ai))}
+                      <button type="button" aria-label="Close" onClick={() => setServiceAddons(p => p.filter((_, i) => i !== ai))}
                         className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0">
                 <X className="w-3.5 h-3.5" />
                       </button>
@@ -2727,7 +2924,7 @@ export default function ServiceForm() {
         </Section>
 
         {/* 11. Print Document Templates */}
-        <Section title="Print Documents" icon={Printer} open={!!openSections.printDocs} onToggle={() => toggle('printDocs')}>
+        <Section title="Print Documents" icon={Printer} open={!!openSections.printDocs} onToggle={() => toggle('printDocs')} sectionId="printDocs">
           <p className="text-xs text-gray-400 mb-3">
             Choose which document templates are available when printing from a booking for this service.
             {!isEdit && ' Templates will be saved once the service is created.'}
@@ -2745,7 +2942,7 @@ export default function ServiceForm() {
                 <span key={docId}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${doc.bg} ${doc.border} ${doc.color}`}>
                   {doc.label}
-                  <button type="button" aria-label="Close" type="button" onClick={() => removePrintDoc(docId as BookingDocTypeId)}
+                  <button type="button" aria-label="Close" onClick={() => removePrintDoc(docId as BookingDocTypeId)}
                     className="hover:opacity-70 transition-opacity" title="Remove">
                 <X className="w-3 h-3" />
                   </button>
@@ -2765,7 +2962,7 @@ export default function ServiceForm() {
               <div className="rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
                   <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Select a template</p>
-                  <button type="button" aria-label="Close" type="button" onClick={() => setShowDocPicker(false)}
+                  <button type="button" aria-label="Close" onClick={() => setShowDocPicker(false)}
                     className="p-0.5 rounded hover:bg-gray-200 transition-colors">
                 <X className="w-3.5 h-3.5 text-gray-400" />
                   </button>
@@ -2796,7 +2993,7 @@ export default function ServiceForm() {
 
         {/* 12. Statistics */}
         {isEdit && (
-          <Section title="Statistics" icon={BarChart3} open={!!openSections.stats} onToggle={() => toggle('stats')}>
+          <Section title="Statistics" icon={BarChart3} open={!!openSections.stats} onToggle={() => toggle('stats')} sectionId="stats">
             <div className="grid grid-cols-3 gap-4 text-center pt-4">
               <div className="rounded-lg border p-4">
                 <p className="text-2xl font-bold">{service?.view_count ?? 0}</p>
@@ -2823,6 +3020,7 @@ export default function ServiceForm() {
           </Button>
         </div>
       </form>
+      </FormProvider>
 
       {deletingPlanIdx !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -2848,6 +3046,8 @@ export default function ServiceForm() {
           </div>
         </div>
       )}
-    </div>
+    </FormPageWithNav>
   )
 }
+
+

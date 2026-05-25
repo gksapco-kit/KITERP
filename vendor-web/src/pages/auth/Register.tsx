@@ -19,6 +19,7 @@ import {
   Rocket, Smartphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { COMPANY_TYPES, COMPANY_TYPE_GROUPS } from '@/data/companyTypes'
 import { VENDOR_REGISTER_DRAFT_KEY, clearVendorRegisterDraft } from '@/lib/vendorRegisterDraft'
 
@@ -493,7 +494,7 @@ export default function Register() {
                           <TypeDropdown
                             value={field.value ?? ''}
                             onChange={field.onChange}
-                            error={errors.business_category?.message}
+                            error={errors.business_category?.message ? formatFormFieldError(errors.business_category.message, 'Business category') : undefined}
                           />
                         )}
                       />
@@ -521,7 +522,7 @@ export default function Register() {
                             id="r-phone"
                             value={field.value ?? ''}
                             onChange={field.onChange}
-                            error={errors.phone?.message}
+                            error={errors.phone?.message ? formatFormFieldError(errors.phone.message, 'Phone') : undefined}
                             defaultCountryIso="IN"
                             inferCountryFromLocation
                             subtleFeedback
@@ -544,14 +545,14 @@ export default function Register() {
                   <div className={fieldRow}>
                     <div>
                       <label className={fieldLabel}>Password</label>
-                      <PwField {...register('password')} placeholder="Min. 8 characters" error={errors.password?.message} />
+                      <PwField {...register('password')} placeholder="Min. 8 characters" error={errors.password?.message ? formatFormFieldError(errors.password.message, 'Password') : undefined} />
                     </div>
                     <div>
                       <label className={fieldLabel}>Confirm Password</label>
                       <PwField
                         {...register('confirm_password')}
                         placeholder="Re-enter password"
-                        error={errors.confirm_password?.message}
+                        error={errors.confirm_password?.message ? formatFormFieldError(errors.confirm_password.message, 'Confirm password') : undefined}
                       />
                     </div>
                   </div>

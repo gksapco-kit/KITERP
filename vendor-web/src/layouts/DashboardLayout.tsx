@@ -8,7 +8,7 @@ import {
   FolderTree, Truck, ClipboardList, Calendar, Bell,
   ChevronDown, ChevronRight, Check, Menu, FilePlus, Factory, PieChart,
   UserCog, Clock, Plane, DollarSign, Award, Building2, FileSignature,
-  HelpCircle, Phone, MessageCircle, User, Info,
+  HelpCircle, Phone, MessageCircle, User as UserIcon, Info,
   Briefcase, Target, ShieldAlert, GraduationCap, Megaphone, Receipt as ReceiptIcon, LifeBuoy, UserCheck,
   Contact2, GitBranch, Workflow, Mail, BookOpen, Bot, Plug, History, Activity,
   Landmark, BookMarked, ArrowLeftRight, Scale, Banknote, TrendingUp, Calculator,
@@ -17,9 +17,45 @@ import {
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
   GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
-  PanelLeftClose, PanelLeft,
+  PanelLeftClose, PanelLeft, Settings2,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, mediaUrl } from '@/lib/utils'
+
+function ProfileAvatar({
+  user,
+  className,
+  textClassName = 'text-xs font-bold',
+}: {
+  user: { full_name?: string; avatar_url?: string | null } | null | undefined
+  className?: string
+  textClassName?: string
+}) {
+  const initial = (user?.full_name || 'U').charAt(0).toUpperCase()
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-white',
+        className,
+      )}
+    >
+      {user?.avatar_url ? (
+        <img
+          src={mediaUrl(user.avatar_url)}
+          alt={user.full_name || 'Profile'}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className={textClassName}>{initial}</span>
+      )}
+    </div>
+  )
+}
+
+function profileFirstName(fullName?: string | null): string {
+  const trimmed = fullName?.trim()
+  if (!trimmed) return ''
+  return trimmed.split(/\s+/)[0] ?? trimmed
+}
 
 const SUPPORT_PHONE = (import.meta.env.VITE_SUPPORT_PHONE as string | undefined)?.trim()
 const SUPPORT_CHAT_URL = (import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined)?.trim()
@@ -108,6 +144,10 @@ import {
   isCrmNavVisible,
   isCommissionNavVisible,
   isControllingNavVisible,
+  isPosNavVisible,
+  isRestaurantNavVisible,
+  isBookingsNavVisible,
+  isSubscriptionsNavVisible,
 } from '@/lib/vendorModuleSettings'
 import {
   DndContext,
@@ -139,7 +179,9 @@ import {
   saveNavPlacementsState,
   buildDefaultPlacementsFromSections,
   reconcileNavPlacements,
+  type NavOrderScope,
 } from '@/layouts/sidebarNavOrder'
+import { RESET_USER_NAV_ORDER_EVENT } from '@/lib/userNavOrder'
 
 interface NavItem {
   to: string
@@ -256,9 +298,9 @@ const allSections: NavSection[] = [
       { to: '/', icon: BarChart3, label: 'Dashboard', alwaysShow: true },
       { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
-      { to: '/workspace', icon: LayoutGrid, label: 'Workspace Apps', alwaysShow: true },
       { to: '/relationship-manager', icon: UsersRound, label: 'Relationship Manager', alwaysShow: true },
-      { to: '/settings', icon: Settings, label: 'Settings', alwaysShow: true },
+      { to: '/workspace', icon: LayoutGrid, label: 'Workspace Apps', alwaysShow: true },
+      { to: '/settings', icon: Settings, label: BUSINESS_UNIT_STORE_SETTINGS_LINK, alwaysShow: true },
     ],
   },
   {
@@ -272,7 +314,7 @@ const allSections: NavSection[] = [
       { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'] },
       { to: '/restaurant/kitchen', icon: ChefHat, label: 'Kitchen Board', requiresOffering: ['products', 'both'] },
       { to: '/restaurant/setup', icon: Settings, label: 'Restaurant Tables', requiresOffering: ['products', 'both'] },
-      { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', alwaysShow: true },
+      { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions' },
       { to: '/rental', icon: Truck, label: 'Rentals', alwaysShow: true },
       { to: '/production', icon: Factory, label: 'Production Orders', requiresOffering: ['products', 'both'] },
       { to: '/invoices', icon: FileText, label: 'Invoices' },
@@ -434,7 +476,7 @@ const allSections: NavSection[] = [
   {
     id: 'system',
     title: 'System Configuration',
-    icon: Settings,
+    icon: Settings2,
     items: [
       { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
@@ -611,6 +653,19 @@ const RAIL_FLYOUT_ITEM =
 const RAIL_FLYOUT_ITEM_ACTIVE =
   'sidebar-nav-link-active font-medium text-foreground shadow-none ring-0'
 const RAIL_FLYOUT_ITEM_IDLE = 'font-normal text-foreground hover:bg-muted/70'
+
+/** Icon-rail flyout height estimate — must include header, footer, and list padding for viewport clamping. */
+function estimateRailFlyoutHeight(itemCount: number, groupCount: number): number {
+  const headerPx = 52
+  const footerPx = 44
+  const listPadPx = 12
+  const rowPx = 40
+  const groupHeaderPx = 28
+  const natural = headerPx + footerPx + listPadPx + itemCount * rowPx + groupCount * groupHeaderPx
+  const viewportCap = Math.max(220, window.innerHeight - 16)
+  const designCap = 32 * 16
+  return Math.min(natural, viewportCap, designCap)
+}
 
 const navRowTransition = 'transition-[background-color,color,border-color] duration-150 ease-out motion-reduce:transition-none'
 const navExpandTransition =
@@ -868,6 +923,7 @@ export default function DashboardLayout() {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({ 'My Kit': false })
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const [storePickerOpen, setStorePickerOpen] = useState(false)
+  const storePickerRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const navScrollRef = useRef<HTMLElement>(null)
@@ -941,6 +997,18 @@ export default function DashboardLayout() {
       description: only.description ?? undefined,
     })
   }, [stores, selectedStore, setSelectedStore])
+
+  useEffect(() => {
+    if (!storePickerOpen) return
+    const onPointerDown = (e: PointerEvent) => {
+      const root = storePickerRef.current
+      const t = e.target
+      if (!root || !(t instanceof Node) || root.contains(t)) return
+      setStorePickerOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [storePickerOpen])
 
   useEffect(() => {
     if (!profileOpen) return
@@ -1248,6 +1316,12 @@ export default function DashboardLayout() {
   const permissions = vendorRole?.permissions || []
   const isOwnerOrAdmin = vendorRole?.role === 'owner' || vendorRole?.role === 'admin' || vendorRole?.role_name?.toLowerCase() === 'owner' || vendorRole?.role_name?.toLowerCase() === 'admin'
 
+  const navOrderScope = useMemo((): NavOrderScope | null => {
+    if (!user?.id) return null
+    const roleKey = vendorRole?.role_id ?? vendorRole?.role ?? vendorRole?.role_name ?? 'member'
+    return { userId: user.id, roleKey: String(roleKey) }
+  }, [user?.id, vendorRole?.role_id, vendorRole?.role, vendorRole?.role_name])
+
   const financeMode = ((vendor?.settings as Record<string, unknown> | undefined)?.finance_mode as string | undefined) ?? 'advanced'
 
   const vendorSettings = vendor?.settings as Record<string, unknown> | undefined
@@ -1265,6 +1339,12 @@ export default function DashboardLayout() {
   const filterItem = useCallback(
     (item: NavItem) => {
       if (item.alwaysShow) return true
+      if (item.to === '/pos' && !isPosNavVisible(vendorSettings, vendor?.offering_type)) return false
+      if (item.to.startsWith('/restaurant/') && !isRestaurantNavVisible(vendorSettings, vendor?.offering_type)) {
+        return false
+      }
+      if (item.to === '/bookings' && !isBookingsNavVisible(vendorSettings, vendor?.offering_type)) return false
+      if (item.to === '/subscriptions' && !isSubscriptionsNavVisible(vendorSettings)) return false
       if (item.requiresOffering && vendor?.offering_type) {
         if (!item.requiresOffering.includes(vendor.offering_type)) return false
       }
@@ -1276,7 +1356,7 @@ export default function DashboardLayout() {
       }
       return true
     },
-    [vendor, vendor?.offering_type, vendor?.settings, vendorRole, isOwnerOrAdmin, permissions, financeMode],
+    [vendor, vendor?.offering_type, vendorSettings, vendorRole, isOwnerOrAdmin, permissions, financeMode],
   )
 
   const visibleSections = useMemo(
@@ -1329,27 +1409,33 @@ export default function DashboardLayout() {
     [visibleSections, hasLinkedEmployeeProfile, employeePortalUrl],
   )
 
-  const [sectionOrder, setSectionOrder] = useState<string[]>(() => loadSectionIds(DEFAULT_SECTION_IDS))
+  const [sectionOrder, setSectionOrder] = useState<string[]>(DEFAULT_SECTION_IDS)
   const [itemPlacements, setItemPlacements] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
-    saveSectionIds(sectionOrder)
-  }, [sectionOrder])
+    if (!navOrderScope) return
+    setSectionOrder(loadSectionIds(DEFAULT_SECTION_IDS, navOrderScope))
+  }, [navOrderScope])
 
   useEffect(() => {
-    if (!displaySections.length) return
+    if (!navOrderScope) return
+    saveSectionIds(sectionOrder, navOrderScope)
+  }, [sectionOrder, navOrderScope])
+
+  useEffect(() => {
+    if (!displaySections.length || !navOrderScope) return
     setItemPlacements((prev) =>
       reconcileNavPlacements(
-        Object.keys(prev).length ? prev : loadNavPlacementsState(displaySections),
+        Object.keys(prev).length ? prev : loadNavPlacementsState(displaySections, navOrderScope),
         displaySections,
       ),
     )
-  }, [displaySections])
+  }, [displaySections, navOrderScope])
 
   useEffect(() => {
-    if (!Object.keys(itemPlacements).length) return
-    saveNavPlacementsState(itemPlacements)
-  }, [itemPlacements])
+    if (!navOrderScope || !Object.keys(itemPlacements).length) return
+    saveNavPlacementsState(itemPlacements, navOrderScope)
+  }, [itemPlacements, navOrderScope])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -1415,16 +1501,36 @@ export default function DashboardLayout() {
     [location.pathname, location.search, flatVisibleNavItems],
   )
 
-  function resetNavOrderToDefaults() {
-    clearSavedNavOrder()
-    setSectionOrder(loadSectionIds(DEFAULT_SECTION_IDS))
+  useLayoutEffect(() => {
+    if (!railFlyoutSectionId) return
+    const el = railFlyoutRef.current
+    if (!el) return
+    const margin = 8
+    const { bottom } = el.getBoundingClientRect()
+    if (bottom > window.innerHeight - margin) {
+      const shift = bottom - (window.innerHeight - margin)
+      setRailFlyoutTop((prev) => Math.max(margin, prev - shift))
+    }
+  }, [railFlyoutSectionId, orderedNavItemsBySectionId, displaySections])
+
+  const resetNavOrderToDefaults = useCallback(() => {
+    if (navOrderScope) clearSavedNavOrder(navOrderScope)
+    setSectionOrder(loadSectionIds(DEFAULT_SECTION_IDS, navOrderScope))
     setItemPlacements(buildDefaultPlacementsFromSections(displaySections))
     setNavReorderMode(false)
     setNavActiveDndId(null)
     setNavDndOverId(null)
     setNavDragOverlay(null)
     setSidebarOpen(true)
-  }
+  }, [navOrderScope, displaySections])
+
+  useEffect(() => {
+    function onResetUserNavOrder() {
+      resetNavOrderToDefaults()
+    }
+    window.addEventListener(RESET_USER_NAV_ORDER_EVENT, onResetUserNavOrder)
+    return () => window.removeEventListener(RESET_USER_NAV_ORDER_EVENT, onResetUserNavOrder)
+  }, [resetNavOrderToDefaults])
 
   function handleNavDragEnd(event: DragEndEvent) {
     try {
@@ -1585,6 +1691,7 @@ export default function DashboardLayout() {
 
   const roleBadge = vendorRole?.role_name || 'Member'
   const profileName = user?.full_name?.trim() || ''
+  const profileDisplayName = profileFirstName(user?.full_name) || profileName
   const profileHoverTitle = profileName
     ? roleBadge
       ? `${profileName} — ${roleBadge}`
@@ -1614,14 +1721,8 @@ export default function DashboardLayout() {
          'Dashboard')
 
   const storePickerMenu = storePickerOpen ? (
-    <>
       <div
-        className="fixed inset-0 z-40"
-        onClick={() => setStorePickerOpen(false)}
-        aria-hidden
-      />
-      <div
-        className="absolute top-full right-0 z-50 mt-1.5 w-80 max-w-[min(20rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+        className="absolute top-full right-0 z-[61] mt-1.5 w-80 max-w-[min(20rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
         role="listbox"
         aria-label={`Select ${BUSINESS_UNIT_STORE_LABEL}`}
       >
@@ -1698,7 +1799,6 @@ export default function DashboardLayout() {
           </Link>
         </div>
       </div>
-    </>
   ) : null
 
   const sidebarDesktopToggleLabel =
@@ -1720,7 +1820,7 @@ export default function DashboardLayout() {
       const groupCount = new Set(
         effectiveNavGroupLabels(items).filter((g): g is string => Boolean(g)),
       ).size
-      const estimatedH = Math.min(480, 72 + items.length * 36 + groupCount * 24)
+      const estimatedH = estimateRailFlyoutHeight(items.length, groupCount)
       const maxTop = Math.max(8, window.innerHeight - estimatedH - 8)
       const top = Math.min(Math.max(8, rect.top - 6), maxTop)
       setRailFlyoutTop(top)
@@ -1771,7 +1871,10 @@ export default function DashboardLayout() {
                 </div>
               </div>
 
-              <div className="sidebar-scroll sidebar-scroll-intent min-h-0 flex-1 overflow-y-auto p-1.5">
+              <div
+                className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 [scrollbar-gutter:stable]"
+                aria-label={`${railFlyoutSection.title} pages`}
+              >
                 {(() => {
                   const flyoutGroups = effectiveNavGroupLabels(railFlyoutItems)
                   return railFlyoutItems.map((item, itemIdx) => {
@@ -2482,7 +2585,7 @@ export default function DashboardLayout() {
 
   return (
     <div
-      className="min-h-screen bg-background font-sans text-foreground"
+      className="min-h-screen overflow-x-clip bg-background font-sans text-foreground"
       style={sidebarWidthStyle}
     >
       {/* Mobile overlay */}
@@ -2564,6 +2667,7 @@ export default function DashboardLayout() {
       {/* Main content */}
       <div
         className={cn(
+          'overflow-x-clip',
           sidebarMode === 'hidden' && 'lg:ml-0',
           sidebarMode !== 'hidden' && 'lg:ml-[var(--sidebar-width)]',
           isSidebarResizing && 'will-change-[margin-left]',
@@ -2639,7 +2743,7 @@ export default function DashboardLayout() {
 
             {/* Actions — priority: never clipped */}
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              <div className="relative">
+              <div ref={storePickerRef} className="relative">
                 <button
                   type="button"
                   onClick={openStorePicker}
@@ -2685,29 +2789,30 @@ export default function DashboardLayout() {
                   title={profileHoverTitle}
                   aria-label={profileHoverTitle ?? 'Open profile menu'}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-full py-1 pl-1 pr-1.5 transition-colors sm:pr-2',
+                    'flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-1 transition-colors sm:pr-1.5',
                     profileOpen ? 'bg-muted ring-1 ring-border' : 'hover:bg-muted',
                   )}
                 >
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-xs font-bold text-white shadow-sm ring-1 ring-black/15">
-                    {(user?.full_name || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="hidden min-w-0 max-w-[6.5rem] flex-col items-start leading-tight md:flex lg:max-w-[8rem]">
+                  <ProfileAvatar
+                    user={user}
+                    className="h-6 w-6 shadow-sm ring-1 ring-black/15"
+                  />
+                  <span className="hidden min-w-0 max-w-[4.25rem] flex-col items-start leading-none md:flex lg:max-w-[5rem]">
                     <span
-                      className="w-full truncate text-sm font-medium text-foreground"
+                      className="w-full truncate text-xs font-medium text-foreground"
                       title={profileName || undefined}
                     >
-                      {user?.full_name}
+                      {profileDisplayName}
                     </span>
                     <span
-                      className="mt-0.5 inline-flex max-w-full items-center gap-0.5 truncate rounded px-1 py-px text-xs font-medium bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90"
+                      className="mt-0.5 inline-flex max-w-full items-center gap-0.5 truncate rounded px-0.5 py-px text-[10px] font-medium leading-none bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90"
                       title={roleBadge}
                     >
-                      <ShieldCheck className="h-2 w-2 shrink-0" aria-hidden />
+                      <ShieldCheck className="h-1.5 w-1.5 shrink-0" aria-hidden />
                       <span className="truncate">{roleBadge}</span>
                     </span>
                   </span>
-                  <ChevronDown className={cn('hidden h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform md:block', profileOpen && 'rotate-180')} />
+                  <ChevronDown className={cn('hidden h-3 w-3 shrink-0 text-muted-foreground transition-transform md:block', profileOpen && 'rotate-180')} />
                 </button>
 
                 {profileOpen && (
@@ -2715,9 +2820,11 @@ export default function DashboardLayout() {
                       {/* User header — fixed at top of panel */}
                       <div className="shrink-0 border-b border-white/10 bg-[linear-gradient(90deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_42%,hsl(var(--hero-to))_100%)] px-4 py-3 text-white">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-sm font-bold text-white shadow-md ring-1 ring-white/15">
-                            {(user?.full_name || 'U').charAt(0).toUpperCase()}
-                          </div>
+                          <ProfileAvatar
+                            user={user}
+                            className="h-10 w-10 shadow-md ring-1 ring-white/15"
+                            textClassName="text-sm font-bold"
+                          />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-white" title={profileName || undefined}>
                               {user?.full_name}
@@ -2754,13 +2861,13 @@ export default function DashboardLayout() {
                               toggleDark()
                             }}
                             className={cn(
-                              'relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                              'relative h-6 w-11 shrink-0 rounded-full border overflow-hidden transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                               dark ? 'bg-primary border-primary' : 'bg-muted border-border',
                             )}
                           >
                             <span
                               className={cn(
-                                'pointer-events-none absolute top-0.5 left-0.5 block h-5 w-5 rounded-full bg-card shadow ring-1 ring-border transition-transform duration-200 ease-out',
+                                'pointer-events-none absolute top-[2px] left-[2px] block h-[18px] w-[18px] rounded-full bg-white shadow transition-transform duration-200 ease-out',
                                 dark && 'translate-x-5',
                               )}
                             />
@@ -2771,16 +2878,8 @@ export default function DashboardLayout() {
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
                         >
-                          <User className="w-4 h-4 text-muted-foreground" />
+                          <UserIcon className="w-4 h-4 text-muted-foreground" />
                           <span className="flex-1">My Profile</span>
-                        </Link>
-                        <Link
-                          to="/settings"
-                          onClick={() => setProfileOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
-                        >
-                          <Settings className="w-4 h-4 text-muted-foreground" />
-                          <span className="flex-1">Settings</span>
                         </Link>
                         <Link
                           to="/notifications"
@@ -2808,6 +2907,14 @@ export default function DashboardLayout() {
                       {/* Workspace section */}
                       <div className="py-1 border-t border-border">
                         <ProfileMenuLabel>Workspace</ProfileMenuLabel>
+                        <Link
+                          to="/settings"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
+                        >
+                          <Settings className="w-4 h-4 text-muted-foreground" />
+                          <span className="flex-1">{BUSINESS_UNIT_STORE_SETTINGS_LINK}</span>
+                        </Link>
                         <Link
                           to="/stores"
                           onClick={() => setProfileOpen(false)}
@@ -2918,7 +3025,7 @@ export default function DashboardLayout() {
         />
 
         {/* Page content */}
-        <main className="p-4 lg:p-8 bg-background font-sans text-sm">
+        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 lg:p-8 bg-background font-sans text-sm">
           <Outlet />
         </main>
       </div>
