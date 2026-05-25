@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { X } from 'lucide-react'
 import { useCreateHRDepartment, useUpdateHRDepartment } from '@/hooks/useVendor'
 import type { HRDepartment } from '@/types'
@@ -11,7 +12,10 @@ interface DeptModalProps {
   onCreated?: (dept: HRDepartment) => void
 }
 
-export function DeptModal({ dept, departments: _departments, onClose, onCreated }: DeptModalProps) {
+export function DeptModal({
+ dept, departments: _departments, onClose, onCreated }: DeptModalProps) {
+  useEscapeToClose(onClose)
+
   const create = useCreateHRDepartment()
   const update = useUpdateHRDepartment()
   const [form, setForm] = useState({

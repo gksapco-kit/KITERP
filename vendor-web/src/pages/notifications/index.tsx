@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -76,6 +77,8 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (v: SortK
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const label = SORT_OPTIONS.find(o => o.value === value)?.label ?? 'Sort'
+
+  useEscapeToClose(() => setOpen(false), open)
 
   return (
     <div className="relative" ref={ref}>

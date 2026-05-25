@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import {
   X, Loader2, CheckCircle, AlertTriangle, XCircle, Lock,
@@ -76,7 +77,10 @@ function fmt(n: number) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MRPReportModal({ orderId, orderType, orderRef, items, onClose }: MRPReportModalProps) {
+export function MRPReportModal({
+ orderId, orderType, orderRef, items, onClose }: MRPReportModalProps) {
+  useEscapeToClose(onClose)
+
   const calculateMRP = useCalculateMRP()
   const { data: reservationsRaw, refetch: refetchReservations } = useOrderReservations(orderType, orderId)
   const createReservations = useCreateReservations()

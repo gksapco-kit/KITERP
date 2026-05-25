@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, forwardRef } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -316,6 +317,8 @@ export default function Register() {
     setOtpSentTo(null)
     otpAutoSentRef.current = false
   }, [])
+
+  useEscapeToClose(closeOtpModal, otpModalOpen && !!pendingPhoneSignup)
 
   const {
     register,

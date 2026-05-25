@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -128,6 +129,10 @@ export default function BookingDetail() {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [showCompleteModal, setShowCompleteModal] = useState(false)
+
+  useEscapeToClose(() => setShowCancelModal(false), showCancelModal)
+  useEscapeToClose(() => setShowCompleteModal(false), showCompleteModal)
+
   const [deliveryNotes, setDeliveryNotes] = useState('')
   const [newFollowup, setNewFollowup] = useState('')
   const [followupType, setFollowupType] = useState('note')

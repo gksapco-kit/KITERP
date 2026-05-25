@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, SendHorizonal, Trash2, GitMerge, X } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
@@ -40,6 +41,8 @@ export default function CostAllocationsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [error, setError] = useState('')
+
+  useEscapeToClose(() => setShowCreate(false), showCreate)
 
   const activeCo = useMemo(
     () => companyId || companies.find(c => c.is_default)?.id || companies[0]?.id || '',

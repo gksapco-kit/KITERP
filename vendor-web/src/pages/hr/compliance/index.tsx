@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import {
   Plus, Trash2, X, Pencil, Send, FileText, ShieldCheck, Award, Activity, Download, ExternalLink,
@@ -142,7 +143,8 @@ function PoliciesTab() {
   )
 }
 
-function PolicyModal({ existing, onClose }: { existing?: Policy | null; onClose: () => void }) {
+function PolicyModal({
+ existing, onClose }: { existing?: Policy | null; onClose: () => void }) {
   const create = useCreateHRPolicy()
   const update = useUpdateHRPolicy()
   const [form, setForm] = useState({
@@ -348,7 +350,8 @@ function CertificationsTab() {
   )
 }
 
-function CertModal({ existing, onClose }: { existing?: ComplianceCertification | null; onClose: () => void }) {
+function CertModal({
+ existing, onClose }: { existing?: ComplianceCertification | null; onClose: () => void }) {
   const { data: empData } = useHREmployees({ limit: 200 })
   const employees: EmployeeProfile[] = empData?.items ?? []
   const create = useCreateHRCertification()

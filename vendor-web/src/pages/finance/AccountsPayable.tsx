@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useBills, useApAging, useCreateBill, usePostBill, useRecordVendorPayment, usePaymentRuns } from '@/hooks/useFinance'
 import { Plus, CheckCircle, X } from 'lucide-react'
 
@@ -32,6 +33,8 @@ export default function AccountsPayable() {
   const bills = Array.isArray(billsData) ? billsData : (billsData?.items || [])
 
   const closeNewBill = () => setShowNewBill(false)
+
+  useEscapeToClose(closeNewBill, showNewBill)
 
   return (
     <div className="p-6 space-y-4">

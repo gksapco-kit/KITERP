@@ -3,6 +3,7 @@
  * Pre-fill any combination of customer / service / date / time / staff.
  */
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { apiClient } from '@/api/client'
@@ -44,7 +45,10 @@ export interface CreateBookingModalProps {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function CreateBookingModal({ preFill, onCreated, onClose }: CreateBookingModalProps) {
+export function CreateBookingModal({
+ preFill, onCreated, onClose }: CreateBookingModalProps) {
+  useEscapeToClose(onClose)
+
   const qc = useQueryClient()
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 

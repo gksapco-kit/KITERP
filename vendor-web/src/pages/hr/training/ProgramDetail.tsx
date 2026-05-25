@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Pencil, Trash2, X, BookOpen, Video, FileText, HelpCircle } from 'lucide-react'
 import {

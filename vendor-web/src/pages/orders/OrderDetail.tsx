@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -885,7 +886,8 @@ function InfoCard({ icon: Icon, label, value, sub }: { icon: React.ElementType; 
   )
 }
 
-function ShipModal({ onClose, onSubmit, isPending }: {
+function ShipModal({
+ onClose, onSubmit, isPending }: {
   onClose: () => void
   onSubmit: (trackingNumber: string, trackingUrl: string) => void
   isPending: boolean

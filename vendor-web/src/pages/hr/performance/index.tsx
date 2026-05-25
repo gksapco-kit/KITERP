@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { Plus, Trash2, X, Pencil, Rocket, Target, ClipboardList, Lock, ExternalLink } from 'lucide-react'
 import {
@@ -155,7 +156,8 @@ function CyclesTab() {
   )
 }
 
-function CycleModal({ existing, onClose }: { existing?: ReviewCycle | null; onClose: () => void }) {
+function CycleModal({
+ existing, onClose }: { existing?: ReviewCycle | null; onClose: () => void }) {
   const create = useCreateHRCycle()
   const update = useUpdateHRCycle()
   const [form, setForm] = useState({
@@ -391,7 +393,8 @@ function GoalsTab() {
   )
 }
 
-function GoalModal({ existing, onClose }: { existing?: PerformanceGoal | null; onClose: () => void }) {
+function GoalModal({
+ existing, onClose }: { existing?: PerformanceGoal | null; onClose: () => void }) {
   const { data: empData } = useHREmployees({ limit: 200 })
   const employees: EmployeeProfile[] = empData?.items ?? []
   const { data: cycles = [] } = useHRCycles()

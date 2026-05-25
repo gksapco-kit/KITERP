@@ -1,4 +1,5 @@
 import { type ReactNode, type FormEvent } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

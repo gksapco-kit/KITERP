@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useBudgets, useCreateBudget, useBudgetVariance, useForecasts, useCreateForecast } from '@/hooks/useFinance'
 import { Plus, BarChart3, X } from 'lucide-react'
 
@@ -22,6 +23,8 @@ export default function BudgetsForecast() {
   const createForecastMut = useCreateForecast()
 
   const closeNewBudget = () => setShowNewBudget(false)
+
+  useEscapeToClose(closeNewBudget, showNewBudget)
 
   return (
     <div className="p-6 space-y-4">

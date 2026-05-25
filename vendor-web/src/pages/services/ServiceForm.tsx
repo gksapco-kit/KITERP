@@ -23,6 +23,7 @@ import {
   type BookingDocTypeId,
 } from '@/lib/bookingDocuments'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
   FormPageWithNav,
   FormSectionNav,
@@ -844,6 +845,7 @@ export default function ServiceForm() {
   const [expandedPlans, setExpandedPlans] = useState<Record<number, boolean>>(() => (isEdit ? {} : { 0: true }))
   const [expandedPlanSections, setExpandedPlanSections] = useState<Record<string, boolean>>({})
   const [deletingPlanIdx, setDeletingPlanIdx] = useState<number | null>(null)
+  useEscapeToClose(() => setDeletingPlanIdx(null), deletingPlanIdx !== null)
   const [leadTimeUnit, setLeadTimeUnit] = useState('hours')
   const [quoteFields, setQuoteFields] = useState<QuoteFormFieldDraft[]>([...DEFAULT_QUOTE_FIELDS])
   const [serviceAvailability, setServiceAvailability] = useState<AvailSlot[]>([...DEFAULT_AVAILABILITY])

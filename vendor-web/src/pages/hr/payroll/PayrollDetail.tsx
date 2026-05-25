@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, CheckCircle, CreditCard, ExternalLink, Download, Loader2, Trash2, AlertTriangle, Info, X } from 'lucide-react'
 import { useHRPayrollRun, useFinalizePayroll, useMarkPayrollPaid, useDeletePayrollRun } from '@/hooks/useVendor'
@@ -7,7 +8,8 @@ import { vendorApi } from '@/api/vendor'
 import { useNavigate } from 'react-router-dom'
 import type { PayrollEntry } from '@/types'
 
-function DeleteConfirmModal({ runId, label, onClose }: { runId: string; label: string; onClose: () => void }) {
+function DeleteConfirmModal({
+ runId, label, onClose }: { runId: string; label: string; onClose: () => void }) {
   const deleteRun = useDeletePayrollRun()
   const navigate = useNavigate()
 

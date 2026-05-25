@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { DollarSign, Plus, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useHRSalaryStructures, useCreateHRSalaryStructure, useHREmployees } from '@/hooks/useVendor'
 import type { SalaryStructure } from '@/types'
@@ -7,7 +8,8 @@ import type { SalaryStructure } from '@/types'
 const DEFAULT_EARNINGS = { basic: 0, hra: 0, da: 0, special_allowance: 0, conveyance: 0, medical: 0 }
 const DEFAULT_DEDUCTIONS = { pf_employee: 0, esi_employee: 0, professional_tax: 0, tds: 0 }
 
-function SalaryModal({ employees, onClose }: { employees: any[]; onClose: () => void }) {
+function SalaryModal({
+ employees, onClose }: { employees: any[]; onClose: () => void }) {
   const create = useCreateHRSalaryStructure()
   const [empId, setEmpId] = useState('')
   const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().slice(0, 10))

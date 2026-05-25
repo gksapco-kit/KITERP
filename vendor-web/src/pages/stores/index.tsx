@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useStores, vendorKeys } from '@/hooks/useVendor'
@@ -151,6 +152,8 @@ function StoreModal({
   saving: boolean
   defaultCountry?: string
 }) {
+  useEscapeToClose(onClose)
+
   const existingType = (store?.settings as Record<string, string> | undefined)?.company_type ?? ''
   const isPreset = COMPANY_TYPES.some(t => t.value === existingType)
 

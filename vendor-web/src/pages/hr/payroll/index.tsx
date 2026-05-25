@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { Play, CheckCircle, CreditCard, Receipt, Loader2, Trash2, AlertTriangle, X } from 'lucide-react'
 import { useHRPayrollRuns, useProcessPayroll, useDeletePayrollRun } from '@/hooks/useVendor'
@@ -12,7 +13,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   paid: { label: 'Paid', color: 'bg-green-100 text-green-700' },
 }
 
-function ProcessWizard({ onClose }: { onClose: () => void }) {
+function ProcessWizard({
+ onClose }: { onClose: () => void }) {
   const processPayroll = useProcessPayroll()
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -86,7 +88,8 @@ function ProcessWizard({ onClose }: { onClose: () => void }) {
   )
 }
 
-function DeleteConfirmModal({ run, onClose }: { run: PayrollRun; onClose: () => void }) {
+function DeleteConfirmModal({
+ run, onClose }: { run: PayrollRun; onClose: () => void }) {
   const deleteRun = useDeletePayrollRun()
   const periodName = new Date(run.year, run.month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 

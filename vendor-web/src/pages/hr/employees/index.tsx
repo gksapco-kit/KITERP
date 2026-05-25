@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState, useCallback } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Users, UserCheck, UserX, Clock, Eye, EyeOff,

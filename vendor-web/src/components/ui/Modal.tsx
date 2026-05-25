@@ -1,26 +1,45 @@
 import type { MouseEvent, ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { cn, onModalBackdropClick } from '@/lib/utils'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+
+export function ModalEscHint({ className }: { className?: string }) {
+  return (
+    <kbd
+      className={cn(
+        'hidden sm:inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[0.65rem] font-medium text-gray-500 shadow-sm',
+        className,
+      )}
+    >
+      Esc
+    </kbd>
+  )
+}
 
 export function ModalCloseButton({
   onClose,
   className,
+  showEscHint = true,
 }: {
   onClose: () => void
   className?: string
+  showEscHint?: boolean
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClose}
-      className={cn(
-        'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0',
-        className,
-      )}
-      aria-label="Close"
-    >
-      <X className="w-5 h-5" />
-    </button>
+    <div className="flex items-center gap-1.5 shrink-0">
+      {showEscHint ? <ModalEscHint /> : null}
+      <button
+        type="button"
+        onClick={onClose}
+        className={cn(
+          'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors',
+          className,
+        )}
+        aria-label="Close"
+      >
+        <X className="w-5 h-5" />
+      </button>
+    </div>
   )
 }
 
@@ -33,6 +52,8 @@ export function ModalOverlay({
   children: ReactNode
   className?: string
 }) {
+  useEscapeToClose(onClose)
+
   return (
     <div
       className={cn(

@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { CheckCircle, XCircle, Clock, Filter, X } from 'lucide-react'
 import { useHRLeaveRequests, useApproveLeave, useRejectLeave, useHREmployees } from '@/hooks/useVendor'
 import type { LeaveRequest } from '@/types'
@@ -11,7 +12,8 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-gray-100 text-gray-500',
 }
 
-function RejectModal({ reqId, onClose }: { reqId: string; onClose: () => void }) {
+function RejectModal({
+ reqId, onClose }: { reqId: string; onClose: () => void }) {
   const reject = useRejectLeave()
   const [reason, setReason] = useState('')
   async function handleSubmit(e: React.FormEvent) {

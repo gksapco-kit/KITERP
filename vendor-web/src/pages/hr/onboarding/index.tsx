@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Trash2, X, Layers, ListChecks, Pencil, CheckCircle2, Circle, Clock as ClockIcon } from 'lucide-react'
 import {
   useHROnbTemplates, useCreateHROnbTemplate, useUpdateHROnbTemplate, useDeleteHROnbTemplate,
@@ -151,7 +152,8 @@ function ChecklistCard({ checklist, expanded, onToggle }: { checklist: Onboardin
   )
 }
 
-function StartChecklistModal({ onClose }: { onClose: () => void }) {
+function StartChecklistModal({
+ onClose }: { onClose: () => void }) {
   const create = useCreateHRChecklist()
   const { data: employeesData } = useHREmployees({ size: 200 })
   const employees: EmployeeProfile[] = Array.isArray(employeesData)
@@ -290,7 +292,8 @@ function TemplatesTab() {
   )
 }
 
-function TemplateModal({ existing, onClose }: { existing?: OnboardingTemplate | null; onClose: () => void }) {
+function TemplateModal({
+ existing, onClose }: { existing?: OnboardingTemplate | null; onClose: () => void }) {
   const create = useCreateHROnbTemplate()
   const update = useUpdateHROnbTemplate()
   const { data: depts = [] } = useHRDepartments()

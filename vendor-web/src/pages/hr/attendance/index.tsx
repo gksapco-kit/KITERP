@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
   Calendar, CheckCircle, XCircle, Clock, AlertCircle,
   ThumbsUp, ThumbsDown, Pencil, X, Save, ChevronDown,
@@ -65,7 +66,10 @@ interface MarkModalProps {
   onClose: () => void
 }
 
-function AttendanceModal({ employees, record, defaultDate, onClose }: MarkModalProps) {
+function AttendanceModal({
+ employees, record, defaultDate, onClose }: MarkModalProps) {
+  useEscapeToClose(onClose)
+
   const mark   = useHRMarkAttendance()
   const update = useHRUpdateAttendance()
   const isEdit = !!record
@@ -231,7 +235,10 @@ interface RangeModalProps {
   onClose:     () => void
 }
 
-function RangeMarkModal({ employees, defaultFrom, defaultTo, onClose }: RangeModalProps) {
+function RangeMarkModal({
+ employees, defaultFrom, defaultTo, onClose }: RangeModalProps) {
+  useEscapeToClose(onClose)
+
   const markRange = useHRMarkAttendanceRange()
 
   // ── Step 1 state ──

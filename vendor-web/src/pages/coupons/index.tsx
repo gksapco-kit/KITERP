@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -165,7 +166,10 @@ export default function CouponsPage() {
   )
 }
 
-function CouponModal({ mode, coupon, onClose, onSaved }: { mode: 'create' | 'edit'; coupon?: Record<string, unknown>; onClose: () => void; onSaved: () => void }) {
+function CouponModal({
+ mode, coupon, onClose, onSaved }: { mode: 'create' | 'edit'; coupon?: Record<string, unknown>; onClose: () => void; onSaved: () => void }) {
+  useEscapeToClose(onClose)
+
   const [form, setForm] = useState({
     code: (coupon?.code as string) || '',
     title: (coupon?.title as string) || '',

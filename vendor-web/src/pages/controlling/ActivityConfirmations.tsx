@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Clock, Trash2, X } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
@@ -36,6 +37,8 @@ export default function ActivityConfirmationsPage() {
   const [toDate, setToDate] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [error, setError] = useState('')
+
+  useEscapeToClose(() => setShowCreate(false), showCreate)
 
   const activeCo = useMemo(
     () => companyId || companies.find(c => c.is_default)?.id || companies[0]?.id || '',

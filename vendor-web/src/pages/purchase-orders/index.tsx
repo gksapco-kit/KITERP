@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -343,6 +344,8 @@ function CreatePOModal({
   pendingSupplier?: { id: string; name: string }
   onClose: () => void
 }) {
+  useEscapeToClose(onClose)
+
   const createMut = useCreatePurchaseOrder()
   const createSupplierMut = useCreateSupplier()
   const { data: suppliersData, refetch: refetchSuppliers } = useSuppliers({ is_active: true })

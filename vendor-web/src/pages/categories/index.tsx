@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -122,7 +123,10 @@ function CategoryRow({ cat, level, onEdit, onAddSub, onDelete, onViewCatalogue }
 }
 
 // ── Catalogue Drawer ─────────────────────────────────────────────
-function CatalogueDrawer({ categoryId, onClose }: { categoryId: string; onClose: () => void }) {
+function CatalogueDrawer({
+ categoryId, onClose }: { categoryId: string; onClose: () => void }) {
+  useEscapeToClose(onClose)
+
   const { data, isLoading } = useCategoryCatalogues(categoryId)
   const navigate = useNavigate()
 
@@ -281,6 +285,9 @@ export default function CategoriesPage() {
     setShowForm(false); setEditing(null); setName(''); setDescription('')
     setAppliesTo('both'); setParentId(null); setSortOrder(0); setCustomFields([])
   }
+
+  useEscapeToClose(resetForm, showForm)
+  useEscapeToClose(() => setCatalogueId(null), !!catalogueId)
 
   const openCreate = (pId?: string) => {
     resetForm()

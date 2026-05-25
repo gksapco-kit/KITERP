@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
   useFieldRules, useCreateFieldRule, useDeleteFieldRule, useCompanies,
 } from '@/hooks/useFinance'
@@ -44,6 +45,7 @@ export default function FieldRuleConfig() {
     queryFn: () => vendorApi.listTeamMembers({ size: 200 }),
   })
   const [showAdd, setShowAdd] = useState(false)
+  useEscapeToClose(() => setShowAdd(false), showAdd)
   const [form, setForm] = useState({
     scope: 'gl' as 'gl' | 'company' | 'user',
     company_id: '',

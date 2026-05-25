@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Play, CheckCircle, AlertTriangle, Clock, TrendingUp, BarChart2, X } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
@@ -70,6 +71,8 @@ export default function PeriodEndPage() {
   const [postRunId, setPostRunId] = useState<string | null>(null)
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0])
   const [error, setError] = useState('')
+
+  useEscapeToClose(() => setShowCreateRun(false), showCreateRun)
 
   const activeCo = useMemo(
     () => companyId || companies.find(c => c.is_default)?.id || companies[0]?.id || '',

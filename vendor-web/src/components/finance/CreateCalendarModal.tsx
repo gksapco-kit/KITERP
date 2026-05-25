@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as api from '@/api/finance'
 import { Loader2, Save, Shield, Info, X } from 'lucide-react'
@@ -26,7 +27,10 @@ type Props = {
   companies: Company[]
 }
 
-export default function CreateCalendarModal({ open, onClose, companies }: Props) {
+export default function CreateCalendarModal({
+ open, onClose, companies }: Props) {
+  useEscapeToClose(onClose, open)
+
   const qc = useQueryClient()
   const [tpl, setTpl] = useState<(typeof TEMPLATES)[number]['id']>('apr_mar')
   const [yearAnchor, setYearAnchor] = useState(new Date().getFullYear())

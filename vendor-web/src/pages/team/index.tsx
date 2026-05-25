@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useNavigate } from 'react-router-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -252,7 +253,8 @@ export default function SuppliersPage() {
   )
 }
 
-function SupplierModal({ mode, supplier, onClose }: {
+function SupplierModal({
+ mode, supplier, onClose }: {
   mode: 'create' | 'edit'
   supplier?: Supplier
   onClose: () => void
@@ -456,7 +458,8 @@ function SupplierModal({ mode, supplier, onClose }: {
   )
 }
 
-function SupplierViewDrawer({ supplier, onClose, onEdit }: {
+function SupplierViewDrawer({
+ supplier, onClose, onEdit }: {
   supplier: Supplier
   onClose: () => void
   onEdit: (s: Supplier) => void

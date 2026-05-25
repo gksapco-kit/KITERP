@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -493,7 +494,10 @@ function ItemSearchRow({
   )
 }
 
-function CreateInvoiceModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function CreateInvoiceModal({
+ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  useEscapeToClose(onClose)
+
   const [form, setForm] = useState({
     invoice_type: 'invoice',
     customer_name: '', customer_email: '', customer_phone: '', customer_gstin: '',

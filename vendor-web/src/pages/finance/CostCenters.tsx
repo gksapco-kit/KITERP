@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import {
   useCompanies,
@@ -94,6 +95,7 @@ export default function CostCenters() {
 
   // ── Dialog state ──
   const [ccDialog, setCcDialog] = useState<{ open: boolean; editing?: CostCenter }>({ open: false })
+  useEscapeToClose(() => setCcDialog({ open: false }), ccDialog.open)
   const [ccForm, setCcForm] = useState<CCForm>(EMPTY_FORM)
   const [dialogTab, setDialogTab] = useState<DialogTab>('details')
   const [actionMenu, setActionMenu] = useState<string | null>(null)

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, ExternalLink, FolderOpen, Target, X } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
@@ -160,6 +161,7 @@ export default function InternalOrdersPage() {
   const [kindFilter, setKindFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  useEscapeToClose(() => setShowCreate(false), showCreate)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
   const [error, setError] = useState('')
 

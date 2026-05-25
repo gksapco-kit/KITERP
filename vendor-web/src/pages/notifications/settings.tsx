@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -262,6 +263,8 @@ function ToneDropdown({ value, onChange, volume }: {
   const dropRef = useRef<HTMLDivElement>(null)
   const selected = TONE_OPTIONS.find(t => t.value === value)
   const close = useCallback(() => setOpen(false), [])
+
+  useEscapeToClose(close, open)
 
   return (
     <div className="relative" ref={dropRef}>

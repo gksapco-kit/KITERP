@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import { Button } from '@/components/ui/button'
@@ -80,6 +81,8 @@ export function ImageCropModal({
   onCancel,
   title = 'Crop & Resize Image',
 }: ImageCropModalProps) {
+  useEscapeToClose(onCancel)
+
   const imgRef = useRef<HTMLImageElement>(null)
   const [imgSrc, setImgSrc] = useState('')
   const [crop, setCrop] = useState<Crop>()

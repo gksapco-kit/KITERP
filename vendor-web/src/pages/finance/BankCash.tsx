@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useBankAccounts, useCreateBankAccount, useStatements, useUploadStatementCSV, useReconciliations, useCreateReconciliation, useAutoMatch } from '@/hooks/useFinance'
 import { Plus, Upload, Shuffle, X } from 'lucide-react'
 
@@ -32,6 +33,8 @@ export default function BankCash() {
   }
 
   const closeNewAccount = () => setShowNewAccount(false)
+
+  useEscapeToClose(closeNewAccount, showNewAccount)
 
   return (
     <div className="p-6 space-y-4">

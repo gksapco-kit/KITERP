@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { X } from 'lucide-react'
 import { useCreateHRDesignation, useUpdateHRDesignation } from '@/hooks/useVendor'
 import type { HRDesignation } from '@/types'
@@ -10,7 +11,10 @@ interface DesigModalProps {
   onCreated?: (desig: HRDesignation) => void
 }
 
-export function DesigModal({ desig, onClose, onCreated }: DesigModalProps) {
+export function DesigModal({
+ desig, onClose, onCreated }: DesigModalProps) {
+  useEscapeToClose(onClose)
+
   const create = useCreateHRDesignation()
   const update = useUpdateHRDesignation()
   const [form, setForm] = useState({ name: desig?.name ?? '', level: desig?.level ?? 1 })

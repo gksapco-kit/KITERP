@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ExternalLink, FileText, Layout, Loader2, Paintbrush, RotateCcw, X } from 'lucide-react'
@@ -241,6 +242,8 @@ export function WebsiteTemplatePreviewModal({
   onApplied,
   zIndexClass = 'z-[220]',
 }: WebsiteTemplatePreviewModalProps) {
+  useEscapeToClose(onClose)
+
   const qc = useQueryClient()
   const [applyArmed, setApplyArmed] = useState(false)
   const [applyText, setApplyText] = useState('')

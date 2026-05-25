@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useAssets, useCreateAsset, useRunDepreciation, useDisposeAsset, useAssetCategories, useCreateAssetCategory } from '@/hooks/useFinance'
 import { Plus, Zap, Trash2, X } from 'lucide-react'
 
@@ -27,6 +28,8 @@ export default function FixedAssets() {
   const depMut = useRunDepreciation()
   const disposeMut = useDisposeAsset()
   const createCatMut = useCreateAssetCategory()
+
+  useEscapeToClose(() => setShowNew(false), showNew)
 
   return (
     <div className="p-6 space-y-4">

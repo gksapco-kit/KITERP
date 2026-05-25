@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Edit2, X, Filter, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -112,6 +113,8 @@ export default function AssignmentsPage() {
   }
 
   const closeForm = () => setShowForm(false)
+
+  useEscapeToClose(closeForm, showForm)
 
   const handleSave = async () => {
     if (!form.plan_id) return toast.error('Plan is required')

@@ -1,4 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalEscapeHandler } from '@/components/ui/ModalEscapeHandler'
 import { useNavigate } from 'react-router-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -300,6 +302,21 @@ export default function ProductionOrdersPage() {
   const [detailAssigneeTab,    setDetailAssigneeTab]    = useState<'team' | 'supplier'>('team')
   const [editNotesMode,        setEditNotesMode]        = useState(false)
   const [detailEditNotes,      setDetailEditNotes]      = useState('')
+
+  const closeCreateModal = useCallback(() => {
+    setShowCreate(false)
+    setCreateType(null)
+  }, [])
+
+  // Background handlers — disabled while the create modal is open so Esc closes the modal.
+  useEscapeToClose(() => setDetailAssigneeDropOpen(false), detailAssigneeDropOpen && !showCreate)
+  useEscapeToClose(() => setVariantPickerProduct(null), !!variantPickerProduct)
+  useEscapeToClose(() => setShowNewCustomer(false), showNewCustomer)
+  useEscapeToClose(() => setMrpOrder(null), !!mrpOrder)
+  // Create modal — register before inner dropdowns so nested pickers close first on Esc.
+  useEscapeToClose(closeCreateModal, showCreate)
+  useEscapeToClose(() => setCustomerDropOpen(false), customerDropOpen && showCreate)
+  useEscapeToClose(() => setAssigneeDropOpen(false), assigneeDropOpen && showCreate)
 
   const filteredDetailTeam = useMemo(() => {
     if (!detailAssigneeSearch.trim()) return teamMembers.slice(0, 10)
@@ -1439,6 +1456,7 @@ export default function ProductionOrdersPage() {
       {/* ── Create Order Drawer ──────────────────────────────────────────────── */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowCreate(false); setCreateType(null) }}>
+          <ModalEscapeHandler onClose={closeCreateModal} />
           <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             {/* Step 1: choose type */}

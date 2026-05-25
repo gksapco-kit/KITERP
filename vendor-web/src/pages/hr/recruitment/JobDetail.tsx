@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Plus, Calendar, X, Star, Users as UsersIcon } from 'lucide-react'
 import {
@@ -18,7 +19,8 @@ const STAGES: { key: JobApplication['current_stage']; label: string; color: stri
   { key: 'rejected',     label: 'Rejected',     color: 'border-red-300 bg-red-50' },
 ]
 
-function AddCandidateToJobModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
+function AddCandidateToJobModal({
+ jobId, onClose }: { jobId: string; onClose: () => void }) {
   const { data: candidates = [] } = useHRCandidates()
   const create = useCreateHRApplication()
   const [search, setSearch] = useState('')
@@ -61,7 +63,8 @@ function AddCandidateToJobModal({ jobId, onClose }: { jobId: string; onClose: ()
   )
 }
 
-function ScheduleInterviewModal({ application, onClose }: { application: JobApplication; onClose: () => void }) {
+function ScheduleInterviewModal({
+ application, onClose }: { application: JobApplication; onClose: () => void }) {
   const create = useCreateHRInterview()
   const nextRound = (application.interviews?.length ?? 0) + 1
   const [form, setForm] = useState({

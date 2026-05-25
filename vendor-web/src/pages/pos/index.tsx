@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
@@ -1755,7 +1756,8 @@ export default function POS() {
 
 // ── Payment Modal ────────────────────────────────────────────────
 
-function PaymentModal({ total, sessionId, cart, discountType, discountValue, txnMode, originalTxnId, selectedCustomer, notes, couponCode, loyaltyPointsRedeem, restaurantTableId, salesPersonVendorUserId, onClose, onComplete }: {
+function PaymentModal({
+ total, sessionId, cart, discountType, discountValue, txnMode, originalTxnId, selectedCustomer, notes, couponCode, loyaltyPointsRedeem, restaurantTableId, salesPersonVendorUserId, onClose, onComplete }: {
   total: number; sessionId: string; cart: CartItem[]; discountType: string; discountValue: number
   txnMode: TxnMode; originalTxnId?: string; selectedCustomer?: { id: string; full_name: string } | null
   notes?: string; couponCode?: string; loyaltyPointsRedeem?: number
@@ -3307,7 +3309,8 @@ function saveEnabledForms(ids: PrintFormId[]) {
   localStorage.setItem(POS_ENABLED_FORMS_KEY, JSON.stringify(ids))
 }
 
-function POSInvoiceSettingsModal({ invSettings, vendor, posSettings, onSettingsChange, onClose,
+function POSInvoiceSettingsModal({
+ invSettings, vendor, posSettings, onSettingsChange, onClose,
   defaultCustomerId, defaultCustomerName, onDefaultCustomerSave, loyaltyProgram, onLoyaltyProgramSave,
 }: {
   invSettings: Partial<InvoiceSettings>; vendor?: any

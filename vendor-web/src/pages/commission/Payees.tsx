@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Search, Edit2, Trash2, UserCheck, Building2, CreditCard, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -138,6 +139,8 @@ export default function PayeesPage() {
   // ── open forms ───────────────────────────────────────────────────────────
 
   const closeForm = () => setShowForm(false)
+
+  useEscapeToClose(closeForm, showForm)
 
   const openCreate = () => {
     setEditing(null)

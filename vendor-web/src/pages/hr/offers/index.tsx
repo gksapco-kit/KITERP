@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Plus, Send, ExternalLink, Trash2, FileText, Settings2, Loader2, X } from 'lucide-react'

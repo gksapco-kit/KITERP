@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useLoans, useCreateLoan, useGenerateLoanSchedule, useInvestments, useCreateInvestment, useInvestmentROI } from '@/hooks/useFinance'
 import { Plus, BarChart3, X } from 'lucide-react'
 
@@ -22,6 +23,9 @@ export default function Capital() {
   const createLoanMut = useCreateLoan()
   const genScheduleMut = useGenerateLoanSchedule()
   const createInvMut = useCreateInvestment()
+
+  useEscapeToClose(() => setShowNewLoan(false), showNewLoan)
+  useEscapeToClose(() => setShowNewInv(false), showNewInv)
 
   return (
     <div className="p-6 space-y-4">

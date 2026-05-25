@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Edit2, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useCommission'
@@ -41,6 +42,8 @@ export default function PlansPage() {
   }
 
   const closeForm = () => setShowForm(false)
+
+  useEscapeToClose(closeForm, showForm)
 
   const openEdit = (plan: CommissionPlan) => {
     setEditing(plan)

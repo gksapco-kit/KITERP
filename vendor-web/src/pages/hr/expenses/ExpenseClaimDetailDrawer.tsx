@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import {
   X, Check, FileText, User, Receipt, ExternalLink, Loader2,
