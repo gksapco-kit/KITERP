@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
 import { createPortal } from 'react-dom'
-import { Outlet, NavLink, useLocation, Link } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
   Users, Settings, LogOut, Store, MessageSquare,
@@ -18,6 +18,7 @@ import {
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
   GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
+  ArrowLeft, MoreHorizontal, Keyboard,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
 
@@ -1450,6 +1451,21 @@ export default function DashboardLayout() {
   // ── Universal Search ───────────────────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false)
 
+  // ── Header utility buttons ─────────────────────────────────────────────────
+  const navigate = useNavigate()
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const helpRef = useRef<HTMLDivElement>(null)
+  const moreRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (helpRef.current && !helpRef.current.contains(e.target as Node)) setHelpOpen(false)
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [])
+
   const navSearchIndex = useMemo<NavSearchEntry[]>(
     () => buildNavIndex(orderedVisibleSections as Parameters<typeof buildNavIndex>[0]),
     [orderedVisibleSections],
@@ -2685,37 +2701,129 @@ export default function DashboardLayout() {
             Title + search must shrink (min-w-0). Actions stay full width (shrink-0).
             Do not use overflow-hidden here — it clips the unit picker when the row is tight.
           */}
-          <div className="flex h-14 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-8">
-            {/* Title — truncates first */}
-            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-              <button
-                type="button"
-                className="shrink-0 rounded-lg p-2 -ml-1 text-muted-foreground hover:bg-muted lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open menu"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              {location.pathname === '/settings' ? (
-                <div
-                  className="flex min-w-0 items-baseline gap-1.5 overflow-hidden sm:gap-2"
-                  title={pageTitle}
+          <div className="flex min-h-14 min-w-0 items-center gap-2 px-3 py-1.5 sm:gap-3 sm:px-4 lg:px-8">
+            {/* Title + sub-action row */}
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+              <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg p-1.5 -ml-1 text-muted-foreground hover:bg-muted lg:hidden"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Open menu"
                 >
-                  <h1 className="shrink-0 text-sm font-semibold text-foreground sm:text-base lg:text-lg">
-                    {settingsSectionTitle ?? 'Settings'}
+                  <Menu className="h-5 w-5" />
+                </button>
+                {location.pathname === '/settings' ? (
+                  <div
+                    className="flex min-w-0 items-baseline gap-1.5 overflow-hidden sm:gap-2"
+                    title={pageTitle}
+                  >
+                    <h1 className="shrink-0 text-sm font-semibold text-foreground sm:text-base lg:text-lg">
+                      {settingsSectionTitle ?? 'Settings'}
+                    </h1>
+                    <span className="hidden min-w-0 truncate text-xs font-medium text-muted-foreground md:inline sm:text-sm">
+                      {settingsSectionTitle ? `Settings · ${settingsScopeHeading}` : settingsScopeHeading}
+                    </span>
+                  </div>
+                ) : (
+                  <h1
+                    className="min-w-0 truncate text-sm font-semibold text-foreground sm:text-base lg:text-lg"
+                    title={pageTitle}
+                  >
+                    {pageTitle}
                   </h1>
-                  <span className="hidden min-w-0 truncate text-xs font-medium text-muted-foreground md:inline sm:text-sm">
-                    {settingsSectionTitle ? `Settings · ${settingsScopeHeading}` : settingsScopeHeading}
-                  </span>
-                </div>
-              ) : (
-                <h1
-                  className="min-w-0 truncate text-sm font-semibold text-foreground sm:text-base lg:text-lg"
-                  title={pageTitle}
+                )}
+              </div>
+
+              {/* Sub-action buttons: back, help, more */}
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => window.history.back()}
+                  title="Go back"
+                  aria-label="Go back"
+                  className="flex items-center justify-center rounded-md p-1 text-primary hover:bg-primary/10 transition-colors"
                 >
-                  {pageTitle}
-                </h1>
-              )}
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </button>
+
+                <div ref={helpRef} className="relative">
+                  <button
+                    type="button"
+                    title="Help & support"
+                    aria-label="Help"
+                    onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
+                    className={cn('flex items-center justify-center rounded-md p-1 text-amber-500 hover:bg-amber-50 transition-colors', helpOpen && 'bg-amber-50')}
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                  </button>
+                  {helpOpen && (
+                    <div className="absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
+                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
+                      <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                        onClick={() => setHelpOpen(false)}>
+                        <BookOpen className="h-4 w-4 shrink-0 text-blue-500" /> Documentation
+                      </a>
+                      <a href="mailto:support@kiterp.com"
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                        onClick={() => setHelpOpen(false)}>
+                        <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
+                      </a>
+                      <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                        onClick={() => setHelpOpen(false)}>
+                        <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
+                      </a>
+                      <div className="mx-3 my-1 border-t border-border" />
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                        onClick={() => { navigate('/settings'); setHelpOpen(false) }}>
+                        <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div ref={moreRef} className="relative">
+                  <button
+                    type="button"
+                    title="More options"
+                    aria-label="More options"
+                    onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
+                    className={cn('flex items-center justify-center rounded-md p-1 text-blue-500 hover:bg-blue-50 transition-colors', moreOpen && 'bg-blue-50')}
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </button>
+                  {moreOpen && (
+                    <div className="absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
+                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                        onClick={() => { setSearchOpen(true); setMoreOpen(false) }}>
+                        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="flex-1 text-left">Search</span>
+                        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                        onClick={() => { navigate('/notifications'); setMoreOpen(false) }}>
+                        <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
+                      </button>
+                      <div className="mx-3 my-1 border-t border-border" />
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                        onClick={() => { navigate('/settings'); setMoreOpen(false) }}>
+                        <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Search — fixed max width, yields space to actions */}
@@ -2743,6 +2851,7 @@ export default function DashboardLayout() {
 
             {/* Actions — priority: never clipped */}
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+
               <div ref={storePickerRef} className="relative">
                 <button
                   type="button"
