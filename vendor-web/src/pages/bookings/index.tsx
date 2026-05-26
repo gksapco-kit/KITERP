@@ -620,9 +620,9 @@ export default function BookingsPage() {
     setRescheduleTime('')
   }, [])
 
+  useEscapeToClose(closeCancelModal, !!cancelTarget && !showCreate)
+  useEscapeToClose(closeRescheduleModal, !!rescheduleTarget && !showCreate)
   useEscapeToClose(closeCreateModal, showCreate)
-  useEscapeToClose(closeCancelModal, !!cancelTarget)
-  useEscapeToClose(closeRescheduleModal, !!rescheduleTarget)
   useEscapeToClose(() => setShowQuickCreate(false), showQuickCreate)
   useEscapeToClose(() => setShowSlotPicker(false), showSlotPicker)
 
@@ -740,6 +740,7 @@ export default function BookingsPage() {
       {/* ── Create Booking Modal ─────────────────────────────────────────────── */}
       {showCreate && (
         <div
+          data-kiterp-modal
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4"
           onClick={closeCreateModal}
         >
@@ -760,7 +761,7 @@ export default function BookingsPage() {
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <ModalEscHint className="border-white/30 bg-white/10 text-white/90" />
-                <button type="button" aria-label="Close"
+                <button type="button" data-escape-close aria-label="Close"
                   onClick={closeCreateModal}
                   className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors"
                 >

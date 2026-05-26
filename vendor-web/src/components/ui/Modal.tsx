@@ -30,6 +30,7 @@ export function ModalCloseButton({
       {showEscHint ? <ModalEscHint /> : null}
       <button
         type="button"
+        data-escape-close
         onClick={onClose}
         className={cn(
           'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors',
@@ -56,6 +57,7 @@ export function ModalOverlay({
 
   return (
     <div
+      data-kiterp-modal
       className={cn(
         'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto',
         className,
