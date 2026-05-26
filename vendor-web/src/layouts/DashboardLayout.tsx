@@ -296,8 +296,8 @@ const allSections: NavSection[] = [
     titleTooltip: 'My Kit',
     icon: Sparkles,
     items: [
-      { to: '/', icon: BarChart3, label: 'Dashboard (Test)', alwaysShow: true },
-      { to: '/notifications', icon: Bell, label: 'Notifications (Test)', alwaysShow: true },
+      { to: '/', icon: BarChart3, label: 'Dashboard', alwaysShow: true },
+      { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/relationship-manager', icon: UsersRound, label: 'Relationship Manager', alwaysShow: true },
       { to: '/workspace', icon: LayoutGrid, label: 'Workspace Apps', alwaysShow: true },
@@ -306,21 +306,21 @@ const allSections: NavSection[] = [
   },
   {
     id: 'sales',
-    title: 'Sales Management (Test)',
+    title: 'Sales Management',
     icon: ShoppingCart,
     items: [
-      { to: '/orders', icon: ShoppingCart, label: 'Orders (Test)', requiresPermission: 'orders.view' },
-      { to: '/bookings', icon: Calendar, label: 'Bookings (Test)', requiresOffering: ['services', 'both'] },
-      { to: '/pos', icon: Receipt, label: 'POS (Test)', requiresOffering: ['products', 'both'] },
+      { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view' },
+      { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'] },
+      { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'] },
       { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'] },
       { to: '/restaurant/kitchen', icon: ChefHat, label: 'Kitchen Board', requiresOffering: ['products', 'both'] },
       { to: '/restaurant/setup', icon: Settings, label: 'Restaurant Tables', requiresOffering: ['products', 'both'] },
       { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions' },
       { to: '/rental', icon: Truck, label: 'Rentals', alwaysShow: true },
-      { to: '/production', icon: Factory, label: 'Production Orders (Test)', requiresOffering: ['products', 'both'] },
-      { to: '/invoices', icon: FileText, label: 'Invoices (Test)' },
-      { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos (Test)' },
-      { to: '/coupons', icon: Tag, label: 'Coupons (Test)' },
+      { to: '/production', icon: Factory, label: 'Production Orders', requiresOffering: ['products', 'both'] },
+      { to: '/invoices', icon: FileText, label: 'Invoices' },
+      { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos' },
+      { to: '/coupons', icon: Tag, label: 'Coupons' },
     ],
   },
   {
@@ -344,14 +344,14 @@ const allSections: NavSection[] = [
     items: [
       { to: '/products', icon: Package, label: 'Products', requiresOffering: ['products', 'both'], requiresPermission: 'products.view' },
       { to: '/services', icon: Wrench, label: 'Services', requiresOffering: ['services', 'both'], requiresPermission: 'services.view' },
-      { to: '/categories', icon: FolderTree, label: 'Categories (Test)' },
-      { to: '/inventory', icon: Warehouse, label: 'Inventory (Test)', requiresOffering: ['products', 'both'] },
-      { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders (Test)', requiresOffering: ['products', 'both'] },
+      { to: '/categories', icon: FolderTree, label: 'Categories' },
+      { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'] },
+      { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresOffering: ['products', 'both'] },
     ],
   },
   {
     id: 'finance',
-    title: 'Finance Management (Test)',
+    title: 'Finance Management',
     icon: Landmark,
     items: [
       // ── Basic Finance mode ─────────────────────────────────────────────────
@@ -359,9 +359,9 @@ const allSections: NavSection[] = [
       // ── Advanced Finance mode ──────────────────────────────────────────────
       { to: '/finance', icon: Landmark, label: 'Finance Dashboard', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       // ── General Accounting
-      { to: '/stores', icon: Building2, label: 'Business Units (Test)', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced', groupLabel: 'General Accounting', groupColor: 'blue' },
+      { to: '/stores', icon: Building2, label: 'Business Units', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced', groupLabel: 'General Accounting', groupColor: 'blue' },
       { to: '/finance/cost-centers', icon: Layers, label: 'Cost Centers', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
-      { to: '/finance/coa', icon: BookMarked, label: 'Chart of Accounts (Test)', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
+      { to: '/finance/coa', icon: BookMarked, label: 'Chart of Accounts', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/journal', icon: ScrollText, label: 'Journal Entries', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/trial-balance', icon: Scale, label: 'Trial Balance', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/periods', icon: Lock, label: 'Posting Periods', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
@@ -376,7 +376,7 @@ const allSections: NavSection[] = [
       { to: '/finance/assets', icon: HardDrive, label: 'Fixed Assets', requiresPermission: 'finance.assets.manage', requiresFinanceMode: 'advanced', groupLabel: 'Asset Accounting', groupColor: 'indigo' },
       // ── Planning & Treasury
       { to: '/finance/budgets', icon: Calculator, label: 'Budgets & Forecasts', requiresPermission: 'finance.budget.manage', requiresFinanceMode: 'advanced', groupLabel: 'Planning & Treasury', groupColor: 'violet' },
-      { to: '/finance/capital', icon: Shuffle, label: 'Loans & Investments (Test)', requiresPermission: 'finance.capital.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/capital', icon: Shuffle, label: 'Loans & Investments', requiresPermission: 'finance.capital.manage', requiresFinanceMode: 'advanced' },
       // ── Financial Reporting
       { to: '/finance/reports/pnl', icon: LineChart, label: 'P&L Statement', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced', groupLabel: 'Financial Reporting', groupColor: 'rose' },
       { to: '/finance/reports/balance-sheet', icon: FilePieChart, label: 'Balance Sheet', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
@@ -387,7 +387,7 @@ const allSections: NavSection[] = [
       // ── Governance
       { to: '/finance/approvals', icon: ClipboardCheck, label: 'Approvals', requiresPermission: 'finance.controls.approve', requiresFinanceMode: 'advanced', groupLabel: 'Governance', groupColor: 'blue' },
       { to: '/finance/audit', icon: ShieldCheck, label: 'Audit Log', requiresPermission: 'finance.audit.view', requiresFinanceMode: 'advanced' },
-      { to: '/finance/tax', icon: CircleDollarSign, label: 'Tax Returns (Test)', requiresPermission: 'finance.tax.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/tax', icon: CircleDollarSign, label: 'Tax Returns', requiresPermission: 'finance.tax.manage', requiresFinanceMode: 'advanced' },
     ],
   },
   {
@@ -488,7 +488,7 @@ const allSections: NavSection[] = [
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/invoices/templates', icon: FileText, label: 'Invoice Templates', alwaysShow: true },
       { to: '/purchase-orders/templates', icon: ClipboardList, label: 'PO Templates', alwaysShow: true },
-      { to: '/system/modules', icon: Layers, label: 'Module Settings (Test)', alwaysShow: true },
+      { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
       { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
     ],
