@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useTaxReturns, useCreateTaxReturn, useComputeTaxReturn, useFileTaxReturn, useTaxCodes, useCreateTaxCode } from '@/hooks/useFinance'
 import { Plus, Calculator, Send, X } from 'lucide-react'
 
@@ -26,6 +27,9 @@ export default function TaxReturns() {
   const computeMut = useComputeTaxReturn()
   const fileMut = useFileTaxReturn()
   const createCodeMut = useCreateTaxCode()
+
+  useEscapeToClose(() => setShowNew(false), showNew)
+  useEscapeToClose(() => setShowNewCode(false), showNewCode)
 
   return (
     <div className="p-6 space-y-4">

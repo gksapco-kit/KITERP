@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -641,6 +642,14 @@ export default function ReportsPage() {
     try { return JSON.parse(localStorage.getItem('mrp_prod_history') || '[]') } catch { return [] }
   })
   const [viewHistoryEntry, setViewHistoryEntry] = useState<ProdHistoryEntry | null>(null)
+
+  useEscapeToClose(() => setProdModal(false), prodModal)
+  useEscapeToClose(() => setPoModal(false), poModal)
+  useEscapeToClose(() => setPoSupplierOpen(false), poSupplierOpen)
+  useEscapeToClose(() => setMrpShareOpen(false), mrpShareOpen)
+  useEscapeToClose(() => setMrpColsOpen(false), mrpColsOpen)
+  useEscapeToClose(() => setSelectorOpen(false), selectorOpen)
+  useEscapeToClose(() => setWaOpen(false), waOpen)
 
   // ── Search / filter / sort state ───────────────────────────────────────
   const [search,       setSearch]         = useState('')

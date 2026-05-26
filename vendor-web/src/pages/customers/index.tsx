@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -36,7 +37,8 @@ const GST_STATES: Record<string, string> = {
   '97': 'Other Territory',
 }
 
-function CreateCustomerModal({ onClose }: { onClose: () => void }) {
+function CreateCustomerModal({
+ onClose }: { onClose: () => void }) {
   const createCustomer = useCreateCustomer()
   const [form, setForm] = useState({
     full_name: '',

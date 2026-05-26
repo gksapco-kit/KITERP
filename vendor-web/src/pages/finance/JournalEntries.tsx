@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useQuery } from '@tanstack/react-query'
 import {
   useJournalEntries, usePostJournalEntry, useVoidJournalEntry,
@@ -194,7 +195,10 @@ interface JEDrawerProps {
   onSaved: () => void
 }
 
-function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
+function JEDrawer({
+ mode, initialData, onClose, onSaved }: JEDrawerProps) {
+  useEscapeToClose(onClose)
+
   const { user } = useAuthStore()
   const { data: companies = [] } = useCompanies()
   const { data: fiscalYears = [] } = useFiscalYears()
@@ -1071,7 +1075,8 @@ function JEDrawer({ mode, initialData, onClose, onSaved }: JEDrawerProps) {
 }
 
 // ─── JE Detail View ───────────────────────────────────────────────────────────
-function JEDetail({ jeId, onClose }: { jeId: string; onClose: () => void }) {
+function JEDetail({
+ jeId, onClose }: { jeId: string; onClose: () => void }) {
   const { data: je, isLoading } = useJournalEntry(jeId)
 
   if (isLoading) return (

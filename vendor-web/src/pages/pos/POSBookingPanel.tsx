@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Button } from '@/components/ui/button'
 import { vendorApi } from '@/api/vendor'
 import { formatCurrency } from '@/lib/utils'
@@ -99,6 +100,8 @@ export function POSBookingPanel({
   onOpenFullBooking,
   onClose,
 }: POSBookingPanelProps) {
+  useEscapeToClose(onClose)
+
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
   const [date, setDate] = useState(currentDate || today)

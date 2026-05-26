@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { LifeBuoy, Plus, X, ExternalLink } from 'lucide-react'
 import { useMyTickets, useCreateTicket } from '@/hooks/useVendor'
@@ -72,7 +73,8 @@ export default function MyTicketsPage() {
   )
 }
 
-function NewTicketModal({ onClose }: { onClose: () => void }) {
+function NewTicketModal({
+ onClose }: { onClose: () => void }) {
   const create = useCreateTicket()
   const [form, setForm] = useState({
     subject: '', description: '', category: 'it',

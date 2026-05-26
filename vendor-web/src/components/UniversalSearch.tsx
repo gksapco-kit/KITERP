@@ -1,3 +1,4 @@
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
   useState, useEffect, useRef, useMemo, useCallback,
   type KeyboardEvent,
@@ -427,7 +428,8 @@ function RecordRow({
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function UniversalSearch({ open, onClose, navEntries }: Props) {
+export function UniversalSearch({
+ open, onClose, navEntries }: Props) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<Tab>('navigate')
@@ -446,6 +448,8 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
     setActiveIdx(0)
     onClose()
   }, [onClose])
+
+  useEscapeToClose(handleClose, open)
 
   const handleNavigate = useCallback((to: string) => {
     navigate(to)
@@ -466,11 +470,6 @@ export function UniversalSearch({ open, onClose, navEntries }: Props) {
 
   // Keyboard navigation
   const onKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      handleClose()
-      return
-    }
     if (tab === 'navigate') {
       if (e.key === 'ArrowDown') {
         e.preventDefault()

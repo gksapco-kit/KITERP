@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalEscHint } from '@/components/ui/Modal'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -193,7 +195,9 @@ const GRID_START = 7 * 60   // 7:00 AM
 const GRID_END   = 22 * 60  // 10:00 PM
 const SLOT_STEP  = 30       // minutes per grid cell
 
-function SlotPickerPopup({ date, slots, staffId, duration, selectedStart, selectedEnd, onPick, onClose }: SlotPickerProps) {
+function SlotPickerPopup({
+  date, slots, staffId, duration, selectedStart, selectedEnd, onPick, onClose }: SlotPickerProps) {
+  useEscapeToClose(onClose)
   // Active (non-cancelled) slots split by staff relevance
   const activeSlots = slots.filter((s: any) =>
     !['cancelled', 'no_show'].includes(s.status) && s.start_time && s.end_time,
@@ -600,6 +604,28 @@ export default function BookingsPage() {
     setShowQuickCreate(false); setShowSlotPicker(false); setShowAllSlots(false)
   }
 
+  const closeCreateModal = useCallback(() => {
+    setShowCreate(false)
+    resetCreateForm()
+  }, [])
+
+  const closeCancelModal = useCallback(() => {
+    setCancelTarget(null)
+    setCancelReason('')
+  }, [])
+
+  const closeRescheduleModal = useCallback(() => {
+    setRescheduleTarget(null)
+    setRescheduleDate('')
+    setRescheduleTime('')
+  }, [])
+
+  useEscapeToClose(closeCancelModal, !!cancelTarget && !showCreate)
+  useEscapeToClose(closeRescheduleModal, !!rescheduleTarget && !showCreate)
+  useEscapeToClose(closeCreateModal, showCreate)
+  useEscapeToClose(() => setShowQuickCreate(false), showQuickCreate)
+  useEscapeToClose(() => setShowSlotPicker(false), showSlotPicker)
+
   const handleCreate = async () => {
     if (!selectedService || !bookingDate || !selectedCustomer) {
       toast.error('Please select a service, date, and customer')
@@ -714,8 +740,9 @@ export default function BookingsPage() {
       {/* ── Create Booking Modal ─────────────────────────────────────────────── */}
       {showCreate && (
         <div
+          data-kiterp-modal
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4"
-          onClick={() => { setShowCreate(false); resetCreateForm() }}
+          onClick={closeCreateModal}
         >
           <div
             className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[94vh] flex flex-col overflow-hidden"
@@ -732,12 +759,15 @@ export default function BookingsPage() {
                   <p className="text-primary-foreground/85 text-xs">Fill in the details and pick a time slot</p>
                 </div>
               </div>
-              <button type="button" aria-label="Close"
-                onClick={() => { setShowCreate(false); resetCreateForm() }}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <ModalEscHint className="border-white/30 bg-white/10 text-white/90" />
+                <button type="button" data-escape-close aria-label="Close"
+                  onClick={closeCreateModal}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors"
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
             </div>
 
             {/* ── Body — three columns (drag handles to resize) ── */}
@@ -1258,7 +1288,7 @@ export default function BookingsPage() {
                 className="text-xs text-gray-400 hover:text-primary font-medium transition-colors px-1">
                 ⊟ Reset layout
               </button>
-              <Button variant="cancel" className="h-9 px-4 text-sm" onClick={() => { setShowCreate(false); resetCreateForm() }}>Cancel</Button>
+              <Button variant="cancel" className="h-9 px-4 text-sm" onClick={closeCreateModal}>Cancel</Button>
               <Button
                 className="h-9 px-5 gap-2 bg-primary hover:bg-primary/90 font-semibold text-sm"
                 onClick={handleCreate}

@@ -15,6 +15,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,7 +39,10 @@ interface Props {
   returnTo?: string
 }
 
-export function QuickCreateCustomerModal({ onSelect, onClose, returnTo }: Props) {
+export function QuickCreateCustomerModal({
+ onSelect, onClose, returnTo }: Props) {
+  useEscapeToClose(onClose)
+
   const navigate = useNavigate()
   const createCustomerMut = useCreateCustomer()
 

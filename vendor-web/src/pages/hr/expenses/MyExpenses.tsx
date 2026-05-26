@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Receipt, Plus, X, Send, Trash2, Pencil } from 'lucide-react'
 import { useMyExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '@/hooks/useVendor'
 import { ExpenseReceiptUpload, type ExpenseReceipt } from '@/components/hr/ExpenseReceiptUpload'
@@ -93,7 +94,8 @@ export default function MyExpensesPage() {
   )
 }
 
-function ExpenseModal({ claim, onClose }: { claim: ExpenseClaim | null; onClose: () => void }) {
+function ExpenseModal({
+ claim, onClose }: { claim: ExpenseClaim | null; onClose: () => void }) {
   const create = useCreateExpense()
   const update = useUpdateExpense()
   const [receipts, setReceipts] = useState<ExpenseReceipt[]>(

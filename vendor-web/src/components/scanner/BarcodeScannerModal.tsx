@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { X, Camera, AlertCircle, Loader2, ScanLine, Zap, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -53,7 +54,10 @@ function playBeep() {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function BarcodeScannerModal({ open, onClose, onScan, title = 'Scan Barcode' }: BarcodeScannerModalProps) {
+export function BarcodeScannerModal({
+ open, onClose, onScan, title = 'Scan Barcode' }: BarcodeScannerModalProps) {
+  useEscapeToClose(onClose, open)
+
   const [engine, setEngine] = useState<Engine>(null)
   const [status, setStatus] = useState<'starting' | 'scanning' | 'error'>('starting')
   const [error, setError] = useState<string | null>(null)

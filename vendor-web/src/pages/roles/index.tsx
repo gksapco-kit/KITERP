@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
   ShieldCheck, Plus, Pencil, Trash2, X, Check, ChevronDown, ChevronRight,
@@ -78,6 +79,8 @@ export default function RolesPage() {
   const [editRole, setEditRole] = useState<VendorRole | null>(null)
   const [expandedRole, setExpandedRole] = useState<string | null>(null)
   const [expandedBuiltIn, setExpandedBuiltIn] = useState<string | null>(null)
+
+  useEscapeToClose(() => setShowForm(false), showForm)
 
   // Auto-expand built-in roles — runs whenever the URL params change (handles
   // navigating from team page to the same /roles route without remounting).

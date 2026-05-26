@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useLayoutEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -1761,7 +1762,8 @@ export default function CreditDebitMemos() {
 
 // ── Payment Modal ────────────────────────────────────────────────
 
-function MemoPaymentModal({ total, sessionId, editTxnId, cart, discountType, discountValue, memoMode, originalTxnId, selectedCustomer, notes, onClose, onComplete }: {
+function MemoPaymentModal({
+ total, sessionId, editTxnId, cart, discountType, discountValue, memoMode, originalTxnId, selectedCustomer, notes, onClose, onComplete }: {
   total: number
   sessionId?: string
   editTxnId: string | null

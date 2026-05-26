@@ -4,6 +4,7 @@
  * status management, PO history, and CSV export.
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import {
   useCustomers, useSuppliers,
@@ -286,7 +287,8 @@ function PurchaseOrdersSection({ supplierId }: { supplierId: string }) {
 
 // ── SupplierEditModal ─────────────────────────────────────────────────────────
 
-function SupplierEditModal({ supplier, onClose }: { supplier: Supplier; onClose: () => void }) {
+function SupplierEditModal({
+ supplier, onClose }: { supplier: Supplier; onClose: () => void }) {
   const updateMut = useUpdateSupplier()
 
   const [name,           setName]           = useState(supplier.name)
@@ -456,7 +458,8 @@ function SupplierEditModal({ supplier, onClose }: { supplier: Supplier; onClose:
 
 // ── CustomerEditModal ─────────────────────────────────────────────────────────
 
-function CustomerEditModal({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+function CustomerEditModal({
+ customer, onClose }: { customer: Customer; onClose: () => void }) {
   const updateMut = useUpdateCustomer()
   const ba = customer.billing_address as Record<string, string> | undefined
 
@@ -570,7 +573,8 @@ function CustomerEditModal({ customer, onClose }: { customer: Customer; onClose:
 
 // ── MasterDataDrawer ──────────────────────────────────────────────────────────
 
-function MasterDataDrawer({ record, onClose, onEdit }: {
+function MasterDataDrawer({
+ record, onClose, onEdit }: {
   record: MasterRecord
   onClose: () => void
   onEdit: () => void

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useVendorStore } from '@/stores/vendorStore'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { Link } from 'react-router-dom'
@@ -759,7 +760,8 @@ function LowStockTab({ data, loading, onAction, onViewHistory }: {
   )
 }
 
-function StockModal({ type, prefillProductId, prefillProductName, prefillVariantId, prefillStoreId, stores, onClose }: {
+function StockModal({
+ type, prefillProductId, prefillProductName, prefillVariantId, prefillStoreId, stores, onClose }: {
   type: 'stock-in' | 'stock-out' | 'adjust'
   prefillProductId?: string
   prefillProductName?: string
@@ -1183,7 +1185,8 @@ function parseCSV(text: string): { headers: string[]; rows: string[][] } {
   return { headers, rows }
 }
 
-function BulkUploadModal({ onClose }: { onClose: () => void }) {
+function BulkUploadModal({
+ onClose }: { onClose: () => void }) {
   const { data: productsData } = useProducts({ size: 500 })
   const stockIn = useInventoryStockIn()
   const adjust = useInventoryAdjust()

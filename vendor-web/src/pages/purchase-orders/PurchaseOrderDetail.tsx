@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -992,7 +993,8 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
 
 // ── ReceiveModal (bulk) ───────────────────────────────────────────
 
-function ReceiveModal({ po_id, items, onClose }: {
+function ReceiveModal({
+ po_id, items, onClose }: {
   po_id: string
   items: POItem[]
   onClose: () => void

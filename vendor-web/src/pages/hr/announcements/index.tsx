@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Megaphone, Plus, Pencil, Trash2, X, Pin } from 'lucide-react'
 import {
   useHRAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement,
@@ -85,7 +86,8 @@ export default function AnnouncementsPage() {
   )
 }
 
-function AnnouncementModal({ item, onClose }: { item: Announcement | null; onClose: () => void }) {
+function AnnouncementModal({
+ item, onClose }: { item: Announcement | null; onClose: () => void }) {
   const create = useCreateAnnouncement()
   const update = useUpdateAnnouncement()
   const [form, setForm] = useState({

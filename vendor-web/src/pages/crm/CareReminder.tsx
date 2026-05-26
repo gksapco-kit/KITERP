@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -132,7 +133,8 @@ function avatarColor(str: string) {
 
 // ─── Compose Modal ─────────────────────────────────────────────────────────────
 
-function ComposeModal({ onClose, onSave, editing }: {
+function ComposeModal({
+ onClose, onSave, editing }: {
   onClose: () => void
   onSave: (r: Omit<Reminder, 'id' | 'created_at' | 'status' | 'action_items'>) => void
   editing?: Reminder | null

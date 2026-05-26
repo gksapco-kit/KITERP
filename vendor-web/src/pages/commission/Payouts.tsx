@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, CheckCircle, DollarSign, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -66,6 +67,8 @@ export default function PayoutsPage() {
   const fmtCurrency = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
 
   const closeCreate = () => setShowCreate(false)
+
+  useEscapeToClose(closeCreate, showCreate)
 
   const handleCreate = async () => {
     try {

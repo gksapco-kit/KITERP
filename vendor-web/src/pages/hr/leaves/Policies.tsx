@@ -1,10 +1,12 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Pencil, Shield, X } from 'lucide-react'
 import { useHRLeavePolicies, useCreateHRLeavePolicy, useUpdateHRLeavePolicy } from '@/hooks/useVendor'
 import type { LeavePolicy } from '@/types'
 
-function PolicyModal({ policy, onClose }: { policy?: LeavePolicy | null; onClose: () => void }) {
+function PolicyModal({
+ policy, onClose }: { policy?: LeavePolicy | null; onClose: () => void }) {
   const create = useCreateHRLeavePolicy()
   const update = useUpdateHRLeavePolicy()
   const [form, setForm] = useState({

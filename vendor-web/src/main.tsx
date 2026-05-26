@@ -8,7 +8,10 @@ import { router } from './routes'
 import { ThemeSync } from './components/ThemeSync'
 import { RootErrorBoundary } from './components/RootErrorBoundary'
 import { useAuthStore } from './stores/authStore'
+import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import './styles/globals.css'
+
+initGlobalEscapeHandler()
 
 const queryClient = new QueryClient({
   defaultOptions: {

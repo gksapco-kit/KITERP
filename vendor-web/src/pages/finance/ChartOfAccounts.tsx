@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useAccounts, useCreateAccount, useUpdateAccount, useSeedCOA, useAccountLedger } from '@/hooks/useFinance'
 import {
   Plus, ChevronRight, ChevronDown, Pencil, Settings2, X,
@@ -972,6 +973,8 @@ export default function ChartOfAccounts() {
     setShowModal(true)
   }
   const openView = (a: Account) => setViewing(a)
+
+  useEscapeToClose(() => setShowModal(false), showModal)
 
   const save = () => {
     if (editing) {

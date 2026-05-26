@@ -1,4 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalEscapeHandler } from '@/components/ui/ModalEscapeHandler'
 import { useNavigate } from 'react-router-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -300,6 +302,21 @@ export default function ProductionOrdersPage() {
   const [detailAssigneeTab,    setDetailAssigneeTab]    = useState<'team' | 'supplier'>('team')
   const [editNotesMode,        setEditNotesMode]        = useState(false)
   const [detailEditNotes,      setDetailEditNotes]      = useState('')
+
+  const closeCreateModal = useCallback(() => {
+    setShowCreate(false)
+    setCreateType(null)
+  }, [])
+
+  // Background handlers — disabled while the create modal is open so Esc closes the modal.
+  useEscapeToClose(() => setDetailAssigneeDropOpen(false), detailAssigneeDropOpen && !showCreate)
+  useEscapeToClose(() => setVariantPickerProduct(null), !!variantPickerProduct)
+  useEscapeToClose(() => setShowNewCustomer(false), showNewCustomer)
+  useEscapeToClose(() => setMrpOrder(null), !!mrpOrder)
+  // Create modal — register before inner dropdowns so nested pickers close first on Esc.
+  useEscapeToClose(closeCreateModal, showCreate)
+  useEscapeToClose(() => setCustomerDropOpen(false), customerDropOpen && showCreate)
+  useEscapeToClose(() => setAssigneeDropOpen(false), assigneeDropOpen && showCreate)
 
   const filteredDetailTeam = useMemo(() => {
     if (!detailAssigneeSearch.trim()) return teamMembers.slice(0, 10)
@@ -1438,7 +1455,8 @@ export default function ProductionOrdersPage() {
 
       {/* ── Create Order Drawer ──────────────────────────────────────────────── */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowCreate(false); setCreateType(null) }}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowCreate(false); setCreateType(null) }}>
+          <ModalEscapeHandler onClose={closeCreateModal} />
           <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             {/* Step 1: choose type */}
@@ -1447,7 +1465,7 @@ export default function ProductionOrdersPage() {
                 <div className="flex items-center gap-3 px-6 py-5 border-b bg-gradient-to-r from-accent to-primary/10">
                   <div className="p-2 bg-primary/12 rounded-xl"><Factory className="w-5 h-5 text-primary" /></div>
                   <div className="flex-1"><h2 className="font-bold text-gray-900">New Production Order</h2><p className="text-xs text-muted-foreground">Choose the production type</p></div>
-                  <button type="button" aria-label="Close" onClick={() => setShowCreate(false)} className="p-2 hover:bg-primary/12 rounded-xl">
+                  <button type="button" data-escape-close aria-label="Close" onClick={() => setShowCreate(false)} className="p-2 hover:bg-primary/12 rounded-xl">
                 <X className="w-4 h-4 text-muted-foreground" /></button>
                 </div>
                 <div className="p-6 space-y-4">
@@ -1496,7 +1514,7 @@ export default function ProductionOrdersPage() {
                     <p className="text-xs text-muted-foreground">{createType === 'mto' ? 'Customer-specific production' : 'Stock replenishment production'}</p>
                   </div>
                   <button onClick={() => setCreateType(null)} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 mr-2"><ChevronDown className="w-3 h-3 rotate-90" /> Back</button>
-                  <button type="button" aria-label="Close" onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }} className="p-2 hover:bg-accent rounded-xl">
+                  <button type="button" data-escape-close aria-label="Close" onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }} className="p-2 hover:bg-accent rounded-xl">
                 <X className="w-4 h-4 text-muted-foreground" /></button>
                 </div>
                 <div className="p-6 space-y-5">

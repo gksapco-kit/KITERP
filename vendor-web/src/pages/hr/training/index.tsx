@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import {
   Plus, Pencil, Trash2, X, GraduationCap, Send, BookOpen,
@@ -128,7 +129,8 @@ function ProgramsTab() {
   )
 }
 
-function ProgramModal({ program, onClose }: { program: TrainingProgram | null; onClose: () => void }) {
+function ProgramModal({
+ program, onClose }: { program: TrainingProgram | null; onClose: () => void }) {
   const create = useCreateHRProgram()
   const update = useUpdateHRProgram()
   const [form, setForm] = useState<{
@@ -296,7 +298,8 @@ function EnrollmentsTab() {
   )
 }
 
-function EnrollModal({ onClose }: { onClose: () => void }) {
+function EnrollModal({
+ onClose }: { onClose: () => void }) {
   const { data: programs = [] } = useHRPrograms('published')
   const { data: empData } = useHREmployees({ size: 200 })
   const enroll = useEnrollEmployees()

@@ -18,6 +18,7 @@
  * - 409 duplicate error banner
  */
 import { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -809,7 +810,10 @@ interface AddPartyModalProps {
   editRecord?: { raw: Customer | Supplier; kind: 'customer' | 'supplier' }
 }
 
-export function AddPartyModal({ onClose, defaultType, onCreated, editRecord }: AddPartyModalProps) {
+export function AddPartyModal({
+ onClose, defaultType, onCreated, editRecord }: AddPartyModalProps) {
+  useEscapeToClose(onClose)
+
   const isEditMode = !!editRecord
   const stored = localStorage.getItem('lastPartyType')
   const [partyType, setPartyType] = useState<string>(() => {

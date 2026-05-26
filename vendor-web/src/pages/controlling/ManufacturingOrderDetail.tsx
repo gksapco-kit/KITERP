@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useParams } from 'react-router-dom'
 import {
   useManufacturingOrder,
@@ -44,6 +45,8 @@ export default function ManufacturingOrderDetailPage() {
   const [showTransition, setShowTransition] = useState(false)
   const [transitionStatus, setTransitionStatus] = useState('')
   const [transitionNotes, setTransitionNotes] = useState('')
+
+  useEscapeToClose(() => setShowTransition(false), showTransition)
 
   const transitionMut = useTransitionOrderStatus()
   const { data: bva } = useBudgetVsActual(id)

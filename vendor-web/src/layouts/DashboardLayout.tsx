@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
@@ -1199,6 +1200,9 @@ export default function DashboardLayout() {
   }, [persistSidebarWidth, setSidebarWidthClamped])
 
   const closeMobileSidebar = useCallback(() => setSidebarOpen(false), [])
+
+  useEscapeToClose(closeMobileSidebar, sidebarOpen)
+  useEscapeToClose(() => setRailFlyoutSectionId(null), !!railFlyoutSectionId)
 
   const prevUnreadRef = useRef<number | null>(null)
   const { show: showBrowserNotif, permission } = useBrowserNotifications()

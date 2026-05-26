@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -121,7 +122,8 @@ const STATUS_CONFIG = {
   archived:  { label: 'Archived',  icon: EyeOff,       color: 'text-gray-500 bg-gray-50 border-gray-200' },
 }
 
-function CreateSiteModal({ onClose }: { onClose: () => void }) {
+function CreateSiteModal({
+ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const createSite = useCreateSite()

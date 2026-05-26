@@ -1,5 +1,6 @@
 import { onModalBackdropClick } from '@/lib/utils'
 import { useState } from 'react'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { Plus, Briefcase, Users, Calendar, ExternalLink, Trash2, Pencil, X, Search } from 'lucide-react'
 import {
@@ -27,7 +28,8 @@ const INTV_STATUS: Record<string, { label: string; color: string }> = {
 }
 
 // ── Job Modal ─────────────────────────────────────────────────────────
-function JobModal({ existing, onClose }: { existing?: JobPosting | null; onClose: () => void }) {
+function JobModal({
+ existing, onClose }: { existing?: JobPosting | null; onClose: () => void }) {
   const create = useCreateHRJob()
   const update = useUpdateHRJob()
   const { data: depts = [] } = useHRDepartments()
@@ -186,7 +188,8 @@ function JobModal({ existing, onClose }: { existing?: JobPosting | null; onClose
 }
 
 // ── Candidate Modal ───────────────────────────────────────────────────
-function CandidateModal({ onClose }: { onClose: () => void }) {
+function CandidateModal({
+ onClose }: { onClose: () => void }) {
   const create = useCreateHRCandidate()
   const [form, setForm] = useState({
     full_name: '', email: '', phone: '', current_company: '', current_designation: '',
