@@ -25,6 +25,7 @@ import TeamPage from '@/pages/team/index'
 import RolesPage from '@/pages/roles/index'
 import SettingsPage from '@/pages/settings/index'
 import SupportActivityPage from '@/pages/settings/SupportActivity'
+import AboutPage from '@/pages/about/index'
 import CategoriesPage from '@/pages/categories/index'
 import Inventory from '@/pages/inventory/index'
 import POS from '@/pages/pos/index'
@@ -278,6 +279,7 @@ export const router = createBrowserRouter([
       { path: 'roles', element: <RolesPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'settings/support-activity', element: <SupportActivityPage /> },
+      { path: 'about', element: <AboutPage /> },
       { path: 'system/modules', element: <SystemModulesPage /> },
       { path: 'system/storefront-display', element: <SystemStorefrontDisplayPage /> },
       { path: 'system/social-links', element: <SystemSocialLinksPage /> },

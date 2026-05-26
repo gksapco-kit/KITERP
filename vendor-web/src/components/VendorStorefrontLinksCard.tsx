@@ -100,7 +100,7 @@ function LinkRow({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-0.5 block truncate font-mono text-xs text-primary/90 underline-offset-2 hover:text-primary hover:underline"
+          className="mt-0.5 block truncate font-mono text-xs text-blue-600 underline-offset-2 hover:text-blue-700 hover:underline"
           title={href}
         >
           {href}
@@ -155,7 +155,7 @@ function MetaRow({
             href={openHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-0.5 block truncate font-mono text-xs text-primary/90 underline-offset-2 hover:text-primary hover:underline"
+            className="mt-0.5 block truncate font-mono text-xs text-blue-600 underline-offset-2 hover:text-blue-700 hover:underline"
             title={displayUrl}
           >
             {displayUrl}

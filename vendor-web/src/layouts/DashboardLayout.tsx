@@ -2779,13 +2779,6 @@ export default function DashboardLayout() {
                         onClick={() => setHelpOpen(false)}>
                         <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
                       </a>
-                      <div className="mx-3 my-1 border-t border-border" />
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        onClick={() => { navigate('/settings'); setHelpOpen(false) }}>
-                        <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
-                      </button>
                     </div>
                   )}
                 </div>
@@ -3028,14 +3021,6 @@ export default function DashboardLayout() {
                           <Settings className="w-4 h-4 text-muted-foreground" />
                           <span className="flex-1">{BUSINESS_UNIT_STORE_SETTINGS_LINK}</span>
                         </Link>
-                        <Link
-                          to="/stores"
-                          onClick={() => setProfileOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
-                        >
-                          <Store className="w-4 h-4 text-muted-foreground" />
-                          <span className="flex-1">Business Units</span>
-                        </Link>
                         {(isOwnerOrAdmin || permissions.includes('team.view')) && (
                           <Link
                             to="/team"
@@ -3101,7 +3086,7 @@ export default function DashboardLayout() {
                           <span className="flex-1">Help center</span>
                         </Link>
                         <Link
-                          to="/settings"
+                          to="/about"
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent"
                         >

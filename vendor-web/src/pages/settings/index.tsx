@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,17 +21,24 @@ import {
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
   ChevronRight, Check,
   Info, CheckCircle2, Landmark, HelpCircle, Lock, Building, Plus,
+  Link2, AlertCircle, BadgeCheck, Mail,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
+import {
+  FormPageWithNav,
+  FormSectionNav,
+  useFormActiveSection,
+} from '@/components/common/FormSectionNav'
+import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import type { Vendor } from '@/types'
 import { ImageCropModal } from '@/components/common/ImageCropModal'
 import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/vendorAppMeta'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 
-type Section = 'profile' | 'contact' | 'address' | 'tax' | 'hours-availability' | 'order-acceptance' | 'about'
+type Section = 'profile' | 'contact' | 'address' | 'tax' | 'hours-availability' | 'order-acceptance' | 'external-domain'
 
 function vendorStatusLabel(status?: string | null): string {
   switch (status) {
@@ -96,11 +103,35 @@ export default function SettingsPage() {
   const updateVendor = useUpdateVendor()
 
   // Deep-link: /settings?section=order-acceptance opens that accordion automatically
-  const VALID_SECTIONS: Section[] = ['profile', 'contact', 'address', 'tax', 'hours-availability', 'order-acceptance', 'about']
+  const VALID_SECTIONS: Section[] = ['profile', 'contact', 'address', 'tax', 'hours-availability', 'order-acceptance', 'external-domain']
   const rawSection = searchParams.get('section')
   const sectionParam = (rawSection && VALID_SECTIONS.includes(rawSection as Section) ? rawSection as Section : null)
   const [openSection, setOpenSection] = useState<Section | null>(sectionParam ?? 'profile')
   const [buListSearch, setBuListSearch] = useState('')
+  const [activeNavSection, setActiveNavSection] = useState<string | null>(null)
+
+  const settingsSections = useMemo<FormSectionDef[]>(() => [
+    { key: 'profile',          label: 'Business Profile',       icon: Store,     hint: 'Name, branding, logo and banners.' },
+    { key: 'contact',          label: 'Contact Information',     icon: Phone,     hint: 'Phone, email and support details.' },
+    { key: 'address',          label: 'Addresses',               icon: MapPin,    hint: 'Branch location and HQ address.' },
+    { key: 'tax',              label: 'Tax & Compliance',        icon: FileText,  hint: 'GST, PAN and tax registration.' },
+    { key: 'hours-availability', label: 'Business Hours',        icon: Clock,     hint: 'Walk-in hours on your Business Front.' },
+    { key: 'order-acceptance', label: 'Online Orders',           icon: ShoppingBag, hint: 'When customers can place orders.' },
+    { key: 'external-domain',  label: 'External Domain',         icon: Globe,     hint: 'Own domain & registrar access.' },
+  ], [])
+
+  const openSectionsMap = useMemo<Record<string, boolean>>(() => {
+    const m: Record<string, boolean> = {}
+    settingsSections.forEach(s => { m[s.key] = openSection === s.key })
+    return m
+  }, [openSection, settingsSections])
+
+  const openAndScrollTo = (key: string) => {
+    setOpenSection(key as Section)
+    setTimeout(() => {
+      document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 60)
+  }
 
   // If the URL ?section= changes (e.g. navigating from universal search), update state + scroll
   useEffect(() => {
@@ -108,7 +139,7 @@ export default function SettingsPage() {
       setOpenSection(sectionParam)
       // Give React a tick to expand the section before scrolling
       setTimeout(() => {
-        const el = document.getElementById(`settings-section-${sectionParam}`)
+        const el = document.getElementById(`form-section-${sectionParam}`)
         el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 100)
     }
@@ -151,8 +182,8 @@ export default function SettingsPage() {
   )
 
   return (
-    <div className="mx-auto max-w-6xl space-y-3">
-      {/* Single header row: title + toolbar + chips */}
+    <div className="space-y-3">
+      {/* Header row */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
         <h1
           className="flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-1.5 text-lg font-bold text-foreground"
@@ -200,67 +231,93 @@ export default function SettingsPage() {
         </section>
       ) : null}
 
-      <div key={scopeStoreId ?? 'all-units'} className="space-y-4">
-        <div className="flex flex-col gap-4">
-        <div id="settings-section-profile">
-          <ProfileSection
-            vendor={vendor}
-            open={openSection === 'profile'}
-            toggle={() => setOpenSection(openSection === 'profile' ? null : 'profile')}
-            onSave={updateVendor}
+      <FormPageWithNav
+        activeSectionKey={activeNavSection}
+        nav={(
+          <FormSectionNav
+            sections={settingsSections}
+            openSections={openSectionsMap}
+            visitedSections={new Set(VALID_SECTIONS)}
+            completedSections={new Set<string>()}
+            hasErrorSections={new Set<string>()}
+            onNavigate={openAndScrollTo}
+            onActiveSectionChange={setActiveNavSection}
+            scrollOffset={100}
+            stickyTopClass="top-16"
           />
+        )}
+      >
+        <div key={scopeStoreId ?? 'all-units'} className="flex flex-col gap-4">
+          <div id="form-section-profile">
+            <ProfileSection
+              vendor={vendor}
+              open={openSection === 'profile'}
+              toggle={() => setOpenSection(openSection === 'profile' ? null : 'profile')}
+              onSave={updateVendor}
+            />
+          </div>
+          <div id="form-section-contact">
+            <ContactSection
+              vendor={vendor}
+              open={openSection === 'contact'}
+              toggle={() => setOpenSection(openSection === 'contact' ? null : 'contact')}
+              onSave={updateVendor}
+            />
+          </div>
+          <div id="form-section-address">
+            <AddressSection
+              vendor={vendor}
+              activeStore={activeStoreRecord}
+              hqEditable={allBusinessUnitsMode}
+              unitEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
+              open={openSection === 'address'}
+              toggle={() => setOpenSection(openSection === 'address' ? null : 'address')}
+              onSaveVendor={updateVendor}
+            />
+          </div>
+          <div id="form-section-tax">
+            <TaxSection
+              vendor={vendor}
+              open={openSection === 'tax'}
+              toggle={() => setOpenSection(openSection === 'tax' ? null : 'tax')}
+              onSave={updateVendor}
+            />
+          </div>
+          <div id="form-section-hours-availability">
+            <BusinessHoursSection
+              vendor={vendor}
+              open={openSection === 'hours-availability'}
+              toggle={() => setOpenSection(openSection === 'hours-availability' ? null : 'hours-availability')}
+              onSave={updateVendor}
+            />
+          </div>
+          <div id="form-section-order-acceptance">
+            <OrderAcceptanceSection
+              vendor={vendor}
+              open={openSection === 'order-acceptance'}
+              toggle={() => setOpenSection(openSection === 'order-acceptance' ? null : 'order-acceptance')}
+              onSave={updateVendor}
+            />
+          </div>
+          <div id="form-section-external-domain">
+            <ExternalDomainSection
+              vendor={vendor}
+              open={openSection === 'external-domain'}
+              toggle={() => setOpenSection(openSection === 'external-domain' ? null : 'external-domain')}
+              onSave={updateVendor}
+            />
+          </div>
+          <div className="border-t border-border pt-4 flex justify-end">
+            <Link
+              to="/about"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Info className="h-3.5 w-3.5" />
+              App version &amp; support info
+            </Link>
+          </div>
         </div>
-        <div id="settings-section-contact">
-          <ContactSection
-            vendor={vendor}
-            open={openSection === 'contact'}
-            toggle={() => setOpenSection(openSection === 'contact' ? null : 'contact')}
-            onSave={updateVendor}
-          />
-        </div>
-        <div id="settings-section-address">
-          <AddressSection
-            vendor={vendor}
-            activeStore={activeStoreRecord}
-            hqEditable={allBusinessUnitsMode}
-            unitEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
-            open={openSection === 'address'}
-            toggle={() => setOpenSection(openSection === 'address' ? null : 'address')}
-            onSaveVendor={updateVendor}
-          />
-        </div>
-        <div id="settings-section-tax">
-          <TaxSection
-            vendor={vendor}
-            open={openSection === 'tax'}
-            toggle={() => setOpenSection(openSection === 'tax' ? null : 'tax')}
-            onSave={updateVendor}
-          />
-        </div>
-        <div id="settings-section-hours-availability">
-          <BusinessHoursSection
-            vendor={vendor}
-            open={openSection === 'hours-availability'}
-            toggle={() => setOpenSection(openSection === 'hours-availability' ? null : 'hours-availability')}
-            onSave={updateVendor}
-          />
-        </div>
-        <div id="settings-section-order-acceptance">
-          <OrderAcceptanceSection
-            vendor={vendor}
-            open={openSection === 'order-acceptance'}
-            toggle={() => setOpenSection(openSection === 'order-acceptance' ? null : 'order-acceptance')}
-            onSave={updateVendor}
-          />
-        </div>
-        </div>
-      </div>
-      <div id="settings-section-about" className="mt-6 border-t border-border pt-6">
-        <AboutSection
-          open={openSection === 'about'}
-          toggle={() => setOpenSection(openSection === 'about' ? null : 'about')}
-        />
-      </div>
+      </FormPageWithNav>
     </div>
   )
 }
@@ -303,85 +360,6 @@ function SectionWrapper({
     >
       {children}
     </CollapsibleSection>
-  )
-}
-
-const SUPPORT_PHONE = (import.meta.env.VITE_SUPPORT_PHONE as string | undefined)?.trim()
-const SUPPORT_CHAT_URL = (import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined)?.trim()
-  || 'mailto:support@kiterp.com?subject=Vendor%20Dashboard%20Help'
-
-function AboutSection({ open, toggle }: { open: boolean; toggle: () => void }) {
-  const [showChangelog, setShowChangelog] = useState(false)
-  const telHref = SUPPORT_PHONE
-    ? `tel:${SUPPORT_PHONE.replace(/[^\d+]/g, '')}`
-    : ''
-
-  return (
-    <SectionWrapper title="About" icon={Info} subtitle="App version & support" open={open} toggle={toggle}>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-muted p-2 text-muted-foreground"><Globe className="h-4 w-4" /></div>
-            <div>
-              <p className="text-sm font-medium text-foreground">Vendor Admin â€” KITERP</p>
-              <p className="text-xs text-muted-foreground">Build {APP_BUILD}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="font-mono text-sm font-semibold text-foreground">v{APP_VERSION}</p>
-            <p className="text-xs text-muted-foreground">{LAST_UPDATED}</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {SUPPORT_PHONE ? (
-            <a
-              href={telHref}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90"
-            >
-              <Phone className="w-3.5 h-3.5" /> Call support
-            </a>
-          ) : null}
-          <a
-            href={SUPPORT_CHAT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50"
-          >
-            Chat with support
-          </a>
-        </div>
-        {!SUPPORT_PHONE && (
-          <p className="text-xs text-gray-400">
-            Optional: set <code className="bg-gray-100 px-1 rounded">VITE_SUPPORT_PHONE</code> in your environment for a one-tap call button.
-          </p>
-        )}
-        <div className="flex items-center gap-2 text-xs text-gray-500 py-2 border-t">
-          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
-          Up to date
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowChangelog(v => !v)}
-          className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-        >
-          {showChangelog ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          {showChangelog ? 'Hide' : 'Show'} release notes
-        </button>
-        {showChangelog && (
-          <div className="border rounded-xl divide-y overflow-hidden">
-            {CHANGELOG.map(e => (
-              <div key={e.version} className="p-3">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-xs font-mono font-semibold text-gray-800">v{e.version}</span>
-                  <span className="text-xs text-gray-400">{e.date}</span>
-                </div>
-                <p className="text-xs text-gray-600">{e.notes}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </SectionWrapper>
   )
 }
 
@@ -1544,6 +1522,294 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
   )
 }
 
+
+// ── External Domain & Registrar Access Section ────────────────────────────
+
+const REGISTRAR_OPTIONS = [
+  'GoDaddy', 'Namecheap', 'Cloudflare', 'Google Domains', 'BigRock',
+  'Hostinger', 'Bluehost', 'HostGator', 'Reseller Club', 'Net4India', 'Other',
+]
+
+const ACCESS_STATUS_META: Record<string, { label: string; color: string }> = {
+  not_requested: { label: 'Not requested', color: 'text-gray-500 bg-gray-100 border-gray-200' },
+  pending:        { label: 'Pending verification', color: 'text-amber-700 bg-amber-50 border-amber-200' },
+  active:         { label: 'Access active', color: 'text-green-700 bg-green-50 border-green-200' },
+  revoked:        { label: 'Revoked', color: 'text-red-600 bg-red-50 border-red-200' },
+}
+
+const KIT_ERP_SUPPORT_EMAIL = 'support@kiterp.com'
+
+function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
+  const [enabled, setEnabled] = useState(false)
+  const [domainName, setDomainName] = useState('')
+  const [registrar, setRegistrar] = useState('')
+  const [regEmail, setRegEmail] = useState('')
+  const [holder, setHolder] = useState('')
+  const [expiry, setExpiry] = useState('')
+  const [accessStatus, setAccessStatus] = useState('not_requested')
+  const [recoveryContact, setRecoveryContact] = useState('')
+  const [notes, setNotes] = useState('')
+  const savingRef = useRef(false)
+
+  useEffect(() => {
+    if (vendor && !savingRef.current) {
+      const v = vendor as any
+      setEnabled(v.external_domain_enabled ?? false)
+      setDomainName(v.external_domain_name ?? '')
+      setRegistrar(v.external_domain_registrar ?? '')
+      setRegEmail(v.external_domain_reg_email ?? '')
+      setHolder(v.external_domain_holder ?? '')
+      setExpiry(v.external_domain_expiry ?? '')
+      setAccessStatus(v.external_domain_access_status ?? 'not_requested')
+      setRecoveryContact(v.external_domain_recovery_contact ?? '')
+      setNotes(v.external_domain_notes ?? '')
+    }
+  }, [vendor])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (enabled && !domainName.trim()) {
+      toast.error('Domain name is required')
+      return
+    }
+    if (enabled && !registrar) {
+      toast.error('Please select the registrar')
+      return
+    }
+    savingRef.current = true
+    const newStatus =
+      accessStatus === 'not_requested' && enabled ? 'not_requested' : accessStatus
+    onSave.mutate({
+      external_domain_enabled: enabled,
+      external_domain_name: domainName.trim() || undefined,
+      external_domain_registrar: registrar || undefined,
+      external_domain_reg_email: regEmail.trim() || undefined,
+      external_domain_holder: holder.trim() || undefined,
+      external_domain_expiry: expiry || undefined,
+      external_domain_access_status: newStatus,
+      external_domain_recovery_contact: recoveryContact.trim() || undefined,
+      external_domain_notes: notes.trim() || undefined,
+    } as any, { onSettled: () => { savingRef.current = false } })
+  }
+
+  const handleGrantedAccess = () => {
+    savingRef.current = true
+    onSave.mutate({ external_domain_access_status: 'pending' } as any, {
+      onSettled: () => { savingRef.current = false },
+      onSuccess: () => { setAccessStatus('pending'); toast.success('Access marked as pending — KIT ERP team will verify') },
+    })
+  }
+
+  const handleRevokeAccess = () => {
+    savingRef.current = true
+    onSave.mutate({ external_domain_access_status: 'revoked' } as any, {
+      onSettled: () => { savingRef.current = false },
+      onSuccess: () => { setAccessStatus('revoked'); toast.info('Access revoked') },
+    })
+  }
+
+  const statusMeta = ACCESS_STATUS_META[accessStatus] ?? ACCESS_STATUS_META.not_requested
+  const registrarDelegateGuide: Record<string, string> = {
+    GoDaddy: 'https://www.godaddy.com/help/invite-a-delegate-15087',
+    Namecheap: 'https://www.namecheap.com/support/knowledgebase/article.aspx/567',
+    Cloudflare: 'https://developers.cloudflare.com/fundamentals/account-and-billing/account-setup/create-account/',
+  }
+  const guideUrl = registrar ? (registrarDelegateGuide[registrar] ?? null) : null
+
+  return (
+    <SectionWrapper
+      title="External Domain"
+      helpText="Use your own domain and grant KIT ERP team access for DNS maintenance"
+      icon={Globe}
+      open={open}
+      toggle={toggle}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Master toggle */}
+        <label className="flex cursor-pointer items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            onClick={() => setEnabled(v => !v)}
+            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${enabled ? 'bg-primary' : 'bg-gray-200'}`}
+          >
+            <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+          <span className="text-sm font-medium text-foreground">Use an external domain</span>
+        </label>
+
+        {enabled && (
+          <div className="space-y-4">
+            {/* Domain + Registrar row */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Domain name <span className="text-red-500">*</span></Label>
+                <Input
+                  value={domainName}
+                  onChange={e => setDomainName(e.target.value)}
+                  placeholder="yourbusiness.com"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Registrar <span className="text-red-500">*</span></Label>
+                <select
+                  value={registrar}
+                  onChange={e => setRegistrar(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Select registrar…</option>
+                  {REGISTRAR_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Registrar email + Account holder */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Registrar login email <span className="text-red-500">*</span></Label>
+                <Input
+                  type="email"
+                  value={regEmail}
+                  onChange={e => setRegEmail(e.target.value)}
+                  placeholder="your-email@example.com"
+                />
+                <p className="text-[10px] text-muted-foreground">Email used to log into your registrar account.</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Account holder name</Label>
+                <Input
+                  value={holder}
+                  onChange={e => setHolder(e.target.value)}
+                  placeholder="Name on the domain registration"
+                />
+              </div>
+            </div>
+
+            {/* Expiry + Recovery contact */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Domain expiry date</Label>
+                <Input type="date" value={expiry} onChange={e => setExpiry(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">2FA recovery contact</Label>
+                <Input
+                  value={recoveryContact}
+                  onChange={e => setRecoveryContact(e.target.value)}
+                  placeholder="Phone or backup email"
+                />
+                <p className="text-[10px] text-muted-foreground">Used if registrar requires 2FA verification.</p>
+              </div>
+            </div>
+
+            {/* Delegated access instructions */}
+            <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Grant KIT ERP team access</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Add <strong className="font-semibold text-foreground">{KIT_ERP_SUPPORT_EMAIL}</strong> as a
+                    delegated contact or team member in your {registrar || 'registrar'} account.
+                    This allows our team to manage DNS records on your behalf — you retain full ownership and
+                    can revoke access at any time.
+                  </p>
+                </div>
+              </div>
+
+              {guideUrl && (
+                <a
+                  href={guideUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-white px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  How to add a delegate in {registrar}
+                </a>
+              )}
+
+              {/* KIT ERP email to copy */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5">
+                  <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="text-xs font-mono text-foreground">{KIT_ERP_SUPPORT_EMAIL}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => { navigator.clipboard.writeText(KIT_ERP_SUPPORT_EMAIL); toast.success('Email copied') }}
+                >
+                  <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+                </Button>
+              </div>
+            </div>
+
+            {/* Access status */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
+              <div className="flex items-center gap-2">
+                {accessStatus === 'active' ? (
+                  <BadgeCheck className="h-4 w-4 shrink-0 text-green-600" />
+                ) : accessStatus === 'pending' ? (
+                  <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                ) : (
+                  <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="text-sm font-medium text-foreground">Access status</span>
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusMeta.color}`}>
+                  {statusMeta.label}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                {accessStatus === 'not_requested' && (
+                  <Button type="button" size="sm" variant="outline" onClick={handleGrantedAccess}>
+                    <Check className="mr-1 h-3.5 w-3.5" /> I've granted access
+                  </Button>
+                )}
+                {accessStatus === 'pending' && (
+                  <span className="text-xs text-muted-foreground">Waiting for KIT ERP team to verify…</span>
+                )}
+                {accessStatus === 'active' && (
+                  <Button type="button" size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={handleRevokeAccess}>
+                    <X className="mr-1 h-3.5 w-3.5" /> Revoke access
+                  </Button>
+                )}
+                {accessStatus === 'revoked' && (
+                  <Button type="button" size="sm" variant="outline" onClick={handleGrantedAccess}>
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Re-grant access
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Notes for KIT ERP team</Label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={3}
+                maxLength={1000}
+                placeholder="Any special instructions, current DNS providers, or things the team should know…"
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y min-h-[4rem]"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <Button type="submit" size="sm" disabled={onSave.isPending}>
+            {onSave.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
+            Save
+          </Button>
+        </div>
+      </form>
+    </SectionWrapper>
+  )
+}
 
 // Social, Display, and Module settings live in System Configuration:
 // /system/social-links | /system/storefront-display | /system/modules
