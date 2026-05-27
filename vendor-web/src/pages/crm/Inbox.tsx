@@ -5,39 +5,91 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useConversations, useConversation, usePostChatMessage } from '@/hooks/useCrm'
 import { crmApi } from '@/api/crm'
+import { apiClient } from '@/api/client'
 import {
   Send, Loader2, MessageSquare, CheckCircle2, User,
-  Mail, Calendar, Trash2, Filter, RefreshCw, ExternalLink,
-  Inbox as InboxIcon, ChevronDown, ChevronRight, Globe,
+  Calendar, ChevronDown, ChevronRight, ExternalLink, Trash2,
+  Globe, Filter, RefreshCw, Inbox as InboxIcon,
 } from 'lucide-react'
-import { formatDateTime } from '@/lib/utils'
 import { format } from 'date-fns'
-import { useQueryClient } from '@tanstack/react-query'
+import { formatDateTime } from '@/lib/utils'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
-import { useSiteList, useFormSubmissions, useDeleteFormSubmission } from '@/hooks/useWebsites'
-import type { FormSubmission } from '@/types/websites'
 import { toast } from 'sonner'
 
-// ── Form type labels ──────────────────────────────────────────────────────────
-const FORM_TYPE_LABELS: Record<string, string> = {
-  contact: 'Contact Form',
-  newsletter: 'Newsletter',
-  booking: 'Booking Request',
-  lead: 'Lead Capture',
-  checkout: 'Checkout Inquiry',
+// ── Types ─────────────────────────────────────────────────────────────────────
+export type FormSubmission = {
+  id: string
+  site_id: string
+  form_type: string
+  payload: Record<string, unknown>
+  crm_lead_id?: string | null
+  gdpr_consent?: boolean
+  created_at: string
 }
 
-// ── Submission row (collapsible) ──────────────────────────────────────────────
-function SubmissionRow({ sub, onDelete, isDeleting }: {
+type SiteRecord = { id: string; name: string }
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const FORM_TYPE_LABELS: Record<string, string> = {
+  contact: 'Contact',
+  newsletter: 'Newsletter',
+  booking: 'Booking',
+  quote: 'Quote Request',
+  feedback: 'Feedback',
+}
+
+// ── Site / form-submission hooks ───────────────────────────────────────────────
+function useSiteList() {
+  return useQuery({
+    queryKey: ['vendor', 'sites'],
+    queryFn: async (): Promise<SiteRecord[]> => {
+      const r = await apiClient.get('/vendors/me/sites')
+      return (r.data?.sites ?? r.data ?? []) as SiteRecord[]
+    },
+  })
+}
+
+function useFormSubmissions(
+  siteId: string,
+  params: { form_type?: string; limit?: number; offset?: number },
+) {
+  return useQuery({
+    queryKey: ['vendor', 'form-submissions', siteId, params],
+    queryFn: async () => {
+      const r = await apiClient.get(`/vendors/me/sites/${siteId}/form-submissions`, { params })
+      return r.data as { submissions: FormSubmission[]; total: number }
+    },
+    enabled: !!siteId,
+  })
+}
+
+function useDeleteFormSubmission(siteId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.delete(`/vendors/me/sites/${siteId}/form-submissions/${id}`),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['vendor', 'form-submissions', siteId] }),
+  })
+}
+
+// ── SubmissionRow ─────────────────────────────────────────────────────────────
+function SubmissionRow({
+  sub,
+  onDelete,
+  isDeleting,
+}: {
   sub: FormSubmission
   onDelete: (id: string) => void
   isDeleting: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
-  const payload = sub.payload || {}
-  const name = (payload.name as string) || (payload.full_name as string) || 'Anonymous'
-  const email = (payload.email as string) || ''
+  const payload = (sub.payload || {}) as Record<string, unknown>
+  const name = (payload.name as string) || (payload.full_name as string) || '—'
+  const email = (payload.email as string) || '—'
   const message = (payload.message as string) || ''
+
   const formLabel = FORM_TYPE_LABELS[sub.form_type] || sub.form_type
   const otherFields = Object.entries(payload).filter(
     ([k]) => !['name', 'full_name', 'email', 'message', 'gdpr_consent', 'has_file_upload'].includes(k),
@@ -400,42 +452,15 @@ function ChatsTab() {
 }
 
 // ── Main Inbox page ───────────────────────────────────────────────────────────
-type Tab = 'chats' | 'forms'
-
 export default function InboxPage() {
-  const [tab, setTab] = useState<Tab>('chats')
-
   return (
     <div className="space-y-5">
-      {/* Page header */}
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Overview</p>
         <h1 className="text-2xl font-bold text-foreground">Inbox</h1>
-        <p className="text-sm text-muted-foreground mt-1">Chats from your website widget and form submissions — all in one place.</p>
+        <p className="text-sm text-muted-foreground mt-1">Live chat conversations from your Business Front widget.</p>
       </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit">
-        {([
-          { id: 'chats' as Tab, icon: MessageSquare, label: 'Chats' },
-          { id: 'forms' as Tab, icon: Mail, label: 'Form Submissions' },
-        ] as { id: Tab; icon: React.ElementType; label: string }[]).map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
-              tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {tab === 'chats' ? <ChatsTab /> : <FormSubmissionsTab />}
+      <ChatsTab />
     </div>
   )
 }

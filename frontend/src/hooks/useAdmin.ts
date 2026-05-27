@@ -124,6 +124,34 @@ export function useRejectVendor() {
   })
 }
 
+/** Approve a vendor's domain request (set access_status → active) */
+export function useApproveDomainRequest(vendorId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      adminApi.updateVendor(vendorId, { external_domain_access_status: 'active' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.vendor(vendorId) })
+      toast.success('Domain request approved — status set to Active.')
+    },
+    onError: () => toast.error('Failed to approve domain request.'),
+  })
+}
+
+/** Reject / revoke a vendor's domain request (set access_status → revoked) */
+export function useRejectDomainRequest(vendorId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      adminApi.updateVendor(vendorId, { external_domain_access_status: 'revoked' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.vendor(vendorId) })
+      toast.success('Domain request revoked.')
+    },
+    onError: () => toast.error('Failed to revoke domain request.'),
+  })
+}
+
 export function useVendorRmQueriesForVendor(vendorId: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: vendorId ? ([...adminKeys.vendor(vendorId), 'rm-queries'] as const) : ['admin', 'rm-queries', 'noop'],

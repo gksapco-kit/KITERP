@@ -110,6 +110,7 @@ export interface AdminVendorUpdatePayload {
   default_tax_rate?: number
   status?: string
   relationship_manager_user_id?: string | null
+  external_domain_access_status?: 'not_requested' | 'pending' | 'active' | 'revoked'
 }
 
 export interface VendorRmQueryAdminRow {

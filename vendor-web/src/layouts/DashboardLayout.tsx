@@ -14,12 +14,12 @@ import {
   Contact2, GitBranch, Workflow, Mail, BookOpen, Bot, Plug, History, Activity,
   Landmark, BookMarked, ArrowLeftRight, Scale, Banknote, TrendingUp, Calculator,
   ScrollText, HardDrive, Coins, LineChart, CircleDollarSign, FilePieChart,
-  Shuffle, ClipboardCheck, Wand2, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
+  Shuffle, ClipboardCheck, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
   GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
-  ArrowLeft, MoreHorizontal, Keyboard,
+  ArrowLeft, MoreHorizontal, Keyboard, Plus, Star,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
 
@@ -129,7 +129,7 @@ import { useESSProfile } from '@/hooks/useVendor'
 import { useMyVendor, useStores } from '@/hooks/useVendor'
 import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
 import { Button } from '@/components/ui/button'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
@@ -480,9 +480,6 @@ const allSections: NavSection[] = [
     title: 'System Configuration',
     icon: Settings2,
     items: [
-      { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
-      { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
-      { to: '/storefront-builder', icon: Wand2, label: 'Business Front Builder', alwaysShow: true },
       { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
@@ -780,9 +777,6 @@ const pageTitles: Record<string, string> = {
   '/document-templates': 'Document Templates',
   '/invoices/templates': 'Invoice Templates',
   '/purchase-orders/templates': 'PO Templates',
-  '/websites': 'Website Builder',
-  '/websites/templates': 'Website Templates',
-  '/storefront-builder': 'Business Front Builder',
   '/blog': 'Blog Manager',
   '/finance/basic': 'Finance',
   '/stores': 'Business Units',
@@ -893,7 +887,7 @@ function isSilenced(prefs: {
 export default function DashboardLayout() {
   const logout = useLogout()
   const { user } = useAuthStore()
-  const { vendor, selectedStore, setSelectedStore } = useVendorStore()
+  const { vendor, selectedStore, setSelectedStore, favouriteStoreId, setFavouriteStoreId } = useVendorStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   /** Desktop sidebar layout (persisted in this browser). */
@@ -936,9 +930,28 @@ export default function DashboardLayout() {
   const toggleDark = useThemeStore(s => s.toggleDark)
 
   const { data: storesData, refetch: refetchStores } = useStores()
-  const stores = storesData?.stores ?? []
+  const stores = [...(storesData?.stores ?? [])].sort((a, b) => {
+    const an = parseInt(a.code ?? '', 10)
+    const bn = parseInt(b.code ?? '', 10)
+    if (!isNaN(an) && !isNaN(bn)) return an - bn
+    if (!isNaN(an)) return -1
+    if (!isNaN(bn)) return 1
+    return (a.code ?? '').localeCompare(b.code ?? '')
+  })
   /** "All business units" only when there are multiple outlets to filter between. */
   const showAllLocationsOption = stores.length > 1
+
+  // Auto-select favourite store on login when no store is currently selected
+  useEffect(() => {
+    if (!favouriteStoreId || selectedStore || stores.length === 0) return
+    const fav = stores.find(s => s.id === favouriteStoreId)
+    if (fav) setSelectedStore({ id: fav.id, name: fav.name, code: fav.code, description: fav.description })
+  }, [favouriteStoreId, stores.length])
+
+  const setStoreDefaultMutation = useMutation({
+    mutationFn: (id: string) => vendorApi.updateStore(id, { is_default: true }),
+    onSuccess: () => { void refetchStores() },
+  })
 
   const openStorePicker = () => {
     setStorePickerOpen((v) => {
@@ -1773,33 +1786,87 @@ export default function DashboardLayout() {
 
         {stores.length > 0 && (
           <div className={cn('border-border', showAllLocationsOption && 'border-t')}>
-            {stores.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                role="option"
-                aria-selected={selectedStore?.id === s.id}
-                onClick={() => {
-                  setSelectedStore({ id: s.id, name: s.name, code: s.code, description: s.description })
-                  setStorePickerOpen(false)
-                }}
-                className={cn(
-                  'w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors',
-                  selectedStore?.id === s.id && 'bg-primary/10 dark:bg-primary/20',
-                )}
-              >
-                <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
-                  <Store className="w-3.5 h-3.5 text-muted-foreground" />
+            {stores.map((s) => {
+              const isFav = favouriteStoreId === s.id
+              const isDefault = (s as any).is_default === true
+              const isSelected = selectedStore?.id === s.id
+              return (
+                <div
+                  key={s.id}
+                  className={cn(
+                    'group flex items-center gap-2 px-3 py-2 hover:bg-accent transition-colors',
+                    isSelected && 'bg-primary/10 dark:bg-primary/20',
+                  )}
+                >
+                  {/* Main select area */}
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => {
+                      setSelectedStore({ id: s.id, name: s.name, code: s.code, description: s.description })
+                      setStorePickerOpen(false)
+                    }}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  >
+                    <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                      <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                      {isFav && (
+                        <Star className="absolute -right-1 -top-1 h-3 w-3 fill-amber-400 text-amber-400" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-1 text-sm font-medium text-foreground truncate">
+                        {s.name}
+                        {isDefault && (
+                          <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-medium text-primary">default</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {s.code && `#${s.code}`}{s.description ? ` · ${s.description}` : ''}
+                      </p>
+                    </div>
+                    {isSelected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                  </button>
+
+                  {/* Favourite + Default action buttons */}
+                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      title={isFav ? 'Remove favourite' : 'Set as favourite (auto-selects on login)'}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setFavouriteStoreId(isFav ? null : s.id)
+                        if (!isFav) {
+                          setSelectedStore({ id: s.id, name: s.name, code: s.code, description: s.description })
+                        }
+                      }}
+                      className={cn(
+                        'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
+                        isFav ? 'text-amber-500 hover:bg-amber-50' : 'text-muted-foreground hover:bg-muted hover:text-amber-500',
+                      )}
+                    >
+                      <Star className={cn('h-3.5 w-3.5', isFav && 'fill-amber-400')} />
+                    </button>
+                    <button
+                      type="button"
+                      title={isDefault ? 'Already the default unit' : 'Set as organisational default'}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!isDefault) setStoreDefaultMutation.mutate(s.id)
+                      }}
+                      disabled={isDefault}
+                      className={cn(
+                        'flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold transition-colors',
+                        isDefault ? 'cursor-default text-primary/60' : 'text-muted-foreground hover:bg-muted hover:text-primary',
+                      )}
+                    >
+                      D
+                    </button>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {s.description || s.code || BUSINESS_UNIT_STORE_LABEL}
-                  </p>
-                </div>
-                {selectedStore?.id === s.id && <Check className="w-4 h-4 text-primary shrink-0" />}
-              </button>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -1807,15 +1874,15 @@ export default function DashboardLayout() {
           <p className="px-4 py-3 text-xs text-muted-foreground text-center">No business units configured yet</p>
         )}
 
-        <div className="border-t border-border px-4 py-2">
+        <div className="border-t border-border px-3 py-2.5">
           <Link
             to="/settings"
             onClick={() => setStorePickerOpen(false)}
-            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary font-medium transition-colors"
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent transition-colors"
           >
-            <Settings className="w-3 h-3 shrink-0" />
-            <span className="min-w-0 truncate">{BUSINESS_UNIT_STORE_SETTINGS_LINK}</span>
-            <ChevronRight className="w-3 h-3 ml-auto shrink-0" />
+            <Settings className="w-4 h-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">{BUSINESS_UNIT_STORE_SETTINGS_LINK}</span>
+            <ChevronRight className="w-4 h-4 ml-auto shrink-0 text-muted-foreground" />
           </Link>
         </div>
       </div>
@@ -1999,37 +2066,127 @@ export default function DashboardLayout() {
 
   const sidebarContent = (
     <div className="flex h-full min-h-0 flex-col">
-      {/* KIT ERP brand — h-14 matches main header so border-b lines up across the layout */}
-      <button
-        type="button"
-        title={showIconOnlyNav ? 'Expand menu' : 'KIT ERP'}
-        onClick={() => {
-          if (!showIconOnlyNav) return
-          const restore = lastExpandedSidebarWidthPxRef.current
-          setSidebarMode('expanded')
-          setSidebarWidthClamped(restore)
-          persistSidebarWidth(restore)
-          setRailFlyoutSectionId(null)
-        }}
-        className={cn(
-          'flex h-14 w-full shrink-0 items-center gap-2 border-b border-sidebar-border bg-muted/30 px-2.5 text-left sm:px-3',
-          showIconOnlyNav && 'lg:cursor-pointer lg:justify-center lg:px-1.5 lg:hover:bg-muted/50',
-          !showIconOnlyNav && 'lg:cursor-default',
-        )}
-      >
-        <span
+      {/* Sidebar header: KIT ERP brand | action buttons */}
+      <div className={cn(
+        'flex h-14 w-full shrink-0 items-center border-b border-sidebar-border bg-muted/30',
+        showIconOnlyNav ? 'justify-center px-1.5' : 'px-2 sm:px-2.5',
+      )}>
+        {/* KIT ERP brand */}
+        <button
+          type="button"
+          title={showIconOnlyNav ? 'Expand menu' : 'KIT ERP'}
+          onClick={() => {
+            if (!showIconOnlyNav) return
+            const restore = lastExpandedSidebarWidthPxRef.current
+            setSidebarMode('expanded')
+            setSidebarWidthClamped(restore)
+            persistSidebarWidth(restore)
+            setRailFlyoutSectionId(null)
+          }}
           className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-white shadow-sm ring-1 ring-black/10',
-            showIconOnlyNav && 'lg:h-10 lg:w-10',
+            'flex min-w-0 flex-1 items-center gap-2 text-left',
+            showIconOnlyNav && 'lg:cursor-pointer lg:justify-center lg:flex-none lg:rounded-lg lg:p-1.5 lg:hover:bg-muted/50',
+            !showIconOnlyNav && 'cursor-default',
           )}
-          aria-hidden
         >
-          <Store className={cn('h-4 w-4', showIconOnlyNav && 'lg:h-5 lg:w-5')} strokeWidth={1.5} />
-        </span>
-        <span className={cn('text-sm tracking-wide text-sidebar-foreground', NAV_FONT_BRAND, showIconOnlyNav && 'lg:hidden')}>
-          KIT ERP
-        </span>
-      </button>
+          <span
+            className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(140deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_45%,hsl(var(--hero-to))_100%)] text-white shadow-sm ring-1 ring-black/10',
+              showIconOnlyNav && 'lg:h-10 lg:w-10',
+            )}
+            aria-hidden
+          >
+            <Store className={cn('h-4 w-4', showIconOnlyNav && 'lg:h-5 lg:w-5')} strokeWidth={1.5} />
+          </span>
+          <span className={cn('text-sm tracking-wide text-sidebar-foreground', NAV_FONT_BRAND, showIconOnlyNav && 'lg:hidden')}>
+            KIT ERP
+          </span>
+        </button>
+
+        {/* Divider + action buttons — back, help, more */}
+        {!showIconOnlyNav && (
+          <div className="flex shrink-0 items-center gap-0.5">
+            <div className="mr-1.5 h-7 w-px bg-sidebar-foreground/20" />
+
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              title="Go back"
+              aria-label="Go back"
+              className="flex items-center justify-center rounded-md p-1.5 text-primary hover:bg-primary/10 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+
+            <div ref={helpRef} className="relative">
+              <button
+                type="button"
+                title="Help & support"
+                aria-label="Help"
+                onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
+                className={cn('flex items-center justify-center rounded-md p-1.5 text-amber-500 hover:bg-amber-50 transition-colors', helpOpen && 'bg-amber-50')}
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+              {helpOpen && (
+                <div className="absolute right-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
+                  <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
+                  <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={() => setHelpOpen(false)}>
+                    <BookOpen className="h-4 w-4 shrink-0 text-blue-500" /> Documentation
+                  </a>
+                  <a href="mailto:support@kiterp.com"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={() => setHelpOpen(false)}>
+                    <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
+                  </a>
+                  <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={() => setHelpOpen(false)}>
+                    <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div ref={moreRef} className="relative">
+              <button
+                type="button"
+                title="More options"
+                aria-label="More options"
+                onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
+                className={cn('flex items-center justify-center rounded-md p-1.5 text-blue-500 hover:bg-blue-50 transition-colors', moreOpen && 'bg-blue-50')}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              {moreOpen && (
+                <div className="absolute right-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
+                  <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
+                  <button type="button"
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={() => { setSearchOpen(true); setMoreOpen(false) }}>
+                    <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 text-left">Search</span>
+                    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
+                  </button>
+                  <button type="button"
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={() => { navigate('/notifications'); setMoreOpen(false) }}>
+                    <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
+                  </button>
+                  <div className="mx-3 my-1 border-t border-border" />
+                  <button type="button"
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={() => { navigate('/settings'); setMoreOpen(false) }}>
+                    <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Icon rail — desktop semi-collapsed mode */}
       <nav
@@ -2705,122 +2862,115 @@ export default function DashboardLayout() {
             Title + search must shrink (min-w-0). Actions stay full width (shrink-0).
             Do not use overflow-hidden here — it clips the unit picker when the row is tight.
           */}
-          <div className="flex min-h-14 min-w-0 items-center gap-2 px-3 py-1.5 sm:gap-3 sm:px-4 lg:px-8">
-            {/* Title + sub-action row */}
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-              <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                <button
-                  type="button"
-                  className="shrink-0 rounded-lg p-1.5 -ml-1 text-muted-foreground hover:bg-muted lg:hidden"
-                  onClick={() => setSidebarOpen(true)}
-                  aria-label="Open menu"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
-                {location.pathname === '/settings' ? (
-                  <div
-                    className="flex min-w-0 items-baseline gap-1.5 overflow-hidden sm:gap-2"
-                    title={pageTitle}
-                  >
-                    <h1 className="shrink-0 text-sm font-semibold text-foreground sm:text-base lg:text-lg">
-                      {settingsSectionTitle ?? 'Settings'}
-                    </h1>
-                    <span className="hidden min-w-0 truncate text-xs font-medium text-muted-foreground md:inline sm:text-sm">
-                      {settingsSectionTitle ? `Settings · ${settingsScopeHeading}` : settingsScopeHeading}
-                    </span>
-                  </div>
-                ) : (
-                  <h1
-                    className="min-w-0 truncate text-sm font-semibold text-foreground sm:text-base lg:text-lg"
-                    title={pageTitle}
-                  >
-                    {pageTitle}
+          <div className="flex h-14 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-8">
+            {/* Title row — page name + inline action buttons */}
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+              <button
+                type="button"
+                className="shrink-0 rounded-lg p-1.5 -ml-1 text-muted-foreground hover:bg-muted lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+
+              {location.pathname === '/settings' ? (
+                <div className="flex min-w-0 items-baseline gap-1.5 overflow-hidden sm:gap-2" title={pageTitle}>
+                  <h1 className="shrink-0 text-sm font-semibold text-foreground sm:text-base lg:text-lg">
+                    {settingsSectionTitle ?? 'Settings'}
                   </h1>
-                )}
-              </div>
+                  <span className="hidden min-w-0 truncate text-xs font-medium text-muted-foreground md:inline sm:text-sm">
+                    {settingsSectionTitle ? `Settings · ${settingsScopeHeading}` : settingsScopeHeading}
+                  </span>
+                </div>
+              ) : (
+                <h1 className="min-w-0 truncate text-sm font-semibold text-foreground sm:text-base lg:text-lg" title={pageTitle}>
+                  {pageTitle}
+                </h1>
+              )}
 
-              {/* Sub-action buttons: back, help, more */}
-              <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => window.history.back()}
-                  title="Go back"
-                  aria-label="Go back"
-                  className="flex items-center justify-center rounded-md p-1 text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                </button>
-
-                <div ref={helpRef} className="relative">
+              {/* Action buttons — shown only when sidebar is icon-only or on mobile (sidebar hidden) */}
+              {(showIconOnlyNav || sidebarMode === 'hidden') && (
+                <div className="flex shrink-0 items-center gap-0.5 ml-1.5">
+                  <div className="mr-1 h-5 w-px bg-border" />
                   <button
                     type="button"
-                    title="Help & support"
-                    aria-label="Help"
-                    onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
-                    className={cn('flex items-center justify-center rounded-md p-1 text-amber-500 hover:bg-amber-50 transition-colors', helpOpen && 'bg-amber-50')}
+                    onClick={() => window.history.back()}
+                    title="Go back"
+                    aria-label="Go back"
+                    className="flex items-center justify-center rounded-md p-1.5 text-primary hover:bg-primary/10 transition-colors"
                   >
-                    <HelpCircle className="h-3.5 w-3.5" />
+                    <ArrowLeft className="h-4 w-4" />
                   </button>
-                  {helpOpen && (
-                    <div className="absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
-                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
-                      <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        onClick={() => setHelpOpen(false)}>
-                        <BookOpen className="h-4 w-4 shrink-0 text-blue-500" /> Documentation
-                      </a>
-                      <a href="mailto:support@kiterp.com"
-                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        onClick={() => setHelpOpen(false)}>
-                        <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
-                      </a>
-                      <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        onClick={() => setHelpOpen(false)}>
-                        <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
-                      </a>
-                    </div>
-                  )}
-                </div>
 
-                <div ref={moreRef} className="relative">
-                  <button
-                    type="button"
-                    title="More options"
-                    aria-label="More options"
-                    onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
-                    className={cn('flex items-center justify-center rounded-md p-1 text-blue-500 hover:bg-blue-50 transition-colors', moreOpen && 'bg-blue-50')}
-                  >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </button>
-                  {moreOpen && (
-                    <div className="absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
-                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        onClick={() => { setSearchOpen(true); setMoreOpen(false) }}>
-                        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="flex-1 text-left">Search</span>
-                        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
-                      </button>
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        onClick={() => { navigate('/notifications'); setMoreOpen(false) }}>
-                        <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
-                      </button>
-                      <div className="mx-3 my-1 border-t border-border" />
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        onClick={() => { navigate('/settings'); setMoreOpen(false) }}>
-                        <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
-                      </button>
-                    </div>
-                  )}
+                  <div ref={helpRef} className="relative">
+                    <button
+                      type="button"
+                      title="Help & support"
+                      aria-label="Help"
+                      onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
+                      className={cn('flex items-center justify-center rounded-md p-1.5 text-amber-500 hover:bg-amber-50 transition-colors', helpOpen && 'bg-amber-50')}
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                    </button>
+                    {helpOpen && (
+                      <div className="absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
+                        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
+                        <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                          onClick={() => setHelpOpen(false)}>
+                          <BookOpen className="h-4 w-4 shrink-0 text-blue-500" /> Documentation
+                        </a>
+                        <a href="mailto:support@kiterp.com"
+                          className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                          onClick={() => setHelpOpen(false)}>
+                          <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
+                        </a>
+                        <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                          onClick={() => setHelpOpen(false)}>
+                          <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div ref={moreRef} className="relative">
+                    <button
+                      type="button"
+                      title="More options"
+                      aria-label="More options"
+                      onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
+                      className={cn('flex items-center justify-center rounded-md p-1.5 text-blue-500 hover:bg-blue-50 transition-colors', moreOpen && 'bg-blue-50')}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                    {moreOpen && (
+                      <div className="absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
+                        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
+                        <button type="button"
+                          className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                          onClick={() => { setSearchOpen(true); setMoreOpen(false) }}>
+                          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="flex-1 text-left">Search</span>
+                          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
+                        </button>
+                        <button type="button"
+                          className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                          onClick={() => { navigate('/notifications'); setMoreOpen(false) }}>
+                          <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
+                        </button>
+                        <div className="mx-3 my-1 border-t border-border" />
+                        <button type="button"
+                          className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                          onClick={() => { navigate('/settings'); setMoreOpen(false) }}>
+                          <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Search — fixed max width, yields space to actions */}
@@ -2828,13 +2978,10 @@ export default function DashboardLayout() {
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="flex h-9 w-40 min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 text-muted-foreground transition-all hover:border-primary/30 hover:bg-muted hover:text-foreground lg:w-48 xl:w-56"
+                className="flex h-7 w-32 min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 text-muted-foreground transition-all hover:border-primary/30 hover:bg-muted hover:text-foreground lg:w-36"
               >
-                <Search className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-left text-xs">Search pages, records…</span>
-                <kbd className="hidden shrink-0 lg:inline-flex items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 text-xs font-mono">
-                  ⌘K
-                </kbd>
+                <Search className="h-3 w-3 shrink-0" />
+                <span className="min-w-0 flex-1 truncate text-left text-[11px]">Search…</span>
               </button>
             </div>
             <button

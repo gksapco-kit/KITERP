@@ -31,8 +31,9 @@ class User(Base):
         nullable=True,
         index=True,
     )
-    # OTP verification (used by both email-resend and phone-OTP flows)
-    verification_code = Column(String(6), nullable=True)
+    # OTP verification (used by email-resend, phone-OTP, and domain-deactivation flows)
+    # Stored as "<purpose>:<code>" e.g. "domain-off:123456" — max 64 chars
+    verification_code = Column(String(64), nullable=True)
     verification_code_expires_at = Column(DateTime(timezone=True), nullable=True)
     # HR portal one-time / temporary password shown to admin until employee logs in
     portal_temp_password = Column(String(100), nullable=True)

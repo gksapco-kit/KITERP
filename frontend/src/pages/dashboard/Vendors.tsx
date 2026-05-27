@@ -28,6 +28,7 @@ import {
   Store,
   Loader2,
   Plus,
+  Globe,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -455,9 +456,23 @@ export default function Vendors() {
                             <Store className="w-5 h-5 text-primary" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {vendor.business_name}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {vendor.business_name}
+                              </p>
+                              {vendor.external_domain_access_status === 'pending' && (
+                                <span title="Domain request pending KIT ERP approval"
+                                  className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 border border-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 shrink-0">
+                                  <Globe className="h-2.5 w-2.5" /> Domain
+                                </span>
+                              )}
+                              {vendor.external_domain_access_status === 'active' && (
+                                <span title="External domain is live"
+                                  className="inline-flex items-center gap-0.5 rounded-full bg-green-100 border border-green-200 px-1.5 py-0.5 text-[10px] font-medium text-green-700 shrink-0">
+                                  <Globe className="h-2.5 w-2.5" /> Live
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-gray-500 truncate">{vendor.slug}</p>
                           </div>
                         </div>

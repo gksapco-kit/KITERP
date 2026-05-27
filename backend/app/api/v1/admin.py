@@ -172,6 +172,10 @@ class AdminVendorUpdate(BaseModel):
         None,
         description="Platform user id (relationship_manager staff or superuser); null clears assignment",
     )
+    external_domain_access_status: Optional[str] = Field(
+        None,
+        description="Admin-controlled domain access status: not_requested | pending | active | revoked",
+    )
 
 
 class AdminVendorCreate(BaseModel):

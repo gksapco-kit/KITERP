@@ -1,5 +1,7 @@
 # app/api/v1/vendors.py
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Form, Body
+import random, string
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
@@ -344,3 +346,60 @@ async def submit_for_review(
         )
     
     return await service.submit_for_review(vendor.id)
+
+
+# ── External domain deactivation OTP ────────────────────────────────────────
+
+@router.post("/me/domain/send-deactivation-otp")
+async def send_domain_deactivation_otp(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate and store a 6-digit OTP to confirm external domain deactivation."""
+    code = ''.join(random.choices(string.digits, k=6))
+    expires = datetime.now(timezone.utc) + timedelta(minutes=10)
+    current_user.verification_code = f"domain-off:{code}"
+    current_user.verification_code_expires_at = expires
+    db.add(current_user)
+    await db.commit()
+    # In production: send via email/SMS. For now, return in response.
+    to = current_user.email or current_user.phone or 'your registered contact'
+    return {
+        "sent": True,
+        "to": to,
+        "expires_at": expires.isoformat(),
+        "dev_hint": code,   # remove in production
+    }
+
+
+@router.post("/me/domain/verify-deactivation-otp")
+async def verify_domain_deactivation_otp(
+    code: str = Body(..., embed=True),
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify OTP and deactivate the external domain (set status to revoked, enabled to false)."""
+    stored = current_user.verification_code or ''
+    if not stored.startswith('domain-off:') or stored != f"domain-off:{code}":
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    if current_user.verification_code_expires_at and \
+       current_user.verification_code_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Code has expired — request a new one")
+
+    # Clear OTP
+    current_user.verification_code = None
+    current_user.verification_code_expires_at = None
+    db.add(current_user)
+
+    # Deactivate domain
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    from app.schemas.vendor import VendorUpdate
+    updated = await service.update(vendor.id, VendorUpdate(
+        external_domain_enabled=False,
+        external_domain_access_status='revoked',
+    ))
+    await db.commit()
+    return updated

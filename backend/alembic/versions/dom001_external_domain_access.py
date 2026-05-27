@@ -18,6 +18,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column('vendor', sa.Column('external_domain_enabled',    sa.Boolean,      server_default='false', nullable=False))
+    op.add_column('vendor', sa.Column('external_domain_scope',      sa.String(20),   server_default='all',   nullable=False))
     op.add_column('vendor', sa.Column('external_domain_name',       sa.String(255),  nullable=True))
     op.add_column('vendor', sa.Column('external_domain_registrar',  sa.String(60),   nullable=True))
     op.add_column('vendor', sa.Column('external_domain_reg_email',  sa.String(255),  nullable=True))
@@ -42,6 +43,7 @@ def downgrade() -> None:
         'external_domain_reg_email',
         'external_domain_registrar',
         'external_domain_name',
+        'external_domain_scope',
         'external_domain_enabled',
     ]:
         op.drop_column('vendor', col)

@@ -127,6 +127,7 @@ export interface Vendor {
   order_acceptance_hours?: Record<string, { open: string; close: string; closed?: boolean }>
   social_links?: Record<string, string>
   settings?: Record<string, unknown>
+  theme_config?: Record<string, unknown>
   status: string
   verification_status: string
   verified_at?: string

@@ -1,6 +1,6 @@
 # app/models/vendor.py
 from sqlalchemy import (
-    Column, String, Text, Boolean, DateTime, 
+    Column, String, Text, Boolean, DateTime, Date,
     ForeignKey, Numeric, Integer, Index
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -59,11 +59,12 @@ class Vendor(Base):
 
     # External domain & delegated registrar access
     external_domain_enabled = Column(Boolean, default=False, nullable=False)
+    external_domain_scope = Column(String(20), default='all', nullable=False)   # all | per_unit
     external_domain_name = Column(String(255), nullable=True)
     external_domain_registrar = Column(String(60), nullable=True)
     external_domain_reg_email = Column(String(255), nullable=True)
     external_domain_holder = Column(String(255), nullable=True)
-    external_domain_expiry = Column(String(20), nullable=True)   # stored as ISO date string
+    external_domain_expiry = Column(Date, nullable=True)
     # not_requested | pending | active | revoked
     external_domain_access_status = Column(String(30), default='not_requested', nullable=False)
     external_domain_recovery_contact = Column(String(255), nullable=True)

@@ -9,6 +9,8 @@ import {
   useUpdateAdminVendor,
   useVendorRmQueriesForVendor,
   usePatchVendorRmQueryStatus,
+  useApproveDomainRequest,
+  useRejectDomainRequest,
 } from '@/hooks/useAdmin'
 import { usePlatformStaffList } from '@/hooks/usePlatformStaff'
 import { useAuthStore } from '@/stores/authStore'
@@ -36,6 +38,9 @@ import {
   Pencil,
   Save,
   Headphones,
+  BadgeCheck,
+  AlertCircle,
+  ShieldOff,
 } from 'lucide-react'
 import { adminApi, type AdminVendorUpdatePayload } from '@/api/admin.api'
 import { vendorAppBaseUrl, getCustomerStorefrontBaseUrl } from '@/lib/appUrls'
@@ -98,6 +103,114 @@ function EditableField({
   )
 }
 
+function ExternalDomainCard({
+  vendor,
+  canMutate,
+  onApprove,
+  onReject,
+  approving,
+  rejecting,
+}: {
+  vendor: ReturnType<typeof useAdminVendor>['data'] & object
+  canMutate: boolean
+  onApprove: () => void
+  onReject: () => void
+  approving: boolean
+  rejecting: boolean
+}) {
+  const status = vendor.external_domain_access_status ?? 'not_requested'
+  const domainName = vendor.external_domain_name
+
+  const statusMeta = {
+    pending:  { label: 'Awaiting KIT ERP approval', color: 'text-amber-700 bg-amber-50 border-amber-200', dot: 'bg-amber-400', icon: <AlertCircle className="h-4 w-4 text-amber-500" /> },
+    active:   { label: 'Active — domain is live',   color: 'text-green-700 bg-green-50 border-green-200',   dot: 'bg-green-500', icon: <BadgeCheck className="h-4 w-4 text-green-600" /> },
+    revoked:  { label: 'Revoked by KIT ERP',        color: 'text-red-700 bg-red-50 border-red-200',         dot: 'bg-red-400',   icon: <ShieldOff className="h-4 w-4 text-red-500" /> },
+  }[status as 'pending' | 'active' | 'revoked'] ?? { label: status, color: 'text-gray-600 bg-gray-50 border-gray-200', dot: 'bg-gray-400', icon: <Globe className="h-4 w-4 text-gray-400" /> }
+
+  const rows: { label: string; value: string | null | undefined; mono?: boolean; href?: string }[] = [
+    { label: 'Domain',        value: domainName,                          mono: true, href: domainName ? `https://${domainName}` : undefined },
+    { label: 'Registrar',     value: vendor.external_domain_registrar },
+    { label: 'Login email',   value: vendor.external_domain_reg_email,   mono: true },
+    { label: 'Account holder',value: vendor.external_domain_holder },
+    { label: 'Expiry',        value: vendor.external_domain_expiry },
+    { label: 'Recovery contact', value: vendor.external_domain_recovery_contact },
+    { label: 'Scope',         value: vendor.external_domain_scope === 'all' ? 'All BU / Stores (1 domain)' : 'Per Business Unit' },
+  ].filter(r => r.value)
+
+  return (
+    <Card className={`border ${statusMeta.color.split(' ').find(c => c.startsWith('border-')) ?? 'border-border'}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Globe className="h-4 w-4" /> External Domain Request
+          </CardTitle>
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusMeta.color}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
+            {statusMeta.label}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Field rows */}
+        <div className="rounded-lg border border-border divide-y divide-border text-sm overflow-hidden">
+          {rows.map(r => (
+            <div key={r.label} className="flex items-center justify-between gap-2 px-3 py-2">
+              <span className="text-xs text-gray-500 shrink-0">{r.label}</span>
+              {r.href
+                ? <a href={r.href} target="_blank" rel="noopener noreferrer"
+                    className={`font-medium text-blue-600 hover:underline flex items-center gap-1 ${r.mono ? 'font-mono text-xs' : ''}`}>
+                    {r.value}<ExternalLink className="h-3 w-3" />
+                  </a>
+                : <span className={`font-medium text-gray-900 break-all ${r.mono ? 'font-mono text-xs' : ''}`}>{r.value}</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* Notes */}
+        {vendor.external_domain_notes && (
+          <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
+            <p className="text-xs text-gray-500 mb-0.5 font-medium">Notes from vendor</p>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{vendor.external_domain_notes}</p>
+          </div>
+        )}
+
+        {/* Actions */}
+        {canMutate && (
+          <div className="flex items-center gap-2 pt-1">
+            {status === 'pending' && (
+              <Button size="sm" onClick={onApprove} disabled={approving || rejecting}
+                className="bg-green-600 hover:bg-green-700 text-white gap-1">
+                {approving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                Approve & Activate
+              </Button>
+            )}
+            {status === 'active' && (
+              <Button size="sm" variant="outline" onClick={onReject} disabled={rejecting}
+                className="text-red-600 border-red-200 hover:bg-red-50 gap-1">
+                {rejecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldOff className="h-3.5 w-3.5" />}
+                Revoke Access
+              </Button>
+            )}
+            {status === 'revoked' && (
+              <Button size="sm" variant="outline" onClick={onApprove} disabled={approving}
+                className="gap-1">
+                {approving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                Re-activate
+              </Button>
+            )}
+            {(status === 'pending' || status === 'active') && (
+              <Button size="sm" variant="ghost" onClick={onReject} disabled={rejecting}
+                className="ml-auto text-red-600 hover:bg-red-50 gap-1 text-xs">
+                {status === 'pending' ? 'Cancel request' : 'Revoke & disable'}
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function VendorDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -124,6 +237,9 @@ export default function VendorDetail() {
   const [editData, setEditData] = useState<AdminVendorUpdatePayload>({})
   const [vendorHandoffPending, setVendorHandoffPending] = useState(false)
   const editMode = canMutate && editing
+
+  const approveDomain = useApproveDomainRequest(id!)
+  const rejectDomain = useRejectDomainRequest(id!)
 
   const openVendorDashboardHandoff = async () => {
     if (!id) return
@@ -729,6 +845,22 @@ export default function VendorDetail() {
           </Card>
         </div>
       </div>
+
+      {/* External Domain — full width, shown only when there's domain activity */}
+      {vendor.external_domain_access_status && vendor.external_domain_access_status !== 'not_requested' && (
+        <ExternalDomainCard
+          vendor={vendor}
+          canMutate={canMutate}
+          onApprove={() => approveDomain.mutate()}
+          onReject={() => {
+            if (confirm('Revoke this domain request? The vendor will need to re-submit.')) {
+              rejectDomain.mutate()
+            }
+          }}
+          approving={approveDomain.isPending}
+          rejecting={rejectDomain.isPending}
+        />
+      )}
 
       {/* Location & Service Radius - full width below */}
       <Card>

@@ -79,6 +79,8 @@ export interface VendorUpdate {
   service_radius_km?: number
 }
 
+export type ExternalDomainAccessStatus = 'not_requested' | 'pending' | 'active' | 'revoked'
+
 export interface Vendor {
   id: string
   business_name: string
@@ -112,6 +114,17 @@ export interface Vendor {
   activated_at?: string
   created_at: string
   updated_at: string
+  // External domain
+  external_domain_enabled?: boolean
+  external_domain_scope?: 'all' | 'per_unit'
+  external_domain_name?: string | null
+  external_domain_registrar?: string | null
+  external_domain_reg_email?: string | null
+  external_domain_holder?: string | null
+  external_domain_expiry?: string | null
+  external_domain_access_status?: ExternalDomainAccessStatus
+  external_domain_recovery_contact?: string | null
+  external_domain_notes?: string | null
 }
 
 export interface VendorDocument {

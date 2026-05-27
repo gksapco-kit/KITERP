@@ -139,14 +139,24 @@ const COMPANY_TYPE_GROUPS = Array.from(new Set(COMPANY_TYPES.map(t => t.group)))
 
 // ── StoreModal ─────────────────────────────────────────────────────────────
 
+function nextAutoCode(existing: StoreRecord[]): string {
+  const numeric = existing
+    .map(s => parseInt(s.code ?? '', 10))
+    .filter(n => !isNaN(n))
+  const max = numeric.length ? Math.max(...numeric) : 999
+  return String(max + 1)
+}
+
 function StoreModal({
   store,
+  existingStores = [],
   onClose,
   onSave,
   saving,
   defaultCountry = 'India',
 }: {
   store?: StoreRecord | null
+  existingStores?: StoreRecord[]
   onClose: () => void
   onSave: (data: Record<string, unknown>) => void
   saving: boolean
@@ -157,6 +167,9 @@ function StoreModal({
   const existingType = (store?.settings as Record<string, string> | undefined)?.company_type ?? ''
   const isPreset = COMPANY_TYPES.some(t => t.value === existingType)
 
+  const autoCode = store ? (store.code ?? '') : nextAutoCode(existingStores)
+  const [codeEditable, setCodeEditable] = useState(false)
+
   const [form, setForm] = useState<StoreFormData>(() => store
     ? {
         name: store.name, code: store.code ?? '', description: store.description ?? '',
@@ -166,7 +179,7 @@ function StoreModal({
         is_default: store.is_default,
         company_type: existingType,
       }
-    : EMPTY_FORM
+    : { ...EMPTY_FORM, code: autoCode }
   )
 
   const [customTypeInput, setCustomTypeInput] = useState(isPreset || !existingType ? '' : existingType)
@@ -374,8 +387,31 @@ function StoreModal({
               <Input value={form.name} onChange={set('name')} placeholder="e.g. Mumbai Main Branch" required className="mt-1" />
             </div>
             <div>
-              <Label>Code / Branch ID</Label>
-              <Input value={form.code} onChange={set('code')} placeholder="e.g. MUM-01" className="mt-1" />
+              <div className="flex items-center justify-between mb-1">
+                <Label>Code / Branch ID</Label>
+                {!store && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCodeEditable(v => {
+                        if (v) setForm(f => ({ ...f, code: autoCode })) // reset to auto
+                        return !v
+                      })
+                    }}
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    {codeEditable ? 'Use auto' : 'Edit'}
+                  </button>
+                )}
+              </div>
+              {codeEditable || store ? (
+                <Input value={form.code} onChange={set('code')} placeholder="e.g. MUM-01" />
+              ) : (
+                <div className="flex h-10 items-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground select-none">
+                  {form.code}
+                  <span className="ml-2 text-xs text-muted-foreground/60">(auto-generated)</span>
+                </div>
+              )}
             </div>
             <div>
               <Label className="mb-1 block">Phone</Label>
@@ -699,9 +735,18 @@ export default function StoresPage({
   const products = productsData?.items ?? []
   const defaultCountry = vendor?.country || 'India'
 
+  const sortedStores = [...stores].sort((a, b) => {
+    const aCode = parseInt(a.code ?? '', 10)
+    const bCode = parseInt(b.code ?? '', 10)
+    if (!isNaN(aCode) && !isNaN(bCode)) return aCode - bCode
+    if (!isNaN(aCode)) return -1
+    if (!isNaN(bCode)) return 1
+    return (a.code ?? '').localeCompare(b.code ?? '')
+  })
+
   const searchNorm = listSearch.trim().toLowerCase()
   const filteredStores = searchNorm
-    ? stores.filter((s) => {
+    ? sortedStores.filter((s) => {
         const hay = [
           s.name,
           s.code,
@@ -717,7 +762,7 @@ export default function StoresPage({
           .toLowerCase()
         return hay.includes(searchNorm)
       })
-    : stores
+    : sortedStores
 
   function handleSelectStore(store: StoreRecord) {
     if (selectedStore?.id === store.id) {
@@ -776,13 +821,6 @@ export default function StoresPage({
               onListSearchChange={setListSearch}
               onCopyLinks={copyAllLinks}
               onTransfer={() => setShowTransfer(true)}
-              trailing={
-                <Button size="sm" className="h-8" onClick={() => { setEditingStore(null); setModal('create') }}>
-                  <Plus className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden xs:inline sm:inline">New unit</span>
-                  <span className="xs:hidden sm:hidden">New</span>
-                </Button>
-              }
             />
           </div>
         </div>
@@ -855,6 +893,7 @@ export default function StoresPage({
       {modal && (
         <StoreModal
           store={modal === 'edit' ? editingStore : null}
+          existingStores={stores}
           onClose={() => { setModal(null); setEditingStore(null) }}
           onSave={d => modal === 'edit' ? updateMutation.mutate(d) : createMutation.mutate(d)}
           saving={createMutation.isPending || updateMutation.isPending}

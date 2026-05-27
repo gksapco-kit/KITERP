@@ -88,7 +88,14 @@ export default function SettingsPage() {
   const selectedStore = useVendorStore((s) => s.selectedStore)
   const { user } = useAuthStore()
   const { data: storesData } = useStores()
-  const stores = storesData?.stores ?? []
+  const stores = [...(storesData?.stores ?? [])].sort((a, b) => {
+    const an = parseInt(a.code ?? '', 10)
+    const bn = parseInt(b.code ?? '', 10)
+    if (!isNaN(an) && !isNaN(bn)) return an - bn
+    if (!isNaN(an)) return -1
+    if (!isNaN(bn)) return 1
+    return (a.code ?? '').localeCompare(b.code ?? '')
+  })
   const { label: scopeLabel, heading: scopeHeading, mode: scopeMode, storeId: scopeStoreId } =
     useBusinessUnitScopeLabel()
   /** No branch filter — show Business Units hub instead of single-store overview card. */
@@ -133,17 +140,35 @@ export default function SettingsPage() {
     }, 60)
   }
 
-  // If the URL ?section= changes (e.g. navigating from universal search), update state + scroll
+  const openAndScrollToSection = (key: string) => {
+    setOpenSection(key as Section)
+    setTimeout(() => {
+      const el = document.getElementById(`form-section-${key}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else {
+        setTimeout(() => {
+          document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 200)
+      }
+    }, 150)
+  }
+
+  // URL ?section= deep-link (from search, nav, or first load)
   useEffect(() => {
-    if (sectionParam) {
-      setOpenSection(sectionParam)
-      // Give React a tick to expand the section before scrolling
-      setTimeout(() => {
-        const el = document.getElementById(`form-section-${sectionParam}`)
-        el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 100)
-    }
+    if (!sectionParam) return
+    openAndScrollToSection(sectionParam)
   }, [sectionParam])
+
+  // Custom event — fired when already on settings page (e.g. Configure button in BU panel)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const key = (e as CustomEvent<string>).detail
+      if (key) openAndScrollToSection(key)
+    }
+    window.addEventListener('open-settings-section', handler)
+    return () => window.removeEventListener('open-settings-section', handler)
+  }, [])
 
   const showSupportAuditLink =
     !!vendor?.id &&
@@ -206,6 +231,22 @@ export default function SettingsPage() {
         )}
 
         <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
+          <Link
+            to="/stores"
+            title={`Create new ${BUSINESS_UNIT_STORE_LABEL}`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5 shrink-0" />
+            New unit
+          </Link>
+          <button
+            type="button"
+            onClick={() => openAndScrollTo('external-domain')}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-colors"
+          >
+            <Globe className="h-3.5 w-3.5 shrink-0" />
+            External Domain
+          </button>
           {supportAuditChip}
           {statusChip}
         </div>
@@ -334,16 +375,16 @@ function SectionWrapper({
   icon: Icon,
   subtitle: subtitleOverride,
   helpText,
+  badge,
   open,
   toggle,
   children,
 }: {
   title: string
   icon: React.ElementType
-  /** Fixed subtitle (e.g. About); omit to use live business-unit scope from the header picker. */
   subtitle?: string
-  /** Optional second line — descriptive help text shown below the scope label. */
   helpText?: string
+  badge?: React.ReactNode
   open: boolean
   toggle: () => void
   children: React.ReactNode
@@ -355,6 +396,7 @@ function SectionWrapper({
       icon={Icon}
       subtitle={subtitleOverride ?? scopeLabel}
       helpText={helpText}
+      badge={badge}
       open={open}
       toggle={toggle}
     >
@@ -1541,6 +1583,7 @@ const KIT_ERP_SUPPORT_EMAIL = 'support@kiterp.com'
 
 function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [enabled, setEnabled] = useState(false)
+  const [domainScope, setDomainScope] = useState<'all' | 'per_unit'>('all')
   const [domainName, setDomainName] = useState('')
   const [registrar, setRegistrar] = useState('')
   const [regEmail, setRegEmail] = useState('')
@@ -1551,18 +1594,76 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [notes, setNotes] = useState('')
   const savingRef = useRef(false)
 
+  // Edit mode — shows full form even when pending (to update submitted details)
+  const [editMode, setEditMode] = useState(false)
+
+  // OTP flow for deactivating an active domain
+  const [showOtpModal, setShowOtpModal] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpTo, setOtpTo] = useState('')
+  const [otpDevHint, setOtpDevHint] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState('')
+
+  const handleToggleOff = async () => {
+    if (accessStatus === 'active') {
+      // Require OTP to deactivate a live domain
+      setShowOtpModal(true)
+      setOtpSent(false)
+      setOtpCode('')
+      setOtpError('')
+      setOtpLoading(true)
+      try {
+        const res = await vendorApi.sendDomainDeactivationOtp()
+        setOtpTo(res.to)
+        setOtpDevHint(res.dev_hint ?? '')
+        setOtpSent(true)
+      } catch {
+        toast.error('Could not send verification code — try again')
+      }
+      setOtpLoading(false)
+    } else {
+      // Pending — just confirm and revoke
+      setEnabled(false)
+      setAccessStatus('not_requested')
+    }
+  }
+
+  const handleOtpSubmit = async () => {
+    if (!otpCode.trim()) { setOtpError('Enter the 6-digit code'); return }
+    setOtpLoading(true)
+    setOtpError('')
+    try {
+      await vendorApi.verifyDomainDeactivationOtp(otpCode.trim())
+      setEnabled(false)
+      setAccessStatus('revoked')
+      setShowOtpModal(false)
+      toast.success('External domain deactivated — your KIT ERP link is now primary')
+    } catch (err: any) {
+      setOtpError(err?.response?.data?.detail ?? 'Invalid code — try again')
+    }
+    setOtpLoading(false)
+  }
+
   useEffect(() => {
     if (vendor && !savingRef.current) {
       const v = vendor as any
-      setEnabled(v.external_domain_enabled ?? false)
+      const status = v.external_domain_access_status ?? 'not_requested'
+      setAccessStatus(status)
+      // Force ON if access is pending or active — domain is in use regardless of the saved flag
+      const forcedEnabled = status === 'pending' || status === 'active'
+        ? true
+        : (v.external_domain_enabled ?? false)
+      setEnabled(forcedEnabled)
       setDomainName(v.external_domain_name ?? '')
       setRegistrar(v.external_domain_registrar ?? '')
       setRegEmail(v.external_domain_reg_email ?? '')
       setHolder(v.external_domain_holder ?? '')
       setExpiry(v.external_domain_expiry ?? '')
-      setAccessStatus(v.external_domain_access_status ?? 'not_requested')
       setRecoveryContact(v.external_domain_recovery_contact ?? '')
       setNotes(v.external_domain_notes ?? '')
+      setDomainScope(v.external_domain_scope === 'per_unit' ? 'per_unit' : 'all')
     }
   }, [vendor])
 
@@ -1581,6 +1682,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       accessStatus === 'not_requested' && enabled ? 'not_requested' : accessStatus
     onSave.mutate({
       external_domain_enabled: enabled,
+      external_domain_scope: domainScope,
       external_domain_name: domainName.trim() || undefined,
       external_domain_registrar: registrar || undefined,
       external_domain_reg_email: regEmail.trim() || undefined,
@@ -1593,8 +1695,23 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
 
   const handleGrantedAccess = () => {
+    if (!domainName.trim()) { toast.error('Enter the domain name first'); return }
+    if (!registrar) { toast.error('Select a registrar first'); return }
+    if (!regEmail.trim()) { toast.error('Enter the registrar login email first'); return }
     savingRef.current = true
-    onSave.mutate({ external_domain_access_status: 'pending' } as any, {
+    // Save ALL form fields together with the status — so "Edit" can pre-populate them
+    onSave.mutate({
+      external_domain_enabled: true,
+      external_domain_scope: domainScope,
+      external_domain_access_status: 'pending',
+      external_domain_name: domainName.trim(),
+      external_domain_registrar: registrar,
+      external_domain_reg_email: regEmail.trim(),
+      external_domain_holder: holder.trim() || undefined,
+      external_domain_expiry: expiry || undefined,
+      external_domain_recovery_contact: recoveryContact.trim() || undefined,
+      external_domain_notes: notes.trim() || undefined,
+    } as any, {
       onSettled: () => { savingRef.current = false },
       onSuccess: () => { setAccessStatus('pending'); toast.success('Access marked as pending — KIT ERP team will verify') },
     })
@@ -1616,31 +1733,163 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   }
   const guideUrl = registrar ? (registrarDelegateGuide[registrar] ?? null) : null
 
+  const domainBadge = domainName ? (
+    <div className="flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium
+      bg-card border-border text-muted-foreground" title={domainName}>
+      <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+        accessStatus === 'active' ? 'bg-green-500' :
+        accessStatus === 'pending' ? 'bg-amber-400' : 'bg-gray-400'
+      }`} />
+      <span className="max-w-[10rem] truncate font-mono">{domainName}</span>
+    </div>
+  ) : null
+
   return (
     <SectionWrapper
       title="External Domain"
-      helpText="Use your own domain and grant KIT ERP team access for DNS maintenance"
+      helpText="Use your own domain instead of the default KIT ERP link"
       icon={Globe}
+      badge={domainBadge}
       open={open}
       toggle={toggle}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Master toggle */}
-        <label className="flex cursor-pointer items-center gap-3">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={enabled}
-            onClick={() => setEnabled(v => !v)}
-            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${enabled ? 'bg-primary' : 'bg-gray-200'}`}
-          >
-            <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
-          </button>
-          <span className="text-sm font-medium text-foreground">Use an external domain</span>
-        </label>
+      <form onSubmit={handleSubmit} className="space-y-3">
+
+        {/* Scope + preview info — always visible when expanded */}
+        <div className="rounded-lg border border-border bg-muted/30 divide-y divide-border text-xs hidden">
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
+            <span className="text-muted-foreground">Scope</span>
+            <span className="font-medium text-foreground flex items-center gap-1">
+              <Globe className="h-3 w-3 text-muted-foreground" />
+              {domainScope === 'all' ? 'All Business Units / Stores' : 'Per Business Unit (BU-specific)'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
+            <span className="text-muted-foreground">Status</span>
+            <span className={`font-medium flex items-center gap-1 ${
+              accessStatus === 'active' ? 'text-green-600' :
+              accessStatus === 'pending' ? 'text-amber-600' : 'text-muted-foreground'
+            }`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                accessStatus === 'active' ? 'bg-green-500' :
+                accessStatus === 'pending' ? 'bg-amber-400' : 'bg-gray-300'
+              }`} />
+              {accessStatus === 'active' ? 'Connected' :
+               accessStatus === 'pending' ? 'Awaiting KIT ERP team' :
+               accessStatus === 'revoked' ? 'Revoked' : 'Not configured'}
+            </span>
+          </div>
+          {domainName && (
+            <div className="flex items-center justify-between gap-2 px-3 py-2">
+              <span className="text-muted-foreground">Requested domain</span>
+              <a
+                href={`https://${domainName}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono font-medium text-primary hover:underline underline-offset-2 flex items-center gap-1"
+                title={`https://${domainName}`}
+              >
+                {domainName}
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+            </div>
+          )}
+          {!domainName && (
+            <div className="px-3 py-2 text-muted-foreground italic">No domain requested yet</div>
+          )}
+        </div>
+        {/* ── Toggle row ── */}
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              onClick={() => { if (!enabled) setEnabled(true); else handleToggleOff() }}
+              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                !enabled ? 'bg-gray-300' : accessStatus === 'active' ? 'bg-green-500' : 'bg-amber-400'
+              }`}
+            >
+              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+            </button>
+            <span className="text-sm font-medium text-foreground">Use an external domain</span>
+          </label>
+          {enabled && accessStatus !== 'not_requested' && accessStatus !== 'revoked' && (
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+              accessStatus === 'active' ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'
+            }`}>
+              {accessStatus === 'active' ? '● Connected' : '● Awaiting KIT ERP'}
+            </span>
+          )}
+        </div>
+
+        {/* ── OFF state ── */}
+        {!enabled && (
+          <p className="text-xs text-muted-foreground">
+            {(domainName && (accessStatus === 'pending' || accessStatus === 'active'))
+              ? `${domainName} — ${accessStatus === 'active' ? 'was live, now paused.' : 'request pending.'} Toggle ON to manage.`
+              : 'Toggle on to use your own domain. KIT ERP handles DNS — your default link stays active until setup is complete.'}
+          </p>
+        )}
 
         {enabled && (
-          <div className="space-y-4">
+          <div className="space-y-3">
+
+            {/* ── PENDING or ACTIVE: compact summary ── */}
+            {(accessStatus === 'pending' || accessStatus === 'active') && !editMode ? (
+              <div className={`rounded-lg border text-xs overflow-hidden ${accessStatus === 'active' ? 'border-green-200' : 'border-amber-200'}`}>
+                <div className={`flex items-center justify-between gap-2 px-3 py-2 ${accessStatus === 'active' ? 'bg-green-50' : 'bg-amber-50'}`}>
+                  <span className={`font-medium flex items-center gap-1.5 ${accessStatus === 'active' ? 'text-green-700' : 'text-amber-700'}`}>
+                    {accessStatus === 'active' ? <BadgeCheck className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+                    {accessStatus === 'active' ? 'Domain is live' : 'Awaiting KIT ERP verification'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {accessStatus === 'pending' && (
+                      <button type="button" className="text-primary hover:underline" onClick={() => setEditMode(true)}>Edit</button>
+                    )}
+                    <button type="button" className="text-red-500 hover:underline" onClick={handleToggleOff}>
+                      {accessStatus === 'active' ? 'Deactivate' : 'Cancel'}
+                    </button>
+                  </div>
+                </div>
+                <div className="divide-y divide-border bg-card">
+                  {[
+                    { label: 'Domain', value: domainName, link: domainName ? `https://${domainName}` : null },
+                    { label: 'Registrar', value: registrar },
+                    { label: 'Login email', value: regEmail, mono: true },
+                    { label: 'Scope', value: domainScope === 'all' ? 'All BU / Stores' : 'Per BU / Store' },
+                  ].filter(r => r.value).map(r => (
+                    <div key={r.label} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                      <span className="text-muted-foreground">{r.label}</span>
+                      {r.link
+                        ? <a href={r.link} target="_blank" rel="noopener noreferrer" className={`font-medium text-primary flex items-center gap-1 hover:underline ${r.mono ? 'font-mono' : ''}`}>{r.value}<ExternalLink className="h-3 w-3" /></a>
+                        : <span className={`font-medium text-foreground ${r.mono ? 'font-mono' : ''}`}>{r.value}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* ── NOT REQUESTED / REVOKED / EDIT MODE: compact form ── */
+              <>
+            {/* Scope: compact inline toggle */}
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2">
+              <div>
+                <span className="text-xs font-medium text-foreground">Same domain for all BU / Stores</span>
+                <span className="ml-2 text-[10px] text-muted-foreground">
+                  {domainScope === 'all' ? '(1 domain)' : '(1 per BU)'}
+                </span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={domainScope === 'all'}
+                onClick={() => setDomainScope(s => s === 'all' ? 'per_unit' : 'all')}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${domainScope === 'all' ? 'bg-primary' : 'bg-gray-300'}`}
+              >
+                <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${domainScope === 'all' ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
+            </div>
+
             {/* Domain + Registrar row */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
@@ -1758,55 +2007,98 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                 ) : (
                   <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
-                <span className="text-sm font-medium text-foreground">Access status</span>
-                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusMeta.color}`}>
+                <span className="text-xs font-medium text-foreground">Access status</span>
+                <span className={`text-[10px] font-medium ${statusMeta.color.replace('bg-', 'text-').split(' ')[0]}`}>
                   {statusMeta.label}
                 </span>
               </div>
-              <div className="flex gap-2">
-                {accessStatus === 'not_requested' && (
-                  <Button type="button" size="sm" variant="outline" onClick={handleGrantedAccess}>
-                    <Check className="mr-1 h-3.5 w-3.5" /> I've granted access
-                  </Button>
+              <div className="flex items-center gap-2">
+                {editMode && (
+                  <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setEditMode(false)}>Cancel</button>
                 )}
-                {accessStatus === 'pending' && (
-                  <span className="text-xs text-muted-foreground">Waiting for KIT ERP team to verify…</span>
-                )}
-                {accessStatus === 'active' && (
-                  <Button type="button" size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={handleRevokeAccess}>
-                    <X className="mr-1 h-3.5 w-3.5" /> Revoke access
+                {(accessStatus === 'not_requested' || (accessStatus === 'pending' && editMode)) && (
+                  <Button type="button" size="sm" onClick={() => { handleGrantedAccess(); setEditMode(false) }}>
+                    <Check className="mr-1 h-3.5 w-3.5" />
+                    {editMode ? 'Update & re-submit' : "I've granted access"}
                   </Button>
                 )}
                 {accessStatus === 'revoked' && (
                   <Button type="button" size="sm" variant="outline" onClick={handleGrantedAccess}>
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Re-grant access
+                    Re-grant access
                   </Button>
                 )}
               </div>
             </div>
 
-            {/* Notes */}
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Notes for KIT ERP team</Label>
+            <div className="flex items-center justify-between pt-1">
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                rows={3}
-                maxLength={1000}
-                placeholder="Any special instructions, current DNS providers, or things the team should know…"
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y min-h-[4rem]"
+                rows={2}
+                maxLength={500}
+                placeholder="Notes for KIT ERP team (optional)…"
+                className="flex-1 mr-3 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               />
+              <Button type="submit" size="sm" disabled={onSave.isPending} className="shrink-0">
+                {onSave.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              </Button>
             </div>
+          </>
+          )}
           </div>
         )}
-
-        <div className="flex justify-end pt-1">
-          <Button type="submit" size="sm" disabled={onSave.isPending}>
-            {onSave.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
-            Save
-          </Button>
-        </div>
       </form>
+
+      {/* OTP modal — deactivating an active domain */}
+      {showOtpModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Verify to deactivate domain</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {otpSent
+                    ? <>A 6-digit code was sent to <strong>{otpTo}</strong>. Enter it below to confirm deactivation.</>
+                    : 'Sending verification code…'}
+                </p>
+              </div>
+            </div>
+
+            {otpSent && otpDevHint && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                <strong>Dev mode:</strong> your code is <span className="font-mono font-bold tracking-widest">{otpDevHint}</span>
+              </div>
+            )}
+
+            {otpSent && (
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Verification code</Label>
+                <Input
+                  value={otpCode}
+                  onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError('') }}
+                  placeholder="6-digit code"
+                  maxLength={6}
+                  className="font-mono text-center tracking-widest text-lg"
+                  autoFocus
+                />
+                {otpError && <p className="text-xs text-red-600">{otpError}</p>}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="ghost" size="sm" className="flex-1" onClick={() => setShowOtpModal(false)}>
+                Cancel
+              </Button>
+              {otpSent && (
+                <Button type="button" size="sm" className="flex-1" disabled={otpLoading || otpCode.length !== 6} onClick={handleOtpSubmit}>
+                  {otpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm deactivation'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </SectionWrapper>
   )
 }

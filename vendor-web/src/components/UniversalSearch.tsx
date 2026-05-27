@@ -546,9 +546,14 @@ export function UniversalSearch({
               <X className="h-4 w-4" />
             </button>
           </div>
-          <kbd className="hidden shrink-0 sm:inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
-            Esc
-          </kbd>
+          <div className="hidden shrink-0 sm:flex items-center gap-1.5">
+            <kbd className="inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
+              ⌘K
+            </kbd>
+            <kbd className="inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
+              Esc
+            </kbd>
+          </div>
           <button
             type="button"
             onClick={handleClose}

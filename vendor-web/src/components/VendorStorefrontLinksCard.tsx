@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Store, UserCircle, Copy, ExternalLink, Check } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Store, UserCircle, Copy, ExternalLink, Check, Globe, Settings } from 'lucide-react'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { buildHrEssLoginUrl, isHrEssLinkVisibleForStore } from '@/lib/hrStorefrontLinks'
 import { cn } from '@/lib/utils'
+import { useVendorStore } from '@/stores/vendorStore'
 
 type Props = {
   vendorSlug: string
@@ -188,6 +190,10 @@ export default function VendorStorefrontLinksCard({
 }: Props) {
   const slug = vendorSlug.trim()
   const [copied, setCopied] = useState<CopyKey | null>(null)
+  const vendor = useVendorStore(s => s.vendor)
+  const navigate = useNavigate()
+  const extDomain = (vendor as any)?.external_domain_name
+  const extEnabled = (vendor as any)?.external_domain_enabled
 
   const storeBase = getCustomerStorefrontBaseUrl(slug)
   const branchQ = outletCode ? `?branch=${encodeURIComponent(outletCode)}` : ''
@@ -211,32 +217,63 @@ export default function VendorStorefrontLinksCard({
 
   const cardBody = (
     <>
-      <div className="divide-y divide-border">
-        <LinkRow
-          href={storeUrl}
-          icon={Store}
-          label="Customer store"
-          hint={storeHint}
-          copyKey="store"
-          copied={copied}
-          onCopy={copyText}
-        />
-        {hrUrl ? (
+      <div className="flex min-h-0 divide-x divide-border">
+        {/* Left half — store links */}
+        <div className="min-w-0 flex-1 divide-y divide-border">
           <LinkRow
-            href={hrUrl}
-            icon={UserCircle}
-            label="HR & employee login"
-            hint={
-              outletCode
-                ? 'ESS portal for this business unit'
-                : 'ESS portal for staff (vendor-wide)'
-            }
-            iconClassName="text-emerald-600"
-            copyKey="hr"
+            href={storeUrl}
+            icon={Store}
+            label="Customer store"
+            hint={storeHint}
+            copyKey="store"
             copied={copied}
             onCopy={copyText}
           />
-        ) : null}
+          {hrUrl ? (
+            <LinkRow
+              href={hrUrl}
+              icon={UserCircle}
+              label="HR & employee login"
+              hint={outletCode ? 'ESS portal for this business unit' : 'ESS portal for staff (vendor-wide)'}
+              iconClassName="text-emerald-600"
+              copyKey="hr"
+              copied={copied}
+              onCopy={copyText}
+            />
+          ) : null}
+        </div>
+
+        {/* Right half — External Domain */}
+        <div className="flex w-[45%] shrink-0 flex-col justify-between gap-2 px-3 py-3">
+          <div className="flex items-start gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+              <Globe className={cn('h-3.5 w-3.5', extEnabled ? 'text-primary' : 'text-muted-foreground')} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-foreground">External Domain</p>
+              {extEnabled && extDomain ? (
+                <p className="mt-0.5 truncate font-mono text-[11px] text-primary" title={extDomain}>{extDomain}</p>
+              ) : (
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Not configured</p>
+              )}
+              <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                Point your own domain to this business front. KIT ERP team handles DNS setup.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              // If already on settings, dispatch event to open the section directly
+              window.dispatchEvent(new CustomEvent('open-settings-section', { detail: 'external-domain' }))
+              navigate('/settings?section=external-domain', { replace: true })
+            }}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+          >
+            <Settings className="h-3 w-3 shrink-0" />
+            {extEnabled && extDomain ? 'Update domain' : 'Configure'}
+          </button>
+        </div>
       </div>
 
       {outlet && !hideOutletRow ? (

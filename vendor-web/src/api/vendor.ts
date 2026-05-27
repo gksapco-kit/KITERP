@@ -238,6 +238,16 @@ export const vendorApi = {
     return response.data
   },
 
+  sendDomainDeactivationOtp: async (): Promise<{ sent: boolean; to: string; dev_hint?: string }> => {
+    const response = await apiClient.post('/vendors/me/domain/send-deactivation-otp')
+    return response.data
+  },
+
+  verifyDomainDeactivationOtp: async (code: string) => {
+    const response = await apiClient.post('/vendors/me/domain/verify-deactivation-otp', { code })
+    return response.data
+  },
+
   /** Blog Manager — cover image; returns path to send as ``cover_url`` on create/update. */
   uploadBlogCover: async (file: File): Promise<{ cover_url: string }> => {
     const form = new FormData()

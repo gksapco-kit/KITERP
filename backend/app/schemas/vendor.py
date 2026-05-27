@@ -1,7 +1,7 @@
 # app/schemas/vendor.py
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from typing import Any, Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 from enum import Enum
 import re
@@ -124,11 +124,12 @@ class VendorUpdate(BaseModel):
 
     # External domain access
     external_domain_enabled: Optional[bool] = None
+    external_domain_scope: Optional[str] = Field(None, pattern=r'^(all|per_unit)$')
     external_domain_name: Optional[str] = Field(None, max_length=255)
     external_domain_registrar: Optional[str] = Field(None, max_length=60)
     external_domain_reg_email: Optional[str] = Field(None, max_length=255)
     external_domain_holder: Optional[str] = Field(None, max_length=255)
-    external_domain_expiry: Optional[str] = None
+    external_domain_expiry: Optional[date] = None
     external_domain_access_status: Optional[str] = Field(None, pattern=r'^(not_requested|pending|active|revoked)$')
     external_domain_recovery_contact: Optional[str] = Field(None, max_length=255)
     external_domain_notes: Optional[str] = None
@@ -179,11 +180,12 @@ class VendorResponse(BaseModel):
 
     # External domain access fields
     external_domain_enabled: Optional[bool] = False
+    external_domain_scope: Optional[str] = 'all'
     external_domain_name: Optional[str] = None
     external_domain_registrar: Optional[str] = None
     external_domain_reg_email: Optional[str] = None
     external_domain_holder: Optional[str] = None
-    external_domain_expiry: Optional[str] = None
+    external_domain_expiry: Optional[date] = None
     external_domain_access_status: Optional[str] = 'not_requested'
     external_domain_recovery_contact: Optional[str] = None
     external_domain_notes: Optional[str] = None
