@@ -4,7 +4,7 @@ import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { authApi } from '@/api/auth'
 import { useVendorSignup } from '@/hooks/useAuth'
@@ -17,7 +17,7 @@ import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import {
   Loader2, Eye, EyeOff, Check, ChevronDown, Pencil, Plus, X,
-  Rocket, Smartphone,
+  Rocket, Smartphone, LogIn,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
@@ -589,6 +589,23 @@ export default function Register() {
                   </Button>
                   </div>
                 </form>
+
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-slate-100 pt-3">
+                  <span className="text-[0.8625rem] font-semibold text-slate-500">Already have an account?</span>
+                  <Link
+                    to="/login"
+                    className={cn(
+                      'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                      'bg-gradient-to-r from-sky-50 to-blue-50 text-[hsl(204.42deg_94.86%_48.34%)]',
+                      'border border-sky-200/60',
+                      'hover:from-sky-100 hover:to-blue-100 hover:border-sky-300/80 hover:underline',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+                    )}
+                  >
+                    <LogIn className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Sign in
+                  </Link>
+                </div>
 
                 <p className="mt-2 text-center text-[11px] leading-snug text-slate-500">
                   By signing up, you agree to our{' '}
