@@ -12,6 +12,7 @@ import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import { Loader2, Rocket, Eye, EyeOff, Check, Smartphone, X } from 'lucide-react'
 import axios from 'axios'
 import { vendorAppUrl } from '@/lib/appUrls'
+import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
 
 // Same-origin `/api/v1` in dev (Vite proxies to backend); set `VITE_API_URL` if the API is elsewhere.
 const API_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '')
@@ -317,7 +318,7 @@ export default function VendorSignup() {
       closeOtpModal()
 
       if (emailOk && result.verification_code_hint) {
-        navigate('/vendor/verify-email', {
+        navigate(VENDOR_VERIFY_EMAIL_PATH, {
           state: {
             email: emailTrim,
             access_token: result.access_token,
@@ -429,7 +430,7 @@ export default function VendorSignup() {
 
   return (
     <>
-    <VendorSignupShell homeHref="/vendor/signup" signInHref={`${vendorAppUrl}/login`}>
+    <VendorSignupShell homeHref={VENDOR_SIGNUP_PATH} signInHref={`${vendorAppUrl}/login`}>
               <div className="w-full rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm md:p-4">
                 <div className="mb-2">
                   <h2 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Create your business</h2>

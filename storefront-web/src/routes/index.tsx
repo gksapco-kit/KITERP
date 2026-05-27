@@ -13,6 +13,7 @@ import StorefrontConfirmationRoute from '@/checkout/pages/StorefrontConfirmation
 import Landing from '@/pages/Landing'
 import VendorSignup from '@/pages/vendor/VendorSignup'
 import VerifyEmail from '@/pages/vendor/VerifyEmail'
+import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
 
 import Home from '@/pages/Home'
 import BuilderPage from '@/pages/BuilderPage'
@@ -92,13 +93,13 @@ export const router = createBrowserRouter([
     path: '/',
     element: <Landing />,
   },
-  // Vendor self-service signup
+  // Vendor self-service signup (storefront-only; not under /vendor/* — see vendorSignupPaths.ts)
   {
-    path: '/vendor/signup',
+    path: VENDOR_SIGNUP_PATH,
     element: <VendorSignup />,
   },
   {
-    path: '/vendor/verify-email',
+    path: VENDOR_VERIFY_EMAIL_PATH,
     element: <VerifyEmail />,
   },
   // Local dev: copy-paste Employee HR / ESS URLs (port 3002, default slug `test`)

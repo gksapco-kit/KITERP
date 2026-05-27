@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Store, Search, ArrowRight, ShieldCheck, Zap, Globe, Sparkles } from 'lucide-react'
 import { vendorAppUrl, adminAppUrl } from '@/lib/appUrls'
+import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 import { apiClient } from '@/api/client'
 
 type StoreDirectoryItem = { slug: string; display_name: string; business_name: string }
@@ -64,7 +65,7 @@ export default function Landing() {
             <span className="font-bold text-lg">KITERP</span>
           </div>
           <nav className="flex items-center gap-4">
-            <a href="/vendor/signup" className="text-sm text-amber-300 hover:text-amber-200 font-medium transition-colors">Create Business</a>
+            <a href={VENDOR_SIGNUP_PATH} className="text-sm text-amber-300 hover:text-amber-200 font-medium transition-colors">Create Business</a>
             <a href={`${vendorAppUrl}/login`} className="text-sm text-gray-300 hover:text-white transition-colors">User Login</a>
             <a href={adminAppUrl} className="text-sm px-3 py-1.5 bg-white/10 rounded-md hover:bg-white/20 transition-colors">Admin</a>
           </nav>
@@ -183,7 +184,7 @@ export default function Landing() {
           <h2 className="text-2xl sm:text-3xl font-bold text-white">Ready to sell online?</h2>
           <p className="mt-3 text-blue-100">Join KITERP as a vendor and start selling products and services today.</p>
           <div className="mt-8 flex justify-center gap-3">
-            <a href="/vendor/signup">
+            <a href={VENDOR_SIGNUP_PATH}>
               <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 font-bold h-12 px-8">
                 Create Your Business — Free
               </Button>

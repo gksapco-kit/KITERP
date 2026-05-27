@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Store, Loader2, ShieldCheck, MailCheck, ArrowRight, CheckCircle2 } from 'lucide-react'
 import axios from 'axios'
 import { vendorAppUrl } from '@/lib/appUrls'
+import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 
 const API_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '')
 
@@ -27,7 +28,7 @@ export default function VerifyEmail() {
 
   useEffect(() => {
     if (!state?.email) {
-      navigate('/vendor/signup', { replace: true })
+      navigate(VENDOR_SIGNUP_PATH, { replace: true })
     }
   }, [state, navigate])
 

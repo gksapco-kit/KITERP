@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Store } from 'lucide-react'
+import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 import { VendorSignupMarketingPanel } from './VendorSignupMarketingPanel'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER, SIGNUP_BRAND_LIGHT } from './signupTheme'
 
@@ -12,7 +13,7 @@ type VendorSignupShellProps = {
 export function VendorSignupShell({
   children,
   signInHref,
-  homeHref = '/vendor/signup',
+  homeHref = VENDOR_SIGNUP_PATH,
 }: VendorSignupShellProps) {
   useEffect(() => {
     const prev = document.body.style.overflow

@@ -1,4 +1,5 @@
 import { Rocket, Users, BarChart3, ShieldCheck, Store } from 'lucide-react'
+import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 import { SIGNUP_BRAND, SIGNUP_BRAND_MUTED } from './signupTheme'
 
 const FEATURES = [
@@ -14,7 +15,7 @@ type VendorSignupMarketingPanelProps = {
 }
 
 export function VendorSignupMarketingPanel({
-  homeHref = '/vendor/signup',
+  homeHref = VENDOR_SIGNUP_PATH,
   showLogo = true,
 }: VendorSignupMarketingPanelProps) {
   return (
