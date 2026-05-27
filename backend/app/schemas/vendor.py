@@ -122,6 +122,17 @@ class VendorUpdate(BaseModel):
     postal_code: Optional[str] = Field(None, min_length=4, max_length=20)
     service_radius_km: Optional[int] = Field(None, ge=1, le=500, description="Service delivery radius in km")
 
+    # External domain access
+    external_domain_enabled: Optional[bool] = None
+    external_domain_name: Optional[str] = Field(None, max_length=255)
+    external_domain_registrar: Optional[str] = Field(None, max_length=60)
+    external_domain_reg_email: Optional[str] = Field(None, max_length=255)
+    external_domain_holder: Optional[str] = Field(None, max_length=255)
+    external_domain_expiry: Optional[str] = None
+    external_domain_access_status: Optional[str] = Field(None, pattern=r'^(not_requested|pending|active|revoked)$')
+    external_domain_recovery_contact: Optional[str] = Field(None, max_length=255)
+    external_domain_notes: Optional[str] = None
+
 
 class VendorResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -165,6 +176,19 @@ class VendorResponse(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     checkout_layout: Optional[str] = None
+
+    # External domain access fields
+    external_domain_enabled: Optional[bool] = False
+    external_domain_name: Optional[str] = None
+    external_domain_registrar: Optional[str] = None
+    external_domain_reg_email: Optional[str] = None
+    external_domain_holder: Optional[str] = None
+    external_domain_expiry: Optional[str] = None
+    external_domain_access_status: Optional[str] = 'not_requested'
+    external_domain_recovery_contact: Optional[str] = None
+    external_domain_notes: Optional[str] = None
+    external_domain_access_requested_at: Optional[str] = None
+    external_domain_access_granted_at: Optional[str] = None
 
     @model_validator(mode="before")
     @classmethod

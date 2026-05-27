@@ -56,7 +56,21 @@ class Vendor(Base):
     subdomain = Column(String(100), unique=True, nullable=False, index=True)
     custom_domain = Column(String(255), unique=True)
     domain_verified = Column(Boolean, default=False)
-    
+
+    # External domain & delegated registrar access
+    external_domain_enabled = Column(Boolean, default=False, nullable=False)
+    external_domain_name = Column(String(255), nullable=True)
+    external_domain_registrar = Column(String(60), nullable=True)
+    external_domain_reg_email = Column(String(255), nullable=True)
+    external_domain_holder = Column(String(255), nullable=True)
+    external_domain_expiry = Column(String(20), nullable=True)   # stored as ISO date string
+    # not_requested | pending | active | revoked
+    external_domain_access_status = Column(String(30), default='not_requested', nullable=False)
+    external_domain_recovery_contact = Column(String(255), nullable=True)
+    external_domain_notes = Column(Text, nullable=True)
+    external_domain_access_requested_at = Column(DateTime(timezone=True), nullable=True)
+    external_domain_access_granted_at = Column(DateTime(timezone=True), nullable=True)
+
     # Status
     status = Column(String(30), default="pending", index=True)
     verification_status = Column(String(30), default="pending")

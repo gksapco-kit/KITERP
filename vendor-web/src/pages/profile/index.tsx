@@ -18,7 +18,7 @@ import {
   KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle,
   Activity, LogOut, Bell, Store as StoreIcon, UsersRound, CreditCard, ShieldAlert,
   Lock, Clock, Monitor, Smartphone, Calendar, FileCheck2, Upload, Hash, FileText,
-  ExternalLink, RefreshCcw,
+  ExternalLink, RefreshCcw, Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
@@ -100,6 +100,16 @@ export default function ProfilePage() {
       <QuickLinks />
 
       <DangerZone />
+
+      <div className="flex justify-end border-t border-border pt-4">
+        <Link
+          to="/about"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Info className="h-3.5 w-3.5" />
+          App version &amp; support info
+        </Link>
+      </div>
     </div>
   )
 }
