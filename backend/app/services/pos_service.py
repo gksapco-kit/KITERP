@@ -152,6 +152,8 @@ class POSService:
         loyalty_points_redeem: int = 0,
         restaurant_table_id: Optional[UUID] = None,
         sales_person_vendor_user_id: Optional[UUID] = None,
+        tip_amount: float = 0,
+        service_charge_amount: float = 0,
     ) -> dict:
         """Create a POS transaction and return a rich dict with linked records."""
         sp_vu_id: Optional[UUID] = None
@@ -235,7 +237,9 @@ class POSService:
                 log.warning("Loyalty redeem failed: %s", e)
 
         total_discount = cart_discount + coupon_discount + loyalty_discount
-        total = round(subtotal - total_discount + total_tax, 2)
+        tip = round(float(tip_amount or 0), 2)
+        svc_charge = round(float(service_charge_amount or 0), 2)
+        total = round(subtotal - total_discount + total_tax + tip + svc_charge, 2)
         change_due = max(0, cash_received - total)
 
         txn_number = await self._generate_txn_number(vendor_id)
@@ -274,6 +278,8 @@ class POSService:
             notes=notes,
             return_of=return_of,
             status=status_map.get(transaction_type, "completed"),
+            tip_amount=tip,
+            service_charge_amount=svc_charge,
             restaurant_table_id=rt_id,
             kitchen_ticket_status="new" if rt_id and transaction_type in ("sale", "debit_memo") else None,
         )

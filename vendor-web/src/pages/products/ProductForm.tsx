@@ -1,4 +1,5 @@
 import { useForm, FormProvider, Controller, useFieldArray, type FieldErrors } from 'react-hook-form'
+import { ProductModifiers } from './ProductModifiers'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -770,6 +771,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
     { key: 'digital',          label: 'Digital Product',     icon: Download,    visible: isDigital, hint: 'Download limits, expiry, and file delivery.' },
     { key: 'reports',          label: 'Reports',             icon: BarChart3, hint: 'Views, purchases, and version summary.' },
     { key: 'pricing-rules',    label: 'Advanced Pricing',    icon: DollarSign,  visible: priceRules.length > 0, hint: 'Party, location, quantity, and channel price rules.' },
+    { key: 'modifiers',        label: 'Modifiers & Add-ons', icon: Plus,        hint: 'Custom options shown when adding this product to POS (e.g. spice level, extras).' },
     { key: 'history',          label: 'Change History',      icon: Clock, hint: 'Who changed what and when — open the full report to export.' },
   ], [images.length, hasVariants, hasBasePricing, isBundleView, isSubscription, isDigital, pType, product, merchMappings.length, priceRules.length])
 
@@ -1500,6 +1502,22 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           </CardContent>
         </Card>
       )}
+
+      {/* Modifiers & Add-ons */}
+      <Card id="form-section-modifiers" className={sectionCls('modifiers')}>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className="flex items-center gap-3 mb-4">
+            <Plus className="w-5 h-5 text-gray-500 shrink-0" />
+            <div>
+              <span className={formDisplayCompact.sectionHeaderTitle}>Modifiers & Add-ons</span>
+              <p className="mt-1 text-xs text-muted-foreground max-w-md">
+                Define custom options (e.g. spice level, extras). Shown as a picker when this product is added to a POS transaction.
+              </p>
+            </div>
+          </div>
+          {id && <ProductModifiers productId={id} />}
+        </CardContent>
+      </Card>
 
       {/* Change History */}
       <Card id="form-section-history" className={sectionCls('history')}>

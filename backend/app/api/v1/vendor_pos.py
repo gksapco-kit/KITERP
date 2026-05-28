@@ -92,6 +92,8 @@ def _txn_dict(t, *, order_number: str = None, invoice_number: str = None, invoic
         "created_at": t.created_at.isoformat() if t.created_at else None,
         "restaurant_table_id": str(t.restaurant_table_id) if getattr(t, "restaurant_table_id", None) else None,
         "kitchen_ticket_status": getattr(t, "kitchen_ticket_status", None),
+        "tip_amount": float(getattr(t, "tip_amount", 0) or 0),
+        "service_charge_amount": float(getattr(t, "service_charge_amount", 0) or 0),
         "sales_person_vendor_user_id": (
             str(t.sales_person_vendor_user_id)
             if getattr(t, "sales_person_vendor_user_id", None)
@@ -176,6 +178,8 @@ async def create_transaction(data: POSTransactionCreate, user: User = Depends(ge
                 if getattr(data, "sales_person_vendor_user_id", None)
                 else None
             ),
+            tip_amount=getattr(data, "tip_amount", 0) or 0,
+            service_charge_amount=getattr(data, "service_charge_amount", 0) or 0,
         )
         txn = result["txn"]
         resp = _txn_dict(

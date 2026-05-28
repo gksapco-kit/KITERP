@@ -1403,9 +1403,118 @@ async def ensure_restaurant_schema() -> None:
         )
         """,
         "CREATE INDEX IF NOT EXISTS ix_restaurant_table_vendor ON restaurant_table(vendor_id)",
+        "ALTER TABLE restaurant_table ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'free'",
         "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS restaurant_table_id UUID REFERENCES restaurant_table(id) ON DELETE SET NULL",
         "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS kitchen_ticket_status VARCHAR(20)",
         "CREATE INDEX IF NOT EXISTS ix_pos_txn_kitchen ON pos_transaction(vendor_id, kitchen_ticket_status) WHERE kitchen_ticket_status IS NOT NULL",
+        """
+        CREATE TABLE IF NOT EXISTS restaurant_order (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            table_id UUID REFERENCES restaurant_table(id) ON DELETE SET NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'open',
+            covers INTEGER NOT NULL DEFAULT 1,
+            server_name VARCHAR(120),
+            items JSONB NOT NULL DEFAULT '[]'::jsonb,
+            notes TEXT,
+            pos_transaction_id UUID REFERENCES pos_transaction(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_order_vendor ON restaurant_order(vendor_id)",
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_order_table ON restaurant_order(table_id) WHERE status IN ('open','billed')",
+        """
+        CREATE TABLE IF NOT EXISTS restaurant_kot (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            order_id UUID NOT NULL REFERENCES restaurant_order(id) ON DELETE CASCADE,
+            table_id UUID REFERENCES restaurant_table(id) ON DELETE SET NULL,
+            kot_number INTEGER NOT NULL DEFAULT 1,
+            status VARCHAR(20) NOT NULL DEFAULT 'new',
+            items JSONB NOT NULL DEFAULT '[]'::jsonb,
+            notes TEXT,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_kot_vendor ON restaurant_kot(vendor_id)",
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_kot_order ON restaurant_kot(order_id)",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+
+
+async def ensure_modifier_schema() -> None:
+    """Product modifier groups/options + POS tip/service_charge columns (idempotent)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        """
+        CREATE TABLE IF NOT EXISTS product_modifier_group (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            product_id UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+            name VARCHAR(120) NOT NULL,
+            selection_type VARCHAR(20) NOT NULL DEFAULT 'single',
+            is_required BOOLEAN NOT NULL DEFAULT false,
+            min_select INTEGER NOT NULL DEFAULT 0,
+            max_select INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            created_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_product_modifier_group_product ON product_modifier_group(product_id)",
+        "CREATE INDEX IF NOT EXISTS ix_product_modifier_group_vendor ON product_modifier_group(vendor_id)",
+        """
+        CREATE TABLE IF NOT EXISTS product_modifier_option (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            group_id UUID NOT NULL REFERENCES product_modifier_group(id) ON DELETE CASCADE,
+            name VARCHAR(120) NOT NULL,
+            price_delta NUMERIC(12,2) NOT NULL DEFAULT 0,
+            is_default BOOLEAN NOT NULL DEFAULT false,
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_product_modifier_option_group ON product_modifier_option(group_id)",
+        "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS tip_amount NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS service_charge_amount NUMERIC(12,2) DEFAULT 0",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+
+
+async def ensure_reservation_schema() -> None:
+    """Restaurant reservation table + qr_token column on restaurant_table (idempotent)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        "ALTER TABLE restaurant_table ADD COLUMN IF NOT EXISTS qr_token VARCHAR(80) UNIQUE",
+        """
+        CREATE TABLE IF NOT EXISTS restaurant_reservation (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            table_id UUID REFERENCES restaurant_table(id) ON DELETE SET NULL,
+            guest_name VARCHAR(200) NOT NULL,
+            guest_phone VARCHAR(30),
+            guest_email VARCHAR(200),
+            reservation_date DATE NOT NULL,
+            reservation_time VARCHAR(10) NOT NULL,
+            party_size INTEGER NOT NULL DEFAULT 2,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            notes TEXT,
+            source VARCHAR(20) NOT NULL DEFAULT 'online',
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_restaurant_reservation_vendor_date ON restaurant_reservation(vendor_id, reservation_date)",
     ]
     async with engine.begin() as conn:
         for s in stmts:

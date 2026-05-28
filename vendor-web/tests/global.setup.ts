@@ -1,7 +1,7 @@
 import { test as setup, expect } from '@playwright/test';
 
-const VENDOR_EMAIL = process.env.TEST_VENDOR_EMAIL || 'admin@kiterp.com';
-const VENDOR_PASSWORD = process.env.TEST_VENDOR_PASSWORD || 'TestPass123!';
+const VENDOR_EMAIL = process.env.TEST_VENDOR_EMAIL || 'vendor@kiterp.com';
+const VENDOR_PASSWORD = process.env.TEST_VENDOR_PASSWORD || 'vendor123';
 
 setup('authenticate as vendor', async ({ page }) => {
   await page.goto('/login');

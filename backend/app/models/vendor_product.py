@@ -308,3 +308,45 @@ class ProductPriceRule(Base):
         Index("idx_price_rule_type", "rule_type"),
         Index("idx_price_rule_active", "is_active"),
     )
+
+
+class ProductModifierGroup(Base):
+    """Modifier groups for a product (e.g. 'Spice Level', 'Add-ons', 'Size')."""
+    __tablename__ = "product_modifier_group"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    # single = pick one; multiple = pick many
+    selection_type = Column(String(20), nullable=False, default="single")
+    is_required = Column(Boolean, nullable=False, default=False)
+    min_select = Column(Integer, nullable=False, default=0)
+    max_select = Column(Integer, nullable=False, default=1)
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_product_modifier_group_product", "product_id"),
+        Index("ix_product_modifier_group_vendor", "vendor_id"),
+    )
+
+
+class ProductModifierOption(Base):
+    """Individual options inside a modifier group (e.g. 'Extra Cheese +₹20')."""
+    __tablename__ = "product_modifier_option"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    group_id = Column(UUID(as_uuid=True), ForeignKey("product_modifier_group.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    price_delta = Column(Numeric(12, 2), nullable=False, default=0)
+    is_default = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_product_modifier_option_group", "group_id"),
+    )

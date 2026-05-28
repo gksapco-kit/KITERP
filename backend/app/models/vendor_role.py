@@ -65,6 +65,16 @@ ALL_PERMISSIONS = [
     # Sales commission (payees, plans, assignments, payouts)
     "commission.read",
     "commission.manage",
+    # POS
+    "pos.view",
+    "pos.manage",
+    "pos.refund",
+    # Restaurant operations
+    "restaurant.view",
+    "restaurant.floor",
+    "restaurant.kitchen",
+    "restaurant.reservations",
+    "restaurant.reports",
 ]
 
 DEFAULT_ROLE_PERMISSIONS = {

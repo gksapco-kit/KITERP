@@ -60,6 +60,8 @@ class POSTransactionCreate(BaseModel):
     loyalty_points_redeem: int = 0
     restaurant_table_id: Optional[str] = None
     sales_person_vendor_user_id: Optional[str] = None
+    tip_amount: float = 0
+    service_charge_amount: float = 0
 
 
 class POSReturnCreate(BaseModel):

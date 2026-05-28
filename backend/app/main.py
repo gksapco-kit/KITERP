@@ -26,6 +26,8 @@ from app.database import (
     ensure_pos_transaction_accounting_columns,
     ensure_website_tables,
     ensure_restaurant_schema,
+    ensure_modifier_schema,
+    ensure_reservation_schema,
     ensure_user_contact_not_globally_unique,
     ensure_user_platform_staff_role_column,
 )
@@ -61,6 +63,8 @@ async def lifespan(app: FastAPI):
     await ensure_pos_transaction_accounting_columns()
     await ensure_website_tables()
     await ensure_restaurant_schema()
+    await ensure_modifier_schema()
+    await ensure_reservation_schema()
     await ensure_user_contact_not_globally_unique()
     await ensure_user_platform_staff_role_column()
     await connect_redis()

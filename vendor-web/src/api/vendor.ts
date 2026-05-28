@@ -1,6 +1,103 @@
 import apiClient from './client'
 import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType } from '@/types'
 
+// ── Restaurant extra types ────────────────────────────────────────
+export interface ReservationItem {
+  id: string
+  vendor_id: string
+  table_id?: string | null
+  table_label?: string | null
+  guest_name: string
+  guest_phone?: string | null
+  guest_email?: string | null
+  reservation_date: string
+  reservation_time: string
+  party_size: number
+  status: string
+  notes?: string | null
+  source: string
+  created_at?: string | null
+}
+
+export interface RestaurantReportDashboard {
+  today: { open_orders: number; total_orders: number; total_covers: number; restaurant_revenue: number }
+  kots_by_status: Record<string, number>
+  tables: { total: number; by_status: Record<string, number> }
+  upcoming_reservations: number
+}
+
+// ── Modifier types ────────────────────────────────────────────────
+export interface ModifierOption {
+  id: string
+  group_id: string
+  name: string
+  price_delta: number
+  is_default: boolean
+  is_active: boolean
+  sort_order: number
+}
+
+export interface ModifierGroup {
+  id: string
+  product_id: string
+  name: string
+  selection_type: 'single' | 'multiple'
+  is_required: boolean
+  min_select: number
+  max_select: number
+  sort_order: number
+  is_active: boolean
+  options: ModifierOption[]
+}
+
+export interface SelectedModifier {
+  group_id: string
+  group_name: string
+  option_id: string
+  option_name: string
+  price_delta: number
+}
+
+// ── Restaurant types ───────────────────────────────────────────────
+export interface RestaurantOrderItem {
+  product_id?: string
+  name: string
+  qty: number
+  unit_price: number
+  tax_rate?: number
+  item_type?: string
+  notes?: string
+}
+
+export interface RestaurantKOT {
+  id: string
+  order_id: string
+  table_id?: string | null
+  table_label?: string | null
+  kot_number: number
+  status: string
+  items: RestaurantOrderItem[]
+  notes?: string | null
+  covers?: number | null
+  created_at?: string | null
+}
+
+export interface RestaurantOrder {
+  id: string
+  vendor_id: string
+  table_id?: string | null
+  table_label?: string | null
+  status: string
+  covers: number
+  server_name?: string | null
+  items: RestaurantOrderItem[]
+  notes?: string | null
+  pos_transaction_id?: string | null
+  kots: RestaurantKOT[]
+  created_at?: string | null
+  updated_at?: string | null
+}
+
 export interface StoreAddress {
   street?: string
   city?: string
@@ -633,6 +730,36 @@ export const vendorApi = {
     const response = await apiClient.get('/vendors/me/pos/sessions', { params })
     return response.data
   },
+  // ── Product Modifiers ─────────────────────────────────────────────
+  productListModifiers: async (productId: string): Promise<{ items: ModifierGroup[] }> => {
+    const response = await apiClient.get(`/vendors/me/products/${productId}/modifiers`)
+    return response.data
+  },
+  productCreateModifierGroup: async (productId: string, body: {
+    name: string; selection_type?: string; is_required?: boolean; min_select?: number; max_select?: number; sort_order?: number; is_active?: boolean
+  }) => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/modifiers`, body)
+    return response.data as ModifierGroup
+  },
+  productUpdateModifierGroup: async (productId: string, groupId: string, body: Partial<{ name: string; selection_type: string; is_required: boolean; min_select: number; max_select: number; sort_order: number; is_active: boolean }>) => {
+    const response = await apiClient.patch(`/vendors/me/products/${productId}/modifiers/${groupId}`, body)
+    return response.data as ModifierGroup
+  },
+  productDeleteModifierGroup: async (productId: string, groupId: string) => {
+    await apiClient.delete(`/vendors/me/products/${productId}/modifiers/${groupId}`)
+  },
+  productCreateModifierOption: async (productId: string, groupId: string, body: { name: string; price_delta?: number; is_default?: boolean; is_active?: boolean; sort_order?: number }) => {
+    const response = await apiClient.post(`/vendors/me/products/${productId}/modifiers/${groupId}/options`, body)
+    return response.data as ModifierOption
+  },
+  productUpdateModifierOption: async (productId: string, groupId: string, optionId: string, body: Partial<{ name: string; price_delta: number; is_default: boolean; is_active: boolean; sort_order: number }>) => {
+    const response = await apiClient.patch(`/vendors/me/products/${productId}/modifiers/${groupId}/options/${optionId}`, body)
+    return response.data as ModifierOption
+  },
+  productDeleteModifierOption: async (productId: string, groupId: string, optionId: string) => {
+    await apiClient.delete(`/vendors/me/products/${productId}/modifiers/${groupId}/options/${optionId}`)
+  },
+
   posCreateTransaction: async (data: Record<string, unknown>) => {
     const response = await apiClient.post('/vendors/me/pos/transactions', data)
     return response.data
@@ -720,6 +847,85 @@ export const vendorApi = {
   restaurantPatchKitchenTicket: async (txnId: string, kitchen_ticket_status: 'new' | 'preparing' | 'ready' | 'done') => {
     const response = await apiClient.patch(`/vendors/me/restaurant/kitchen-tickets/${txnId}`, { kitchen_ticket_status })
     return response.data
+  },
+
+  // ── Restaurant Orders (open tabs) ─────────────────────────────────
+  restaurantCreateOrder: async (body: { table_id: string; covers?: number; server_name?: string; notes?: string }) => {
+    const response = await apiClient.post('/vendors/me/restaurant/orders', body)
+    return response.data as RestaurantOrder
+  },
+  restaurantListOrders: async (params?: { status?: string }) => {
+    const response = await apiClient.get('/vendors/me/restaurant/orders', { params })
+    return response.data as { items: RestaurantOrder[] }
+  },
+  restaurantGetOrder: async (orderId: string) => {
+    const response = await apiClient.get(`/vendors/me/restaurant/orders/${orderId}`)
+    return response.data as RestaurantOrder
+  },
+  restaurantSendKOT: async (orderId: string, body: { items: RestaurantOrderItem[]; notes?: string }) => {
+    const response = await apiClient.post(`/vendors/me/restaurant/orders/${orderId}/send-kot`, body)
+    return response.data as RestaurantKOT
+  },
+  restaurantRequestBill: async (orderId: string) => {
+    const response = await apiClient.patch(`/vendors/me/restaurant/orders/${orderId}/request-bill`, {})
+    return response.data as { id: string; status: string }
+  },
+  restaurantCloseOrder: async (orderId: string, pos_transaction_id: string) => {
+    const response = await apiClient.patch(`/vendors/me/restaurant/orders/${orderId}/close`, { pos_transaction_id })
+    return response.data as { id: string; status: string }
+  },
+  restaurantVoidOrder: async (orderId: string) => {
+    const response = await apiClient.patch(`/vendors/me/restaurant/orders/${orderId}/void`, {})
+    return response.data as { id: string; status: string }
+  },
+
+  // ── KOTs ──────────────────────────────────────────────────────────
+  restaurantListKOTs: async (params?: { include_done?: boolean }) => {
+    const response = await apiClient.get('/vendors/me/restaurant/kots', { params })
+    return response.data as { items: RestaurantKOT[] }
+  },
+  restaurantPatchKOT: async (kotId: string, status: 'new' | 'preparing' | 'ready' | 'done') => {
+    const response = await apiClient.patch(`/vendors/me/restaurant/kots/${kotId}`, { status })
+    return response.data as { id: string; status: string }
+  },
+  restaurantSetTableStatus: async (tableId: string, status: 'free' | 'seated' | 'ordering' | 'billed' | 'dirty') => {
+    const response = await apiClient.patch(`/vendors/me/restaurant/tables/${tableId}/status`, { status })
+    return response.data as { id: string; status: string }
+  },
+  restaurantGenerateQR: async (tableId: string) => {
+    const response = await apiClient.post(`/vendors/me/restaurant/tables/${tableId}/generate-qr`, {})
+    return response.data as { id: string; qr_token: string }
+  },
+
+  // ── Reservations ─────────────────────────────────────────────────
+  restaurantListReservations: async (params?: { date_from?: string; date_to?: string; status?: string }) => {
+    const response = await apiClient.get('/vendors/me/restaurant/reservations', { params })
+    return response.data as { items: ReservationItem[] }
+  },
+  restaurantCreateReservation: async (body: {
+    guest_name: string; guest_phone?: string; guest_email?: string
+    reservation_date: string; reservation_time: string; party_size?: number
+    table_id?: string; notes?: string; source?: string
+  }) => {
+    const response = await apiClient.post('/vendors/me/restaurant/reservations', body)
+    return response.data as ReservationItem
+  },
+  restaurantUpdateReservation: async (id: string, body: { status: string; table_id?: string }) => {
+    const response = await apiClient.patch(`/vendors/me/restaurant/reservations/${id}`, body)
+    return response.data as { id: string; status: string }
+  },
+  restaurantDeleteReservation: async (id: string) => {
+    await apiClient.delete(`/vendors/me/restaurant/reservations/${id}`)
+  },
+
+  // ── Restaurant Reports ────────────────────────────────────────────
+  restaurantReportDashboard: async () => {
+    const response = await apiClient.get('/vendors/me/reports/restaurant')
+    return response.data as RestaurantReportDashboard
+  },
+  restaurantReportKotsByHour: async (days?: number) => {
+    const response = await apiClient.get('/vendors/me/reports/restaurant/kots-by-hour', { params: { days: days ?? 1 } })
+    return response.data as { data: Array<{ hour: number; kots: number }> }
   },
 
   // ── Invoices ──────────────────────────────────────────────────

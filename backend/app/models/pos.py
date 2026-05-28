@@ -82,6 +82,9 @@ class POSTransaction(Base):
     loyalty_discount = Column(Numeric(12, 2), default=0)
     notes = Column(Text)
 
+    tip_amount = Column(Numeric(12, 2), default=0)
+    service_charge_amount = Column(Numeric(12, 2), default=0)
+
     restaurant_table_id = Column(UUID(as_uuid=True), ForeignKey("restaurant_table.id", ondelete="SET NULL"))
     kitchen_ticket_status = Column(String(20))  # new, preparing, ready, done
 

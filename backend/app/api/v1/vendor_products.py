@@ -17,7 +17,7 @@ from app.models.user import User
 from sqlalchemy import delete, select, or_
 from sqlalchemy.orm import selectinload
 
-from app.models.vendor_product import Product, ProductImage, ProductVariant, ProductPriceRule
+from app.models.vendor_product import Product, ProductImage, ProductVariant, ProductPriceRule, ProductModifierGroup, ProductModifierOption
 from app.schemas.vendor_product import (
     ProductCreate, ProductUpdate, ProductResponse, ProductListResponse,
     PriceRuleCreate, PriceRuleUpdate, PriceRuleResponse,
@@ -793,4 +793,199 @@ async def delete_price_rule(
     if not rule:
         raise HTTPException(status_code=404, detail="Price rule not found")
     await db.delete(rule)
+    await db.commit()
+
+
+# ── Modifier Groups & Options ─────────────────────────────────────
+
+def _modifier_group_dict(g: ProductModifierGroup, options=None) -> dict:
+    return {
+        "id": str(g.id),
+        "product_id": str(g.product_id),
+        "name": g.name,
+        "selection_type": g.selection_type,
+        "is_required": g.is_required,
+        "min_select": g.min_select,
+        "max_select": g.max_select,
+        "sort_order": g.sort_order,
+        "is_active": g.is_active,
+        "created_at": g.created_at.isoformat() if g.created_at else None,
+        "options": [_modifier_option_dict(o) for o in (options or [])],
+    }
+
+
+def _modifier_option_dict(o: ProductModifierOption) -> dict:
+    return {
+        "id": str(o.id),
+        "group_id": str(o.group_id),
+        "name": o.name,
+        "price_delta": float(o.price_delta or 0),
+        "is_default": o.is_default,
+        "is_active": o.is_active,
+        "sort_order": o.sort_order,
+        "created_at": o.created_at.isoformat() if o.created_at else None,
+    }
+
+
+@router.get("/{product_id}/modifiers")
+async def list_modifiers(
+    product_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    groups_r = await db.execute(
+        select(ProductModifierGroup)
+        .where(ProductModifierGroup.product_id == product_id, ProductModifierGroup.vendor_id == vendor_id)
+        .order_by(ProductModifierGroup.sort_order, ProductModifierGroup.name)
+    )
+    groups = list(groups_r.scalars().all())
+    result = []
+    for g in groups:
+        opts_r = await db.execute(
+            select(ProductModifierOption)
+            .where(ProductModifierOption.group_id == g.id)
+            .order_by(ProductModifierOption.sort_order, ProductModifierOption.name)
+        )
+        opts = list(opts_r.scalars().all())
+        result.append(_modifier_group_dict(g, opts))
+    return JSONResponse(content={"items": result})
+
+
+from pydantic import BaseModel as _BM, Field as _F
+from typing import Optional as _Opt
+
+class _ModifierGroupCreate(_BM):
+    name: str = _F(min_length=1, max_length=120)
+    selection_type: str = "single"
+    is_required: bool = False
+    min_select: int = 0
+    max_select: int = 1
+    sort_order: int = 0
+    is_active: bool = True
+
+class _ModifierGroupUpdate(_BM):
+    name: _Opt[str] = _F(None, min_length=1, max_length=120)
+    selection_type: _Opt[str] = None
+    is_required: _Opt[bool] = None
+    min_select: _Opt[int] = None
+    max_select: _Opt[int] = None
+    sort_order: _Opt[int] = None
+    is_active: _Opt[bool] = None
+
+class _ModifierOptionCreate(_BM):
+    name: str = _F(min_length=1, max_length=120)
+    price_delta: float = 0.0
+    is_default: bool = False
+    is_active: bool = True
+    sort_order: int = 0
+
+class _ModifierOptionUpdate(_BM):
+    name: _Opt[str] = _F(None, min_length=1, max_length=120)
+    price_delta: _Opt[float] = None
+    is_default: _Opt[bool] = None
+    is_active: _Opt[bool] = None
+    sort_order: _Opt[int] = None
+
+
+@router.post("/{product_id}/modifiers", status_code=201)
+async def create_modifier_group(
+    product_id: UUID,
+    data: _ModifierGroupCreate,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    product = await db.get(Product, product_id)
+    if not product or product.vendor_id != vendor_id:
+        raise HTTPException(404, "Product not found")
+    g = ProductModifierGroup(
+        vendor_id=vendor_id, product_id=product_id,
+        name=data.name.strip(), selection_type=data.selection_type,
+        is_required=data.is_required, min_select=data.min_select,
+        max_select=data.max_select, sort_order=data.sort_order, is_active=data.is_active,
+    )
+    db.add(g)
+    await db.commit()
+    await db.refresh(g)
+    return JSONResponse(content=_modifier_group_dict(g, []), status_code=201)
+
+
+@router.patch("/{product_id}/modifiers/{group_id}")
+async def update_modifier_group(
+    product_id: UUID, group_id: UUID,
+    data: _ModifierGroupUpdate,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    g = await db.get(ProductModifierGroup, group_id)
+    if not g or g.vendor_id != vendor_id or g.product_id != product_id:
+        raise HTTPException(404, "Modifier group not found")
+    for field, val in data.model_dump(exclude_unset=True).items():
+        setattr(g, field, val)
+    await db.commit()
+    await db.refresh(g)
+    opts_r = await db.execute(select(ProductModifierOption).where(ProductModifierOption.group_id == g.id).order_by(ProductModifierOption.sort_order))
+    return JSONResponse(content=_modifier_group_dict(g, list(opts_r.scalars().all())))
+
+
+@router.delete("/{product_id}/modifiers/{group_id}", status_code=204)
+async def delete_modifier_group(
+    product_id: UUID, group_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    g = await db.get(ProductModifierGroup, group_id)
+    if not g or g.vendor_id != vendor_id or g.product_id != product_id:
+        raise HTTPException(404, "Modifier group not found")
+    await db.delete(g)
+    await db.commit()
+
+
+@router.post("/{product_id}/modifiers/{group_id}/options", status_code=201)
+async def create_modifier_option(
+    product_id: UUID, group_id: UUID,
+    data: _ModifierOptionCreate,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    g = await db.get(ProductModifierGroup, group_id)
+    if not g or g.vendor_id != vendor_id or g.product_id != product_id:
+        raise HTTPException(404, "Modifier group not found")
+    o = ProductModifierOption(
+        vendor_id=vendor_id, group_id=group_id,
+        name=data.name.strip(), price_delta=data.price_delta,
+        is_default=data.is_default, is_active=data.is_active, sort_order=data.sort_order,
+    )
+    db.add(o)
+    await db.commit()
+    await db.refresh(o)
+    return JSONResponse(content=_modifier_option_dict(o), status_code=201)
+
+
+@router.patch("/{product_id}/modifiers/{group_id}/options/{option_id}")
+async def update_modifier_option(
+    product_id: UUID, group_id: UUID, option_id: UUID,
+    data: _ModifierOptionUpdate,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    o = await db.get(ProductModifierOption, option_id)
+    if not o or o.vendor_id != vendor_id or o.group_id != group_id:
+        raise HTTPException(404, "Option not found")
+    for field, val in data.model_dump(exclude_unset=True).items():
+        setattr(o, field, val)
+    await db.commit()
+    await db.refresh(o)
+    return JSONResponse(content=_modifier_option_dict(o))
+
+
+@router.delete("/{product_id}/modifiers/{group_id}/options/{option_id}", status_code=204)
+async def delete_modifier_option(
+    product_id: UUID, group_id: UUID, option_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    o = await db.get(ProductModifierOption, option_id)
+    if not o or o.vendor_id != vendor_id or o.group_id != group_id:
+        raise HTTPException(404, "Option not found")
+    await db.delete(o)
     await db.commit()

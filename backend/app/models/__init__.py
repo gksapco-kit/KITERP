@@ -4,7 +4,7 @@ from app.models.vendor import Vendor, VendorDocument, VendorBankAccount, VendorO
 from app.models.vendor_rm_query import VendorRmQuery
 from app.models.vendor_user import VendorUser
 from app.models.vendor_role import VendorRole
-from app.models.vendor_product import Product, ProductVariant, ProductImage, ProductPriceRule
+from app.models.vendor_product import Product, ProductVariant, ProductImage, ProductPriceRule, ProductModifierGroup, ProductModifierOption
 from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
 from app.models.vendor_plan import VendorPlan
 from app.models.customer import Customer
@@ -15,7 +15,7 @@ from app.models.review import Review
 from app.models.inventory import InventoryMovement
 from app.models.vendor_app_build import VendorAppBuild
 from app.models.pos import POSSession, POSTransaction
-from app.models.restaurant import RestaurantZone, RestaurantTable
+from app.models.restaurant import RestaurantZone, RestaurantTable, RestaurantOrder, RestaurantKOT, RestaurantReservation
 from app.models.invoice import Invoice
 from app.models.coupon import Coupon, CouponUsage
 from app.models.lead import Lead, Quote
@@ -138,6 +138,9 @@ __all__ = [
     "POSTransaction",
     "RestaurantZone",
     "RestaurantTable",
+    "RestaurantOrder",
+    "RestaurantKOT",
+    "RestaurantReservation",
     "Invoice",
     "Coupon",
     "CouponUsage",
@@ -155,6 +158,8 @@ __all__ = [
     "BundleItem",
     "UpsellMapping",
     "ProductPriceRule",
+    "ProductModifierGroup",
+    "ProductModifierOption",
     "LoyaltyProgram",
     "LoyaltyAccount",
     "LoyaltyTransaction",

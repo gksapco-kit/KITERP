@@ -1,0 +1,233 @@
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import {
+  ArrowLeft, Calendar, Check, Loader2, Plus, Trash2, UtensilsCrossed, Users,
+  X, Phone, Mail, Clock,
+} from 'lucide-react'
+import { vendorApi } from '@/api/vendor'
+import type { ReservationItem } from '@/api/vendor'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+
+const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
+  pending:   { label: 'Pending',   badge: 'bg-yellow-100 text-yellow-800' },
+  confirmed: { label: 'Confirmed', badge: 'bg-blue-100 text-blue-700' },
+  seated:    { label: 'Seated',    badge: 'bg-emerald-100 text-emerald-800' },
+  cancelled: { label: 'Cancelled', badge: 'bg-gray-100 text-gray-500 line-through' },
+  no_show:   { label: 'No-show',   badge: 'bg-red-100 text-red-700' },
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function formatDate(d: string) {
+  return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+export default function RestaurantReservationsPage() {
+  const qc = useQueryClient()
+  const [dateFrom, setDateFrom] = useState(today())
+  const [showForm, setShowForm] = useState(false)
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['restaurant', 'reservations', dateFrom],
+    queryFn: () => vendorApi.restaurantListReservations({ date_from: dateFrom }),
+    refetchInterval: 30_000,
+  })
+
+  const updateStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      vendorApi.restaurantUpdateReservation(id, { status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] }),
+    onError: () => toast.error('Could not update reservation'),
+  })
+
+  const deleteRes = useMutation({
+    mutationFn: (id: string) => vendorApi.restaurantDeleteReservation(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] })
+      toast.success('Reservation removed')
+    },
+    onError: () => toast.error('Could not delete reservation'),
+  })
+
+  const reservations = data?.items ?? []
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/restaurant/floor"><ArrowLeft className="w-4 h-4" /></Link>
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-amber-600" /> Reservations
+            </h1>
+            <p className="text-xs text-gray-500 mt-0.5">Manage table bookings and walk-in pre-registrations</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-sm w-40" />
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Add
+          </Button>
+        </div>
+      </div>
+
+      {showForm && (
+        <NewReservationForm
+          onSuccess={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] }) }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {isLoading && <div className="flex justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-gray-400" /></div>}
+
+      {!isLoading && !reservations.length && (
+        <div className="rounded-xl border border-dashed bg-gray-50 p-10 text-center text-gray-400 text-sm">
+          No reservations for this date range.
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {reservations.map(r => (
+          <ReservationRow
+            key={r.id}
+            reservation={r}
+            onStatusChange={(status) => updateStatus.mutate({ id: r.id, status })}
+            onDelete={() => { if (confirm('Delete this reservation?')) deleteRes.mutate(r.id) }}
+            isPending={updateStatus.isPending || deleteRes.isPending}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+function ReservationRow({ reservation: r, onStatusChange, onDelete, isPending }: {
+  reservation: ReservationItem
+  onStatusChange: (status: string) => void
+  onDelete: () => void
+  isPending: boolean
+}) {
+  const [expand, setExpand] = useState(false)
+  const cfg = STATUS_CONFIG[r.status] ?? STATUS_CONFIG.pending
+
+  return (
+    <div className="rounded-xl border bg-white overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex flex-wrap items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+        onClick={() => setExpand(e => !e)}
+      >
+        <div className="shrink-0 text-center w-12">
+          <p className="text-lg font-bold text-gray-800">{r.reservation_time}</p>
+          <p className="text-xs text-gray-400">{formatDate(r.reservation_date)}</p>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-gray-900 truncate">{r.guest_name}</p>
+          <p className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
+            <Users className="w-3 h-3" /> {r.party_size} guests
+            {r.table_label && <span>· Table {r.table_label}</span>}
+          </p>
+        </div>
+        <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full shrink-0', cfg.badge)}>
+          {cfg.label}
+        </span>
+      </button>
+
+      {expand && (
+        <div className="border-t px-4 py-3 bg-gray-50 space-y-3">
+          <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+            {r.guest_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{r.guest_phone}</span>}
+            {r.guest_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{r.guest_email}</span>}
+            {r.notes && <span className="col-span-2 italic text-gray-500">{r.notes}</span>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {['pending', 'confirmed', 'seated', 'cancelled', 'no_show'].map(s => (
+              <Button
+                key={s}
+                size="sm"
+                variant={r.status === s ? 'default' : 'outline'}
+                className="text-xs h-7"
+                disabled={isPending}
+                onClick={() => onStatusChange(s)}
+              >
+                {STATUS_CONFIG[s]?.label ?? s}
+              </Button>
+            ))}
+            <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" disabled={isPending} onClick={onDelete}>
+              <Trash2 className="w-3 h-3 mr-1" /> Delete
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+function NewReservationForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+  const [form, setForm] = useState({
+    guest_name: '', guest_phone: '', guest_email: '',
+    reservation_date: today(), reservation_time: '19:00',
+    party_size: 2, notes: '',
+  })
+
+  const create = useMutation({
+    mutationFn: () => vendorApi.restaurantCreateReservation({ ...form, source: 'phone' }),
+    onSuccess: () => { toast.success('Reservation created'); onSuccess() },
+    onError: () => toast.error('Could not create reservation'),
+  })
+
+  const set = (k: string, v: string | number) => setForm(f => ({ ...f, [k]: v }))
+
+  return (
+    <div className="rounded-xl border bg-white p-5 space-y-4">
+      <h2 className="font-semibold text-gray-800">New Reservation</h2>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className="text-xs font-medium text-gray-500 block mb-1">Guest name *</label>
+          <Input value={form.guest_name} onChange={e => set('guest_name', e.target.value)} className="h-9 text-sm" placeholder="John Smith" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Phone</label>
+          <Input value={form.guest_phone} onChange={e => set('guest_phone', e.target.value)} className="h-9 text-sm" placeholder="+91 9876543210" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Email</label>
+          <Input value={form.guest_email} onChange={e => set('guest_email', e.target.value)} className="h-9 text-sm" placeholder="guest@email.com" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Date *</label>
+          <Input type="date" value={form.reservation_date} onChange={e => set('reservation_date', e.target.value)} className="h-9 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Time *</label>
+          <Input type="time" value={form.reservation_time} onChange={e => set('reservation_time', e.target.value)} className="h-9 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Party size</label>
+          <Input type="number" min={1} max={50} value={form.party_size} onChange={e => set('party_size', parseInt(e.target.value) || 1)} className="h-9 text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Notes</label>
+          <Input value={form.notes} onChange={e => set('notes', e.target.value)} className="h-9 text-sm" placeholder="Special requests…" />
+        </div>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button size="sm" disabled={!form.guest_name || create.isPending} onClick={() => create.mutate()}>
+          {create.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          Save reservation
+        </Button>
+      </div>
+    </div>
+  )
+}

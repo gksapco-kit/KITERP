@@ -14,8 +14,17 @@ from app.schemas.restaurant import (
     RestaurantZoneUpdate,
     RestaurantTableCreate,
     RestaurantTableUpdate,
+    RestaurantTableStatusUpdate,
     KitchenTicketStatusUpdate,
+    RestaurantOrderCreate,
+    RestaurantOrderAddItems,
+    RestaurantOrderCloseIn,
+    RestaurantKOTSendIn,
+    RestaurantKOTStatusUpdate,
+    RestaurantReservationCreate,
+    RestaurantReservationStatusUpdate,
 )
+from datetime import date as date_type
 
 router = APIRouter()
 
@@ -27,6 +36,8 @@ async def _vendor_id(current_user: User = Depends(get_current_active_user), db: 
         raise HTTPException(404, "No vendor found")
     return vendor.id
 
+
+# ── Serialisers ───────────────────────────────────────────────────────
 
 def _zone_dict(z):
     return {
@@ -48,9 +59,47 @@ def _table_dict(t, zone_name=None):
         "capacity": t.capacity or 4,
         "sort_order": t.sort_order or 0,
         "is_active": t.is_active if t.is_active is not None else True,
+        "status": t.status or "free",
+        "qr_token": getattr(t, "qr_token", None),
         "created_at": t.created_at.isoformat() if t.created_at else None,
     }
 
+
+def _order_dict(o, table_label=None, kots=None):
+    return {
+        "id": str(o.id),
+        "vendor_id": str(o.vendor_id),
+        "table_id": str(o.table_id) if o.table_id else None,
+        "table_label": table_label,
+        "status": o.status,
+        "covers": o.covers or 1,
+        "server_name": o.server_name,
+        "items": o.items or [],
+        "notes": o.notes,
+        "pos_transaction_id": str(o.pos_transaction_id) if o.pos_transaction_id else None,
+        "kots": [_kot_dict(k) for k in (kots or [])],
+        "created_at": o.created_at.isoformat() if o.created_at else None,
+        "updated_at": o.updated_at.isoformat() if o.updated_at else None,
+    }
+
+
+def _kot_dict(k, table_label=None, covers=None):
+    d = {
+        "id": str(k.id),
+        "order_id": str(k.order_id),
+        "table_id": str(k.table_id) if k.table_id else None,
+        "table_label": table_label,
+        "kot_number": k.kot_number,
+        "status": k.status,
+        "items": k.items or [],
+        "notes": k.notes,
+        "covers": covers,
+        "created_at": k.created_at.isoformat() if k.created_at else None,
+    }
+    return d
+
+
+# ── Zones ─────────────────────────────────────────────────────────────
 
 @router.get("/zones")
 async def list_zones(vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
@@ -83,6 +132,8 @@ async def delete_zone(zone_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSe
         raise HTTPException(404, "Zone not found")
     return JSONResponse(content={"ok": True})
 
+
+# ── Tables ────────────────────────────────────────────────────────────
 
 @router.get("/tables")
 async def list_tables(zone_id: str | None = Query(None), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
@@ -127,6 +178,18 @@ async def patch_table(table_id: str, data: RestaurantTableUpdate, vid: UUID = De
     return JSONResponse(content=_table_dict(t, zone_name))
 
 
+@router.patch("/tables/{table_id}/status")
+async def set_table_status(table_id: str, data: RestaurantTableStatusUpdate, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        t = await svc.set_table_status(vid, UUID(table_id), data.status)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not t:
+        raise HTTPException(404, "Table not found")
+    return JSONResponse(content={"id": str(t.id), "status": t.status})
+
+
 @router.delete("/tables/{table_id}")
 async def delete_table(table_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
     svc = RestaurantService(db)
@@ -135,6 +198,147 @@ async def delete_table(table_id: str, vid: UUID = Depends(_vendor_id), db: Async
         raise HTTPException(404, "Table not found")
     return JSONResponse(content={"ok": True})
 
+
+# ── Orders ────────────────────────────────────────────────────────────
+
+@router.post("/orders", status_code=201)
+async def create_order(data: RestaurantOrderCreate, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        o = await svc.create_order(
+            vid,
+            UUID(data.table_id),
+            covers=data.covers,
+            server_name=data.server_name,
+            notes=data.notes,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    rows = await svc.list_tables(vid)
+    table_label = next((t.label for t, _ in rows if str(t.id) == str(o.table_id)), None)
+    return JSONResponse(content=_order_dict(o, table_label, []), status_code=201)
+
+
+@router.get("/orders")
+async def list_orders(
+    status: str | None = Query(None),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = RestaurantService(db)
+    rows = await svc.list_orders(vid, status=status)
+    return JSONResponse(content={"items": [_order_dict(o, tl) for o, tl in rows]})
+
+
+@router.get("/orders/{order_id}")
+async def get_order(order_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    o = await svc.get_order(vid, UUID(order_id))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    kots = await svc.get_kots_for_order(vid, UUID(order_id))
+    table_rows = await svc.list_tables(vid)
+    table_label = next((t.label for t, _ in table_rows if o.table_id and str(t.id) == str(o.table_id)), None)
+    return JSONResponse(content=_order_dict(o, table_label, kots))
+
+
+@router.post("/orders/{order_id}/items")
+async def add_items(order_id: str, data: RestaurantOrderAddItems, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        o = await svc.add_items_to_order(vid, UUID(order_id), data.items)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    return JSONResponse(content={"id": str(o.id), "items": o.items or []})
+
+
+@router.put("/orders/{order_id}/items")
+async def replace_items(order_id: str, data: RestaurantOrderAddItems, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        o = await svc.update_order_items(vid, UUID(order_id), data.items)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    return JSONResponse(content={"id": str(o.id), "items": o.items or []})
+
+
+@router.post("/orders/{order_id}/send-kot", status_code=201)
+async def send_kot(order_id: str, data: RestaurantKOTSendIn, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        kot = await svc.send_kot(vid, UUID(order_id), data.items, notes=data.notes)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return JSONResponse(content=_kot_dict(kot), status_code=201)
+
+
+@router.patch("/orders/{order_id}/request-bill")
+async def request_bill(order_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        o = await svc.request_bill(vid, UUID(order_id))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    return JSONResponse(content={"id": str(o.id), "status": o.status})
+
+
+@router.patch("/orders/{order_id}/close")
+async def close_order(order_id: str, data: RestaurantOrderCloseIn, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        o = await svc.close_order(vid, UUID(order_id), UUID(data.pos_transaction_id))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    return JSONResponse(content={"id": str(o.id), "status": o.status})
+
+
+@router.patch("/orders/{order_id}/void")
+async def void_order(order_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        o = await svc.void_order(vid, UUID(order_id))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not o:
+        raise HTTPException(404, "Order not found")
+    return JSONResponse(content={"id": str(o.id), "status": o.status})
+
+
+# ── KOTs ──────────────────────────────────────────────────────────────
+
+@router.get("/kots")
+async def list_kots(
+    include_done: bool = Query(False),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = RestaurantService(db)
+    rows = await svc.list_kots(vid, include_done=include_done)
+    items = [_kot_dict(k, tl, cov) for k, tl, cov in rows]
+    return JSONResponse(content={"items": items})
+
+
+@router.patch("/kots/{kot_id}")
+async def patch_kot(kot_id: str, data: RestaurantKOTStatusUpdate, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        kot = await svc.update_kot_status(vid, UUID(kot_id), data.status)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not kot:
+        raise HTTPException(404, "KOT not found")
+    return JSONResponse(content={"id": str(kot.id), "status": kot.status})
+
+
+# ── Legacy kitchen tickets (POS-based) ───────────────────────────────
 
 @router.get("/kitchen-tickets")
 async def kitchen_tickets(
@@ -158,6 +362,92 @@ async def kitchen_tickets(
             "created_at": txn.created_at.isoformat() if txn.created_at else None,
         })
     return JSONResponse(content={"items": items})
+
+
+def _reservation_dict(r, table_label=None):
+    return {
+        "id": str(r.id),
+        "vendor_id": str(r.vendor_id),
+        "table_id": str(r.table_id) if r.table_id else None,
+        "table_label": table_label,
+        "guest_name": r.guest_name,
+        "guest_phone": r.guest_phone,
+        "guest_email": r.guest_email,
+        "reservation_date": r.reservation_date.isoformat() if r.reservation_date else None,
+        "reservation_time": r.reservation_time,
+        "party_size": r.party_size,
+        "status": r.status,
+        "notes": r.notes,
+        "source": r.source,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }
+
+
+@router.get("/reservations")
+async def list_reservations(
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    status: str | None = Query(None),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import date as date_type
+    svc = RestaurantService(db)
+    df = date_type.fromisoformat(date_from) if date_from else None
+    dt = date_type.fromisoformat(date_to) if date_to else None
+    rows = await svc.list_reservations(vid, date_from=df, date_to=dt, status=status)
+    return JSONResponse(content={"items": [_reservation_dict(r, tl) for r, tl in rows]})
+
+
+@router.post("/reservations", status_code=201)
+async def create_reservation(data: RestaurantReservationCreate, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    try:
+        r = await svc.create_reservation(
+            vid,
+            data.guest_name,
+            data.reservation_date,
+            data.reservation_time,
+            data.party_size,
+            table_id=UUID(data.table_id) if data.table_id else None,
+            guest_phone=data.guest_phone,
+            guest_email=data.guest_email,
+            notes=data.notes,
+            source=data.source,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return JSONResponse(content=_reservation_dict(r), status_code=201)
+
+
+@router.patch("/reservations/{reservation_id}")
+async def update_reservation(reservation_id: str, data: RestaurantReservationStatusUpdate, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    r = await svc.update_reservation_status(
+        vid, UUID(reservation_id), data.status,
+        table_id=UUID(data.table_id) if data.table_id else None
+    )
+    if not r:
+        raise HTTPException(404, "Reservation not found")
+    return JSONResponse(content={"id": str(r.id), "status": r.status})
+
+
+@router.delete("/reservations/{reservation_id}")
+async def delete_reservation(reservation_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    ok = await svc.delete_reservation(vid, UUID(reservation_id))
+    if not ok:
+        raise HTTPException(404, "Reservation not found")
+    return JSONResponse(content={"ok": True})
+
+
+@router.post("/tables/{table_id}/generate-qr")
+async def generate_table_qr(table_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    t = await svc.generate_qr_token(vid, UUID(table_id))
+    if not t:
+        raise HTTPException(404, "Table not found")
+    return JSONResponse(content={"id": str(t.id), "qr_token": t.qr_token})
 
 
 @router.patch("/kitchen-tickets/{txn_id}")

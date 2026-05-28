@@ -925,6 +925,52 @@ export default function VendorDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Restaurant Module Section */}
+      <RestaurantInfoCard vendor={vendor} businessFrontUrl={businessFrontUrl} />
     </div>
+  )
+}
+
+
+function RestaurantInfoCard({ vendor, businessFrontUrl }: { vendor: Record<string, unknown>; businessFrontUrl: string }) {
+  const settings = (vendor.settings as Record<string, unknown>) || {}
+  const isRestaurantEnabled = settings.restaurant_enabled !== false && (
+    vendor.offering_type === 'products' || vendor.offering_type === 'both'
+  )
+  const slug = vendor.slug as string | undefined
+
+  if (!isRestaurantEnabled) return null
+
+  return (
+    <Card className="border-amber-200">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-amber-700">
+          <span className="text-lg">🍽️</span> Restaurant Module
+        </CardTitle>
+        <p className="text-xs text-gray-500 mt-1">
+          Restaurant is enabled for this vendor. Direct links to operational pages.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+          <a href={`${businessFrontUrl}/reserve`} target="_blank" rel="noopener noreferrer"
+            className="rounded-lg border px-3 py-2 hover:bg-amber-50 hover:border-amber-300 transition-colors flex items-center gap-2 text-gray-700">
+            📅 Online Reservations
+          </a>
+          {slug && (
+            <span className="rounded-lg border px-3 py-2 bg-gray-50 text-gray-500 text-xs flex items-center gap-2">
+              🔗 QR URLs: <code>/store/{slug}/table/TOKEN</code>
+            </span>
+          )}
+          <span className="rounded-lg border border-green-200 px-3 py-2 bg-green-50 text-green-700 text-xs flex items-center gap-2 font-semibold">
+            ✅ Module active
+          </span>
+        </div>
+        <p className="text-xs text-gray-400">
+          Floor plan, KDS kitchen board, reservations, QR table ordering, and restaurant reports are available in the vendor dashboard.
+        </p>
+      </CardContent>
+    </Card>
   )
 }

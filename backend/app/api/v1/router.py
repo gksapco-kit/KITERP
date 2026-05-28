@@ -22,6 +22,7 @@ from app.api.v1 import (
     vendor_blog,
     catalog_blog,
     vendor_restaurant,
+    public_restaurant,
 )
 
 api_router = APIRouter()
@@ -49,6 +50,7 @@ api_router.include_router(vendor_inventory.router, prefix="/vendors/me/inventory
 api_router.include_router(vendor_procurement.router, prefix="/vendors/me", tags=["Vendor Procurement"])
 api_router.include_router(vendor_pos.router, prefix="/vendors/me/pos", tags=["Vendor POS"])
 api_router.include_router(vendor_restaurant.router, prefix="/vendors/me/restaurant", tags=["Restaurant"])
+api_router.include_router(public_restaurant.router, prefix="/public/restaurant", tags=["Public Restaurant"])
 api_router.include_router(vendor_invoices.router, prefix="/vendors/me/invoices", tags=["Vendor Invoices"])
 api_router.include_router(vendor_invoice_templates.router, prefix="/vendors/me/invoice-templates", tags=["Vendor Invoice Templates"])
 api_router.include_router(vendor_coupons.router, prefix="/vendors/me/coupons", tags=["Vendor Coupons"])

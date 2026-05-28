@@ -65,6 +65,7 @@ interface CartItem {
   booking_time?: string
   duration_minutes?: number
   booking_notes?: string
+  modifiers?: Array<{ group_id: string; group_name: string; option_id: string; option_name: string; price_delta: number }>
 }
 
 // Renders a catalog thumbnail with automatic fallback when the URL is broken/missing.
@@ -100,6 +101,14 @@ export default function POS() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const tableFromUrl = searchParams.get('table')
+  const orderFromUrl = searchParams.get('order')
+
+  // ── Modifier picker ──────────────────────────────────────────────
+  const [modifierPendingItem, setModifierPendingItem] = useState<{
+    id: string; variant_id?: string; name: string; sku?: string; price: number;
+    tax_rate?: number; hsn_code?: string; sac_code?: string;
+    item_type: 'product' | 'service'; duration_minutes?: number; image_url?: string
+  } | null>(null)
   const [posView, setPosView] = useState<'billing' | 'history'>('billing')
   const [session, setSession] = useState<Record<string, unknown> | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
@@ -247,6 +256,44 @@ export default function POS() {
       })
     return () => { cancelled = true }
   }, [tableFromUrl])
+
+  const restaurantOrderPrefilledRef = useRef<string | null>(null)
+
+  // Prefill cart when arriving from Restaurant → Request Bill (?table=&order=)
+  useEffect(() => {
+    if (!orderFromUrl || txnMode !== 'sale') return
+    if (restaurantOrderPrefilledRef.current === orderFromUrl) return
+
+    let cancelled = false
+    vendorApi.restaurantGetOrder(orderFromUrl)
+      .then(order => {
+        if (cancelled) return
+        const items: CartItem[] = (order.items ?? [])
+          .filter(i => i.qty > 0)
+          .map(i => ({
+            product_id: i.product_id ?? '',
+            name: i.name,
+            price: i.unit_price,
+            qty: i.qty,
+            tax_rate: i.tax_rate ?? 0,
+            discount: 0,
+            item_type: (i.item_type === 'service' ? 'service' : 'product') as 'product' | 'service',
+          }))
+        if (items.length === 0) {
+          toast.warning('No items on this order to bill')
+          restaurantOrderPrefilledRef.current = orderFromUrl
+          return
+        }
+        setCart(items)
+        if (order.table_label) setRestaurantTableLabel(order.table_label)
+        restaurantOrderPrefilledRef.current = orderFromUrl
+        toast.success(`Loaded ${items.length} item${items.length === 1 ? '' : 's'} from table order`)
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Could not load restaurant order for billing')
+      })
+    return () => { cancelled = true }
+  }, [orderFromUrl, txnMode])
 
   const processScanQueueRef = useRef<(() => Promise<void>) | null>(null)
 
@@ -467,11 +514,34 @@ export default function POS() {
     id: string; variant_id?: string; name: string; sku?: string; price: number;
     tax_rate?: number; hsn_code?: string; sac_code?: string;
     item_type: 'product' | 'service'; duration_minutes?: number; image_url?: string
+    modifiers?: Array<{ group_id: string; group_name: string; option_id: string; option_name: string; price_delta: number }>
   }) => {
     setCart(prev => {
+      // Items with modifiers always get a new line (can't merge with different modifier combos)
+      if (item.modifiers && item.modifiers.length > 0) {
+        const isService = item.item_type === 'service'
+        const modifierExtra = item.modifiers.reduce((s, m) => s + m.price_delta, 0)
+        return [...prev, {
+          product_id: item.id,
+          variant_id: item.variant_id,
+          name: item.name,
+          sku: item.sku,
+          price: item.price + modifierExtra,
+          qty: 1,
+          tax_rate: item.tax_rate || 0,
+          hsn_code: item.hsn_code || item.sac_code,
+          discount: 0,
+          item_type: item.item_type,
+          image_url: item.image_url,
+          duration_minutes: item.duration_minutes,
+          booking_date: isService ? todayStr : undefined,
+          booking_time: isService ? getNextSlotTime() : undefined,
+          modifiers: item.modifiers,
+        }]
+      }
       // Key by product_id + variant_id so each variant gets a separate line
       const idx = prev.findIndex(i =>
-        i.product_id === item.id && (i.variant_id ?? '') === (item.variant_id ?? ''),
+        i.product_id === item.id && (i.variant_id ?? '') === (item.variant_id ?? '') && !i.modifiers?.length,
       )
       if (idx >= 0) {
         const updated = [...prev]
@@ -497,6 +567,25 @@ export default function POS() {
       }]
     })
   }, [todayStr, getNextSlotTime])
+
+  /** Checks modifier groups before adding a product to cart — shows picker if any exist. */
+  const handleProductAdd = useCallback(async (item: {
+    id: string; variant_id?: string; name: string; sku?: string; price: number;
+    tax_rate?: number; hsn_code?: string; sac_code?: string; item_type: 'product' | 'service'; image_url?: string; duration_minutes?: number
+  }) => {
+    if (item.item_type === 'service') { addToCart(item); return }
+    try {
+      const { items: groups } = await vendorApi.productListModifiers(item.id)
+      const active = groups.filter(g => g.is_active && g.options?.some(o => o.is_active))
+      if (active.length > 0) {
+        setModifierPendingItem(item)
+      } else {
+        addToCart(item)
+      }
+    } catch {
+      addToCart(item)
+    }
+  }, [addToCart])
 
   const processScanQueue = useCallback(async () => {
     if (scanProcessingRef.current) return
@@ -1103,7 +1192,7 @@ export default function POS() {
               products={products}
               services={services}
               externalSearch={search}
-              onAddToCart={(item: AddToCartItem) => addToCart({
+              onAddToCart={(item: AddToCartItem) => handleProductAdd({
                 id: item.id,
                 variant_id: item.variant_id,
                 name: item.name,
@@ -1183,7 +1272,7 @@ export default function POS() {
 
                     return [(
                       <button key={`p-${p.id}`}
-                        onClick={() => addToCart({ id: p.id, name: p.name, sku: p.sku, price: p.price || 0, tax_rate: p.tax_rate || p.gst_rate || 0, hsn_code: p.hsn_code, item_type: 'product', image_url: imgUrl })}
+                        onClick={() => handleProductAdd({ id: p.id, name: p.name, sku: p.sku, price: p.price || 0, tax_rate: p.tax_rate || p.gst_rate || 0, hsn_code: p.hsn_code, item_type: 'product', image_url: imgUrl })}
                         className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-blue-50 hover:border-blue-200 transition-colors text-left">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <CatalogImage url={imgUrl} type="product" />
@@ -1598,9 +1687,33 @@ export default function POS() {
             queryClient.invalidateQueries({ queryKey: [...vendorKeys.all, 'pos-transactions'] })
             if (tableFromUrl) {
               queryClient.invalidateQueries({ queryKey: ['restaurant', 'kitchen'] })
+              queryClient.invalidateQueries({ queryKey: ['restaurant', 'kots'] })
+              queryClient.invalidateQueries({ queryKey: ['restaurant', 'tables'] })
+            }
+            // Close the open restaurant order if one was passed
+            if (orderFromUrl && result?.id) {
+              vendorApi.restaurantCloseOrder(orderFromUrl, String(result.id)).then(() => {
+                queryClient.invalidateQueries({ queryKey: ['restaurant'] })
+                navigate('/restaurant/floor')
+              }).catch(() => {
+                // Non-fatal: order may already be closed or was voided
+                navigate('/restaurant/floor')
+              })
             }
             if (result) setReceiptData(result)
           }}
+        />
+      )}
+
+      {/* Modifier Picker Modal */}
+      {modifierPendingItem && (
+        <ModifierPickerModal
+          item={modifierPendingItem}
+          onConfirm={(itemWithModifiers) => {
+            addToCart(itemWithModifiers)
+            setModifierPendingItem(null)
+          }}
+          onClose={() => setModifierPendingItem(null)}
         />
       )}
 
@@ -1767,15 +1880,18 @@ function PaymentModal({
 }) {
   const isRefund = txnMode === 'return'
   const [method, setMethod] = useState<'cash' | 'upi' | 'card' | 'split'>('cash')
-  const [cashReceived, setCashReceived] = useState(total)
+  const [cashReceived, setCashReceived] = useState(0)
   const [splitCash, setSplitCash] = useState(0)
   const [splitUpi, setSplitUpi] = useState(0)
   const [splitCard, setSplitCard] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [tipAmount, setTipAmount] = useState(0)
+  const [serviceChargeAmount, setServiceChargeAmount] = useState(0)
   /** Extra line for non-sale checkout (e.g. return reason) — not credit/debit memos; those use Finance → Memos. */
   const [returnDetailNotes, setReturnDetailNotes] = useState('')
 
-  const changeDue = method === 'cash' && !isRefund ? Math.max(0, cashReceived - total) : 0
+  const grandTotal = total + tipAmount + serviceChargeAmount
+  const changeDue = method === 'cash' && !isRefund ? Math.max(0, cashReceived - grandTotal) : 0
 
   const handlePay = async () => {
     setLoading(true)
@@ -1788,8 +1904,8 @@ function PaymentModal({
       if (splitCard > 0) payments.push({ method: 'card', amount: splitCard })
       cashRcvd = splitCash
     } else {
-      payments = [{ method, amount: total }]
-      cashRcvd = method === 'cash' ? (isRefund ? total : cashReceived) : 0
+      payments = [{ method, amount: grandTotal }]
+      cashRcvd = method === 'cash' ? (isRefund ? grandTotal : cashReceived) : 0
     }
 
     const allNotes = [
@@ -1824,6 +1940,8 @@ function PaymentModal({
         ...(txnMode === 'sale' && salesPersonVendorUserId
           ? { sales_person_vendor_user_id: salesPersonVendorUserId }
           : {}),
+        tip_amount: tipAmount,
+        service_charge_amount: serviceChargeAmount,
       })
 
       const successMsg = txnMode === 'sale' ? 'Sale completed!' : 'Refund processed!'
@@ -1856,11 +1974,45 @@ function PaymentModal({
         }`}>
           <div>
             <h2 className="text-lg font-semibold">{isRefund ? 'Refund' : 'Payment'}</h2>
-            <p className="text-sm text-gray-500">Amount: <span className="font-bold">{formatCurrency(total)}</span></p>
+            <p className="text-sm text-gray-500">
+              Subtotal: <span className="font-bold">{formatCurrency(total)}</span>
+              {(tipAmount > 0 || serviceChargeAmount > 0) && (
+                <span className="ml-2 text-primary font-bold">→ {formatCurrency(grandTotal)}</span>
+              )}
+            </p>
           </div>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
+          {!isRefund && (
+            <div className="grid grid-cols-2 gap-3 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
+              <div>
+                <label className="text-xs text-amber-700 font-medium block mb-1">Tip (₹)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={tipAmount || ''}
+                  placeholder="0"
+                  onChange={e => setTipAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                  className="w-full h-8 rounded-md border border-amber-200 bg-white px-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-amber-700 font-medium block mb-1">Service charge (₹)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={serviceChargeAmount || ''}
+                  placeholder="0"
+                  onChange={e => setServiceChargeAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                  className="w-full h-8 rounded-md border border-amber-200 bg-white px-2 text-sm"
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">{isRefund ? 'Refund Method' : 'Payment Method'}</Label>
             <div className="grid grid-cols-4 gap-2">
@@ -3904,6 +4056,142 @@ function POSInvoiceSettingsModal({
               </Button>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ── Modifier Picker Modal ─────────────────────────────────────────
+import type { ModifierGroup, SelectedModifier } from '@/api/vendor'
+
+function ModifierPickerModal({
+  item,
+  onConfirm,
+  onClose,
+}: {
+  item: { id: string; variant_id?: string; name: string; sku?: string; price: number; tax_rate?: number; hsn_code?: string; sac_code?: string; item_type: 'product' | 'service'; image_url?: string; duration_minutes?: number }
+  onConfirm: (itemWithModifiers: typeof item & { modifiers: SelectedModifier[] }) => void
+  onClose: () => void
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['product-modifiers', item.id],
+    queryFn: () => vendorApi.productListModifiers(item.id),
+  })
+
+  const groups = (data?.items ?? []).filter(g => g.is_active && g.options?.some(o => o.is_active))
+
+  const [selected, setSelected] = useState<Record<string, Set<string>>>({})
+
+  useEffect(() => {
+    if (!groups.length) return
+    const defaults: Record<string, Set<string>> = {}
+    for (const g of groups) {
+      const defOpts = g.options.filter(o => o.is_default && o.is_active)
+      if (defOpts.length) defaults[g.id] = new Set(defOpts.map(o => o.id))
+    }
+    setSelected(defaults)
+  }, [groups.length])
+
+  function toggleOption(group: ModifierGroup, optionId: string) {
+    setSelected(prev => {
+      const cur = new Set(prev[group.id] ?? [])
+      if (group.selection_type === 'single') {
+        return { ...prev, [group.id]: new Set([optionId]) }
+      }
+      if (cur.has(optionId)) { cur.delete(optionId) } else { cur.add(optionId) }
+      return { ...prev, [group.id]: cur }
+    })
+  }
+
+  function isValid() {
+    for (const g of groups) {
+      if (g.is_required) {
+        const count = selected[g.id]?.size ?? 0
+        if (count < (g.min_select || 1)) return false
+      }
+    }
+    return true
+  }
+
+  function buildModifiers(): SelectedModifier[] {
+    const result: SelectedModifier[] = []
+    for (const g of groups) {
+      const selIds = selected[g.id] ?? new Set()
+      for (const opt of g.options) {
+        if (selIds.has(opt.id)) {
+          result.push({ group_id: g.id, group_name: g.name, option_id: opt.id, option_name: opt.name, price_delta: opt.price_delta })
+        }
+      }
+    }
+    return result
+  }
+
+  const totalExtra = buildModifiers().reduce((s, m) => s + m.price_delta, 0)
+
+  if (!isLoading && !groups.length) {
+    onConfirm({ ...item, modifiers: [] })
+    return null
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div>
+            <h3 className="font-semibold text-gray-900 text-sm">{item.name}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Customise your order</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-1 rounded hover:bg-gray-100">
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}
+          {groups.map(g => (
+            <div key={g.id}>
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-800">{g.name}</span>
+                <span className="text-xs text-gray-400">
+                  {g.is_required ? 'Required' : 'Optional'}
+                  {g.selection_type === 'multiple' ? ' · pick many' : ' · pick one'}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {g.options.filter(o => o.is_active).map(opt => {
+                  const checked = selected[g.id]?.has(opt.id) ?? false
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => toggleOption(g, opt.id)}
+                      className={cn(
+                        'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm text-left transition-colors',
+                        checked ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 hover:border-gray-300',
+                      )}
+                    >
+                      <span>{opt.name}</span>
+                      <span className={cn('text-xs', opt.price_delta > 0 ? 'text-emerald-600' : 'text-gray-400')}>
+                        {opt.price_delta > 0 ? `+${formatCurrency(opt.price_delta)}` : opt.price_delta < 0 ? formatCurrency(opt.price_delta) : 'free'}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t p-4 flex items-center justify-between gap-3">
+          <div className="text-sm text-gray-700">
+            <span className="font-semibold">{formatCurrency(item.price + totalExtra)}</span>
+            {totalExtra > 0 && <span className="text-xs text-gray-400 ml-1">(+{formatCurrency(totalExtra)} extras)</span>}
+          </div>
+          <Button className="flex-1" disabled={!isValid()} onClick={() => onConfirm({ ...item, modifiers: buildModifiers() })}>
+            Add to cart
+          </Button>
         </div>
       </div>
     </div>

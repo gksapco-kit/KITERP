@@ -42,6 +42,8 @@ import BlogPost from '@/pages/blog/BlogPost'
 import Policies from '@/pages/Policies'
 import OrderConfirmationPage from '@/checkout/pages/OrderConfirmationPage'
 import OrderStatusPage from '@/checkout/pages/OrderStatusPage'
+import TableOrderPage from '@/pages/restaurant/TableOrderPage'
+import ReservationPage from '@/pages/restaurant/ReservationPage'
 
 // Employee Self-Service (ESS)
 import ESSLayout from '@/pages/employee/ESSLayout'
@@ -150,6 +152,8 @@ export const router = createBrowserRouter([
       { path: 'blog', element: <BlogList /> },
       { path: 'blog/:slug', element: <BlogPost /> },
       { path: 'policies', element: <Policies /> },
+      { path: 'table/:qrToken', element: <TableOrderPage /> },
+      { path: 'reserve', element: <ReservationPage /> },
 
       // Draft builder snapshot — full site in browser (token); inner provider overrides live site.
       {

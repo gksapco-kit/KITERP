@@ -14,6 +14,7 @@ from app.models.vendor_service import Service
 from app.models.customer import Customer
 from app.models.invoice import Invoice
 from app.models.pos import POSTransaction
+from app.models.restaurant import RestaurantOrder, RestaurantKOT, RestaurantTable, RestaurantReservation
 from app.services.vendor_service import VendorService
 
 router = APIRouter()
@@ -138,3 +139,123 @@ async def revenue_summary(vid: UUID = Depends(_vendor_id), db: AsyncSession = De
         "this_month": await _sum(month_start),
         "this_fy": await _sum(year_start),
     })
+
+
+# ── Restaurant Reports ───────────────────────────────────────────
+
+@router.get("/restaurant")
+async def restaurant_dashboard(vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    today = date.today()
+
+    # Active (open/billed) orders today
+    open_orders = (await db.execute(
+        select(sqlfunc.count(RestaurantOrder.id))
+        .where(and_(
+            RestaurantOrder.vendor_id == vid,
+            RestaurantOrder.status.in_(["open", "billed"]),
+            cast(RestaurantOrder.created_at, Date) == today,
+        ))
+    )).scalar_one()
+
+    # Total orders today
+    total_orders_today = (await db.execute(
+        select(sqlfunc.count(RestaurantOrder.id))
+        .where(and_(
+            RestaurantOrder.vendor_id == vid,
+            cast(RestaurantOrder.created_at, Date) == today,
+        ))
+    )).scalar_one()
+
+    # Total covers today
+    total_covers = (await db.execute(
+        select(sqlfunc.coalesce(sqlfunc.sum(RestaurantOrder.covers), 0))
+        .where(and_(
+            RestaurantOrder.vendor_id == vid,
+            cast(RestaurantOrder.created_at, Date) == today,
+        ))
+    )).scalar_one()
+
+    # KOTs by status today
+    kot_status_rows = (await db.execute(
+        select(RestaurantKOT.status, sqlfunc.count(RestaurantKOT.id).label("cnt"))
+        .where(and_(
+            RestaurantKOT.vendor_id == vid,
+            cast(RestaurantKOT.created_at, Date) == today,
+        ))
+        .group_by(RestaurantKOT.status)
+    )).all()
+    kots_by_status = {r.status: r.cnt for r in kot_status_rows}
+
+    # POS revenue from restaurant tables today
+    restaurant_revenue = (await db.execute(
+        select(sqlfunc.coalesce(sqlfunc.sum(POSTransaction.total), 0))
+        .where(and_(
+            POSTransaction.vendor_id == vid,
+            POSTransaction.transaction_type == "sale",
+            POSTransaction.restaurant_table_id.isnot(None),
+            cast(POSTransaction.created_at, Date) == today,
+        ))
+    )).scalar_one()
+
+    # Total tables
+    total_tables = (await db.execute(
+        select(sqlfunc.count(RestaurantTable.id))
+        .where(and_(RestaurantTable.vendor_id == vid, RestaurantTable.is_active == True))
+    )).scalar_one()
+
+    # Tables by status
+    table_status_rows = (await db.execute(
+        select(RestaurantTable.status, sqlfunc.count(RestaurantTable.id).label("cnt"))
+        .where(and_(RestaurantTable.vendor_id == vid, RestaurantTable.is_active == True))
+        .group_by(RestaurantTable.status)
+    )).all()
+    tables_by_status = {r.status: r.cnt for r in table_status_rows}
+
+    # Upcoming reservations (today + next 7 days)
+    upcoming_reservations = (await db.execute(
+        select(sqlfunc.count(RestaurantReservation.id))
+        .where(and_(
+            RestaurantReservation.vendor_id == vid,
+            RestaurantReservation.reservation_date >= today,
+            RestaurantReservation.reservation_date <= today + timedelta(days=7),
+            RestaurantReservation.status.in_(["pending", "confirmed"]),
+        ))
+    )).scalar_one()
+
+    return JSONResponse(content={
+        "today": {
+            "open_orders": open_orders,
+            "total_orders": total_orders_today,
+            "total_covers": int(total_covers),
+            "restaurant_revenue": float(restaurant_revenue),
+        },
+        "kots_by_status": kots_by_status,
+        "tables": {
+            "total": total_tables,
+            "by_status": tables_by_status,
+        },
+        "upcoming_reservations": upcoming_reservations,
+    })
+
+
+@router.get("/restaurant/kots-by-hour")
+async def restaurant_kots_by_hour(
+    days: int = Query(1, ge=1, le=7),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """KOT volume by hour of day for the past N days."""
+    start = date.today() - timedelta(days=days - 1)
+    rows = (await db.execute(
+        select(
+            extract("hour", RestaurantKOT.created_at).label("hour"),
+            sqlfunc.count(RestaurantKOT.id).label("count"),
+        )
+        .where(and_(
+            RestaurantKOT.vendor_id == vid,
+            cast(RestaurantKOT.created_at, Date) >= start,
+        ))
+        .group_by(extract("hour", RestaurantKOT.created_at))
+        .order_by(extract("hour", RestaurantKOT.created_at))
+    )).all()
+    return JSONResponse(content={"data": [{"hour": int(r.hour), "kots": r.count} for r in rows]})
