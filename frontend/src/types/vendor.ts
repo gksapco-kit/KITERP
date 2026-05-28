@@ -88,6 +88,7 @@ export interface Vendor {
   slug: string
   subdomain: string
   business_type: BusinessType
+  offering_type?: string
   industry?: string
   description?: string
   primary_email: string
@@ -108,6 +109,7 @@ export interface Vendor {
   default_tax_rate?: number
   logo_url?: string
   banner_url?: string
+  settings?: Record<string, unknown>
   status: VendorStatus
   verification_status: VerificationStatus
   verified_at?: string

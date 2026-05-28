@@ -42,7 +42,7 @@ import {
   AlertCircle,
   ShieldOff,
 } from 'lucide-react'
-import { adminApi, type AdminVendorUpdatePayload } from '@/api/admin.api'
+import { adminApi, type AdminVendor, type AdminVendorUpdatePayload } from '@/api/admin.api'
 import { vendorAppBaseUrl, getCustomerStorefrontBaseUrl } from '@/lib/appUrls'
 
 const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
@@ -933,12 +933,12 @@ export default function VendorDetail() {
 }
 
 
-function RestaurantInfoCard({ vendor, businessFrontUrl }: { vendor: Record<string, unknown>; businessFrontUrl: string }) {
-  const settings = (vendor.settings as Record<string, unknown>) || {}
+function RestaurantInfoCard({ vendor, businessFrontUrl }: { vendor: AdminVendor; businessFrontUrl: string }) {
+  const settings = vendor.settings || {}
   const isRestaurantEnabled = settings.restaurant_enabled !== false && (
     vendor.offering_type === 'products' || vendor.offering_type === 'both'
   )
-  const slug = vendor.slug as string | undefined
+  const slug = vendor.slug
 
   if (!isRestaurantEnabled) return null
 
