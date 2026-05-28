@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { UserCheck, BookOpen, Link2, ClipboardList, Wallet, BarChart2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const NAV = [
   { to: '/commission/payees', label: 'Payees', icon: UserCheck },
@@ -36,21 +37,27 @@ export default function CommissionLayout() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-gray-200 bg-white px-6">
-        <div className="flex gap-1 overflow-x-auto">
+      <div className="bg-white px-4 sm:px-6 lg:border-b lg:border-gray-200">
+        <div className="flex gap-0.5 overflow-x-auto scrollbar-none">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                cn(
+                  'relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors sm:px-4',
+                  'border-b-2 lg:-mb-px',
                   isActive
-                    ? 'border-[#64c3a0] text-[#64c3a0]'
-                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-                }`
+                    ? 'z-[1] border-[#64c3a0] text-[#64c3a0]'
+                    : cn(
+                        'text-gray-500 hover:text-gray-800',
+                        'max-lg:border-gray-200 max-lg:hover:border-gray-300',
+                        'lg:border-transparent lg:hover:border-gray-300',
+                      ),
+                )
               }
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4 w-4 shrink-0" />
               {label}
             </NavLink>
           ))}
