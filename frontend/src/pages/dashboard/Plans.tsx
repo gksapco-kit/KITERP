@@ -193,9 +193,9 @@ export default function Plans() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold flex items-center gap-2 sm:text-2xl">
             <CreditCard className="w-6 h-6 text-blue-600" />
             Vendor Plans
           </h1>
@@ -208,7 +208,7 @@ export default function Plans() {
             closeEdit()
             setShowCreate(true)
           }}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto shrink-0"
         >
           <Plus className="w-4 h-4" /> Create Plan
         </Button>
@@ -525,7 +525,7 @@ export default function Plans() {
 
                 {/* Limits */}
                 <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mt-4 mb-2">Limits</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <div className="bg-gray-50 rounded px-2 py-1.5">
                     <span className="text-gray-500">Products:</span>{' '}
                     <span className="font-medium">{plan.max_products === -1 ? 'Unlimited' : plan.max_products}</span>

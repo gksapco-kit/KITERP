@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -11,6 +12,8 @@ import {
   CreditCard,
   Headphones,
   ScrollText,
+  Menu,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLogout } from '@/hooks/useAuth'
@@ -18,6 +21,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { getDashboardUserRoleLabel, isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { useVendorStore } from '@/stores/vendorStore'
 import { Button } from '@/components/ui/button'
+import ResponsiveViewportBadge from '@/components/dev/ResponsiveViewportBadge'
 
 const vendorNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -46,6 +50,7 @@ export default function DashboardLayout() {
   const logout = useLogout()
   const { user } = useAuthStore()
   const { vendor } = useVendorStore()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isAdmin = isPlatformStaff(user)
   const navItems = isAdmin
@@ -56,56 +61,84 @@ export default function DashboardLayout() {
   const displayName = isAdmin ? 'KIT ERP' : vendor?.display_name || 'KIT ERP'
   const roleLabel = getDashboardUserRoleLabel(user)
 
+  const closeSidebar = () => setSidebarOpen(false)
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen overflow-x-clip bg-gray-50">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200">
-        <div className="flex flex-col h-full">
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-64 max-w-[min(16rem,100vw)] border-r border-gray-200 bg-white shadow-lg transition-transform duration-200 ease-out lg:z-30 lg:shadow-none',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        )}
+      >
+        <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-200">
-            <Store className="w-8 h-8 text-primary" />
-            <span className="font-bold text-lg">{displayName}</span>
+          <div className="flex items-center justify-between gap-2 border-b border-gray-200 px-4 py-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-2">
+              <Store className="h-8 w-8 shrink-0 text-primary" />
+              <span className="truncate text-lg font-bold">{displayName}</span>
+            </div>
+            <button
+              type="button"
+              aria-label="Close menu"
+              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 lg:hidden"
+              onClick={closeSidebar}
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
           {/* User info */}
-          <div className="px-6 py-3 border-b border-gray-100 space-y-0.5">
-            <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.email || user?.phone || '—'}</p>
+          <div className="space-y-0.5 border-b border-gray-100 px-4 py-3 sm:px-6">
+            <p className="truncate text-sm font-medium text-gray-900">{user?.full_name}</p>
+            <p className="truncate text-xs text-gray-500">{user?.email || user?.phone || '—'}</p>
             {roleLabel ? (
-              <p className="text-xs font-medium text-gray-700 truncate pt-0.5">{roleLabel}</p>
+              <p className="truncate pt-0.5 text-xs font-medium text-gray-700">{roleLabel}</p>
             ) : null}
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1">
+          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 sm:px-4">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 end={item.to === '/dashboard'}
+                onClick={closeSidebar}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
+                    'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
                     isActive
                       ? 'bg-primary text-primary-foreground'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      : 'text-gray-600 hover:bg-gray-100',
                   )
                 }
               >
-                <item.icon className="w-5 h-5" />
+                <item.icon className="h-5 w-5 shrink-0" />
                 {item.label}
               </NavLink>
             ))}
           </nav>
 
           {/* Footer */}
-          <div className="px-4 py-4 border-t border-gray-200">
+          <div className="border-t border-gray-200 px-3 py-4 sm:px-4">
             <Button
               variant="ghost"
               className="w-full justify-start gap-3 text-gray-600"
               onClick={logout}
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="h-5 w-5" />
               Logout
             </Button>
           </div>
@@ -113,9 +146,25 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64 min-h-screen w-[calc(100%-16rem)] max-w-none p-8">
-        <Outlet />
-      </main>
+      <div className="min-h-screen lg:ml-64">
+        {/* Mobile top bar */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-gray-200 bg-white/95 px-4 backdrop-blur lg:hidden">
+          <button
+            type="button"
+            aria-label="Open menu"
+            className="-ml-1 rounded-lg p-1.5 text-gray-600 hover:bg-gray-100"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <span className="min-w-0 truncate text-sm font-semibold text-gray-900">{displayName}</span>
+        </header>
+
+        <main className="min-w-0 max-w-none p-4 sm:p-6 lg:p-8">
+          <Outlet />
+        </main>
+      </div>
+      <ResponsiveViewportBadge />
     </div>
   )
 }

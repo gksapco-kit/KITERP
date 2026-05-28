@@ -552,7 +552,7 @@ export default function Vendors() {
 
           {/* Pagination */}
           {data && data.pages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+            <div className="flex flex-col gap-3 px-4 py-4 border-t bg-gray-50 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <p className="text-sm text-gray-500">
                 Page {data.page} of {data.pages} ({data.total} business accounts)
               </p>

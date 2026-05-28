@@ -123,7 +123,7 @@ export default function Services() {
           {/* Basic Info */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-900">Basic Information</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="text-sm font-medium text-gray-700">Service Name *</label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1" />
@@ -152,7 +152,7 @@ export default function Services() {
           {/* Pricing */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-900">Pricing & Billing</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Unit of Measurement</label>
                 <select value={form.uom} onChange={(e) => setForm({ ...form, uom: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
@@ -228,17 +228,17 @@ export default function Services() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Services</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Services</h1>
           <p className="text-gray-500 mt-1">Manage your service offerings</p>
         </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> Add Service</Button>
+        <Button onClick={openCreate} className="gap-2 w-full sm:w-auto shrink-0"><Plus className="w-4 h-4" /> Add Service</Button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search services…" className="pl-10" />
         </div>
@@ -274,7 +274,7 @@ export default function Services() {
               className="rounded-none border-x-0 border-t-0"
             />
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-left text-gray-500">
                     <th className="px-4 py-3 font-medium">Service</th>
@@ -337,7 +337,7 @@ export default function Services() {
               </table>
             </div>
             {data.pages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t">
+              <div className="flex flex-col gap-3 px-4 py-3 border-t sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm text-gray-500">Page {page} of {data.pages} ({data.total} services)</span>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-4 h-4" /></Button>

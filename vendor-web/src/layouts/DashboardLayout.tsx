@@ -1,5 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { useViewportAnchoredPanel } from '@/hooks/useViewportAnchoredPanel'
+import ResponsiveViewportBadge from '@/components/dev/ResponsiveViewportBadge'
 import { createPortal } from 'react-dom'
 import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
@@ -929,8 +931,10 @@ export default function DashboardLayout() {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const storePickerRef = useRef<HTMLDivElement>(null)
+  const storePickerMenuRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
+  const profilePanelRef = useRef<HTMLDivElement>(null)
   const navScrollRef = useRef<HTMLElement>(null)
   const sectionScrollAnchors = useRef<Map<string, HTMLDivElement>>(new Map())
   const pendingScrollSectionId = useRef<string | null>(null)
@@ -969,6 +973,9 @@ export default function DashboardLayout() {
       return next
     })
   }
+
+  const storePickerPos = useViewportAnchoredPanel(storePickerOpen, storePickerRef, { panelWidth: 320 })
+  const profilePanelPos = useViewportAnchoredPanel(profileOpen, profileMenuRef, { panelWidth: 288 })
 
   const activeStoreFromApi = selectedStore ? stores.find((s) => s.id === selectedStore.id) : undefined
   /** Single-store tenants: treat the sole outlet as the active context even before persisted selection updates. */
@@ -1025,9 +1032,9 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (!storePickerOpen) return
     const onPointerDown = (e: PointerEvent) => {
-      const root = storePickerRef.current
       const t = e.target
-      if (!root || !(t instanceof Node) || root.contains(t)) return
+      if (!(t instanceof Node)) return
+      if (storePickerRef.current?.contains(t) || storePickerMenuRef.current?.contains(t)) return
       setStorePickerOpen(false)
     }
     document.addEventListener('pointerdown', onPointerDown, true)
@@ -1037,9 +1044,9 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (!profileOpen) return
     const onPointerDown = (e: PointerEvent) => {
-      const root = profileMenuRef.current
       const t = e.target
-      if (!root || !(t instanceof Node) || root.contains(t)) return
+      if (!(t instanceof Node)) return
+      if (profileMenuRef.current?.contains(t) || profilePanelRef.current?.contains(t)) return
       setProfileOpen(false)
     }
     document.addEventListener('pointerdown', onPointerDown, true)
@@ -1225,6 +1232,8 @@ export default function DashboardLayout() {
 
   useEscapeToClose(closeMobileSidebar, sidebarOpen)
   useEscapeToClose(() => setRailFlyoutSectionId(null), !!railFlyoutSectionId)
+  useEscapeToClose(() => setStorePickerOpen(false), storePickerOpen)
+  useEscapeToClose(() => setProfileOpen(false), profileOpen)
 
   const prevUnreadRef = useRef<number | null>(null)
   const { show: showBrowserNotif, permission } = useBrowserNotifications()
@@ -1762,14 +1771,29 @@ export default function DashboardLayout() {
          location.pathname.startsWith('/controlling/orders/') ? 'CO Manufacturing Order' :
          'Dashboard')
 
-  const storePickerMenu = storePickerOpen ? (
-      <div
-        className="absolute top-full right-0 z-[61] mt-1.5 w-80 max-w-[min(20rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
-        role="listbox"
-        aria-label={`Select ${BUSINESS_UNIT_STORE_LABEL}`}
-      >
+  const storePickerMenu =
+    storePickerOpen && storePickerPos
+      ? createPortal(
+          <>
+            <button
+              type="button"
+              aria-label="Close business unit menu"
+              className="fixed inset-0 z-[99] bg-black/20 sm:bg-transparent sm:pointer-events-none"
+              onClick={() => setStorePickerOpen(false)}
+            />
+            <div
+              ref={storePickerMenuRef}
+              role="listbox"
+              aria-label={`Select ${BUSINESS_UNIT_STORE_LABEL}`}
+              style={{
+                top: storePickerPos.top,
+                left: storePickerPos.left,
+                width: storePickerPos.width,
+              }}
+              className="fixed z-[100] max-h-[min(28rem,calc(100dvh-5rem))] overflow-hidden overflow-y-auto rounded-xl border border-border bg-card shadow-xl"
+            >
         <div className="border-b border-border bg-muted px-4 py-2.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground leading-snug">
             {BUSINESS_UNIT_STORE_LABEL}
           </p>
         </div>
@@ -1839,7 +1863,7 @@ export default function DashboardLayout() {
                   </button>
 
                   {/* Favourite + Default action buttons */}
-                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex shrink-0 items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
                       title={isFav ? 'Remove favourite' : 'Set as favourite (auto-selects on login)'}
@@ -1894,8 +1918,11 @@ export default function DashboardLayout() {
             <ChevronRight className="w-4 h-4 ml-auto shrink-0 text-muted-foreground" />
           </Link>
         </div>
-      </div>
-  ) : null
+            </div>
+          </>,
+          document.body,
+        )
+      : null
 
   const sidebarDesktopToggleLabel =
     sidebarMode === 'expanded'
@@ -3077,8 +3104,23 @@ export default function DashboardLayout() {
                   <ChevronDown className={cn('hidden h-3 w-3 shrink-0 text-muted-foreground transition-transform md:block', profileOpen && 'rotate-180')} />
                 </button>
 
-                {profileOpen && (
-                    <div className="absolute top-full right-0 z-[100] mt-2 flex w-72 max-h-[min(32rem,calc(100dvh-4.5rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+                {profileOpen && profilePanelPos && createPortal(
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Close profile menu"
+                      className="fixed inset-0 z-[99] bg-black/20 sm:bg-transparent sm:pointer-events-none"
+                      onClick={() => setProfileOpen(false)}
+                    />
+                    <div
+                      ref={profilePanelRef}
+                      style={{
+                        top: profilePanelPos.top,
+                        left: profilePanelPos.left,
+                        width: profilePanelPos.width,
+                      }}
+                      className="fixed z-[100] flex max-h-[min(32rem,calc(100dvh-4.5rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+                    >
                       {/* User header — fixed at top of panel */}
                       <div className="shrink-0 border-b border-white/10 bg-[linear-gradient(90deg,hsl(var(--primary))_0%,hsl(var(--hero-via))_42%,hsl(var(--hero-to))_100%)] px-4 py-3 text-white">
                         <div className="flex items-center gap-3">
@@ -3264,6 +3306,8 @@ export default function DashboardLayout() {
                         </button>
                       </div>
                     </div>
+                  </>,
+                  document.body,
                 )}
               </div>
             </div>
@@ -3279,10 +3323,11 @@ export default function DashboardLayout() {
         />
 
         {/* Page content */}
-        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 lg:p-8 bg-background font-sans text-sm">
+        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
           <Outlet />
         </main>
       </div>
+      <ResponsiveViewportBadge />
     </div>
   )
 }

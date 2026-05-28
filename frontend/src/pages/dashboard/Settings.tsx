@@ -182,7 +182,7 @@ export default function Settings() {
             <CardTitle>Store Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <dl className="grid grid-cols-2 gap-4 text-sm">
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <dt className="text-gray-500">Business Name</dt>
               <dd className="font-medium">{vendor?.business_name}</dd>
               <dt className="text-gray-500">Display Name</dt>
@@ -200,7 +200,7 @@ export default function Settings() {
             <CardTitle>Contact Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <dl className="grid grid-cols-2 gap-4 text-sm">
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <dt className="text-gray-500">Email</dt>
               <dd className="font-medium">{vendor?.primary_email}</dd>
               <dt className="text-gray-500">Phone</dt>
@@ -228,7 +228,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent>
             {!editingLocation ? (
-              <dl className="grid grid-cols-2 gap-4 text-sm">
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <dt className="text-gray-500">Latitude</dt>
                 <dd className="font-medium">{vendor?.latitude ?? 'Not set'}</dd>
                 <dt className="text-gray-500">Longitude</dt>

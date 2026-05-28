@@ -158,11 +158,11 @@ export default function Products() {
   if (view === 'create' || view === 'edit') {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-xl font-bold sm:text-2xl">
             {view === 'create' ? 'Add Product' : `Edit: ${editingProduct?.name}`}
           </h1>
-          <Button variant="ghost" onClick={() => setView('list')}><X className="w-4 h-4 mr-1" /> Cancel</Button>
+          <Button variant="ghost" onClick={() => setView('list')} className="w-full sm:w-auto"><X className="w-4 h-4 mr-1" /> Cancel</Button>
         </div>
 
         <Card>
@@ -284,21 +284,21 @@ export default function Products() {
   // ── Product List ──
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Package className="w-6 h-6 text-blue-600" /> Products
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold flex items-center gap-2 sm:text-2xl">
+            <Package className="w-6 h-6 text-blue-600 shrink-0" /> Products
           </h1>
           <p className="text-sm text-gray-500 mt-1">{total} product{total !== 1 ? 's' : ''} total</p>
         </div>
-        <Button onClick={openCreate} className="gap-2">
+        <Button onClick={openCreate} className="gap-2 w-full sm:w-auto shrink-0">
           <Plus className="w-4 h-4" /> Add Product
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             value={search}
@@ -333,7 +333,7 @@ export default function Products() {
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <TableToolbar
               search=""
               onSearchChange={() => {}}
@@ -351,7 +351,7 @@ export default function Products() {
               onSortKeyChange={setSortKey}
               onSortDirChange={setSortDir}
             />
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b bg-gray-50/50 text-left text-gray-500">
                   <th className="px-4 py-3">Product</th>
@@ -435,7 +435,7 @@ export default function Products() {
 
       {/* Pagination */}
       {data && data.pages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-500">
             Page {data.page} of {data.pages} ({data.total} products)
           </p>

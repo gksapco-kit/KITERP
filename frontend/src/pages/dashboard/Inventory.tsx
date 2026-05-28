@@ -86,12 +86,12 @@ export default function Inventory() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Inventory Management</h1>
           <p className="text-gray-500 mt-1">Track stock levels, movements, and low stock alerts</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setShowModal('stock_in')} className="gap-2">
             <ArrowUpCircle className="w-4 h-4 text-green-600" /> Stock In
           </Button>
@@ -545,7 +545,7 @@ function HistoryTab({
           </div>
 
           {history && history.pages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t">
+            <div className="flex flex-col gap-3 px-4 py-3 border-t sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm text-gray-500">
                 Page {page} of {history.pages} ({history.total} movements)
               </span>

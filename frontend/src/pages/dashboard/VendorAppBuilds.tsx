@@ -130,13 +130,13 @@ export default function VendorAppBuilds() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/dashboard/vendors/${vendorId}`)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+        <Button variant="ghost" size="icon" className="shrink-0 self-start" onClick={() => navigate(`/dashboard/vendors/${vendorId}`)}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Smartphone className="w-6 h-6 text-blue-600" />
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold flex flex-wrap items-center gap-2 sm:text-2xl">
+            <Smartphone className="w-6 h-6 text-blue-600 shrink-0" />
             Branded App — {vendor.display_name}
           </h1>
           <p className="text-sm text-gray-500">
@@ -173,7 +173,7 @@ export default function VendorAppBuilds() {
                   <p className="text-xs text-gray-500 mt-1">Displayed on the home screen</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="primary_color">Primary Color</Label>
                     <div className="flex gap-2 items-center">
@@ -291,7 +291,7 @@ export default function VendorAppBuilds() {
               )}
               Build Android + iOS
             </Button>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Button
                 variant="outline"
                 size="sm"

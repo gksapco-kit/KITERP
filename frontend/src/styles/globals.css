@@ -94,11 +94,14 @@ img.leaflet-tile {
   }
   html {
     text-rendering: optimizeLegibility;
+    overflow-x: clip;
   }
   body {
     @apply bg-background text-foreground antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: clip;
+    max-width: 100vw;
   }
   svg {
     shape-rendering: geometricPrecision;

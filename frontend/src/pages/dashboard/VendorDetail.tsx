@@ -329,20 +329,22 @@ export default function VendorDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/vendors')}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate('/dashboard/vendors')}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{vendor.display_name}</h1>
-            <p className="text-sm text-gray-500">{vendor.business_name}</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold sm:text-2xl">{vendor.display_name}</h1>
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[vendor.status] || 'bg-gray-100'}`}>
+                {vendor.status.replace('_', ' ')}
+              </span>
+            </div>
+            <p className="text-sm text-gray-500 truncate">{vendor.business_name}</p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[vendor.status] || 'bg-gray-100'}`}>
-            {vendor.status.replace('_', ' ')}
-          </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {editMode ? (
             <>
               <Button size="sm" variant="ghost" onClick={handleCancel} disabled={updateVendor.isPending}>
@@ -404,7 +406,7 @@ export default function VendorDetail() {
             <CardTitle className="flex items-center gap-2"><Store className="w-5 h-5" /> Business Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <EditableField label="Business Name" value={vendor.business_name} field="business_name"
                 editing={editMode} editData={editData} onChange={handleFieldChange} />
               <EditableField label="Display Name" value={vendor.display_name} field="display_name"
@@ -444,7 +446,7 @@ export default function VendorDetail() {
               <>
                 <hr className="my-2" />
                 <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Tax Information</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <EditableField label="GSTIN" value={vendor.gstin} field="gstin"
                     editing={editMode} editData={editData} onChange={handleFieldChange} />
                   <EditableField label="PAN Number" value={vendor.pan_number} field="pan_number"
@@ -671,13 +673,13 @@ export default function VendorDetail() {
                 <div className="space-y-3">
                   <EditableField label="Street Address" value={vendor.street_address} field="street_address"
                     editing={editMode} editData={editData} onChange={handleFieldChange} />
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <EditableField label="City" value={vendor.city} field="city"
                       editing={editMode} editData={editData} onChange={handleFieldChange} />
                     <EditableField label="State" value={vendor.state} field="state"
                       editing={editMode} editData={editData} onChange={handleFieldChange} />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <EditableField label="Postal Code" value={vendor.postal_code} field="postal_code"
                       editing={editMode} editData={editData} onChange={handleFieldChange} />
                     <EditableField label="Country" value={vendor.country} field="country"
