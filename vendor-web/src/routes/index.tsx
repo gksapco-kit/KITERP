@@ -60,8 +60,6 @@ import ProductionOrdersPage from '@/pages/production/index'
 import StoresPage from '@/pages/stores/index'
 import ProfilePage from '@/pages/profile/index'
 import RelationshipManagerPage from '@/pages/relationship-manager/index'
-import WebsiteBuilderPage from '@/pages/website/WebsiteBuilderPage'
-import WebsiteTemplatesPage from '@/pages/website/WebsiteTemplatesPage'
 
 // HR pages
 import HRDepartmentsPage from '@/pages/hr/departments'
@@ -278,8 +276,6 @@ export const router = createBrowserRouter([
       { path: 'system/modules', element: <SystemModulesPage /> },
       { path: 'system/storefront-display', element: <SystemStorefrontDisplayPage /> },
       { path: 'system/social-links', element: <SystemSocialLinksPage /> },
-      { path: 'website/builder', element: <WebsiteBuilderPage /> },
-      { path: 'website/templates', element: <WebsiteTemplatesPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'relationship-manager', element: <RelationshipManagerPage /> },
       { path: 'plans', element: <PlansPage /> },

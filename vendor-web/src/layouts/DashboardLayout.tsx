@@ -502,15 +502,6 @@ const allSections: NavSection[] = [
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
     ],
   },
-  {
-    id: 'website',
-    title: 'Website',
-    icon: Globe,
-    items: [
-      { to: '/website/builder', icon: Sparkles, label: 'Website Builder', alwaysShow: true },
-      { to: '/website/templates', icon: LayoutTemplate, label: 'Templates', alwaysShow: true },
-    ],
-  },
 ]
 
 const DEFAULT_SECTION_IDS = allSections.map((s) => s.id)
@@ -909,8 +900,6 @@ export default function DashboardLayout() {
   const { user } = useAuthStore()
   const { vendor, selectedStore, setSelectedStore, favouriteStoreId, setFavouriteStoreId } = useVendorStore()
   const location = useLocation()
-  const isWebsiteBuilderPage =
-    location.pathname.includes('/website/builder') || location.pathname.includes('/website/templates')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   /** Desktop sidebar layout (persisted in this browser). */
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode)
@@ -1463,22 +1452,6 @@ export default function DashboardLayout() {
     if (!navOrderScope) return
     setSectionOrder(loadSectionIds(DEFAULT_SECTION_IDS, navOrderScope))
   }, [navOrderScope])
-
-  /** Show new modules (e.g. Website) when the app updates before localStorage is reset. */
-  useEffect(() => {
-    const ids = displaySections.map((s) => s.id)
-    setSectionOrder((prev) => {
-      let changed = false
-      const next = [...prev]
-      for (const id of ids) {
-        if (!next.includes(id)) {
-          next.push(id)
-          changed = true
-        }
-      }
-      return changed ? next : prev
-    })
-  }, [displaySections])
 
   useEffect(() => {
     if (!navOrderScope) return
@@ -3350,14 +3323,7 @@ export default function DashboardLayout() {
         />
 
         {/* Page content */}
-        <main
-          className={cn(
-            'min-w-0 overflow-x-clip [overscroll-behavior-y:none] bg-background font-sans text-sm',
-            isWebsiteBuilderPage
-              ? 'flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden p-0'
-              : 'p-4 lg:p-8',
-          )}
-        >
+        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
           <Outlet />
         </main>
       </div>

@@ -1,4 +1,4 @@
-import { Outlet, Link, NavLink, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { Outlet, Link, NavLink, useNavigate, useLocation, useParams } from 'react-router-dom'
 import { cn, imgUrl } from '@/lib/utils'
 import {
   Store, AlertTriangle, Loader2,
@@ -18,7 +18,6 @@ import { useState, useRef, useEffect } from 'react'
 import CrmChatWidget from '@/components/CrmChatWidget'
 import { CustomerNotificationsBell } from '@/components/CustomerNotificationsBell'
 import { useJourneyBeacon } from '@/hooks/useJourneyBeacon'
-import WebsiteBuilderLivePreview from '@/pages/WebsiteBuilderLivePreview'
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
@@ -371,9 +370,7 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
 
 function StoreContent() {
   const { pathname } = useLocation()
-  const [searchParams] = useSearchParams()
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
-  const websiteBuilderPreviewKey = searchParams.get('previewKey')?.trim()
   const { builderSite } = useBuilderSite()
   const { vendor, isLoading, error, storePath } = useVendor()
   const { isAuthenticated, customer } = useAuthStore()
@@ -385,10 +382,6 @@ function StoreContent() {
   useCustomerMe()
   useCart()
   useJourneyBeacon(vendor?.id, customer?.id)
-
-  if (websiteBuilderPreviewKey) {
-    return <WebsiteBuilderLivePreview />
-  }
 
   const isHrAuthPage =
     !!vendorSlug &&
