@@ -66,6 +66,7 @@ import ESSProfilePage from '@/pages/employee/Profile'
 import HrLogin from '@/pages/hr/HrLogin'
 import HrChangePassword from '@/pages/hr/HrChangePassword'
 import DevEmployeeHrLinks from '@/pages/DevEmployeeHrLinks'
+import WebsiteBuilderLivePreview from '@/pages/WebsiteBuilderLivePreview'
 
 function LegacyEmployeeToHrRedirect() {
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
@@ -108,6 +109,11 @@ export const router = createBrowserRouter([
   {
     path: '/local/employee-hr',
     element: <DevEmployeeHrLinks />,
+  },
+  /** Website builder live preview (embeds vendor :3001 builder; not /store/). */
+  {
+    path: '/live/:pageSlug',
+    element: <WebsiteBuilderLivePreview />,
   },
   // Website template full preview — wrapped in shared StorefrontProvider for cart/checkout
   {

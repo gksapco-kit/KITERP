@@ -69,6 +69,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Tax Returns':                          ['gst', 'vat', 'tax', 'filing', 'tax return', 'return filing'],
   'Master Data — Customers & Suppliers':  ['customer', 'supplier', 'contacts', 'parties', 'vendors', 'client list'],
   'Website Builder':                      ['web', 'site', 'page', 'cms', 'website', 'web builder'],
+  'Templates':                            ['web', 'site', 'template', 'layout', 'saved', 'website templates'],
   'Business Front Builder':                   ['store', 'shop', 'ecommerce', 'online store', 'store builder'],
   'Document Templates':                   ['doc', 'template', 'prescription', 'sop', 'challan', 'document'],
   'Blog Manager':                         ['blog', 'post', 'article', 'content', 'news'],

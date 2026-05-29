@@ -182,11 +182,13 @@ services:
     environment:
       - BACKEND_URL=http://backend:8000
       - VITE_API_URL=http://localhost:8000/api/v1
+      - VITE_VENDOR_URL=http://127.0.0.1:3001
     volumes:
       - ./storefront-web:/app
       - /app/node_modules
     depends_on:
       - backend
+      - vendor-web
 
 volumes:
   postgres_data:

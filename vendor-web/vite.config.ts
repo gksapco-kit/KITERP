@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { websiteBuilderStaticPlugin } from './vite-website-builder-static'
 
 // In Docker the BACKEND_URL env var points to the internal service name.
 // When running locally (npm run dev) it falls back to localhost:8000.
@@ -11,7 +12,7 @@ const publicBasePath = process.env.VITE_PUBLIC_BASE_PATH?.trim() || '/'
 const useWatchPolling = process.env.VITE_WATCH_POLLING === '1'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), websiteBuilderStaticPlugin()],
   base: publicBasePath,
   resolve: {
     alias: {
