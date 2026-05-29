@@ -39,3 +39,22 @@ export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
   }
   return `https://${slug}.kiterp.com`
 }
+
+/** Same origin rules as template gallery; path matches storefront draft preview route. */
+export function buildBuilderDraftPreviewUrl(
+  vendorSlug: string,
+  previewToken: string,
+  activePageSlug?: string | null,
+): string {
+  const origin = getStorefrontAppOrigin()
+  const slug = activePageSlug?.trim()
+  const suffix =
+    slug && slug.length > 0 && slug.toLowerCase() !== 'home'
+      ? `/${slug.replace(/^\/+/, '')}`
+      : ''
+  return `${origin}/store/${encodeURIComponent(vendorSlug)}/preview/${encodeURIComponent(previewToken)}${suffix}`
+}
+
+/** Shared with WebsiteTemplatePreviewModal "Open in browser" link. */
+export const STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS =
+  'inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold text-primary bg-accent border border-primary/30 hover:bg-primary/15 transition-colors'

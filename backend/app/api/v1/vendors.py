@@ -1,5 +1,5 @@
 # app/api/v1/vendors.py
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Form, Body
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, status, UploadFile, File, Form, Body
 import random, string
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
@@ -8,7 +8,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, preferred_vendor_id_from_request, resolve_dashboard_vendor
 from app.repositories.vendor_platform_audit_repo import VendorPlatformAuditRepository
 from app.schemas.vendor_platform_audit import (
     VendorPlatformAuditEntry,
@@ -69,16 +69,14 @@ async def check_slug_availability(
 
 @router.get("/me", response_model=VendorResponse)
 async def get_my_vendor(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get current user's vendor profile."""
-    vendor = await service.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No vendor found for this user"
-        )
+    pref = preferred_vendor_id_from_request(request)
+    vendor = await resolve_dashboard_vendor(db, current_user, preferred_vendor_id=pref)
     return vendor
 
 

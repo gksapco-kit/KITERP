@@ -141,22 +141,42 @@ async def get_current_vendor_user(
     )
 
 
+async def resolve_dashboard_vendor(
+    db: AsyncSession,
+    current_user: User,
+    preferred_vendor_id: Optional[UUID] = None,
+):
+    """Resolve vendor for vendor-dashboard APIs (membership, then platform staff + X-Vendor-Id)."""
+    from app.models.vendor import Vendor
+    from app.services.vendor_service import VendorService
+    from app.utils.platform_staff import has_platform_staff_access
+    from app.utils.platform_vendor_access import ensure_vendor_visible_to_platform_staff
+
+    service = VendorService(db)
+    vendor = await service.get_by_user_id(current_user.id, preferred_vendor_id=preferred_vendor_id)
+    if vendor:
+        return vendor
+
+    if preferred_vendor_id is not None and has_platform_staff_access(current_user):
+        vendor = await service.get_by_id(preferred_vendor_id)
+        if vendor:
+            await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+            return vendor
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="No vendor found for this user",
+    )
+
+
 async def get_current_vendor_id(
     request: Request,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> UUID:
     """Resolve vendor UUID for ``/vendors/me/*`` routers (owner or team; prefers ``X-Vendor-Id``)."""
-    from app.services.vendor_service import VendorService
-
     pref = preferred_vendor_id_from_request(request)
-    service = VendorService(db)
-    vendor = await service.get_by_user_id(current_user.id, preferred_vendor_id=pref)
-    if not vendor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No vendor found for this user",
-        )
+    vendor = await resolve_dashboard_vendor(db, current_user, preferred_vendor_id=pref)
     return vendor.id
 
 

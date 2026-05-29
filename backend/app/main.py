@@ -34,6 +34,7 @@ from app.database import (
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
 from app.middleware.vendor_platform_staff_audit import VendorPlatformStaffMutationAuditMiddleware
+from app.middleware.vendor_dashboard_context import VendorDashboardContextMiddleware
 from app.api.v1.router import api_router
 
 logger = logging.getLogger("uvicorn.error")
@@ -91,6 +92,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(TenantMiddleware)
+app.add_middleware(VendorDashboardContextMiddleware)
 app.add_middleware(CrmAuditMiddleware)
 app.add_middleware(VendorPlatformStaffMutationAuditMiddleware)
 

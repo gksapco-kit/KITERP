@@ -8,14 +8,15 @@ import uuid, json, random
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, resolve_dashboard_vendor
+from app.middleware.vendor_dashboard_context import get_preferred_vendor_id_from_context
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.website import (
@@ -51,11 +52,8 @@ router = APIRouter(redirect_slashes=False)
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def _get_vendor(db: AsyncSession, user: User) -> Vendor:
-    service = VendorService(db)
-    vendor = await service.get_by_user_id(user.id)
-    if not vendor:
-        raise HTTPException(status_code=404, detail="No vendor found for this user")
-    return vendor
+    pref = get_preferred_vendor_id_from_context()
+    return await resolve_dashboard_vendor(db, user, preferred_vendor_id=pref)
 
 
 async def _get_site(db: AsyncSession, site_id: str, vendor_id: UUID) -> WebsiteSite:
@@ -319,10 +317,13 @@ async def create_site(
 ):
     vendor = await _get_vendor(db, user)
     site_id = uuid.uuid4()
+    payload = body.model_dump() if hasattr(body, "model_dump") else body.dict()
+    if not payload.get("style_config"):
+        payload["style_config"] = {}
     site = WebsiteSite(
         id=site_id,
         vendor_id=vendor.id,
-        **body.dict(),
+        **payload,
     )
     db.add(site)
 

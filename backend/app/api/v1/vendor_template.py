@@ -5,10 +5,10 @@ from sqlalchemy import select
 from uuid import UUID
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, resolve_dashboard_vendor
+from app.middleware.vendor_dashboard_context import get_preferred_vendor_id_from_context
 from app.models.user import User
 from app.models.vendor import Vendor
-from app.services.vendor_service import VendorService
 from pydantic import BaseModel
 from typing import Any, Optional, Dict, List
 
@@ -187,11 +187,8 @@ class TemplateConfigUpdate(BaseModel):
 
 
 async def _get_vendor(user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)) -> Vendor:
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(user.id)
-    if not vendor:
-        raise HTTPException(404, "Vendor not found")
-    return vendor
+    pref = get_preferred_vendor_id_from_context()
+    return await resolve_dashboard_vendor(db, user, preferred_vendor_id=pref)
 
 
 @router.get("/presets")
