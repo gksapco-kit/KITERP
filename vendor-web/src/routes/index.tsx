@@ -44,6 +44,7 @@ import InvoiceTemplatesPage from '@/pages/invoices/InvoiceTemplates'
 import CouponsPage from '@/pages/coupons/index'
 import ReportsPage from '@/pages/reports/index'
 import TemplatePage from '@/pages/template/index'
+import StorefrontBuilderPage from '@/pages/storefront-builder/index'
 import PlansPage from '@/pages/plans/index'
 import BookingsPage from '@/pages/bookings/index'
 import BookingDetail from '@/pages/bookings/BookingDetail'
@@ -173,6 +174,11 @@ import CrmCareReminder from '@/pages/crm/CareReminder'
 // Blog Manager
 import BlogManagerPage from '@/pages/blog/index'
 
+// Website Builder pages
+import WebsitesPage from '@/pages/websites/index'
+import WebsiteBuilder from '@/pages/websites/Builder'
+import WebsiteSubmissions from '@/pages/websites/Submissions'
+import WebsiteTemplateGallery from '@/pages/websites/TemplateGallery'
 
 // Commission pages
 import CommissionLayout from '@/pages/commission/index'
@@ -263,7 +269,14 @@ export const router = createBrowserRouter([
       { path: 'coupons', element: <CouponsPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'template', element: <TemplatePage /> },
+      { path: 'storefront-builder', element: <StorefrontBuilderPage /> },
       { path: 'blog', element: <BlogManagerPage /> },
+      { path: 'websites', element: <WebsitesPage /> },
+      /* Static path must be above :siteId or "templates" is treated as a site id. */
+      { path: 'websites/templates', element: <WebsiteTemplateGallery /> },
+      { path: 'websites/:siteId', element: <WebsiteBuilder /> },
+      { path: 'websites/:siteId/submissions', element: <WebsiteSubmissions /> },
+      { path: 'website-templates', element: <Navigate to="/websites/templates" replace /> },
       { path: 'customers', element: <Navigate to="/master-data" replace /> },
       { path: 'customers/:id', element: <CustomerDetail /> },
       { path: 'reviews', element: <ReviewsPage /> },
