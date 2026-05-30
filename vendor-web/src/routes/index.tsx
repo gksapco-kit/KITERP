@@ -163,6 +163,8 @@ import DocumentTemplatesPage from '@/pages/document-templates/index'
 import SystemModulesPage from '@/pages/system/Modules'
 import SystemStorefrontDisplayPage from '@/pages/system/StorefrontDisplay'
 import SystemSocialLinksPage from '@/pages/system/SocialLinks'
+import AssetsLayout from '@/pages/system/assets'
+import AssetImagesPage from '@/pages/system/assets/Images'
 import CrmCampaigns from '@/pages/crm/Campaigns'
 import CrmWorkflows from '@/pages/crm/Workflows'
 import CrmAIInsights from '@/pages/crm/AIInsights'
@@ -289,6 +291,14 @@ export const router = createBrowserRouter([
       { path: 'system/modules', element: <SystemModulesPage /> },
       { path: 'system/storefront-display', element: <SystemStorefrontDisplayPage /> },
       { path: 'system/social-links', element: <SystemSocialLinksPage /> },
+      {
+        path: 'system/assets',
+        element: <AssetsLayout />,
+        children: [
+          { index: true, element: <Navigate to="images" replace /> },
+          { path: 'images', element: <AssetImagesPage /> },
+        ],
+      },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'relationship-manager', element: <RelationshipManagerPage /> },
       { path: 'plans', element: <PlansPage /> },

@@ -1,4 +1,4 @@
-export type TemplateId = 'fashion' | 'electronics' | 'grocery' | 'restaurant' | 'services'
+export type TemplateId = 'fashion' | 'electronics' | 'grocery' | 'services'
 export type PresetId = 'minimal' | 'bold' | 'classic'
 
 export interface ThemePreset {
@@ -83,24 +83,6 @@ export const TEMPLATES: TemplateMeta[] = [
       bg: '60 30% 97%',
       fg: '140 30% 14%',
       display: 'DM Serif Display',
-      body: 'Inter',
-    },
-    presets: presetsCommon,
-  },
-  {
-    id: 'restaurant',
-    name: 'Larder',
-    tagline: 'Restaurant & food ordering',
-    description: 'Menu-first layout with sections, item modals with add-ons and a sticky cart.',
-    vertical: 'Restaurants · Cafés · Cloud kitchens',
-    features: ['Menu sections', 'Add-ons modal', 'Sticky cart', 'Hours strip', 'Reservations'],
-    thumbnail: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800',
-    defaultBrand: {
-      primary: '20 30% 8%',
-      accent: '38 80% 56%',
-      bg: '30 20% 10%',
-      fg: '38 30% 95%',
-      display: 'Playfair Display',
       body: 'Inter',
     },
     presets: presetsCommon,

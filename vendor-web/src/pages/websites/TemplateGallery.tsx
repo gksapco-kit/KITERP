@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils'
 import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
-import { WebsiteTemplatePreviewModal } from '@/components/websites/WebsiteTemplatePreviewModal'
+import { WebsiteTemplatePreviewModal, getStorefrontTemplateBrowserPreviewUrl } from '@/components/websites/WebsiteTemplatePreviewModal'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 export default function WebsiteTemplateGalleryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -15,7 +16,7 @@ export default function WebsiteTemplateGalleryPage() {
 
   const [templateSearch, setTemplateSearch] = useState('')
   const [templateCategory, setTemplateCategory] = useState<string>('all')
-  const [preview, setPreview] = useState<WebsiteTemplate | null>(null)
+  const [applyTemplate, setApplyTemplate] = useState<WebsiteTemplate | null>(null)
 
   const siteParam = searchParams.get('site')
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
@@ -72,7 +73,7 @@ export default function WebsiteTemplateGalleryPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Website Templates</h1>
             <p className="text-sm text-gray-600 mt-1 max-w-xl">
-              Browse full-site layouts, preview pages and live ERP blocks, then apply to one of your sites. You can also open templates from the builder’s <b>Templates</b> tab.
+            Browse full-site layouts, preview pages and live ERP blocks, then apply to one of your sites. You can also open templates from the builder’s <b>Templates</b> tab.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <Link
@@ -159,10 +160,8 @@ export default function WebsiteTemplateGalleryPage() {
               const tier = tpl.tier || (pageCount >= 6 ? 'full' : 'lite')
               const palette = getTemplatePreviewPalette(tpl)
               return (
-                <button
+                <div
                   key={tpl.id}
-                  type="button"
-                  onClick={() => setPreview(tpl)}
                   className={cn(
                     'text-left border border-gray-100 rounded-2xl overflow-hidden hover:border-primary/30 transition-colors group bg-white',
                     'shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(100,195,160,0.15)]',
@@ -183,6 +182,16 @@ export default function WebsiteTemplateGalleryPage() {
                         )}>
                           {tier === 'full' ? 'Full site' : 'Lite'}
                         </span>
+                        {tpl.id.startsWith('storefront_') && (
+                          <span className="text-xs bg-primary/90 text-white rounded-full px-2 py-0.5 font-semibold">
+                            Storefront
+                          </span>
+                        )}
+                        {(tpl.id === 'atelier' || tpl.id === 'verde' || tpl.id === 'solace') && (
+                          <span className="text-xs bg-amber-600/90 text-white rounded-full px-2 py-0.5 font-semibold">
+                            Editorial
+                          </span>
+                        )}
                         <span className="text-xs bg-white/80 text-gray-700 rounded-full px-2 py-0.5 font-semibold">
                           {pageCount} pg
                         </span>
@@ -197,8 +206,42 @@ export default function WebsiteTemplateGalleryPage() {
                   <div className="p-3.5">
                     <div className="font-extrabold text-gray-900 group-hover:text-primary transition-colors">{tpl.name}</div>
                     <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tpl.description}</p>
+                    <div className="flex items-center justify-end gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.open(
+                            getStorefrontTemplateBrowserPreviewUrl(tpl.id),
+                            '_blank',
+                            'noopener,noreferrer',
+                          )
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!selectedSiteId}
+                        onClick={() => {
+                          if (!selectedSiteId) {
+                            toast.error('Choose a site first.')
+                            return
+                          }
+                          setApplyTemplate(tpl)
+                        }}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-xs font-extrabold transition-colors',
+                          selectedSiteId
+                            ? 'bg-primary text-white hover:opacity-90'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+                        )}
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </div>
-                </button>
+                </div>
               )
             })}
           </div>
@@ -210,10 +253,11 @@ export default function WebsiteTemplateGalleryPage() {
       </div>
 
       <WebsiteTemplatePreviewModal
-        template={preview}
+        template={applyTemplate}
         siteId={selectedSiteId}
         siteLabel={selectedSite?.name}
-        onClose={() => setPreview(null)}
+        initialApplyArmed
+        onClose={() => setApplyTemplate(null)}
         zIndexClass="z-[300]"
       />
     </div>

@@ -206,6 +206,20 @@ export interface StyleConfig {
   checkout_layout?: 'two-column' | 'wizard' | 'accordion'
   /** Per-token overrides for .checkout-root CSS variables (HSL triplet values). */
   checkout_token_overrides?: Record<string, string>
+  /** Per-page style overrides keyed by page id (saved in style_config JSON). */
+  page_styles?: Record<string, PageStyleOverrides>
+  font_size_base?: number
+  font_size_heading?: number
+}
+
+export interface PageStyleOverrides {
+  bg_color?: string
+  surface_color?: string
+  text_color?: string
+  font_heading?: string
+  font_body?: string
+  font_size_base?: number
+  font_size_heading?: number
 }
 
 export interface WebsiteSite {

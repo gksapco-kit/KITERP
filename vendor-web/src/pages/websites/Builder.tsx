@@ -1,7 +1,8 @@
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import React, {
-  useState, useCallback, useRef, useEffect, useMemo,
+  useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -14,11 +15,12 @@ import {
   Wand2, AlertTriangle, Download, ExternalLink, RefreshCw,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight, Link2,
   Maximize2, Minimize2, Move, Pencil, PlusCircle, Upload,
+  ZoomIn, ZoomOut,
   Zap, Star, Shield, Phone, Mail, MapPin, Clock, Rocket, CheckCircle2,
   ChevronLeft, BarChart3, Users, ShoppingBag, Heart,
   PlayCircle, Quote, Award, Briefcase, Camera,
-  Type, Square, Columns, Video, Map, MessageSquare,
-  Hash, Minus, List, ToggleLeft, Radio,
+  Type, Square, Columns, Video, Map as MapIcon, MessageSquare,
+  Hash, Minus, List, ToggleLeft, Radio, Info,
   Database, Plug, RefreshCcw, Package, Wrench, ShoppingCart,
   Store as StoreIcon, ClipboardCopy, RotateCcw,
 } from 'lucide-react'
@@ -27,32 +29,34 @@ import { cn } from '@/lib/utils'
 import {
   useSite,
   useUpdateSite,
-  usePublishSite, useUnpublishSite, useWebsiteTemplates,
-  useAIGenerateText, useAIGenerateImage, useAIGenerateTheme, useAIUrlClone,
-  useAIScreenshotToUI, useAIUxReview, useMedia, useUploadMedia, useSaveExternalUrl,
-  useAIEnhancePrompt, useAIGenerateSEO, useAISuggestBlocks,
-  useAIGenerateSite, useAIApplyGeneratedSite,
+  useWebsiteTemplates,
+  useAIGenerateText, useAIGenerateTheme, useMedia, useUploadMedia, useSaveExternalUrl,
+  useAIGenerateSEO, useAISuggestBlocks,
   useRedirects, useCreateRedirect, useDeleteRedirect,
   useEnableHeadless, useDisableHeadless,
   useSubmitLiveContact, useSubmitLiveNewsletter,
 } from '@/hooks/useWebsites'
 import type {
   WebsiteSite, WebsiteBlock, WebsitePage, BlockType, DeviceMode, BuilderPanel,
+  PageStyleOverrides,
   StyleConfig, BlockProps,
   LiveResource, LiveItem,
 } from '@/types/websites'
 import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
-import { useMyVendor } from '@/hooks/useVendor'
+import { useMyVendor, useStores } from '@/hooks/useVendor'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
+import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
+import { formatStoreCode } from '@/lib/verification'
 import CommerceLibraryPreview from '@/components/websites/CommerceLibraryPreview'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
 import {
   buildBuilderDraftPreviewUrl,
+  BUILDER_CRISP_LABEL,
   getStorefrontAppOrigin,
   shouldUseLocalStorefrontUrls,
-  STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS,
+  STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS,
 } from '@/lib/storefrontPreviewUrl'
 import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
@@ -102,7 +106,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
   { type: 'video_embed', label: 'Video Embed', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch Our Demo', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', aspect_ratio: '16:9' } },
-  { type: 'map_embed', label: 'Map', icon: Map, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Find Us', address: '123 Main Street, City' } },
+  { type: 'map_embed', label: 'Map', icon: MapIcon, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Find Us', address: '123 Main Street, City' } },
   { type: 'trust_logos', label: 'Trust Logos', icon: Award, desc: 'Partner/client logo strip', category: 'social', defaultProps: { title: 'Trusted by Industry Leaders' } },
   { type: 'timeline', label: 'Timeline', icon: Clock, desc: 'Company history or process steps', category: 'about', defaultProps: { title: 'Our Journey', items: [{ year: '2020', title: 'Founded', desc: 'Started with a simple idea.' }, { year: '2022', title: 'Series A', desc: 'Raised $5M to accelerate growth.' }, { year: '2024', title: 'Global Launch', desc: 'Expanded to 50+ countries.' }] } },
   { type: 'rich_text', label: 'Rich Text', icon: Type, desc: 'Formatted text content block', category: 'content', defaultProps: { content: '<h2>Your Heading</h2><p>Add your content here. This block supports <strong>bold</strong>, <em>italic</em>, and other formatting.</p>' } },
@@ -112,6 +116,17 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'social_links', label: 'Social Links', icon: Globe, desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: 'https://twitter.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' } } },
   { type: 'countdown', label: 'Countdown Timer', icon: Clock, desc: 'Countdown to a date/event', category: 'conversion', get defaultProps() { return { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } } },
   { type: 'product_grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true } },
+  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Editorial shop-by-category image cards (The edit)', category: 'ecommerce', defaultProps: {
+    title: 'The edit',
+    eyebrow: 'Shop by category',
+    layout: 'editorial',
+    columns: 3,
+    categories: [
+      { title: 'Women', image_url: 'https://images.unsplash.com/photo-1495121605193-b116b5b9c5fe?auto=format&fit=crop&w=900&q=80' },
+      { title: 'Men', image_url: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=900&q=80' },
+      { title: 'Accessories', image_url: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=900&q=80' },
+    ],
+  } },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
   { type: 'about_split', label: 'About Split', icon: Columns, desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About Us', subtitle: 'Our Story', description: 'We are a passionate team dedicated to creating exceptional experiences.' } },
   { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our Services', columns: 3, features: [{ icon: 'Zap', title: 'Service One', desc: 'Description of this service.' }, { icon: 'Shield', title: 'Service Two', desc: 'Description of this service.' }, { icon: 'Star', title: 'Service Three', desc: 'Description of this service.' }] } },
@@ -142,6 +157,17 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'cookie_consent', label: 'Cookie Consent', icon: Shield, desc: 'GDPR/CCPA cookie consent banner', category: 'advanced', defaultProps: { message: 'We use cookies to improve your experience.', accept_label: 'Accept', decline_label: 'Decline' } },
 ]
 
+
+const DEFAULT_EDITORIAL_CATEGORIES = [
+  { title: 'Women', image_url: 'https://images.unsplash.com/photo-1495121605193-b116b5b9c5fe?auto=format&fit=crop&w=900&q=80' },
+  { title: 'Men', image_url: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=900&q=80' },
+  { title: 'Accessories', image_url: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=900&q=80' },
+]
+
+function categoryCardsFromProps(categories: unknown): { title: string; image_url?: string; subtitle?: string; count?: number }[] {
+  const list = Array.isArray(categories) ? categories.filter(c => c && typeof c === 'object') : []
+  return list.length > 0 ? list as { title: string; image_url?: string; subtitle?: string; count?: number }[] : DEFAULT_EDITORIAL_CATEGORIES
+}
 
 const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'product.grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Responsive product listing with grid, list, and carousel layouts.', category: 'ecommerce', defaultProps: { variant: 'default' } },
@@ -236,8 +262,13 @@ const BLOCK_THUMBNAILS: Record<string, string> = {
 
 function catalogBlockLabel(block: { block_type: string; label?: string | null }): string {
   if (block.label) return block.label
-  const def = BLOCK_CATALOG.find(d => d.type === block.block_type)
+  const def = getBlockCatalogDef(block.block_type)
   return def?.label || block.block_type.replace(/_/g, ' ')
+}
+
+function getBlockCatalogDef(blockType: string): BlockDef | undefined {
+  return BLOCK_CATALOG.find(d => d.type === blockType)
+    ?? COMMERCE_LIBRARY_BLOCKS.find(d => d.type === blockType)
 }
 
 const BLOCK_CATEGORIES = [
@@ -276,6 +307,13 @@ const DEFAULT_STYLE: StyleConfig = {
   nav_style: 'default',
   footer_style: 'default',
   container_width: '1280px',
+}
+
+function mergePageStyleConfig(siteStyle: StyleConfig, pageId: string | null | undefined): StyleConfig {
+  if (!pageId) return siteStyle
+  const overrides = siteStyle.page_styles?.[pageId]
+  if (!overrides || Object.keys(overrides).length === 0) return siteStyle
+  return { ...siteStyle, ...overrides }
 }
 
 /** Export shape matches `GET /vendors/me/websites/:id/export` — paste into `/import` or keep as backup. */
@@ -468,6 +506,29 @@ export interface BlockOverlayItem {
   shadow?: boolean
   align?: 'left' | 'center' | 'right'
   objectFit?: 'cover' | 'contain' | 'fill'
+  /** When `'none'`, fill is transparent so the block/page background shows through. */
+  bgFill?: 'solid' | 'none'
+}
+
+function isOverlayNoFill(item: BlockOverlayItem): boolean {
+  return item.bgFill === 'none' || item.bgColor === 'transparent'
+}
+
+function resolveOverlayBackground(item: BlockOverlayItem, fallback: string): string {
+  if (isOverlayNoFill(item)) return 'transparent'
+  return item.bgColor || fallback
+}
+
+function resolveOverlayBorder(item: BlockOverlayItem): string | undefined {
+  const w = item.borderWidth ?? 0
+  if (w <= 0) return undefined
+  return `${w}px solid ${item.borderColor || '#111827'}`
+}
+
+function defaultOverlayFillColor(type: BlockOverlayItem['type']): string {
+  return (OVERLAY_DEFAULTS[type] as Partial<BlockOverlayItem> | undefined)?.bgColor
+    || OVERLAY_DEFAULTS.button?.bgColor
+    || '#64C3A0'
 }
 
 const OVERLAY_DEFAULTS: Record<string, Partial<BlockOverlayItem>> = {
@@ -554,6 +615,7 @@ function useDraggablePopup(open: boolean) {
 
 function TextPromptPopup({
   open, anchor, title, subtitle, initialValue, placeholder, multiline, maxLength,
+  helpText, minLength,
   confirmLabel = 'Save', onSave, onClose,
 }: {
   open: boolean
@@ -564,6 +626,8 @@ function TextPromptPopup({
   placeholder?: string
   multiline?: boolean
   maxLength?: number
+  helpText?: string
+  minLength?: number
   confirmLabel?: string
   onSave: (v: string) => void
   onClose: () => void
@@ -574,7 +638,8 @@ function TextPromptPopup({
 
   if (!open) return null
 
-  const commit = () => { onSave(val); onClose() }
+  const canSubmit = !minLength || val.trim().length >= minLength
+  const commit = () => { if (!canSubmit) return; onSave(val); onClose() }
 
   const style: React.CSSProperties = pos
     ? { position: 'fixed', top: pos.y, left: pos.x, zIndex: 100000 }
@@ -587,6 +652,7 @@ function TextPromptPopup({
       <div className="fixed inset-0 bg-black/20 z-[99999]" onClick={onClose} />
       <div
         ref={ref}
+        data-builder-floating-ui
         style={style}
         className="w-[380px] max-w-[92vw] bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
@@ -619,7 +685,7 @@ function TextPromptPopup({
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               onKeyDown={e => {
                 if (e.key === 'Escape') onClose()
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit() }
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && canSubmit) { e.preventDefault(); commit() }
               }}
             />
           ) : (
@@ -632,10 +698,13 @@ function TextPromptPopup({
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               onKeyDown={e => {
                 if (e.key === 'Escape') onClose()
-                if (e.key === 'Enter') { e.preventDefault(); commit() }
+                if (e.key === 'Enter' && canSubmit) { e.preventDefault(); commit() }
               }}
               onFocus={e => e.currentTarget.select()}
             />
+          )}
+          {helpText && (
+            <p className={cn('text-xs', canSubmit ? 'text-gray-400' : 'text-amber-600')}>{helpText}</p>
           )}
           {maxLength && (
             <div className="text-xs text-gray-400 text-right">{val.length} / {maxLength}</div>
@@ -643,7 +712,18 @@ function TextPromptPopup({
         </div>
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50">
           <button onClick={onClose} className="btn-cancel flex-1 py-2 rounded-lg text-xs font-medium text-gray-600 border border-[#ffc954]">Cancel</button>
-          <button onClick={commit} className="flex-1 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary/90">{confirmLabel}</button>
+          <button
+            onClick={commit}
+            disabled={!canSubmit}
+            className={cn(
+              'flex-1 py-2 rounded-lg text-xs font-bold',
+              canSubmit
+                ? 'bg-primary text-white hover:bg-primary/90'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+            )}
+          >
+            {confirmLabel}
+          </button>
         </div>
       </div>
     </>
@@ -856,6 +936,7 @@ function LinkEditorPopup({
       <div className="fixed inset-0 bg-black/20 z-[99999]" onClick={onClose} />
       <div
         ref={ref}
+        data-builder-floating-ui
         style={style}
         className="w-[460px] max-w-[94vw] bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
         onClick={e => e.stopPropagation()}
@@ -1301,18 +1382,86 @@ const InlineTextStyleContext = React.createContext<{
 } | null>(null)
 
 let savedInlineTextSelection: { key: string; range: Range; root: HTMLElement } | null = null
+let lastInlineStyledSpan: { key: string; span: HTMLSpanElement; root: HTMLElement } | null = null
+let selectionTrackingInstalled = false
 
 function inferInlineTextStyleKey(onCommit: (v: string) => void): string | null {
   const src = Function.prototype.toString.call(onCommit)
   const commit = src.match(/commitProp\(['"`]([^'"`]+)['"`]/)
   if (commit?.[1]) return commit[1]
-  const edit = src.match(/editItem\(['"`]([^'"`]+)['"`]\s*,\s*[^,]+,\s*['"`]([^'"`]+)['"`]/)
-  if (edit?.[1] && edit?.[2]) return `${edit[1]}.${edit[2]}`
+  const edit = src.match(/editItem\(['"`]([^'"`]+)['"`]\s*,\s*(\d+)\s*,\s*['"`]([^'"`]+)['"`]/)
+  if (edit?.[1] != null && edit?.[2] != null && edit?.[3]) return `${edit[1]}[${edit[2]}].${edit[3]}`
   return null
 }
 
 function hasInlineHtml(value: string): boolean {
   return /<\/?[a-z][\s\S]*>/i.test(value)
+}
+
+function findInlineTextRoot(node: Node): { root: HTMLElement; key: string } | null {
+  let el: HTMLElement | null = node.nodeType === Node.TEXT_NODE
+    ? node.parentElement
+    : (node as HTMLElement)
+  while (el) {
+    const key = el.getAttribute('data-text-key')
+    if (key) return { root: el, key }
+    el = el.parentElement
+  }
+  return null
+}
+
+function syncInlineTextSelectionFromDocument() {
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) return
+  const range = sel.getRangeAt(0)
+  if (range.collapsed) return
+  const found = findInlineTextRoot(range.commonAncestorContainer)
+  if (!found) return
+  if (!found.root.contains(range.startContainer) || !found.root.contains(range.endContainer)) return
+  savedInlineTextSelection = { key: found.key, range: range.cloneRange(), root: found.root }
+  lastInlineStyledSpan = null
+}
+
+function ensureInlineTextSelectionTracking() {
+  if (selectionTrackingInstalled) return
+  selectionTrackingInstalled = true
+  document.addEventListener('selectionchange', syncInlineTextSelectionFromDocument)
+}
+
+function restoreSavedInlineSelection(): boolean {
+  if (!savedInlineTextSelection) return false
+  const { range, root } = savedInlineTextSelection
+  if (!root.isConnected || range.collapsed) return false
+  try {
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(range)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function hasActiveInlineTextSelection(fieldKey?: string | null): boolean {
+  if (!savedInlineTextSelection || savedInlineTextSelection.range.collapsed) return false
+  if (!savedInlineTextSelection.root.isConnected) return false
+  if (fieldKey && savedInlineTextSelection.key !== fieldKey) return false
+  return true
+}
+
+function getSelectionFontSizePx(range: Range): number {
+  let node: Node | null = range.startContainer
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement
+  while (node && node instanceof HTMLElement) {
+    const px = parseFloat(window.getComputedStyle(node).fontSize)
+    if (px > 0 && Number.isFinite(px)) return Math.round(px)
+    node = node.parentElement
+  }
+  return 16
+}
+
+function notifyInlineTextCommit(root: HTMLElement) {
+  root.dispatchEvent(new CustomEvent('builder-inline-text-commit', { bubbles: true }))
 }
 
 function rememberInlineTextSelection(root: HTMLElement | null, key: string | null) {
@@ -1323,6 +1472,31 @@ function rememberInlineTextSelection(root: HTMLElement | null, key: string | nul
   if (!root.contains(range.commonAncestorContainer)) return
   if (range.collapsed) return
   savedInlineTextSelection = { key, range: range.cloneRange(), root }
+  lastInlineStyledSpan = null
+}
+
+function finishInlineStyleApply(key: string, span: HTMLSpanElement, root: HTMLElement) {
+  const sel = window.getSelection()
+  sel?.removeAllRanges()
+  lastInlineStyledSpan = { key, span, root }
+  savedInlineTextSelection = null
+  notifyInlineTextCommit(root)
+}
+
+function applyPatchToLastStyledSpan(key: string | null | undefined, patch: Record<string, unknown>): boolean {
+  if (!key || !lastInlineStyledSpan || lastInlineStyledSpan.key !== key) return false
+  const { span, root } = lastInlineStyledSpan
+  if (!span.isConnected || !root.isConnected) {
+    lastInlineStyledSpan = null
+    return false
+  }
+  const css = stylePatchToCss(patch)
+  if (!css.color && !css.fontSize && !css.textTransform) return false
+  if (css.color) span.style.color = css.color
+  if (css.fontSize) span.style.fontSize = css.fontSize
+  if (css.textTransform) span.style.textTransform = css.textTransform
+  notifyInlineTextCommit(root)
+  return true
 }
 
 function stylePatchToCss(patch: Record<string, unknown>): Partial<CSSStyleDeclaration> {
@@ -1333,12 +1507,35 @@ function stylePatchToCss(patch: Record<string, unknown>): Partial<CSSStyleDeclar
   return css
 }
 
+function findInlineStyleSpanForRange(range: Range): HTMLSpanElement | null {
+  let node: Node | null = range.commonAncestorContainer
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement
+  if (node instanceof HTMLSpanElement && node.getAttribute('data-inline-style')) return node
+  return null
+}
+
 function applyInlineTextSelectionStyle(key: string | null | undefined, patch: Record<string, unknown>): boolean {
   if (!key || !savedInlineTextSelection || savedInlineTextSelection.key !== key) return false
-  const { range, root } = savedInlineTextSelection
-  if (!root.isConnected || range.collapsed) return false
+  const { root } = savedInlineTextSelection
+  if (!root.isConnected) return false
+
+  restoreSavedInlineSelection()
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) return false
+  const range = sel.getRangeAt(0)
+  if (range.collapsed || !root.contains(range.commonAncestorContainer)) return false
+
   const css = stylePatchToCss(patch)
   if (!css.color && !css.fontSize && !css.textTransform) return false
+
+  const existingSpan = findInlineStyleSpanForRange(range)
+  if (existingSpan && range.toString() === existingSpan.textContent) {
+    if (css.color) existingSpan.style.color = css.color
+    if (css.fontSize) existingSpan.style.fontSize = css.fontSize
+    if (css.textTransform) existingSpan.style.textTransform = css.textTransform
+    finishInlineStyleApply(key, existingSpan, root)
+    return true
+  }
 
   const span = document.createElement('span')
   if (css.color) span.style.color = css.color
@@ -1350,13 +1547,7 @@ function applyInlineTextSelectionStyle(key: string | null | undefined, patch: Re
     const fragment = range.extractContents()
     span.appendChild(fragment)
     range.insertNode(span)
-    const nextRange = document.createRange()
-    nextRange.selectNodeContents(span)
-    const sel = window.getSelection()
-    sel?.removeAllRanges()
-    sel?.addRange(nextRange)
-    savedInlineTextSelection = { key, range: nextRange.cloneRange(), root }
-    root.dispatchEvent(new Event('input', { bubbles: true }))
+    finishInlineStyleApply(key, span, root)
     return true
   } catch {
     return false
@@ -1397,31 +1588,49 @@ function InlineEditableText({
     : style
 
   useEffect(() => {
-    if (editing && ref.current) {
-      ref.current.focus()
-      // place caret at end
-      const sel = window.getSelection()
-      const range = document.createRange()
-      range.selectNodeContents(ref.current)
-      range.collapse(false)
-      sel?.removeAllRanges()
-      sel?.addRange(range)
+    ensureInlineTextSelectionTracking()
+  }, [])
+
+  const displayWhenIdle = value || (editable ? (placeholder || 'Click to edit') : '')
+
+  const readValue = useCallback(() => {
+    const rawHtml = (ref.current?.innerHTML ?? '').trim()
+    const rawText = (ref.current?.innerText ?? '').trim()
+    return hasInlineHtml(rawHtml) ? rawHtml : rawText
+  }, [])
+
+  // Sync DOM from props only when not editing — avoids resetting caret during typing
+  useEffect(() => {
+    const el = ref.current
+    if (!el || editing) return
+    const rich = hasInlineHtml(displayWhenIdle)
+    if (rich) {
+      if (el.innerHTML !== displayWhenIdle) el.innerHTML = displayWhenIdle
+    } else if (el.textContent !== displayWhenIdle) {
+      el.textContent = displayWhenIdle
     }
+  }, [displayWhenIdle, editing])
+
+  useEffect(() => {
+    if (editing && ref.current) ref.current.focus()
   }, [editing])
 
+  // Persist partial-word styles (font size / color) applied from the design bar
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const onInlineCommit = () => {
+      const v = readValue()
+      if (v !== value) onCommit(v)
+    }
+    el.addEventListener('builder-inline-text-commit', onInlineCommit)
+    return () => el.removeEventListener('builder-inline-text-commit', onInlineCommit)
+  }, [value, onCommit, readValue])
+
   const commit = () => {
-    const rawHtml = (ref.current?.innerHTML ?? '').trim()
-    const rawText = (ref.current?.innerText ?? '').trim()
-    const v = hasInlineHtml(rawHtml) ? rawHtml : rawText
+    const v = readValue()
     if (v !== value) onCommit(v)
     setEditing(false)
-  }
-
-  const commitLive = () => {
-    const rawHtml = (ref.current?.innerHTML ?? '').trim()
-    const rawText = (ref.current?.innerText ?? '').trim()
-    const v = hasInlineHtml(rawHtml) ? rawHtml : rawText
-    if (v !== value) onCommit(v)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -1430,8 +1639,6 @@ function InlineEditableText({
   }
 
   const TagComponent = Tag as React.ElementType
-  const displayValue = value || (editable ? (placeholder || 'Click to edit') : '')
-  const richText = hasInlineHtml(displayValue)
   return (
     <TagComponent
       ref={ref as any}
@@ -1442,7 +1649,7 @@ function InlineEditableText({
       className={cn(
         className,
         editable && !editing && 'hover:outline hover:outline-1 hover:outline-ring/50 hover:outline-offset-2 cursor-text rounded',
-        editing && 'outline outline-2 outline-ring outline-offset-2 rounded bg-white/40'
+        editing && 'outline outline-2 outline-ring outline-offset-2 rounded bg-white/40 selection:bg-blue-500/25 selection:text-inherit'
       )}
       style={{
         ...resolvedStyle,
@@ -1461,14 +1668,11 @@ function InlineEditableText({
       onMouseDown={(e: React.MouseEvent) => { if (editing) e.stopPropagation() }}
       onMouseUp={() => rememberInlineTextSelection(ref.current, inferredStyleKey)}
       onKeyUp={() => rememberInlineTextSelection(ref.current, inferredStyleKey)}
-      onInput={commitLive}
+      onSelect={() => rememberInlineTextSelection(ref.current, inferredStyleKey)}
       onBlur={commit}
       onKeyDown={handleKeyDown}
       onContextMenu={onContextMenu}
-      {...(richText ? { dangerouslySetInnerHTML: { __html: displayValue } } : {})}
-    >
-      {richText ? null : displayValue}
-    </TagComponent>
+    />
   )
 }
 
@@ -1579,15 +1783,13 @@ function InlineEditableRichText({
   const ref = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (editing && ref.current) {
-      ref.current.focus()
-      const sel = window.getSelection()
-      const range = document.createRange()
-      range.selectNodeContents(ref.current)
-      range.collapse(false)
-      sel?.removeAllRanges()
-      sel?.addRange(range)
-    }
+    const el = ref.current
+    if (!el || editing) return
+    if (el.innerHTML !== html) el.innerHTML = html
+  }, [html, editing])
+
+  useEffect(() => {
+    if (editing && ref.current) ref.current.focus()
   }, [editing])
 
   const commit = () => {
@@ -1614,19 +1816,526 @@ function InlineEditableRichText({
       onMouseDown={(e) => { if (editing) e.stopPropagation() }}
       onBlur={commit}
       onKeyDown={(e) => { if (e.key === 'Escape') { (ref.current as HTMLElement)?.blur(); e.preventDefault() } }}
-      dangerouslySetInnerHTML={{ __html: html }}
     />
   )
 }
 
+/** Clicks on builder popovers / overlay UI must not clear overlay selection. */
+const BUILDER_OVERLAY_UI_SELECTOR =
+  '[data-overlay-root],[data-overlay-toolbar],[data-builder-floating-ui]'
+
+/** Fixed width — layout never reflows when link state or labels change. */
+const OVERLAY_TOOLBAR_WIDTH_PX = 268
+
+/** Shared classes — light default, `dark:` when dashboard theme is dark (html.dark). */
+const overlayToolbarUi = {
+  panel:
+    'border-gray-200 bg-white/95 text-gray-900 shadow-lg dark:border-gray-600/90 dark:bg-gray-900/95 dark:text-gray-100',
+  section:
+    'border-gray-200 bg-gray-50/90 dark:border-gray-700/70 dark:bg-gray-800/50',
+  sectionTitle: 'text-gray-500 dark:text-gray-500',
+  fieldLabel: 'text-gray-500 dark:text-gray-500',
+  hint: 'text-gray-500 dark:text-gray-400',
+  hintEmphasis: 'font-semibold text-gray-700 dark:text-gray-300',
+  input:
+    'border-gray-300 bg-white text-gray-900 focus:border-sky-500 focus:ring-sky-500/40 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-sky-400 dark:focus:ring-sky-400/50',
+  swatch: 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500',
+  segmentTrack: 'border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-900',
+  segmentInactive:
+    'text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/80 dark:hover:text-gray-200',
+  footer: 'border-gray-200 text-gray-500 dark:border-gray-700/80 dark:text-gray-400',
+  previewSwatch: 'border-gray-300 dark:border-gray-600',
+  actionMuted: 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-500',
+} as const
+
+function OverlayToolbarField({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('flex min-w-0 flex-col gap-1', className)}>
+      <span className={cn('truncate text-[10px] font-semibold uppercase tracking-wider leading-none', overlayToolbarUi.fieldLabel)}>
+        {label}
+      </span>
+      <div className="flex min-h-8 min-w-0 items-center">{children}</div>
+    </div>
+  )
+}
+
+function OverlayToolbarSection({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className={cn('rounded-lg border px-2 py-2', overlayToolbarUi.section)}>
+      <p className={cn('mb-2 text-[10px] font-semibold uppercase tracking-wider', overlayToolbarUi.sectionTitle)}>{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function OverlayToolbarColorSwatch({
+  value,
+  onChange,
+  onStopBubble,
+  title,
+}: {
+  value: string
+  onChange: (color: string) => void
+  onStopBubble: (e: React.SyntheticEvent) => void
+  title: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  return (
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      onMouseDown={onStopBubble}
+      className={cn('relative h-8 w-full min-w-0 overflow-hidden rounded-md border', overlayToolbarUi.swatch)}
+      title={title}
+    >
+      <span
+        className="absolute inset-0"
+        style={{ backgroundColor: value }}
+        aria-hidden
+      />
+      <input
+        ref={inputRef}
+        type="color"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onMouseDown={onStopBubble}
+        onClick={onStopBubble}
+        className="sr-only"
+        tabIndex={-1}
+      />
+    </button>
+  )
+}
+
+/** Local draft while typing so the field can be cleared before committing. */
+function OverlayToolbarNumberInput({
+  label,
+  value,
+  min,
+  max,
+  fallback,
+  onCommit,
+  onStopBubble,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  fallback: number
+  onCommit: (n: number) => void
+  onStopBubble: (e: React.SyntheticEvent) => void
+}) {
+  const [draft, setDraft] = useState(String(value))
+
+  useEffect(() => {
+    setDraft(String(value))
+  }, [value])
+
+  const commit = useCallback(() => {
+    const trimmed = draft.trim()
+    if (trimmed === '') {
+      setDraft(String(fallback))
+      onCommit(fallback)
+      return
+    }
+    const n = Number(trimmed)
+    if (!Number.isFinite(n)) {
+      setDraft(String(value))
+      return
+    }
+    const clamped = Math.min(max, Math.max(min, Math.round(n)))
+    setDraft(String(clamped))
+    onCommit(clamped)
+  }, [draft, fallback, max, min, onCommit, value])
+
+  return (
+    <OverlayToolbarField label={label}>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={draft}
+        onChange={e => setDraft(e.target.value.replace(/\D/g, ''))}
+        onBlur={commit}
+        onKeyDown={e => {
+          onStopBubble(e)
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            ;(e.currentTarget as HTMLInputElement).blur()
+          }
+        }}
+        onMouseDown={onStopBubble}
+        onClick={onStopBubble}
+        onDoubleClick={onStopBubble}
+        className={cn(
+          'h-8 w-full min-w-0 rounded-md border text-center text-xs font-semibold focus:outline-none focus:ring-2',
+          overlayToolbarUi.input,
+        )}
+        title={`${label} (px) — press Enter to apply`}
+      />
+    </OverlayToolbarField>
+  )
+}
+
+function OverlayEditToolbar({
+  item,
+  onUpdate,
+  blockBackgroundColor,
+  onEditLink,
+  onRequestText,
+  onStartTextEdit,
+  onOpenAiForImage,
+  onOpenMediaForImage,
+  onPickLocalImage,
+}: {
+  item: BlockOverlayItem
+  onUpdate: (u: Partial<BlockOverlayItem>) => void
+  /** Block/section background — used for “No fill” preview hint in toolbar. */
+  blockBackgroundColor?: string
+  onEditLink?: (anchor: { x: number; y: number }) => void
+  onRequestText?: (opts: {
+    title: string
+    subtitle?: string
+    placeholder?: string
+    initialValue?: string
+    multiline?: boolean
+    maxLength?: number
+    anchor?: { x: number; y: number } | null
+    onSave: (v: string) => void
+  }) => void
+  onStartTextEdit?: () => void
+  onOpenAiForImage?: () => void
+  onOpenMediaForImage?: () => void
+  onPickLocalImage?: () => void
+}) {
+  const hasTextControls = item.type === 'text' || item.type === 'button' || item.type === 'badge'
+  const hasFillControls = item.type !== 'image' || !item.src
+  const hasLink = item.type === 'button' || item.type === 'badge' || item.type === 'text' || item.type === 'image'
+  const isLinked = !!(item.linkType && item.linkType !== 'none')
+  const noFill = isOverlayNoFill(item)
+  const toolbarTop = item.h + 8
+
+  const stopToolbarEvent = (e: React.SyntheticEvent) => {
+    e.stopPropagation()
+    e.nativeEvent.stopImmediatePropagation()
+  }
+
+  const openTextEditor = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    if (item.type === 'text') {
+      onStartTextEdit?.()
+      return
+    }
+    if (!onRequestText) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    onRequestText({
+      title: `Edit ${item.type} label`,
+      placeholder: item.type === 'button' ? 'e.g. Book Now' : 'e.g. NEW',
+      initialValue: item.text || '',
+      anchor: { x: rect.left, y: rect.bottom + 6 },
+      onSave: v => onUpdate({ text: v }),
+    })
+  }
+
+  const openLinkEditor = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    e.preventDefault()
+    if (!onEditLink) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    onEditLink({ x: rect.left, y: rect.bottom + 6 })
+  }
+
+  const openDescription = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    if (!onRequestText) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    onRequestText({
+      title: 'Button description',
+      subtitle: 'Shown as tooltip on hover and used for screen-reader labels.',
+      placeholder: 'Book a table for 4 guests',
+      initialValue: item.description || '',
+      multiline: true,
+      maxLength: 160,
+      anchor: { x: rect.left, y: rect.bottom + 6 },
+      onSave: v => onUpdate({ description: v }),
+    })
+  }
+
+  const toolbarBtn =
+    'flex h-8 w-full min-w-0 items-center justify-center rounded-lg transition-colors'
+
+  const segmentBtn = (active: boolean) => cn(
+    'flex-1 rounded-md py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors',
+    active ? 'bg-primary text-primary-foreground shadow-sm' : overlayToolbarUi.segmentInactive,
+  )
+
+  const savedFillColor = item.bgColor && item.bgColor !== 'transparent'
+    ? item.bgColor
+    : defaultOverlayFillColor(item.type)
+
+  return (
+    <div
+      data-overlay-toolbar
+      role="toolbar"
+      aria-label="Overlay element options"
+      className={cn(
+        'absolute left-0 z-[25] box-border overflow-hidden rounded-xl border p-2.5 backdrop-blur-sm',
+        overlayToolbarUi.panel,
+      )}
+      style={{
+        top: toolbarTop,
+        width: OVERLAY_TOOLBAR_WIDTH_PX,
+      }}
+      onMouseDown={stopToolbarEvent}
+      onPointerDown={stopToolbarEvent}
+      onClick={stopToolbarEvent}
+      onDoubleClick={stopToolbarEvent}
+    >
+      <div className="space-y-2">
+        {/* Typography */}
+        {hasTextControls && (
+          <OverlayToolbarSection title="Text">
+            <div className="grid grid-cols-2 gap-2">
+              <OverlayToolbarField label="Color">
+                <OverlayToolbarColorSwatch
+                  value={item.color || '#111827'}
+                  onChange={color => onUpdate({ color })}
+                  onStopBubble={stopToolbarEvent}
+                  title="Text color"
+                />
+              </OverlayToolbarField>
+              <OverlayToolbarNumberInput
+                label="Size (px)"
+                value={item.fontSize ?? 16}
+                min={8}
+                max={120}
+                fallback={16}
+                onCommit={n => onUpdate({ fontSize: n })}
+                onStopBubble={stopToolbarEvent}
+              />
+            </div>
+          </OverlayToolbarSection>
+        )}
+
+        {/* Background */}
+        {hasFillControls && (
+          <OverlayToolbarSection title="Background">
+            <div
+              className={cn('mb-2 flex rounded-lg border p-0.5', overlayToolbarUi.segmentTrack)}
+              role="group"
+              aria-label="Fill type"
+            >
+              <button
+                type="button"
+                className={segmentBtn(!noFill)}
+                onClick={() => onUpdate({ bgFill: 'solid', bgColor: savedFillColor })}
+              >
+                Solid
+              </button>
+              <button
+                type="button"
+                className={segmentBtn(noFill)}
+                onClick={() => onUpdate({ bgFill: 'none' })}
+              >
+                None
+              </button>
+            </div>
+            {noFill ? (
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn('h-8 w-10 shrink-0 overflow-hidden rounded-md border', overlayToolbarUi.previewSwatch)}
+                  style={{ backgroundColor: blockBackgroundColor || '#ffffff' }}
+                  title="Section background (preview)"
+                />
+                <p className={cn('text-[10px] leading-snug', overlayToolbarUi.hint)}>
+                  Transparent — shows your section background. Tap <span className={overlayToolbarUi.hintEmphasis}>Solid</span> to add a color.
+                </p>
+              </div>
+            ) : (
+              <OverlayToolbarField label="Fill color">
+                <OverlayToolbarColorSwatch
+                  value={item.bgColor || savedFillColor}
+                  onChange={color => onUpdate({ bgFill: 'solid', bgColor: color })}
+                  onStopBubble={stopToolbarEvent}
+                  title="Background fill color"
+                />
+              </OverlayToolbarField>
+            )}
+          </OverlayToolbarSection>
+        )}
+
+        {/* Border */}
+        <OverlayToolbarSection title="Border">
+          <div className="grid grid-cols-3 gap-2">
+            <OverlayToolbarNumberInput
+              label="Radius"
+              value={item.borderRadius ?? 0}
+              min={0}
+              max={999}
+              fallback={0}
+              onCommit={n => onUpdate({ borderRadius: n })}
+              onStopBubble={stopToolbarEvent}
+            />
+            <OverlayToolbarNumberInput
+              label="Width"
+              value={item.borderWidth ?? 0}
+              min={0}
+              max={24}
+              fallback={0}
+              onCommit={n => onUpdate({
+                borderWidth: n,
+                ...(n > 0 && !item.borderColor ? { borderColor: '#111827' } : {}),
+              })}
+              onStopBubble={stopToolbarEvent}
+            />
+            <OverlayToolbarField label="Color">
+              <OverlayToolbarColorSwatch
+                value={item.borderColor || '#111827'}
+                onChange={color => onUpdate({
+                  borderColor: color,
+                  borderWidth: Math.max(1, item.borderWidth ?? 1),
+                })}
+                onStopBubble={stopToolbarEvent}
+                title={(item.borderWidth ?? 0) <= 0 ? 'Border color (sets width to 1px)' : 'Border color'}
+              />
+            </OverlayToolbarField>
+          </div>
+        </OverlayToolbarSection>
+      </div>
+
+      {(hasTextControls || (hasLink && onEditLink) || ((item.type === 'button' || item.type === 'badge') && onRequestText)) && (
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          {hasTextControls ? (
+            <button
+              type="button"
+              onClick={openTextEditor}
+              className={cn(toolbarBtn, 'bg-primary text-primary-foreground hover:bg-primary/90')}
+              title={item.type === 'text' ? 'Edit text (double-click)' : 'Edit label'}
+            >
+              <Type className="h-4 w-4 shrink-0" />
+            </button>
+          ) : <div className="h-8" aria-hidden />}
+          {hasLink && onEditLink ? (
+            <button
+              type="button"
+              data-overlay-link-btn
+              onClick={openLinkEditor}
+              className={cn(
+                toolbarBtn,
+                isLinked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : overlayToolbarUi.actionMuted,
+              )}
+              title={
+                isLinked
+                  ? `Linked: ${item.linkType} — ${item.linkLabel || item.linkTarget}`
+                  : 'Add link'
+              }
+            >
+              <Link2 className="h-4 w-4 shrink-0" />
+            </button>
+          ) : <div className="h-8" aria-hidden />}
+          {(item.type === 'button' || item.type === 'badge') && onRequestText ? (
+            <button
+              type="button"
+              onClick={openDescription}
+              className={cn(toolbarBtn, 'bg-sky-600 text-white hover:bg-sky-500')}
+              title="Description / tooltip"
+            >
+              <Info className="h-4 w-4 shrink-0" />
+            </button>
+          ) : <div className="h-8" aria-hidden />}
+        </div>
+      )}
+
+      {item.type === 'image' && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {onPickLocalImage && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onPickLocalImage() }}
+              className={cn(toolbarBtn, 'bg-sky-600 text-white hover:bg-sky-500')}
+              title="Upload from your computer"
+            >
+              <Upload className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Upload</span>
+            </button>
+          )}
+          {onOpenAiForImage && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onOpenAiForImage() }}
+              className={cn(toolbarBtn, 'bg-amber-600 text-white hover:bg-amber-500')}
+              title="AI image generator"
+            >
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">AI</span>
+            </button>
+          )}
+          {onOpenMediaForImage && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onOpenMediaForImage() }}
+              className={cn(toolbarBtn, 'bg-emerald-600 text-white hover:bg-emerald-500')}
+              title="Media library"
+            >
+              <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Library</span>
+            </button>
+          )}
+          {onRequestText && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation()
+                const rect = e.currentTarget.getBoundingClientRect()
+                onRequestText({
+                  title: 'Set image URL',
+                  placeholder: 'https://…/image.jpg',
+                  initialValue: item.src || '',
+                  anchor: { x: rect.left, y: rect.bottom + 6 },
+                  onSave: v => { if (v) onUpdate({ src: v }) },
+                })
+              }}
+              className={cn(toolbarBtn, 'bg-primary text-white hover:bg-primary/90')}
+            >
+              <Link2 className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">URL</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      <div
+        className={cn('mt-2 border-t pt-1.5 text-center text-[10px] font-medium tabular-nums', overlayToolbarUi.footer)}
+        title="Element size"
+      >
+        {Math.round(item.w)}×{Math.round(item.h)} px
+      </div>
+    </div>
+  )
+}
+
 function OverlayElement({
-  item, isSelected, containerRef, onSelect, onUpdate, onDelete,
+  item, isSelected, containerRef, blockBackgroundColor, onSelect, onUpdate, onDelete,
   onOpenAiForImage, onOpenMediaForImage, onPickLocalImage, onImageFileDrop,
   onEditLink, onContextMenu, onRequestText,
 }: {
   item: BlockOverlayItem
   isSelected: boolean
   containerRef: React.RefObject<HTMLDivElement>
+  blockBackgroundColor?: string
   onSelect: () => void
   onUpdate: (u: Partial<BlockOverlayItem>) => void
   onDelete: () => void
@@ -1649,15 +2358,39 @@ function OverlayElement({
   }) => void
 }) {
   const [textEditing, setTextEditing] = useState(false)
+  const textRef = useRef<HTMLDivElement | null>(null)
+  const dragMovedRef = useRef(false)
+
+  useEffect(() => {
+    const el = textRef.current
+    if (!el || textEditing) return
+    const display = item.text || 'Double-click to edit'
+    if (el.textContent !== display) el.textContent = display
+  }, [item.text, textEditing])
+
+  useEffect(() => {
+    if (!textEditing || !textRef.current) return
+    if (!item.text && textRef.current.textContent === 'Double-click to edit') {
+      textRef.current.textContent = ''
+    }
+    textRef.current.focus()
+  }, [textEditing, item.text])
 
   const startDrag = useCallback((e: React.MouseEvent) => {
     if (textEditing) return
+    if ((e.target as HTMLElement).closest('[data-overlay-toolbar],[data-overlay-delete]')) return
     e.stopPropagation(); e.preventDefault()
+    dragMovedRef.current = false
     const startX = e.clientX - item.x
     const startY = e.clientY - item.y
+    const originX = e.clientX
+    const originY = e.clientY
     const container = containerRef.current
     document.body.style.cursor = 'move'
     const onMove = (mv: MouseEvent) => {
+      if (Math.abs(mv.clientX - originX) > 3 || Math.abs(mv.clientY - originY) > 3) {
+        dragMovedRef.current = true
+      }
       const cw = container?.clientWidth || 800
       const ch = container?.clientHeight || 400
       onUpdate({
@@ -1665,8 +2398,13 @@ function OverlayElement({
         y: Math.max(0, Math.min(ch - 20, mv.clientY - startY)),
       })
     }
-    const onUp = () => { document.body.style.cursor = ''; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
-    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
+    const onUp = () => {
+      document.body.style.cursor = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
   }, [textEditing, item.x, item.y, item.w, containerRef, onUpdate])
 
   const startResize = useCallback((e: React.MouseEvent, handle: string) => {
@@ -1688,11 +2426,12 @@ function OverlayElement({
   }, [item.x, item.y, item.w, item.h, onUpdate])
 
   const renderContent = () => {
+    const fillFallback = defaultOverlayFillColor(item.type)
     const commonStyle: React.CSSProperties = {
       width: '100%', height: '100%',
-      backgroundColor: item.bgColor || 'transparent',
+      backgroundColor: resolveOverlayBackground(item, item.type === 'text' ? 'transparent' : fillFallback),
       borderRadius: item.borderRadius || 0,
-      border: item.borderColor ? `${item.borderWidth || 2}px solid ${item.borderColor}` : undefined,
+      border: resolveOverlayBorder(item),
       boxShadow: item.shadow ? '0 8px 32px rgba(0,0,0,0.15)' : undefined,
       opacity: (item.opacity ?? 100) / 100,
       overflow: 'hidden',
@@ -1701,6 +2440,7 @@ function OverlayElement({
       case 'text':
         return (
           <div
+            ref={textRef}
             contentEditable={textEditing}
             suppressContentEditableWarning
             onDoubleClick={e => { e.stopPropagation(); setTextEditing(true) }}
@@ -1712,16 +2452,14 @@ function OverlayElement({
               padding: '6px 10px', display: 'flex', alignItems: 'center', wordBreak: 'break-word',
               outline: textEditing ? '2px solid #64C3A0' : 'none', cursor: textEditing ? 'text' : 'move',
             }}
-          >
-            {item.text || (textEditing ? '' : 'Double-click to edit')}
-          </div>
+          />
         )
       case 'image':
         return item.src ? (
           <img src={mediaUrl(item.src)} style={{ width: '100%', height: '100%', objectFit: item.objectFit || 'cover', borderRadius: item.borderRadius || 0 }} alt="" draggable={false} />
         ) : (
           <div
-            style={{ ...commonStyle, backgroundColor: item.bgColor || '#f3f4f6', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}
+            style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#f3f4f6'), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}
             onClick={e => {
               e.stopPropagation()
               if (onPickLocalImage) onPickLocalImage()
@@ -1749,23 +2487,21 @@ function OverlayElement({
         const hasLink = item.linkType && item.linkType !== 'none' && (item.linkTarget || item.href)
         return (
           <div
-            style={{ ...commonStyle, backgroundColor: item.bgColor || '#64C3A0', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+            data-overlay-content
+            style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#64C3A0'), display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
             title={item.description || (hasLink ? `Link → ${item.linkLabel || item.linkTarget}` : 'Click to edit')}
           >
             <span style={{ fontSize: item.fontSize || 14, fontWeight: item.fontWeight || 'bold', color: item.color || '#ffffff' }}>
               {item.text || 'Button'}
             </span>
-            {hasLink && (
+            {/* Link badge hidden while selected — toolbar shows Linked / Add link instead */}
+            {hasLink && !isSelected && (
               <span
-                style={{
-                  position: 'absolute', top: -8, right: -8, width: 16, height: 16,
-                  backgroundColor: '#10b981', color: '#fff',
-                  borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, fontWeight: 'bold', boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
-                }}
+                className="pointer-events-none absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] text-white shadow-sm"
                 title={`${item.linkType}: ${item.linkLabel || item.linkTarget}`}
+                aria-hidden
               >
-                🔗
+                <Link2 className="h-2.5 w-2.5" />
               </span>
             )}
           </div>
@@ -1775,7 +2511,7 @@ function OverlayElement({
         return <div style={commonStyle} />
       case 'badge':
         return (
-          <div style={{ ...commonStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: item.bgColor || '#64C3A0' }}>
+          <div style={{ ...commonStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: resolveOverlayBackground(item, '#64C3A0') }}>
             <span style={{ fontSize: item.fontSize || 12, fontWeight: 'bold', color: item.color || '#ffffff', whiteSpace: 'nowrap' }}>
               {item.text || 'Badge'}
             </span>
@@ -1797,19 +2533,28 @@ function OverlayElement({
 
   return (
     <div
+      data-overlay-root
+      data-overlay-id={item.id}
       style={{
         position: 'absolute', left: item.x, top: item.y, width: item.w, height: item.h,
         zIndex: item.zIndex || 10, cursor: textEditing ? 'text' : 'move', userSelect: 'none',
       }}
-      onClick={e => { e.stopPropagation(); onSelect() }}
-      onMouseDown={e => { onSelect(); if (!textEditing) startDrag(e) }}
+      onClick={e => {
+        e.stopPropagation()
+        if (dragMovedRef.current || isSelected) return
+        onSelect()
+      }}
+      onMouseDown={e => {
+        const t = e.target as HTMLElement
+        if (t.closest('[data-overlay-toolbar],[data-overlay-delete],[data-overlay-resize-handle]')) return
+        if (t.closest('input,textarea,select')) return
+        if (!isSelected) onSelect()
+        if (!textEditing) startDrag(e)
+      }}
       onContextMenu={e => { if (onContextMenu) { e.preventDefault(); e.stopPropagation(); onSelect(); onContextMenu(e) } }}
       onDoubleClick={e => {
-        if (item.type === 'text') { e.stopPropagation(); setTextEditing(true); return }
-        if (item.type === 'button' && onEditLink) {
-          e.stopPropagation(); e.preventDefault()
-          onEditLink({ x: e.clientX, y: e.clientY })
-        }
+        if ((e.target as HTMLElement).closest('[data-overlay-toolbar],[data-overlay-delete]')) return
+        if (item.type === 'text') { e.stopPropagation(); setTextEditing(true) }
       }}
     >
       {renderContent()}
@@ -1819,164 +2564,40 @@ function OverlayElement({
           <div style={{ position: 'absolute', inset: -2, border: '2px solid #64C3A0', borderRadius: 3, pointerEvents: 'none', zIndex: 1 }} />
           {/* Resize handles */}
           {Object.keys(OVERLAY_HANDLE_POS).map(h => (
-            <div key={h} onMouseDown={e => startResize(e, h)} style={{
-              position: 'absolute', width: 10, height: 10,
-              backgroundColor: '#64C3A0', border: '2px solid #fff',
-              borderRadius: 2, cursor: OVERLAY_RESIZE_CURSORS[h], zIndex: 2,
-              ...OVERLAY_HANDLE_POS[h],
-            }} />
-          ))}
-          {/* Delete button — inside top-right corner so it's always clickable
-              (putting it at top:-24 puts it behind the BlockDesignBar z-30) */}
-          <button onMouseDown={e => { e.stopPropagation(); onDelete() }} style={{
-            position: 'absolute', top: 4, right: 4, width: 20, height: 20,
-            backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: 4,
-            cursor: 'pointer', fontSize: 13, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 5, boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-          }} title="Delete element (or press Del)">×</button>
-          {/* Inline style mini-bar — rendered BELOW the element so it is
-              never occluded by the BlockDesignBar which sits at top of block */}
-          <div style={{
-            position: 'absolute', top: item.h + 6, left: 0, display: 'flex', gap: 2, zIndex: 5,
-            backgroundColor: '#1f2937', borderRadius: 6, padding: '2px 6px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          }}>
-            {(item.type === 'text' || item.type === 'button' || item.type === 'badge') && (
-              <>
-                <input type="color" value={item.color || '#111827'}
-                  onChange={e => onUpdate({ color: e.target.value })}
-                  onClick={e => e.stopPropagation()}
-                  style={{ width: 18, height: 18, border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0 }} title="Text color" />
-                <input type="number" value={item.fontSize || 16}
-                  onChange={e => onUpdate({ fontSize: Number(e.target.value) })}
-                  onClick={e => e.stopPropagation()}
-                  style={{ width: 32, height: 18, fontSize: 9, border: 'none', borderRadius: 3, textAlign: 'center', backgroundColor: '#374151', color: '#fff' }} title="Font size" />
-              </>
-            )}
-            <input type="color" value={item.bgColor || '#ffffff'}
-              onChange={e => onUpdate({ bgColor: e.target.value })}
-              onClick={e => e.stopPropagation()}
-              style={{ width: 18, height: 18, border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0 }} title="Background" />
-            <input type="number" value={item.borderRadius || 0}
-              onChange={e => onUpdate({ borderRadius: Number(e.target.value) })}
-              onClick={e => e.stopPropagation()}
-              style={{ width: 28, height: 18, fontSize: 9, border: 'none', borderRadius: 3, textAlign: 'center', backgroundColor: '#374151', color: '#fff' }} title="Border radius" />
-            {(item.type === 'text' || item.type === 'button' || item.type === 'badge') && (
-              <button onMouseDown={e => {
-                e.stopPropagation()
-                if (item.type === 'text') { setTextEditing(true); return }
-                if (onRequestText) {
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                  onRequestText({
-                    title: `Edit ${item.type} label`,
-                    placeholder: item.type === 'button' ? 'e.g. Book Now' : 'e.g. NEW',
-                    initialValue: item.text || '',
-                    anchor: { x: rect.left, y: rect.bottom + 4 },
-                    onSave: v => onUpdate({ text: v }),
-                  })
-                }
+            <div
+              key={h}
+              data-overlay-resize-handle
+              onMouseDown={e => startResize(e, h)}
+              style={{
+                position: 'absolute', width: 10, height: 10,
+                backgroundColor: '#fff', border: '2px solid #64C3A0',
+                borderRadius: 2, cursor: OVERLAY_RESIZE_CURSORS[h], zIndex: 2,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                ...OVERLAY_HANDLE_POS[h],
               }}
-                style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#64C3A0', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 'bold' }}
-                title={item.type === 'text' ? 'Double-click text to edit inline' : 'Edit label'}>
-                {item.type === 'text' ? 'Edit' : 'Text'}
-              </button>
-            )}
-            {(item.type === 'button' || item.type === 'badge' || item.type === 'text' || item.type === 'image') && onEditLink && (
-              <button
-                onMouseDown={e => {
-                  e.stopPropagation()
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                  onEditLink({ x: rect.left, y: rect.bottom + 4 })
-                }}
-                style={{
-                  height: 18, padding: '0 5px', fontSize: 9,
-                  backgroundColor: item.linkType && item.linkType !== 'none' ? '#10b981' : '#374151',
-                  color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 'bold',
-                  display: 'flex', alignItems: 'center', gap: 2,
-                }}
-                title={
-                  item.linkType && item.linkType !== 'none'
-                    ? `${item.linkType}: ${item.linkLabel || item.linkTarget}`
-                    : 'Connect link / ERP item'
-                }
-              >
-                🔗 {item.linkType && item.linkType !== 'none' ? 'Linked' : 'Link'}
-              </button>
-            )}
-            {(item.type === 'button' || item.type === 'badge') && (
-              <button
-                onMouseDown={e => {
-                  e.stopPropagation()
-                  if (onRequestText) {
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                    onRequestText({
-                      title: 'Button description',
-                      subtitle: 'Shown as tooltip on hover and used for screen-reader labels (aria-label).',
-                      placeholder: 'Book a table for 4 guests',
-                      initialValue: item.description || '',
-                      multiline: true,
-                      maxLength: 160,
-                      anchor: { x: rect.left, y: rect.bottom + 4 },
-                      onSave: v => onUpdate({ description: v }),
-                    })
-                  }
-                }}
-                style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 'bold' }}
-                title="Add a description / tooltip"
-              >
-                i
-              </button>
-            )}
-            {item.type === 'image' && (
-              <>
-                {onPickLocalImage && (
-                  <button onMouseDown={e => { e.stopPropagation(); onPickLocalImage() }}
-                    style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 'bold' }}
-                    title="Upload from your computer">
-                    Up
-                  </button>
-                )}
-                {onOpenAiForImage && (
-                  <button onMouseDown={e => { e.stopPropagation(); onOpenAiForImage() }}
-                    style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#f59e0b', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 'bold' }}
-                    title="Open AI image generator">
-                    AI
-                  </button>
-                )}
-                {onOpenMediaForImage && (
-                  <button onMouseDown={e => { e.stopPropagation(); onOpenMediaForImage() }}
-                    style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 'bold' }}
-                    title="Open media library">
-                    Lib
-                  </button>
-                )}
-                <button
-                  onMouseDown={e => {
-                    e.stopPropagation()
-                    if (onRequestText) {
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                      onRequestText({
-                        title: 'Set image URL',
-                        placeholder: 'https://…/image.jpg',
-                        initialValue: item.src || '',
-                        anchor: { x: rect.left, y: rect.bottom + 4 },
-                        onSave: v => { if (v) onUpdate({ src: v }) },
-                      })
-                    }
-                  }}
-                  style={{ height: 18, padding: '0 4px', fontSize: 9, backgroundColor: '#64C3A0', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
-                  URL
-                </button>
-              </>
-            )}
-          </div>
-          {/* Dimensions badge */}
-          <div style={{
-            position: 'absolute', top: item.h + 32, left: 0, fontSize: 9, color: '#9ca3af',
-            backgroundColor: 'rgba(31,41,55,0.85)', borderRadius: 3, padding: '1px 5px', pointerEvents: 'none',
-          }}>
-            {Math.round(item.w)}×{Math.round(item.h)} px
-          </div>
+            />
+          ))}
+          {/* Delete — kept inside the box so it stays above the block design bar */}
+          <button
+            type="button"
+            data-overlay-delete
+            onMouseDown={e => { e.stopPropagation(); onDelete() }}
+            className="absolute top-1.5 right-1.5 z-[26] flex h-7 w-7 items-center justify-center rounded-md bg-red-500 text-sm font-bold leading-none text-white shadow-md hover:bg-red-600"
+            title="Delete element (Del)"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <OverlayEditToolbar
+            item={item}
+            onUpdate={onUpdate}
+            blockBackgroundColor={blockBackgroundColor}
+            onEditLink={onEditLink}
+            onRequestText={onRequestText}
+            onStartTextEdit={() => setTextEditing(true)}
+            onOpenAiForImage={onOpenAiForImage}
+            onOpenMediaForImage={onOpenMediaForImage}
+            onPickLocalImage={onPickLocalImage}
+          />
         </>
       )}
     </div>
@@ -1984,11 +2605,12 @@ function OverlayElement({
 }
 
 function BlockOverlayCanvas({
-  overlays, isEditing, onUpdate, onOverlaySelectionChange, onOpenAiImageTools, onOpenMediaLibrary,
+  overlays, isEditing, blockBackgroundColor, onUpdate, onOverlaySelectionChange, onOpenAiImageTools, onOpenMediaLibrary,
   onPickLocalImage, onImageFileDrop, onEditLinkForOverlay, onOverlayContextMenu, onRequestText,
 }: {
   overlays: BlockOverlayItem[]
   isEditing: boolean
+  blockBackgroundColor?: string
   onUpdate?: (overlays: BlockOverlayItem[]) => void
   onOverlaySelectionChange?: (selectedId: string | null) => void
   onOpenAiImageTools?: () => void
@@ -2041,6 +2663,18 @@ function BlockOverlayCanvas({
     setSelected(null)
   }, [overlays, onUpdate, setSelected])
 
+  // Click outside overlay / toolbar / builder popups → clear selection
+  useEffect(() => {
+    if (!isEditing || !selectedId) return
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement
+      if (target.closest(BUILDER_OVERLAY_UI_SELECTOR)) return
+      setSelected(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [isEditing, selectedId, setSelected])
+
   // Keyboard Delete/Escape for selected overlay element
   useEffect(() => {
     if (!isEditing) return
@@ -2062,7 +2696,7 @@ function BlockOverlayCanvas({
 
   if (!overlays.length && !isEditing) return null
 
-  const minH = overlays.length > 0 ? Math.max(...overlays.map(o => o.y + o.h + 20)) : 0
+  const minH = overlays.length > 0 ? Math.max(...overlays.map(o => o.y + o.h + 240)) : 0
 
   return (
     <div
@@ -2083,6 +2717,7 @@ function BlockOverlayCanvas({
             item={item}
             isSelected={isEditing && selectedId === item.id}
             containerRef={containerRef as React.RefObject<HTMLDivElement>}
+            blockBackgroundColor={blockBackgroundColor}
             onSelect={() => setSelected(item.id)}
             onUpdate={updates => updateItem(item.id, updates)}
             onDelete={() => deleteItem(item.id)}
@@ -2155,6 +2790,153 @@ function SectionShapeDivider({ shape, fillColor, position }: {
   )
 }
 
+function buildNavLinksFromPages(pages: WebsitePage[]): { label: string; url: string }[] {
+  return [...pages]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map(pg => ({
+      label: pg.title,
+      url: pg.is_homepage ? '/' : `/${String(pg.slug).replace(/^\/+/, '').replace(/\/+$/, '')}`,
+    }))
+}
+
+function navLinksEqual(
+  a: { label: string; url: string }[],
+  b: { label: string; url: string }[],
+): boolean {
+  return a.length === b.length && a.every((link, i) =>
+    link.label === b[i]?.label && link.url === b[i]?.url,
+  )
+}
+
+function syncNavLinksInBlockMap(
+  blocksByPage: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+): Record<string, WebsiteBlock[]> {
+  if (!pages.length) return blocksByPage
+  const synced = buildNavLinksFromPages(pages)
+  let anyChanged = false
+  const next: Record<string, WebsiteBlock[]> = {}
+  for (const [pageId, blocks] of Object.entries(blocksByPage)) {
+    next[pageId] = blocks.map(block => {
+      if (block.block_type !== 'nav') return block
+      const current = ((block.props as any)?.nav_links as { label?: string; url?: string }[] | undefined) || []
+      const normalized = current.map(l => ({
+        label: String(l?.label ?? ''),
+        url: String(l?.url ?? '/'),
+      }))
+      if (navLinksEqual(normalized, synced)) return block
+      anyChanged = true
+      return {
+        ...block,
+        props: { ...block.props, nav_links: synced },
+      }
+    })
+  }
+  return anyChanged ? next : blocksByPage
+}
+
+function pagesNavKey(pages: WebsitePage[]): string {
+  return pages
+    .map(p => `${p.id}:${p.slug}:${p.title}:${p.show_in_nav}:${p.is_homepage}`)
+    .join('|')
+}
+
+const GLOBAL_STRUCTURE_BLOCK_TYPES = new Set(['announcement_bar', 'nav', 'footer'])
+
+function getPreferredBlockInsertIndex(
+  blockType: string,
+  blocks: WebsiteBlock[],
+  explicitIdx = -1,
+): number {
+  const len = blocks.length
+  if (explicitIdx >= 0) {
+    return Math.max(0, Math.min(explicitIdx, len))
+  }
+  if (blockType === 'announcement_bar') return 0
+  if (blockType === 'nav') {
+    let idx = 0
+    while (idx < len && blocks[idx].block_type === 'announcement_bar') idx += 1
+    return idx
+  }
+  if (blockType === 'footer') return len
+  const footerIdx = blocks.findIndex(b => b.block_type === 'footer')
+  return footerIdx >= 0 ? footerIdx : len
+}
+
+function insertBlockAtIndex(
+  blocks: WebsiteBlock[],
+  block: WebsiteBlock,
+  blockType: string,
+  explicitIdx = -1,
+): WebsiteBlock[] {
+  const insertAt = getPreferredBlockInsertIndex(blockType, blocks, explicitIdx)
+  const next = [...blocks]
+  next.splice(insertAt, 0, block)
+  return next.map((b, i) => ({ ...b, sort_order: i }))
+}
+
+/** Move an existing structure block (nav, announcement, footer) to its canonical slot. */
+function relocateExistingStructureBlock(
+  blocks: WebsiteBlock[],
+  blockType: string,
+  explicitIdx = -1,
+): WebsiteBlock[] | null {
+  const idx = blocks.findIndex(b => b.block_type === blockType)
+  if (idx < 0) return null
+  const block = blocks[idx]
+  const rest = blocks.filter((_, i) => i !== idx)
+  const insertAt = getPreferredBlockInsertIndex(blockType, rest, explicitIdx)
+  if (insertAt === idx) return null
+  const next = [...rest]
+  next.splice(insertAt, 0, block)
+  return next.map((b, i) => ({ ...b, sort_order: i }))
+}
+
+function ensureStructureBlocksOnAllPages(
+  blocksByPage: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+  sourceBlock: WebsiteBlock,
+  blockType: string,
+  originPageId: string,
+): Record<string, WebsiteBlock[]> {
+  if (!GLOBAL_STRUCTURE_BLOCK_TYPES.has(blockType)) return blocksByPage
+  let next = { ...blocksByPage }
+  for (const page of pages) {
+    const blocks = next[page.id] || []
+    const relocated = relocateExistingStructureBlock(blocks, blockType, -1)
+    if (relocated) {
+      next = { ...next, [page.id]: relocated }
+      continue
+    }
+    if (page.id === originPageId || blocks.some(b => b.block_type === blockType)) continue
+    const clone: WebsiteBlock = {
+      ...sourceBlock,
+      id: `temp-${blockType}-${page.id}-${Date.now()}`,
+      page_id: page.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    next = { ...next, [page.id]: insertBlockAtIndex(blocks, clone, blockType, -1) }
+  }
+  return next
+}
+
+function normalizeAllStructureBlocks(
+  blocksByPage: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+): Record<string, WebsiteBlock[]> {
+  let next = { ...blocksByPage }
+  for (const page of pages) {
+    let pageBlocks = (next[page.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    for (const type of ['announcement_bar', 'nav', 'footer'] as const) {
+      const relocated = relocateExistingStructureBlock(pageBlocks, type, -1)
+      if (relocated) pageBlocks = relocated
+    }
+    next = { ...next, [page.id]: pageBlocks }
+  }
+  return next
+}
+
 // ── Block canvas preview renderer ─────────────────────────────────────────────
 
 function BlockPreview({
@@ -2164,12 +2946,13 @@ function BlockPreview({
   onPickLocalImage, onImageFileDrop,
   onPropsUpdate, onEditLinkForOverlay, onOverlayContextMenu,
   onEditPropLink, onRequestText, onNavigatePage,
-  activeTextField, onActiveTextFieldChange,
+  activeTextField, onActiveTextFieldChange, sitePages,
 }: {
   block: WebsiteBlock
   style: StyleConfig
   isSelected: boolean
   isEditing: boolean
+  sitePages?: WebsitePage[]
   onOverlayUpdate?: (overlays: BlockOverlayItem[]) => void
   onOverlaySelectionChange?: (selectedId: string | null) => void
   onOpenAiImageTools?: () => void
@@ -2387,6 +3170,8 @@ function BlockPreview({
   const effectiveStyle: StyleConfig = style
   const ds = (p as any)?.data_source
   const dsType = normalizeSourceType(ds?.type)
+  /** In the builder canvas, hide pulsing "Live · …" badges — editor hints, not part of the published page. */
+  const suppressLiveBadges = sitePages != null
 
   // Resolve the site id from the URL so BlockPreview can hit /live/{resource}
   const { siteId } = useParams<{ siteId: string }>()
@@ -2530,12 +3315,16 @@ function BlockPreview({
       case 'nav': {
         const liveBrandLogo = (dsType === 'profile' && (liveProfile?.meta as any)?.logo_url) || null
         const liveBrand = (dsType === 'profile' && (liveProfile?.meta as any)?.business_name) || null
-        const navLinksFromPages = dsType === 'pages'
+        const navLinksFromSitePages = sitePages?.length ? buildNavLinksFromPages(sitePages) : []
+        const navLinksFromLivePages = dsType === 'pages' && !navLinksFromSitePages.length
           ? livePages.map(pg => ({ label: pg.title, url: pg.url || '/' }))
           : []
-        const displayLinks = navLinksFromPages.length
-          ? navLinksFromPages
-          : (p.nav_links as any[] || [{ label: 'Home' }, { label: 'About' }, { label: 'Contact' }])
+        const usesAutoPageNav = navLinksFromSitePages.length > 0 || navLinksFromLivePages.length > 0
+        const displayLinks = navLinksFromSitePages.length
+          ? navLinksFromSitePages
+          : navLinksFromLivePages.length
+            ? navLinksFromLivePages
+            : (p.nav_links as any[] || [{ label: 'Home' }, { label: 'About' }, { label: 'Contact' }])
         const logoSrc = p.brand_logo || liveBrandLogo
         const brandName = p.brand || liveBrand || 'Your Brand'
         const navUrl = (link: any) => {
@@ -2638,7 +3427,7 @@ function BlockPreview({
                   <InlineEditableText
                     value={l.label || l}
                     placeholder="Nav Link"
-                    editable={canEdit && !navLinksFromPages.length && !onNavigatePage}
+                    editable={canEdit && !usesAutoPageNav && !onNavigatePage}
                     as="span"
                     className="text-sm"
                     style={{ color: navTextCol }}
@@ -2648,7 +3437,7 @@ function BlockPreview({
                       commitProp('nav_links', links)
                     }}
                   />
-                  {canEdit && !navLinksFromPages.length && (
+                  {canEdit && !usesAutoPageNav && (
                     <button type="button" title="Remove link"
                       onClick={e => {
                         e.stopPropagation()
@@ -2661,7 +3450,7 @@ function BlockPreview({
                   )}
                 </div>
               ))}
-              {canEdit && !navLinksFromPages.length && (
+              {canEdit && !usesAutoPageNav && (
                 <button type="button"
                   onClick={e => {
                     e.stopPropagation()
@@ -2689,8 +3478,8 @@ function BlockPreview({
                 </button>
               )}
             </div>
-            {dsType === 'pages' && navLinksFromPages.length > 0 && (
-              <div className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Live: site pages" />
+            {usesAutoPageNav && !suppressLiveBadges && (
+              <div className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Synced with site pages" />
             )}
           </div>
         )
@@ -3082,7 +3871,7 @@ function BlockPreview({
         const gridCols = statsItems.length >= 4 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'
         return (
           <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-4">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your business data</span>
@@ -3135,7 +3924,7 @@ function BlockPreview({
         return (
           <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'What Our Customers Say')}
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · verified reviews (4★+)</span>
@@ -3389,7 +4178,7 @@ function BlockPreview({
         return (
           <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'Meet the Team')}
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your HR team</span>
@@ -3488,9 +4277,9 @@ function BlockPreview({
             ]
         return (
           <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-            {dsType === 'profile' && liveProfile && (
+            {dsType === 'profile' && liveProfile && !suppressLiveBadges && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · synced with your vendor profile</span>
               </div>
             )}
@@ -3536,7 +4325,7 @@ function BlockPreview({
                   )}
                   {p.show_map && (pmeta.latitude || pmeta.longitude) && (
                     <div className="mt-2 h-40 rounded-2xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center text-xs text-gray-500">
-                      <Map className="w-5 h-5 mr-1 shrink-0" style={{ color: primary_color }} />
+                      <MapIcon className="w-5 h-5 mr-1 shrink-0" style={{ color: primary_color }} />
                       {pmeta.city || ''}{pmeta.state ? `, ${pmeta.state}` : ''}
                     </div>
                   )}
@@ -3594,7 +4383,7 @@ function BlockPreview({
                 </div>
               ))}
             </div>
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <p className="text-center text-xs text-emerald-600 mt-3 font-semibold">Live · your top customers</p>
             )}
           </section>
@@ -3623,7 +4412,9 @@ function BlockPreview({
           ? `© ${year} ${pmeta.business_name}. All rights reserved.`
           : ''
         const copyright = ((p.copyright as string) || '').trim() || copyrightFromProfile
-        const liveNavLinks = dsType === 'pages' ? livePages : []
+        const liveNavLinks = sitePages?.length
+          ? buildNavLinksFromPages(sitePages).map((link, i) => ({ id: String(i), title: link.label, url: link.url }))
+          : dsType === 'pages' ? livePages : []
         const hasLiveLinks = liveNavLinks.length > 0
         const rawFooterCols = (p as any).footer_columns
         const footerCols: { title: string; links: string[] }[] = Array.isArray(rawFooterCols) && rawFooterCols.length > 0
@@ -3884,7 +4675,7 @@ function BlockPreview({
               )}
               {IET('title', 'h2', 'text-3xl sm:text-4xl md:text-5xl mb-6 text-balance', { fontFamily: font_heading, color: text_color }, title)}
               {IET('description', 'p', 'opacity-80 max-w-2xl mx-auto text-pretty text-base leading-relaxed', { color: text_color }, desc, true)}
-              {isLive && (
+              {!suppressLiveBadges && isLive && (
                 <div className="flex items-center justify-center gap-1.5 mt-6 text-xs text-emerald-600 font-semibold">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · synced with your vendor profile
                 </div>
@@ -3904,7 +4695,7 @@ function BlockPreview({
               {(p.eyebrow || canEdit) && IET('eyebrow', 'div', 'text-xs font-medium uppercase tracking-wide', { color: primary_color }, 'Our Story')}
               {IET('title', 'h2', 'text-3xl font-bold', { fontFamily: font_heading }, 'About Us')}
               {IET('description', 'p', 'text-gray-500 text-sm leading-relaxed', {}, 'Tell your story here.', true)}
-              {isLive && (
+              {!suppressLiveBadges && isLive && (
                 <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · synced with your vendor profile
                 </div>
@@ -3945,7 +4736,7 @@ function BlockPreview({
                 {(p.title || canEdit) && IET('title', 'h2', 'text-3xl sm:text-4xl', { fontFamily: font_heading, color: text_color }, 'New arrivals')}
                 <span className="text-sm underline opacity-80" style={{ color: text_color }}>View all</span>
               </div>
-              {isLive && liveProducts.length > 0 && (
+              {!suppressLiveBadges && isLive && liveProducts.length > 0 && (
                 <div className="flex items-center gap-1.5 mb-6">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-xs text-emerald-600 font-semibold">Live · your product catalog</span>
@@ -4040,7 +4831,7 @@ function BlockPreview({
         return (
           <div className="py-16 px-8" style={{ backgroundColor: effectiveStyle.surface_color }}>
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-2', { fontFamily: font_heading }, 'Our Products')}
-            {isLive && liveProducts.length > 0 && (
+            {!suppressLiveBadges && isLive && liveProducts.length > 0 && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your product catalog</span>
@@ -4098,7 +4889,7 @@ function BlockPreview({
         return (
           <div className="py-16 px-8">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-2', { fontFamily: font_heading, color: text_color }, 'Our Services')}
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your services catalog</span>
@@ -4144,7 +4935,7 @@ function BlockPreview({
               {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Book a Session')}
               {(p.subtitle || canEdit) && IET('subtitle', 'p', 'text-gray-500', {}, 'Choose a time that works for you')}
             </div>
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your services</span>
@@ -4190,10 +4981,12 @@ function BlockPreview({
         return (
           <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
             {(p.title || canEdit) && IET('title', 'h3', 'text-xl font-bold text-gray-900 mb-4', { fontFamily: font_heading, color: '#111827' }, 'Live Inventory')}
+            {!suppressLiveBadges && (
             <div className="flex items-center gap-1.5 mb-4">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
               <span className="text-xs text-emerald-600 font-semibold">{isLive ? 'Live · your inventory' : 'Live preview (connect products for real stock)'}</span>
             </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
@@ -4350,7 +5143,7 @@ function BlockPreview({
         return (
           <div className="py-16 px-8" style={{ backgroundColor: effectiveStyle.surface_color }}>
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-4', { fontFamily: font_heading, color: text_color }, 'Our Menu')}
-            {(isLiveProducts || isLiveCategories) && (
+            {!suppressLiveBadges && (isLiveProducts || isLiveCategories) && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · {isLiveProducts ? 'products by category' : 'your catalog categories'}</span>
@@ -4402,7 +5195,7 @@ function BlockPreview({
         return (
           <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
             {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-4', { fontFamily: font_heading }, 'Gallery')}
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-4">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · {dsType === 'media' ? 'your site media' : 'product images'}</span>
@@ -4431,7 +5224,7 @@ function BlockPreview({
         return (
           <div className="py-16 px-8">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-4', { fontFamily: font_heading }, 'Our Portfolio')}
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your site media library</span>
@@ -4457,14 +5250,21 @@ function BlockPreview({
       case 'category_cards': {
         const isLive = dsType === 'categories' && liveCategories.length > 0
         const editorial = (p as any).layout === 'editorial'
+        const propCats = categoryCardsFromProps((p as any).categories)
+        const propImageByTitle = new Map(
+          propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
+        )
         const cats: any[] = isLive
           ? liveCategories.map(c => ({
             title: c.title,
             subtitle: c.subtitle,
             count: (c.meta as any)?.count,
-            image_url: (c.meta as any)?.image_url || (c as any).image_url,
+            image_url:
+              (c.meta as any)?.image_url
+              || (c as any).image_url
+              || propImageByTitle.get(String(c.title || '').toLowerCase()),
           }))
-          : ((p as any).categories as any[] || [{ title: 'Category A' }, { title: 'Category B' }, { title: 'Category C' }])
+          : propCats
         const cols = (p as any).columns || 3
         if (editorial) {
           const eyebrow = (p as any).eyebrow as string | undefined
@@ -4487,7 +5287,7 @@ function BlockPreview({
                 </div>
                 <span className="text-sm underline opacity-80 cursor-default" style={{ color: text_color }}>View all</span>
               </div>
-              {isLive && (
+              {!suppressLiveBadges && isLive && (
                 <div className="flex items-center gap-1.5 mb-4">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-xs text-emerald-600 font-semibold">Live · your catalog categories</span>
@@ -4513,7 +5313,7 @@ function BlockPreview({
         return (
           <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
             {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-4', { fontFamily: font_heading, color: text_color }, 'Browse Categories')}
-            {isLive && (
+            {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-4">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your catalog categories</span>
@@ -4610,17 +5410,17 @@ function BlockPreview({
               <div className="w-full h-80 rounded-2xl bg-gray-100 flex flex-col items-center justify-center text-gray-400 px-4 text-center">
                 <MapPin className="w-10 h-10 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Add an address to show the map</p>
-                {dsType === 'profile' && liveProfile && !hasMapLocation && (
+                {dsType === 'profile' && liveProfile && !hasMapLocation && !suppressLiveBadges && (
                   <p className="text-xs text-emerald-600 font-semibold mt-2 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                     Set address in your vendor profile
                   </p>
                 )}
               </div>
             )}
-            {dsType === 'profile' && liveProfile && hasMapLocation && mapSrc && (
+            {dsType === 'profile' && liveProfile && hasMapLocation && mapSrc && !suppressLiveBadges && (
               <p className="text-center text-xs text-emerald-600 font-semibold mt-3 flex items-center justify-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                 Live from your vendor profile
               </p>
             )}
@@ -4649,7 +5449,7 @@ function BlockPreview({
                 </a>
               ))}
             </div>
-            {entries.length > 0 && dsType === 'profile' && (
+            {!suppressLiveBadges && entries.length > 0 && dsType === 'profile' && (
               <p className="text-center text-xs text-emerald-600 mt-3 font-semibold">Live · from your vendor profile</p>
             )}
           </section>
@@ -4745,9 +5545,11 @@ function BlockPreview({
                 <div className="flex gap-2">
                   <div style={{ backgroundColor: primary_color, borderRadius: r }} className="flex-1 h-11 flex items-center justify-center text-white font-semibold text-sm">Add to Cart</div>
                 </div>
+                {!suppressLiveBadges && (
                 <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · connected to your product catalog
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Live · connected to your product catalog
                 </div>
+                )}
               </div>
             </div>
           </div>
@@ -4793,7 +5595,7 @@ function BlockPreview({
                 </div>
               ))}
             </div>
-            {reviews.length > 0 && <p className="text-center text-xs text-emerald-600 mt-4 font-semibold">Live · from your verified reviews</p>}
+            {!suppressLiveBadges && reviews.length > 0 && <p className="text-center text-xs text-emerald-600 mt-4 font-semibold">Live · from your verified reviews</p>}
           </div>
         )
       }
@@ -4818,9 +5620,11 @@ function BlockPreview({
                 {IET('cta_label', 'span', '', {}, 'Confirm Booking')}
               </div>
             </div>
+            {!suppressLiveBadges && (
             <div className="flex items-center justify-center gap-1 mt-4 text-xs text-emerald-600 font-semibold">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · connects to your services
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Live · connects to your services
             </div>
+            )}
           </div>
         )
 
@@ -4888,6 +5692,11 @@ function BlockPreview({
 
   const hasShape = (topShape && topShape !== 'none') || (bottomShape && bottomShape !== 'none')
   const overlays: BlockOverlayItem[] = ((p as any).overlays as BlockOverlayItem[]) || []
+  const overlayBlockBg = overrideBg
+    || (p as any).bg_color_override as string | undefined
+    || bg_color
+    || effectiveStyle.surface_color
+    || '#ffffff'
   const needsRelative = hasShape || overlays.length > 0 || isEditing
   const bid = `b${block.id.replace(/-/g, '')}`
   const fieldStyleCss = Object.entries(fieldStyles).map(([key, fs]) => {
@@ -4895,7 +5704,7 @@ function BlockPreview({
     return `
       [data-bid="${bid}"] [data-text-key="${selectorKey}"] {
         ${typeof fs.text_color_override === 'string' ? `color: ${fs.text_color_override} !important;` : ''}
-        ${typeof fs.font_size_px === 'number' && fs.font_size_px > 0 ? `font-size: ${Math.round(fs.font_size_px)}px !important;` : ''}
+        ${typeof fs.font_size_px === 'number' && fs.font_size_px > 0 ? `font-size: ${Math.round(fs.font_size_px)}px;` : ''}
         ${typeof fs.text_transform === 'string' ? `text-transform: ${fs.text_transform} !important;` : ''}
       }
     `
@@ -4950,6 +5759,7 @@ function BlockPreview({
         <BlockOverlayCanvas
           overlays={overlays}
           isEditing={isEditing && !!onOverlayUpdate}
+          blockBackgroundColor={overlayBlockBg}
           onUpdate={onOverlayUpdate}
           onOverlaySelectionChange={onOverlaySelectionChange}
           onOpenAiImageTools={onOpenAiImageTools}
@@ -5846,6 +6656,85 @@ function BranchVisibilitySelector({
   )
 }
 
+function BlockImagePickerField({
+  blockId,
+  label,
+  fieldKey,
+  hint,
+  currentUrl,
+  onUpdate,
+}: {
+  blockId: string
+  label: string
+  fieldKey: string
+  hint?: string
+  currentUrl?: string
+  onUpdate: (props: Partial<BlockProps>) => void
+}) {
+  const resolved = currentUrl ? mediaUrl(currentUrl) : ''
+  const [imgOk, setImgOk] = useState(true)
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs font-medium text-gray-600 flex-1">{label}</label>
+        {currentUrl && (
+          <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
+        )}
+      </div>
+      <div
+        className={cn(
+          'relative rounded-xl overflow-hidden border-2 transition-all',
+          currentUrl && resolved && imgOk
+            ? 'border-primary/30 bg-gray-100'
+            : 'border-dashed border-gray-200 bg-gray-50 flex items-center justify-center',
+        )}
+        style={{ minHeight: currentUrl && resolved && imgOk ? undefined : '96px' }}
+      >
+        {currentUrl && resolved ? (
+          <>
+            <img
+              key={resolved}
+              src={resolved}
+              className="w-full object-cover"
+              style={{ maxHeight: '140px', display: imgOk ? undefined : 'none' }}
+              alt=""
+              onLoad={() => setImgOk(true)}
+              onError={() => setImgOk(false)}
+            />
+            {!imgOk && (
+              <div className="w-full h-24 flex flex-col items-center justify-center text-gray-400 gap-1">
+                <ImageIcon className="w-6 h-6 opacity-40" />
+                <span className="text-xs">Cannot preview (URL may be invalid)</span>
+              </div>
+            )}
+            <div className="absolute top-1.5 right-1.5 flex gap-1">
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard.writeText(resolved); toast.success('URL copied!') }}
+                className="p-1 bg-black/50 rounded text-white hover:bg-black/70"
+                title="Copy URL"
+              ><Copy className="w-3 h-3" /></button>
+            </div>
+          </>
+        ) : (
+          <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-gray-400 w-full">
+            <ImageIcon className="w-7 h-7 opacity-30" />
+            <span className="text-xs text-center">No image set<br />Upload in Media tab → Use in Block</span>
+          </div>
+        )}
+      </div>
+      <input
+        key={`${blockId}-${fieldKey}`}
+        defaultValue={currentUrl || ''}
+        onBlur={e => { onUpdate({ [fieldKey]: e.target.value }); setImgOk(true) }}
+        placeholder="Paste URL or use Media tab →"
+        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+      />
+      {hint && <p className="text-xs text-gray-400">{hint}</p>}
+    </div>
+  )
+}
+
 
 function PropsEditor({
   block, onUpdate, onPreview, siteId, pages, onAddPage, onEditPropLink,
@@ -5878,6 +6767,11 @@ function PropsEditor({
 
   // Smart Design state
   const [smartLoading, setSmartLoading] = useState(false)
+
+  const itemSchema = ITEM_SCHEMAS[block.block_type]
+  const [subColumns, setSubColumns] = useState<number>((p as any).columns ?? itemSchema?.fields.length ?? 3)
+  const [subGap, setSubGap] = useState<number>((p as any).item_gap ?? 24)
+  const [subItemSize, setSubItemSize] = useState<number>((p as any).item_size ?? 160)
 
   // ── Per-field AI handler ────────────────────────────────────────────────
   const handleFieldAI = useCallback(async (fieldKey: string) => {
@@ -6076,98 +6970,35 @@ function PropsEditor({
     </div>
   )
 
-  // ImagePickerField — used for any image-bearing block prop
-  const ImagePickerField = useCallback(({ label, fieldKey, hint }: { label: string; fieldKey: string; hint?: string }) => {
-    const currentUrl = (p as any)[fieldKey] as string | undefined
-    const resolved = currentUrl ? mediaUrl(currentUrl) : ''
-    const [imgOk, setImgOk] = useState(true)
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5">
-          <label className="text-xs font-medium text-gray-600 flex-1">{label}</label>
-          {currentUrl && (
-            <button onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
-          )}
-        </div>
-        {/* Large image preview or drop zone */}
-        <div
-          className={cn(
-            'relative rounded-xl overflow-hidden border-2 transition-all',
-            currentUrl && resolved && imgOk
-              ? 'border-primary/30 bg-gray-100'
-              : 'border-dashed border-gray-200 bg-gray-50 flex items-center justify-center'
-          )}
-          style={{ minHeight: currentUrl && resolved && imgOk ? undefined : '96px' }}
-        >
-          {currentUrl && resolved ? (
-            <>
-              <img
-                key={resolved}
-                src={resolved}
-                className="w-full object-cover"
-                style={{ maxHeight: '140px', display: imgOk ? undefined : 'none' }}
-                alt=""
-                onLoad={() => setImgOk(true)}
-                onError={() => setImgOk(false)}
-              />
-              {!imgOk && (
-                <div className="w-full h-24 flex flex-col items-center justify-center text-gray-400 gap-1">
-                  <ImageIcon className="w-6 h-6 opacity-40" />
-                  <span className="text-xs">Cannot preview (URL may be invalid)</span>
-                </div>
-              )}
-              <div className="absolute top-1.5 right-1.5 flex gap-1">
-                <button
-                  onClick={() => { navigator.clipboard.writeText(resolved); toast.success('URL copied!') }}
-                  className="p-1 bg-black/50 rounded text-white hover:bg-black/70"
-                  title="Copy URL"
-                ><Copy className="w-3 h-3" /></button>
-              </div>
-            </>
-          ) : (
-            <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-gray-400 w-full">
-              <ImageIcon className="w-7 h-7 opacity-30" />
-              <span className="text-xs text-center">No image set<br />Upload in Media tab → Use in Block</span>
-            </div>
-          )}
-        </div>
-        {/* URL input */}
-        <input
-          key={`${block.id}-${fieldKey}`}
-          defaultValue={currentUrl || ''}
-          onBlur={e => { onUpdate({ [fieldKey]: e.target.value }); setImgOk(true) }}
-          placeholder="Paste URL or use Media tab →"
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-        />
-        {hint && <p className="text-xs text-gray-400">{hint}</p>}
-      </div>
-    )
-  }, [block.id, p, onUpdate])
+  const imagePicker = (label: string, fieldKey: string, hint?: string) => (
+    <BlockImagePickerField
+      blockId={block.id}
+      label={label}
+      fieldKey={fieldKey}
+      hint={hint}
+      currentUrl={(p as any)[fieldKey] as string | undefined}
+      onUpdate={onUpdate}
+    />
+  )
 
   // Always show bg image for any hero block, AND always show image_url for split heroes
   const isHeroBlock = ['hero', 'hero_split', 'hero_minimal'].includes(block.block_type)
   const isSplitHero = block.block_type === 'hero_split' || p.layout === 'split'
 
-  const bgImageField = (p.bg_style === 'image' || isHeroBlock) && (
-    <ImagePickerField
-      label={isSplitHero ? 'Background Image (full bg)' : 'Background Image'}
-      fieldKey="bg_image_url"
-      hint={isSplitHero ? 'For full-bleed background. Use "Image URL" below for the right panel.' : undefined}
-    />
+  const bgImageField = (p.bg_style === 'image' || isHeroBlock) && imagePicker(
+    isSplitHero ? 'Background Image (full bg)' : 'Background Image',
+    'bg_image_url',
+    isSplitHero ? 'For full-bleed background. Use "Image URL" below for the right panel.' : undefined,
   )
 
   // For split heroes, always show a dedicated right-panel image picker
-  const splitImageField = isSplitHero && (
-    <ImagePickerField
-      label="Right Panel Image ★"
-      fieldKey="image_url"
-      hint="This image appears on the right side of the split hero."
-    />
+  const splitImageField = isSplitHero && imagePicker(
+    'Right Panel Image ★',
+    'image_url',
+    'This image appears on the right side of the split hero.',
   )
 
-  const imageUrlField = !isSplitHero && p.image_url !== undefined && (
-    <ImagePickerField label="Image" fieldKey="image_url" />
-  )
+  const imageUrlField = !isSplitHero && p.image_url !== undefined && imagePicker('Image', 'image_url')
 
   const layoutField = p.layout !== undefined && (
     <div className="space-y-1.5">
@@ -6183,12 +7014,6 @@ function PropsEditor({
       </div>
     </div>
   )
-
-  // Sub-item schema detection
-  const itemSchema = ITEM_SCHEMAS[block.block_type]
-  const [subColumns, setSubColumns] = useState<number>((p as any).columns ?? itemSchema?.fields.length ?? 3)
-  const [subGap, setSubGap] = useState<number>((p as any).item_gap ?? 24)
-  const [subItemSize, setSubItemSize] = useState<number>((p as any).item_size ?? 160)
 
   return (
     <div className="space-y-4 p-4">
@@ -6263,7 +7088,7 @@ function PropsEditor({
       {block.block_type === 'nav' && (
         <div className="space-y-2 pb-2 border-b border-gray-100">
           <label className="text-xs font-medium text-gray-600">Brand Logo</label>
-          <ImagePickerField label="Logo Image" fieldKey="brand_logo" />
+          {imagePicker('Logo Image', 'brand_logo')}
           {p.brand_logo && (
             <button
               type="button"
@@ -6279,21 +7104,11 @@ function PropsEditor({
         </div>
       )}
 
-      {/* ── Nav block — Page management ── */}
+      {/* ── Nav block — synced pages ── */}
       {block.block_type === 'nav' && pages && pages.length > 0 && (
         <div className="space-y-2 pb-1 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 flex-1">Pages in Nav</label>
-            <button
-              onClick={() => {
-                const synced = pages.map(pg => ({ label: pg.title, url: `/${pg.slug}` }))
-                onUpdate({ nav_links: synced } as any)
-                toast.success('Nav synced with all pages!')
-              }}
-              className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
-            >
-              <RefreshCw className="w-3 h-3" /> Sync All
-            </button>
+            <label className="text-xs font-medium text-gray-600 flex-1">Navigation links</label>
             {onAddPage && (
               <button
                 onClick={onAddPage}
@@ -6304,38 +7119,21 @@ function PropsEditor({
             )}
           </div>
           <div className="space-y-1">
-            {pages.map(pg => {
-              const navLinks: any[] = (p.nav_links as any[]) || []
-              const isInNav = navLinks.some((l: any) => l.url === `/${pg.slug}` || l.url === pg.slug || l.url === `/${pg.slug}/`)
-              return (
+            {[...pages]
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+              .map(pg => (
                 <div key={pg.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-gray-700 truncate">{pg.title}</div>
-                    <div className="text-xs text-gray-400 font-mono">/{pg.slug}</div>
+                    <div className="text-xs text-gray-400 font-mono">{pg.is_homepage ? '/' : `/${pg.slug}`}</div>
                   </div>
-                  <button
-                    onClick={() => {
-                      if (isInNav) {
-                        onUpdate({ nav_links: navLinks.filter((l: any) => l.url !== `/${pg.slug}` && l.url !== pg.slug) } as any)
-                      } else {
-                        onUpdate({ nav_links: [...navLinks, { label: pg.title, url: `/${pg.slug}` }] } as any)
-                        toast.success(`"${pg.title}" added to nav`)
-                      }
-                    }}
-                    className={cn(
-                      'shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors',
-                      isInNav
-                        ? 'bg-primary/10 text-primary border-primary/40 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
-                        : 'bg-white text-gray-500 border-gray-200 hover:border-primary/60 hover:bg-accent hover:text-primary'
-                    )}
-                  >
-                    {isInNav ? '✓ In Nav' : '+ Add'}
-                  </button>
+                  <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    In nav
+                  </span>
                 </div>
-              )
-            })}
+              ))}
           </div>
-          <p className="text-xs text-gray-400">Toggle pages above or use "Sync All" to rebuild nav from all pages.</p>
+          <p className="text-xs text-gray-400">Navigation stays in sync with your site pages automatically.</p>
         </div>
       )}
 
@@ -6754,6 +7552,163 @@ const SITE_THEME_PRESETS = [
     colors: { primary_color: '#d946ef', secondary_color: '#a21caf', accent_color: '#f59e0b', bg_color: '#fdf4ff', surface_color: '#ffffff', text_color: '#4a044e' },
   },
 ]
+
+function PagePanel({
+  pages,
+  activePageId,
+  onSelectPage,
+  siteStyle,
+  onPageStyleChange,
+  onClearPageStyle,
+}: {
+  pages: WebsitePage[]
+  activePageId: string | null
+  onSelectPage: (pageId: string) => void
+  siteStyle: StyleConfig
+  onPageStyleChange: (pageId: string, patch: PageStyleOverrides) => void
+  onClearPageStyle: (pageId: string) => void
+}) {
+  const activePage = pages.find(p => p.id === activePageId) || null
+  const pageOverrides = activePageId ? (siteStyle.page_styles?.[activePageId] || {}) : {}
+  const effective = activePageId ? mergePageStyleConfig(siteStyle, activePageId) : siteStyle
+  const hasOverrides = Object.keys(pageOverrides).length > 0
+
+  const colorField = (key: keyof PageStyleOverrides, label: string, fallback: string) => (
+    <div key={key} className="flex items-center gap-2">
+      <input
+        type="color"
+        value={(pageOverrides[key] as string) || (effective[key as keyof StyleConfig] as string) || fallback}
+        onChange={e => activePageId && onPageStyleChange(activePageId, { [key]: e.target.value })}
+        className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
+      />
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium text-gray-700">{label}</div>
+        <div className="text-xs text-gray-400 font-mono truncate">
+          {(pageOverrides[key] as string) || 'Site default'}
+        </div>
+      </div>
+      {pageOverrides[key] != null && activePageId && (
+        <button
+          type="button"
+          onClick={() => onPageStyleChange(activePageId, { [key]: undefined } as PageStyleOverrides)}
+          className="text-[10px] text-gray-400 hover:text-red-500 shrink-0"
+          title="Use site default"
+        >
+          Reset
+        </button>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="p-4 space-y-5">
+      <div>
+        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Pages</div>
+        <div className="flex gap-1.5 overflow-x-auto hide-scrollbar rounded-lg border border-gray-100 p-1.5">
+          {pages.map(page => {
+            const selected = page.id === activePageId
+            const customized = !!(siteStyle.page_styles?.[page.id] && Object.keys(siteStyle.page_styles[page.id]).length > 0)
+            return (
+              <button
+                key={page.id}
+                type="button"
+                title={page.is_homepage ? `${page.title} (homepage)` : `/${page.slug}`}
+                onClick={() => onSelectPage(page.id)}
+                className={cn(
+                  'shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors',
+                  selected
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                )}
+              >
+                {page.title}
+                {customized && (
+                  <span
+                    className={cn('w-1.5 h-1.5 rounded-full shrink-0', selected ? 'bg-white/80' : 'bg-primary')}
+                    title="Custom page style"
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {!activePage ? (
+        <p className="text-xs text-gray-400 text-center py-6">Select a page to edit its appearance.</p>
+      ) : (
+        <>
+          <div className="rounded-xl bg-accent/60 border border-primary/15 px-3 py-2">
+            <div className="text-xs font-bold text-primary">{activePage.title}</div>
+            <div className="text-[10px] text-primary/70 mt-0.5">Styles below apply to this page only</div>
+          </div>
+
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Page colors</div>
+            <div className="space-y-2">
+              {colorField('bg_color', 'Background', siteStyle.bg_color)}
+              {colorField('surface_color', 'Surface / cards', siteStyle.surface_color)}
+              {colorField('text_color', 'Text', siteStyle.text_color)}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Typography</div>
+            <div className="space-y-2">
+              {([
+                { key: 'font_heading' as const, label: 'Heading font' },
+                { key: 'font_body' as const, label: 'Body font' },
+              ]).map(({ key, label }) => (
+                <div key={key} className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">{label}</label>
+                  <select
+                    value={(pageOverrides[key] as string) || (effective[key] as string)}
+                    onChange={e => onPageStyleChange(activePage.id, { [key]: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"
+                    style={{ fontFamily: (pageOverrides[key] as string) || (effective[key] as string) }}
+                  >
+                    {FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
+                  </select>
+                </div>
+              ))}
+              {([
+                { key: 'font_size_base' as const, label: 'Body size', min: 12, max: 22, fallback: siteStyle.font_size_base || 16 },
+                { key: 'font_size_heading' as const, label: 'Heading size', min: 24, max: 56, fallback: siteStyle.font_size_heading || 40 },
+              ]).map(({ key, label, min, max, fallback }) => {
+                const val = (pageOverrides[key] as number | undefined) ?? fallback
+                return (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 w-20 shrink-0">{label}</span>
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={1}
+                      value={val}
+                      onChange={e => onPageStyleChange(activePage.id, { [key]: Number(e.target.value) })}
+                      className="flex-1 accent-primary h-1"
+                    />
+                    <span className="text-xs text-gray-400 w-10 text-right tabular-nums">{val}px</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {hasOverrides && (
+            <button
+              type="button"
+              onClick={() => onClearPageStyle(activePage.id)}
+              className="w-full py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Reset page to site defaults
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
 
 function StylePanel({
   style, onChange, siteId,
@@ -7783,6 +8738,66 @@ const TEXT_CASE_MENU_ROWS: { id: TextCaseMenuId; label: string }[] = [
   { id: 'toggle', label: 'tOGGLE cASE' },
 ]
 
+/** Portals design-bar dropdowns to body so they aren't clipped by overflow-x-auto / section overflow. */
+function DesignBarDropdownPortal({
+  open,
+  anchorRef,
+  menuRef,
+  className,
+  children,
+}: {
+  open: boolean
+  anchorRef: React.RefObject<HTMLElement | null>
+  menuRef: React.RefObject<HTMLDivElement | null>
+  className?: string
+  children: React.ReactNode
+}) {
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+
+  useEffect(() => {
+    if (!open || !anchorRef.current) return
+    const update = () => {
+      const rect = anchorRef.current!.getBoundingClientRect()
+      setPos({ top: rect.bottom + 4, left: rect.left })
+    }
+    update()
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [open, anchorRef])
+
+  if (!open) return null
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 100000 }}
+      className={className}
+      onMouseDown={e => e.stopPropagation()}
+    >
+      {children}
+    </div>,
+    document.body,
+  )
+}
+
+const CANVAS_DESIGN_WIDTH: Record<DeviceMode, number> = {
+  desktop: 1440,
+  tablet: 768,
+  mobile: 390,
+}
+const DEVICE_SWITCHER: { mode: DeviceMode; Icon: typeof Monitor; label: string; num: string; sizeLabel: string }[] = [
+  { mode: 'desktop', Icon: Monitor, label: 'Desktop', num: '1', sizeLabel: '1440px' },
+  { mode: 'tablet', Icon: Tablet, label: 'Tablet', num: '2', sizeLabel: '768px' },
+  { mode: 'mobile', Icon: Smartphone, label: 'Mobile', num: '3', sizeLabel: '390px' },
+]
+const CANVAS_ZOOM_MIN = 0.25
+const CANVAS_ZOOM_MAX = 3
+const CANVAS_ZOOM_STEP = 0.1
+
 function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, onUndo, onRedo, canUndo, canRedo }: {
   block: WebsiteBlock
   onUpdate: (p: Partial<BlockProps>) => void
@@ -7800,16 +8815,81 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   const [showShapes, setShowShapes] = useState(false)
   const [showCase, setShowCase] = useState(false)
   const barRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const insertBtnRef = useRef<HTMLButtonElement>(null)
+  const blocksBtnRef = useRef<HTMLButtonElement>(null)
+  const caseBtnRef = useRef<HTMLButtonElement>(null)
+  const animBtnRef = useRef<HTMLButtonElement>(null)
+  const shapesBtnRef = useRef<HTMLButtonElement>(null)
   const p = block.props
   const fieldStyles = ((p as any)._field_styles || {}) as Record<string, Record<string, unknown>>
   const activeFieldStyle = activeTextField ? (fieldStyles[activeTextField] || {}) : null
 
-  const updateTextStyle = (patch: Record<string, unknown>) => {
-    if (activeTextField && applyInlineTextSelectionStyle(activeTextField, patch)) {
+  const updateTextStyle = (patch: Record<string, unknown>, opts?: { fontSizeDelta?: number }) => {
+    const fieldKey = savedInlineTextSelection?.key || activeTextField || null
+    let stylePatch = { ...patch }
+
+    if (opts?.fontSizeDelta != null) {
+      if (hasActiveInlineTextSelection(fieldKey)) {
+        restoreSavedInlineSelection()
+        const px = getSelectionFontSizePx(savedInlineTextSelection!.range)
+        stylePatch = {
+          ...stylePatch,
+          font_size_px: Math.min(
+            FONT_SIZE_PX_MAX,
+            Math.max(FONT_SIZE_PX_MIN, px + opts.fontSizeDelta),
+          ),
+          text_scale: null,
+        }
+      } else if (
+        fieldKey &&
+        lastInlineStyledSpan &&
+        lastInlineStyledSpan.key === fieldKey &&
+        lastInlineStyledSpan.span.isConnected
+      ) {
+        const px = parseFloat(window.getComputedStyle(lastInlineStyledSpan.span).fontSize)
+        const base = px > 0 && Number.isFinite(px) ? Math.round(px) : FONT_SIZE_PX_FALLBACK
+        stylePatch = {
+          ...stylePatch,
+          font_size_px: Math.min(
+            FONT_SIZE_PX_MAX,
+            Math.max(FONT_SIZE_PX_MIN, base + opts.fontSizeDelta),
+          ),
+          text_scale: null,
+        }
+      } else {
+        const cur = (typographySource as any).font_size_px as number | undefined
+        const base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : FONT_SIZE_PX_FALLBACK
+        stylePatch = {
+          ...stylePatch,
+          font_size_px: Math.min(
+            FONT_SIZE_PX_MAX,
+            Math.max(FONT_SIZE_PX_MIN, base + opts.fontSizeDelta),
+          ),
+          text_scale: null,
+        }
+      }
+    }
+
+    if (fieldKey && hasActiveInlineTextSelection(fieldKey)) {
+      if (applyInlineTextSelectionStyle(fieldKey, stylePatch)) return
+      // Selection was active — do not fall back to styling the whole field
       return
     }
+
+    if (fieldKey && applyPatchToLastStyledSpan(fieldKey, stylePatch)) return
+
+    if (
+      fieldKey &&
+      lastInlineStyledSpan &&
+      lastInlineStyledSpan.key === fieldKey &&
+      lastInlineStyledSpan.span.isConnected
+    ) {
+      return
+    }
+
     if (!activeTextField) {
-      onUpdate(patch as any)
+      onUpdate(stylePatch as any)
       return
     }
     onUpdate({
@@ -7817,7 +8897,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         ...fieldStyles,
         [activeTextField]: {
           ...(fieldStyles[activeTextField] || {}),
-          ...patch,
+          ...stylePatch,
         },
       },
     } as any)
@@ -7825,13 +8905,13 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
 
   const typographySource = activeFieldStyle || (p as Record<string, unknown>)
 
-  // Close any open dropdown when clicking outside the bar
+  // Close any open dropdown when clicking outside the bar (dropdown is portalled to body)
   useEffect(() => {
     if (!showInsert && !showBlocks && !showAnim && !showShapes && !showCase) return
     const handler = (e: MouseEvent) => {
-      if (barRef.current && !barRef.current.contains(e.target as Node)) {
-        setShowInsert(false); setShowBlocks(false); setShowAnim(false); setShowShapes(false); setShowCase(false)
-      }
+      const t = e.target as Node
+      if (barRef.current?.contains(t) || dropdownRef.current?.contains(t)) return
+      setShowInsert(false); setShowBlocks(false); setShowAnim(false); setShowShapes(false); setShowCase(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -7866,12 +8946,13 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   return (
     <div
       ref={barRef}
-      className="absolute top-0 left-0 right-0 z-[80] flex min-h-[38px] items-center gap-1.5 overflow-x-auto overflow-y-visible border-t-2 border-primary border-b border-primary/30 bg-white px-2 py-1.5 pr-[20rem] shadow-sm"
+      className="absolute top-0 left-0 right-0 z-[80] flex min-h-[38px] items-center gap-1.5 overflow-x-auto overflow-y-visible border-t-2 border-primary border-b border-primary/30 bg-white px-2 py-1.5 shadow-sm"
       onClick={e => e.stopPropagation()}
     >
       {/* INSERT ELEMENT — primary action: adds elements WITHIN the block */}
       <div className="relative">
         <button
+          ref={insertBtnRef}
           onClick={() => { setShowInsert(v => !v); setShowBlocks(false); setShowAnim(false); setShowShapes(false); setShowCase(false) }}
           className={cn(
             'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-colors',
@@ -7883,8 +8964,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             <span className="bg-white text-primary rounded-full px-1 text-[8px] font-black ml-0.5">{overlayCount}</span>
           )}
         </button>
-        {showInsert && (
-          <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden w-56">
+        <DesignBarDropdownPortal
+          open={showInsert}
+          anchorRef={insertBtnRef}
+          menuRef={dropdownRef}
+          className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden w-56"
+        >
             <div className="px-3 py-2 bg-accent border-b border-primary/20">
               <div className="text-xs font-bold text-primary">Insert inside this section</div>
               <div className="text-xs text-primary/80 mt-0.5">Elements are draggable & resizable within the block</div>
@@ -7916,21 +9001,25 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 >Clear all</button>
               </div>
             )}
-          </div>
-        )}
+        </DesignBarDropdownPortal>
       </div>
 
       {/* ADD BLOCK — secondary: add new section after this one */}
       <div className="relative">
         <button
+          ref={blocksBtnRef}
           onClick={() => { setShowBlocks(v => !v); setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowCase(false) }}
           className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300 text-gray-600 text-xs font-medium hover:border-primary/60 hover:bg-accent transition-colors"
           title="Add a new block section after this one"
         >
           <Layers className="w-3 h-3" /> Block
         </button>
-        {showBlocks && (
-          <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl p-2 grid grid-cols-2 gap-0.5 w-44">
+        <DesignBarDropdownPortal
+          open={showBlocks}
+          anchorRef={blocksBtnRef}
+          menuRef={dropdownRef}
+          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2 grid grid-cols-2 gap-0.5 w-44"
+        >
             <div className="col-span-2 text-xs font-bold text-gray-400 uppercase tracking-wide px-2 py-1">Add section after this</div>
             {QUICK_INSERT_TYPES.map(({ type, label }) => (
               <button key={type}
@@ -7938,8 +9027,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 className="text-left px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:bg-accent hover:text-primary transition-colors"
               >{label}</button>
             ))}
-          </div>
-        )}
+        </DesignBarDropdownPortal>
       </div>
 
       <div className="w-px h-4 bg-gray-200 shrink-0" />
@@ -7948,16 +9036,13 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       <div
         className="inline-flex items-center gap-0.5 rounded-lg border border-gray-700 bg-gray-900 p-0.5 shrink-0 shadow-sm"
         title="Font size in pixels"
+        onMouseDown={e => e.preventDefault()}
       >
         <button
           type="button"
           className="flex h-6 items-center gap-0.5 rounded px-1.5 text-white hover:bg-gray-800"
-          onClick={() => {
-            const cur = (typographySource as any).font_size_px as number | undefined
-            const base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : FONT_SIZE_PX_FALLBACK
-            const next = Math.min(FONT_SIZE_PX_MAX, Math.max(FONT_SIZE_PX_MIN, base + FONT_SIZE_PX_STEP))
-            updateTextStyle({ font_size_px: next, text_scale: null })
-          }}
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => updateTextStyle({ text_scale: null }, { fontSizeDelta: FONT_SIZE_PX_STEP })}
         >
           <span className="text-xs font-bold leading-none">A</span>
           <ChevronUp className="w-2.5 h-2.5 text-sky-400 shrink-0" strokeWidth={2.75} />
@@ -7965,12 +9050,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         <button
           type="button"
           className="flex h-6 items-center gap-0.5 rounded px-1.5 text-white hover:bg-gray-800"
-          onClick={() => {
-            const cur = (typographySource as any).font_size_px as number | undefined
-            const base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : FONT_SIZE_PX_FALLBACK
-            const next = Math.min(FONT_SIZE_PX_MAX, Math.max(FONT_SIZE_PX_MIN, base - FONT_SIZE_PX_STEP))
-            updateTextStyle({ font_size_px: next, text_scale: null })
-          }}
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => updateTextStyle({ text_scale: null }, { fontSizeDelta: -FONT_SIZE_PX_STEP })}
         >
           <span className="text-xs font-bold leading-none">A</span>
           <ChevronDown className="w-2.5 h-2.5 text-sky-400 shrink-0" strokeWidth={2.75} />
@@ -7983,6 +9064,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
               ? String(Math.round((typographySource as any).font_size_px))
               : ''
           }
+          onMouseDown={e => e.preventDefault()}
           onChange={e => {
             const v = e.target.value
             if (!v) updateTextStyle({ font_size_px: null })
@@ -7999,6 +9081,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
 
       <div className="relative shrink-0">
         <button
+          ref={caseBtnRef}
           type="button"
           title="Text case"
           onClick={() => {
@@ -8015,11 +9098,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           Aa
           <ChevronDown className="w-3 h-3 opacity-70" />
         </button>
-        {showCase && (
-          <div
-            className="absolute top-8 left-0 z-[200] min-w-[220px] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-2xl"
-            onMouseDown={e => e.stopPropagation()}
-          >
+        <DesignBarDropdownPortal
+          open={showCase}
+          anchorRef={caseBtnRef}
+          menuRef={dropdownRef}
+          className="min-w-[220px] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-2xl"
+        >
             {TEXT_CASE_MENU_ROWS.map(row => (
               <button
                 key={row.id}
@@ -8062,17 +9146,18 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 {row.label}
               </button>
             ))}
-          </div>
-        )}
+        </DesignBarDropdownPortal>
       </div>
 
       <div className="w-px h-4 bg-gray-200 shrink-0" />
 
       {/* TEXT COLOR */}
-      <div className="flex items-center gap-1" title="Text color">
+      <div className="flex items-center gap-1" title="Text color" onMouseDown={e => e.preventDefault()}>
         <Type className="w-3 h-3 text-gray-400 shrink-0" />
         <input type="color"
           value={(typographySource as any).text_color_override || '#111827'}
+          onMouseDown={e => e.preventDefault()}
+          onInput={e => updateTextStyle({ text_color_override: e.currentTarget.value })}
           onChange={e => updateTextStyle({ text_color_override: e.target.value })}
           className="w-6 h-6 rounded border border-gray-200 cursor-pointer p-0 shrink-0"
         />
@@ -8093,6 +9178,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       {/* ANIMATION */}
       <div className="relative">
         <button
+          ref={animBtnRef}
           onClick={() => { setShowAnim(v => !v); setShowInsert(false); setShowShapes(false); setShowCase(false) }}
           title="Scroll animation"
           className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors border',
@@ -8103,8 +9189,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           <Zap className="w-3 h-3" />
           {block.animation && block.animation !== 'none' ? block.animation.replace('-', ' ') : 'Anim'}
         </button>
-        {showAnim && (
-          <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl p-2">
+        <DesignBarDropdownPortal
+          open={showAnim}
+          anchorRef={animBtnRef}
+          menuRef={dropdownRef}
+          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2"
+        >
             <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Scroll Animation</div>
             <div className="grid grid-cols-4 gap-1 w-36">
               {CANVAS_ANIM_OPTIONS.map(({ id, label, title }) => (
@@ -8129,8 +9219,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 <span className="text-xs text-gray-500 w-10">{block.animation_delay || 0}ms</span>
               </div>
             )}
-          </div>
-        )}
+        </DesignBarDropdownPortal>
       </div>
 
       <div className="w-px h-4 bg-gray-200 shrink-0" />
@@ -8138,6 +9227,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       {/* SHAPES / ORIGINS */}
       <div className="relative">
         <button
+          ref={shapesBtnRef}
           onClick={() => { setShowShapes(v => !v); setShowInsert(false); setShowAnim(false); setShowCase(false) }}
           title="Section shape dividers"
           className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors border',
@@ -8148,9 +9238,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           <svg viewBox="0 0 20 10" className="w-4 h-3 fill-current"><path d="M0,10 C5,0 10,10 15,3 C17,1 18,5 20,4 L20,10 Z"/></svg>
           Origins
         </button>
-        {showShapes && (
-          <>
-            <div className="absolute top-8 left-0 z-[200] bg-white border border-gray-200 rounded-xl shadow-2xl p-3 w-72">
+        <DesignBarDropdownPortal
+          open={showShapes}
+          anchorRef={shapesBtnRef}
+          menuRef={dropdownRef}
+          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-3 w-72"
+        >
               <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Top Edge Shape</div>
               <div className="grid grid-cols-3 gap-1 mb-3">
                 {SHAPE_OPTIONS.map(({ id, label }) => (
@@ -8185,9 +9278,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                   <span className="text-xs text-gray-600">Shape fill color</span>
                 </div>
               )}
-            </div>
-          </>
-        )}
+        </DesignBarDropdownPortal>
       </div>
 
       {/* FONT LABEL */}
@@ -8239,6 +9330,10 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
 
 // ── Main Builder ──────────────────────────────────────────────────────────────
 
+const AUTO_SAVE_DELAY_MS = 2500
+
+type AutoSaveStatus = 'synced' | 'pending' | 'saving' | 'error'
+
 export default function WebsiteBuilder() {
   const { siteId } = useParams<{ siteId: string }>()
   const navigate = useNavigate()
@@ -8249,18 +9344,19 @@ export default function WebsiteBuilder() {
   const { data: site, isLoading } = useSite(siteId || null)
   useMyVendor()
   const { vendor: myVendor } = useVendorStore()
-  const publishSite = usePublishSite(siteId!)
-  const unpublishSite = useUnpublishSite(siteId!)
   const updateSite = useUpdateSite(siteId!)
   const overlayLayerUpload = useUploadMedia(siteId!)
   const { data: templates = [] } = useWebsiteTemplates()
+  const { data: storesData } = useStores({ limit: 200 })
+  const businessUnits = storesData?.stores ?? []
+  const hasMultipleBusinessUnits = businessUnits.length > 1
 
   // State
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [activeTextTarget, setActiveTextTarget] = useState<{ blockId: string; fieldKey: string } | null>(null)
   const [device, setDevice] = useState<DeviceMode>('desktop')
-  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'layers' | 'templates'>(() => {
+  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates'>(() => {
     const sp = new URLSearchParams(window.location.search)
     if (sp.get('templateMode') === 'true') return 'templates'
     return 'blocks'
@@ -8269,27 +9365,31 @@ export default function WebsiteBuilder() {
   const [templatePanelSelectedId, setTemplatePanelSelectedId] = useState<string | null>(null)
   const [applyingTemplateInline, setApplyingTemplateInline] = useState(false)
   const [isApplyingToStore, setIsApplyingToStore] = useState(false)
+  const [applyPopoverOpen, setApplyPopoverOpen] = useState(false)
+  const [applyPickerStep, setApplyPickerStep] = useState<'root' | 'units'>('root')
+  const [appliedStoreIds, setAppliedStoreIds] = useState<string[]>([])
+  const applyPopoverRef = useRef<HTMLDivElement>(null)
   const [clearingTemplateSandbox, setClearingTemplateSandbox] = useState(false)
   const [resettingCanvasFromServer, setResettingCanvasFromServer] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'props' | 'style' | 'ai' | 'media' | 'data' | 'seo' | 'settings'>('props')
-  const [blockSearch, setBlockSearch] = useState('')
-  const [blockCategory, setBlockCategory] = useState('all')
+  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'media' | 'data' | 'seo' | 'settings'>('props')
+  const [sidebarDraggedIdx, setSidebarDraggedIdx] = useState<number | null>(null)
+  const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
+  const [sectionSearch, setSectionSearch] = useState('')
+  const [sectionCategory, setSectionCategory] = useState('all')
+  const [expandedSectionPages, setExpandedSectionPages] = useState<Set<string>>(() => new Set())
+  const [sidebarDraggedPageId, setSidebarDraggedPageId] = useState<string | null>(null)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
-  const [showFullPreview, setShowFullPreview] = useState(false)
-  /** Full-screen preview: real business front iframe (draft token) vs legacy BlockPreview fallback. */
-  const [sfOverlayToken, setSfOverlayToken] = useState<string | null>(null)
-  const [sfOverlayVendorSlug, setSfOverlayVendorSlug] = useState<string | null>(null)
-  const [sfOverlayPublishedFallback, setSfOverlayPublishedFallback] = useState(false)
-  const [sfOverlayLoading, setSfOverlayLoading] = useState(false)
-  const [sfOverlayBlockFallback, setSfOverlayBlockFallback] = useState(false)
-  const [leftWidth, setLeftWidth] = useState(260)
+  const [leftWidth, setLeftWidth] = useState(288)
   const [rightWidth, setRightWidth] = useState(288)
   const isResizingLeft = useRef(false)
   const isResizingRight = useRef(false)
   /** Avoid showing the previous site's blocks when `siteId` in the URL changes without a full remount. */
   const prevEditorSiteIdRef = useRef<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const isSavingRef = useRef(false)
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('synced')
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [saveFlash, setSaveFlash] = useState(false)       // brief green flash on success
   const [styleDirty, setStyleDirty] = useState(false)     // unsaved style changes
   const [blocksDirty, setBlocksDirty] = useState(false)   // unsaved block props / reorder
@@ -8306,7 +9406,6 @@ export default function WebsiteBuilder() {
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
   /** Selected in-canvas image overlay (for AI / Media apply). */
   const [overlayImageTarget, setOverlayImageTarget] = useState<{ blockId: string; overlayId: string } | null>(null)
-  const [aiImageGenFocusKey, setAiImageGenFocusKey] = useState(0)
   const overlayImageUploadRef = useRef<HTMLInputElement>(null)
 
   // ── Link editor (opened from CTA buttons / overlay buttons) ────────────────
@@ -8336,6 +9435,8 @@ export default function WebsiteBuilder() {
         multiline?: boolean
         maxLength?: number
         confirmLabel?: string
+        helpText?: string
+        minLength?: number
         anchor?: { x: number; y: number } | null
         onSave: (v: string) => void
       }
@@ -8349,6 +9450,8 @@ export default function WebsiteBuilder() {
     multiline?: boolean
     maxLength?: number
     confirmLabel?: string
+    helpText?: string
+    minLength?: number
     anchor?: { x: number; y: number } | null
     onSave: (v: string) => void
   }) => setTextPrompt(opts), [])
@@ -8408,9 +9511,38 @@ export default function WebsiteBuilder() {
     }
   }, [])
   const [localStyle, setLocalStyle] = useState<StyleConfig>(DEFAULT_STYLE)
-  const [isDraggingOver, setIsDraggingOver] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ idx: number; before: boolean } | null>(null)
   const [draggingBlockIdx, setDraggingBlockIdx] = useState<number | null>(null)
+  const draggingBlockIdxRef = useRef<number | null>(null)
+  const canvasMainRef = useRef<HTMLElement | null>(null)
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null)
+  const canvasPreviewInnerRef = useRef<HTMLDivElement | null>(null)
+  const dragAutoScrollRafRef = useRef<number | null>(null)
+  const dragPointerYRef = useRef(0)
   const [draggingNewBlock, setDraggingNewBlock] = useState<BlockDef | null>(null)
+
+  const CANVAS_SCROLL_EDGE = 80
+  const CANVAS_SCROLL_MAX_STEP = 18
+
+  const autoScrollCanvasForDrag = useCallback((clientY: number) => {
+    const el = canvasMainRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    if (clientY < rect.top + CANVAS_SCROLL_EDGE) {
+      const intensity = (rect.top + CANVAS_SCROLL_EDGE - clientY) / CANVAS_SCROLL_EDGE
+      el.scrollTop -= Math.ceil(CANVAS_SCROLL_MAX_STEP * (0.5 + intensity))
+    } else if (clientY > rect.bottom - CANVAS_SCROLL_EDGE) {
+      const intensity = (clientY - (rect.bottom - CANVAS_SCROLL_EDGE)) / CANVAS_SCROLL_EDGE
+      el.scrollTop += Math.ceil(CANVAS_SCROLL_MAX_STEP * (0.5 + intensity))
+    }
+  }, [])
+
+  const stopDragAutoScroll = useCallback(() => {
+    if (dragAutoScrollRafRef.current !== null) {
+      cancelAnimationFrame(dragAutoScrollRafRef.current)
+      dragAutoScrollRafRef.current = null
+    }
+  }, [])
 
   // ── LOCAL BLOCK STATE (optimistic, real-time) ─────────────────────────────
   // Keyed by pageId → array of blocks. Updated immediately on every action.
@@ -8421,6 +9553,32 @@ export default function WebsiteBuilder() {
   }, [localBlocks])
   useEffect(() => { blocksDirtyRef.current = blocksDirty }, [blocksDirty])
   useEffect(() => { styleDirtyRef.current = styleDirty }, [styleDirty])
+
+  useEffect(() => {
+    if (!siteId) {
+      setAppliedStoreIds([])
+      return
+    }
+    try {
+      const raw = localStorage.getItem(`wb-applied-stores-${siteId}`)
+      const parsed = raw ? JSON.parse(raw) : []
+      setAppliedStoreIds(Array.isArray(parsed) ? parsed.filter((x: unknown) => typeof x === 'string') : [])
+    } catch {
+      setAppliedStoreIds([])
+    }
+  }, [siteId])
+
+  useEffect(() => {
+    if (!applyPopoverOpen) return
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (applyPopoverRef.current?.contains(e.target as Node)) return
+      setApplyPopoverOpen(false)
+      setApplyPickerStep('root')
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [applyPopoverOpen])
+
   // Track pages locally too (for adds/deletes without refresh)
   const [localPages, setLocalPages] = useState<WebsitePage[]>([])
 
@@ -8445,6 +9603,36 @@ export default function WebsiteBuilder() {
     queryClient.invalidateQueries({ queryKey: ['websites', siteId] })
   }, [queryClient, siteId])
 
+  const hydrateEditorFromSite = useCallback((nextSite: WebsiteSite) => {
+    navSyncBootRef.current = true
+    pagesNavKeyRef.current = pagesNavKey(nextSite.pages)
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+    setAutoSaveStatus('synced')
+    setLocalStyle({ ...DEFAULT_STYLE, ...(nextSite.style_config as any) })
+    setLocalPages(nextSite.pages)
+    const nextBlocks: Record<string, WebsiteBlock[]> = {}
+    nextSite.pages.forEach(page => {
+      nextBlocks[page.id] = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
+    })
+    const normalized = normalizeAllStructureBlocks(nextBlocks, nextSite.pages)
+    setLocalBlocks(syncNavLinksInBlockMap(normalized, nextSite.pages))
+    const homepage = nextSite.pages.find(p => p.is_homepage) || nextSite.pages[0]
+    setActivePageId(homepage?.id ?? null)
+    setSelectedBlockId(null)
+    setActiveTextTarget(null)
+    setStyleDirty(false)
+    setBlocksDirty(false)
+    blocksDirtyRef.current = false
+    styleDirtyRef.current = false
+    historyStack.current = [JSON.parse(JSON.stringify(syncNavLinksInBlockMap(normalized, nextSite.pages)))]
+    historyIndex.current = 0
+    setCanUndo(false)
+    setCanRedo(false)
+  }, [])
+
   /** Load a template onto the canvas — no publish, user edits first then clicks Apply in toolbar. */
   const handleApplySelectedTemplate = useCallback(async (templateId: string) => {
     if (!siteId) return
@@ -8452,8 +9640,20 @@ export default function WebsiteBuilder() {
     try {
       const next = await websiteApi.applyTemplate(siteId, templateId)
       queryClient.setQueryData(['websites', siteId], next)
+      // Must hydrate locally — site sync effect skips blocks when blocksDirty is true,
+      // but pages still update, which leaves the canvas empty (0 blocks) with new tabs.
+      hydrateEditorFromSite(next)
+      setStyleDirty(false)
+      setBlocksDirty(false)
+      blocksDirtyRef.current = false
+      styleDirtyRef.current = false
       await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
-      toast.success('Template loaded — make any edits then click Apply to go live.')
+      const blockCount = next.pages.reduce((n, p) => n + (p.blocks?.length ?? 0), 0)
+      toast.success(
+        blockCount > 0
+          ? `Template loaded (${blockCount} blocks) — edit then Apply to go live.`
+          : 'Template loaded (pages only) — add blocks from the left panel.',
+      )
       setTemplatePanelSelectedId(templateId)
     } catch {
       toast.error('Failed to load template')
@@ -8461,7 +9661,7 @@ export default function WebsiteBuilder() {
     } finally {
       setApplyingTemplateInline(false)
     }
-  }, [siteId, queryClient])
+  }, [siteId, queryClient, hydrateEditorFromSite])
 
   // handleApplyToStore is defined after handleSaveCanvas — see below
 
@@ -8472,6 +9672,11 @@ export default function WebsiteBuilder() {
     try {
       const next = await websiteApi.ensureBlankSite(siteId)
       queryClient.setQueryData(['websites', siteId], next)
+      hydrateEditorFromSite(next)
+      setStyleDirty(false)
+      setBlocksDirty(false)
+      blocksDirtyRef.current = false
+      styleDirtyRef.current = false
       await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
       toast.success('Cleared — blank site')
     } catch {
@@ -8479,26 +9684,7 @@ export default function WebsiteBuilder() {
     } finally {
       setClearingTemplateSandbox(false)
     }
-  }, [siteId, isTemplateMode, queryClient])
-
-  const hydrateEditorFromSite = useCallback((nextSite: WebsiteSite) => {
-    setLocalStyle({ ...DEFAULT_STYLE, ...(nextSite.style_config as any) })
-    setLocalPages(nextSite.pages)
-    const nextBlocks: Record<string, WebsiteBlock[]> = {}
-    nextSite.pages.forEach(page => {
-      nextBlocks[page.id] = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
-    })
-    setLocalBlocks(nextBlocks)
-    const homepage = nextSite.pages.find(p => p.is_homepage) || nextSite.pages[0]
-    setActivePageId(homepage?.id ?? null)
-    setSelectedBlockId(null)
-    setActiveTextTarget(null)
-    setBlocksDirty(false)
-    historyStack.current = [JSON.parse(JSON.stringify(nextBlocks))]
-    historyIndex.current = 0
-    setCanUndo(false)
-    setCanRedo(false)
-  }, [])
+  }, [siteId, isTemplateMode, queryClient, hydrateEditorFromSite])
 
   const handleCopyTemplateJson = useCallback(async () => {
     try {
@@ -8513,10 +9699,12 @@ export default function WebsiteBuilder() {
   const handleResetCanvasFromServer = useCallback(() => {
     if (!siteId) return
     openTextPrompt({
-      title: 'Reload from server?',
+      title: 'Reset',
       subtitle: 'Unsaved canvas and style changes will be lost. This cannot be undone.',
-      placeholder: '',
-      confirmLabel: 'Reload',
+      placeholder: 'Type anything to confirm…',
+      helpText: 'Enter at least 2 characters to enable Reset.',
+      minLength: 2,
+      confirmLabel: 'Reset',
       onSave: async () => {
         setResettingCanvasFromServer(true)
         try {
@@ -8538,21 +9726,60 @@ export default function WebsiteBuilder() {
   // Sync from server → local. After AI/template replace, page IDs change; drop stale keys and fix active tab.
   // Guard: skip overwriting localBlocks/localStyle when the user has unsaved edits — a background
   // refetch (e.g. on window-focus) must not silently discard in-flight changes.
+  // Exception: when server page IDs no longer match local keys (template/AI replace), always resync blocks.
   useEffect(() => {
     if (site) {
-      if (!styleDirtyRef.current) {
+      const serverPageIds = new Set(site.pages.map(p => p.id))
+      const localPageIds = new Set(Object.keys(localBlocksRef.current))
+      const pageStructureReplaced =
+        serverPageIds.size !== localPageIds.size
+        || [...serverPageIds].some(id => !localPageIds.has(id))
+
+      if (!styleDirtyRef.current || pageStructureReplaced) {
         setLocalStyle({ ...DEFAULT_STYLE, ...(site.style_config as any) })
+        if (pageStructureReplaced) setStyleDirty(false)
       }
       setLocalPages(site.pages)
-      if (!blocksDirtyRef.current) {
+      if (!blocksDirtyRef.current || pageStructureReplaced) {
+        navSyncBootRef.current = true
+        pagesNavKeyRef.current = pagesNavKey(site.pages)
         setLocalBlocks(() => {
           const next: Record<string, WebsiteBlock[]> = {}
           site.pages.forEach(page => {
             const serverBlocks = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
             next[page.id] = serverBlocks
           })
-          return next
+          const normalized = normalizeAllStructureBlocks(next, site.pages)
+          return syncNavLinksInBlockMap(normalized, site.pages)
         })
+        if (pageStructureReplaced) {
+          setBlocksDirty(false)
+          blocksDirtyRef.current = false
+          if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current)
+            autoSaveTimerRef.current = null
+          }
+          setAutoSaveStatus('synced')
+          historyStack.current = [
+            JSON.parse(JSON.stringify(
+              syncNavLinksInBlockMap(
+                normalizeAllStructureBlocks(
+                  Object.fromEntries(
+                    site.pages.map(page => [
+                      page.id,
+                      page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order),
+                    ]),
+                  ),
+                  site.pages,
+                ),
+                site.pages,
+              ),
+            )),
+          ]
+          historyIndex.current = 0
+          setCanUndo(false)
+          setCanRedo(false)
+        }
       }
       const ids = new Set(site.pages.map(p => p.id))
       setActivePageId(cur => {
@@ -8680,13 +9907,107 @@ export default function WebsiteBuilder() {
     localPages.find(p => p.id === activePageId) || null
   , [localPages, activePageId])
 
+  const canvasStyle = useMemo(
+    () => mergePageStyleConfig(localStyle, activePageId),
+    [localStyle, activePageId],
+  )
+
+  const handlePageStyleChange = useCallback((pageId: string, patch: PageStyleOverrides) => {
+    setLocalStyle(prev => {
+      const current = { ...(prev.page_styles?.[pageId] || {}) }
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === null || v === '') delete (current as Record<string, unknown>)[k]
+        else (current as Record<string, unknown>)[k] = v
+      }
+      const page_styles = { ...(prev.page_styles || {}) }
+      if (Object.keys(current).length === 0) delete page_styles[pageId]
+      else page_styles[pageId] = current
+      return { ...prev, page_styles }
+    })
+    setStyleDirty(true)
+  }, [])
+
+  const handleClearPageStyle = useCallback((pageId: string) => {
+    setLocalStyle(prev => {
+      if (!prev.page_styles?.[pageId]) return prev
+      const page_styles = { ...prev.page_styles }
+      delete page_styles[pageId]
+      return { ...prev, page_styles }
+    })
+    setStyleDirty(true)
+    toast.success('Page styles reset to site defaults')
+  }, [])
+
   const activeBlocks = useMemo(() =>
     (localBlocks[activePageId || ''] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
   , [localBlocks, activePageId])
 
-  const selectedBlock = useMemo(() =>
-    activeBlocks.find(b => b.id === selectedBlockId) || null
-  , [activeBlocks, selectedBlockId])
+  const sectionSearchLower = sectionSearch.trim().toLowerCase()
+
+  const sortedSitePages = useMemo(
+    () => [...localPages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [localPages],
+  )
+
+  const pageSectionGroups = useMemo(() => (
+    sortedSitePages.map(page => {
+      const blocks = (localBlocks[page.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+      const entries = blocks.map((block, idx) => ({ block, idx }))
+      return { page, entries, totalBlocks: blocks.length }
+    })
+  ), [sortedSitePages, localBlocks])
+
+  const filteredCatalogBlocks = useMemo(() => {
+    let list = BLOCK_CATALOG
+    if (sectionCategory !== 'all') list = list.filter(b => b.category === sectionCategory)
+    if (sectionSearchLower) {
+      list = list.filter(b =>
+        b.label.toLowerCase().includes(sectionSearchLower)
+        || b.desc.toLowerCase().includes(sectionSearchLower),
+      )
+    }
+    return list
+  }, [sectionCategory, sectionSearchLower])
+
+  const selectedBlock = useMemo(() => {
+    if (!selectedBlockId) return null
+    for (const pageId of Object.keys(localBlocks)) {
+      const found = localBlocks[pageId]?.find(b => b.id === selectedBlockId)
+      if (found) return found
+    }
+    return null
+  }, [localBlocks, selectedBlockId])
+
+  useEffect(() => {
+    if (!activePageId) return
+    setExpandedSectionPages(prev => {
+      if (prev.has(activePageId)) return prev
+      return new Set([...prev, activePageId])
+    })
+  }, [activePageId])
+
+  const navSyncBootRef = useRef(true)
+  const pagesNavKeyRef = useRef('')
+  useEffect(() => {
+    navSyncBootRef.current = true
+    pagesNavKeyRef.current = ''
+  }, [siteId])
+
+  useEffect(() => {
+    if (!sortedSitePages.length) return
+    const navKey = pagesNavKey(sortedSitePages)
+    const pagesChanged = navKey !== pagesNavKeyRef.current
+    pagesNavKeyRef.current = navKey
+    setLocalBlocks(prev => {
+      const next = syncNavLinksInBlockMap(prev, sortedSitePages)
+      if (next !== prev && pagesChanged && !navSyncBootRef.current) {
+        setBlocksDirty(true)
+        blocksDirtyRef.current = true
+      }
+      return next
+    })
+    navSyncBootRef.current = false
+  }, [sortedSitePages])
 
   useEffect(() => {
     setOverlayImageTarget(null)
@@ -8706,23 +10027,10 @@ export default function WebsiteBuilder() {
     setOverlayImageTarget(overlayId ? { blockId: selectedBlockId, overlayId } : null)
   }, [selectedBlockId])
 
-  const openAiImageFromCanvas = useCallback(() => {
-    setRightCollapsed(false)
-    setRightPanel('ai')
-    setAiImageGenFocusKey(k => k + 1)
-  }, [])
-
   const openMediaFromCanvas = useCallback(() => {
     setRightCollapsed(false)
     setRightPanel('media')
   }, [])
-
-  const filteredBlocks = useMemo(() => {
-    let list = BLOCK_CATALOG
-    if (blockCategory !== 'all') list = list.filter(b => b.category === blockCategory)
-    if (blockSearch) list = list.filter(b => b.label.toLowerCase().includes(blockSearch.toLowerCase()) || b.desc.toLowerCase().includes(blockSearch.toLowerCase()))
-    return list
-  }, [blockCategory, blockSearch])
 
   // ── BLOCK OPERATIONS (all optimistic) ────────────────────────────────────
 
@@ -8741,10 +10049,34 @@ export default function WebsiteBuilder() {
 
   const handleAddBlock = useCallback(async (def: BlockDef, insertAtIdx = -1) => {
     if (!activePageId) return
+    const currentBlocks = (localBlocks[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
+
+    if (isStructure) {
+      const relocated = relocateExistingStructureBlock(currentBlocks, def.type, insertAtIdx)
+      if (relocated) {
+        let nextMap: Record<string, WebsiteBlock[]> = { ...localBlocks, [activePageId]: relocated }
+        for (const page of localPages) {
+          if (page.id === activePageId) continue
+          const pb = (nextMap[page.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+          const pageRelocated = relocateExistingStructureBlock(pb, def.type, -1)
+          if (pageRelocated) nextMap = { ...nextMap, [page.id]: pageRelocated }
+        }
+        setLocalBlocks(nextMap)
+        pushHistory(nextMap)
+        const existing = relocated.find(b => b.block_type === def.type)!
+        setSelectedBlockId(existing.id)
+        setRightPanel('props')
+        setRightCollapsed(false)
+        setBlocksDirty(true)
+        toast.success(`${def.label} moved to the ${def.type === 'footer' ? 'bottom' : 'top'}`)
+        return
+      }
+    }
+
     const tempId = `temp-${Date.now()}`
-    const currentBlocks = localBlocks[activePageId] || []
-    const maxOrder = currentBlocks.length > 0 ? Math.max(...currentBlocks.map(b => b.sort_order)) : -1
-    const sort_order = insertAtIdx >= 0 ? insertAtIdx : maxOrder + 1
+    const insertAt = getPreferredBlockInsertIndex(def.type, currentBlocks, insertAtIdx)
+    const sort_order = insertAt
 
     // Auto-bind drag-dropped blocks to live KITERP data so they "just work".
     // The user can disconnect / override inside the Data panel later.
@@ -8762,29 +10094,45 @@ export default function WebsiteBuilder() {
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     }
 
+    let pageBlocks = insertBlockAtIndex(currentBlocks, tempBlock, def.type, insertAtIdx)
+    let next = { ...localBlocks, [activePageId]: pageBlocks }
+    if (isStructure) {
+      next = ensureStructureBlocksOnAllPages(next, localPages, tempBlock, def.type, activePageId)
+      pageBlocks = next[activePageId] || pageBlocks
+    }
+
     // 1. Immediately show in canvas + push history
-    const next = { ...localBlocks, [activePageId]: [...(localBlocks[activePageId] || []), tempBlock].map((b, i) => ({ ...b, sort_order: i })) }
     setLocalBlocks(next)
     pushHistory(next)
     setSelectedBlockId(tempId)
     setRightPanel('props')
     setRightCollapsed(false)
+    setBlocksDirty(true)
 
-    // 2. Persist in background
+    // 2. Persist in background (active page first; clones on other pages save with Save/Apply)
     try {
       const saved = await websiteApi.createBlock(siteId!, activePageId, {
         block_type: def.type, label: def.label,
         props: initialProps, style_overrides: {},
         visible: true, visible_on_mobile: true, visible_on_tablet: true, visible_on_desktop: true,
-        sort_order,
+        sort_order: pageBlocks.findIndex(b => b.id === tempId),
       } as any)
-      // Replace temp block with real saved block
-      setLocalBlocks(prev => ({
-        ...prev,
-        [activePageId]: (prev[activePageId] || []).map(b => b.id === tempId ? saved : b),
-      }))
+      setLocalBlocks(prev => {
+        let updated: Record<string, WebsiteBlock[]> = {
+          ...prev,
+          [activePageId]: (prev[activePageId] || []).map(b => b.id === tempId ? saved : b),
+        }
+        if (isStructure) {
+          updated = ensureStructureBlocksOnAllPages(updated, localPages, saved, def.type, activePageId)
+        }
+        return updated
+      })
       setSelectedBlockId(saved.id)
-      toast.success(`${def.label} added`)
+      toast.success(
+        isStructure && localPages.length > 1
+          ? `${def.label} added — synced to all pages`
+          : `${def.label} added`,
+      )
     } catch {
       // Roll back
       setLocalBlocks(prev => ({
@@ -8794,7 +10142,7 @@ export default function WebsiteBuilder() {
       setSelectedBlockId(null)
       toast.error('Failed to add block')
     }
-  }, [activePageId, localBlocks, siteId])
+  }, [activePageId, localBlocks, localPages, siteId, pushHistory])
 
   // Preview-only update — instant canvas update, no API call (used while typing)
   const handlePreviewBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
@@ -9172,12 +10520,6 @@ export default function WebsiteBuilder() {
         icon: ImageIcon,
         onSelect: () => { setRightPanel('media'); setRightCollapsed(false) },
       },
-      {
-        id: 'ai',
-        label: 'AI tools (text/image)',
-        icon: Sparkles,
-        onSelect: () => { setRightPanel('ai'); setRightCollapsed(false) },
-      },
       { id: 'div2', label: '', divider: true },
       {
         id: 'up',
@@ -9362,45 +10704,201 @@ export default function WebsiteBuilder() {
   }, [activePageId, localBlocks, handleUpdateBlockProps, openLinkEditorForOverlay, openTextPrompt])
 
   // Reorder — local only until Save (same as block prop edits)
-  const applyReorder = useCallback((reordered: WebsiteBlock[]) => {
-    if (!activePageId) return
+  const applyReorderForPage = useCallback((pageId: string, reordered: WebsiteBlock[]) => {
+    if (!pageId) return
     pushHistory(JSON.parse(JSON.stringify(localBlocksRef.current)))
     const numbered = reordered.map((b, i) => ({ ...b, sort_order: i }))
-    setLocalBlocks(prev => ({ ...prev, [activePageId]: numbered }))
+    setLocalBlocks(prev => ({ ...prev, [pageId]: numbered }))
     setBlocksDirty(true)
-  }, [activePageId, pushHistory])
+  }, [pushHistory])
 
-  // Drag handlers
-  const handleDragStartBlock = (idx: number) => setDraggingBlockIdx(idx)
+  const applyReorder = useCallback((reordered: WebsiteBlock[]) => {
+    if (!activePageId) return
+    applyReorderForPage(activePageId, reordered)
+  }, [activePageId, applyReorderForPage])
+
+  const computeBlockInsertIndex = useCallback((from: number, targetIdx: number, before: boolean) => {
+    let insertAt = before ? targetIdx : targetIdx + 1
+    if (from < insertAt) insertAt -= 1
+    return insertAt
+  }, [])
+
+  const reorderBlocksByIndex = useCallback((from: number, targetIdx: number, before: boolean) => {
+    if (from < 0 || targetIdx < 0 || from >= activeBlocks.length || targetIdx >= activeBlocks.length) return null
+    const insertAt = computeBlockInsertIndex(from, targetIdx, before)
+    if (insertAt === from) return null
+    const reordered = [...activeBlocks]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(insertAt, 0, moved)
+    return reordered
+  }, [activeBlocks, computeBlockInsertIndex])
+
+  const clearBlockDragState = useCallback(() => {
+    draggingBlockIdxRef.current = null
+    setDraggingBlockIdx(null)
+    setDropTarget(null)
+    stopDragAutoScroll()
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }, [stopDragAutoScroll])
+
+  const findBlockDropTargetFromPointer = useCallback((clientY: number) => {
+    const nodes = document.querySelectorAll<HTMLElement>('[data-block-index]')
+    if (nodes.length === 0) return { idx: 0, before: true }
+
+    const entries = Array.from(nodes).map(el => ({
+      idx: Number(el.dataset.blockIndex),
+      rect: el.getBoundingClientRect(),
+    }))
+
+    for (const { idx, rect } of entries) {
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        return { idx, before: clientY < rect.top + rect.height / 2 }
+      }
+    }
+
+    if (clientY < entries[0].rect.top) {
+      return { idx: entries[0].idx, before: true }
+    }
+
+    const last = entries[entries.length - 1]
+    if (clientY > last.rect.bottom) {
+      return { idx: last.idx, before: false }
+    }
+
+    for (let i = 0; i < entries.length - 1; i++) {
+      const a = entries[i]
+      const b = entries[i + 1]
+      if (clientY > a.rect.bottom && clientY < b.rect.top) {
+        return { idx: b.idx, before: true }
+      }
+    }
+
+    let bestIdx = entries[0].idx
+    let bestBefore = true
+    let bestDist = Infinity
+    for (const { idx, rect } of entries) {
+      const mid = rect.top + rect.height / 2
+      const dist = Math.abs(clientY - mid)
+      if (dist < bestDist) {
+        bestDist = dist
+        bestBefore = clientY < mid
+        bestIdx = idx
+      }
+    }
+    return { idx: bestIdx, before: bestBefore }
+  }, [])
+
+  const updateDropTargetFromPointer = useCallback((clientY: number) => {
+    dragPointerYRef.current = clientY
+    autoScrollCanvasForDrag(clientY)
+    setDropTarget(findBlockDropTargetFromPointer(clientY))
+  }, [autoScrollCanvasForDrag, findBlockDropTargetFromPointer])
+
+  const startDragAutoScrollLoop = useCallback(() => {
+    stopDragAutoScroll()
+    const tick = () => {
+      autoScrollCanvasForDrag(dragPointerYRef.current)
+      if (draggingBlockIdxRef.current !== null) {
+        setDropTarget(findBlockDropTargetFromPointer(dragPointerYRef.current))
+        dragAutoScrollRafRef.current = requestAnimationFrame(tick)
+      }
+    }
+    dragAutoScrollRafRef.current = requestAnimationFrame(tick)
+  }, [autoScrollCanvasForDrag, findBlockDropTargetFromPointer, stopDragAutoScroll])
+
+  const handleBlockReorderPointerDown = useCallback((e: React.PointerEvent, idx: number) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    draggingBlockIdxRef.current = idx
+    setDraggingBlockIdx(idx)
+    dragPointerYRef.current = e.clientY
+    setDropTarget({ idx, before: true })
+    document.body.style.cursor = 'grabbing'
+    document.body.style.userSelect = 'none'
+    startDragAutoScrollLoop()
+
+    const pointerId = e.pointerId
+    const onMove = (mv: PointerEvent) => {
+      if (mv.pointerId !== pointerId) return
+      updateDropTargetFromPointer(mv.clientY)
+    }
+    const onUp = (mv: PointerEvent) => {
+      if (mv.pointerId !== pointerId) return
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+      const from = draggingBlockIdxRef.current
+      const target = findBlockDropTargetFromPointer(mv.clientY)
+      if (from !== null) {
+        const reordered = reorderBlocksByIndex(from, target.idx, target.before)
+        if (reordered) applyReorder(reordered)
+      }
+      clearBlockDragState()
+    }
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onUp)
+  }, [applyReorder, clearBlockDragState, findBlockDropTargetFromPointer, reorderBlocksByIndex, startDragAutoScrollLoop, updateDropTargetFromPointer])
+
+  // Drag handlers (HTML5 — used for new blocks from the left panel catalog)
+  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = draggingNewBlock ? 'copy' : 'move'
+    dragPointerYRef.current = e.clientY
+    autoScrollCanvasForDrag(e.clientY)
+    if (draggingNewBlock || draggingBlockIdxRef.current !== null) {
+      setDropTarget(findBlockDropTargetFromPointer(e.clientY))
+    }
+  }, [autoScrollCanvasForDrag, draggingNewBlock, findBlockDropTargetFromPointer])
+
   const handleDragOverBlock = (e: React.DragEvent, idx: number) => {
     e.preventDefault()
-    setIsDraggingOver(activeBlocks[idx]?.id || null)
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = draggingNewBlock ? 'copy' : 'move'
+    dragPointerYRef.current = e.clientY
+    autoScrollCanvasForDrag(e.clientY)
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const before = e.clientY < rect.top + rect.height / 2
+    setDropTarget({ idx, before })
   }
   const handleDropOnBlock = useCallback(async (e: React.DragEvent, targetIdx: number) => {
     e.preventDefault()
-    setIsDraggingOver(null)
     if (draggingNewBlock) {
-      await handleAddBlock(draggingNewBlock, targetIdx)
+      const before = dropTarget?.idx === targetIdx ? dropTarget.before : true
+      let insertIdx = before ? targetIdx : targetIdx + 1
+      insertIdx = Math.max(0, Math.min(insertIdx, activeBlocks.length))
+      await handleAddBlock(draggingNewBlock, insertIdx)
       setDraggingNewBlock(null)
+      setDropTarget(null)
       return
     }
-    if (draggingBlockIdx === null || draggingBlockIdx === targetIdx) { setDraggingBlockIdx(null); return }
-    const reordered = [...activeBlocks]
-    const [moved] = reordered.splice(draggingBlockIdx, 1)
-    reordered.splice(targetIdx, 0, moved)
-    await applyReorder(reordered)
-    setDraggingBlockIdx(null)
-  }, [draggingBlockIdx, draggingNewBlock, activeBlocks, handleAddBlock, applyReorder])
+    const from = draggingBlockIdxRef.current
+    if (from === null) { clearBlockDragState(); return }
+    const before = dropTarget?.idx === targetIdx ? dropTarget.before : true
+    const reordered = reorderBlocksByIndex(from, targetIdx, before)
+    if (reordered) await applyReorder(reordered)
+    clearBlockDragState()
+  }, [draggingNewBlock, dropTarget, activeBlocks, handleAddBlock, applyReorder, reorderBlocksByIndex, clearBlockDragState])
 
   const handleDropOnCanvas = useCallback(async (e: React.DragEvent) => {
     e.preventDefault()
-    setIsDraggingOver(null)
+    setDropTarget(null)
     if (draggingNewBlock) {
       await handleAddBlock(draggingNewBlock)
       setDraggingNewBlock(null)
+      return
     }
-    setDraggingBlockIdx(null)
-  }, [draggingNewBlock, handleAddBlock])
+    const from = draggingBlockIdxRef.current
+    if (from !== null && activeBlocks.length > 0) {
+      const reordered = [...activeBlocks]
+      const [moved] = reordered.splice(from, 1)
+      reordered.push(moved)
+      await applyReorder(reordered)
+    }
+    clearBlockDragState()
+  }, [draggingNewBlock, activeBlocks, handleAddBlock, applyReorder, clearBlockDragState])
 
   // Move block up/down — optimistic
   const handleMoveBlock = useCallback(async (blockId: string, dir: 'up' | 'down') => {
@@ -9414,11 +10912,81 @@ export default function WebsiteBuilder() {
     await applyReorder(reordered)
   }, [activeBlocks, applyReorder])
 
+  const handleMoveBlockOnPage = useCallback(async (pageId: string, blockId: string, dir: 'up' | 'down') => {
+    const blocks = (localBlocks[pageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    const idx = blocks.findIndex(b => b.id === blockId)
+    if (idx < 0) return
+    const newIdx = dir === 'up' ? idx - 1 : idx + 1
+    if (newIdx < 0 || newIdx >= blocks.length) return
+    const reordered = [...blocks]
+    const [moved] = reordered.splice(idx, 1)
+    reordered.splice(newIdx, 0, moved)
+    applyReorderForPage(pageId, reordered)
+    if (activePageId !== pageId) setActivePageId(pageId)
+  }, [localBlocks, applyReorderForPage, activePageId])
+
+  const onSidebarSectionDragStart = (pageId: string, idx: number) => {
+    setSidebarDraggedPageId(pageId)
+    setSidebarDraggedIdx(idx)
+  }
+  const onSidebarSectionDragOver = (e: React.DragEvent, pageId: string, idx: number) => {
+    e.preventDefault()
+    if (sidebarDraggedPageId === pageId) setSidebarDragOverIdx(idx)
+  }
+  const onSidebarSectionDragEnd = () => {
+    setSidebarDraggedPageId(null)
+    setSidebarDraggedIdx(null)
+    setSidebarDragOverIdx(null)
+  }
+  const onSidebarSectionDrop = (e: React.DragEvent, pageId: string, idx: number) => {
+    e.preventDefault()
+    if (sidebarDraggedPageId !== pageId || sidebarDraggedIdx === null || sidebarDraggedIdx === idx) {
+      onSidebarSectionDragEnd()
+      return
+    }
+    const blocks = (localBlocks[pageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    const reordered = [...blocks]
+    const [moved] = reordered.splice(sidebarDraggedIdx, 1)
+    reordered.splice(idx, 0, moved)
+    applyReorderForPage(pageId, reordered)
+    onSidebarSectionDragEnd()
+  }
+  const toggleBlockVisibility = (blockId: string, pageId: string) => {
+    const block = (localBlocks[pageId] || []).find(b => b.id === blockId)
+    if (!block) return
+    handleUpdateBlockProps(blockId, { visible: block.visible === false } as Partial<BlockProps>)
+  }
+
+  const toggleSectionPageExpanded = (pageId: string) => {
+    setExpandedSectionPages(prev => {
+      const next = new Set(prev)
+      if (next.has(pageId)) next.delete(pageId)
+      else next.add(pageId)
+      return next
+    })
+  }
+
+  const selectPageSection = (pageId: string, blockId: string) => {
+    setActivePageId(pageId)
+    setSelectedBlockId(blockId)
+    setRightPanel('props')
+    setRightCollapsed(false)
+  }
+
+  const openSectionsPanel = useCallback(() => {
+    setLeftPanel('blocks')
+    setLeftCollapsed(false)
+  }, [])
+
   // Insert a block after the currently selected block
   const handleAddBlockAfter = useCallback(async (blockType: string) => {
     if (!activePageId) return
     const def = BLOCK_CATALOG.find(d => d.type === blockType)
     if (!def) return
+    if (GLOBAL_STRUCTURE_BLOCK_TYPES.has(blockType)) {
+      await handleAddBlock(def, -1)
+      return
+    }
     const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
     const insertIdx = currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
     await handleAddBlock(def, insertIdx)
@@ -9432,11 +11000,12 @@ export default function WebsiteBuilder() {
   const persistAllBlocksToServer = useCallback(async () => {
     if (!siteId) return
     const replacements: { pageId: string; tempId: string; saved: WebsiteBlock }[] = []
+    const blocksToPersist = syncNavLinksInBlockMap(localBlocks, sortedSitePages)
 
     // Persist each page's blocks concurrently; within a page blocks are batched
     // in parallel too (creates and updates fire together, then reorder once).
-    await Promise.all(localPages.map(async (page) => {
-      const blocks = (localBlocks[page.id] || []).map((b, i) => ({ ...b, sort_order: i }))
+    await Promise.all(sortedSitePages.map(async (page) => {
+      const blocks = (blocksToPersist[page.id] || []).map((b, i) => ({ ...b, sort_order: i }))
       if (!blocks.length) return
 
       const pageReplacements: { tempId: string; saved: WebsiteBlock }[] = []
@@ -9508,7 +11077,7 @@ export default function WebsiteBuilder() {
       const selectedReplacement = replacements.find(r => r.tempId === selectedBlockId)
       if (selectedReplacement) setSelectedBlockId(selectedReplacement.saved.id)
     }
-  }, [siteId, localPages, localBlocks, selectedBlockId])
+  }, [siteId, sortedSitePages, localBlocks, selectedBlockId])
 
   const persistAllPagesToServer = useCallback(async () => {
     if (!siteId) return
@@ -9536,32 +11105,75 @@ export default function WebsiteBuilder() {
   }, [siteId, localPages])
 
   // Save styles + all pending block edits / order
-  const handleSaveCanvas = useCallback(async () => {
-    if (isSaving) return
+  const handleSaveCanvas = useCallback(async (opts?: { silent?: boolean }) => {
+    if (isSavingRef.current) return
     if (!styleDirty && !blocksDirty) return
     if (!siteId) return
     const saveBlocks = blocksDirty
     const saveStyle = styleDirty
     setIsSaving(true)
+    isSavingRef.current = true
+    setAutoSaveStatus('saving')
     try {
       if (saveBlocks) await persistAllBlocksToServer()
       if (saveStyle) await websiteApi.updateSite(siteId, { style_config: localStyle as any })
       setStyleDirty(false)
       setBlocksDirty(false)
       setLastSavedAt(new Date())
-      setSaveFlash(true)
-      setTimeout(() => setSaveFlash(false), 1800)
-      toast.success(saveBlocks && saveStyle ? 'Canvas and styles saved' : saveBlocks ? 'Canvas saved' : 'Styles saved')
+      setAutoSaveStatus('synced')
+      if (!opts?.silent) {
+        setSaveFlash(true)
+        setTimeout(() => setSaveFlash(false), 1800)
+        toast.success(saveBlocks && saveStyle ? 'Canvas and styles saved' : saveBlocks ? 'Canvas saved' : 'Styles saved')
+      }
     } catch {
-      toast.error('Save failed — check your connection')
+      setAutoSaveStatus('error')
+      toast.error(opts?.silent ? 'Auto-save failed — check your connection' : 'Save failed — check your connection')
     }
     setIsSaving(false)
-  }, [siteId, localStyle, isSaving, styleDirty, blocksDirty, persistAllBlocksToServer])
+    isSavingRef.current = false
+  }, [siteId, localStyle, styleDirty, blocksDirty, persistAllBlocksToServer])
+
+  const handleSaveCanvasRef = useRef(handleSaveCanvas)
+  useEffect(() => { handleSaveCanvasRef.current = handleSaveCanvas }, [handleSaveCanvas])
+
+  // Debounced auto-save when canvas or style changes
+  useEffect(() => {
+    if (!siteId || (!blocksDirty && !styleDirty)) {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = null
+      }
+      setAutoSaveStatus('synced')
+      return
+    }
+
+    setAutoSaveStatus(prev => (prev === 'saving' ? prev : 'pending'))
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null
+      if (isSavingRef.current) return
+      void handleSaveCanvasRef.current({ silent: true })
+    }, AUTO_SAVE_DELAY_MS)
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = null
+      }
+    }
+  }, [blocksDirty, styleDirty, siteId])
 
   /** Save current canvas + publish to make the loaded template live on the store. */
-  const handleApplyToStore = useCallback(async () => {
+  const handleApplyToStore = useCallback(async (opts?: { storeIds?: string[] }) => {
     if (!siteId || isApplyingToStore) return
     setIsApplyingToStore(true)
+    setApplyPopoverOpen(false)
+    setApplyPickerStep('root')
+    const targetStoreIds = opts?.storeIds ?? (
+      businessUnits.length === 1 ? [businessUnits[0].id] : businessUnits.map(s => s.id)
+    )
     try {
       // Only persist if there are pending local changes — avoids redundant API
       // calls when the user clicks Apply immediately after loading a template.
@@ -9584,7 +11196,19 @@ export default function WebsiteBuilder() {
       setLastSavedAt(new Date())
       setSaveFlash(true)
       setTimeout(() => setSaveFlash(false), 1800)
-      toast.success(`✅ Applied — your business front is now live with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`)
+      if (targetStoreIds.length > 0) {
+        setAppliedStoreIds(targetStoreIds)
+        localStorage.setItem(`wb-applied-stores-${siteId}`, JSON.stringify(targetStoreIds))
+      }
+      const appliedNames = businessUnits
+        .filter(s => targetStoreIds.includes(s.id))
+        .map(s => s.name)
+      const scopeLabel = appliedNames.length === 0
+        ? 'your store'
+        : appliedNames.length === businessUnits.length && businessUnits.length > 1
+          ? `all ${appliedNames.length} ${BUSINESS_UNIT_STORE_LABEL}s`
+          : appliedNames.join(', ')
+      toast.success(`✅ Applied — live on ${scopeLabel} with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       toast.error(`Apply failed: ${msg}`)
@@ -9592,7 +11216,48 @@ export default function WebsiteBuilder() {
     } finally {
       setIsApplyingToStore(false)
     }
-  }, [siteId, isApplyingToStore, blocksDirty, styleDirty, persistAllPagesToServer, persistAllBlocksToServer, localStyle, localPages, queryClient])
+  }, [siteId, isApplyingToStore, blocksDirty, styleDirty, persistAllPagesToServer, persistAllBlocksToServer, localStyle, localPages, queryClient, businessUnits])
+
+  const isSiteApplied = Boolean(
+    site?.is_published && !blocksDirty && !styleDirty && !isApplyingToStore,
+  )
+
+  const hasSaveChanges = styleDirty || blocksDirty
+  const isCanvasSaved = !hasSaveChanges && !isSaving
+
+  const autoSaveStatusLabel = useMemo(() => {
+    if (autoSaveStatus === 'pending') return 'Unsaved changes…'
+    if (autoSaveStatus === 'saving' || isSaving) return 'Auto-saving…'
+    if (autoSaveStatus === 'error') return 'Auto-save failed'
+    if (lastSavedAt) {
+      return `Auto-saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    }
+    return 'Auto-save on'
+  }, [autoSaveStatus, isSaving, lastSavedAt])
+
+  const openApplyOptions = useCallback(() => {
+    setApplyPickerStep('root')
+    setApplyPopoverOpen(true)
+  }, [])
+
+  const handleApplyButtonClick = useCallback(() => {
+    if (isApplyingToStore || applyingTemplateInline) return
+    if (hasMultipleBusinessUnits) {
+      openApplyOptions()
+      return
+    }
+    void handleApplyToStore(
+      businessUnits.length === 1 ? { storeIds: [businessUnits[0].id] } : undefined,
+    )
+  }, [isApplyingToStore, applyingTemplateInline, hasMultipleBusinessUnits, openApplyOptions, handleApplyToStore, businessUnits])
+
+  const handleApplyAllBusinessUnits = useCallback(() => {
+    void handleApplyToStore({ storeIds: businessUnits.map(s => s.id) })
+  }, [handleApplyToStore, businessUnits])
+
+  const handleApplySingleBusinessUnit = useCallback((storeId: string) => {
+    void handleApplyToStore({ storeIds: [storeId] })
+  }, [handleApplyToStore])
 
   // Add page — optimistic (uses styled prompt)
   const handleAddPage = useCallback(() => {
@@ -9639,99 +11304,6 @@ export default function WebsiteBuilder() {
       },
     })
   }, [siteId, localPages, activePageId, openTextPrompt])
-
-  // ── Preflight check before first publish ────────────────────────────────────
-  const [preflightOpen, setPreflightOpen] = useState(false)
-
-  const runPreflight = () => {
-    const issues: string[] = []
-    const allBlocks = Object.values(localBlocks).flat()
-
-    if (!site?.seo_title && !site?.name) issues.push('Missing site title — set it in SEO tab')
-    if (!site?.seo_description) issues.push('Missing meta description — set it in SEO tab')
-    if (!site?.favicon_url) issues.push('No favicon uploaded — add one in Site settings')
-
-    const hasHomepage = localPages.some(p => p.is_homepage)
-    if (!hasHomepage) issues.push('No homepage set — mark a page as home in Pages panel')
-
-    localPages.forEach(page => {
-      const pageBlocks = localBlocks[page.id] || []
-      if (pageBlocks.length === 0) issues.push(`Page "${page.title}" has no blocks — add content or delete the page`)
-      if (!page.seo_description) issues.push(`Page "${page.title}" is missing a meta description`)
-    })
-
-    const images = allBlocks.flatMap(b => {
-      const p = b.props as any
-      return [p.image_url, p.hero_image, p.bg_image_url].filter(Boolean)
-    })
-    const imgsWithoutAlt = images.filter(() => false) // alt is embedded in block props; skip for now
-
-    if (!allBlocks.some(b => b.block_type === 'nav')) issues.push('No Navigation block — visitors won\'t have a menu')
-    if (!allBlocks.some(b => b.block_type === 'footer')) issues.push('No Footer block — add contact/copyright info')
-
-    return issues
-  }
-
-  // Publish
-  const handlePublish = async () => {
-    const wasPublished = site?.is_published
-
-    // Run preflight for first publish
-    if (!wasPublished) {
-      const issues = runPreflight()
-      if (issues.length > 0) {
-        setPreflightOpen(true)
-        return
-      }
-    }
-
-    // Save any pending canvas / style changes before publishing so the live
-    // site always reflects what the user sees in the builder.
-    if (styleDirty || blocksDirty) {
-      try {
-        await persistAllPagesToServer()
-        await persistAllBlocksToServer()
-        if (styleDirty) await websiteApi.updateSite(siteId!, { style_config: localStyle as any })
-        setStyleDirty(false)
-        setBlocksDirty(false)
-        setLastSavedAt(new Date())
-      } catch {
-        toast.error('Could not save changes before publishing — fix the connection and try again.')
-        return
-      }
-    }
-
-    try {
-      await (wasPublished ? unpublishSite : publishSite).mutateAsync()
-      invalidateSite()
-      if (wasPublished) {
-        toast.success('Site unpublished — visitors will no longer see it.')
-      } else if (siteTestUrl) {
-        toast.success(
-          <span className="flex flex-col gap-1">
-            <span className="font-semibold">🎉 Site published!</span>
-            <span className="text-xs flex items-center gap-1.5">
-              <span className="text-primary/50 font-mono">{siteTestUrl}</span>
-              <button
-                className="underline text-white"
-                onClick={async () => { await navigator.clipboard.writeText(siteTestUrl).catch(() => {}); toast.success('URL copied!') }}
-              >
-                Copy
-              </button>
-              <a href={siteTestUrl} target="_blank" rel="noopener noreferrer" className="underline text-white">Open ↗</a>
-            </span>
-          </span>,
-          { duration: 8000 }
-        )
-      } else {
-        toast.success('Site published! Set a subdomain to get the live URL.')
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      toast.error(`Publish failed: ${msg}`)
-      console.error('[Publish]', err)
-    }
-  }
 
   // Store test URL — business front /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
@@ -9829,105 +11401,6 @@ export default function WebsiteBuilder() {
     }
   }, [siteId, site, myVendor, localPages, localBlocks, localStyle, activePage, siteTestUrl])
 
-  const startStorefrontOverlayPreview = useCallback(async () => {
-    if (!siteId || !site) {
-      setSfOverlayBlockFallback(true)
-      setSfOverlayLoading(false)
-      return
-    }
-    setSfOverlayLoading(true)
-    setSfOverlayBlockFallback(false)
-    setSfOverlayPublishedFallback(false)
-    setSfOverlayToken(null)
-    setSfOverlayVendorSlug(null)
-    let vendorSlug = myVendor?.slug?.trim() ?? ''
-    if (!vendorSlug) {
-      try {
-        const v = await vendorApi.getMyVendor()
-        vendorSlug = v.slug?.trim() ?? ''
-      } catch {
-        /* noop */
-      }
-    }
-    if (!vendorSlug) {
-      toast.error('Could not resolve your vendor store slug.')
-      setSfOverlayBlockFallback(true)
-      setSfOverlayLoading(false)
-      return
-    }
-    try {
-      const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle)
-      const { preview_token } = await websiteApi.createBuilderPreview(siteId, {
-        payload,
-        label: `Builder preview ${new Date().toLocaleString()}`,
-      })
-      setSfOverlayVendorSlug(vendorSlug)
-      setSfOverlayToken(preview_token)
-    } catch (err) {
-      if (isBuilderPreviewInfraFailure(err)) {
-        if (siteTestUrl) {
-          setSfOverlayVendorSlug(vendorSlug)
-          setSfOverlayPublishedFallback(true)
-          toast.warning(
-            'Draft snapshot preview is not available on this server. Showing your published business front in the overlay — run DB migrations for builder previews if you need unsaved draft parity.',
-          )
-        } else {
-          setSfOverlayBlockFallback(true)
-          toast.warning(
-            'Draft preview is not available and no local business front URL is configured — showing builder canvas preview.',
-          )
-        }
-      } else {
-        toast.error(extractApiError(err, 'Preview'))
-        setSfOverlayBlockFallback(true)
-      }
-    } finally {
-      setSfOverlayLoading(false)
-    }
-  }, [siteId, site, myVendor?.slug, localPages, localBlocks, localStyle, siteTestUrl])
-
-  const startStorefrontOverlayPreviewRef = useRef(startStorefrontOverlayPreview)
-  startStorefrontOverlayPreviewRef.current = startStorefrontOverlayPreview
-
-  useEffect(() => {
-    if (!showFullPreview) {
-      setSfOverlayToken(null)
-      setSfOverlayVendorSlug(null)
-      setSfOverlayPublishedFallback(false)
-      setSfOverlayBlockFallback(false)
-      setSfOverlayLoading(false)
-      return
-    }
-    void startStorefrontOverlayPreviewRef.current()
-    // Intentionally only when the overlay opens/closes — avoids refetching on every local edit while open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFullPreview])
-
-  const storefrontOverlayIframeSrc = useMemo(() => {
-    if (!showFullPreview || sfOverlayBlockFallback || sfOverlayLoading) return null
-    if (sfOverlayPublishedFallback && siteTestUrl) {
-      const pageSlug = activePage?.slug?.trim()
-      const path =
-        pageSlug && pageSlug.length > 0 && pageSlug.toLowerCase() !== 'home'
-          ? `/${pageSlug.replace(/^\/+/, '')}`
-          : ''
-      return `${String(siteTestUrl).replace(/\/$/, '')}${path}`
-    }
-    if (sfOverlayToken && sfOverlayVendorSlug && !sfOverlayPublishedFallback) {
-      return buildBuilderDraftPreviewUrl(sfOverlayVendorSlug, sfOverlayToken, activePage?.slug)
-    }
-    return null
-  }, [
-    showFullPreview,
-    sfOverlayBlockFallback,
-    sfOverlayLoading,
-    sfOverlayPublishedFallback,
-    siteTestUrl,
-    sfOverlayToken,
-    sfOverlayVendorSlug,
-    activePage?.slug,
-  ])
-
   // Update data source on selected block
   const handleUpdateDataSource = useCallback((ds: any) => {
     if (!selectedBlockId || !activePageId) return
@@ -9936,8 +11409,65 @@ export default function WebsiteBuilder() {
     handleUpdateBlockProps(selectedBlockId, { data_source: ds } as any)
   }, [selectedBlockId, activePageId, localBlocks, handleUpdateBlockProps])
 
-  // Device widths
-  const deviceWidth = device === 'mobile' ? '390px' : device === 'tablet' ? '768px' : '100%'
+  // Device widths + canvas fit/zoom
+  const designWidthPx = CANVAS_DESIGN_WIDTH[device]
+  const [canvasFitScale, setCanvasFitScale] = useState(1)
+  const [canvasZoom, setCanvasZoom] = useState(1)
+  const [canvasPreviewHeight, setCanvasPreviewHeight] = useState(600)
+  const effectiveCanvasScale = canvasFitScale * canvasZoom
+
+  const clampCanvasZoom = useCallback((z: number) => (
+    Math.min(CANVAS_ZOOM_MAX, Math.max(CANVAS_ZOOM_MIN, Math.round(z * 100) / 100))
+  ), [])
+
+  useEffect(() => {
+    setCanvasZoom(1)
+  }, [device])
+
+  useLayoutEffect(() => {
+    const viewport = canvasViewportRef.current
+    if (!viewport) return
+    const recalcScale = () => {
+      const available = viewport.clientWidth
+      if (available <= 0) return
+      setCanvasFitScale(Math.min(1, available / designWidthPx))
+    }
+    recalcScale()
+    const ro = new ResizeObserver(recalcScale)
+    ro.observe(viewport)
+    return () => ro.disconnect()
+  }, [designWidthPx, leftCollapsed, rightCollapsed, leftWidth, rightWidth])
+
+  useLayoutEffect(() => {
+    const inner = canvasPreviewInnerRef.current
+    if (!inner) return
+    const recalcHeight = () => setCanvasPreviewHeight(Math.max(600, inner.scrollHeight))
+    recalcHeight()
+    const ro = new ResizeObserver(recalcHeight)
+    ro.observe(inner)
+    return () => ro.disconnect()
+  }, [activeBlocks, activePageId, device, selectedBlockId, effectiveCanvasScale])
+
+  const scaledCanvasWidth = Math.round(designWidthPx * effectiveCanvasScale)
+  const canvasScrollPadPx = 32 // p-4 horizontal padding on the canvas viewport
+
+  useLayoutEffect(() => {
+    const main = canvasMainRef.current
+    if (!main) return
+    const maxScrollLeft = Math.max(0, scaledCanvasWidth + canvasScrollPadPx - main.clientWidth)
+    if (main.scrollLeft > maxScrollLeft) main.scrollLeft = maxScrollLeft
+  }, [scaledCanvasWidth, leftCollapsed, rightCollapsed, leftWidth, rightWidth])
+
+  const prevCanvasZoomRef = useRef(canvasZoom)
+  useLayoutEffect(() => {
+    const main = canvasMainRef.current
+    if (!main) return
+    const maxScrollLeft = Math.max(0, scaledCanvasWidth + canvasScrollPadPx - main.clientWidth)
+    if (prevCanvasZoomRef.current !== canvasZoom && maxScrollLeft > 0) {
+      main.scrollLeft = maxScrollLeft / 2
+    }
+    prevCanvasZoomRef.current = canvasZoom
+  }, [canvasZoom, scaledCanvasWidth])
 
   if (isLoading) {
     return (
@@ -9983,7 +11513,7 @@ export default function WebsiteBuilder() {
       desc: hasCommerceBlock ? 'Sales sections added' : 'Add product/service blocks',
       done: hasCommerceBlock,
       icon: ShoppingCart,
-      action: () => { setLeftPanel('blocks'); setBlockCategory('ecommerce'); setLeftCollapsed(false) },
+      action: () => { setLeftPanel('blocks'); setSectionCategory('ecommerce'); setLeftCollapsed(false) },
     },
     {
       id: 'data',
@@ -10020,9 +11550,9 @@ export default function WebsiteBuilder() {
       action: () => { setRightPanel('settings'); setRightCollapsed(false) },
     },
     {
-      id: 'publish',
-      label: 'Publish',
-      desc: site.is_published ? 'Live' : siteTestUrl ? 'Preview link ready' : 'Set link and publish',
+      id: 'go-live',
+      label: 'Go live',
+      desc: site.is_published ? 'Live on your store' : siteTestUrl ? 'Apply to publish changes' : 'Set link, then Apply',
       done: !!site.is_published,
       icon: Rocket,
       action: handleViewStore,
@@ -10063,65 +11593,6 @@ export default function WebsiteBuilder() {
         />
       )}
 
-      {/* Pre-publish preflight modal */}
-      {preflightOpen && (() => {
-        const issues = runPreflight()
-        return (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-              <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0" />
-                  <div>
-                    <h2 className="font-bold text-gray-900">Review before publishing</h2>
-                    <p className="text-sm text-gray-500">{issues.length} issue{issues.length !== 1 ? 's' : ''} found</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <ul className="space-y-2 mb-6 max-h-64 overflow-y-auto">
-                  {issues.map((issue, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                      <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
-                      {issue}
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setPreflightOpen(false)}
-                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Fix Issues
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setPreflightOpen(false)
-                      try {
-                        if (styleDirty || blocksDirty) {
-                          await persistAllPagesToServer()
-                          await persistAllBlocksToServer()
-                          if (styleDirty) await websiteApi.updateSite(siteId!, { style_config: localStyle as any })
-                          setStyleDirty(false)
-                          setBlocksDirty(false)
-                          setLastSavedAt(new Date())
-                        }
-                        await publishSite.mutateAsync()
-                        invalidateSite()
-                        toast.success('Site published!')
-                      } catch { toast.error('Publish failed') }
-                    }}
-                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors"
-                  >
-                    Publish Anyway
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* Styled text prompt (replaces native window.prompt) */}
       {textPrompt && (
         <TextPromptPopup
@@ -10134,133 +11605,19 @@ export default function WebsiteBuilder() {
           multiline={textPrompt.multiline}
           maxLength={textPrompt.maxLength}
           confirmLabel={textPrompt.confirmLabel}
+          helpText={textPrompt.helpText}
+          minLength={textPrompt.minLength}
           onSave={(v) => { textPrompt.onSave(v); setTextPrompt(null) }}
           onClose={() => setTextPrompt(null)}
         />
       )}
 
-      {/* ── Full Page Preview Overlay ─────────────────────────────────── */}
-      {showFullPreview && (
-        <div className="fixed inset-0 z-[300] flex flex-col bg-gray-950" onClick={() => setShowFullPreview(false)}>
-          {/* Preview chrome */}
-          <div className="flex items-center gap-3 px-5 h-12 bg-gray-900 border-b border-gray-800 shrink-0">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <Eye className="w-4 h-4 text-primary/70 shrink-0" />
-              <span className="text-sm font-bold text-white truncate">{site.name}</span>
-              <span className="text-gray-400 text-xs">—</span>
-              <span className="text-gray-400 text-xs font-medium">{activePage?.title || 'Home'}</span>
-            </div>
-            {/* Device switcher */}
-            <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
-              {([['desktop', Monitor, '100%'], ['tablet', Tablet, '768px'], ['mobile', Smartphone, '390px']] as [DeviceMode, React.ElementType, string][]).map(([d, Icon, label]) => (
-                <button
-                  key={d}
-                  onClick={() => setDevice(d)}
-                  title={label}
-                  className={cn('flex items-center gap-1 px-2.5 py-1.5 rounded text-xs transition-colors', device === d ? 'bg-primary text-white' : 'text-gray-400 hover:text-white')}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              ))}
-            </div>
-            <div className="w-px h-5 bg-gray-700" />
-            {/* Page switcher */}
-            <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar max-w-xs">
-              {localPages.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => { setActivePageId(p.id); setSelectedBlockId(null) }}
-                  className={cn(
-                    'px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all',
-                    activePageId === p.id ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800',
-                  )}
-                >
-                  {p.title}
-                </button>
-              ))}
-            </div>
-            <div className="w-px h-5 bg-gray-700" />
-            <button
-              type="button"
-              disabled={sfOverlayLoading}
-              onClick={() => void startStorefrontOverlayPreview()}
-              title="Reload preview from your current unsaved edits (new draft snapshot)"
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-medium transition-colors',
-                sfOverlayLoading && 'opacity-60 cursor-not-allowed',
-              )}
-            >
-              {sfOverlayLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="w-3.5 h-3.5" />
-              )}
-              Refresh
-            </button>
-            <div className="w-px h-5 bg-gray-700" />
-            <button type="button" aria-label="Close"
-              onClick={() => setShowFullPreview(false)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-medium transition-colors"
-            >
-                <X className="w-3.5 h-3.5" /> Exit Preview
-            </button>
-          </div>
-
-          {/* Scrollable preview canvas — iframe uses the same business front draft URL as “Open in browser”. */}
-          <div className="flex-1 overflow-auto bg-gray-800 flex justify-center py-6">
-            <div
-              className="bg-white shadow-2xl rounded-xl overflow-hidden transition-all duration-300 flex flex-col"
-              style={{
-                width: device === 'desktop' ? '100%' : device === 'tablet' ? 768 : 390,
-                maxWidth: '100%',
-                minHeight: 'min(100%, calc(100vh - 3rem))',
-              }}
-             onClick={e => e.stopPropagation()}>
-              {sfOverlayLoading && (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-gray-500 text-sm">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary/80" />
-                  <span>Loading business front preview…</span>
-                </div>
-              )}
-              {!sfOverlayLoading && storefrontOverlayIframeSrc && (
-                <iframe
-                  key={storefrontOverlayIframeSrc}
-                  title="Business front preview"
-                  src={storefrontOverlayIframeSrc}
-                  className="w-full flex-1 border-0 bg-white"
-                  style={{ minHeight: 'calc(100vh - 7rem)' }}
-                />
-              )}
-              {!sfOverlayLoading && sfOverlayBlockFallback && (
-                <>
-                  {activeBlocks.filter(b => b.visible !== false).map(block => (
-                    <BlockPreview
-                      key={block.id}
-                      block={block}
-                      style={localStyle}
-                      isSelected={false}
-                      isEditing={false}
-                    />
-                  ))}
-                  {activeBlocks.filter(b => b.visible !== false).length === 0 && (
-                    <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
-                      No blocks on this page yet.
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Top Toolbar ──────────────────────────────────────────────── */}
       <header className="bg-gray-900 text-white shrink-0 z-10 shadow-md">
         {/* Row 1: main controls */}
-        <div className="flex items-center gap-3 px-5 h-14 border-b border-gray-800">
+        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 min-h-14 py-1.5 border-b border-gray-800 overflow-x-auto hide-scrollbar">
           {/* Back */}
-          <button onClick={() => navigate('/websites')} className="flex items-center gap-1.5 text-gray-400 hover:text-white text-xs font-medium transition-colors shrink-0">
+          <button onClick={() => navigate('/websites')} className={cn('flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors', BUILDER_CRISP_LABEL)}>
             <ArrowLeft className="w-4 h-4" /> Sites
           </button>
           <div className="w-px h-5 bg-gray-700 shrink-0" />
@@ -10268,162 +11625,262 @@ export default function WebsiteBuilder() {
           {/* Site name */}
           <div className="flex items-center gap-2 min-w-0">
             <Globe className="w-4 h-4 text-primary/70 shrink-0" />
-            <span className="text-sm font-bold truncate max-w-[180px]">{site.name}</span>
+            <span className="text-sm font-semibold truncate max-w-[180px] antialiased">{site.name}</span>
             {isTemplateMode ? (
-              <span className="text-xs px-2.5 py-0.5 rounded-full font-bold tracking-wide bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40 whitespace-nowrap">
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-semibold leading-none antialiased bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40 whitespace-nowrap">
                 Template Edit — {templateModeName}
               </span>
             ) : (
-              <span className={cn('text-xs px-2 py-0.5 rounded-full font-bold tracking-wide', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
+              <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-semibold leading-none antialiased', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
                 {site.is_published ? 'Live' : 'Draft'}
               </span>
             )}
           </div>
 
+          {/* Auto-save status */}
+          <div
+            className="flex items-center gap-1.5 shrink-0 px-2 sm:px-2.5 py-1 rounded-lg bg-gray-800/80 border border-gray-700/80 max-w-[min(220px,42vw)]"
+            title={
+              autoSaveStatus === 'error'
+                ? 'Auto-save failed — use Save to retry'
+                : `Changes auto-save after ${AUTO_SAVE_DELAY_MS / 1000}s of inactivity`
+            }
+          >
+            {autoSaveStatus === 'saving' || isSaving ? (
+              <Loader2 className="w-3 h-3 shrink-0 animate-spin text-primary" />
+            ) : autoSaveStatus === 'error' ? (
+              <AlertTriangle className="w-3 h-3 shrink-0 text-amber-400" />
+            ) : autoSaveStatus === 'pending' ? (
+              <span className="w-2 h-2 shrink-0 rounded-full bg-amber-400 animate-pulse" />
+            ) : (
+              <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
+            )}
+            <span className={cn(
+              'text-[10px] sm:text-[11px] font-medium leading-none truncate antialiased',
+              autoSaveStatus === 'error' ? 'text-amber-300' : autoSaveStatus === 'pending' ? 'text-amber-200' : 'text-gray-400',
+            )}>
+              {autoSaveStatusLabel}
+            </span>
+          </div>
+
           <div className="flex-1" />
 
           {/* Undo / Redo */}
-          <div className="flex items-center gap-0.5 bg-gray-800 rounded-lg p-1">
-            <button onClick={handleUndo} disabled={!canUndo} title="Undo (Ctrl+Z)" className={cn('p-1.5 rounded transition-colors', canUndo ? 'text-gray-300 hover:text-white hover:bg-gray-700' : 'text-gray-500/40 cursor-not-allowed')}>
-              <Undo2 className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors',
+                BUILDER_CRISP_LABEL,
+                canUndo
+                  ? 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800'
+                  : 'border-gray-700/60 text-gray-500/50 cursor-not-allowed bg-gray-800/60',
+              )}
+            >
+              <Undo2 className="w-3.5 h-3.5 shrink-0" />
+              Undo
             </button>
-            <button onClick={handleRedo} disabled={!canRedo} title="Redo (Ctrl+Y)" className={cn('p-1.5 rounded transition-colors', canRedo ? 'text-gray-300 hover:text-white hover:bg-gray-700' : 'text-gray-500/40 cursor-not-allowed')}>
-              <Redo2 className="w-3.5 h-3.5" />
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Y)"
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors',
+                BUILDER_CRISP_LABEL,
+                canRedo
+                  ? 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800'
+                  : 'border-gray-700/60 text-gray-500/50 cursor-not-allowed bg-gray-800/60',
+              )}
+            >
+              <Redo2 className="w-3.5 h-3.5 shrink-0" />
+              Redo
             </button>
           </div>
 
           {/* Device switcher */}
-          <div className="flex items-center bg-gray-800 rounded-lg p-1">
-            {([['desktop', Monitor], ['tablet', Tablet], ['mobile', Smartphone]] as [DeviceMode, React.ElementType][]).map(([d, Icon]) => (
+          <div className="flex items-center bg-gray-800 rounded-lg p-1 shrink-0">
+            {DEVICE_SWITCHER.map(({ mode, Icon, label, num, sizeLabel }) => (
               <button
-                key={d}
-                onClick={() => setDevice(d)}
-                className={cn('p-1.5 rounded transition-colors', device === d ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-white')}
+                key={mode}
+                onClick={() => setDevice(mode)}
+                title={`${label} (${num}) — ${sizeLabel}`}
+                className={cn(
+                  'group relative p-1.5 rounded transition-colors',
+                  device === mode ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-white',
+                )}
               >
                 <Icon className="w-4 h-4" />
+                <span className="pointer-events-none absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-950 px-0.5 text-[9px] font-bold leading-none text-white opacity-0 shadow ring-1 ring-white/20 transition-opacity group-hover:opacity-100">
+                  {num}
+                </span>
               </button>
             ))}
           </div>
-
-          {/* Full Preview — same business front app as “Open in browser”, embedded at the selected device width */}
-          <button
-            type="button"
-            onClick={() => {
-              setSfOverlayToken(null)
-              setSfOverlayVendorSlug(null)
-              setSfOverlayPublishedFallback(false)
-              setSfOverlayBlockFallback(false)
-              setSfOverlayLoading(true)
-              setShowFullPreview(true)
-            }}
-            title="Full-screen preview — real business front (draft snapshot), same rendering as Open in browser"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium transition-colors"
-          >
-            <Eye className="w-3.5 h-3.5" /> Preview
-          </button>
 
           <button
             type="button"
             disabled={openingBrowserPreview}
             onClick={() => void handleOpenBrowserPreview()}
-            title="Open draft on the business front in a new tab (same link rules as template gallery — uses VITE_STOREFRONT_URL or :3002 in dev)"
+            title="Preview the draft on your business front in a new browser tab"
             className={cn(
-              STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS,
-              openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-accent',
+              STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS,
+              openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-accent/95',
             )}
           >
             {openingBrowserPreview ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-primary" />
             ) : (
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
             )}
-            Open in browser
+            Preview in Browser
           </button>
 
-          <div className="w-px h-5 bg-gray-700 shrink-0" />
-
-          {/* Submissions inbox */}
-          <button
-            onClick={() => navigate(`/websites/${siteId}/submissions`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium transition-colors"
-            title="View form & booking submissions from your site"
-          >
-            <Mail className="w-3.5 h-3.5" /> Inbox
-          </button>
-
-          {/* AI */}
-          <button
-            onClick={() => { setRightPanel('ai'); setRightCollapsed(false) }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary to-info text-white text-xs font-bold hover:opacity-90 transition-opacity shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5" /> AI Studio
-          </button>
-
-          {/* Save style */}
-          <div className="relative flex flex-col items-center">
+          {/* Save — only actionable when there are unsaved changes */}
+          <div className="relative flex flex-col items-center shrink-0">
             <button
-              onClick={handleSaveCanvas}
-              disabled={isSaving || (!styleDirty && !blocksDirty)}
-              title={lastSavedAt ? `Last saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Save canvas and style settings'}
+              type="button"
+              onClick={hasSaveChanges ? () => void handleSaveCanvas() : undefined}
+              disabled={isSaving || !hasSaveChanges}
+              title={
+                hasSaveChanges
+                  ? 'Save now (also auto-saves after a short pause)'
+                  : lastSavedAt
+                    ? `Saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    : 'All changes saved'
+              }
               className={cn(
-                'relative flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-white text-xs font-bold transition-all duration-300 select-none',
+                'relative inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-white transition-colors duration-200 select-none',
+                BUILDER_CRISP_LABEL,
                 saveFlash
-                  ? 'bg-emerald-500 scale-105 shadow-lg shadow-emerald-500/30'
-                  : styleDirty || blocksDirty
-                    ? 'bg-gradient-to-r from-primary to-emerald-700 hover:from-primary/90 hover:to-emerald-800 shadow-md shadow-primary/30 animate-pulse'
-                    : 'bg-gray-700 hover:bg-gray-600',
-                isSaving && 'opacity-80 cursor-not-allowed'
+                  ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30'
+                  : hasSaveChanges
+                    ? 'bg-gradient-to-r from-primary to-emerald-700 hover:from-primary/90 hover:to-emerald-800 shadow-md shadow-primary/30 ring-2 ring-amber-400/50'
+                    : 'bg-emerald-600 text-white ring-2 ring-emerald-300/40 cursor-default',
+                isSaving && 'opacity-80 cursor-not-allowed',
               )}
             >
-              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saveFlash ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-              {saveFlash ? 'Saved!' : isSaving ? 'Saving…' : 'Save'}
-              {(styleDirty || blocksDirty) && !isSaving && !saveFlash && (
+              {isSaving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : saveFlash || isCanvasSaved ? (
+                <Check className="w-3.5 h-3.5" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Saved' : 'Save'}
+              {hasSaveChanges && !isSaving && !saveFlash && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 border-2 border-gray-900 animate-pulse" />
               )}
             </button>
-            {lastSavedAt && !styleDirty && !blocksDirty && !isSaving && (
-              <span className="absolute -bottom-4 text-xs text-gray-500 whitespace-nowrap">
-                {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
+          </div>
+
+          {/* Apply — saves canvas + publishes; multi-BU picker when several stores exist */}
+          <div className="relative shrink-0" ref={applyPopoverRef}>
+            <button
+              type="button"
+              disabled={isApplyingToStore || applyingTemplateInline}
+              onClick={handleApplyButtonClick}
+              title={
+                isSiteApplied
+                  ? 'Site is live — click to apply again or change business units'
+                  : 'Save current canvas and publish it to your live store'
+              }
+              className={cn(
+                'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-colors shadow-sm',
+                BUILDER_CRISP_LABEL,
+                isApplyingToStore
+                  ? 'bg-emerald-600 opacity-70 cursor-wait text-white'
+                  : isSiteApplied
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white ring-2 ring-emerald-300/50'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-400/40',
+              )}
+            >
+              {isApplyingToStore ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…</>
+              ) : (
+                <><Check className="w-3.5 h-3.5" /> {isSiteApplied ? 'Applied' : 'Apply'}</>
+              )}
+            </button>
+
+            {applyPopoverOpen && hasMultipleBusinessUnits && (
+              <div className="absolute right-0 top-full z-[200] mt-1.5 w-72 rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl overflow-hidden">
+                {applyPickerStep === 'root' ? (
+                  <div className="p-2 space-y-1">
+                    <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                      {isSiteApplied ? 'Apply again' : 'Choose scope'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void handleApplyAllBusinessUnits()}
+                      className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
+                    >
+                      Apply for all {BUSINESS_UNIT_STORE_LABEL}s
+                      <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
+                        {businessUnits.length} units
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setApplyPickerStep('units')}
+                      className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors"
+                    >
+                      Choose single {BUSINESS_UNIT_STORE_LABEL}
+                      <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
+                        Pick one store to apply to
+                      </span>
+                    </button>
+                    {isSiteApplied && appliedStoreIds.length > 0 && (
+                      <p className="px-2 pt-1 text-[10px] text-gray-400 leading-snug">
+                        Currently applied to{' '}
+                        {businessUnits.filter(s => appliedStoreIds.includes(s.id)).map(s => s.name).join(', ') || 'selected units'}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-1 max-h-64 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => setApplyPickerStep('root')}
+                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" /> Back
+                    </button>
+                    <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                      Select {BUSINESS_UNIT_STORE_LABEL}
+                    </p>
+                    {businessUnits.map(unit => (
+                      <button
+                        key={unit.id}
+                        type="button"
+                        onClick={() => handleApplySingleBusinessUnit(unit.id)}
+                        className={cn(
+                          'w-full text-left px-3 py-2 rounded-lg text-xs transition-colors',
+                          appliedStoreIds.includes(unit.id)
+                            ? 'bg-emerald-50 text-emerald-800 font-semibold hover:bg-emerald-100'
+                            : 'hover:bg-gray-50 font-medium text-gray-700',
+                        )}
+                      >
+                        <span className="block truncate">{unit.name}</span>
+                        <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
+                          {formatStoreCode(unit)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Apply — always available; saves canvas + publishes current site/template */}
-          <button
-            type="button"
-            disabled={isApplyingToStore || applyingTemplateInline}
-            onClick={() => void handleApplyToStore()}
-            title="Save current canvas and publish it to your live store"
-            className={cn(
-              'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm',
-              isApplyingToStore
-                ? 'bg-emerald-600 opacity-70 cursor-wait text-white'
-                : 'bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-400/40',
-            )}
-          >
-            {isApplyingToStore
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…</>
-              : <><Check className="w-3.5 h-3.5" /> Apply</>
-            }
-          </button>
-
-          {/* Publish */}
-          <button
-            onClick={handlePublish}
-            className={cn(
-              'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm',
-              site.is_published ? 'bg-emerald-700 hover:bg-emerald-600 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-            )}
-          >
-            {site.is_published ? <><EyeOff className="w-3.5 h-3.5" /> Unpublish</> : <><Globe className="w-3.5 h-3.5" /> Publish</>}
-          </button>
-
           {/* View Store / Test Link */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={handleViewStore}
               title={siteTestUrl ?? 'Set a subdomain to get a test link'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-500 text-white text-xs font-bold transition-colors shadow-sm"
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-500 text-white transition-colors shadow-sm', BUILDER_CRISP_LABEL)}
             >
               <ExternalLink className="w-3.5 h-3.5" />
               {siteTestUrl ? 'View Store' : 'Get Link'}
@@ -10463,9 +11920,6 @@ export default function WebsiteBuilder() {
                     <ExternalLink className="w-3.5 h-3.5" /> Open ↗
                   </button>
                 </div>
-                {!site.is_published && (
-                  <p className="text-xs text-amber-600 mt-2 text-center">⚠ Publish the site first so visitors can see it live.</p>
-                )}
               </div>
             </>
           )}
@@ -10473,22 +11927,23 @@ export default function WebsiteBuilder() {
         </div>{/* end row 1 */}
 
         {/* Row 2: Page tabs */}
-        <div className="flex items-center gap-1 px-5 h-10 bg-gray-800/60 border-t border-gray-800 overflow-x-auto hide-scrollbar">
-          {localPages.map(page => (
+        <div className="flex items-center gap-1 px-3 sm:px-5 min-h-10 py-1 bg-gray-800/60 border-t border-gray-800 overflow-x-auto hide-scrollbar">
+          {sortedSitePages.map(page => (
             <button
               key={page.id}
               onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
               className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all',
+                'flex items-center gap-1.5 px-3.5 py-1 rounded-full whitespace-nowrap transition-colors antialiased subpixel-antialiased',
+                BUILDER_CRISP_LABEL,
                 activePageId === page.id
                   ? 'bg-primary text-white shadow-sm shadow-primary/40'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/70'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/70 font-medium',
               )}
             >
               <FileText className="w-3 h-3 shrink-0" />
               {page.title}
               {page.is_homepage && (
-                <span className={cn('text-xs rounded px-1 font-bold', activePageId === page.id ? 'bg-white/20 text-white' : 'bg-gray-700 text-gray-400')}>
+                <span className={cn('text-[10px] rounded px-1 font-semibold leading-none antialiased', activePageId === page.id ? 'bg-white/20 text-white' : 'bg-gray-700 text-gray-400')}>
                   Home
                 </span>
               )}
@@ -10496,7 +11951,7 @@ export default function WebsiteBuilder() {
           ))}
           <button
             onClick={handleAddPage}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs text-gray-500 hover:bg-gray-700/70 hover:text-gray-300 transition-colors whitespace-nowrap ml-1"
+            className={cn('flex items-center gap-1 px-2.5 py-1 rounded-full text-gray-500 hover:bg-gray-700/70 hover:text-gray-300 transition-colors antialiased', BUILDER_CRISP_LABEL, 'font-medium')}
           >
             <Plus className="w-3 h-3" /> Add Page
           </button>
@@ -10520,9 +11975,8 @@ export default function WebsiteBuilder() {
               {/* Left panel tabs */}
               <div className="flex items-center border-b border-gray-100 shrink-0">
                 {([
-                  { id: 'blocks' as const, icon: Layout, label: 'Blocks' },
+                  { id: 'blocks' as const, icon: Layout, label: 'Sections' },
                   { id: 'pages' as const, icon: FileText, label: 'Pages' },
-                  { id: 'layers' as const, icon: Layers, label: 'Layers' },
                   { id: 'templates' as const, icon: Sparkles, label: 'Templates' },
                 ] as const).map(({ id, icon: Icon, label }) => (
                     <button
@@ -10545,206 +11999,307 @@ export default function WebsiteBuilder() {
                   <span className="font-extrabold">Template edit mode</span>
                   <br />
                   <span className="font-normal opacity-80">
-                    Sandbox for editing templates. Choose a template in the Templates tab to load its full layout on the canvas. Use Blocks, Layers, and Pages like the normal builder. Clear all resets this sandbox.
+                    Sandbox for editing templates. Choose a template in the Templates tab to load its full layout on the canvas. Use Sections and Pages like the normal builder. Clear all resets this sandbox.
                   </span>
                 </div>
               )}
 
-              <div className="flex-1 overflow-y-auto">
-                {/* BLOCKS panel */}
+              <div className={cn('flex-1 min-h-0', leftPanel === 'blocks' || leftPanel === 'pages' ? 'flex flex-col' : 'overflow-y-auto')}>
+                {/* SECTIONS panel — sticky search/filter + add-section catalog */}
                 {leftPanel === 'blocks' && (
-                  <div className="p-3 space-y-2">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
-                      <input
-                        value={blockSearch}
-                        onChange={e => setBlockSearch(e.target.value)}
-                        placeholder="Search blocks..."
-                        className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {BLOCK_CATEGORIES.map(cat => (
-                        <button
-                          key={cat.id}
-                          onClick={() => setBlockCategory(cat.id)}
-                          className={cn('px-2 py-0.5 rounded text-xs font-medium transition-colors', blockCategory === cat.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100')}
-                        >
-                          {cat.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="space-y-1 pt-1">
-                      {filteredBlocks.map(def => {
-                        const liveSource = BLOCK_AUTO_SOURCE[def.type as string]
-                        const liveLabel = liveSource ? DATA_SOURCES.find(s => s.id === liveSource)?.label : null
-                        return (
-                          <div
-                            key={def.type}
-                            draggable
-                            onDragStart={() => setDraggingNewBlock(def)}
-                            onDragEnd={() => setDraggingNewBlock(null)}
-                            onClick={() => handleAddBlock(def)}
-                            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-accent cursor-grab active:cursor-grabbing transition-all group"
-                            title={liveLabel ? `Auto-connects to ${liveLabel} on drop` : def.desc}
+                  <>
+                    <div className="shrink-0 px-3 pt-3 pb-2.5 space-y-2 border-b border-gray-100 bg-white z-10">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                        <input
+                          value={sectionSearch}
+                          onChange={e => setSectionSearch(e.target.value)}
+                          placeholder="Search blocks to add..."
+                          className="w-full pl-8 pr-8 py-2 text-xs border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                        />
+                        {sectionSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setSectionSearch('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600"
+                            title="Clear search"
                           >
-                            {/* Thumbnail / emoji preview */}
-                            <div className="w-9 h-9 rounded-lg bg-gray-50 group-hover:bg-primary/15 border border-gray-200 group-hover:border-primary/30 flex items-center justify-center shrink-0 transition-colors text-lg leading-none">
-                              {BLOCK_THUMBNAILS[def.type as string] || '▭'}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-medium text-gray-700 group-hover:text-primary truncate">{def.label}</span>
-                                {liveSource && (
-                                  <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-bold bg-emerald-100 text-emerald-700 shrink-0">
-                                    <Zap className="w-2 h-2" />LIVE
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-400 truncate">
-                                {liveLabel ? <>Auto-binds to <span className="text-emerald-600 font-semibold">{liveLabel}</span></> : def.desc}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <select
+                          value={sectionCategory}
+                          onChange={e => setSectionCategory(e.target.value)}
+                          className="w-full appearance-none pl-3 pr-8 py-2 text-xs border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                          aria-label="Filter block category"
+                        >
+                          {BLOCK_CATEGORIES.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.label}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                      <div>
+                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">
+                          Add Section{sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}
+                        </p>
+                        <div className="space-y-0.5">
+                          {filteredCatalogBlocks.map(def => (
+                            <button
+                              key={def.type}
+                              type="button"
+                              draggable
+                              onDragStart={() => setDraggingNewBlock(def)}
+                              onDragEnd={() => setDraggingNewBlock(null)}
+                              onClick={() => handleAddBlock(def)}
+                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl border border-dashed border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-colors cursor-grab active:cursor-grabbing"
+                              title={def.desc}
+                            >
+                              <Plus className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                              <def.icon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="text-xs text-gray-700 font-medium leading-tight truncate flex-1 min-w-0">{def.label}</span>
+                            </button>
+                          ))}
+                          {filteredCatalogBlocks.length === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-3 px-1">No blocks match your search or filter.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 )}
 
-                {/* PAGES panel */}
+                {/* PAGES panel — pages with expandable sections */}
                 {leftPanel === 'pages' && (
-                  <div className="p-3 space-y-2">
-                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">
+                  <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-0.5">
                       {localPages.length} page{localPages.length !== 1 ? 's' : ''}
-                    </div>
-                    {localPages.map(page => {
-                      const navBlock = activeBlocks.find(b => b.block_type === 'nav')
-                      const navLinks: any[] = (navBlock?.props?.nav_links as any[]) || []
-                      const isInNav = navLinks.some((l: any) => l.url === `/${page.slug}` || l.url === page.slug)
+                    </p>
+                    {pageSectionGroups.map(({ page, entries, totalBlocks }) => {
+                      const isExpanded = expandedSectionPages.has(page.id)
+                      const isActivePage = activePageId === page.id
                       const pageTypeLabel = page.page_type === 'landing' ? '🚀' : page.page_type === 'blog' ? '📝' : page.page_type === 'product' ? '🛍️' : '📄'
                       return (
                         <div
                           key={page.id}
-                          onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
-                          className={cn('flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors group', activePageId === page.id ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50 text-gray-700')}
+                          className={cn(
+                            'rounded-xl border overflow-hidden transition-colors group/page',
+                            isActivePage ? 'border-primary/30 bg-primary/[0.03]' : 'border-gray-100 bg-white',
+                          )}
                         >
-                          <span className="text-base shrink-0 leading-none" title={page.page_type || 'page'}>{pageTypeLabel}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs font-medium truncate">{page.title}</span>
-                              {page.is_homepage && <span className="text-[8px] bg-primary/20 text-primary rounded px-1 font-bold shrink-0">HOME</span>}
-                            </div>
-                            <div className="text-xs text-gray-400 font-mono">/{page.slug}</div>
-                          </div>
-                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {/* Set as homepage */}
-                            {!page.is_homepage && (
-                              <button
-                                title="Set as homepage"
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  websiteApi.updatePage(siteId!, page.id, { is_homepage: true } as any)
-                                    .then(() => {
-                                      setLocalPages(prev => prev.map(p => ({ ...p, is_homepage: p.id === page.id })))
-                                      toast.success(`"${page.title}" set as homepage`)
-                                    })
-                                    .catch(() => toast.error('Failed to set homepage'))
-                                }}
-                                className="p-1 hover:bg-primary/15 hover:text-primary rounded text-xs font-bold transition-colors"
-                              >
-                                🏠
-                              </button>
-                            )}
-                            {/* Toggle in nav */}
-                            {navBlock && (
-                              <button
-                                title={isInNav ? 'Remove from nav' : 'Add to nav menu'}
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  const updatedLinks = isInNav
-                                    ? navLinks.filter((l: any) => l.url !== `/${page.slug}` && l.url !== page.slug)
-                                    : [...navLinks, { label: page.title, url: `/${page.slug}` }]
-                                  handleUpdateBlockProps(navBlock.id, { nav_links: updatedLinks } as any)
-                                }}
-                                className={cn('text-[8px] font-bold px-1.5 py-0.5 rounded border transition-colors',
-                                  isInNav
-                                    ? 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
-                                    : 'text-gray-400 border-gray-200 hover:bg-accent hover:text-primary hover:border-primary/40'
+                          <div className="flex items-center gap-0.5 px-1 py-1">
+                            <button
+                              type="button"
+                              onClick={() => toggleSectionPageExpanded(page.id)}
+                              className="p-0.5 hover:bg-gray-100 rounded shrink-0"
+                              title={isExpanded ? 'Collapse sections' : 'Expand sections'}
+                              aria-expanded={isExpanded}
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  'w-3 h-3 text-gray-500 transition-transform',
+                                  isExpanded ? 'rotate-0' : '-rotate-90',
                                 )}
-                              >
-                                {isInNav ? '✓ Nav' : '+ Nav'}
-                              </button>
-                            )}
-                            {/* Duplicate */}
+                              />
+                            </button>
                             <button
-                              title="Duplicate page"
-                              onClick={async e => {
-                                e.stopPropagation()
-                                try {
-                                  const slug = `${page.slug}-copy`
-                                  const newPage = await websiteApi.createPage(siteId!, { title: `${page.title} (Copy)`, slug, page_type: page.page_type, sort_order: localPages.length } as any)
-                                  // Copy blocks
-                                  const currentBlocks = localBlocks[page.id] || []
-                                  for (const block of currentBlocks) {
-                                    await websiteApi.createBlock(siteId!, newPage.id, {
-                                      block_type: block.block_type, label: block.label, props: block.props, sort_order: block.sort_order,
-                                    } as any)
-                                  }
-                                  setLocalPages(prev => [...prev, newPage])
-                                  setLocalBlocks(prev => ({ ...prev, [newPage.id]: [] }))
-                                  setActivePageId(newPage.id)
-                                  toast.success(`"${page.title}" duplicated`)
-                                } catch { toast.error('Failed to duplicate page') }
+                              type="button"
+                              onClick={() => {
+                                setActivePageId(page.id)
+                                setSelectedBlockId(null)
+                                if (!isExpanded) {
+                                  setExpandedSectionPages(prev => new Set([...prev, page.id]))
+                                }
                               }}
-                              className="p-1 hover:bg-gray-100 rounded transition-colors"
+                              className="flex items-center gap-1.5 flex-1 min-w-0 text-left py-0.5 px-0.5 rounded-lg hover:bg-gray-50/80 transition-colors"
                             >
-                              <Copy className="w-3 h-3" />
+                              <span className="text-xs shrink-0 leading-none" title={page.page_type || 'page'}>{pageTypeLabel}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1 min-w-0">
+                                  <span className={cn('text-xs font-semibold leading-tight truncate', isActivePage ? 'text-primary' : 'text-gray-800')}>
+                                    {page.title}
+                                  </span>
+                                  {page.is_homepage && (
+                                    <span className="text-[8px] bg-primary/15 text-primary rounded px-1 font-bold shrink-0">HOME</span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-mono leading-none">/{page.slug}</span>
+                              </div>
                             </button>
-                            {/* Delete */}
-                            <button
-                              onClick={e => { e.stopPropagation(); handleDeletePage(page.id, page.title) }}
-                              className="p-1 hover:bg-red-100 hover:text-red-600 rounded transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                            <span className="text-[10px] font-medium text-gray-400 shrink-0 tabular-nums px-1">
+                              {totalBlocks}
+                            </span>
+                            <div className={cn(
+                              'flex items-center gap-0.5 shrink-0 transition-opacity',
+                              isActivePage ? 'opacity-100' : 'opacity-0 group-hover/page:opacity-100',
+                            )}>
+                              {!page.is_homepage && (
+                                <button
+                                  title="Set as homepage"
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    websiteApi.updatePage(siteId!, page.id, { is_homepage: true } as any)
+                                      .then(() => {
+                                        setLocalPages(prev => prev.map(p => ({ ...p, is_homepage: p.id === page.id })))
+                                        toast.success(`"${page.title}" set as homepage`)
+                                      })
+                                      .catch(() => toast.error('Failed to set homepage'))
+                                  }}
+                                  className="p-1 hover:bg-primary/15 hover:text-primary rounded text-xs font-bold transition-colors"
+                                >
+                                  🏠
+                                </button>
+                              )}
+                              <button
+                                title="Duplicate page"
+                                onClick={async e => {
+                                  e.stopPropagation()
+                                  try {
+                                    const slug = `${page.slug}-copy`
+                                    const newPage = await websiteApi.createPage(siteId!, { title: `${page.title} (Copy)`, slug, page_type: page.page_type, sort_order: localPages.length } as any)
+                                    const currentBlocks = localBlocks[page.id] || []
+                                    for (const block of currentBlocks) {
+                                      await websiteApi.createBlock(siteId!, newPage.id, {
+                                        block_type: block.block_type, label: block.label, props: block.props, sort_order: block.sort_order,
+                                      } as any)
+                                    }
+                                    setLocalPages(prev => [...prev, newPage])
+                                    setLocalBlocks(prev => ({ ...prev, [newPage.id]: [] }))
+                                    setActivePageId(newPage.id)
+                                    toast.success(`"${page.title}" duplicated`)
+                                  } catch { toast.error('Failed to duplicate page') }
+                                }}
+                                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={e => { e.stopPropagation(); handleDeletePage(page.id, page.title) }}
+                                className="p-1 hover:bg-red-100 hover:text-red-600 rounded transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
+
+                          {isExpanded && (
+                            <div className="px-1.5 pb-1.5 space-y-0.5 border-t border-gray-100 pt-1">
+                              {entries.map(({ block, idx }) => {
+                                const def = getBlockCatalogDef(block.block_type)
+                                const Icon = def?.icon ?? Square
+                                const label = catalogBlockLabel(block)
+                                const isSelected = selectedBlockId === block.id
+                                const isVisible = block.visible !== false
+                                const isDragTarget = sidebarDraggedPageId === page.id && sidebarDragOverIdx === idx && sidebarDraggedIdx !== idx
+                                return (
+                                  <div
+                                    key={block.id}
+                                    draggable
+                                    onDragStart={() => onSidebarSectionDragStart(page.id, idx)}
+                                    onDragOver={e => onSidebarSectionDragOver(e, page.id, idx)}
+                                    onDrop={e => onSidebarSectionDrop(e, page.id, idx)}
+                                    onDragEnd={onSidebarSectionDragEnd}
+                                    className={cn(
+                                      'flex items-center gap-1.5 px-2 py-1.5 rounded-xl border transition-colors cursor-default group',
+                                      isSelected
+                                        ? 'border-primary/50 bg-accent ring-1 ring-primary/20'
+                                        : isDragTarget
+                                          ? 'border-primary/40 bg-accent'
+                                          : 'border-gray-100 bg-white hover:border-primary/30 hover:bg-accent/70',
+                                      sidebarDraggedPageId === page.id && sidebarDraggedIdx === idx ? 'opacity-40' : 'opacity-100',
+                                      !isVisible && !isSelected && 'opacity-60',
+                                    )}
+                                  >
+                                    <GripVertical className="w-3 h-3 text-gray-300 cursor-grab shrink-0" />
+                                    <button
+                                      type="button"
+                                      className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                                      onClick={() => selectPageSection(page.id, block.id)}
+                                      title={label}
+                                    >
+                                      <div className={cn(
+                                        'w-5 h-5 rounded-md flex items-center justify-center shrink-0',
+                                        isSelected ? 'bg-primary' : isVisible ? 'bg-primary/10' : 'bg-gray-100',
+                                      )}>
+                                        <Icon className={cn('w-3 h-3', isSelected ? 'text-white' : isVisible ? 'text-primary' : 'text-gray-400')} />
+                                      </div>
+                                      <span className={cn(
+                                        'text-xs font-medium leading-tight truncate',
+                                        isVisible ? 'text-gray-700' : 'text-gray-400',
+                                      )}>
+                                        {label}
+                                      </span>
+                                    </button>
+                                    <div className={cn(
+                                      'flex items-center gap-0 shrink-0 transition-opacity',
+                                      isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+                                    )}>
+                                      <button type="button" onClick={() => handleMoveBlockOnPage(page.id, block.id, 'up')} className="p-0.5 hover:bg-gray-100 rounded" title="Move up">
+                                        <ChevronUp className="w-3 h-3 text-gray-400" />
+                                      </button>
+                                      <button type="button" onClick={() => handleMoveBlockOnPage(page.id, block.id, 'down')} className="p-0.5 hover:bg-gray-100 rounded" title="Move down">
+                                        <ChevronDown className="w-3 h-3 text-gray-400" />
+                                      </button>
+                                      <button type="button" onClick={() => handleDeleteBlock(block.id)} className="p-0.5 hover:bg-red-50 rounded" title="Remove">
+                                        <Trash2 className="w-3 h-3 text-red-400" />
+                                      </button>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleBlockVisibility(block.id, page.id)}
+                                      className="shrink-0 p-0.5"
+                                      title={isVisible ? 'Hide section' : 'Show section'}
+                                    >
+                                      {isVisible
+                                        ? <Eye className="w-3.5 h-3.5 text-primary/70 hover:text-primary" />
+                                        : <EyeOff className="w-3.5 h-3.5 text-amber-400 hover:text-amber-600" />}
+                                    </button>
+                                  </div>
+                                )
+                              })}
+                              {totalBlocks === 0 && (
+                                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-2 py-2 text-center space-y-1.5">
+                                  <p className="text-[11px] text-gray-500 leading-tight">No sections on this page yet.</p>
+                                  <div className="flex flex-col items-stretch gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={openSectionsPanel}
+                                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-primary rounded-lg hover:opacity-90 transition-opacity shadow-sm"
+                                    >
+                                      Browse all blocks
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={openSectionsPanel}
+                                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/30 rounded-lg hover:bg-accent transition-colors"
+                                    >
+                                      <Layout className="w-3.5 h-3.5" />
+                                      Add Section
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
+                    {localPages.length === 0 && (
+                      <p className="text-xs text-gray-400 text-center py-4 px-1">No pages yet.</p>
+                    )}
                     <button onClick={handleAddPage} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-xs text-primary font-semibold hover:bg-accent hover:border-primary/60 transition-colors mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add New Page
                     </button>
                     <p className="text-xs text-gray-400 text-center pt-1">
                       {isTemplateMode
-                        ? 'Template sandbox — add or reorder pages anytime. Hover a row for homepage, nav, duplicate, delete.'
-                        : 'Hover a page for actions. Use 🏠 to set homepage, + Nav to add to nav.'}
+                        ? 'Expand a page to manage its sections. Hover for homepage, nav, duplicate, delete.'
+                        : 'Expand a page to see sections. Hover for page actions.'}
                     </p>
-                  </div>
-                )}
-
-                {/* LAYERS panel */}
-                {leftPanel === 'layers' && (
-                  <div className="p-3 space-y-1">
-                    <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">
-                      {activePage?.title || 'Select a page'} — {activeBlocks.length} blocks
-                    </div>
-                    {activeBlocks.map((block, idx) => (
-                      <div
-                        key={block.id}
-                        onClick={() => { setSelectedBlockId(block.id); setRightPanel('props'); setRightCollapsed(false) }}
-                        className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors group text-xs', selectedBlockId === block.id ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-gray-50 text-gray-600')}
-                      >
-                        <GripVertical className="w-3 h-3 text-gray-300 shrink-0" />
-                        <div className="flex-1 truncate">{catalogBlockLabel(block)}</div>
-                        {!block.visible && <EyeOff className="w-3 h-3 text-gray-300 shrink-0" />}
-                      </div>
-                    ))}
-                    {activeBlocks.length === 0 && (
-                      <div className="text-center py-8 text-gray-400 text-xs">
-                        No blocks yet.<br />Add blocks from the Blocks panel.
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -10796,11 +12351,13 @@ export default function WebsiteBuilder() {
                           return <p className="text-xs text-gray-400 text-center py-4">No templates match your search.</p>
                         }
                         const tplBusy = applyingTemplateInline || clearingTemplateSandbox
+                        const canvasBlockCount = Object.values(localBlocks).reduce((n, arr) => n + arr.length, 0)
                         return filteredTpl.map(tpl => {
                           const pageCount = tpl.page_count ?? tpl.pages?.length ?? 0
                           const palette = getTemplatePreviewPalette(tpl)
                           const sel = templatePanelSelectedId === tpl.id
                           const isLoadingThis = sel && applyingTemplateInline
+                          const showLoadedBadge = sel && !isLoadingThis && canvasBlockCount > 0
                           return (
                             <button
                               key={tpl.id}
@@ -10834,8 +12391,11 @@ export default function WebsiteBuilder() {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-xs font-medium text-gray-800 truncate">{tpl.name}</span>
-                                  {sel && !isLoadingThis && (
+                                  {showLoadedBadge && (
                                     <span className="shrink-0 text-[8px] px-1.5 py-0.5 rounded-full bg-primary text-white font-bold leading-none">Loaded</span>
+                                  )}
+                                  {sel && !isLoadingThis && !showLoadedBadge && (
+                                    <span className="shrink-0 text-[8px] px-1.5 py-0.5 rounded-full bg-amber-500/90 text-white font-bold leading-none">Selected</span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-0.5">
@@ -10883,17 +12443,13 @@ export default function WebsiteBuilder() {
         )}
 
         {/* ── CANVAS ──────────────────────────────────────────────────── */}
-        <main
-          className="flex-1 overflow-auto bg-gray-100"
-          onDragOver={e => e.preventDefault()}
-          onDrop={handleDropOnCanvas}
-        >
-          {/* Canvas toolbar */}
-          <div className="flex items-center justify-between px-5 py-2.5 bg-white border-b border-gray-100 text-xs text-gray-500 sticky top-0 z-10 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="font-bold text-gray-800 text-[13px]">{activePage?.title || 'Select a page'}</span>
-              <span className="text-gray-200">|</span>
-              <span className="text-gray-400">{activeBlocks.length} block{activeBlocks.length !== 1 ? 's' : ''}</span>
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-gray-100">
+          {/* Canvas toolbar — fixed above scroll area so zoom/actions stay visible while panning */}
+          <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 sm:px-5 py-2.5 bg-white border-b border-gray-100 text-gray-500 z-20 shadow-sm min-h-[44px] antialiased">
+            <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+              <span className="font-semibold text-gray-800 text-[13px] leading-none truncate">{activePage?.title || 'Select a page'}</span>
+              <span className="text-gray-200 shrink-0">|</span>
+              <span className="text-gray-400 shrink-0 tabular-nums whitespace-nowrap text-[13px] leading-none">{activeBlocks.length} block{activeBlocks.length !== 1 ? 's' : ''}</span>
 
               {/* Live-data connection stats */}
               {(() => {
@@ -10903,8 +12459,8 @@ export default function WebsiteBuilder() {
                 if (connectable.length === 0) return null
                 return (
                   <>
-                    <span className="text-gray-300">•</span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
+                    <span className="text-gray-300 shrink-0">•</span>
+                    <span className="inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[13px] font-semibold leading-none tabular-nums whitespace-nowrap">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       {connected.length}/{connectable.length} Live
                     </span>
@@ -10917,7 +12473,7 @@ export default function WebsiteBuilder() {
                           })
                           toast.success(`Connected ${disconnected.length} block${disconnected.length !== 1 ? 's' : ''} to live data`)
                         }}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-primary to-emerald-700 text-white font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
+                        className={cn('inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-primary to-emerald-700 text-white hover:opacity-90 transition-opacity shadow-sm', BUILDER_CRISP_LABEL)}
                         title="Auto-connect remaining blocks to KITERP live data"
                       >
                         <Zap className="w-2.5 h-2.5" />
@@ -10928,10 +12484,64 @@ export default function WebsiteBuilder() {
                 )
               })()}
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              {device !== 'desktop' && (
-                <span className="text-primary font-medium">{device === 'mobile' ? '390px' : '768px'}</span>
-              )}
+            <div className="flex items-center gap-2 flex-nowrap shrink-0">
+              <div className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-gray-200 bg-white px-1 py-0.5 shadow-sm">
+                <button
+                  type="button"
+                  title="Zoom out"
+                  disabled={canvasZoom <= CANVAS_ZOOM_MIN}
+                  onClick={() => setCanvasZoom(z => clampCanvasZoom(z - CANVAS_ZOOM_STEP))}
+                  className="p-1 rounded hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-10 shrink-0 text-center text-[13px] font-semibold leading-none tabular-nums text-gray-700 antialiased">
+                  {Math.round(canvasZoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  title="Zoom in"
+                  disabled={canvasZoom >= CANVAS_ZOOM_MAX}
+                  onClick={() => setCanvasZoom(z => clampCanvasZoom(z + CANVAS_ZOOM_STEP))}
+                  className="p-1 rounded hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <select
+                  className="h-7 w-[4.5rem] shrink-0 cursor-pointer rounded border-0 border-l border-gray-200 bg-transparent pl-1.5 text-[11px] font-semibold leading-none text-gray-500 outline-none antialiased"
+                  value=""
+                  onChange={e => {
+                    const v = Number(e.target.value)
+                    if (v > 0) setCanvasZoom(clampCanvasZoom(v / 100))
+                  }}
+                  title="Zoom presets"
+                >
+                  <option value="" disabled>Preset</option>
+                  {[50, 75, 100, 125, 150, 175, 200, 250, 300].map(pct => (
+                    <option key={pct} value={pct}>{pct}%</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  title="Reset zoom to fit"
+                  onClick={() => setCanvasZoom(1)}
+                  aria-hidden={canvasZoom === 1}
+                  tabIndex={canvasZoom === 1 ? -1 : 0}
+                  className={cn(
+                    'ml-0.5 w-7 shrink-0 px-1 py-0.5 rounded text-[11px] font-semibold leading-none text-primary hover:bg-accent antialiased',
+                    canvasZoom === 1 && 'invisible pointer-events-none',
+                  )}
+                >
+                  Fit
+                </button>
+              </div>
+              <span
+                className="hidden sm:inline shrink-0 text-gray-400 text-xs tabular-nums whitespace-nowrap"
+                title={`Design canvas ${designWidthPx}px wide · shown at ${Math.round(effectiveCanvasScale * 100)}% scale (fit + zoom)`}
+              >
+                {designWidthPx}px
+                <span className="text-primary font-medium"> · {Math.round(effectiveCanvasScale * 100)}%</span>
+              </span>
               <button
                 type="button"
                 disabled={
@@ -10943,27 +12553,14 @@ export default function WebsiteBuilder() {
                 onClick={() => { void handleCopyTemplateJson() }}
                 title="Copy site JSON (current canvas and style). Use Import elsewhere or keep as backup."
                 className={cn(
-                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors',
+                  'inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded-lg border transition-colors',
+                  BUILDER_CRISP_LABEL,
                   siteId && !applyingTemplateInline && !clearingTemplateSandbox && !resettingCanvasFromServer
                     ? 'border-primary/30 text-primary bg-accent/80 hover:bg-accent'
                     : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
                 )}
               >
                 <ClipboardCopy className="w-3 h-3 shrink-0" /> Copy template
-              </button>
-              <button
-                type="button"
-                disabled={!canUndo}
-                onClick={handleUndo}
-                title="Undo last block change (Ctrl+Z)"
-                className={cn(
-                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors',
-                  canUndo
-                    ? 'border-gray-200 text-gray-700 hover:bg-gray-50 bg-white'
-                    : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
-                )}
-              >
-                <Undo2 className="w-3 h-3 shrink-0" /> Undo
               </button>
               <button
                 type="button"
@@ -10974,9 +12571,10 @@ export default function WebsiteBuilder() {
                   || clearingTemplateSandbox
                 }
                 onClick={() => { void handleResetCanvasFromServer() }}
-                title="Reload last saved site from the server (discards unsaved canvas and style changes)"
+                title="Reset to last saved site from the server (discards unsaved canvas and style changes)"
                 className={cn(
-                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors',
+                  'inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded-lg border transition-colors',
+                  BUILDER_CRISP_LABEL,
                   siteId && !resettingCanvasFromServer && !applyingTemplateInline && !clearingTemplateSandbox
                     ? 'border-gray-200 text-gray-700 hover:bg-gray-50 bg-white'
                     : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
@@ -10989,13 +12587,31 @@ export default function WebsiteBuilder() {
                 )}
                 Reset
               </button>
-              {selectedBlockId && (
-                <button type="button" aria-label="Close" onClick={() => setSelectedBlockId(null)} className="flex items-center gap-1 px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors">
-                <X className="w-3 h-3" /> Deselect
-                </button>
-              )}
+              <button
+                type="button"
+                aria-label="Deselect block"
+                aria-hidden={!selectedBlockId}
+                tabIndex={selectedBlockId ? 0 : -1}
+                onClick={() => setSelectedBlockId(null)}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors',
+                  BUILDER_CRISP_LABEL,
+                  'font-medium',
+                  !selectedBlockId && 'invisible pointer-events-none',
+                )}
+              >
+                <X className="w-3 h-3 shrink-0" /> Deselect
+              </button>
             </div>
           </div>
+
+          {/* Scrollable canvas preview */}
+          <div
+            ref={canvasMainRef}
+            className="flex-1 min-h-0 overflow-auto"
+            onDragOver={handleCanvasDragOver}
+            onDrop={handleDropOnCanvas}
+          >
 
           {/* Store owner setup assistant — keeps hidden features visible */}
           <div className="px-4 py-2 bg-white border-b border-gray-200 hidden">
@@ -11028,18 +12644,46 @@ export default function WebsiteBuilder() {
             </div>
           </div>
 
-          {/* Canvas area */}
+          {/* Canvas area — scales full design width to fit available editor space */}
           <div
-            className="p-4 min-h-full flex justify-center"
+            ref={canvasViewportRef}
+            className="w-full max-w-full p-4 min-h-full box-border"
             style={{
               background: 'repeating-linear-gradient(0deg,transparent,transparent 24px,rgba(99,102,241,0.04) 24px,rgba(99,102,241,0.04) 25px),repeating-linear-gradient(90deg,transparent,transparent 24px,rgba(99,102,241,0.04) 24px,rgba(99,102,241,0.04) 25px)',
               backgroundColor: '#f3f4f6',
             }}
           >
             <div
-              style={{ width: deviceWidth, maxWidth: '100%' }}
-              className="bg-white shadow-2xl rounded-xl overflow-hidden transition-all duration-300 min-h-[600px]"
+              className="relative shrink-0 mx-auto"
+              style={{
+                width: scaledCanvasWidth,
+                height: Math.round(canvasPreviewHeight * effectiveCanvasScale),
+              }}
             >
+              <div
+                ref={canvasPreviewInnerRef}
+                data-page-canvas="true"
+                style={{
+                  width: designWidthPx,
+                  transform: `scale(${effectiveCanvasScale})`,
+                  transformOrigin: 'top left',
+                  backgroundColor: canvasStyle.bg_color,
+                  color: canvasStyle.text_color,
+                  fontFamily: canvasStyle.font_body,
+                  fontSize: canvasStyle.font_size_base ? `${canvasStyle.font_size_base}px` : undefined,
+                }}
+                className="bg-white shadow-2xl rounded-xl overflow-hidden min-h-[600px]"
+              >
+              {(canvasStyle.font_heading || canvasStyle.font_size_heading) && (
+                <style>{`
+                  [data-page-canvas="true"] h1,
+                  [data-page-canvas="true"] h2,
+                  [data-page-canvas="true"] h3 {
+                    font-family: ${JSON.stringify(canvasStyle.font_heading)} !important;
+                    ${canvasStyle.font_size_heading ? `font-size: ${canvasStyle.font_size_heading}px !important;` : ''}
+                  }
+                `}</style>
+              )}
               {!activePage ? (
                 <div className="flex items-center justify-center h-full text-gray-400 py-32">
                   <div className="text-center">
@@ -11054,35 +12698,24 @@ export default function WebsiteBuilder() {
                   onDrop={handleDropOnCanvas}
                 >
                   <div className="text-center max-w-md">
-                    <Plus className="w-12 h-12 mx-auto mb-3 text-primary/50" />
-                    <p className="text-sm text-gray-500 font-medium">Drop blocks here or click to add</p>
-                    <p className="text-xs text-gray-400 mt-1">Drag from the left panel</p>
+                    <Layout className="w-12 h-12 mx-auto mb-3 text-primary/40" />
+                    <p className="text-sm text-gray-500 font-medium">This page has no sections yet</p>
+                    <p className="text-xs text-gray-400 mt-1">Pick a block from the catalog or drag one here</p>
                     <div className="flex flex-col items-center gap-2 mt-5">
                       <button
-                        onClick={async () => {
-                          const starter: BlockType[] = [
-                            'nav', 'hero', 'stats', 'product_grid', 'services_cards',
-                            'testimonials', 'team_grid', 'contact_form', 'footer',
-                          ]
-                          for (const t of starter) {
-                            const def = BLOCK_CATALOG.find(d => d.type === t)
-                            if (def) await handleAddBlock(def)
-                          }
-                          toast.success('Live ERP Starter Pack added — all blocks auto-connected to your KITERP data!')
-                        }}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
+                        type="button"
+                        onClick={openSectionsPanel}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
                       >
-                        <Zap className="w-4 h-4" />
-                        Add Live ERP Starter Pack
+                        Browse all blocks
                       </button>
-                      <p className="text-xs text-gray-400">
-                        9 blocks auto-wired to your products, services, team, stats & CRM
-                      </p>
                       <button
-                        onClick={() => setLeftPanel('blocks')}
-                        className="mt-2 px-4 py-2 border border-primary/40 text-primary text-xs font-medium rounded-lg hover:bg-accent transition-colors"
+                        type="button"
+                        onClick={openSectionsPanel}
+                        className="flex items-center gap-2 px-4 py-2.5 border border-primary/40 text-primary text-xs font-semibold rounded-lg hover:bg-accent transition-colors"
                       >
-                        Or browse all blocks
+                        <Layout className="w-4 h-4" />
+                        Add Section
                       </button>
                     </div>
                   </div>
@@ -11092,21 +12725,21 @@ export default function WebsiteBuilder() {
                   {activeBlocks.map((block, idx) => (
                     <div
                       key={block.id}
-                      draggable
-                      onDragStart={() => handleDragStartBlock(idx)}
+                      data-block-index={idx}
                       onDragOver={e => handleDragOverBlock(e, idx)}
                       onDrop={e => handleDropOnBlock(e, idx)}
-                      onDragEnd={() => { setDraggingBlockIdx(null); setIsDraggingOver(null) }}
                       onClick={() => { setSelectedBlockId(block.id); setActiveTextTarget(null); setRightPanel('props'); setRightCollapsed(false) }}
                       onContextMenu={e => { e.preventDefault(); openBlockContextMenu(block, e) }}
                       className={cn(
-                        'relative group transition-all cursor-pointer',
+                        'relative group cursor-pointer',
                         selectedBlockId === block.id
                           ? savingBlockId === block.id
                             ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-gray-100'
                             : 'ring-2 ring-ring ring-offset-1 ring-offset-gray-100'
                           : 'hover:ring-1 hover:ring-ring hover:ring-offset-1',
-                        isDraggingOver === block.id && 'border-t-4 border-primary/60',
+                        dropTarget?.idx === idx && dropTarget.before && 'border-t-4 border-primary',
+                        dropTarget?.idx === idx && !dropTarget.before && 'border-b-4 border-primary',
+                        draggingBlockIdx === idx && 'opacity-50',
                         !block.visible && 'opacity-40'
                       )}
                       style={{
@@ -11133,12 +12766,12 @@ export default function WebsiteBuilder() {
                         />
                       )}
 
-                      {/* Block toolbar (top-right hover/select actions) */}
+                      {/* Block toolbar — below design bar when selected to avoid covering typography controls */}
                       <div className={cn(
-                        'absolute z-[140] flex items-center gap-1 rounded-lg border border-white/10 bg-gray-950/95 px-2 py-1 text-white shadow-lg shadow-black/20 backdrop-blur transition-all',
+                        'absolute z-[70] flex items-center gap-1 rounded-lg border border-white/10 bg-gray-950/95 px-2 py-1 text-white shadow-lg shadow-black/20 backdrop-blur transition-all',
                         selectedBlockId === block.id
-                          ? 'top-1.5 right-2 opacity-100'
-                          : 'top-1 right-1 opacity-0 group-hover:opacity-100'
+                          ? 'top-12 right-2 opacity-100'
+                          : 'top-1 right-1 z-[140] opacity-0 group-hover:opacity-100'
                       )}>
                         {(() => {
                           const rawDs = (block.props as any)?.data_source
@@ -11175,9 +12808,11 @@ export default function WebsiteBuilder() {
                           }
                           return null
                         })()}
-                        <button onClick={e => { e.stopPropagation(); setSelectedBlockId(block.id); setRightPanel('data'); setRightCollapsed(false) }} className="p-0.5 text-gray-400 hover:text-white" title="Data source">
-                          <Database className="w-3 h-3" />
-                        </button>
+                        {selectedBlockId === block.id && (
+                          <button onClick={e => { e.stopPropagation(); setRightPanel('data'); setRightCollapsed(false) }} className="p-0.5 text-gray-400 hover:text-white" title="Data source">
+                            <Database className="w-3 h-3" />
+                          </button>
+                        )}
                         <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'up') }} className="p-0.5 text-gray-400 hover:text-white" title="Move up">
                           <ChevronUp className="w-3 h-3" />
                         </button>
@@ -11201,8 +12836,32 @@ export default function WebsiteBuilder() {
                           <Trash2 className="w-3 h-3" />
                           {armedDeleteId === block.id && 'Delete?'}
                         </button>
-                        <GripVertical className="w-3 h-3 text-gray-500 cursor-grab" />
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onPointerDown={e => handleBlockReorderPointerDown(e, idx)}
+                          onClick={e => e.stopPropagation()}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+                          title="Drag to reorder section"
+                          className="p-0.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none"
+                        >
+                          <GripVertical className="w-3 h-3 pointer-events-none" />
+                        </div>
                       </div>
+
+                      {/* Left-edge drag handle — visible when selected for easier reordering */}
+                      {selectedBlockId === block.id && (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onPointerDown={e => handleBlockReorderPointerDown(e, idx)}
+                          onClick={e => e.stopPropagation()}
+                          title="Drag to reorder section"
+                          className="absolute left-0 top-12 bottom-0 z-[75] w-5 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none bg-primary/5 hover:bg-primary/15 border-r border-primary/25"
+                        >
+                          <GripVertical className="w-3.5 h-3.5 text-primary/70 pointer-events-none" />
+                        </div>
+                      )}
 
                       {/* Block label chip + saving indicator */}
                       <div className={cn(
@@ -11218,17 +12877,17 @@ export default function WebsiteBuilder() {
                       )}
 
                       {/* Canvas preview — offset top padding when design bar is showing */}
-                      <div style={selectedBlockId === block.id ? { paddingTop: 40 } : undefined}>
+                      <div style={selectedBlockId === block.id ? { paddingTop: 48 } : undefined}>
                         <BlockPreview
                           block={block}
-                          style={localStyle}
+                          style={canvasStyle}
                           isSelected={selectedBlockId === block.id}
                           isEditing={selectedBlockId === block.id}
+                          sitePages={sortedSitePages}
                           onOverlayUpdate={selectedBlockId === block.id
                             ? (overlays) => handleUpdateBlockProps(block.id, { overlays } as any)
                             : undefined}
                           onOverlaySelectionChange={block.id === selectedBlockId ? onOverlayLayerPicked : undefined}
-                          onOpenAiImageTools={block.id === selectedBlockId ? openAiImageFromCanvas : undefined}
                           onOpenMediaLibrary={block.id === selectedBlockId ? openMediaFromCanvas : undefined}
                           onPickLocalImage={block.id === selectedBlockId ? openOverlayImageFilePicker : undefined}
                           onImageFileDrop={block.id === selectedBlockId ? uploadImageFileToSelection : undefined}
@@ -11297,9 +12956,20 @@ export default function WebsiteBuilder() {
                   {/* Drop zone at end — omit when page ends with footer so the footer isn’t visually stacked under a dashed “slot” */}
                   {activeBlocks[activeBlocks.length - 1]?.block_type !== 'footer' && (
                     <div
-                      className="flex items-center justify-center py-6 border-2 border-dashed border-gray-200 hover:border-primary/40 m-4 rounded-xl transition-colors cursor-pointer"
+                      className={cn(
+                        'flex items-center justify-center py-6 border-2 border-dashed m-4 rounded-xl transition-colors cursor-pointer',
+                        draggingBlockIdx !== null || draggingNewBlock
+                          ? 'border-primary/60 bg-primary/5'
+                          : 'border-gray-200 hover:border-primary/40',
+                      )}
                       onClick={() => setLeftPanel('blocks')}
-                      onDragOver={e => e.preventDefault()}
+                      onDragOver={e => {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = draggingNewBlock ? 'copy' : 'move'
+                        if (activeBlocks.length > 0) {
+                          setDropTarget({ idx: activeBlocks.length - 1, before: false })
+                        }
+                      }}
                       onDrop={handleDropOnCanvas}
                     >
                       <span className="text-xs text-gray-400 flex items-center gap-2">
@@ -11309,7 +12979,9 @@ export default function WebsiteBuilder() {
                   )}
                 </>
               )}
+              </div>
             </div>
+          </div>
           </div>
         </main>
 
@@ -11341,27 +13013,30 @@ export default function WebsiteBuilder() {
           ) : (
             <>
               {/* Right panel tabs */}
-              <div className="flex items-center border-b border-gray-100 shrink-0">
-                <button onClick={() => setRightCollapsed(true)} className="px-2 py-2.5 text-gray-300 hover:text-gray-500">
+              <div className="flex items-center border-b border-gray-100 shrink-0 overflow-x-auto hide-scrollbar">
+                <button onClick={() => setRightCollapsed(true)} className="px-2 py-2.5 text-gray-300 hover:text-gray-500 shrink-0">
                   <ChevronRight className="w-3 h-3" />
                 </button>
                 {([
-                  { id: 'props' as const, icon: Settings2, label: 'Edit', hint: 'Text' },
-                  { id: 'style' as const, icon: Palette, label: 'Style', hint: 'Design' },
-                  { id: 'seo' as const, icon: Search, label: 'SEO', hint: 'Google' },
-                  { id: 'data' as const, icon: Database, label: 'Data', hint: 'Live' },
-                  { id: 'ai' as const, icon: Sparkles, label: 'AI', hint: 'Assist' },
-                  { id: 'media' as const, icon: ImageIcon, label: 'Media', hint: 'Images' },
-                  { id: 'settings' as const, icon: Globe, label: 'Site', hint: 'Settings' },
+                  { id: 'props' as const, icon: Settings2, label: 'Edit' },
+                  { id: 'page' as const, icon: FileText, label: 'Page' },
+                  { id: 'style' as const, icon: Palette, label: 'Style' },
+                  { id: 'seo' as const, icon: Search, label: 'SEO' },
+                  { id: 'data' as const, icon: Database, label: 'Data' },
+                  { id: 'media' as const, icon: ImageIcon, label: 'Media' },
+                  { id: 'settings' as const, icon: Globe, label: 'Site' },
                 ] as const).map(({ id, icon: Icon, label }) => (
                   <button
                     key={id}
                     onClick={() => setRightPanel(id)}
                     title={label}
-                    className={cn('flex-1 py-2 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors', rightPanel === id ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50')}
+                    className={cn(
+                      'min-w-[3.25rem] shrink-0 py-2 px-1 flex flex-col items-center gap-0.5 transition-colors antialiased subpixel-antialiased',
+                      rightPanel === id ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50',
+                    )}
                   >
                     <Icon className="w-4 h-4" />
-                    <span className="leading-none">{label}</span>
+                    <span className="text-[11px] font-semibold leading-none">{label}</span>
                   </button>
                 ))}
               </div>
@@ -11385,17 +13060,23 @@ export default function WebsiteBuilder() {
                         <p className="text-sm font-semibold text-gray-700">Select a block to edit</p>
                         <p className="text-xs text-gray-400 mt-1">Click any block on the canvas to see its settings here.</p>
                       </div>
-                      <div className="pt-2 border-t border-gray-100">
-                        <button
-                          type="button"
-                          onClick={() => { setRightPanel('ai'); setRightCollapsed(false) }}
-                          className="w-full py-2 rounded-xl bg-primary hover:bg-primary/90 text-xs font-medium text-white flex items-center justify-center gap-1"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" /> AI Help
-                        </button>
-                      </div>
                     </div>
                   )
+                )}
+
+                {rightPanel === 'page' && (
+                  <PagePanel
+                    pages={localPages}
+                    activePageId={activePageId}
+                    onSelectPage={pageId => {
+                      setActivePageId(pageId)
+                      setSelectedBlockId(null)
+                      setActiveTextTarget(null)
+                    }}
+                    siteStyle={localStyle}
+                    onPageStyleChange={handlePageStyleChange}
+                    onClearPageStyle={handleClearPageStyle}
+                  />
                 )}
 
                 {rightPanel === 'data' && (
@@ -11411,55 +13092,38 @@ export default function WebsiteBuilder() {
                     <StylePanel style={localStyle} onChange={s => { setLocalStyle(prev => ({ ...prev, ...s })); setStyleDirty(true) }} siteId={siteId!} />
                     <div className="px-4 pb-4">
                       <button
-                        onClick={handleSaveCanvas}
-                        disabled={isSaving || (!styleDirty && !blocksDirty)}
+                        type="button"
+                        onClick={hasSaveChanges ? () => void handleSaveCanvas() : undefined}
+                        disabled={isSaving || !hasSaveChanges}
                         className={cn(
-                          'w-full py-2.5 rounded-xl text-white text-xs font-medium flex items-center justify-center gap-2 transition-all duration-300',
+                          'w-full py-2.5 rounded-xl text-white flex items-center justify-center gap-2 transition-colors duration-200',
+                          BUILDER_CRISP_LABEL,
                           saveFlash
-                            ? 'bg-emerald-500 scale-[1.02]'
-                            : styleDirty || blocksDirty
+                            ? 'bg-emerald-500'
+                            : hasSaveChanges
                               ? 'bg-gradient-to-r from-primary to-emerald-700 hover:from-primary/90 hover:to-emerald-800 shadow-md'
-                              : 'bg-gray-300 text-gray-600 cursor-default'
+                              : 'bg-emerald-600 ring-2 ring-emerald-300/40 cursor-default',
                         )}
                       >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : saveFlash ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                        {saveFlash ? 'Saved!' : isSaving ? 'Saving…' : styleDirty || blocksDirty ? 'Save canvas & styles' : 'No unsaved changes'}
+                        {isSaving ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : saveFlash || isCanvasSaved ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Saved' : 'Save canvas & styles'}
                       </button>
                       {lastSavedAt && (
                         <p className="text-xs text-gray-400 text-center mt-1.5">
-                          Last saved at {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          Auto-saved {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
+                      )}
+                      {!lastSavedAt && (
+                        <p className="text-xs text-gray-400 text-center mt-1.5">Auto-save enabled</p>
                       )}
                     </div>
                   </div>
-                )}
-
-                {rightPanel === 'ai' && (
-                  <AIStudioPanel
-                    siteId={siteId!}
-                    siteName={site?.name}
-                    activePage={activePage}
-                    activeBlocks={activeBlocks}
-                    selectedBlock={selectedBlock}
-                    focusImageGenKey={aiImageGenFocusKey}
-                    applyToImageLayer={applyToImageLayer}
-                    openTextPrompt={openTextPrompt}
-                    onAddBlocks={async (blocks) => {
-                      for (const b of blocks) {
-                        const def = BLOCK_CATALOG.find(d => d.type === b.block_type)
-                        if (def) await handleAddBlock(def)
-                      }
-                    }}
-                    onApplyStyle={async (styleCfg) => {
-                      setLocalStyle(prev => ({ ...prev, ...styleCfg }))
-                      setStyleDirty(true)
-                      await websiteApi.updateSite(siteId!, { style_config: { ...localStyle, ...styleCfg } as any })
-                      setStyleDirty(false)
-                      setLastSavedAt(new Date())
-                      toast.success('Theme applied!')
-                    }}
-                    onApplyImage={applyMediaUrlToSelection}
-                  />
                 )}
 
                 {rightPanel === 'media' && (
@@ -12138,963 +13802,6 @@ function SEOPanel({
   )
 }
 
-
-// ── AI Studio Panel ───────────────────────────────────────────────────────────
-
-type TextPromptOpts = {
-  title: string
-  subtitle?: string
-  placeholder?: string
-  initialValue?: string
-  multiline?: boolean
-  maxLength?: number
-  confirmLabel?: string
-  anchor?: { x: number; y: number } | null
-  onSave: (v: string) => void
-}
-
-function AIStudioPanel({
-  siteId, siteName, activePage, activeBlocks, selectedBlock, focusImageGenKey = 0, applyToImageLayer = false,
-  onAddBlocks, onApplyStyle, onApplyImage, openTextPrompt,
-}: {
-  siteId: string
-  siteName?: string | null
-  activePage: WebsitePage | null
-  activeBlocks: WebsiteBlock[]
-  selectedBlock: WebsiteBlock | null
-  focusImageGenKey?: number
-  applyToImageLayer?: boolean
-  onAddBlocks: (blocks: { block_type: string; props: BlockProps }[]) => Promise<void>
-  onApplyStyle: (style: Partial<StyleConfig>) => Promise<void>
-  onApplyImage: (url: string) => void
-  openTextPrompt: (opts: TextPromptOpts) => void
-}) {
-  const [tab, setTab] = useState<'generate' | 'text' | 'screenshot' | 'clone' | 'review' | 'image' | 'theme'>('generate')
-  const [prompt, setPrompt] = useState('')
-  const [tone, setTone] = useState('professional')
-  const [result, setResult] = useState('')
-  const [alternatives, setAlternatives] = useState<string[]>([])
-  const [url, setUrl] = useState('')
-  const [brandDesc, setBrandDesc] = useState('')
-  const [industry, setIndustry] = useState('')
-  const [mood, setMood] = useState('professional')
-  const [uxReview, setUxReview] = useState<any>(null)
-  const [cloneResult, setCloneResult] = useState<any>(null)
-  const [screenshotResult, setScreenshotResult] = useState<any>(null)
-  const [themeResult, setThemeResult] = useState<any>(null)
-  // Generate site state
-  const [genBizDesc, setGenBizDesc] = useState('')
-  const [genNiche, setGenNiche] = useState('')
-  const [genTone, setGenTone] = useState('professional')
-  const [genIncludePricing, setGenIncludePricing] = useState(true)
-  const [genIncludeBlog, setGenIncludeBlog] = useState(false)
-  const [genResult, setGenResult] = useState<any>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const aiText = useAIGenerateText(siteId)
-  const aiUrlClone = useAIUrlClone(siteId)
-  const aiScreenshot = useAIScreenshotToUI(siteId)
-  const aiUxReview = useAIUxReview(siteId)
-  const aiTheme = useAIGenerateTheme(siteId)
-  const aiGenSite = useAIGenerateSite(siteId)
-  const aiApplyGenSite = useAIApplyGeneratedSite(siteId)
-
-  const isLoading = aiText.isPending || aiUrlClone.isPending || aiScreenshot.isPending || aiUxReview.isPending || aiTheme.isPending || aiGenSite.isPending
-
-  useEffect(() => {
-    if (focusImageGenKey > 0) setTab('image')
-  }, [focusImageGenKey])
-
-  const tabs = [
-    { id: 'generate',   label: '✨ Generate' },
-    { id: 'text',       label: 'Text' },
-    { id: 'screenshot', label: 'Screenshot' },
-    { id: 'clone',      label: 'Clone URL' },
-    { id: 'review',     label: 'UX Review' },
-    { id: 'image',      label: 'Image Gen' },
-    { id: 'theme',      label: 'Theme' },
-  ] as const
-
-  return (
-    <div className="h-full flex flex-col">
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 p-3 border-b border-gray-100">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn('px-2.5 py-1 rounded-lg text-xs font-medium transition-colors', tab === t.id ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {/* GENERATE SITE */}
-        {tab === 'generate' && (
-          <>
-            <div className="p-3 bg-gradient-to-r from-accent to-info/15 border border-primary/20 rounded-xl">
-              <p className="text-xs font-medium text-primary mb-0.5">One-Prompt Site Generator</p>
-              <p className="text-xs text-primary">Describe your business and AI builds the full site structure, copy, and theme instantly.</p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-600">Business Description *</label>
-              <textarea
-                value={genBizDesc}
-                onChange={e => setGenBizDesc(e.target.value)}
-                placeholder="E.g. We are a boutique law firm in Dubai specialising in corporate and IP law for tech startups..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs h-24 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">Niche (optional)</label>
-                <input value={genNiche} onChange={e => setGenNiche(e.target.value)} placeholder="saas, restaurant, law..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">Tone</label>
-                <select value={genTone} onChange={e => setGenTone(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs">
-                  {[
-                    { id: 'professional', label: '💼 Professional' },
-                    { id: 'friendly',     label: '😊 Friendly' },
-                    { id: 'bold',         label: '⚡ Bold' },
-                    { id: 'luxury',       label: '💎 Luxury' },
-                    { id: 'gen_z',        label: '🔥 Gen Z' },
-                    { id: 'empathetic',   label: '💙 Empathetic' },
-                    { id: 'persuasive',   label: '🎯 Persuasive' },
-                    { id: 'corporate',    label: '🏢 Corporate' },
-                  ].map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-                <input type="checkbox" checked={genIncludePricing} onChange={e => setGenIncludePricing(e.target.checked)} className="rounded text-primary" />
-                Include Pricing page
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-                <input type="checkbox" checked={genIncludeBlog} onChange={e => setGenIncludeBlog(e.target.checked)} className="rounded text-primary" />
-                Include Blog page
-              </label>
-            </div>
-            <button
-              onClick={async () => {
-                if (!genBizDesc.trim()) { toast.error('Please describe your business'); return }
-                try {
-                  const r = await aiGenSite.mutateAsync({
-                    business_description: genBizDesc,
-                    niche: genNiche || undefined,
-                    tone: genTone,
-                    include_pricing: genIncludePricing,
-                    include_blog: genIncludeBlog,
-                  })
-                  setGenResult(r)
-                  toast.success(`AI generated ${r.pages.length} pages!`)
-                } catch { toast.error('Site generation failed') }
-              }}
-              disabled={!genBizDesc || isLoading}
-              className="w-full py-2.5 bg-gradient-to-r from-primary to-info text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {aiGenSite.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              {aiGenSite.isPending ? 'Generating your site...' : 'Generate Full Site with AI'}
-            </button>
-
-            {genResult && (
-              <div className="space-y-3">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <div className="text-xs font-bold text-emerald-600 mb-1">AI Generated Site Preview</div>
-                  <p className="text-xs font-bold text-gray-800">{genResult.site_name}</p>
-                  <p className="text-xs text-gray-500 italic">{genResult.tagline}</p>
-                  <p className="text-xs text-gray-500 mt-1">{genResult.summary}</p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {genResult.pages?.map((pg: any) => (
-                      <span key={pg.slug} className="text-xs bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 font-semibold">{pg.title}</span>
-                    ))}
-                  </div>
-                  <div className="flex gap-1 mt-2">
-                    {genResult.style_config?.primary_color && (
-                      <div style={{ backgroundColor: genResult.style_config.primary_color }} className="w-5 h-5 rounded" title="Primary" />
-                    )}
-                    {genResult.style_config?.accent_color && (
-                      <div style={{ backgroundColor: genResult.style_config.accent_color }} className="w-5 h-5 rounded" title="Accent" />
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    openTextPrompt({
-                      title: `Apply AI site to "${siteName || 'this site'}"?`,
-                      subtitle: 'This will replace ALL existing pages and blocks with the AI-generated layout.',
-                      placeholder: '',
-                      confirmLabel: 'Apply AI site',
-                      onSave: async () => {
-                        try {
-                          await aiApplyGenSite.mutateAsync(genResult)
-                          setGenResult(null)
-                          toast.success('AI site applied! Your pages have been rebuilt.')
-                        } catch { toast.error('Failed to apply site') }
-                      },
-                    })
-                  }}
-                  disabled={aiApplyGenSite.isPending}
-                  className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary/90 flex items-center justify-center gap-2"
-                >
-                  {aiApplyGenSite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                  Apply to Site (replaces pages)
-                </button>
-                <button onClick={() => setGenResult(null)} className="w-full py-1.5 border border-gray-200 text-gray-500 text-xs rounded-xl hover:bg-gray-50">
-                  Discard
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* TEXT GEN */}
-        {tab === 'text' && (
-          <>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-600">Tone</label>
-              <select value={tone} onChange={e => setTone(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs">
-                {[
-                  { id: 'professional', label: '💼 Professional' },
-                  { id: 'friendly',     label: '😊 Friendly' },
-                  { id: 'bold',         label: '⚡ Bold' },
-                  { id: 'minimalist',   label: '⬜ Minimalist' },
-                  { id: 'luxury',       label: '💎 Luxury' },
-                  { id: 'gen_z',        label: '🔥 Gen Z' },
-                  { id: 'empathetic',   label: '💙 Empathetic' },
-                  { id: 'casual',       label: '😎 Casual' },
-                  { id: 'persuasive',   label: '🎯 Persuasive' },
-                  { id: 'corporate',    label: '🏢 Corporate' },
-                ].map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-600">What do you need?</label>
-              <textarea
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                placeholder="E.g. A catchy headline for a SaaS product landing page..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs h-20 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  const r = await aiText.mutateAsync({ prompt, tone: tone as any })
-                  setResult(r.result)
-                  setAlternatives(r.alternatives)
-                } catch { toast.error('AI text generation failed') }
-              }}
-              disabled={!prompt || isLoading}
-              className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              Generate Text
-            </button>
-            {result && (
-              <div className="space-y-2">
-                <div className="p-3 bg-accent border border-primary/20 rounded-lg">
-                  <p className="text-xs text-gray-700">{result}</p>
-                  <button onClick={() => { navigator.clipboard.writeText(result); toast.success('Copied!') }} className="mt-2 text-xs text-primary hover:underline">Copy</button>
-                </div>
-                {alternatives.map((alt, i) => (
-                  <div key={i} className="p-3 bg-gray-50 border border-gray-100 rounded-lg">
-                    <p className="text-xs text-gray-600">{alt}</p>
-                    <button onClick={() => { navigator.clipboard.writeText(alt); toast.success('Copied!') }} className="mt-2 text-xs text-primary hover:underline">Copy</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* SCREENSHOT */}
-        {tab === 'screenshot' && (
-          <>
-            <div className="text-xs text-gray-500 leading-relaxed">
-              Upload a screenshot of any website. AI will analyze the layout and generate matching editable blocks.
-            </div>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
-              onChange={async e => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                const reader = new FileReader()
-                reader.onload = async ev => {
-                  const b64 = (ev.target?.result as string).split(',')[1]
-                  try {
-                    const r = await aiScreenshot.mutateAsync({ imageBase64: b64 })
-                    setScreenshotResult(r)
-                    toast.success('Screenshot analyzed!')
-                  } catch { toast.error('Analysis failed') }
-                }
-                reader.readAsDataURL(file)
-              }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-              className="w-full py-8 border-2 border-dashed border-primary/30 rounded-xl flex flex-col items-center gap-2 text-primary/80 hover:bg-accent transition-colors disabled:opacity-50"
-            >
-              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
-              <span className="text-xs font-medium">{isLoading ? 'Analyzing...' : 'Upload Screenshot'}</span>
-              <span className="text-xs text-gray-400">PNG, JPG, WebP</span>
-            </button>
-            {screenshotResult && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-700">
-                    Detected: {screenshotResult.website_type} ({Math.round(screenshotResult.confidence * 100)}% confidence)
-                  </span>
-                </div>
-                <div className="flex gap-1 flex-wrap">
-                  {screenshotResult.detected_colors?.map((c: string) => (
-                    <div key={c} style={{ backgroundColor: c }} className="w-5 h-5 rounded" title={c} />
-                  ))}
-                </div>
-                <div className="text-xs text-gray-500">{screenshotResult.detected_sections?.join(', ')}</div>
-                <button
-                  onClick={() => { onAddBlocks(screenshotResult.suggested_blocks); toast.success(`${screenshotResult.suggested_blocks.length} blocks added!`) }}
-                  className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg"
-                >
-                  Apply {screenshotResult.suggested_blocks?.length} Blocks to Page
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* URL CLONE */}
-        {tab === 'clone' && (
-          <>
-            <div className="text-xs text-gray-500 leading-relaxed">
-              Paste any website URL. AI extracts its design language — colors, fonts, layout — and generates a similar structure.
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-600">Website URL</label>
-              <input
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-                placeholder="https://example.com"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  const r = await aiUrlClone.mutateAsync({ url })
-                  setCloneResult(r)
-                  toast.success('Site analyzed!')
-                } catch { toast.error('Clone analysis failed') }
-              }}
-              disabled={!url || isLoading}
-              className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
-              Analyze & Clone Style
-            </button>
-            {cloneResult && (
-              <div className="space-y-3">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <div className="text-xs font-bold text-gray-400 mb-2">Detected Color Palette</div>
-                  <div className="flex gap-1">
-                    {cloneResult.color_palette?.map((c: string) => (
-                      <div key={c} style={{ backgroundColor: c }} className="w-6 h-6 rounded" title={c} />
-                    ))}
-                  </div>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-600">{cloneResult.layout_notes}</div>
-                <button onClick={() => onApplyStyle(cloneResult.style_config)} className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg">
-                  Apply Style to Site
-                </button>
-                <button onClick={() => onAddBlocks(cloneResult.detected_blocks)} className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg">
-                  Add Detected Blocks
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* UX REVIEW */}
-        {tab === 'review' && (
-          <>
-            <div className="text-xs text-gray-500">AI analyzes your site for UX, SEO, contrast, CTAs, and conversion issues.</div>
-            <button
-              onClick={async () => {
-                try {
-                  const r = await aiUxReview.mutateAsync(activePage?.id)
-                  setUxReview(r)
-                } catch { toast.error('Review failed') }
-              }}
-              disabled={isLoading}
-              className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              Run AI UX Review
-            </button>
-            {uxReview && (
-              <div className="space-y-3">
-                {/* Score */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className={cn('text-3xl font-extrabold', uxReview.score >= 80 ? 'text-emerald-600' : uxReview.score >= 60 ? 'text-amber-600' : 'text-red-600')}>{uxReview.score}</div>
-                  <div>
-                    <div className="text-xs font-medium">UX Score</div>
-                    <div className="text-xs text-gray-400">{uxReview.score >= 80 ? 'Great!' : uxReview.score >= 60 ? 'Good, some improvements' : 'Needs work'}</div>
-                  </div>
-                </div>
-                {/* Issues */}
-                {uxReview.issues?.length > 0 && (
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1.5">Issues</div>
-                    {uxReview.issues.map((issue: any, i: number) => (
-                      <div key={i} className={cn('flex gap-2 p-2 rounded-lg mb-1 text-xs', issue.severity === 'high' ? 'bg-red-50 text-red-700' : issue.severity === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-600')}>
-                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                        <span>{issue.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* Strengths */}
-                {uxReview.strengths?.length > 0 && (
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1.5">Strengths</div>
-                    {uxReview.strengths.map((s: string, i: number) => (
-                      <div key={i} className="flex gap-2 p-2 rounded-lg mb-1 text-xs bg-emerald-50 text-emerald-700">
-                        <Check className="w-3.5 h-3.5 shrink-0 mt-0.5" />{s}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* Suggestions */}
-                {uxReview.suggestions?.length > 0 && (
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1.5">Suggestions</div>
-                    {uxReview.suggestions.slice(0, 5).map((s: any, i: number) => (
-                      <div key={i} className="flex gap-2 p-2 rounded-lg mb-1 text-xs bg-blue-50 text-blue-700">
-                        <Zap className="w-3.5 h-3.5 shrink-0 mt-0.5" />{s.message}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* IMAGE GEN */}
-        {tab === 'image' && (
-          <ImageGenPanel
-            siteId={siteId}
-            selectedBlock={selectedBlock}
-            applyToImageLayer={applyToImageLayer}
-            onApplyImage={onApplyImage}
-          />
-        )}
-
-        {/* THEME GEN */}
-        {tab === 'theme' && (
-          <>
-            <div className="text-xs text-gray-500">Describe your brand and AI generates a complete matching theme.</div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-600">Brand Description</label>
-              <textarea
-                value={brandDesc}
-                onChange={e => setBrandDesc(e.target.value)}
-                placeholder="We are a sustainable fashion brand targeting eco-conscious millennials..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs h-20 resize-none focus:outline-none"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">Industry</label>
-                <input value={industry} onChange={e => setIndustry(e.target.value)} placeholder="Fashion, SaaS..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">Mood</label>
-                <select value={mood} onChange={e => setMood(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs">
-                  {['professional', 'playful', 'luxury', 'minimal', 'bold'].map(m => <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>)}
-                </select>
-              </div>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  const r = await aiTheme.mutateAsync({ brand_description: brandDesc, industry, mood })
-                  setThemeResult(r)
-                } catch { toast.error('Theme generation failed') }
-              }}
-              disabled={!brandDesc || isLoading}
-              className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-              Generate Theme
-            </button>
-            {themeResult && (
-              <div className="space-y-3">
-                <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-600">{themeResult.mood_description}</div>
-                <div>
-                  <div className="text-xs font-bold text-gray-400 mb-1.5">Color Palette</div>
-                  <div className="flex gap-1">
-                    {themeResult.color_palette?.map((c: string) => (
-                      <div key={c} style={{ backgroundColor: c }} className="w-7 h-7 rounded-lg" title={c} />
-                    ))}
-                  </div>
-                </div>
-                <div className="text-xs">
-                  <span className="font-semibold">Heading:</span> {themeResult.font_pairing?.heading} &nbsp;|&nbsp;
-                  <span className="font-semibold">Body:</span> {themeResult.font_pairing?.body}
-                </div>
-                <button onClick={() => onApplyStyle(themeResult.style_config)} className="w-full py-2 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90">
-                  Apply This Theme
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Image Gen Panel ───────────────────────────────────────────────────────────
-
-const IMAGE_STYLES = [
-  { id: 'photorealistic', label: '📷 Photo', emoji: '📷', desc: 'Ultra-realistic professional photograph, studio quality' },
-  { id: '3d',             label: '🎨 3D',    emoji: '🎨', desc: 'Octane/Blender 3D render, dramatic lighting' },
-  { id: 'illustration',   label: '✏️ Illustr', emoji: '✏️', desc: 'Professional vector digital illustration' },
-  { id: 'cinematic',      label: '🎬 Cinema', emoji: '🎬', desc: 'Film-like, golden hour, anamorphic lens' },
-  { id: 'minimalist',     label: '⬜ Minimal', emoji: '⬜', desc: 'Clean, lots of white space, Scandinavian' },
-  { id: 'abstract',       label: '🌊 Abstract', emoji: '🌊', desc: 'Flowing shapes, rich gradients, artistic' },
-  { id: 'watercolor',     label: '🎨 Watercolor', emoji: '🎨', desc: 'Soft brush strokes, organic watercolor' },
-  { id: 'flat',           label: '📐 Flat',  emoji: '📐', desc: 'Flat design, bold colors, icon-quality' },
-  { id: 'glassmorphism',  label: '💎 Glass', emoji: '💎', desc: 'Frosted glass, translucent, vivid gradients' },
-  { id: 'neon',           label: '💡 Neon',  emoji: '💡', desc: 'Neon glow, dark BG, cyberpunk-inspired' },
-]
-
-const BLOCK_CONTEXT_MAP: Record<string, { context: string; prompts: string[] }> = {
-  hero: {
-    context: 'hero',
-    prompts: [
-      'Stunning aerial city view at dusk with vibrant lights',
-      'Professional team celebrating success in a modern office',
-      'Abstract flowing gradient mesh in violet and blue tones',
-      'Minimalist product flat lay on clean white marble',
-      'Dramatic mountain landscape with golden sunlight rays',
-    ],
-  },
-  hero_split: {
-    context: 'hero',
-    prompts: [
-      'Confident professional woman smiling in bright studio',
-      'Sleek product on clean white background with soft shadow',
-      'Happy diverse team collaborating around a table',
-      'Modern smartphone with glowing UI on neutral background',
-    ],
-  },
-  team_grid: {
-    context: 'team',
-    prompts: [
-      'Professional headshot of a smiling person in modern office',
-      'Confident executive in a suit against a blurred office background',
-      'Friendly professional with natural daylight portrait',
-    ],
-  },
-  about_split: {
-    context: 'about',
-    prompts: [
-      'Team working together in a bright creative studio',
-      'Founder at work in a modern loft office with plants',
-      'Authentic business meeting with warmth and collaboration',
-    ],
-  },
-  features: {
-    context: 'background',
-    prompts: [
-      'Subtle geometric pattern on white background, very light',
-      'Soft abstract gradient background, professional website',
-      'Clean isometric 3D icons floating on white background',
-    ],
-  },
-  cta: {
-    context: 'background',
-    prompts: [
-      'Bold vibrant gradient background, violet to blue, professional',
-      'Dark sophisticated background with subtle texture',
-      'Abstract background with glowing neon lines on dark surface',
-    ],
-  },
-}
-
-const IMAGE_QUICK_PROMPTS_BY_CAT = {
-  'Popular': [
-    'Professional team in a bright modern open office, natural light',
-    'Abstract gradient background, violet to indigo, smooth curves',
-    'Sleek product showcase on marble surface, professional photography',
-    'City skyline at sunset with dramatic warm golden light',
-    'Clean minimal workspace with laptop, coffee, and plants',
-  ],
-  'Business': [
-    'Confident business professionals shaking hands in glass office',
-    'Modern coworking space with people working on laptops',
-    'Board meeting with diverse team around a white table',
-    'Executive portrait, professional suit, blurred office background',
-  ],
-  'Creative': [
-    'Colorful paint brushes and art supplies on wooden table',
-    'Creative studio with mood boards and design tools',
-    'Abstract digital art with flowing neon lights on dark background',
-    'Vibrant mural on a textured brick wall, urban art',
-  ],
-  'E-Commerce': [
-    'Product flat lay on white background, professional studio lighting',
-    'Luxury perfume bottle on marble with roses and soft shadows',
-    'Fashion clothing on minimalist white rack, editorial style',
-    'Food photography, gourmet dish on dark slate, top down view',
-  ],
-  'Nature & Life': [
-    'Breathtaking mountain vista with misty clouds at dawn',
-    'Tropical beach with turquoise water and white sand, aerial view',
-    'Lush green forest path with sunlight filtering through trees',
-    'Fresh vegetables and herbs on wooden farmhouse table',
-  ],
-}
-
-const ASPECT_RATIOS = [
-  { id: '16:9', label: '16:9', hint: 'Hero / Banner' },
-  { id: '3:2',  label: '3:2',  hint: 'Blog / Card' },
-  { id: '1:1',  label: '1:1',  hint: 'Product / Avatar' },
-  { id: '9:16', label: '9:16', hint: 'Story / Portrait' },
-]
-
-function ImageGenPanel({
-  siteId, selectedBlock, applyToImageLayer = false, onApplyImage,
-}: {
-  siteId: string
-  selectedBlock: WebsiteBlock | null
-  applyToImageLayer?: boolean
-  onApplyImage: (url: string) => void
-}) {
-  const [prompt, setPrompt] = useState('')
-  const [style, setStyle] = useState('photorealistic')
-  const [ratio, setRatio] = useState('16:9')
-  const [negativePrompt, setNegativePrompt] = useState('')
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [results, setResults] = useState<{ url: string; prompt: string; saved?: boolean }[]>([])
-  const [activeResult, setActiveResult] = useState<{ url: string; prompt: string; saved?: boolean } | null>(null)
-  const [history, setHistory] = useState<{ url: string; prompt: string; saved?: boolean }[]>([])
-  const [promptCat, setPromptCat] = useState<keyof typeof IMAGE_QUICK_PROMPTS_BY_CAT>('Popular')
-  const [enhancedPrompt, setEnhancedPrompt] = useState('')
-  const aiImage = useAIGenerateImage(siteId)
-  const aiEnhance = useAIEnhancePrompt(siteId)
-  const saveUrl = useSaveExternalUrl(siteId)
-  const { refetch: refetchMedia } = useMedia(siteId)
-
-  // Auto-detect context from selected block
-  const blockCtx = selectedBlock ? BLOCK_CONTEXT_MAP[selectedBlock.block_type] : null
-
-  const handleEnhance = async () => {
-    if (!prompt.trim()) return
-    try {
-      const r = await aiEnhance.mutateAsync({
-        prompt,
-        style,
-        block_context: blockCtx?.context,
-      })
-      setEnhancedPrompt(r.enhanced_prompt)
-      toast.success('Prompt enhanced!')
-    } catch {
-      toast.error('Could not enhance prompt')
-    }
-  }
-
-  const handleGenerate = async (useEnhanced = false) => {
-    const finalPrompt = useEnhanced && enhancedPrompt ? enhancedPrompt : prompt
-    if (!finalPrompt.trim()) return
-    setResults([])
-    try {
-      const r = await aiImage.mutateAsync({
-        prompt: finalPrompt,
-        style,
-        aspectRatio: ratio,
-      })
-      const url = mediaUrl(r.url)
-      const item = { url, prompt: finalPrompt, saved: (r as any).saved === true }
-      setResults([item])
-      setActiveResult(item)
-      setHistory(h => [item, ...h.slice(0, 29)])
-      if (item.saved) {
-        refetchMedia()
-        toast.success('Image generated & saved to media library!')
-      } else {
-        toast.success('Image generated!')
-      }
-    } catch {
-      toast.error('Image generation failed. Check your connection and try again.')
-    }
-  }
-
-  const handleSaveToLibrary = async (url: string, p: string) => {
-    try {
-      await saveUrl.mutateAsync({ url, label: p })
-      refetchMedia()
-      setHistory(h => h.map(i => i.url === url ? { ...i, saved: true } : i))
-      if (activeResult?.url === url) setActiveResult(prev => prev ? { ...prev, saved: true } : null)
-      toast.success('Saved to media library!')
-    } catch {
-      toast.error('Could not save to library')
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      {/* Context hint */}
-      {blockCtx && (
-        <div className="px-3 py-2 bg-accent border border-primary/20 rounded-lg flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-primary/80 shrink-0" />
-          <span className="text-xs text-primary">
-            Showing suggestions for <strong>{selectedBlock?.block_type?.replace(/_/g, ' ')}</strong> block
-          </span>
-        </div>
-      )}
-
-      {/* Prompt + Enhance */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-gray-700">Image Description</label>
-          <button
-            onClick={handleEnhance}
-            disabled={!prompt.trim() || aiEnhance.isPending}
-            className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 disabled:opacity-40 transition-colors"
-          >
-            {aiEnhance.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-            Enhance with AI
-          </button>
-        </div>
-        <textarea
-          value={prompt}
-          onChange={e => { setPrompt(e.target.value); setEnhancedPrompt('') }}
-          placeholder="Describe the image… e.g. 'Professional woman in a modern office with natural lighting'"
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs h-[72px] resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-        />
-        {/* Enhanced prompt preview */}
-        {enhancedPrompt && (
-          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
-            <div className="flex items-center gap-1 text-xs font-bold text-amber-600 uppercase tracking-wide">
-              <Wand2 className="w-3 h-3" /> AI-Enhanced Prompt
-            </div>
-            <p className="text-xs text-gray-700 leading-relaxed line-clamp-3">{enhancedPrompt}</p>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => handleGenerate(true)}
-                disabled={aiImage.isPending}
-                className="flex-1 py-1.5 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 flex items-center justify-center gap-1"
-              >
-                <Sparkles className="w-3 h-3" /> Generate Enhanced
-              </button>
-              <button onClick={() => { setPrompt(enhancedPrompt); setEnhancedPrompt('') }} className="px-2 py-1.5 bg-white border border-amber-200 text-amber-600 text-xs rounded-lg hover:bg-amber-50">
-                Use as prompt
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick prompts by category */}
-      <div>
-        <div className="flex items-center gap-1 mb-1.5 flex-wrap">
-          {(blockCtx ? ['Context', ...Object.keys(IMAGE_QUICK_PROMPTS_BY_CAT)] : Object.keys(IMAGE_QUICK_PROMPTS_BY_CAT)).map(cat => (
-            <button
-              key={cat}
-              onClick={() => setPromptCat(cat === 'Context' ? 'Popular' : cat as any)}
-              className={cn('px-2 py-0.5 rounded-full text-xs font-bold transition-colors', (cat === 'Context' && blockCtx) || promptCat === cat ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-        <div className="space-y-0.5">
-          {(blockCtx ? blockCtx.prompts : IMAGE_QUICK_PROMPTS_BY_CAT[promptCat] || []).map((qp, i) => (
-            <button
-              key={i}
-              onClick={() => { setPrompt(qp); setEnhancedPrompt('') }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-accent hover:text-primary text-xs text-gray-600 transition-colors border border-transparent hover:border-primary/30 truncate"
-            >
-              {qp}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Style picker */}
-      <div>
-        <label className="text-xs font-medium text-gray-700 mb-1.5 block">Visual Style</label>
-        <div className="grid grid-cols-5 gap-1">
-          {IMAGE_STYLES.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setStyle(s.id)}
-              title={s.desc}
-              className={cn(
-                'py-2 px-1 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-0.5',
-                style === s.id
-                  ? 'bg-primary text-white border-primary shadow-md'
-                  : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent'
-              )}
-            >
-              <span className="text-sm leading-none">{s.emoji}</span>
-              <span className="leading-none truncate w-full text-center">{s.label.split(' ')[1]}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Aspect ratio */}
-      <div>
-        <label className="text-xs font-medium text-gray-700 mb-1.5 block">Aspect Ratio</label>
-        <div className="grid grid-cols-4 gap-1">
-          {ASPECT_RATIOS.map(ar => (
-            <button
-              key={ar.id}
-              onClick={() => setRatio(ar.id)}
-              title={ar.hint}
-              className={cn(
-                'py-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-0.5',
-                ratio === ar.id ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40'
-              )}
-            >
-              <span>{ar.id}</span>
-              <span className={cn('text-[8px] font-normal', ratio === ar.id ? 'text-primary-foreground/85' : 'text-gray-400')}>{ar.hint}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Advanced: negative prompt */}
-      <div>
-        <button onClick={() => setShowAdvanced(v => !v)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600">
-          <ChevronRight className={cn('w-3 h-3 transition-transform', showAdvanced && 'rotate-90')} /> Advanced options
-        </button>
-        {showAdvanced && (
-          <div className="mt-1.5 space-y-1.5">
-            <label className="text-xs font-medium text-gray-600">Negative Prompt (what to avoid)</label>
-            <input
-              value={negativePrompt}
-              onChange={e => setNegativePrompt(e.target.value)}
-              placeholder="blurry, low quality, watermark, text..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Generate button */}
-      <button
-        onClick={() => handleGenerate(false)}
-        disabled={!prompt.trim() || aiImage.isPending}
-        className="w-full py-3 bg-gradient-to-r from-primary via-primary to-info text-white text-sm font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40"
-      >
-        {aiImage.isPending ? (
-          <><Loader2 className="w-4 h-4 animate-spin" /> Generating… (15-30s)</>
-        ) : (
-          <><Sparkles className="w-4 h-4" /> Generate Image</>
-        )}
-      </button>
-
-      {/* Result preview */}
-      {activeResult && (
-        <div className="rounded-2xl border-2 border-primary/30 overflow-hidden bg-white shadow-lg">
-          <div className="relative">
-            <img
-              src={activeResult.url}
-              className="w-full object-cover"
-              style={{ maxHeight: 220 }}
-              alt="AI Generated"
-              onError={e => { (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${Math.random()}/640/360` }}
-            />
-            <div className="absolute top-2 left-2 flex gap-1">
-              <div className="bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full">AI Generated</div>
-              {activeResult.saved && (
-                <div className="bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                  <Check className="w-2.5 h-2.5" /> Saved
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="p-3 space-y-2">
-            <p className="text-xs text-gray-500 line-clamp-2 italic">"{activeResult.prompt}"</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => onApplyImage(activeResult.url)}
-                className="flex-1 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary/90 flex items-center justify-center gap-1.5 transition-colors"
-              >
-                <Check className="w-3.5 h-3.5" />
-                {!selectedBlock ? 'Select a Block First' : applyToImageLayer ? 'Apply to Image Layer' : 'Apply to Block'}
-              </button>
-              <button
-                onClick={() => { navigator.clipboard.writeText(activeResult.url); toast.success('URL copied!') }}
-                className="px-3 py-2 bg-gray-100 text-gray-600 text-xs rounded-xl hover:bg-gray-200 transition-colors"
-                title="Copy URL"
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            {!activeResult.saved && (
-              <button
-                onClick={() => handleSaveToLibrary(activeResult.url, activeResult.prompt)}
-                disabled={saveUrl.isPending}
-                className="w-full py-1.5 border border-emerald-200 text-emerald-600 text-xs font-medium rounded-xl hover:bg-emerald-50 flex items-center justify-center gap-1.5 transition-colors"
-              >
-                {saveUrl.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                Save to Media Library
-              </button>
-            )}
-            {selectedBlock && applyToImageLayer && (
-              <p className="text-xs text-emerald-700 text-center bg-emerald-50 py-1.5 rounded-lg">
-                Applying to the selected image layer on the canvas
-              </p>
-            )}
-            {!selectedBlock && (
-              <p className="text-xs text-amber-600 text-center bg-amber-50 py-1.5 rounded-lg">
-                ← Click a block on the canvas to apply this image
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* History grid */}
-      {history.length > 1 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">History ({history.length})</span>
-            <button onClick={() => setHistory([])} className="text-xs text-gray-400 hover:text-red-400">Clear</button>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {history.map((img, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'group relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-pointer',
-                  activeResult?.url === img.url ? 'border-primary shadow-md' : 'border-transparent hover:border-primary/40'
-                )}
-                onClick={() => setActiveResult(img)}
-              >
-                <img src={img.url} className="w-full h-full object-cover" alt="" />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 p-1">
-                  <button onClick={e => { e.stopPropagation(); onApplyImage(img.url) }} className="px-2 py-1 bg-primary rounded text-xs font-bold text-white">Use</button>
-                  {!img.saved && <button onClick={e => { e.stopPropagation(); handleSaveToLibrary(img.url, img.prompt) }} className="px-2 py-1 bg-white rounded text-xs font-bold text-gray-700">Save</button>}
-                </div>
-                {img.saved && <div className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></div>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // Tiny icon component to avoid import conflict
 function MousePointerIcon({ className }: { className?: string }) {

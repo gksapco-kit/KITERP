@@ -238,6 +238,18 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     ],
   },
   {
+    kind: 'nav', id: 'settings-assets-images',
+    label: 'Images',
+    description: 'System Configuration → Assets → Images',
+    section: 'System Configuration', sectionId: 'system',
+    to: '/system/assets/images',
+    keywords: [
+      'assets', 'images', 'stock photos', 'media library', 'image library',
+      'business images', 'hero images', 'gallery', 'beauty', 'electronics',
+      'jewelry', 'shop', 'store', 'supermarket', 'royalty free', 'stock images',
+    ],
+  },
+  {
     kind: 'nav', id: 'settings-about',
     label: 'About',
     description: 'Settings → About',

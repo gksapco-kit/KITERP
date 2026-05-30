@@ -8,7 +8,7 @@ import {
   Globe, Plus, ExternalLink, Edit3, Trash2, Eye, EyeOff,
   MoreVertical, Loader2, Layout, FileText, Calendar,
   CheckCircle2, AlertCircle, Sparkles, Rocket, Copy, Check,
-  Image as ImageIcon, Globe2, Wand2, ChevronRight, Link2,
+  Globe2, Link2,
   Pencil,
   X,
 } from 'lucide-react'
@@ -104,13 +104,6 @@ const BUSINESS_PRESETS = [
   },
 ]
 
-const STYLE_PRESETS = [
-  { id: 'modern', label: 'Modern', desc: 'Clean, spacious, high-conversion', tone: 'professional' },
-  { id: 'premium', label: 'Premium', desc: 'Luxury colors and polished copy', tone: 'luxury' },
-  { id: 'friendly', label: 'Friendly', desc: 'Warm, approachable, local-store feel', tone: 'friendly' },
-  { id: 'bold', label: 'Bold', desc: 'Strong headlines and vibrant sections', tone: 'bold' },
-]
-
 const SELLING_MODES = [
   { id: 'products', label: 'Products', desc: 'Catalog, cart, checkout, product filters' },
   { id: 'services', label: 'Services', desc: 'Service cards, bookings, quote requests' },
@@ -128,29 +121,12 @@ function CreateSiteModal({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const createSite = useCreateSite()
-  const [mode, setMode] = useState<'guided' | 'blank' | 'ai'>('guided')
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
   const [businessType, setBusinessType] = useState(BUSINESS_PRESETS[0].id)
   const [sellingMode, setSellingMode] = useState(BUSINESS_PRESETS[0].sells)
-  const [stylePreset, setStylePreset] = useState(STYLE_PRESETS[0].id)
-  // AI mode
-  const [aiDesc, setAiDesc] = useState('')
-  const [aiNiche, setAiNiche] = useState('')
-  const [aiTone, setAiTone] = useState('professional')
 
   const selectedBusiness = BUSINESS_PRESETS.find(t => t.id === businessType) || BUSINESS_PRESETS[0]
-  const selectedStyle = STYLE_PRESETS.find(s => s.id === stylePreset) || STYLE_PRESETS[0]
-
-  const handleBlankCreate = async () => {
-    if (!name.trim()) { toast.error('Please enter a site name'); return }
-    try {
-      const site = await createSite.mutateAsync({ name: name.trim(), description: desc.trim() || undefined, style_config: {} } as any)
-      toast.success('Blank site created!')
-      onClose()
-      navigate(`/websites/${site.id}`)
-    } catch (e) { toast.error(extractApiError(e, 'Failed to create site')) }
-  }
 
   const handleGuidedCreate = async () => {
     const siteName = name.trim() || selectedBusiness.defaultName
@@ -168,11 +144,10 @@ function CreateSiteModal({
             selectedBusiness.prompt,
             `Business name: ${siteName}.`,
             `Selling mode: ${selling?.label || sellingMode} - ${selling?.desc || ''}.`,
-            `Design style: ${selectedStyle.label} - ${selectedStyle.desc}.`,
             'Make it easy for a non-designer store owner: include clear section titles, practical CTAs, ready-to-edit copy, SEO-friendly pages, contact/lead capture, and commerce blocks where relevant.',
           ].join(' '),
           niche: selectedBusiness.niche,
-          tone: selectedStyle.tone,
+          tone: 'professional',
           include_pricing: true,
           include_blog: businessType === 'consulting' || businessType === 'clinic',
         })
@@ -186,43 +161,6 @@ function CreateSiteModal({
           const d = e.response?.data as { detail?: unknown } | undefined
           if (d?.detail != null) msg = Array.isArray(d.detail) ? d.detail.map(x => typeof x === 'object' && x && 'msg' in x ? String((x as { msg: string }).msg) : String(x)).join('; ') : String(d.detail)
           else msg = e.message || msg
-        }
-        toast.error(msg)
-        await queryClient.invalidateQueries({ queryKey: ['websites', site.id] })
-      }
-    } catch (e) { toast.error(extractApiError(e, 'Failed to create site')) }
-  }
-
-  const handleAICreate = async () => {
-    if (!aiDesc.trim()) { toast.error('Please describe your business'); return }
-    const siteName = aiDesc.split(' ').slice(0, 3).join(' ')
-    try {
-      // 1. Create blank site
-      const site = await createSite.mutateAsync({ name: siteName, description: aiDesc, style_config: {} } as any)
-      toast.success('Site created! Generating AI content…')
-      onClose()
-      navigate(`/websites/${site.id}`)
-      // 2. Generate and apply (long-running); invalidate so the builder loads new pages/blocks
-      try {
-        const gen = await websiteApi.aiGenerateSite(site.id, {
-          business_description: aiDesc,
-          niche: aiNiche || undefined,
-          tone: aiTone,
-          include_pricing: true,
-        })
-        await websiteApi.aiApplyGeneratedSite(site.id, gen)
-        await queryClient.invalidateQueries({ queryKey: ['websites', site.id] })
-        await queryClient.invalidateQueries({ queryKey: ['websites'] })
-        toast.success(`AI layout ready — ${gen.pages?.length ?? 0} page(s). Open Live ERP blocks to connect catalog & orders.`)
-      } catch (e) {
-        let msg = 'AI generation failed'
-        if (isAxiosError(e)) {
-          const d = e.response?.data as { detail?: unknown } | undefined
-          if (d?.detail != null) {
-            msg = Array.isArray(d.detail) ? d.detail.map(x => (typeof x === 'object' && x && 'msg' in x ? String((x as { msg: string }).msg) : String(x))).join('; ') : String(d.detail)
-          } else {
-            msg = e.message || msg
-          }
         }
         toast.error(msg)
         await queryClient.invalidateQueries({ queryKey: ['websites', site.id] })
@@ -251,27 +189,7 @@ function CreateSiteModal({
           </button>
         </div>
 
-        {/* Mode toggle */}
-        <div className="grid grid-cols-3 gap-2 px-6 pt-5">
-          <button onClick={() => setMode('guided')}
-            className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all flex items-center justify-center gap-2',
-              mode === 'guided' ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40')}>
-            <Layout className="w-4 h-4" /> Guided Setup
-          </button>
-          <button onClick={() => setMode('ai')}
-            className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all flex items-center justify-center gap-2',
-              mode === 'ai' ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40')}>
-            <Sparkles className="w-4 h-4" /> AI Generate
-          </button>
-          <button onClick={() => setMode('blank')}
-            className={cn('flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all flex items-center justify-center gap-2',
-              mode === 'blank' ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40')}>
-            <FileText className="w-4 h-4" /> Blank / Advanced
-          </button>
-        </div>
-
-        {mode === 'guided' ? (
-          <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
+        <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
             <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">1. Choose your business type</label>
@@ -301,24 +219,11 @@ function CreateSiteModal({
                     ))}
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">3. Pick a design style</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {STYLE_PRESETS.map(s => (
-                      <button key={s.id} type="button" onClick={() => setStylePreset(s.id)}
-                        className={cn('p-3 rounded-xl border-2 text-left transition-all',
-                          stylePreset === s.id ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50')}>
-                        <div className="text-xs font-medium text-gray-800">{s.label}</div>
-                        <div className="text-xs text-gray-500 mt-0.5 leading-tight">{s.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">4. Site name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">3. Site name</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder={selectedBusiness.defaultName}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 onKeyDown={e => e.key === 'Enter' && handleGuidedCreate()} />
@@ -347,74 +252,6 @@ function CreateSiteModal({
               </Button>
             </div>
           </div>
-        ) : mode === 'ai' ? (
-          <div className="p-6 space-y-4">
-            <div className="p-3 bg-accent border border-primary/20 rounded-xl text-xs text-primary">
-              <strong>AI will build your full site</strong> — pages, copy, blocks, and a theme — all from one description.
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Describe your business *</label>
-              <textarea value={aiDesc} onChange={e => setAiDesc(e.target.value)}
-                placeholder="E.g. We run a boutique yoga studio in Bangalore for working professionals. We offer morning classes, workshops, and online subscriptions..."
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring h-28 resize-none" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Industry / Niche</label>
-                <input value={aiNiche} onChange={e => setAiNiche(e.target.value)} placeholder="yoga, saas, restaurant..."
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tone</label>
-                <select value={aiTone} onChange={e => setAiTone(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm">
-                  {[
-                    { id: 'professional', label: '💼 Professional' },
-                    { id: 'friendly', label: '😊 Friendly' },
-                    { id: 'bold', label: '⚡ Bold' },
-                    { id: 'luxury', label: '💎 Luxury' },
-                    { id: 'empathetic', label: '💙 Empathetic' },
-                    { id: 'gen_z', label: '🔥 Gen Z' },
-                    { id: 'casual', label: '😎 Casual' },
-                    { id: 'corporate', label: '🏢 Corporate' },
-                  ].map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3">
-              <Button variant="cancel" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleAICreate} disabled={!aiDesc.trim() || isLoading}
-                className="bg-gradient-to-r from-primary to-info hover:opacity-90 text-white">
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                Generate with AI
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="p-6 space-y-5">
-            <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-700">
-              <strong>Advanced blank mode:</strong> use this only if you want to design from scratch. Most store owners should use Guided Setup.
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Site Name *</label>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="My Website"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                onKeyDown={e => e.key === 'Enter' && handleBlankCreate()} />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description (optional)</label>
-              <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Brief description..."
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <div className="flex items-center justify-end gap-3">
-              <Button variant="cancel" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleBlankCreate} disabled={isLoading} className="bg-gray-900 hover:bg-gray-800 text-white">
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                Create Blank Site
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

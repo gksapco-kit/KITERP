@@ -65,16 +65,31 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   /** ── Editorial category cards (matches vendor builder / Fashion browser) ── */
   if (blockType === 'category_cards' && props.layout === 'editorial') {
     const eyebrow = (props.eyebrow as string) || ''
+    const propCats = (() => {
+      const raw = props.categories as { title?: string; image_url?: string }[] | undefined
+      const list = Array.isArray(raw) ? raw.filter(c => c && typeof c === 'object') : []
+      const defaults = [
+        { title: 'Women' },
+        { title: 'Men' },
+        { title: 'Accessories' },
+      ]
+      return (list.length > 0 ? list : defaults).map(c => ({
+        title: c.title || 'Category',
+        image_url: c.image_url,
+      }))
+    })()
+    const propImageByTitle = new Map(
+      propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
+    )
     const cats: { title: string; image_url?: string | null }[] = liveItems.length > 0
       ? liveItems.map(c => ({
           title: c.title,
-          image_url: c.image_url || (c.meta as any)?.image_url,
+          image_url:
+            c.image_url
+            || (c.meta as any)?.image_url
+            || propImageByTitle.get(String(c.title || '').toLowerCase()),
         }))
-      : ((props.categories as { title?: string; image_url?: string }[]) || [
-          { title: 'Women' },
-          { title: 'Men' },
-          { title: 'Accessories' },
-        ]).map(c => ({ title: c.title || 'Category', image_url: c.image_url }))
+      : propCats
 
     return (
       <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: style.bg_color }}>

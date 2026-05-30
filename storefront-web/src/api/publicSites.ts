@@ -4,8 +4,9 @@
  */
 import axios from 'axios'
 import type { PublicSite, PublicPage, LiveItem } from '@/blocks/registry'
+import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '')
+const API_URL = getStorefrontApiBaseUrl().replace(/\/$/, '')
 
 const publicApi = axios.create({
   baseURL: `${API_URL}/public/sites`,

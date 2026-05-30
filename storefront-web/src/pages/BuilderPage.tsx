@@ -320,7 +320,7 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   return (
     <>
       <AnalyticsInjector site={builderSite} />
-      <BlockRenderer blocks={page.blocks} site={builderSite} branchCode={branchCode} />
+      <BlockRenderer blocks={page.blocks} site={builderSite} pageId={page.id} branchCode={branchCode} />
     </>
   )
 }

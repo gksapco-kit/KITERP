@@ -18,19 +18,18 @@ import { TEMPLATES } from '@/storefront/templates'
 import type { StorefrontConfig } from '@/storefront/theming'
 import { EditContext, type ContentMap } from '@/storefront/editContext'
 import { CONTENT_SCHEMAS, type ContentSchema, type EditSection } from '@/storefront/contentSchema'
+import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 
 // ── Business Front template map ──────────────────────────────────────────────────
 const FashionTemplate     = lazy(() => import('@/storefront/templates/FashionTemplate').then(m => ({ default: m.FashionTemplate })))
 const ElectronicsTemplate = lazy(() => import('@/storefront/templates/ElectronicsTemplate').then(m => ({ default: m.ElectronicsTemplate })))
 const GroceryTemplate     = lazy(() => import('@/storefront/templates/GroceryTemplate').then(m => ({ default: m.GroceryTemplate })))
-const RestaurantTemplate  = lazy(() => import('@/storefront/templates/RestaurantTemplate').then(m => ({ default: m.RestaurantTemplate })))
 const ServicesTemplate    = lazy(() => import('@/storefront/templates/ServicesTemplate').then(m => ({ default: m.ServicesTemplate })))
 
 const STOREFRONT_TEMPLATES: Record<string, React.ComponentType<{ config?: StorefrontConfig; basePath?: string }>> = {
   storefront_fashion:     FashionTemplate,
   storefront_electronics: ElectronicsTemplate,
   storefront_grocery:     GroceryTemplate,
-  storefront_restaurant:  RestaurantTemplate,
   storefront_services:    ServicesTemplate,
 }
 
@@ -119,7 +118,7 @@ function getVendorToken(): string | null {
 }
 
 /** Vendor API base (same backend, different auth token). */
-const VENDOR_API = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '')
+const VENDOR_API = getStorefrontApiBaseUrl().replace(/\/$/, '')
 
 async function vendorFetch<T>(
   path: string,
@@ -729,7 +728,14 @@ function StorefrontPreview({ templateId }: { templateId: string }) {
 
   const label = rawKey.charAt(0).toUpperCase() + rawKey.slice(1)
 
-  if (!TemplateComponent) return null
+  if (!TemplateComponent) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+        <p className="text-gray-700 mb-3">Unknown storefront template: {templateId}</p>
+        <Link to="/" className="text-primary font-medium hover:underline">Back to home</Link>
+      </div>
+    )
+  }
 
   return (
     <EditContext.Provider value={editValue}>

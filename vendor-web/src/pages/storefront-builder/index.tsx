@@ -189,8 +189,8 @@ interface TemplateDef {
   style: Partial<StyleConfig>; sectionOrder: string[]
 }
 
-const TEMPLATES: TemplateDef[] = [
-  // ── Editorial vertical templates from Business Front UI Kit ──────────────────
+/** Legacy editorial presets — kept for saved configs; pick new layouts under Website Templates. */
+const LEGACY_EDITORIAL_TEMPLATES: TemplateDef[] = [
   {
     id: 'atelier',
     name: 'Atelier · Retail',
@@ -252,7 +252,7 @@ const TEMPLATES: TemplateDef[] = [
 ]
 
 /** Default when no template is stored or an unknown id is loaded from the API. */
-const DEFAULT_TEMPLATE_ID = 'atelier'
+const DEFAULT_TEMPLATE_ID = 'default'
 
 /** Defaults when applying storefront-ui.zip editorial templates (Atelier / Verde / Solace) */
 const EDITORIAL_TEMPLATE_IDS = new Set(['atelier', 'verde', 'solace'])
@@ -355,7 +355,7 @@ const SECTION_LABEL_MAP: Record<string, string> = {
 
 /** Light templates must not keep dark_mode from a previous template (merge used to leave stale true). */
 function coerceDarkModeForTemplate(bc: BuilderConfig): BuilderConfig {
-  const tpl = TEMPLATES.find(t => t.id === bc.template_id)
+  const tpl = LEGACY_EDITORIAL_TEMPLATES.find(t => t.id === bc.template_id)
   if (!tpl || tpl.style.dark_mode === true) return bc
   if (!bc.style.dark_mode) return bc
   return { ...bc, style: { ...bc.style, dark_mode: false } }
@@ -816,7 +816,8 @@ const BLANK_CONFIG: BuilderConfig = { template_id: DEFAULT_TEMPLATE_ID, product_
 
 /** Apply a homepage template’s section order + styles (same merge rules as “Apply template” in the UI). */
 function buildConfigPatchForTemplate(tplId: string, current: BuilderConfig): Partial<BuilderConfig> {
-  const tpl = TEMPLATES.find(t => t.id === tplId) ?? TEMPLATES.find(t => t.id === DEFAULT_TEMPLATE_ID)
+  const tpl = LEGACY_EDITORIAL_TEMPLATES.find(t => t.id === tplId)
+  if (!tpl) return {}
   if (!tpl) return {}
   const heroKit = EDITORIAL_TEMPLATE_IDS.has(tpl.id) ? editorialHeroProps(tpl.id) : {}
   const sectionList: BuilderSection[] = tpl.sectionOrder.map(id => {
@@ -841,8 +842,9 @@ function normalizeRemovedTemplateIds(bc: BuilderConfig): BuilderConfig {
   if (bc.template_id === 'wellness') {
     return { ...bc, ...buildConfigPatchForTemplate('solace', bc) } as BuilderConfig
   }
-  if (TEMPLATES.some(t => t.id === bc.template_id)) return bc
-  return { ...bc, ...buildConfigPatchForTemplate(DEFAULT_TEMPLATE_ID, bc) } as BuilderConfig
+  if (LEGACY_EDITORIAL_TEMPLATES.some(t => t.id === bc.template_id)) return bc
+  if (bc.template_id === DEFAULT_TEMPLATE_ID) return bc
+  return { ...bc, template_id: DEFAULT_TEMPLATE_ID } as BuilderConfig
 }
 
 // ─── AI Engine ────────────────────────────────────────────────────────────────
@@ -871,9 +873,7 @@ function runAI(prompt: string, vendor: Vendor | null, current: BuilderConfig): {
   if (p.includes('round') || p.includes('soft') || p.includes('pill') || p.includes('curved')) return { reply: "Pill-shaped borders applied — soft and friendly aesthetic.", patch: { style: { ...current.style, border_radius: 'pill' } } }
   if (p.includes('sharp') || p.includes('square') || p.includes('angular')) return { reply: "Sharp corners applied — clean and structured.", patch: { style: { ...current.style, border_radius: 'sharp' } } }
   if (p.includes('more') || p.includes('option') || p.includes('alternative') || p.includes('different') || p.includes('another')) {
-    const current_idx = TEMPLATES.findIndex(t => t.id === current.template_id)
-    const next = TEMPLATES[(current_idx + 1) % TEMPLATES.length]
-    return { reply: `Here's the **${next.name}** template — ${next.description}. Applied to your preview!`, patch: { template_id: next.id, style: { ...current.style, ...next.style, dark_mode: next.style.dark_mode === true } } }
+    return { reply: "Editorial layouts (**Atelier**, **Verde**, **Solace**) live under **Website Templates** now. Open Configuration → Website Templates to apply one to a site.", patch: {} }
   }
   if (vendor?.business_type) {
     const bt = vendor.business_type.toLowerCase()
@@ -884,26 +884,15 @@ function runAI(prompt: string, vendor: Vendor | null, current: BuilderConfig): {
 
 function buildAIDefaults(vendor: Vendor | null): BuilderConfig {
   if (!vendor) return BLANK_CONFIG
-  const bt = (vendor.business_type || '').toLowerCase()
-  const ot = vendor.offering_type || 'both'
-  let templateId = DEFAULT_TEMPLATE_ID
-  if (bt.includes('restaurant') || bt.includes('food') || bt.includes('cafe') || bt.includes('bakery')) templateId = 'verde'
-  else if (bt.includes('clinic') || bt.includes('health') || bt.includes('fitness') || bt.includes('hospital') || bt.includes('dental') || bt.includes('medical')) templateId = 'solace'
-  else if (bt.includes('spa') || bt.includes('salon') || bt.includes('wellness')) templateId = 'solace'
-  else if (bt.includes('fashion') || bt.includes('boutique') || bt.includes('jewel') || bt.includes('apparel') || bt.includes('cloth')) templateId = 'atelier'
-  else if (bt.includes('tech') || bt.includes('software') || bt.includes('startup') || bt.includes('saas')) templateId = 'atelier'
-  else if (bt.includes('consult') || bt.includes('agency') || bt.includes('legal') || bt.includes('account')) templateId = 'solace'
-  else if (ot === 'services') templateId = 'solace'
-  else if (ot === 'products') templateId = 'atelier'
-
-  const seed: BuilderConfig = { ...BLANK_CONFIG, seo: { page_title: `${vendor.display_name || vendor.business_name}`, meta_description: `Welcome to ${vendor.display_name || vendor.business_name}.`, og_image_url: '' } }
-  const patch = buildConfigPatchForTemplate(templateId, seed)
-  return coerceDarkModeForTemplate({
-    ...seed,
-    template_id: patch.template_id ?? templateId,
-    sections: patch.sections ?? seed.sections,
-    style: patch.style ?? seed.style,
-  })
+  const seed: BuilderConfig = {
+    ...BLANK_CONFIG,
+    seo: {
+      page_title: `${vendor.display_name || vendor.business_name}`,
+      meta_description: `Welcome to ${vendor.display_name || vendor.business_name}.`,
+      og_image_url: '',
+    },
+  }
+  return coerceDarkModeForTemplate({ ...seed, template_id: DEFAULT_TEMPLATE_ID })
 }
 
 /** Hero / about images: support blob previews and persisted API-relative paths. */
@@ -968,7 +957,6 @@ export default function StorefrontBuilderPage() {
   const [aiMessages, setAiMessages] = useState<AiMessage[]>([{ role: 'ai', content: `Hi! I'm your AI business front assistant. Describe your brand or what you'd like to change — e.g. "make it dark and bold", "warm tones for a restaurant", or "add an employee portal".` }])
   const [aiInput, setAiInput] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
-  const [showMoreTemplates, setShowMoreTemplates] = useState(false)
   const [isGeneratingDefaults, setIsGeneratingDefaults] = useState(false)
   const [defaultsApplied, setDefaultsApplied] = useState(false)
   const [draggedSectionIdx, setDraggedSectionIdx] = useState<number | null>(null)
@@ -1070,7 +1058,7 @@ export default function StorefrontBuilderPage() {
   // Build a sandboxed draft when the user clicks "Preview" on a template
   const previewDraft = useMemo((): BuilderConfig | null => {
     if (!previewTemplateId) return null
-    const tpl = TEMPLATES.find(t => t.id === previewTemplateId)
+    const tpl = LEGACY_EDITORIAL_TEMPLATES.find(t => t.id === previewTemplateId)
     if (!tpl) return null
     const heroKit = EDITORIAL_TEMPLATE_IDS.has(tpl.id) ? editorialHeroProps(tpl.id) : {}
     const sections: BuilderSection[] = mergeTemplateSectionDefaults(
@@ -1091,7 +1079,7 @@ export default function StorefrontBuilderPage() {
 
   const applyPreviewedTemplate = () => {
     if (!previewTemplateId) return
-    const tpl = TEMPLATES.find(t => t.id === previewTemplateId)
+    const tpl = LEGACY_EDITORIAL_TEMPLATES.find(t => t.id === previewTemplateId)
     if (tpl) applyTemplate(tpl)
     setPreviewTemplateId(null)
   }
@@ -1293,7 +1281,7 @@ export default function StorefrontBuilderPage() {
   const resetCurrentTemplateToDefaults = useCallback(() => {
     let tplName = ''
     commitDraft(prev => {
-      const tpl = TEMPLATES.find(t => t.id === prev.template_id) ?? TEMPLATES.find(t => t.id === DEFAULT_TEMPLATE_ID)
+      const tpl = LEGACY_EDITORIAL_TEMPLATES.find(t => t.id === prev.template_id)
       if (!tpl) return prev
       tplName = tpl.name
       const heroKit = EDITORIAL_TEMPLATE_IDS.has(tpl.id) ? editorialHeroProps(tpl.id) : {}
@@ -1529,90 +1517,41 @@ export default function StorefrontBuilderPage() {
           {/* Tab content */}
           <div className="flex-1 min-h-0 overflow-y-auto">
 
-            {/* ── TEMPLATES TAB — homepage presets (screenshots + apply) ── */}
+            {/* ── TEMPLATES TAB — editorial presets live in Website Templates ── */}
             {activeTab === 'templates' && (
               <div className="p-3 space-y-3">
                 <div className="flex gap-2 p-2.5 bg-accent rounded-xl border border-primary/20">
                   <LayoutTemplate className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <p className="text-xs text-primary leading-snug">
-                    <strong>Click a template</strong> to preview it in the builder. Use <strong>Edit</strong> in the header (or <strong>Apply &amp; Save</strong> in the preview bar) to apply that template and edit it. <strong>Cancel</strong> in the bar discards the preview. Open <strong>Style</strong> for colours, fonts, spacing, and checkout layout.
+                    Full-site layouts (<strong>Atelier</strong>, <strong>Verde</strong>, <strong>Solace</strong>, and more) are in{' '}
+                    <strong>Website Templates</strong>. Apply one to a site, then fine-tune sections here or in the website builder.
                   </p>
                 </div>
-
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1">Homepage templates</p>
-
-                {(TEMPLATES.length > 5 && !showMoreTemplates ? TEMPLATES.slice(0, 5) : TEMPLATES).map(tpl => {
-                  const isActive = draft.template_id === tpl.id
-                  const isPreviewing = previewTemplateId === tpl.id
-                  return (
-                    <div key={tpl.id} className={cn(
-                      'rounded-xl border-2 overflow-hidden transition-all shadow-sm',
-                      isActive     ? 'border-primary ring-1 ring-primary/25' :
-                      isPreviewing ? 'border-amber-400' :
-                      'border-gray-100 hover:border-primary/30',
-                    )}>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewTemplateId(tpl.id)}
-                        title={isPreviewing ? 'Previewing this layout — use Cancel in the preview bar to exit' : 'Preview this homepage layout'}
-                        className={cn(
-                          'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                          isPreviewing ? 'ring-2 ring-inset ring-amber-300/60' : '',
-                        )}
-                      >
-                        <div className="relative h-28 w-full overflow-hidden bg-gray-200">
-                          {tpl.previewSrc ? (
-                            <img
-                              src={tpl.previewSrc}
-                              alt=""
-                              className={cn('h-full w-full object-cover', tpl.id === 'atelier' && 'object-[center_78%]')}
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className={cn('h-full w-full bg-gradient-to-br opacity-90', tpl.gradient)} />
-                          )}
-                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                          <div className="absolute top-2 right-2 flex flex-wrap justify-end gap-1">
-                            {isActive && <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full bg-primary text-white font-bold shadow"><Check className="w-2.5 h-2.5" /> Applied</span>}
-                            {isPreviewing && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 font-bold shadow">Preview</span>}
-                            {tpl.tag && !isActive && !isPreviewing && <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/90 text-amber-800 font-bold shadow">{tpl.tag}</span>}
-                          </div>
-                          <p className="absolute bottom-2 left-2.5 right-14 text-xs font-bold text-white drop-shadow-md leading-snug line-clamp-2">{tpl.name}</p>
-                        </div>
-
-                        <div className="p-3 bg-white space-y-2">
-                          <p className="text-xs text-gray-500 leading-snug">{tpl.description}</p>
-                          <p className="text-xs text-gray-400">{tpl.sectionOrder.length} homepage sections.</p>
-                          <p className="text-xs font-medium text-primary pt-0.5">
-                            {isPreviewing ? 'Previewing — use Cancel in the bar above' : 'Click to preview in the builder'}
-                          </p>
-                        </div>
-                      </button>
-                    </div>
-                  )
-                })}
-
-                {TEMPLATES.length > 5 && (
-                  <button type="button" onClick={() => setShowMoreTemplates(!showMoreTemplates)}
-                    className="w-full text-center text-xs text-primary hover:text-primary py-1.5 font-medium">
-                    {showMoreTemplates ? 'Show fewer options' : `Show ${TEMPLATES.length - 5} more options ↓`}
-                  </button>
-                )}
+                <Link
+                  to="/websites/templates"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm"
+                >
+                  <LayoutTemplate className="w-4 h-4" />
+                  Open Website Templates
+                </Link>
+                <p className="text-xs text-gray-500 px-1 leading-snug">
+                  Use the <strong>Sections</strong> tab to reorder homepage blocks, and <strong>Style</strong> for colours, fonts, and checkout layout.
+                </p>
               </div>
             )}
 
             {/* ── SECTIONS TAB ── */}
             {activeTab === 'sections' && (
               <div className="p-3 space-y-3">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1">Page Sections (drag to reorder)</p>
                 <div className="space-y-1">
                   {draft.sections.map((sec, idx) => {
                     const def = SECTION_DEFS.find(d => d.id === sec.id)
                     if (!def) return null
+                    const isSelected = selectedSectionId === sec.id
                     return (
                       <div key={sec.id} draggable onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDrop={e => onDrop(e, idx)} onDragEnd={onDragEnd}
                         className={cn('flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-default group',
-                          selectedSectionId === sec.id
+                          isSelected
                             ? 'border-primary bg-accent ring-1 ring-primary/25 shadow-sm'
                             : dragOverIdx === idx && draggedSectionIdx !== idx
                               ? 'border-primary/60 bg-accent scale-[1.02]'
@@ -1626,15 +1565,15 @@ export default function StorefrontBuilderPage() {
                           title="Click to edit this section"
                         >
                           <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors',
-                            selectedSectionId === sec.id ? 'bg-primary' : sec.visible ? 'bg-primary/10' : 'bg-gray-100')}>
-                            <def.icon className={cn('w-3.5 h-3.5', selectedSectionId === sec.id ? 'text-white' : sec.visible ? 'text-primary' : 'text-gray-400')} />
+                            isSelected ? 'bg-primary' : sec.visible ? 'bg-primary/10' : 'bg-gray-100')}>
+                            <def.icon className={cn('w-3.5 h-3.5', isSelected ? 'text-white' : sec.visible ? 'text-primary' : 'text-gray-400')} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={cn('text-xs font-medium truncate', sec.visible ? 'text-gray-900' : 'text-gray-400')}>{def.label}</p>
                             {!sec.visible && <p className="text-xs text-amber-500 font-medium">hidden</p>}
                           </div>
                         </button>
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className={cn('flex items-center gap-0.5 transition-opacity', isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
                           <button onClick={() => moveSectionUp(idx)} className="p-0.5 hover:bg-gray-100 rounded" title="Move up"><ChevronUp className="w-3 h-3 text-gray-400" /></button>
                           <button onClick={() => moveSectionDown(idx)} className="p-0.5 hover:bg-gray-100 rounded" title="Move down"><ChevronDown className="w-3 h-3 text-gray-400" /></button>
                           <button onClick={() => removeSection(sec.id)} className="p-0.5 hover:bg-red-50 rounded" title="Remove"><Trash2 className="w-3 h-3 text-red-400" /></button>
@@ -1653,7 +1592,7 @@ export default function StorefrontBuilderPage() {
                   <div className="space-y-1">
                     {SECTION_DEFS.filter(def => !draft.sections.find(s => s.id === def.id)).map(def => (
                       <button key={def.id} onClick={() => addSection(def)}
-                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-colors">
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl border border-dashed border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-colors">
                         <Plus className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                         <def.icon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="text-xs text-gray-600">{def.label}</span>
@@ -2206,7 +2145,7 @@ export default function StorefrontBuilderPage() {
                   <div className="flex items-center gap-3 px-3 py-2.5 bg-amber-500 text-white">
                     <Eye className="w-4 h-4 shrink-0" />
                     <span className="flex-1 text-xs font-medium truncate">
-                      Previewing: <strong>{TEMPLATES.find(t => t.id === previewTemplateId)?.name}</strong> — not applied yet
+                      Previewing: <strong>{LEGACY_EDITORIAL_TEMPLATES.find(t => t.id === previewTemplateId)?.name}</strong> — not applied yet
                     </span>
                     <button onClick={applyPreviewedTemplate}
                       className="px-3 py-1 bg-white text-amber-600 rounded-lg text-xs font-bold hover:bg-amber-50 transition-colors shrink-0">

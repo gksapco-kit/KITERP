@@ -70,6 +70,12 @@ export function mergeStyle(site: Partial<StyleConfig>, overrides: Record<string,
   return { ...DEFAULT_STYLE, ...site, ...(overrides as Partial<StyleConfig>) }
 }
 
+export function mergePageStyle(site: Partial<StyleConfig>, pageId?: string | null): StyleConfig {
+  const pageStyles = (site as { page_styles?: Record<string, Record<string, unknown>> }).page_styles
+  const pageOverrides = pageId && pageStyles ? pageStyles[pageId] : undefined
+  return mergeStyle(site, pageOverrides || {})
+}
+
 export interface BlockProps {
   block: PublicBlock
   site: PublicSite
@@ -360,12 +366,14 @@ function blockVisibleForBranch(block: PublicBlock, branchFromUrl: string): boole
 interface BlockRendererProps {
   blocks: PublicBlock[]
   site: PublicSite
+  /** When set, merges style_config.page_styles[pageId] onto site theme. */
+  pageId?: string | null
   /** Query-string branch code for branch-scoped visibility. */
   branchCode?: string | null
 }
 
-export default function BlockRenderer({ blocks, site, branchCode }: BlockRendererProps) {
-  const style = mergeStyle(site.style_config as Partial<StyleConfig>)
+export default function BlockRenderer({ blocks, site, pageId, branchCode }: BlockRendererProps) {
+  const style = mergePageStyle(site.style_config as Partial<StyleConfig>, pageId)
   const location = useLocation()
   const branchTrim = branchKey(branchCode)
 
@@ -408,8 +416,23 @@ export default function BlockRenderer({ blocks, site, branchCode }: BlockRendere
   return (
     <div
       className="builder-page min-w-0 overflow-x-clip"
-      style={{ backgroundColor: style.bg_color, color: style.text_color, fontFamily: style.font_body }}
+      style={{
+        backgroundColor: style.bg_color,
+        color: style.text_color,
+        fontFamily: style.font_body,
+        fontSize: style.font_size_base ? `${style.font_size_base}px` : undefined,
+      }}
     >
+      {(style.font_heading || style.font_size_heading) && (
+        <style>{`
+          .builder-page h1,
+          .builder-page h2,
+          .builder-page h3 {
+            font-family: ${JSON.stringify(style.font_heading)};
+            ${style.font_size_heading ? `font-size: ${style.font_size_heading}px;` : ''}
+          }
+        `}</style>
+      )}
       {visibleBlocks.map(block => (
         <SingleBlock key={block.id} block={block} site={site} style={style} branchCode={branchCode} />
       ))}

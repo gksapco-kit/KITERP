@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { websiteApi } from '@/api/websites'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
-import { getStorefrontAppOrigin, STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS } from '@/lib/storefrontPreviewUrl'
+import { getStorefrontAppOrigin, STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS } from '@/lib/storefrontPreviewUrl'
 
 // ── Fonts available via Google Fonts in storefront-web globals.css ────────────
 const HEADING_FONTS = ['Fraunces', 'Playfair Display', 'DM Serif Display', 'Space Grotesk', 'Manrope', 'Inter']
@@ -231,6 +231,8 @@ export interface WebsiteTemplatePreviewModalProps {
   onClose: () => void
   /** After successful apply (e.g. clear selection in builder). */
   onApplied?: () => void
+  /** Open directly on the apply confirmation step (e.g. from gallery Apply button). */
+  initialApplyArmed?: boolean
   zIndexClass?: string
 }
 
@@ -240,6 +242,7 @@ export function WebsiteTemplatePreviewModal({
   siteLabel,
   onClose,
   onApplied,
+  initialApplyArmed = false,
   zIndexClass = 'z-[220]',
 }: WebsiteTemplatePreviewModalProps) {
   useEscapeToClose(onClose)
@@ -249,15 +252,28 @@ export function WebsiteTemplatePreviewModal({
   const [applyText, setApplyText] = useState('')
   const [showCustomize, setShowCustomize] = useState(false)
 
+  useEffect(() => {
+    if (!template) {
+      setApplyArmed(false)
+      setApplyText('')
+      return
+    }
+    setApplyArmed(!!initialApplyArmed)
+    setApplyText('')
+    setShowCustomize(false)
+  }, [template?.id, initialApplyArmed])
+
   const applyMut = useMutation({
     mutationFn: async (templateId: string) => {
       if (!siteId) throw new Error('no_site')
       return websiteApi.applyTemplate(siteId, templateId)
     },
-    onSuccess: (_data, templateId) => {
+    onSuccess: (data, templateId) => {
+      if (siteId && data) {
+        qc.setQueryData(['websites', siteId], data)
+      }
       qc.invalidateQueries({ queryKey: ['websites'] })
       if (siteId) {
-        qc.invalidateQueries({ queryKey: ['websites', siteId] })
         qc.invalidateQueries({ queryKey: ['websites', siteId, 'pages'] })
       }
       const name = template?.name || templateId
@@ -363,10 +379,10 @@ export function WebsiteTemplatePreviewModal({
                   href={getStorefrontTemplateBrowserPreviewUrl(template.id)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS}
+                  className={STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS}
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Open in browser
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                  Preview in Browser
                 </a>
                 <button
                   type="button"

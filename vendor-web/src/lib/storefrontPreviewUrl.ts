@@ -55,6 +55,13 @@ export function buildBuilderDraftPreviewUrl(
   return `${origin}/store/${encodeURIComponent(vendorSlug)}/preview/${encodeURIComponent(previewToken)}${suffix}`
 }
 
-/** Shared with WebsiteTemplatePreviewModal "Open in browser" link. */
-export const STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS =
-  'inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold text-primary bg-accent border border-primary/30 hover:bg-primary/15 transition-colors'
+/** Crisp labels on dense builder toolbars (avoids muddy 12px extrabold on Windows). */
+export const BUILDER_CRISP_LABEL =
+  'text-[13px] font-semibold leading-none tracking-[0.01em] antialiased subpixel-antialiased shrink-0 whitespace-nowrap'
+
+/** Preview-in-browser control (builder toolbar + template gallery). */
+export const STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS =
+  `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors ${BUILDER_CRISP_LABEL} text-primary bg-accent/95 border-primary/40 hover:bg-primary/10`
+
+/** @deprecated use STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS */
+export const STOREFRONT_OPEN_IN_BROWSER_BTN_CLASS = STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS

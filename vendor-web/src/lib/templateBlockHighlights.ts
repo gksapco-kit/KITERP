@@ -7,17 +7,14 @@ export function getTemplatePreviewPalette(tpl: WebsiteTemplate): string[] {
   const fromApi = (tpl.preview_palette || []).filter(Boolean) as string[]
   if (fromApi.length >= 3) return fromApi.slice(0, 5)
   const fallback: Record<string, string[]> = {
-    landing: ['#64C3A0', '#f97316', '#10b981', '#111827'],
-    ecommerce: ['#2563eb', '#f59e0b', '#ef4444', '#111827'],
-    restaurant: ['#ea580c', '#16a34a', '#f59e0b', '#111827'],
-    portfolio: ['#111827', '#64C3A0', '#0ea5e9', '#e5e7eb'],
-    blog: ['#111827', '#2563eb', '#f97316', '#e5e7eb'],
-    corporate: ['#111827', '#2563eb', '#10b981', '#e5e7eb'],
-    saas: ['#64C3A0', '#0ea5e9', '#f59e0b', '#111827'],
-    nonprofit: ['#10b981', '#64C3A0', '#f59e0b', '#111827'],
-    candy_retail_fiesta: ['#E11D96', '#7C3AED', '#FBBF24', '#FFF1F7', '#0F172A'],
-    candy_services_spa: ['#10B981', '#6366F1', '#F472B6', '#F0FDF4', '#0F172A'],
-    candy_food_glow: ['#F97316', '#0EA5E9', '#A3E635', '#FFFBEB', '#0F172A'],
+    portfolio: ['#111827', '#8B5CF6', '#374151', '#e5e7eb'],
+    storefront_fashion: ['#221D1A', '#E45E25', '#F9F7F5', '#A89C8F'],
+    storefront_electronics: ['#15181D', '#298EF3', '#0C0E11', '#F3F4F6'],
+    storefront_grocery: ['#274832', '#E44B25', '#F9F9F5', '#182E20'],
+    storefront_services: ['#482E27', '#E44B25', '#F6F2EE', '#2E1D18'],
+    atelier: ['#2e1f14', '#e55a23', '#f5ede0', '#5c3d27'],
+    verde: ['#0e1714', '#e8a33c', '#c2892e', '#e8dcc8'],
+    solace: ['#2e8a6e', '#236b56', '#eff8f4', '#1a3d32'],
   }
   return fallback[tpl.id] || ['#64C3A0', '#f97316', '#10b981', '#111827']
 }
