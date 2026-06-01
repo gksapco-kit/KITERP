@@ -629,8 +629,8 @@ const allSections: NavSection[] = [
     title: 'System Configuration',
     icon: Settings2,
     items: [
-      { to: '/websites', icon: Globe, label: 'Website Builder', requiresPermission: 'websites.view' },
-      { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', requiresPermission: 'websites.view' },
+      { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
+      { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
       { to: '/storefront-builder', icon: Wand2, label: 'Business Front Builder', alwaysShow: true },
       { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },

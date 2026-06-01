@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { useVendor } from '@/contexts/VendorContext'
 import { ColumnFooter } from '@/kit/footer/ColumnFooter'
@@ -17,6 +18,14 @@ type RawColumn = { title?: string; links?: Array<{ label: string; href: string }
 export default function FooterBlock({ site, style, props, liveItems }: Props) {
   const { storePath } = useVendor()
   const copyright = (props.copyright as string) || `© ${new Date().getFullYear()} ${site.name}. All rights reserved.`
+  const footerBg = (props.footer_bg as string) || style.surface_color || '#f9fafb'
+  const footerStyle = String(props.footer_style ?? 'columns')
+  const isDark = footerStyle === 'dark'
+  const footerClass = isDark
+    ? 'bg-slate-900 text-slate-300 border-slate-700'
+    : footerStyle === 'brand'
+      ? 'text-white border-white/20'
+      : 'border-gray-100'
 
   const rawCols = props.footer_columns as RawColumn[] | undefined
   const footerColumns: FooterColumn[] = Array.isArray(rawCols) && rawCols.length > 0
@@ -46,15 +55,17 @@ export default function FooterBlock({ site, style, props, liveItems }: Props) {
         columns={footerColumns}
         copyright={copyright}
         showSocial={false}
-        showNewsletter={false}
+        showNewsletter={props.show_newsletter === true || footerStyle === 'mega'}
         showBackToTop
+        className={footerClass}
+        style={{ backgroundColor: footerBg }}
       />
     )
   }
 
   // Default footer — navigation + legal links
   return (
-    <footer className="border-t border-gray-100 mt-8" style={{ backgroundColor: style.surface_color }}>
+    <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className="md:col-span-2">

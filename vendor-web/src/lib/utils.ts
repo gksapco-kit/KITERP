@@ -46,11 +46,13 @@ function backendOrigin(): string {
 /**
  * Resolve any image/media URL stored in the DB.
  * - Absolute URLs (http/https/data:) pass through unchanged.
- * - Relative paths like /uploads/... are prefixed with the backend origin.
+ * - Builder gallery pack assets under /business-images stay on the frontend origin.
+ * - Other relative paths like /uploads/... are prefixed with the backend origin.
  */
 export function mediaUrl(url?: string | null): string {
   if (!url) return ''
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
+  if (url.startsWith('/business-images')) return url
   const base = backendOrigin()
   return `${base}${url.startsWith('/') ? '' : '/'}${url}`
 }

@@ -20,6 +20,7 @@ export interface ColumnFooterProps {
   showPaymentStrip?: boolean;
   showBackToTop?: boolean;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const socialLinks = [
@@ -41,13 +42,14 @@ export function ColumnFooter({
   showPaymentStrip,
   showBackToTop = true,
   className,
+  style,
 }: ColumnFooterProps) {
   const isFull = variant === "full";
   const newsletter = showNewsletter ?? isFull;
   const paymentStrip = showPaymentStrip ?? isFull;
 
   return (
-    <footer className={cn("border-t bg-muted/30", className)}>
+    <footer className={cn("border-t bg-muted/30", className)} style={style}>
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-10 md:grid-cols-12">
           {variant !== "simple" && (

@@ -134,6 +134,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         # Restaurant + POS
         "restaurant.view", "restaurant.floor", "restaurant.kitchen",
         "restaurant.reservations", "restaurant.reports", "restaurant.setup",
+        # Website builder
+        "websites.view", "websites.manage",
     ],
     "sales": [
         "dashboard.view",

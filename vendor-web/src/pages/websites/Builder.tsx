@@ -51,6 +51,16 @@ import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { formatStoreCode } from '@/lib/verification'
 import CommerceLibraryPreview from '@/components/websites/CommerceLibraryPreview'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
+import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
+import {
+  applyCategoryImagesToBlockProps,
+  blockSupportsGalleryCategory,
+  finalizeCategoryLayoutProps,
+  suggestImageCategoryForBlock,
+} from '@/lib/blockGalleryImages'
+import { BLOCK_QUICK_PRESETS, getSectionLayoutOptions } from '@/lib/sectionLayoutPresets'
+import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
+import { resolveFooterTheme } from '@/lib/footerLayoutTheme'
 import {
   buildBuilderDraftPreviewUrl,
   BUILDER_CRISP_LABEL,
@@ -93,16 +103,16 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'hero_minimal', label: 'Hero — Minimal', icon: Type, desc: 'Clean, text-focused hero', category: 'hero', defaultProps: { headline: 'Simple. Powerful. Yours.', subtitle: 'Less complexity, more results.', bg_style: 'minimal', cta_primary: 'Get Started', layout: 'minimal' } },
   // Content
   { type: 'features', label: 'Features Grid', icon: Columns, desc: 'Feature cards in a grid', category: 'content', defaultProps: { title: 'Everything You Need', layout: 'grid-3', features: [{ icon: 'Zap', title: 'Lightning Fast', desc: 'Optimized for performance' }, { icon: 'Shield', title: 'Secure by Default', desc: 'Enterprise-grade security' }, { icon: 'Star', title: 'Award Winning', desc: 'Loved by thousands of users' }] } },
-  { type: 'features_alternating', label: 'Features — Alternating', icon: List, desc: 'Alternating image/text sections', category: 'content', defaultProps: { title: 'Why Choose Us', features: [{ title: 'Feature One', desc: 'Detailed description of this feature and how it benefits users.', image_url: '' }, { title: 'Feature Two', desc: 'Another great feature that sets you apart from the competition.', image_url: '' }] } },
+  { type: 'features_alternating', label: 'Features — Alternating', icon: List, desc: 'Alternating image/text sections', category: 'content', defaultProps: { title: 'Why Choose Us', layout: 'stacked', image_position: 'left', features: [{ title: 'Feature One', desc: 'Detailed description of this feature and how it benefits users.', image_url: '' }, { title: 'Feature Two', desc: 'Another great feature that sets you apart from the competition.', image_url: '' }] } },
   { type: 'stats', label: 'Stats / Numbers', icon: BarChart3, desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'By the Numbers', stats: [{ value: '50K+', label: 'Happy Customers' }, { value: '99.9%', label: 'Uptime' }, { value: '4.9★', label: 'Average Rating' }, { value: '24/7', label: 'Support' }] } },
   { type: 'testimonials', label: 'Testimonials', icon: Quote, desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What Our Customers Say', testimonials: [{ name: 'Sarah Johnson', role: 'CEO', company: 'TechCorp', quote: 'This platform transformed the way we work. Highly recommend!', rating: 5 }, { name: 'Michael Chen', role: 'Founder', company: 'StartupXYZ', quote: 'Incredibly powerful yet surprisingly easy to use.', rating: 5 }] } },
   { type: 'team_grid', label: 'Team Grid', icon: Users, desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet Our Team', columns: 4, members: [{ name: 'Jane Doe', role: 'CEO & Founder', bio: 'Leading the vision and strategy.' }, { name: 'John Smith', role: 'CTO', bio: 'Building the technology.' }] } },
   { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Simple, Transparent Pricing', show_annual_toggle: true, plans: [{ name: 'Starter', price: 0, period: 'month', features: ['Up to 5 users', '10GB storage', 'Basic analytics', 'Email support'], cta: 'Start Free' }, { name: 'Pro', price: 49, period: 'month', features: ['Up to 50 users', '100GB storage', 'Advanced analytics', 'Priority support', 'API access'], highlighted: true, cta: 'Start Trial' }, { name: 'Enterprise', price: 'Custom', period: '', features: ['Unlimited users', 'Unlimited storage', 'Custom analytics', 'Dedicated support', 'SLA guarantee'], cta: 'Contact Sales' }] } },
   { type: 'faq', label: 'FAQ / Accordion', icon: MessageSquare, desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Frequently Asked Questions', faqs: [{ question: 'How do I get started?', answer: 'Simply sign up for a free account and follow our quick onboarding guide.' }, { question: 'Is there a free trial?', answer: 'Yes! We offer a 14-day free trial with no credit card required.' }, { question: 'Can I cancel anytime?', answer: 'Absolutely. You can cancel your subscription at any time with no penalties.' }] } },
   { type: 'cta', label: 'Call to Action', icon: Zap, desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to Get Started?', subtitle: 'Join 50,000+ businesses already using our platform.', cta_label: 'Start Free Trial', cta_url: '/signup' } },
-  { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get In Touch', email: 'hello@yoursite.com', phone: '+1 (555) 000-0000', address: '123 Main Street, City, State', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your Name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your Email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'Your Message' }] } },
+  { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get In Touch', layout: 'split', full_page: false, email: 'hello@yoursite.com', phone: '+1 (555) 000-0000', address: '123 Main Street, City, State', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your Name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your Email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'Your Message' }] } },
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
-  { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery' } },
+  { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [] } },
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
   { type: 'video_embed', label: 'Video Embed', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch Our Demo', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', aspect_ratio: '16:9' } },
@@ -3222,6 +3232,9 @@ function BlockPreview({
   const { primary_color, accent_color, bg_color, text_color, font_heading, font_body, border_radius } = effectiveStyle
   const radiusMap = { sharp: '0px', rounded: '12px', pill: '999px' }
   const r = radiusMap[border_radius] || '12px'
+  /** Cards/sections must not use theme pill radius — it turns pricing/features into circles. */
+  const cardRadius = border_radius === 'pill' ? '16px' : border_radius === 'sharp' ? '0px' : '12px'
+  const btnRadius = border_radius === 'pill' ? '999px' : cardRadius
 
   const ptop = (block.style_overrides?.padding_top as number) ?? ((p as any).padding_top as number) ?? 0
   const pbot = (block.style_overrides?.padding_bottom as number) ?? ((p as any).padding_bottom as number) ?? 0
@@ -3275,12 +3288,20 @@ function BlockPreview({
     }
 
     switch (block.block_type) {
-      case 'announcement_bar':
+      case 'announcement_bar': {
+        const barColor = String((p as any).color || primary_color)
+        const barLight = barColor.toLowerCase() === '#f3f4f6'
+        const showClose = (p as any).show_close !== false
         return (
-          <div style={{ backgroundColor: p.color || primary_color, color: '#fff' }} className="py-2.5 px-6 text-center text-sm font-medium flex items-center justify-center gap-2">
-            {IET('text', 'span', '', {}, 'Special announcement — Double-click to edit')}
+          <div
+            style={{ backgroundColor: barColor, color: barLight ? text_color : '#fff' }}
+            className="py-2.5 px-6 text-sm font-medium flex items-center justify-center gap-3 relative"
+          >
+            {IET('text', 'span', 'flex-1 text-center', {}, 'Special announcement — Double-click to edit')}
+            {showClose && <X className="w-4 h-4 shrink-0 opacity-70" aria-hidden />}
           </div>
         )
+      }
 
       case 'marquee_strip': {
         const raw = (p as any).items ?? (p as any).text ?? ''
@@ -3333,19 +3354,29 @@ function BlockPreview({
           const label = String(link.label || '')
           return label.toLowerCase() === 'home' ? '/' : `/${label.toLowerCase().replace(/\s+/g, '-')}`
         }
-        // Nav background may be set by the template (e.g. restaurant dark nav)
-        const navBg = ((p as any).nav_bg as string) || (effectiveStyle.nav_bg as string) || '#ffffff'
-        const _nH = navBg.replace('#', '')
-        const _nR = parseInt(_nH.substring(0, 2), 16) || 0
-        const _nG = parseInt(_nH.substring(2, 4), 16) || 0
-        const _nB = parseInt(_nH.substring(4, 6), 16) || 0
-        const navIsDark = (_nR + _nG + _nB) < 382
+        // Nav background from layout preset or template
+        const navStyle = String((p as any).nav_style ?? 'white')
+        const navBg = navStyle === 'transparent'
+          ? 'transparent'
+          : String((p as any).nav_bg ?? '').trim()
+            || (effectiveStyle.nav_bg as string)
+            || (navStyle === 'dark' ? '#0f172a' : navStyle === 'brand' ? primary_color : '#ffffff')
+        const _nH = navBg === 'transparent' ? 'ffffff' : navBg.replace('#', '')
+        const _nR = parseInt(_nH.substring(0, 2), 16) || 255
+        const _nG = parseInt(_nH.substring(2, 4), 16) || 255
+        const _nB = parseInt(_nH.substring(4, 6), 16) || 255
+        const navIsDark = navStyle === 'dark' || navStyle === 'brand' || (_nR + _nG + _nB) < 382
         const navTextCol = navIsDark ? 'rgba(255,255,255,0.85)' : '#4B5563'
         const navBrandCol = navIsDark ? '#ffffff' : primary_color
         return (
           <div
             className="flex items-center justify-between py-3 px-6 gap-4 relative"
-            style={{ backgroundColor: navBg, borderBottom: `1px solid ${navIsDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6'}` }}
+            style={{
+              backgroundColor: navBg === 'transparent' ? undefined : navBg,
+              borderBottom: navStyle === 'transparent'
+                ? 'none'
+                : `1px solid ${navIsDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6'}`,
+            }}
           >
             <div className="shrink-0 relative group/logo leading-tight">
               <div className="font-bold text-base" style={{ fontFamily: font_heading, color: navBrandCol }}>
@@ -3497,19 +3528,19 @@ function BlockPreview({
         const sideImageUrl = ((p as any).image_url || p.bg_image_url) as string | undefined
         const hasSideImage = isSplit && !!sideImageUrl
         const hasBgImg = !!heroImageUrl
-        // Split + right column image should NOT reuse full-bleed background (matches business front gallery look).
         const useFullBleedImageBg = hasBgImg && !hasSideImage
-        const heroBg = useFullBleedImageBg && p.bg_style === 'gradient'
-          ? heroGrad
-          : useFullBleedImageBg && p.bg_style === 'dark' ? '#111827'
-          : useFullBleedImageBg && hasBgImg ? undefined
+        const heroUsesImageBg = useFullBleedImageBg && hasBgImg
+        const heroBg = heroUsesImageBg
+          ? undefined
           : hasSideImage ? (effectiveStyle.surface_color || bg_color || '#ffffff')
           : p.bg_style === 'gradient' ? heroGrad
           : p.bg_style === 'dark' ? '#111827'
+          : p.bg_style === 'solid' ? ((p as any).bg_color || '#0f172a')
+          : p.bg_style === 'image' ? undefined
           : isMinimal ? bg_color
           : `linear-gradient(135deg, ${bg_color}, ${effectiveStyle.surface_color})`
-        const heroBgImage = useFullBleedImageBg && hasBgImg ? `url(${mediaUrl(heroImageUrl as string)})` : undefined
-        const isDark = useFullBleedImageBg && (p.bg_style === 'gradient' || p.bg_style === 'dark' || hasBgImg)
+        const heroBgImage = heroUsesImageBg ? `url(${mediaUrl(heroImageUrl as string)})` : undefined
+        const isDark = heroUsesImageBg || p.bg_style === 'gradient' || p.bg_style === 'dark' || p.bg_style === 'image' || p.bg_style === 'solid'
         const heroText = isDark ? '#fff' : text_color
         const heroSubText = isDark ? 'rgba(255,255,255,0.82)' : `${text_color}cc`
         const headlineLine2 = (p as any).headline_line2 as string | undefined
@@ -3541,9 +3572,12 @@ function BlockPreview({
                   : 'px-8 py-24',
             )}
           >
-            {/* Dark overlay for full-bleed image heroes only */}
-            {useFullBleedImageBg && hasBgImg && (
-              <div className="absolute inset-0 bg-black/45" style={{ zIndex: 0 }} />
+            {/* Overlay for image heroes */}
+            {heroUsesImageBg && p.bg_style === 'gradient' && (
+              <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: 0.82 }} />
+            )}
+            {heroUsesImageBg && p.bg_style !== 'gradient' && (p as any).overlay !== false && (
+              <div className="absolute inset-0 bg-black/45 z-0" />
             )}
             <div
               className={cn(
@@ -3766,14 +3800,38 @@ function BlockPreview({
 
       case 'features':
       case 'features_alternating': {
-        const cols = (p as any).columns || 3
+        const featLayout = String((p as any).layout ?? '')
+        const cols = Number((p as any).columns)
+          || (featLayout === 'grid-4' ? 4 : featLayout === 'grid-2' ? 2 : 3)
         const featGap = (p as any).item_gap ?? 20
+        const isAlternating = block.block_type === 'features_alternating' || featLayout === 'stacked'
+        const isList = featLayout === 'list'
+        const imagePos = (p as any).image_position === 'right' ? 'right' : 'left'
         const feats = (p.features as any[] || [
           { title: 'Feature One', desc: 'Description of this amazing feature.' },
           { title: 'Feature Two', desc: 'Another key benefit of your product.' },
           { title: 'Feature Three', desc: 'Why customers love working with you.' },
         ]).slice(0, 9)
         const icons = ['⚡', '🎯', '🚀', '💡', '🛡️', '🌟']
+        const featureCard = (f: any, i: number, listMode = false) => (
+          <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius, borderTop: listMode ? undefined : `3px solid ${primary_color}` }} className={cn('p-5 space-y-2.5 shadow-sm relative group/item', listMode && 'flex gap-4 items-start border border-gray-100')}>
+            {ItemMenu('features', i, feats.length, [
+              { label: 'Change icon', icon: <Sparkles className="w-3 h-3" />, onClick: () => { if (!onRequestText) return; onRequestText({ title: 'Set feature icon', subtitle: 'Paste an emoji', placeholder: '⚡', initialValue: f.icon || '', onSave: v => editItem('features', i, 'icon', v) }) } },
+              { label: 'Set image URL', icon: <ImageIcon className="w-3 h-3" />, onClick: () => { if (!onRequestText) return; onRequestText({ title: 'Feature image', placeholder: 'https://…', initialValue: f.image_url || '', onSave: v => editItem('features', i, 'image_url', v || null) }) } },
+            ])}
+            {f.image_url
+              ? <img src={mediaUrl(f.image_url)} className={cn('object-cover rounded-lg mb-2', listMode ? 'w-24 h-24 shrink-0 mb-0' : 'w-full h-28')} alt="" />
+              : <div className={cn('text-2xl mb-1', listMode && 'shrink-0')}>{f.icon || icons[i % icons.length]}</div>}
+            <div className={listMode ? 'flex-1 min-w-0' : undefined}>
+              <InlineEditableText value={f.title || ''} placeholder={`Feature ${i + 1}`} editable={canEdit} as="h3"
+                className="font-bold text-sm" style={{ fontFamily: font_heading, color: text_color }}
+                onCommit={v => editItem('features', i, 'title', v)} />
+              <InlineEditableText value={f.desc || ''} placeholder="Describe this feature here." editable={canEdit} multiline as="p"
+                className="text-xs leading-relaxed" style={{ color: `${text_color}99` }}
+                onCommit={v => editItem('features', i, 'desc', v)} />
+            </div>
+          </div>
+        )
         return (
           <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
             {(p.eyebrow || canEdit) && (
@@ -3783,66 +3841,39 @@ function BlockPreview({
             )}
             {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-3', { fontFamily: font_heading, color: text_color }, 'Section Title')}
             {(p.description || canEdit) && IET('description', 'p', 'text-center mb-10 max-w-xl mx-auto text-sm', { color: `${text_color}99` }, 'Add a description…', true)}
+            {isAlternating ? (
+              <div className="space-y-10 max-w-5xl mx-auto">
+                {feats.map((f: any, i: number) => {
+                  const flip = imagePos === 'right' ? i % 2 === 0 : i % 2 === 1
+                  return (
+                    <div key={i} className={cn('flex gap-8 items-center', flip && 'flex-row-reverse')}>
+                      <div className="flex-1 min-w-0">
+                        {f.image_url ? (
+                          <img src={mediaUrl(f.image_url)} className="w-full h-56 sm:h-64 object-cover rounded-xl shadow-sm" alt={f.title || ''} />
+                        ) : (
+                          <div style={{ borderRadius: cardRadius, backgroundColor: effectiveStyle.surface_color }} className="w-full h-56 flex items-center justify-center text-4xl">{f.icon || icons[i % icons.length]}</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-3 relative group/item">
+                        {!canEdit ? null : ItemActions('features', i, 'feature')}
+                        <InlineEditableText value={f.title || ''} placeholder={`Feature ${i + 1}`} editable={canEdit} as="h3"
+                          className="font-bold text-lg" style={{ fontFamily: font_heading, color: text_color }}
+                          onCommit={v => editItem('features', i, 'title', v)} />
+                        <InlineEditableText value={f.desc || ''} placeholder="Describe this feature here." editable={canEdit} multiline as="p"
+                          className="text-sm leading-relaxed" style={{ color: `${text_color}99` }}
+                          onCommit={v => editItem('features', i, 'desc', v)} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : isList ? (
+              <div className="space-y-3 max-w-3xl mx-auto">{feats.map((f, i) => featureCard(f, i, true))}</div>
+            ) : (
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: `${featGap}px` }}>
-              {feats.map((f: any, i: number) => (
-                <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: r, borderTop: `3px solid ${primary_color}` }} className="p-5 space-y-2.5 shadow-sm relative group/item">
-                  {ItemMenu('features', i, feats.length, [
-                    {
-                      label: 'Change icon',
-                      icon: <Sparkles className="w-3 h-3" />,
-                      onClick: () => {
-                        if (!onRequestText) return
-                        onRequestText({
-                          title: 'Set feature icon',
-                          subtitle: 'Paste an emoji (⚡ 🎯 🚀 💡 🛡️ 🌟) or a short text glyph.',
-                          placeholder: '⚡',
-                          initialValue: f.icon || '',
-                          onSave: v => editItem('features', i, 'icon', v),
-                        })
-                      },
-                    },
-                    {
-                      label: 'Set image URL',
-                      icon: <ImageIcon className="w-3 h-3" />,
-                      onClick: () => {
-                        if (!onRequestText) return
-                        onRequestText({
-                          title: 'Feature image',
-                          subtitle: 'Paste a direct image URL — leave blank to use the icon instead.',
-                          placeholder: 'https://…/image.jpg',
-                          initialValue: f.image_url || '',
-                          onSave: v => editItem('features', i, 'image_url', v || null),
-                        })
-                      },
-                    },
-                    {
-                      label: f.link ? 'Edit link' : 'Add link',
-                      icon: <Link2 className="w-3 h-3" />,
-                      onClick: () => {
-                        if (!onRequestText) return
-                        onRequestText({
-                          title: 'Feature link',
-                          subtitle: 'Where should clicking this feature take visitors?',
-                          placeholder: 'https://…',
-                          initialValue: f.link || '',
-                          onSave: v => editItem('features', i, 'link', v || null),
-                        })
-                      },
-                    },
-                  ])}
-                  {f.image_url
-                    ? <img src={mediaUrl(f.image_url)} className="w-full h-28 object-cover rounded-lg mb-2" alt="" />
-                    : <div className="text-2xl mb-1">{f.icon || icons[i % icons.length]}</div>
-                  }
-                  <InlineEditableText value={f.title || ''} placeholder={`Feature ${i + 1}`} editable={canEdit} as="h3"
-                    className="font-bold text-sm" style={{ fontFamily: font_heading, color: text_color }}
-                    onCommit={v => editItem('features', i, 'title', v)} />
-                  <InlineEditableText value={f.desc || ''} placeholder="Describe this feature here." editable={canEdit} multiline as="p"
-                    className="text-xs leading-relaxed" style={{ color: `${text_color}99` }}
-                    onCommit={v => editItem('features', i, 'desc', v)} />
-                </div>
-              ))}
+              {feats.map((f: any, i: number) => featureCard(f, i))}
             </div>
+            )}
             {canEdit && (
               <div className="mt-6 text-center">
                 {AddItemBtn('features', { title: 'New Feature', desc: 'Describe this feature.', icon: '⚡' }, 'Add feature')}
@@ -3868,19 +3899,37 @@ function BlockPreview({
           { value: '24/7', label: 'Support' },
           { value: '50+', label: 'Countries' },
         ])
-        const gridCols = statsItems.length >= 4 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'
+        const statsCols = Number((p as any).columns) || statsItems.length
+        const gridCols = statsCols >= 4 ? 'grid-cols-2 lg:grid-cols-4' : statsCols === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'
+        const statsBgStyle = String((p as any).bg_style ?? 'light')
+        const statsBg = statsBgStyle === 'dark' ? '#0f172a'
+          : statsBgStyle === 'gradient' ? undefined
+          : effectiveStyle.surface_color || '#f9fafb'
+        const statsBgImage = (p as any).bg_image_url as string | undefined
         return (
-          <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <section
+            className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative overflow-hidden"
+            style={{
+              backgroundColor: statsBg,
+              backgroundImage: statsBgStyle === 'gradient'
+                ? `linear-gradient(135deg, ${primary_color}22, ${effectiveStyle.secondary_color}33)`
+                : statsBgImage ? `url(${mediaUrl(statsBgImage)})` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            {statsBgImage && statsBgStyle !== 'gradient' && <div className="absolute inset-0 bg-white/75" />}
+            <div className="relative z-10">
             {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-4">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your business data</span>
               </div>
             )}
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'By the Numbers')}
+            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold mb-10 text-center', { fontFamily: font_heading, color: statsBgStyle === 'dark' ? '#f8fafc' : '#111827' }, 'By the Numbers')}
             <div className={cn('grid gap-8 text-center', gridCols)}>
-              {statsItems.map((s: any, i: number) => (
-                <div key={i} className="p-6 bg-white rounded-2xl border border-gray-100 relative group/item">
+              {statsItems.slice(0, statsCols).map((s: any, i: number) => (
+                <div key={i} className={cn('p-6 rounded-2xl border relative group/item', statsBgStyle === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-gray-100')}>
                   {!isLive && ItemActions('stats', i, 'stat')}
                   <InlineEditableText value={s.value || ''} placeholder="99%" editable={canEdit && !isLive} as="div"
                     className="text-4xl font-bold mb-2" style={{ fontFamily: font_heading, color: primary_color }}
@@ -3900,6 +3949,7 @@ function BlockPreview({
             {!isLive && dsType === 'kpis' && (
               <p className="text-center text-gray-400 text-xs mt-4">Loading live KPIs…</p>
             )}
+            </div>
           </section>
         )
       }
@@ -3907,7 +3957,15 @@ function BlockPreview({
       case 'testimonials':
       case 'testimonials_grid': {
         const isLive = dsType === 'testimonials' && liveTestimonials.length > 0
-        const testis: any[] = isLive
+        const testiLayout = String((p as any).layout ?? 'grid')
+        const testiCols = Number((p as any).columns) || (testiLayout === 'centered' ? 1 : 3)
+        const isCentered = testiLayout === 'centered'
+        const isMasonry = testiLayout === 'masonry'
+        const testiGridClass = testiCols === 2 ? 'grid grid-cols-1 sm:grid-cols-2 gap-6' : testiCols === 1 ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
+        const propTestis: any[] = Array.isArray(p.testimonials) ? (p.testimonials as any[]) : []
+        const hasPropAvatars = propTestis.some(t => !!t?.avatar_url)
+        const useLiveTestis = isLive && !hasPropAvatars
+        const testis: any[] = useLiveTestis
           ? liveTestimonials.map(t => ({
               name: t.title,
               role: t.subtitle,
@@ -3917,22 +3975,24 @@ function BlockPreview({
               avatar_url: t.image_url,
               _live: true,
             }))
-          : (p.testimonials as any[] || [
+          : propTestis.length > 0 ? propTestis : [
               { quote: 'This product has completely transformed how we work. Highly recommended!', name: 'Sarah J.', role: 'CEO', rating: 5 },
               { quote: 'Incredible quality and amazing support team. Worth every penny.', name: 'Mike R.', role: 'Designer', rating: 5 },
-            ])
+            ]
         return (
           <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'What Our Customers Say')}
-            {!suppressLiveBadges && isLive && (
+            {!suppressLiveBadges && useLiveTestis && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · verified reviews (4★+)</span>
               </div>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={cn(
+              isCentered ? 'max-w-2xl mx-auto text-center' : isMasonry ? cn('columns-1 gap-6 space-y-6', testiCols >= 2 && 'sm:columns-2') : testiGridClass,
+            )}>
               {testis.slice(0, 6).map((t: any, i: number) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 relative group/item">
+                <div key={i} className={cn('bg-white rounded-2xl border border-gray-100 p-6 relative group/item', isMasonry && 'break-inside-avoid mb-6', isCentered && i > 0 && 'hidden')}>
                   {!t._live && ItemActions('testimonials', i, 'testimonial')}
                   <Quote className="w-8 h-8 opacity-10 absolute top-4 right-4" style={{ color: primary_color }} />
                   {!!t.rating && (
@@ -3972,12 +4032,12 @@ function BlockPreview({
                 </div>
               ))}
             </div>
-            {!isLive && canEdit && (
+            {!useLiveTestis && canEdit && (
               <div className="mt-6 text-center">
                 {AddItemBtn('testimonials', { quote: 'Great experience!', name: 'New Customer', role: 'Title', rating: 5 }, 'Add testimonial')}
               </div>
             )}
-            {dsType === 'testimonials' && !isLive && (
+            {dsType === 'testimonials' && !useLiveTestis && !hasPropAvatars && (
               <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                 <Database className="w-3 h-3" /> No reviews yet — ask customers to leave one to see them here live.
               </p>
@@ -3986,16 +4046,28 @@ function BlockPreview({
         )
       }
 
-      case 'pricing':
+      case 'pricing': {
+        const pricingCols = Number((p as any).columns) || 3
+        const showAnnualToggle = (p as any).show_annual_toggle !== false
+        const gridColsClass = pricingCols === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3 max-w-5xl'
         return (
           <div className="py-16 px-8">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, 'Our Pricing')}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {(p.plans as any[] || []).map((plan: any, i: number) => (
+            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-6', { fontFamily: font_heading }, 'Our Pricing')}
+            {showAnnualToggle && (
+              <div className="flex items-center justify-center gap-3 mb-10">
+                <span className="text-sm font-medium text-gray-700">Monthly</span>
+                <div className="w-11 h-6 rounded-full bg-gray-200 relative">
+                  <div className="absolute left-1 top-1 w-4 h-4 rounded-full bg-white shadow" />
+                </div>
+                <span className="text-sm text-gray-400">Annual</span>
+              </div>
+            )}
+            <div className={cn('grid grid-cols-1 gap-6 mx-auto', gridColsClass)}>
+              {(p.plans as any[] || []).slice(0, pricingCols).map((plan: any, i: number) => (
                 <div
                   key={i}
-                  style={{ borderRadius: r, borderColor: plan.highlighted ? primary_color : '#e5e7eb', backgroundColor: plan.highlighted ? primary_color : bg_color, color: plan.highlighted ? '#fff' : text_color }}
-                  className={cn('border-2 p-6 space-y-4 relative group/item', plan.highlighted && 'shadow-xl scale-105')}
+                  style={{ borderRadius: cardRadius, borderColor: plan.highlighted ? primary_color : '#e5e7eb', backgroundColor: plan.highlighted ? primary_color : bg_color, color: plan.highlighted ? '#fff' : text_color }}
+                  className={cn('border-2 p-6 space-y-4 relative group/item flex flex-col', plan.highlighted && 'shadow-xl md:scale-105')}
                 >
                   {ItemActions('plans', i, 'plan')}
                   <InlineEditableText value={plan.name || ''} placeholder="Plan Name" editable={canEdit} as="div"
@@ -4045,8 +4117,8 @@ function BlockPreview({
                     )}
                   </ul>
                   <button
-                    style={{ borderRadius: r, backgroundColor: plan.highlighted ? '#fff' : primary_color, color: plan.highlighted ? primary_color : '#fff' }}
-                    className="w-full py-2.5 font-semibold text-sm"
+                    style={{ borderRadius: btnRadius, backgroundColor: plan.highlighted ? '#fff' : primary_color, color: plan.highlighted ? primary_color : '#fff' }}
+                    className="w-full py-2.5 font-semibold text-sm mt-auto"
                   >
                     <InlineEditableText value={plan.cta || ''} placeholder="Get Started" editable={canEdit} as="span"
                       style={{}}
@@ -4062,16 +4134,32 @@ function BlockPreview({
             )}
           </div>
         )
+      }
 
-      case 'faq':
+      case 'faq': {
+        const faqLayout = String((p as any).layout ?? 'accordion')
+        const isTwoCol = faqLayout === 'two-col'
+        const isList = faqLayout === 'list'
+        const isCompact = !!(p as any).compact
         return (
-          <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'Frequently Asked Questions')}
-            <div className="space-y-3">
+          <section className={cn('px-4 sm:px-6 lg:px-8 mx-auto', isCompact ? 'py-10' : 'py-16', isTwoCol ? 'max-w-5xl' : 'max-w-3xl')}>
+            {(p.title || canEdit) && IET('title', 'h2', cn('text-3xl font-bold text-gray-900 text-center', isCompact ? 'mb-6' : 'mb-10'), { fontFamily: font_heading, color: '#111827' }, 'Frequently Asked Questions')}
+            <div className={cn(isTwoCol ? 'grid md:grid-cols-2 gap-3' : isCompact ? 'space-y-2' : 'space-y-3')}>
               {(p.faqs as any[] || []).map((faq: any, i: number) => (
-                <details key={i} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden relative group/item">
+                isList ? (
+                  <div key={i} className={cn('bg-white rounded-2xl border border-gray-100 relative group/item', isCompact ? 'px-4 py-3' : 'px-6 py-4')}>
+                    {ItemActions('faqs', i, 'question')}
+                    <InlineEditableText value={faq.question || ''} placeholder={`Question ${i + 1}`} editable={canEdit} as="div"
+                      className="font-semibold text-gray-900 text-sm mb-2" style={{}}
+                      onCommit={v => editItem('faqs', i, 'question', v)} />
+                    <InlineEditableText value={faq.answer || ''} placeholder="Answer…" editable={canEdit} multiline as="div"
+                      className="text-gray-600 text-sm leading-relaxed" style={{}}
+                      onCommit={v => editItem('faqs', i, 'answer', v)} />
+                  </div>
+                ) : (
+                <details key={i} className={cn('group bg-white rounded-2xl border border-gray-100 overflow-hidden relative group/item', isCompact && 'text-sm')}>
                   {ItemActions('faqs', i, 'question')}
-                  <summary className="list-none cursor-pointer w-full flex items-center justify-between gap-3 px-6 py-4 text-left [&::-webkit-details-marker]:hidden">
+                  <summary className={cn('list-none cursor-pointer w-full flex items-center justify-between gap-3 text-left [&::-webkit-details-marker]:hidden', isCompact ? 'px-4 py-3' : 'px-6 py-4')}>
                     <InlineEditableText value={faq.question || ''} placeholder={`Question ${i + 1}`} editable={canEdit} as="span"
                       className="font-semibold text-gray-900 text-sm flex-1 min-w-0" style={{}}
                       onCommit={v => editItem('faqs', i, 'question', v)} />
@@ -4083,6 +4171,7 @@ function BlockPreview({
                       onCommit={v => editItem('faqs', i, 'answer', v)} />
                   </div>
                 </details>
+                )
               ))}
             </div>
             {canEdit && (
@@ -4092,13 +4181,25 @@ function BlockPreview({
             )}
           </section>
         )
+      }
 
-      case 'cta':
+      case 'cta': {
+        const ctaBgStyle = String((p as any).bg_style ?? 'gradient')
+        const ctaBgImage = (p as any).bg_image_url as string | undefined
+        const ctaUsesImageBg = !!ctaBgImage && (ctaBgStyle === 'image' || !!(p as any).overlay)
+        const ctaShellStyle: React.CSSProperties = ctaBgStyle === 'dark'
+          ? { background: '#0f172a', color: '#fff' }
+          : ctaBgStyle === 'light'
+            ? { background: effectiveStyle.surface_color || '#f9fafb', color: text_color }
+            : ctaUsesImageBg
+              ? { backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.55), rgba(0,0,0,0.45)), url(${mediaUrl(ctaBgImage)})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' }
+              : { background: `linear-gradient(135deg, ${primary_color}, ${effectiveStyle.secondary_color})`, color: '#fff' }
+        const ctaTextLight = ctaBgStyle !== 'light'
         return (
           <section className="py-16 px-4 sm:px-6 lg:px-8">
             <div
-              className="max-w-4xl mx-auto text-center rounded-3xl p-12 text-white"
-              style={{ background: `linear-gradient(135deg, ${primary_color}, ${effectiveStyle.secondary_color})` }}
+              className="max-w-4xl mx-auto text-center rounded-3xl p-12"
+              style={ctaShellStyle}
             >
               <InlineEditableText
                 value={p.headline || ''}
@@ -4120,7 +4221,7 @@ function BlockPreview({
               />
               <div className="inline-block relative group">
                 <button
-                  style={{ backgroundColor: '#fff', color: primary_color, borderRadius: r }}
+                  style={{ backgroundColor: ctaTextLight ? '#fff' : primary_color, color: ctaTextLight ? primary_color : '#fff', borderRadius: btnRadius }}
                   className="px-8 py-4 font-bold text-base hover:bg-gray-50 transition-all hover:scale-105"
                   onDoubleClick={e => {
                     if (isEditing && onEditPropLink) {
@@ -4154,31 +4255,40 @@ function BlockPreview({
                   </button>
                 )}
               </div>
-              {p.show_credit_card_note && <p className="text-white/60 text-xs mt-3">No credit card required</p>}
+              {p.show_credit_card_note && <p className={cn('text-xs mt-3', ctaTextLight ? 'text-white/60' : 'text-gray-500')}>No credit card required</p>}
             </div>
           </section>
         )
+      }
 
       case 'team_grid':
       case 'team_list': {
         const teamCols = (p as any).columns || 4
         const teamGap = (p as any).item_gap ?? 24
         const teamSize = (p as any).item_size ?? 160
-        const avatarSize = Math.round(teamSize * 0.55)
+        const teamCardStyle = String((p as any).card_style ?? 'card')
+        const isMinimalTeam = teamCardStyle === 'minimal'
+        const avatarSize = Math.round(teamSize * (isMinimalTeam ? 0.45 : 0.55))
         const isLive = dsType === 'team' && liveTeam.length > 0
-        const members: any[] = isLive
+        const propMembers: any[] = Array.isArray(p.members) ? (p.members as any[]) : []
+        const hasPropAvatars = propMembers.some(m => !!m?.avatar_url)
+        const useLiveTeam = isLive && !hasPropAvatars
+        const members: any[] = useLiveTeam
           ? liveTeam.map(t => ({
               name: t.title,
               role: t.subtitle,
               bio: t.description,
               avatar_url: t.image_url,
             }))
-          : (p.members as any[] || [])
-        const colClass = teamCols <= 2 ? 'grid-cols-1 sm:grid-cols-2' : teamCols === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+          : propMembers.length > 0 ? propMembers : []
+        const colClass = teamCols <= 2 ? 'grid-cols-1 sm:grid-cols-2'
+          : teamCols === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+          : teamCols === 5 ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+          : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
         return (
           <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'Meet the Team')}
-            {!suppressLiveBadges && isLive && (
+            {!suppressLiveBadges && useLiveTeam && (
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your HR team</span>
@@ -4187,8 +4297,8 @@ function BlockPreview({
             {(p.description || canEdit) && IET('description', 'p', 'text-center text-sm text-gray-500 mb-10 max-w-2xl mx-auto', {}, 'Meet the people behind the work.', true)}
             <div className={cn('grid gap-6 mx-auto', colClass)} style={{ gap: `${teamGap}px`, maxWidth: '1000px' }}>
               {members.map((m: any, i: number) => (
-                <div key={i} className="text-center relative group/item p-3">
-                  {!isLive && ItemActions('members', i, 'member')}
+                <div key={i} className={cn('text-center relative group/item', !isMinimalTeam && 'p-4 rounded-2xl border border-gray-100 bg-white shadow-sm', isMinimalTeam && 'p-2')}>
+                  {!useLiveTeam && ItemActions('members', i, 'member')}
                   <div
                     style={{
                       width: avatarSize, height: avatarSize,
@@ -4215,16 +4325,16 @@ function BlockPreview({
                       {(m.name || '?')[0].toUpperCase()}
                     </div>
                   </div>
-                  <InlineEditableText value={m.name || ''} placeholder="Name" editable={canEdit && !isLive} as="div"
+                  <InlineEditableText value={m.name || ''} placeholder="Name" editable={canEdit && !useLiveTeam} as="div"
                     className="font-semibold text-gray-900 text-sm"
                     style={{}}
                     onCommit={v => editItem('members', i, 'name', v)} />
-                  <InlineEditableText value={m.role || ''} placeholder="Role / Title" editable={canEdit && !isLive} as="div"
+                  <InlineEditableText value={m.role || ''} placeholder="Role / Title" editable={canEdit && !useLiveTeam} as="div"
                     className="text-sm text-gray-400 mt-0.5"
                     style={{}}
                     onCommit={v => editItem('members', i, 'role', v)} />
                   {(m.bio || canEdit) && (
-                    <InlineEditableText value={m.bio || ''} placeholder="Short bio…" editable={canEdit && !isLive} multiline as="div"
+                    <InlineEditableText value={m.bio || ''} placeholder="Short bio…" editable={canEdit && !useLiveTeam} multiline as="div"
                       className="text-xs mt-1.5 leading-relaxed text-gray-500 max-w-xs mx-auto"
                       style={{}}
                       onCommit={v => editItem('members', i, 'bio', v)} />
@@ -4232,7 +4342,7 @@ function BlockPreview({
                 </div>
               ))}
             </div>
-            {!isLive && canEdit && (
+            {!useLiveTeam && canEdit && (
               <div className="mt-6 text-center">
                 {AddItemBtn('members', { name: 'New Member', role: 'Role', bio: 'Short bio.' }, 'Add member')}
               </div>
@@ -4241,22 +4351,60 @@ function BlockPreview({
         )
       }
 
-      case 'newsletter':
-        return (
-          <section className="py-16 px-4 sm:px-6 lg:px-8 text-center" style={{ backgroundColor: `${primary_color}10` }}>
-            <div className="max-w-xl mx-auto">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: primary_color }}>
-                <Mail className="w-6 h-6 text-white" />
+      case 'newsletter': {
+        const nlLayout = String((p as any).layout ?? 'inline')
+        const nlCompact = !!(p as any).compact
+        const nlImage = (p as any).image_url as string | undefined
+        if (nlLayout === 'split') {
+          return (
+            <section className="py-0 px-0 flex flex-col md:flex-row min-h-[280px]">
+              <div className="md:w-2/5 bg-gray-100">
+                {nlImage ? <img src={mediaUrl(nlImage)} className="w-full h-full min-h-[200px] object-cover" alt="" /> : <div className="w-full h-full min-h-[200px] bg-gray-200" />}
               </div>
-              {IET('title', 'h2', 'text-2xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Stay in the Loop')}
-              {IET('subtitle', 'p', 'text-gray-500 mb-6', {}, 'Get the latest updates delivered to your inbox.')}
-              <div className="flex gap-2 max-w-md mx-auto">
-                <input className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="your@email.com" readOnly />
-                {CTABtn('cta_label', 'cta_url', 'Subscribe', 'px-6 py-3 rounded-xl text-white font-semibold text-sm flex items-center gap-2 hover:opacity-90 whitespace-nowrap', { backgroundColor: primary_color })}
+              <div className="flex-1 flex flex-col justify-center py-12 px-8 text-center md:text-left">
+                {IET('title', 'h2', 'text-2xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Stay in the Loop')}
+                {IET('subtitle', 'p', 'text-gray-500 mb-6', {}, 'Get the latest updates delivered to your inbox.')}
+                <div className="flex gap-2 max-w-md">
+                  <input className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm" placeholder="your@email.com" readOnly />
+                  {CTABtn('cta_label', 'cta_url', 'Subscribe', 'px-6 py-3 rounded-xl text-white font-semibold text-sm whitespace-nowrap', { backgroundColor: primary_color })}
+                </div>
+              </div>
+            </section>
+          )
+        }
+        if (nlLayout === 'card') {
+          return (
+            <section className="py-16 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: `${primary_color}08` }}>
+              <div className="max-w-lg mx-auto bg-white rounded-2xl border border-gray-100 shadow-lg p-8 text-center">
+                {IET('title', 'h2', 'text-2xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Stay in the Loop')}
+                {IET('subtitle', 'p', 'text-gray-500 mb-6', {}, 'Get the latest updates delivered to your inbox.')}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm" placeholder="your@email.com" readOnly />
+                  {CTABtn('cta_label', 'cta_url', 'Subscribe', 'px-6 py-3 rounded-xl text-white font-semibold text-sm whitespace-nowrap', { backgroundColor: primary_color })}
+                </div>
+              </div>
+            </section>
+          )
+        }
+        return (
+          <section className={cn('px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden', nlCompact ? 'py-8' : 'py-16')} style={{ backgroundColor: `${primary_color}10` }}>
+            {nlImage && <img src={mediaUrl(nlImage)} className="absolute inset-0 w-full h-full object-cover opacity-15" alt="" />}
+            <div className={cn('mx-auto relative z-10', nlCompact ? 'max-w-lg' : 'max-w-xl')}>
+              {!nlCompact && (
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: primary_color }}>
+                  <Mail className="w-6 h-6 text-white" />
+                </div>
+              )}
+              {IET('title', 'h2', cn('font-bold text-gray-900 mb-2', nlCompact ? 'text-xl' : 'text-2xl'), { fontFamily: font_heading, color: '#111827' }, 'Stay in the Loop')}
+              {IET('subtitle', 'p', cn('text-gray-500 mb-6', nlCompact && 'mb-4 text-sm'), {}, 'Get the latest updates delivered to your inbox.')}
+              <div className={cn('flex gap-2 mx-auto', nlCompact ? 'max-w-md flex-row' : 'max-w-md')}>
+                <input className={cn('flex-1 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring', nlCompact ? 'py-2' : 'py-3')} placeholder="your@email.com" readOnly />
+                {CTABtn('cta_label', 'cta_url', 'Subscribe', cn('rounded-xl text-white font-semibold flex items-center gap-2 hover:opacity-90 whitespace-nowrap', nlCompact ? 'px-4 py-2 text-xs' : 'px-6 py-3 text-sm'), { backgroundColor: primary_color })}
               </div>
             </div>
           </section>
         )
+      }
 
       case 'contact_form':
       case 'map_contact': {
@@ -4267,6 +4415,10 @@ function BlockPreview({
         const emailVal = (p.email as string) || liveEmail || ''
         const phoneVal = (p.phone as string) || livePhone || ''
         const addrVal  = (p.address as string) || liveAddr || ''
+        const cfLayout = String((p as any).layout ?? 'split')
+        const cfFullPage = !!(p as any).full_page
+        const cfShowMap = !!(p as any).show_map
+        const bgImageUrl = (p as any).bg_image_url as string | undefined
         const formFields: any[] = Array.isArray(p.form_fields) && (p.form_fields as any[]).length > 0
           ? (p.form_fields as any[]).slice(0, 6)
           : [
@@ -4275,91 +4427,135 @@ function BlockPreview({
               { name: 'phone', type: 'tel', placeholder: '+1 234 567 8900' },
               { name: 'message', type: 'textarea', placeholder: 'How can we help you?' },
             ]
+        const formPanel = (
+          <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm space-y-4 max-h-[90vh] overflow-y-auto">
+            {formFields.map((f: any, i: number) => (
+              f.type === 'textarea'
+                ? (
+                  <div key={i}>
+                    {f.label && <label className="text-xs font-medium text-gray-700 block mb-1">{f.label}</label>}
+                    <textarea readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-ring" placeholder={f.placeholder || f.label} />
+                  </div>
+                )
+                : (
+                  <div key={i}>
+                    {f.label && <label className="text-xs font-medium text-gray-700 block mb-1">{f.label}</label>}
+                    <input readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder={f.placeholder || f.label} type={f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : 'text'} />
+                  </div>
+                )
+            ))}
+            <button type="button" style={{ backgroundColor: primary_color }} className="w-full py-3 rounded-xl text-white font-semibold text-sm hover:opacity-90 transition-opacity">
+              {canEdit
+                ? <InlineEditableText value={(p as any).submit_label as string || ''} placeholder="Send Message" editable as="span"
+                    style={{ color: '#fff' }} onCommit={v => commitProp('submit_label', v)} />
+                : ((p as any).submit_label || 'Send Message')}
+            </button>
+            {canEdit
+              ? <InlineEditableText value={(p as any).form_hint as string || ''} placeholder="Helper hint…" editable as="p" multiline
+                  className="text-xs text-gray-400 text-center" style={{}}
+                  onCommit={v => commitProp('form_hint', v)} />
+              : ((p as any).form_hint || <p className="text-xs text-gray-400 text-center">Messages from your published site are captured as CRM leads automatically.</p>)}
+          </div>
+        )
+        const contactDetails = (
+          <div className="space-y-4">
+            {(emailVal || canEdit) && (
+              <div className="flex items-center gap-3 text-gray-600 text-sm">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
+                  <Mail className="w-5 h-5" style={{ color: primary_color }} />
+                </div>
+                <span className="min-w-0 break-words">
+                  {canEdit && dsType !== 'profile'
+                    ? <InlineEditableText value={emailVal} placeholder="you@example.com" editable as="span" style={{}} onCommit={v => commitProp('email', v)} />
+                    : (emailVal || '—')}
+                </span>
+              </div>
+            )}
+            {(phoneVal || canEdit) && (
+              <div className="flex items-center gap-3 text-gray-600 text-sm">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
+                  <Phone className="w-5 h-5" style={{ color: primary_color }} />
+                </div>
+                <span>
+                  {canEdit && dsType !== 'profile'
+                    ? <InlineEditableText value={phoneVal} placeholder="+1 555 000 0000" editable as="span" style={{}} onCommit={v => commitProp('phone', v)} />
+                    : (phoneVal || '—')}
+                </span>
+              </div>
+            )}
+            {(addrVal || canEdit) && (
+              <div className="flex items-center gap-3 text-gray-600 text-sm">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
+                  <MapPin className="w-5 h-5" style={{ color: primary_color }} />
+                </div>
+                <span className="min-w-0">
+                  {canEdit && dsType !== 'profile'
+                    ? <InlineEditableText value={addrVal} placeholder="123 Main St, City" editable multiline as="span" style={{}} onCommit={v => commitProp('address', v)} />
+                    : (addrVal || '—')}
+                </span>
+              </div>
+            )}
+          </div>
+        )
+        const mapPanel = cfShowMap && (
+          <div className="h-48 sm:h-56 rounded-2xl border border-gray-200 overflow-hidden bg-gray-100 relative">
+            {bgImageUrl
+              ? <img src={mediaUrl(bgImageUrl)} className="w-full h-full object-cover" alt="" />
+              : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-gray-500 bg-gray-50">
+                  <MapIcon className="w-5 h-5 mr-1 shrink-0" style={{ color: primary_color }} />
+                  {pmeta.city || 'Map area'}{pmeta.state ? `, ${pmeta.state}` : ''}
+                </div>
+              )
+            }
+          </div>
+        )
+        const sectionShellClass = cn(
+          'relative py-16 px-4 sm:px-6 lg:px-8',
+          cfFullPage ? 'max-w-3xl mx-auto' : 'max-w-6xl mx-auto',
+        )
         return (
-          <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+          <section
+            className={sectionShellClass}
+            style={bgImageUrl && cfLayout === 'centered' ? {
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.92)), url(${mediaUrl(bgImageUrl)})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            } : undefined}
+          >
             {dsType === 'profile' && liveProfile && !suppressLiveBadges && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · synced with your vendor profile</span>
               </div>
             )}
-            <div className="grid lg:grid-cols-2 gap-12 items-start">
-              <div>
-                {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-4', { fontFamily: font_heading, color: '#111827' }, 'Get In Touch')}
-                <div className="space-y-4 mt-8">
-                  {(emailVal || canEdit) && (
-                    <div className="flex items-center gap-3 text-gray-600 text-sm">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
-                        <Mail className="w-5 h-5" style={{ color: primary_color }} />
-                      </div>
-                      <span className="min-w-0 break-words">
-                        {canEdit && dsType !== 'profile'
-                          ? <InlineEditableText value={emailVal} placeholder="you@example.com" editable as="span" style={{}} onCommit={v => commitProp('email', v)} />
-                          : (emailVal || '—')}
-                      </span>
-                    </div>
-                  )}
-                  {(phoneVal || canEdit) && (
-                    <div className="flex items-center gap-3 text-gray-600 text-sm">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
-                        <Phone className="w-5 h-5" style={{ color: primary_color }} />
-                      </div>
-                      <span>
-                        {canEdit && dsType !== 'profile'
-                          ? <InlineEditableText value={phoneVal} placeholder="+1 555 000 0000" editable as="span" style={{}} onCommit={v => commitProp('phone', v)} />
-                          : (phoneVal || '—')}
-                      </span>
-                    </div>
-                  )}
-                  {(addrVal || canEdit) && (
-                    <div className="flex items-center gap-3 text-gray-600 text-sm">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
-                        <MapPin className="w-5 h-5" style={{ color: primary_color }} />
-                      </div>
-                      <span className="min-w-0">
-                        {canEdit && dsType !== 'profile'
-                          ? <InlineEditableText value={addrVal} placeholder="123 Main St, City" editable multiline as="span" style={{}} onCommit={v => commitProp('address', v)} />
-                          : (addrVal || '—')}
-                      </span>
-                    </div>
-                  )}
-                  {p.show_map && (pmeta.latitude || pmeta.longitude) && (
-                    <div className="mt-2 h-40 rounded-2xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center text-xs text-gray-500">
-                      <MapIcon className="w-5 h-5 mr-1 shrink-0" style={{ color: primary_color }} />
-                      {pmeta.city || ''}{pmeta.state ? `, ${pmeta.state}` : ''}
+            {(p.title || canEdit) && (
+              <div className={cn('mb-8', cfLayout === 'centered' && 'text-center')}>
+                {IET('title', 'h2', cn('text-3xl font-bold text-gray-900', cfLayout === 'centered' && 'mx-auto'), { fontFamily: font_heading, color: '#111827' }, 'Get In Touch')}
+              </div>
+            )}
+            {cfLayout === 'centered' ? (
+              <div className="max-w-lg mx-auto">
+                {formPanel}
+              </div>
+            ) : cfLayout === 'stacked' ? (
+              <div className="max-w-2xl mx-auto space-y-6">
+                {formPanel}
+                {mapPanel}
+              </div>
+            ) : (
+              <div className="grid lg:grid-cols-2 gap-12 items-start">
+                <div>
+                  {contactDetails}
+                  {cfLayout === 'split' && bgImageUrl && (
+                    <div className="mt-8 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                      <img src={mediaUrl(bgImageUrl)} className="w-full h-48 object-cover" alt="" />
                     </div>
                   )}
                 </div>
+                {formPanel}
               </div>
-              <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm space-y-4 max-h-[90vh] overflow-y-auto">
-                {formFields.map((f: any, i: number) => (
-                  f.type === 'textarea'
-                    ? (
-                      <div key={i}>
-                        {f.label && <label className="text-xs font-medium text-gray-700 block mb-1">{f.label}</label>}
-                        <textarea readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-ring" placeholder={f.placeholder || f.label} />
-                      </div>
-                    )
-                    : (
-                      <div key={i}>
-                        {f.label && <label className="text-xs font-medium text-gray-700 block mb-1">{f.label}</label>}
-                        <input readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder={f.placeholder || f.label} type={f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : 'text'} />
-                      </div>
-                    )
-                ))}
-                <button type="button" style={{ backgroundColor: primary_color }} className="w-full py-3 rounded-xl text-white font-semibold text-sm hover:opacity-90 transition-opacity">
-                  {canEdit
-                    ? <InlineEditableText value={(p as any).submit_label as string || ''} placeholder="Send Message" editable as="span"
-                        style={{ color: '#fff' }} onCommit={v => commitProp('submit_label', v)} />
-                    : ((p as any).submit_label || 'Send Message')}
-                </button>
-                {canEdit
-                  ? <InlineEditableText value={(p as any).form_hint as string || ''} placeholder="Helper hint…" editable as="p" multiline
-                      className="text-xs text-gray-400 text-center" style={{}}
-                      onCommit={v => commitProp('form_hint', v)} />
-                  : ((p as any).form_hint || <p className="text-xs text-gray-400 text-center">Messages from your published site are captured as CRM leads automatically.</p>)}
-              </div>
-            </div>
+            )}
           </section>
         )
       }
@@ -4367,23 +4563,35 @@ function BlockPreview({
       case 'trust_logos':
       case 'partner_logos': {
         const isLive = dsType === 'customers' && liveCustomers.length > 0
-        const logos: any[] = isLive
+        const propLogos: any[] = Array.isArray((p as any).logos) ? (p as any).logos : []
+        const hasPropLogoImages = propLogos.some(l => !!l?.image_url)
+        const useLiveLogos = isLive && !hasPropLogoImages
+        const logos: any[] = useLiveLogos
           ? liveCustomers.map(c => ({ name: c.subtitle || c.title, image_url: c.image_url }))
-          : ((p as any).logos as any[] || ['ACME Corp', 'TechGiant', 'StartupXYZ', 'Enterprise Co', 'Global Inc'].map(n => ({ name: n })))
+          : propLogos.length > 0
+            ? propLogos
+            : ['ACME Corp', 'TechGiant', 'StartupXYZ', 'Enterprise Co', 'Global Inc'].map(n => ({ name: n }))
+        const logoLayout = String((p as any).layout ?? 'strip')
+        const logoGrayscale = (p as any).grayscale !== false
+        const logoCols = Number((p as any).columns) || 4
         return (
           <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
             {(p.title || canEdit) && IET('title', 'p', 'text-center text-sm font-semibold text-gray-400 uppercase tracking-widest mb-8', { color: '#9ca3af' }, 'Trusted By')}
-            <div className="flex flex-wrap justify-center gap-8 items-center">
+            <div className={cn(
+              logoLayout === 'grid'
+                ? cn('grid gap-6 items-center justify-items-center', logoCols >= 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3')
+                : 'flex flex-wrap justify-center gap-8 items-center',
+            )}>
               {logos.slice(0, 8).map((l: any, i: number) => (
                 <div key={i} className="flex items-center gap-2">
                   {l.image_url
-                    ? <img src={mediaUrl(l.image_url)} className="h-10 w-auto grayscale hover:grayscale-0 opacity-60 hover:opacity-100 transition-all object-contain" alt={l.name || ''} />
+                    ? <img src={mediaUrl(l.image_url)} className={cn('h-10 w-auto object-contain transition-all', logoGrayscale ? 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100' : 'opacity-90 hover:opacity-100')} alt={l.name || ''} />
                     : <span className="text-gray-400 font-bold text-sm opacity-60">{l.name}</span>
                   }
                 </div>
               ))}
             </div>
-            {!suppressLiveBadges && isLive && (
+            {!suppressLiveBadges && useLiveLogos && (
               <p className="text-center text-xs text-emerald-600 mt-3 font-semibold">Live · your top customers</p>
             )}
           </section>
@@ -4391,20 +4599,22 @@ function BlockPreview({
       }
 
       case 'footer': {
-        // Match StorefrontShell: footer sits on the same page background as main (--sf-bg), not nav/primary slab.
-        const tc = (text_color || '#111827').trim()
-        const footerBg =
-          ((p as any).footer_bg as string | undefined)?.trim()
-          || bg_color
-          || effectiveStyle.surface_color
-          || '#ffffff'
-        const footerTitleColor =
-          ((p as any).footer_heading as string | undefined)?.trim() || tc
-        const footerLinkColor =
-          ((p as any).footer_muted as string | undefined)?.trim() || tc
-        const footerBorder =
-          ((p as any).footer_border as string | undefined)?.trim()
-          || (/^#[0-9A-Fa-f]{6}$/i.test(tc) ? `${tc}29` : 'rgba(15, 23, 42, 0.12)')
+        const footerTheme = resolveFooterTheme(p as Record<string, unknown>, {
+          text_color: text_color || '#111827',
+          bg_color: bg_color || '#ffffff',
+          surface_color: effectiveStyle.surface_color || '#f9fafb',
+          primary_color: primary_color || '#64C3A0',
+        })
+        const {
+          footerBg,
+          footerTitleColor,
+          footerLinkColor,
+          footerBorder,
+          layoutMode,
+          centered: footerCentered,
+          compact: footerCompact,
+          showNewsletter: footerShowNewsletter,
+        } = footerTheme
         const pmeta: any = liveProfile?.meta || {}
         const socialLinks: Record<string, string> = (p.social_links as any) || (dsType === 'profile' ? (pmeta.social_links || {}) : {})
         const year = new Date().getFullYear()
@@ -4455,10 +4665,54 @@ function BlockPreview({
         }
         return (
           <div
-            className="border-t mt-8 py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full text-sm"
+            className={cn(
+              'border-t w-full text-sm',
+              footerCompact ? 'py-8' : 'py-12',
+              footerCentered ? 'px-4 text-center' : 'px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto',
+              layoutMode !== 'simple' ? 'mt-8' : 'mt-4',
+            )}
             style={{ borderColor: footerBorder, backgroundColor: footerBg, color: footerLinkColor }}
           >
-            {(hasFooterCols || hasLiveLinks) && (
+            {footerShowNewsletter && (
+              <div
+                className={cn(
+                  'mb-8 pb-8 flex flex-col sm:flex-row items-center justify-between gap-4',
+                  footerCentered && 'text-center sm:text-left',
+                )}
+                style={{ borderBottom: `1px solid ${footerBorder}` }}
+              >
+                <div>
+                  <div className="text-sm font-semibold" style={{ color: footerTitleColor }}>Stay in the loop</div>
+                  <div className="text-xs opacity-80 mt-0.5">Get updates and offers in your inbox.</div>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto max-w-md">
+                  <div className="flex-1 h-9 rounded-lg border bg-white/90" style={{ borderColor: footerBorder }} />
+                  <div className="h-9 px-4 rounded-lg flex items-center text-xs font-semibold text-white" style={{ backgroundColor: primary_color }}>Subscribe</div>
+                </div>
+              </div>
+            )}
+            {layoutMode === 'simple' ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                  {(hasFooterCols ? footerCols.flatMap(c => c.links) : ['Home', 'About', 'Contact', 'Privacy']).slice(0, 6).map((link, i) => (
+                    <span key={i} className="text-sm opacity-90 cursor-pointer hover:opacity-100" style={{ color: footerLinkColor }}>
+                      {typeof link === 'string' ? link : String(link)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : footerCentered ? (
+              <div className="space-y-4 max-w-lg mx-auto">
+                <div className="text-lg font-bold" style={{ color: footerTitleColor }}>{pmeta.business_name || 'Your Brand'}</div>
+                {hasFooterCols && (
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+                    {footerCols.flatMap(c => c.links).slice(0, 8).map((link, i) => (
+                      <span key={i} className="text-sm opacity-90" style={{ color: footerLinkColor }}>{link}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (hasFooterCols || hasLiveLinks) && (
               <div
                 className={cn(
                   'grid grid-cols-2 gap-8',
@@ -4546,7 +4800,7 @@ function BlockPreview({
                 ) : null}
               </div>
             )}
-            {!hasFooterCols && !hasLiveLinks && canEdit && (
+            {!footerCentered && layoutMode !== 'simple' && !hasFooterCols && !hasLiveLinks && canEdit && (
               <div className="mb-8 text-center text-sm opacity-90" style={{ color: footerLinkColor }}>
                 <p className="mb-3">This footer has no columns yet. Add <span className="font-semibold opacity-100" style={{ color: footerTitleColor }}>footer columns</span> in the properties panel, or use <span className="font-semibold opacity-100" style={{ color: footerTitleColor }}>Add column</span> below.</p>
                 <button type="button"
@@ -4586,34 +4840,85 @@ function BlockPreview({
         )
       }
 
-      case 'video_embed':
+      case 'video_embed': {
+        const aspect = String((p as any).aspect_ratio ?? '16:9')
+        const aspectClass = aspect === '21:9' ? 'aspect-[21/9]' : aspect === '1:1' ? 'aspect-square max-w-lg mx-auto' : 'aspect-video'
+        const thumb = (p as any).thumbnail_url as string | undefined
         return (
           <div className="py-16 px-8">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-8', { fontFamily: font_heading }, 'Watch Our Story')}
-            <div className="max-w-3xl mx-auto aspect-video bg-gray-900 rounded-2xl flex items-center justify-center">
-              <PlayCircle className="w-16 h-16 text-white opacity-60" />
+            <div className={cn('max-w-3xl mx-auto rounded-2xl overflow-hidden relative flex items-center justify-center bg-gray-900', aspectClass)}>
+              {thumb && <img src={mediaUrl(thumb)} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="" />}
+              <PlayCircle className="w-16 h-16 text-white opacity-90 relative z-10" />
             </div>
           </div>
         )
+      }
 
-      case 'timeline':
+      case 'timeline': {
+        const tlLayout = String((p as any).layout ?? 'vertical')
+        const tlItems: any[] = (p as any).items || []
+        const tlItemBody = (item: any, i: number, compact = false) => (
+          <>
+            {ItemActions('items', i, 'milestone')}
+            <InlineEditableText value={item.year || ''} placeholder="Year" editable={canEdit} as="div"
+              className="text-xs text-gray-400 mb-1" style={{}}
+              onCommit={v => editItem('items', i, 'year', v)} />
+            <InlineEditableText value={item.title || ''} placeholder={`Milestone ${i + 1}`} editable={canEdit} as="div"
+              className={cn('font-semibold', compact ? 'text-sm' : 'text-sm')} style={{}}
+              onCommit={v => editItem('items', i, 'title', v)} />
+            <InlineEditableText value={item.desc || ''} placeholder="Description…" editable={canEdit} multiline as="div"
+              className="text-xs text-gray-500" style={{}}
+              onCommit={v => editItem('items', i, 'desc', v)} />
+          </>
+        )
+        if (tlLayout === 'horizontal') {
+          return (
+            <div className="py-16 px-8 max-w-6xl mx-auto">
+              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, 'Our Journey')}
+              <div className="flex flex-wrap justify-center gap-8">
+                {tlItems.map((item: any, i: number) => (
+                  <div key={i} className="text-center max-w-[160px] relative group/item">
+                    <div style={{ backgroundColor: primary_color }} className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold mx-auto mb-3">{i + 1}</div>
+                    {tlItemBody(item, i, true)}
+                  </div>
+                ))}
+              </div>
+              {canEdit && (
+                <div className="mt-6 text-center">
+                  {AddItemBtn('items', { year: String(new Date().getFullYear()), title: 'New Milestone', desc: 'Describe the milestone.' }, 'Add milestone')}
+                </div>
+              )}
+            </div>
+          )
+        }
+        if (tlLayout === 'list') {
+          return (
+            <div className="py-16 px-8 max-w-2xl mx-auto">
+              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, 'Our Journey')}
+              <div className="divide-y divide-gray-100">
+                {tlItems.map((item: any, i: number) => (
+                  <div key={i} className="py-4 relative group/item">
+                    {tlItemBody(item, i, true)}
+                  </div>
+                ))}
+              </div>
+              {canEdit && (
+                <div className="mt-6 text-center">
+                  {AddItemBtn('items', { year: String(new Date().getFullYear()), title: 'New Milestone', desc: 'Describe the milestone.' }, 'Add milestone')}
+                </div>
+              )}
+            </div>
+          )
+        }
         return (
           <div className="py-16 px-8 max-w-2xl mx-auto">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, 'Our Journey')}
             <div className="space-y-6 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200">
-              {((p as any).items || []).map((item: any, i: number) => (
+              {tlItems.map((item: any, i: number) => (
                 <div key={i} className="pl-10 relative group/item">
-                  {ItemActions('items', i, 'milestone')}
                   <div style={{ backgroundColor: primary_color }} className="absolute left-0 top-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold">{i + 1}</div>
-                  <InlineEditableText value={item.year || ''} placeholder="Year" editable={canEdit} as="div"
-                    className="text-xs text-gray-400 mb-1" style={{}}
-                    onCommit={v => editItem('items', i, 'year', v)} />
-                  <InlineEditableText value={item.title || ''} placeholder={`Milestone ${i + 1}`} editable={canEdit} as="div"
-                    className="font-semibold text-sm" style={{}}
-                    onCommit={v => editItem('items', i, 'title', v)} />
-                  <InlineEditableText value={item.desc || ''} placeholder="Description…" editable={canEdit} multiline as="div"
-                    className="text-xs text-gray-500" style={{}}
-                    onCommit={v => editItem('items', i, 'desc', v)} />
+                  {tlItemBody(item, i)}
                 </div>
               ))}
             </div>
@@ -4624,6 +4929,7 @@ function BlockPreview({
             )}
           </div>
         )
+      }
 
       case 'divider':
         return <div className="px-8 py-4"><hr style={{ borderColor: (p as any).color || '#e5e7eb' }} /></div>
@@ -4631,9 +4937,11 @@ function BlockPreview({
       case 'spacer':
         return <div style={{ height: (p as any).height || 80 }} />
 
-      case 'rich_text':
+      case 'rich_text': {
+        const rtLayout = String((p as any).layout ?? 'standard')
+        const rtMaxW = rtLayout === 'narrow' ? 'max-w-prose' : rtLayout === 'wide' ? 'max-w-6xl' : 'max-w-3xl'
         return (
-          <div className="py-12 px-8 max-w-3xl mx-auto">
+          <div className={cn('py-12 px-8 mx-auto', rtMaxW)}>
             <InlineEditableRichText
               html={(p as any).content || '<p>Your rich text content goes here.</p>'}
               editable={canEdit}
@@ -4643,19 +4951,35 @@ function BlockPreview({
             />
           </div>
         )
+      }
 
-      case 'image_block':
-        return (
-          <div className="py-8 px-8">
-            {p.image_url
-              ? <img src={mediaUrl(p.image_url as string)} className="w-full object-cover max-h-96" style={{ borderRadius: r }} alt="" />
-              : <div style={{ borderRadius: r, backgroundColor: effectiveStyle.surface_color }} className="w-full h-48 flex items-center justify-center text-gray-400">
-                <ImageIcon className="w-10 h-10" />
+      case 'image_block': {
+        const ibLayout = String((p as any).layout ?? 'centered')
+        const imgSrc = p.image_url as string | undefined
+        const imgEl = imgSrc
+          ? <img src={mediaUrl(imgSrc)} className={cn('w-full object-cover', ibLayout === 'full' ? 'max-h-[480px]' : 'max-h-96')} style={{ borderRadius: ibLayout === 'full' ? 0 : cardRadius }} alt="" />
+          : <div style={{ borderRadius: ibLayout === 'full' ? 0 : cardRadius, backgroundColor: effectiveStyle.surface_color }} className={cn('w-full flex items-center justify-center text-gray-400', ibLayout === 'full' ? 'h-64' : 'h-48')}><ImageIcon className="w-10 h-10" /></div>
+        if (ibLayout === 'full') {
+          return <div className="py-0 px-0">{imgEl}</div>
+        }
+        if (ibLayout === 'split') {
+          return (
+            <div className="py-8 px-8 flex flex-col md:flex-row gap-8 items-center max-w-5xl mx-auto">
+              <div className="flex-1 w-full">{imgEl}</div>
+              <div className="flex-1 space-y-3">
+                {(p as any).caption && IET('caption', 'p', 'text-sm text-gray-600 leading-relaxed', {}, 'Image caption…')}
+                {IET('title', 'h3', 'text-xl font-bold', { fontFamily: font_heading, color: text_color }, 'Image story')}
               </div>
-            }
-            {((p as any).caption || canEdit) && IET('caption', 'p', 'text-center text-xs text-gray-400 mt-2', {}, 'Image caption…')}
+            </div>
+          )
+        }
+        return (
+          <div className={cn('py-8 px-8', ibLayout === 'centered' && 'max-w-3xl mx-auto')}>
+            {imgEl}
+            {!!(p as any).show_caption && ((p as any).caption || canEdit) && IET('caption', 'p', 'text-center text-xs text-gray-400 mt-2', {}, 'Image caption…')}
           </div>
         )
+      }
 
       case 'about_split':
       case 'about_timeline': {
@@ -4665,6 +4989,19 @@ function BlockPreview({
         const desc  = (p.description as string) || (isLive ? (pmeta.description || '') : '') || 'Tell your story here.'
         const img   = (p.image_url as string) || pmeta.banner_url || pmeta.logo_url || ''
         const statement = (p as any).layout === 'statement' || (p as any).variant === 'centered'
+        const isOverlay = (p as any).layout === 'overlay'
+        if (isOverlay && img) {
+          return (
+            <div className="relative min-h-[420px] flex items-end py-16 px-8 overflow-hidden">
+              <img src={mediaUrl(img)} className="absolute inset-0 w-full h-full object-cover" alt={title} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+              <div className="relative z-10 max-w-3xl text-white">
+                {IET('title', 'h2', 'text-3xl sm:text-4xl font-bold mb-4', { fontFamily: font_heading, color: '#fff' }, title)}
+                {IET('description', 'p', 'text-white/85 text-sm leading-relaxed max-w-xl', { color: '#fff' }, desc, true)}
+              </div>
+            </div>
+          )
+        }
         if (statement) {
           return (
             <div className="border-t py-20 sm:py-24 px-6 max-w-4xl mx-auto text-center" style={{ borderColor: `${text_color}18`, backgroundColor: bg_color }}>
@@ -4684,8 +5021,8 @@ function BlockPreview({
           )
         }
         return (
-          <div className="py-16 px-8 flex gap-12 items-center max-w-5xl mx-auto">
-            <div style={{ borderRadius: r, backgroundColor: effectiveStyle.surface_color }} className="flex-1 h-64 flex items-center justify-center text-gray-300 overflow-hidden">
+          <div className={cn('py-16 px-8 flex gap-12 items-center max-w-5xl mx-auto', (p as any).image_position === 'right' && 'flex-row-reverse')}>
+            <div style={{ borderRadius: cardRadius, backgroundColor: effectiveStyle.surface_color }} className="flex-1 h-64 flex items-center justify-center text-gray-300 overflow-hidden">
               {img
                 ? <img src={mediaUrl(img)} className="w-full h-full object-cover" alt={title} />
                 : <ImageIcon className="w-12 h-12" />
@@ -4707,6 +5044,8 @@ function BlockPreview({
 
       case 'product_grid': {
         const cols = p.columns || 4
+        const pgCardStyle = String((p as any).card_style ?? 'card')
+        const pgImgH = pgCardStyle === 'large' ? 'h-48' : 'h-36'
         const isLive = dsType === 'products'
         const editorialPg = (p as any).layout === 'editorial'
         const fallback: LiveItem[] = Array.from({ length: cols }).map((_, i) => ({
@@ -4839,8 +5178,8 @@ function BlockPreview({
             )}
             <div className={cn('grid gap-4 max-w-5xl mx-auto', cols === 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4')}>
               {displayProducts.map((prod: any, i: number) => (
-                <div key={prod?.id || i} style={{ borderRadius: r, backgroundColor: bg_color }} className="overflow-hidden shadow-sm">
-                  <div className="h-36 bg-gray-100 relative overflow-hidden flex items-center justify-center">
+                <div key={prod?.id || i} style={{ borderRadius: cardRadius, backgroundColor: bg_color }} className="overflow-hidden shadow-sm">
+                  <div className={cn('bg-gray-100 relative overflow-hidden flex items-center justify-center', pgImgH)}>
                     {prod?.image_url
                       ? <img src={mediaUrl(prod.image_url)} className="w-full h-full object-cover" alt={prod.title} />
                       : <ShoppingBag className="w-8 h-8 text-gray-300" />
@@ -4857,7 +5196,7 @@ function BlockPreview({
                     <div className="text-xs text-gray-500 mt-0.5">{prod?.price_formatted || (prod?.price != null ? `₹${prod.price}` : '₹999')}</div>
                     {prod?.meta?.stock_status === 'out_of_stock'
                       ? <div className="text-xs text-red-500 font-semibold mt-1">Out of stock</div>
-                      : <button style={{ backgroundColor: primary_color, borderRadius: r, color: '#fff' }} className="mt-2 px-3 py-1.5 text-xs font-medium w-full">Add to Cart</button>
+                      : <button style={{ backgroundColor: primary_color, borderRadius: btnRadius, color: '#fff' }} className="mt-2 px-3 py-1.5 text-xs font-medium w-full">Add to Cart</button>
                     }
                   </div>
                 </div>
@@ -4875,7 +5214,10 @@ function BlockPreview({
       case 'services_cards':
       case 'services_list': {
         const isLive = dsType === 'services' && liveServices.length > 0
-        const feats: any[] = isLive
+        const propFeats: any[] = Array.isArray(p.features) ? (p.features as any[]) : []
+        const hasPropImages = propFeats.some(f => !!f?.image_url)
+        const useLiveServices = isLive && !hasPropImages
+        const feats: any[] = useLiveServices
           ? liveServices.map(s => ({
               title: s.title,
               desc: s.description || s.subtitle || '',
@@ -4884,41 +5226,47 @@ function BlockPreview({
               image_url: s.image_url,
               duration: (s.meta as any)?.duration_minutes,
             }))
-          : (p.features as any[] || [])
+          : propFeats.length > 0 ? propFeats : []
         const cols = p.columns || 3
+        const svcLayout = String((p as any).layout ?? 'grid')
+        const svcCardStyle = String((p as any).card_style ?? 'card')
+        const isCompactSvc = svcCardStyle === 'compact'
+        const isList = svcLayout === 'list'
         return (
           <div className="py-16 px-8">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-2', { fontFamily: font_heading, color: text_color }, 'Our Services')}
-            {!suppressLiveBadges && isLive && (
+            {!suppressLiveBadges && useLiveServices && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your services catalog</span>
               </div>
             )}
-            <div className={cn('grid gap-6', cols === 2 ? 'grid-cols-2' : cols === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-3')}>
+            <div className={cn(isList ? 'space-y-4 max-w-3xl mx-auto' : cn('grid gap-6', cols === 2 ? 'grid-cols-2' : cols === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'))}>
               {feats.slice(0, 9).map((f: any, i: number) => (
-                <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: r }} className="p-6 space-y-3 relative group/item">
-                  {!isLive && ItemActions('features', i, 'service')}
-                  {f.image_url && <img src={mediaUrl(f.image_url)} className="w-full h-28 object-cover rounded-lg" alt={f.title} />}
-                  {!f.image_url && <div style={{ color: primary_color }} className="text-2xl">⚡</div>}
-                  <InlineEditableText value={f.title || ''} placeholder={`Service ${i + 1}`} editable={canEdit && !f._live && !isLive} as="h3"
-                    className="font-bold text-base" style={{ fontFamily: font_heading }}
-                    onCommit={v => editItem('features', i, 'title', v)} />
-                  <InlineEditableText value={f.desc || ''} placeholder="Describe this service." editable={canEdit && !f._live && !isLive} multiline as="p"
-                    className="text-sm text-gray-500"
-                    style={{}}
-                    onCommit={v => editItem('features', i, 'desc', v)} />
-                  {f.duration && <div className="text-xs text-gray-400">{f.duration} min</div>}
-                  {f.price && <div style={{ color: primary_color }} className="text-xs font-bold">From {f.price}</div>}
+                <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('space-y-3 relative group/item', isCompactSvc ? 'p-4' : 'p-6', isList && 'flex gap-4 items-start')}>
+                  {!useLiveServices && ItemActions('features', i, 'service')}
+                  {f.image_url && <img src={mediaUrl(f.image_url)} className={cn('object-cover rounded-lg', isList ? 'w-24 h-24 shrink-0' : 'w-full h-28')} alt={f.title} />}
+                  {!f.image_url && <div style={{ color: primary_color }} className={cn('text-2xl', isList && 'shrink-0')}>⚡</div>}
+                  <div className={isList ? 'flex-1 min-w-0' : undefined}>
+                    <InlineEditableText value={f.title || ''} placeholder={`Service ${i + 1}`} editable={canEdit && !useLiveServices} as="h3"
+                      className="font-bold text-base" style={{ fontFamily: font_heading }}
+                      onCommit={v => editItem('features', i, 'title', v)} />
+                    <InlineEditableText value={f.desc || ''} placeholder="Describe this service." editable={canEdit && !useLiveServices} multiline as="p"
+                      className="text-sm text-gray-500"
+                      style={{}}
+                      onCommit={v => editItem('features', i, 'desc', v)} />
+                    {f.duration && <div className="text-xs text-gray-400">{f.duration} min</div>}
+                    {f.price && <div style={{ color: primary_color }} className="text-xs font-bold">From {f.price}</div>}
+                  </div>
                 </div>
               ))}
             </div>
-            {!isLive && canEdit && (
+            {!useLiveServices && canEdit && (
               <div className="mt-6 text-center">
                 {AddItemBtn('features', { title: 'New Service', desc: 'Describe this service.' }, 'Add service')}
               </div>
             )}
-            {dsType === 'services' && !isLive && !liveLoading && (
+            {dsType === 'services' && !useLiveServices && !hasPropImages && !liveLoading && (
               <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                 <Database className="w-3 h-3" /> No services yet — add some and they'll appear here live.
               </p>
@@ -4929,41 +5277,69 @@ function BlockPreview({
 
       case 'booking_widget': {
         const isLive = dsType === 'services' && liveServices.length > 0
+        const bwLayout = String((p as any).layout ?? 'calendar')
+        const showCalendar = (p as any).show_calendar !== false
+        if (bwLayout === 'cta') {
+          return (
+            <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center">
+              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-4', { fontFamily: font_heading, color: '#111827' }, 'Book a Session')}
+              {(p.subtitle || canEdit) && IET('subtitle', 'p', 'text-gray-500 mb-8', {}, 'Choose a time that works for you')}
+              {CTABtn('cta_label', 'cta_url', 'Book Now', 'inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold hover:opacity-90 transition-all', { backgroundColor: primary_color })}
+            </section>
+          )
+        }
+        if (bwLayout === 'inline') {
+          return (
+            <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
+              {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-gray-900 mb-4', { fontFamily: font_heading, color: '#111827' }, 'Book a Session')}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input readOnly className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm" placeholder="Select date & time" />
+                {CTABtn('cta_label', 'cta_url', 'Book', 'px-6 py-3 rounded-xl text-white font-semibold text-sm whitespace-nowrap', { backgroundColor: primary_color })}
+              </div>
+            </section>
+          )
+        }
         return (
-          <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-            <div className="text-center mb-10">
-              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Book a Session')}
-              {(p.subtitle || canEdit) && IET('subtitle', 'p', 'text-gray-500', {}, 'Choose a time that works for you')}
+          <section className={cn('py-16 px-4 sm:px-6 lg:px-8 mx-auto', bwLayout === 'split' ? 'max-w-5xl' : 'max-w-4xl')}>
+            <div className={cn(bwLayout === 'split' && 'grid md:grid-cols-2 gap-10 items-start')}>
+              <div className={cn(bwLayout === 'split' ? 'text-left' : 'text-center mb-10')}>
+                {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Book a Session')}
+                {(p.subtitle || canEdit) && IET('subtitle', 'p', 'text-gray-500', {}, 'Choose a time that works for you')}
+              </div>
+              {!suppressLiveBadges && isLive && (
+                <div className={cn('flex items-center gap-1.5 mb-6', bwLayout !== 'split' && 'justify-center col-span-full')}>
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs text-emerald-600 font-semibold">Live · your services</span>
+                </div>
+              )}
+              {isLive ? (
+                <div className={cn('grid sm:grid-cols-2 gap-4', bwLayout === 'split' ? '' : 'col-span-full')}>
+                  {liveServices.slice(0, 6).map(s => (
+                    <div key={s.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow text-left">
+                      <div className="font-semibold text-gray-900 mb-1">{s.title}</div>
+                      {(s.meta as any)?.duration_minutes && (
+                        <p className="text-xs text-gray-400 flex items-center gap-1 mb-2">
+                          <Clock className="w-3 h-3" />
+                          {Number((s.meta as any).duration_minutes)} min
+                        </p>
+                      )}
+                      {s.price_formatted && <p className="font-bold mb-3" style={{ color: primary_color }}>{s.price_formatted}</p>}
+                      <span className="text-sm font-semibold inline-flex items-center gap-1" style={{ color: primary_color }}>
+                        Book <ChevronRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : showCalendar ? (
+                <div className={cn('rounded-2xl border border-gray-200 bg-gray-50 p-6 min-h-[220px] flex items-center justify-center text-sm text-gray-500', bwLayout === 'split' ? '' : 'col-span-full')}>
+                  Calendar picker preview
+                </div>
+              ) : (
+                <div className={cn('text-center', bwLayout === 'split' ? '' : 'col-span-full')}>
+                  {CTABtn('cta_label', 'cta_url', 'Book Now', 'inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold hover:opacity-90 transition-all', { backgroundColor: primary_color })}
+                </div>
+              )}
             </div>
-            {!suppressLiveBadges && isLive && (
-              <div className="flex items-center justify-center gap-1.5 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · your services</span>
-              </div>
-            )}
-            {isLive ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {liveServices.slice(0, 6).map(s => (
-                  <div key={s.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow text-left max-h-[90vh] overflow-y-auto">
-                    <div className="font-semibold text-gray-900 mb-1">{s.title}</div>
-                    {(s.meta as any)?.duration_minutes && (
-                      <p className="text-xs text-gray-400 flex items-center gap-1 mb-2">
-                        <Clock className="w-3 h-3" />
-                        {Number((s.meta as any).duration_minutes)} min
-                      </p>
-                    )}
-                    {s.price_formatted && <p className="font-bold mb-3" style={{ color: primary_color }}>{s.price_formatted}</p>}
-                    <span className="text-sm font-semibold inline-flex items-center gap-1" style={{ color: primary_color }}>
-                      Book <ChevronRight className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center">
-                {CTABtn('cta_label', 'cta_url', 'Book Now', 'inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold hover:opacity-90 transition-all', { backgroundColor: primary_color })}
-              </div>
-            )}
           </section>
         )
       }
@@ -5048,7 +5424,7 @@ function BlockPreview({
                   Track
                 </button>
               </div>
-              <div style={{ borderRadius: r, border: `1px solid ${primary_color}22` }} className="p-4 bg-white shadow-sm text-left">
+              <div style={{ borderRadius: cardRadius, border: `1px solid ${primary_color}22` }} className="p-4 bg-white shadow-sm text-left">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-bold text-gray-600">Order #12345</span>
                   <span style={{ backgroundColor: `${primary_color}15`, color: primary_color }} className="text-xs font-bold px-2 py-0.5 rounded-full">In Transit</span>
@@ -5155,10 +5531,10 @@ function BlockPreview({
                   <h3 className="font-bold text-sm uppercase tracking-wide mb-3" style={{ color: primary_color }}>{g.category}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     {g.items.slice(0, 8).map((it, ii) => (
-                      <div key={ii} style={{ backgroundColor: bg_color, borderRadius: r }} className="p-4 flex items-center gap-3 shadow-sm">
+                      <div key={ii} style={{ backgroundColor: bg_color, borderRadius: cardRadius }} className="p-4 flex items-center gap-3 shadow-sm">
                         {it.image_url
                           ? <img src={mediaUrl(it.image_url)} alt={it.title} className="w-14 h-14 rounded object-cover shrink-0" />
-                          : <div style={{ backgroundColor: `${primary_color}15`, borderRadius: r }} className="w-14 h-14 shrink-0 flex items-center justify-center"><Package className="w-5 h-5" style={{ color: primary_color }} /></div>
+                          : <div style={{ backgroundColor: `${primary_color}15`, borderRadius: cardRadius }} className="w-14 h-14 shrink-0 flex items-center justify-center"><Package className="w-5 h-5" style={{ color: primary_color }} /></div>
                         }
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
@@ -5185,13 +5561,42 @@ function BlockPreview({
       case 'gallery_masonry':
       case 'gallery_grid':
       case 'image_gallery': {
-        const isLive = (dsType === 'media' && liveMedia.length > 0) || (dsType === 'products' && liveProducts.length > 0)
-        const images: { src: string | null; alt: string }[] = dsType === 'media' && liveMedia.length > 0
-          ? liveMedia.map(m => ({ src: m.image_url || m.url, alt: m.title }))
-          : dsType === 'products' && liveProducts.length > 0
-            ? liveProducts.filter(x => !!x.image_url).map(x => ({ src: x.image_url, alt: x.title }))
-            : ((p as any).images as any[] || Array.from({ length: 8 }).map(() => ({ src: null as string | null, alt: '' })))
-        const gridCols = (p as any).columns || 4
+        const galleryLayout = String((p as any).layout ?? 'grid')
+        const gridCols = Number((p as any).columns) || (galleryLayout === 'featured' ? 3 : 4)
+        const imageShape = String((p as any).image_shape ?? 'square')
+        const shapeRadius = imageShape === 'circle' ? '50%' : imageShape === 'rounded' ? '16px' : '8px'
+        const shapeClass = imageShape === 'circle' ? 'aspect-square rounded-full' : imageShape === 'rounded' ? 'rounded-2xl' : ''
+        const propImages: { src?: string | null; alt?: string }[] = Array.isArray((p as any).images)
+          ? (p as any).images
+          : []
+        const hasPropImages = propImages.some(img => !!img?.src)
+        const isLive = !hasPropImages && (
+          (dsType === 'media' && liveMedia.length > 0)
+          || (dsType === 'products' && liveProducts.length > 0)
+        )
+        const images: { src: string | null; alt: string }[] = hasPropImages
+          ? propImages.map(img => ({ src: img.src ?? null, alt: img.alt || '' }))
+          : isLive
+            ? (dsType === 'media' && liveMedia.length > 0
+              ? liveMedia.map(m => ({ src: m.image_url || m.url, alt: m.title }))
+              : liveProducts.filter(x => !!x.image_url).map(x => ({ src: x.image_url, alt: x.title })))
+            : propImages.length > 0
+              ? propImages.map(img => ({ src: img.src ?? null, alt: img.alt || '' }))
+              : Array.from({ length: 8 }).map(() => ({ src: null as string | null, alt: '' }))
+        const cellRadius = shapeRadius
+        const renderCell = (img: { src: string | null; alt: string }, i: number, className?: string) => (
+          <div
+            key={i}
+            className={cn('overflow-hidden bg-gray-100', shapeClass, className)}
+            style={{ borderRadius: imageShape === 'circle' ? '50%' : cellRadius }}
+          >
+            {img.src
+              ? <img src={mediaUrl(img.src)} className="w-full h-full object-cover" alt={img.alt || ''} />
+              : <div className="w-full h-full min-h-[80px] flex items-center justify-center"><ImageIcon className="w-6 h-6 text-gray-300" /></div>
+            }
+          </div>
+        )
+
         return (
           <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
             {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-4', { fontFamily: font_heading }, 'Gallery')}
@@ -5201,48 +5606,105 @@ function BlockPreview({
                 <span className="text-xs text-emerald-600 font-semibold">Live · {dsType === 'media' ? 'your site media' : 'product images'}</span>
               </div>
             )}
-            <div className={cn('grid gap-2 max-w-5xl mx-auto')} style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
-              {images.slice(0, 12).map((img, i) => (
-                <div key={i} className={cn('overflow-hidden', block.block_type === 'gallery_masonry' && (i % 3 === 0) ? 'row-span-2' : '')} style={{ borderRadius: r, backgroundColor: effectiveStyle.surface_color, aspectRatio: '1 / 1' }}>
-                  {img.src
-                    ? <img src={mediaUrl(img.src)} className="w-full h-full object-cover" alt={img.alt} />
-                    : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-6 h-6 text-gray-300" /></div>
-                  }
-                </div>
-              ))}
-            </div>
+            {galleryLayout === 'featured' && images.length > 0 ? (
+              <div className="grid grid-cols-3 grid-rows-2 gap-2 max-w-5xl mx-auto min-h-[280px]">
+                {renderCell(images[0], 0, 'col-span-2 row-span-2 min-h-[240px]')}
+                {images.slice(1, 3).map((img, i) => renderCell(img, i + 1, 'min-h-[115px]'))}
+              </div>
+            ) : galleryLayout === 'masonry' ? (
+              <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 max-w-5xl mx-auto">
+                {images.slice(0, 12).map((img, i) => (
+                  <div key={i} className="break-inside-avoid mb-3">
+                    {renderCell(img, i, cn(i % 3 === 0 ? 'min-h-[180px]' : 'min-h-[120px]'))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div
+                className="grid gap-2 max-w-5xl mx-auto"
+                style={{ gridTemplateColumns: `repeat(${Math.min(gridCols, 4)}, 1fr)` }}
+              >
+                {images.slice(0, gridCols <= 2 ? 6 : 12).map((img, i) => (
+                  renderCell(img, i, cn(
+                    gridCols <= 2 ? 'aspect-[4/3] min-h-[140px]' : 'aspect-square min-h-[100px]',
+                    imageShape === 'circle' && 'mx-auto max-w-[180px]',
+                  ))
+                ))}
+              </div>
+            )}
           </div>
         )
       }
 
       case 'portfolio_grid': {
-        const isLive = dsType === 'media' && liveMedia.length > 0
-        const items: any[] = isLive
-          ? liveMedia.map(m => ({ title: m.title, image_url: m.image_url || m.url }))
-          : ((p as any).projects as any[] || Array.from({ length: 6 }).map((_, i) => ({ title: `Project ${i + 1}`, image_url: null })))
+        const portfolioLayout = String((p as any).layout ?? 'grid')
+        const filterable = !!(p as any).filterable
+        const imageShape = String((p as any).image_shape ?? 'square')
+        const shapeRadius = imageShape === 'circle' ? '50%' : imageShape === 'rounded' ? '16px' : '8px'
+        const propProjects: { title?: string; image_url?: string | null }[] = Array.isArray((p as any).projects)
+          ? (p as any).projects
+          : []
+        const hasPropImages = propProjects.some(it => !!it?.image_url)
+        const isLive = !hasPropImages && dsType === 'media' && liveMedia.length > 0
+        const items: { title: string; image_url: string | null }[] = hasPropImages
+          ? propProjects.map(it => ({ title: it.title || 'Project', image_url: it.image_url ?? null }))
+          : isLive
+            ? liveMedia.map(m => ({ title: m.title, image_url: m.image_url || m.url }))
+            : propProjects.length > 0
+              ? propProjects.map(it => ({ title: it.title || 'Project', image_url: it.image_url ?? null }))
+              : Array.from({ length: 6 }).map((_, i) => ({ title: `Project ${i + 1}`, image_url: null as string | null }))
         const cols = (p as any).columns || 3
+        const cellRadius = shapeRadius
+        const renderProject = (it: { title: string; image_url: string | null }, i: number, className?: string) => (
+          <div
+            key={i}
+            style={{ borderRadius: cellRadius, backgroundColor: effectiveStyle.surface_color }}
+            className={cn('overflow-hidden relative group', imageShape === 'circle' && 'aspect-square max-w-[200px] mx-auto', className)}
+          >
+            {it.image_url
+              ? <img src={mediaUrl(it.image_url)} className="w-full h-full object-cover" alt={it.title} />
+              : <div className="w-full h-full min-h-[120px] flex items-center justify-center"><Camera className="w-8 h-8 text-gray-300" /></div>
+            }
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end p-3">
+              <div className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">{it.title}</div>
+            </div>
+          </div>
+        )
         return (
           <div className="py-16 px-8">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-4', { fontFamily: font_heading }, 'Our Portfolio')}
+            {filterable && (
+              <div className="flex justify-center gap-2 mb-6 flex-wrap">
+                {['All', 'Web', 'Brand', 'App'].map((tab, ti) => (
+                  <span
+                    key={tab}
+                    className={cn('px-3 py-1 text-xs font-medium rounded-full cursor-default', ti === 0 ? 'text-white' : 'bg-gray-100 text-gray-600')}
+                    style={ti === 0 ? { backgroundColor: primary_color } : undefined}
+                  >
+                    {tab}
+                  </span>
+                ))}
+              </div>
+            )}
             {!suppressLiveBadges && isLive && (
               <div className="flex items-center justify-center gap-1.5 mb-6">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-emerald-600 font-semibold">Live · your site media library</span>
               </div>
             )}
-            <div className="grid gap-4 max-w-5xl mx-auto" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-              {items.slice(0, cols * 2).map((it: any, i: number) => (
-                <div key={i} style={{ borderRadius: r, backgroundColor: effectiveStyle.surface_color, aspectRatio: '4 / 3' }} className="overflow-hidden relative group">
-                  {it.image_url
-                    ? <img src={mediaUrl(it.image_url)} className="w-full h-full object-cover" alt={it.title} />
-                    : <div className="w-full h-full flex items-center justify-center"><Camera className="w-8 h-8 text-gray-300" /></div>
-                  }
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end p-3">
-                    <div className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">{it.title}</div>
+            {portfolioLayout === 'masonry' ? (
+              <div className="columns-2 sm:columns-3 gap-4 max-w-5xl mx-auto">
+                {items.slice(0, 9).map((it, i) => (
+                  <div key={i} className="break-inside-avoid mb-4">
+                    {renderProject(it, i, i % 3 === 0 ? 'min-h-[200px]' : 'min-h-[140px]')}
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4 max-w-5xl mx-auto" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                {items.slice(0, cols * 2).map((it, i) => renderProject(it, i, 'aspect-[4/3]'))}
+              </div>
+            )}
           </div>
         )
       }
@@ -5266,6 +5728,8 @@ function BlockPreview({
           }))
           : propCats
         const cols = (p as any).columns || 3
+        const catLayout = String((p as any).layout ?? 'grid')
+        const isBanner = catLayout === 'banner'
         if (editorial) {
           const eyebrow = (p as any).eyebrow as string | undefined
           return (
@@ -5295,7 +5759,7 @@ function BlockPreview({
               )}
               <div className="grid md:grid-cols-3 gap-1">
                 {cats.slice(0, 9).map((c: any, i: number) => (
-                  <div key={i} className="group relative aspect-[4/5] overflow-hidden cursor-pointer" style={{ borderRadius: r === '9999px' ? 0 : undefined }}>
+                  <div key={i} className="group relative aspect-[4/5] overflow-hidden cursor-pointer" style={{ borderRadius: cardRadius }}>
                     {c.image_url
                       ? <img src={mediaUrl(c.image_url)} alt={c.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                       : <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900" />}
@@ -5319,11 +5783,18 @@ function BlockPreview({
                 <span className="text-xs text-emerald-600 font-semibold">Live · your catalog categories</span>
               </div>
             )}
-            <div className="grid gap-4 max-w-4xl mx-auto" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+            <div className={cn('grid gap-4 max-w-5xl mx-auto', isBanner && 'grid-cols-1 sm:grid-cols-2')} style={!isBanner ? { gridTemplateColumns: `repeat(${cols}, 1fr)` } : undefined}>
               {cats.slice(0, 9).map((c: any, i: number) => (
-                <div key={i} style={{ borderRadius: r, background: `linear-gradient(135deg, ${primary_color}, ${effectiveStyle.secondary_color})` }} className="p-6 text-white text-center shadow-md">
-                  <div className="font-bold text-base">{c.title}</div>
-                  {c.count != null && <div className="text-xs opacity-80 mt-1">{c.count} items</div>}
+                <div key={i} className={cn('overflow-hidden shadow-md relative group', isBanner ? 'aspect-[3/1]' : 'aspect-square')} style={{ borderRadius: cardRadius }}>
+                  {c.image_url
+                    ? <img src={mediaUrl(c.image_url)} className="absolute inset-0 w-full h-full object-cover" alt={c.title} />
+                    : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primary_color}, ${effectiveStyle.secondary_color})` }} />
+                  }
+                  <div className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors" />
+                  <div className={cn('absolute inset-0 flex flex-col justify-end p-4 text-white', isBanner && 'justify-center items-start px-6')}>
+                    <div className="font-bold text-base">{c.title}</div>
+                    {c.count != null && <div className="text-xs opacity-80 mt-1">{c.count} items</div>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -5340,26 +5811,36 @@ function BlockPreview({
             ? []
             : Array.from({ length: 3 }).map((_, i) => ({ title: `Post ${i + 1}`, excerpt: 'Short preview of the post content.', date: new Date().toDateString() }))
         const cols = (p as any).columns || 3
+        const blogLayout = String((p as any).layout ?? 'grid')
+        const blogCardStyle = String((p as any).card_style ?? 'card')
+        const isList = blogLayout === 'list'
+        const isLargeBlog = blogCardStyle === 'large'
+        const isCompactBlog = blogCardStyle === 'compact'
+        const postCard = (post: any, i: number) => (
+          <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('overflow-hidden shadow-sm', isList && 'flex gap-4 items-stretch')}>
+            <div className={cn('bg-gray-100 flex items-center justify-center shrink-0', isList ? 'w-32 h-28' : isLargeBlog ? 'h-48' : isCompactBlog ? 'h-24' : 'h-32')}>
+              {post.image_url
+                ? <img src={mediaUrl(post.image_url)} className="w-full h-full object-cover" alt={post.title} />
+                : <FileText className="w-8 h-8 text-gray-300" />
+              }
+            </div>
+            <div className={cn('flex-1 min-w-0', isCompactBlog ? 'p-3' : 'p-4')}>
+              <div className="text-xs text-gray-400 mb-1">{post.date || ''}</div>
+              <div className="font-semibold text-sm mb-1 line-clamp-2">{post.title}</div>
+              <div className="text-xs text-gray-500 line-clamp-2">{post.excerpt}</div>
+            </div>
+          </div>
+        )
         return (
           <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
             {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-8', { fontFamily: font_heading, color: text_color }, 'Latest Articles')}
-            <div className="grid gap-5 max-w-5xl mx-auto" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-              {posts.slice(0, 6).map((post: any, i: number) => (
-                <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: r }} className="overflow-hidden shadow-sm">
-                  <div className="h-32 bg-gray-100 flex items-center justify-center">
-                    {post.image_url
-                      ? <img src={mediaUrl(post.image_url)} className="w-full h-full object-cover" alt={post.title} />
-                      : <FileText className="w-8 h-8 text-gray-300" />
-                    }
-                  </div>
-                  <div className="p-4">
-                    <div className="text-xs text-gray-400 mb-1">{post.date || ''}</div>
-                    <div className="font-semibold text-sm mb-1 line-clamp-2">{post.title}</div>
-                    <div className="text-xs text-gray-500 line-clamp-2">{post.excerpt}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {isList ? (
+              <div className="space-y-4 max-w-3xl mx-auto">{posts.slice(0, 6).map(postCard)}</div>
+            ) : (
+              <div className="grid gap-5 max-w-5xl mx-auto" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                {posts.slice(0, 6).map(postCard)}
+              </div>
+            )}
             {isTemplateBlock ? (
               <p className="text-center text-xs text-gray-400 mt-4">
                 Once you mark a page as page type <b>"blog"</b> in the editor, it will show up here.
@@ -5433,9 +5914,40 @@ function BlockPreview({
         const links: Record<string, string> = (p.links as any) || (p.social_links as any) || (dsType === 'profile' ? (pmeta.social_links || {}) : {})
         const entries = Object.entries(links).filter(([, url]) => !!url)
         const display = entries.length ? entries : [['twitter', '#'], ['instagram', '#'], ['linkedin', '#']] as [string, string][]
+        const socialLayout = String((p as any).layout ?? 'labeled')
+        const linkIcon = (k: string) => <Globe className="w-4 h-4 shrink-0" />
         return (
           <section className="py-12 px-4 sm:px-6 lg:px-8 text-center">
             {(p.title || canEdit) && IET('title', 'h3', 'text-lg font-semibold text-gray-700 mb-4', { color: '#374151' }, 'Follow Us')}
+            {socialLayout === 'row' ? (
+              <div className="flex justify-center gap-3 flex-wrap">
+                {display.map(([k, url], i) => (
+                  <a
+                    key={i}
+                    href={url || '#'}
+                    title={k}
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 hover:border-primary/40 transition-colors text-gray-600 hover:text-primary"
+                    onClick={e => { if (url === '#') e.preventDefault() }}
+                  >
+                    {linkIcon(k)}
+                  </a>
+                ))}
+              </div>
+            ) : socialLayout === 'grid' ? (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-w-sm mx-auto">
+                {display.map(([k, url], i) => (
+                  <a
+                    key={i}
+                    href={url || '#'}
+                    className="inline-flex flex-col items-center gap-1.5 p-3 rounded-xl border border-gray-200 hover:border-primary/40 transition-colors text-xs font-medium text-gray-600 hover:text-primary"
+                    onClick={e => { if (url === '#') e.preventDefault() }}
+                  >
+                    {linkIcon(k)}
+                    <span className="capitalize truncate max-w-full">{k.replace(/_/g, ' ')}</span>
+                  </a>
+                ))}
+              </div>
+            ) : (
             <div className="flex justify-center gap-3 flex-wrap">
               {display.map(([k, url], i) => (
                 <a
@@ -5444,11 +5956,12 @@ function BlockPreview({
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary/40 transition-colors text-sm font-medium text-gray-600 hover:text-primary"
                   onClick={e => { if (url === '#') e.preventDefault() }}
                 >
-                  <Globe className="w-4 h-4 shrink-0" />
+                  {linkIcon(k)}
                   <span className="capitalize">{k.replace(/_/g, ' ')}</span>
                 </a>
               ))}
             </div>
+            )}
             {!suppressLiveBadges && entries.length > 0 && dsType === 'profile' && (
               <p className="text-center text-xs text-emerald-600 mt-3 font-semibold">Live · from your vendor profile</p>
             )}
@@ -5535,7 +6048,7 @@ function BlockPreview({
         return (
           <div className="py-12 px-8 max-w-4xl mx-auto">
             <div className="grid grid-cols-2 gap-8 items-start">
-              <div style={{ borderRadius: r, backgroundColor: effectiveStyle.surface_color }} className="aspect-square flex items-center justify-center">
+              <div style={{ borderRadius: cardRadius, backgroundColor: effectiveStyle.surface_color }} className="aspect-square flex items-center justify-center">
                 <ShoppingBag className="w-16 h-16 text-gray-200" />
               </div>
               <div className="space-y-4">
@@ -5681,7 +6194,7 @@ function BlockPreview({
 
       default:
         return (
-          <div style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: r }} className="py-12 px-8 text-center text-gray-500 mx-8">
+          <div style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className="py-12 px-8 text-center text-gray-500 mx-8">
             <div className="text-2xl mb-2">🧩</div>
             <div className="font-semibold text-sm">{catalogBlockLabel(block)}</div>
             <div className="text-xs text-gray-400 mt-1">Edit this section in the properties panel</div>
@@ -6445,55 +6958,7 @@ function PropsInputRow({
   )
 }
 
-// ── Block Quick Presets ───────────────────────────────────────────────────────
-const BLOCK_QUICK_PRESETS: Record<string, { label: string; desc?: string; props: Record<string, any> }[]> = {
-  hero: [
-    { label: '🌊 Gradient Dark', desc: 'Violet/indigo gradient', props: { bg_style: 'gradient', gradient_preset: 'Violet → Indigo', overlay: true } },
-    { label: '📷 Image Full', desc: 'Full-bleed image BG', props: { bg_style: 'image', overlay: true } },
-    { label: '⬜ Clean Light', desc: 'White minimal', props: { bg_style: 'minimal', overlay: false } },
-    { label: '🖤 Dark Bold', desc: 'Dark dramatic', props: { bg_style: 'solid', bg_color: '#0f172a', overlay: false } },
-  ],
-  hero_split: [
-    { label: '🌊 Gradient Left', props: { bg_style: 'gradient', layout: 'split' } },
-    { label: '⬜ White Clean', props: { bg_style: 'minimal', layout: 'split' } },
-    { label: '📷 Image Right', desc: 'Image on right side', props: { bg_style: 'minimal', layout: 'split' } },
-  ],
-  features: [
-    { label: '3-Col Grid', desc: 'Classic 3-column', props: { layout: 'grid-3', columns: 3 } },
-    { label: '4-Col Grid', desc: 'Compact 4-column', props: { layout: 'grid-4', columns: 4 } },
-    { label: '2-Col List', desc: 'Icon + text rows', props: { layout: 'grid-2', columns: 2 } },
-  ],
-  stats: [
-    { label: '4 Stats Dark', props: { bg_style: 'dark', columns: 4 } },
-    { label: '3 Stats Light', props: { bg_style: 'light', columns: 3 } },
-    { label: '3 Stats Gradient', props: { bg_style: 'gradient', columns: 3 } },
-  ],
-  testimonials: [
-    { label: '3-Col Cards', props: { layout: 'grid', columns: 3 } },
-    { label: 'Masonry', props: { layout: 'masonry', columns: 2 } },
-    { label: 'Centered Quote', props: { layout: 'centered', columns: 1 } },
-  ],
-  cta: [
-    { label: '🔥 Bold Gradient', props: { bg_style: 'gradient' } },
-    { label: '🖤 Dark Premium', props: { bg_style: 'dark' } },
-    { label: '⬜ Light Minimal', props: { bg_style: 'light' } },
-  ],
-  pricing: [
-    { label: '3-Plan Standard', props: { columns: 3, show_annual_toggle: true } },
-    { label: '2-Plan Simple', props: { columns: 2, show_annual_toggle: false } },
-  ],
-  team_grid: [
-    { label: '4-Col Cards', props: { columns: 4, card_style: 'card' } },
-    { label: '3-Col Large', props: { columns: 3, card_style: 'card' } },
-    { label: '5-Col Compact', props: { columns: 5, card_style: 'minimal' } },
-  ],
-  nav: [
-    { label: '🔵 Transparent', props: { nav_style: 'transparent' } },
-    { label: '⬜ White Solid', props: { nav_style: 'white' } },
-    { label: '🖤 Dark Bar', props: { nav_style: 'dark' } },
-  ],
-}
-
+// ── Block Quick Presets (see @/lib/sectionLayoutPresets) ───────────────────────
 
 // ── P3.4 Per-breakpoint block style overrides ─────────────────────────────────
 type Breakpoint = 'desktop' | 'tablet' | 'mobile'
@@ -9376,6 +9841,7 @@ export default function WebsiteBuilder() {
   const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
   const [sectionSearch, setSectionSearch] = useState('')
   const [sectionCategory, setSectionCategory] = useState('all')
+  const [sectionLayoutPicker, setSectionLayoutPicker] = useState<{ def: BlockDef; insertAtIdx: number; targetBlockId?: string } | null>(null)
   const [expandedSectionPages, setExpandedSectionPages] = useState<Set<string>>(() => new Set())
   const [sidebarDraggedPageId, setSidebarDraggedPageId] = useState<string | null>(null)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
@@ -9394,6 +9860,8 @@ export default function WebsiteBuilder() {
   const [styleDirty, setStyleDirty] = useState(false)     // unsaved style changes
   const [blocksDirty, setBlocksDirty] = useState(false)   // unsaved block props / reorder
   const blocksDirtyRef = useRef(false)   // mirror for use inside useEffect([site]) without dependency
+  /** After an immediate layout save, skip server→local block hydration briefly so refetches cannot revert the canvas. */
+  const skipServerHydrateRef = useRef(0)
   const styleDirtyRef = useRef(false)    // mirror for style dirty flag
   const [openingBrowserPreview, setOpeningBrowserPreview] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
@@ -9515,6 +9983,21 @@ export default function WebsiteBuilder() {
   const [draggingBlockIdx, setDraggingBlockIdx] = useState<number | null>(null)
   const draggingBlockIdxRef = useRef<number | null>(null)
   const canvasMainRef = useRef<HTMLElement | null>(null)
+
+  const scrollCanvasToBlock = useCallback((blockId: string) => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-block-id="${blockId}"]`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [])
+
+  const layoutThemeFallback = useCallback(() => ({
+    text_color: localStyle.text_color || '#111827',
+    bg_color: localStyle.bg_color || '#ffffff',
+    surface_color: localStyle.surface_color || '#f9fafb',
+    primary_color: localStyle.primary_color || '#64C3A0',
+  }), [localStyle])
+
   const canvasViewportRef = useRef<HTMLDivElement | null>(null)
   const canvasPreviewInnerRef = useRef<HTMLDivElement | null>(null)
   const dragAutoScrollRafRef = useRef<number | null>(null)
@@ -9741,17 +10224,21 @@ export default function WebsiteBuilder() {
       }
       setLocalPages(site.pages)
       if (!blocksDirtyRef.current || pageStructureReplaced) {
-        navSyncBootRef.current = true
-        pagesNavKeyRef.current = pagesNavKey(site.pages)
-        setLocalBlocks(() => {
-          const next: Record<string, WebsiteBlock[]> = {}
-          site.pages.forEach(page => {
-            const serverBlocks = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
-            next[page.id] = serverBlocks
+        const skipHydrate = skipServerHydrateRef.current > 0
+          && Date.now() - skipServerHydrateRef.current < 8000
+        if (!skipHydrate || pageStructureReplaced) {
+          navSyncBootRef.current = true
+          pagesNavKeyRef.current = pagesNavKey(site.pages)
+          setLocalBlocks(() => {
+            const next: Record<string, WebsiteBlock[]> = {}
+            site.pages.forEach(page => {
+              const serverBlocks = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
+              next[page.id] = serverBlocks
+            })
+            const normalized = normalizeAllStructureBlocks(next, site.pages)
+            return syncNavLinksInBlockMap(normalized, site.pages)
           })
-          const normalized = normalizeAllStructureBlocks(next, site.pages)
-          return syncNavLinksInBlockMap(normalized, site.pages)
-        })
+        }
         if (pageStructureReplaced) {
           setBlocksDirty(false)
           blocksDirtyRef.current = false
@@ -10047,12 +10534,207 @@ export default function WebsiteBuilder() {
     return undefined
   }
 
-  const handleAddBlock = useCallback(async (def: BlockDef, insertAtIdx = -1) => {
+  const persistStructureLayoutNow = useCallback(async (
+    def: BlockDef,
+    nextProps: BlockProps,
+    blocksSnapshot: Record<string, WebsiteBlock[]>,
+  ) => {
+    if (!siteId) return
+    const updates: { pageId: string; tempId?: string; saved?: WebsiteBlock }[] = []
+    await Promise.all(localPages.map(async page => {
+      const block = (blocksSnapshot[page.id] || []).find(b => b.block_type === def.type)
+      if (!block) return
+      if (block.id.startsWith('temp-')) {
+        const saved = await websiteApi.createBlock(siteId, page.id, {
+          block_type: def.type,
+          label: block.label || def.label,
+          props: nextProps,
+          style_overrides: block.style_overrides || {},
+          visible: block.visible !== false,
+          visible_on_mobile: block.visible_on_mobile !== false,
+          visible_on_tablet: block.visible_on_tablet !== false,
+          visible_on_desktop: block.visible_on_desktop !== false,
+          animation: block.animation,
+          animation_delay: block.animation_delay ?? 0,
+          sort_order: block.sort_order ?? 0,
+        } as any)
+        updates.push({ pageId: page.id, tempId: block.id, saved })
+      } else {
+        await websiteApi.updateBlock(siteId, page.id, block.id, { props: nextProps } as any)
+      }
+    }))
+    if (updates.length) {
+      setLocalBlocks(prev => {
+        let next = { ...prev }
+        for (const { pageId, tempId, saved } of updates) {
+          if (!tempId || !saved) continue
+          next[pageId] = (next[pageId] || []).map(b => b.id === tempId ? saved : b)
+        }
+        return next
+      })
+    }
+    skipServerHydrateRef.current = Date.now()
+    setBlocksDirty(false)
+    blocksDirtyRef.current = false
+    setLastSavedAt(new Date())
+    setAutoSaveStatus('synced')
+  }, [siteId, localPages])
+
+  const persistSingleBlockPropsNow = useCallback(async (
+    pageId: string,
+    blockId: string,
+    nextProps: BlockProps,
+    blocksSnapshot: Record<string, WebsiteBlock[]>,
+  ) => {
+    if (!siteId) return
+    const block = (blocksSnapshot[pageId] || []).find(b => b.id === blockId)
+    if (!block) return
+    if (blockId.startsWith('temp-')) {
+      const saved = await websiteApi.createBlock(siteId, pageId, {
+        block_type: block.block_type,
+        label: block.label,
+        props: nextProps,
+        style_overrides: block.style_overrides || {},
+        visible: block.visible !== false,
+        visible_on_mobile: block.visible_on_mobile !== false,
+        visible_on_tablet: block.visible_on_tablet !== false,
+        visible_on_desktop: block.visible_on_desktop !== false,
+        animation: block.animation,
+        animation_delay: block.animation_delay ?? 0,
+        sort_order: block.sort_order ?? 0,
+      } as any)
+      setLocalBlocks(prev => ({
+        ...prev,
+        [pageId]: (prev[pageId] || []).map(b => b.id === blockId ? saved : b),
+      }))
+      if (saved.id !== blockId) {
+        setSelectedBlockId(saved.id)
+        scrollCanvasToBlock(saved.id)
+      }
+    } else {
+      await websiteApi.updateBlock(siteId, pageId, blockId, { props: nextProps } as any)
+    }
+    skipServerHydrateRef.current = Date.now()
+    setBlocksDirty(false)
+    blocksDirtyRef.current = false
+    setLastSavedAt(new Date())
+    setAutoSaveStatus('synced')
+  }, [siteId, scrollCanvasToBlock])
+
+  const applyLayoutToBlock = useCallback(async (
+    blockId: string,
+    def: BlockDef,
+    propsOverride: Partial<BlockProps>,
+    imageCategoryId?: string,
+  ) => {
+    if (!activePageId || !siteId) return
+    const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
+
+    let targetPageId = activePageId
+    let targetBlock: WebsiteBlock | undefined
+    for (const page of localPages) {
+      const found = (localBlocks[page.id] || []).find(b => b.id === blockId)
+      if (found) {
+        targetBlock = found
+        targetPageId = page.id
+        break
+      }
+    }
+    if (!targetBlock || targetBlock.block_type !== def.type) return
+
+    const resolvedCategoryId = imageCategoryId || suggestImageCategoryForBlock(def.category, site)
+    const nextProps = finalizeCategoryLayoutProps(
+      def.type,
+      applyCategoryImagesToBlockProps(
+        def.type,
+        mergeLayoutBlockProps(
+          def.type,
+          def.defaultProps,
+          targetBlock.props,
+          propsOverride,
+          layoutThemeFallback(),
+        ) as Record<string, unknown>,
+        resolvedCategoryId,
+        { forceRefresh: true },
+      ),
+    ) as BlockProps
+    const finalProps: BlockProps = {
+      ...nextProps,
+      _image_category_id: resolvedCategoryId,
+    }
+
+    let nextMap: Record<string, WebsiteBlock[]> = { ...localBlocks }
+    if (isStructure) {
+      for (const page of localPages) {
+        nextMap[page.id] = (nextMap[page.id] || []).map(b =>
+          b.block_type === def.type
+            ? { ...b, props: finalProps, updated_at: new Date().toISOString() }
+            : b,
+        )
+      }
+    } else {
+      nextMap[targetPageId] = (nextMap[targetPageId] || []).map(b =>
+        b.id === blockId ? { ...b, props: finalProps, updated_at: new Date().toISOString() } : b,
+      )
+    }
+
+    setLocalBlocks(nextMap)
+    pushHistory(nextMap)
+    const focusId = isStructure
+      ? (nextMap[activePageId] || []).find(b => b.block_type === def.type)?.id ?? blockId
+      : blockId
+    setSelectedBlockId(focusId)
+    setRightPanel('props')
+    setRightCollapsed(false)
+    scrollCanvasToBlock(focusId)
+    setSavingBlockId(focusId)
+    setAutoSaveStatus('saving')
+    toast.success(`${def.label} layout applied`)
+
+    try {
+      if (isStructure) {
+        await persistStructureLayoutNow(def, finalProps, nextMap)
+      } else {
+        await persistSingleBlockPropsNow(targetPageId, blockId, finalProps, nextMap)
+      }
+    } catch {
+      setBlocksDirty(true)
+      blocksDirtyRef.current = true
+      setAutoSaveStatus('error')
+      toast.error('Layout shown on canvas — save failed, click Save to retry')
+    } finally {
+      setSavingBlockId(null)
+    }
+  }, [
+    activePageId, siteId, localPages, localBlocks, site, layoutThemeFallback,
+    scrollCanvasToBlock, pushHistory, persistStructureLayoutNow, persistSingleBlockPropsNow,
+  ])
+
+  const handleAddBlock = useCallback(async (
+    def: BlockDef,
+    insertAtIdx = -1,
+    propsOverride?: Partial<BlockProps>,
+    imageCategoryId?: string,
+  ) => {
     if (!activePageId) return
     const currentBlocks = (localBlocks[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
     const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
 
     if (isStructure) {
+      const existingOnPage = currentBlocks.find(b => b.block_type === def.type)
+      const existingAnyPage = existingOnPage ?? (() => {
+        for (const page of localPages) {
+          const hit = (localBlocks[page.id] || []).find(b => b.block_type === def.type)
+          if (hit) return hit
+        }
+        return undefined
+      })()
+
+      if (existingAnyPage && propsOverride && Object.keys(propsOverride).length > 0) {
+        await applyLayoutToBlock(existingAnyPage.id, def, propsOverride, imageCategoryId)
+        return
+      }
+
       const relocated = relocateExistingStructureBlock(currentBlocks, def.type, insertAtIdx)
       if (relocated) {
         let nextMap: Record<string, WebsiteBlock[]> = { ...localBlocks, [activePageId]: relocated }
@@ -10080,10 +10762,30 @@ export default function WebsiteBuilder() {
 
     // Auto-bind drag-dropped blocks to live KITERP data so they "just work".
     // The user can disconnect / override inside the Data panel later.
-    const autoSource = BLOCK_AUTO_SOURCE[def.type as string] || inferCommerceAutoSource(def.type)
-    const initialProps: BlockProps = autoSource
-      ? { ...def.defaultProps, data_source: { type: autoSource, auto: true } } as BlockProps
-      : { ...def.defaultProps }
+    const resolvedCategoryId = imageCategoryId || suggestImageCategoryForBlock(def.category, site)
+    const useCategoryImages = blockSupportsGalleryCategory(def.type)
+    const autoSource = useCategoryImages
+      ? undefined
+      : (BLOCK_AUTO_SOURCE[def.type as string] || inferCommerceAutoSource(def.type))
+    const mergedDefaults = finalizeCategoryLayoutProps(
+      def.type,
+      applyCategoryImagesToBlockProps(
+        def.type,
+        mergeLayoutBlockProps(
+          def.type,
+          def.defaultProps,
+          undefined,
+          propsOverride || {},
+          layoutThemeFallback(),
+        ) as Record<string, unknown>,
+        resolvedCategoryId,
+        { forceRefresh: true },
+      ),
+    )
+    const initialProps: BlockProps = {
+      ...(autoSource ? { ...mergedDefaults, data_source: { type: autoSource, auto: true } } : mergedDefaults),
+      ...(useCategoryImages ? { _image_category_id: resolvedCategoryId } : {}),
+    } as BlockProps
 
     const tempBlock: WebsiteBlock = {
       id: tempId, page_id: activePageId,
@@ -10108,6 +10810,7 @@ export default function WebsiteBuilder() {
     setRightPanel('props')
     setRightCollapsed(false)
     setBlocksDirty(true)
+    scrollCanvasToBlock(tempId)
 
     // 2. Persist in background (active page first; clones on other pages save with Save/Apply)
     try {
@@ -10128,6 +10831,7 @@ export default function WebsiteBuilder() {
         return updated
       })
       setSelectedBlockId(saved.id)
+      scrollCanvasToBlock(saved.id)
       toast.success(
         isStructure && localPages.length > 1
           ? `${def.label} added — synced to all pages`
@@ -10142,7 +10846,59 @@ export default function WebsiteBuilder() {
       setSelectedBlockId(null)
       toast.error('Failed to add block')
     }
-  }, [activePageId, localBlocks, localPages, siteId, pushHistory])
+  }, [activePageId, localBlocks, localPages, siteId, pushHistory, site, layoutThemeFallback, scrollCanvasToBlock, applyLayoutToBlock])
+
+  const openSectionLayoutPicker = useCallback((def: BlockDef, insertAtIdx = -1, targetBlockId?: string) => {
+    setSectionLayoutPicker({ def, insertAtIdx, targetBlockId })
+  }, [])
+
+  const shouldOpenLayoutPickerForBlock = useCallback((def: BlockDef) =>
+    getSectionLayoutOptions(def.type).length > 1 && !GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type),
+  [])
+
+  const layoutPickerCurrentProps = useMemo(() => {
+    if (!sectionLayoutPicker || !activePageId) return undefined
+    const blockId = sectionLayoutPicker.targetBlockId
+      ?? ((localBlocks[activePageId] || []).find(b => b.id === selectedBlockId && b.block_type === sectionLayoutPicker.def.type)?.id)
+    if (!blockId) return undefined
+    for (const page of localPages) {
+      const block = (localBlocks[page.id] || []).find(b => b.id === blockId)
+      if (block?.block_type === sectionLayoutPicker.def.type) {
+        return block.props as Record<string, unknown>
+      }
+    }
+    return undefined
+  }, [sectionLayoutPicker, activePageId, selectedBlockId, localBlocks, localPages])
+
+  const openLayoutPickerForBlock = useCallback((block: WebsiteBlock) => {
+    const def = BLOCK_CATALOG.find(d => d.type === block.block_type)
+    if (!def) return
+    openSectionLayoutPicker(def, -1, block.id)
+  }, [openSectionLayoutPicker])
+
+  const handleSelectSectionLayout = useCallback(async (
+    propsOverride: Partial<BlockProps>,
+    imageCategoryId: string,
+  ) => {
+    if (!sectionLayoutPicker) return
+    const { def, insertAtIdx, targetBlockId } = sectionLayoutPicker
+    setSectionLayoutPicker(null)
+
+    if (targetBlockId) {
+      await applyLayoutToBlock(targetBlockId, def, propsOverride, imageCategoryId)
+      return
+    }
+
+    if (activePageId && selectedBlockId && Object.keys(propsOverride).length > 0) {
+      const selected = (localBlocks[activePageId] || []).find(b => b.id === selectedBlockId)
+      if (selected?.block_type === def.type) {
+        await applyLayoutToBlock(selectedBlockId, def, propsOverride, imageCategoryId)
+        return
+      }
+    }
+
+    await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId)
+  }, [sectionLayoutPicker, handleAddBlock, applyLayoutToBlock, activePageId, selectedBlockId, localBlocks])
 
   // Preview-only update — instant canvas update, no API call (used while typing)
   const handlePreviewBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
@@ -10494,6 +11250,12 @@ export default function WebsiteBuilder() {
         icon: Palette,
         onSelect: () => { setRightPanel('style'); setRightCollapsed(false) },
       },
+      ...(getSectionLayoutOptions(block.block_type).length > 0 ? [{
+        id: 'layout',
+        label: 'Change layout',
+        icon: Layout,
+        onSelect: () => openLayoutPickerForBlock(block),
+      }] : []),
       dsType ? {
         id: 'data',
         label: `Connected → ${dsLabel}`,
@@ -10559,7 +11321,7 @@ export default function WebsiteBuilder() {
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [handleUpdateBlockProps, handleDeleteBlock, handleDuplicateBlock, openTextPrompt])
+  }, [handleUpdateBlockProps, handleDeleteBlock, handleDuplicateBlock, openTextPrompt, openLayoutPickerForBlock])
 
   const openOverlayContextMenu = useCallback((blockId: string, item: BlockOverlayItem, e: React.MouseEvent) => {
     if (!activePageId) return
@@ -10869,6 +11631,12 @@ export default function WebsiteBuilder() {
       const before = dropTarget?.idx === targetIdx ? dropTarget.before : true
       let insertIdx = before ? targetIdx : targetIdx + 1
       insertIdx = Math.max(0, Math.min(insertIdx, activeBlocks.length))
+      if (shouldOpenLayoutPickerForBlock(draggingNewBlock)) {
+        openSectionLayoutPicker(draggingNewBlock, insertIdx)
+        setDraggingNewBlock(null)
+        setDropTarget(null)
+        return
+      }
       await handleAddBlock(draggingNewBlock, insertIdx)
       setDraggingNewBlock(null)
       setDropTarget(null)
@@ -10880,12 +11648,17 @@ export default function WebsiteBuilder() {
     const reordered = reorderBlocksByIndex(from, targetIdx, before)
     if (reordered) await applyReorder(reordered)
     clearBlockDragState()
-  }, [draggingNewBlock, dropTarget, activeBlocks, handleAddBlock, applyReorder, reorderBlocksByIndex, clearBlockDragState])
+  }, [draggingNewBlock, dropTarget, activeBlocks, handleAddBlock, applyReorder, reorderBlocksByIndex, clearBlockDragState, shouldOpenLayoutPickerForBlock, openSectionLayoutPicker])
 
   const handleDropOnCanvas = useCallback(async (e: React.DragEvent) => {
     e.preventDefault()
     setDropTarget(null)
     if (draggingNewBlock) {
+      if (shouldOpenLayoutPickerForBlock(draggingNewBlock)) {
+        openSectionLayoutPicker(draggingNewBlock, activeBlocks.length)
+        setDraggingNewBlock(null)
+        return
+      }
       await handleAddBlock(draggingNewBlock)
       setDraggingNewBlock(null)
       return
@@ -10898,7 +11671,7 @@ export default function WebsiteBuilder() {
       await applyReorder(reordered)
     }
     clearBlockDragState()
-  }, [draggingNewBlock, activeBlocks, handleAddBlock, applyReorder, clearBlockDragState])
+  }, [draggingNewBlock, activeBlocks, handleAddBlock, applyReorder, clearBlockDragState, shouldOpenLayoutPickerForBlock, openSectionLayoutPicker])
 
   // Move block up/down — optimistic
   const handleMoveBlock = useCallback(async (blockId: string, dir: 'up' | 'down') => {
@@ -10979,18 +11752,18 @@ export default function WebsiteBuilder() {
   }, [])
 
   // Insert a block after the currently selected block
-  const handleAddBlockAfter = useCallback(async (blockType: string) => {
+  const handleAddBlockAfter = useCallback((blockType: string) => {
     if (!activePageId) return
     const def = BLOCK_CATALOG.find(d => d.type === blockType)
     if (!def) return
     if (GLOBAL_STRUCTURE_BLOCK_TYPES.has(blockType)) {
-      await handleAddBlock(def, -1)
+      void handleAddBlock(def, -1)
       return
     }
     const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
     const insertIdx = currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
-    await handleAddBlock(def, insertIdx)
-  }, [activePageId, activeBlocks, selectedBlockId, handleAddBlock])
+    openSectionLayoutPicker(def, insertIdx)
+  }, [activePageId, activeBlocks, selectedBlockId, handleAddBlock, openSectionLayoutPicker])
 
   // Keep keyboard-shortcut ref in sync with latest handlers (avoids TDZ on init)
   kbHandlersRef.current.handleDeleteBlock = handleDeleteBlock
@@ -11612,6 +12385,19 @@ export default function WebsiteBuilder() {
         />
       )}
 
+      {sectionLayoutPicker && site && (
+        <SectionLayoutPickerModal
+          def={sectionLayoutPicker.def}
+          defaultImageCategoryId={
+            (layoutPickerCurrentProps?._image_category_id as string | undefined)
+            || suggestImageCategoryForBlock(sectionLayoutPicker.def.category, site)
+          }
+          currentProps={layoutPickerCurrentProps}
+          onSelect={(propsOverride, imageCategoryId) => { void handleSelectSectionLayout(propsOverride, imageCategoryId) }}
+          onClose={() => setSectionLayoutPicker(null)}
+        />
+      )}
+
       {/* ── Top Toolbar ──────────────────────────────────────────────── */}
       <header className="relative z-40 shrink-0 bg-gray-900 text-white shadow-lg isolate">
         {/* Row 1: scrollable controls + pinned actions (actions stay outside overflow so rings/popovers aren't clipped) */}
@@ -12052,6 +12838,7 @@ export default function WebsiteBuilder() {
                         <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">
                           Add Section{sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}
                         </p>
+                        <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">Click a section to pick a layout — changes apply instantly on the canvas. Right-click a block or use the layout icon to switch styles.</p>
                         <div className="space-y-0.5">
                           {filteredCatalogBlocks.map(def => (
                             <button
@@ -12060,7 +12847,7 @@ export default function WebsiteBuilder() {
                               draggable
                               onDragStart={() => setDraggingNewBlock(def)}
                               onDragEnd={() => setDraggingNewBlock(null)}
-                              onClick={() => handleAddBlock(def)}
+                              onClick={() => openSectionLayoutPicker(def)}
                               className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl border border-dashed border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-colors cursor-grab active:cursor-grabbing"
                               title={def.desc}
                             >
@@ -12729,6 +13516,7 @@ export default function WebsiteBuilder() {
                   {activeBlocks.map((block, idx) => (
                     <div
                       key={block.id}
+                      data-block-id={block.id}
                       data-block-index={idx}
                       onDragOver={e => handleDragOverBlock(e, idx)}
                       onDrop={e => handleDropOnBlock(e, idx)}
@@ -12823,6 +13611,15 @@ export default function WebsiteBuilder() {
                         <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'down') }} className="p-0.5 text-gray-400 hover:text-white" title="Move down">
                           <ChevronDown className="w-3 h-3" />
                         </button>
+                        {selectedBlockId === block.id && getSectionLayoutOptions(block.block_type).length > 0 && (
+                          <button
+                            onClick={e => { e.stopPropagation(); openLayoutPickerForBlock(block) }}
+                            className="p-0.5 text-gray-400 hover:text-white"
+                            title="Change layout"
+                          >
+                            <Layout className="w-3 h-3" />
+                          </button>
+                        )}
                         <button onClick={e => { e.stopPropagation(); handleDuplicateBlock(block.id) }} className="p-0.5 text-gray-400 hover:text-white" title="Duplicate (Ctrl+D)">
                           <Copy className="w-3 h-3" />
                         </button>

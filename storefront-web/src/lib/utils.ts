@@ -14,9 +14,10 @@ export function formatDate(dateStr?: string) {
 
 const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
-/** Resolve image URLs: absolute URLs pass through, relative ones get prefixed with backend base */
+/** Resolve image URLs: absolute pass through; gallery pack stays on frontend; uploads use backend. */
 export function imgUrl(url?: string | null): string {
   if (!url) return ''
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) return url
+  if (url.startsWith('/business-images')) return url
   return `${BACKEND_BASE}${url}`
 }
