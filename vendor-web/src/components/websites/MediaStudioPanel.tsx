@@ -218,7 +218,11 @@ export function MediaStudioPanel({
             title="Image"
             disabled={uploadMedia.isPending}
             uploading={uploadMedia.isPending}
+            galleryMultiSelect
             onFile={doUpload}
+            onFiles={async (files) => {
+              for (const f of files) await doUpload(f)
+            }}
             buttonLabel="Add image (device · gallery · URL)"
             buttonVariant="outline"
             buttonSize="sm"

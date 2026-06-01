@@ -218,8 +218,8 @@ export function useProduct(id: string) {
 export function useCreateProduct() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ data, images }: { data: Record<string, unknown>; images?: File[] }) =>
-      vendorApi.createProduct(data, images),
+    mutationFn: ({ data, images, primaryImageIndex }: { data: Record<string, unknown>; images?: File[]; primaryImageIndex?: number }) =>
+      vendorApi.createProduct(data, images, primaryImageIndex),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'products'] }); toast.success('Product created!') },
     onError: apiError('Could not create product'),
   })

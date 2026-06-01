@@ -236,6 +236,61 @@ export const BUSINESS_IMAGE_CATEGORIES: BusinessImageCategory[] = [
     description: 'Mithai displays, confectionery, and traditional sweet counters',
     group: 'Food & Hospitality',
   },
+  // Healthcare pack
+  {
+    id: 'veterinary-clinic',
+    label: 'Veterinary Clinic',
+    description: 'Exam rooms, surgery suites, pet wellness, and clinic exteriors',
+    group: 'Healthcare',
+  },
+  {
+    id: 'nursing-home',
+    label: 'Nursing Home',
+    description: 'Senior care, assisted living, therapy, dining, and family visits',
+    group: 'Healthcare',
+  },
+  {
+    id: 'blood-bank',
+    label: 'Blood Bank',
+    description: 'Blood donation, collection, storage, and laboratory processing',
+    group: 'Healthcare',
+  },
+  {
+    id: 'physiotherapy-center',
+    label: 'Physiotherapy Center',
+    description: 'Rehabilitation, manual therapy, sports recovery, and exercise therapy',
+    group: 'Healthcare',
+  },
+  {
+    id: 'medical-laboratory',
+    label: 'Medical Laboratory',
+    description: 'Diagnostics, microscopy, analyzers, sample collection, and pathology',
+    group: 'Healthcare',
+  },
+  {
+    id: 'ambulance-service',
+    label: 'Ambulance Service',
+    description: 'Emergency response, paramedics, transport, and pre-hospital care',
+    group: 'Healthcare',
+  },
+  {
+    id: 'home-healthcare-service',
+    label: 'Home Healthcare Service',
+    description: 'In-home nursing, elder care, wound care, and patient monitoring',
+    group: 'Healthcare',
+  },
+  {
+    id: 'eye-hospital',
+    label: 'Eye Hospital',
+    description: 'Eye exams, ophthalmology, optical retail, and vision surgery suites',
+    group: 'Healthcare',
+  },
+  {
+    id: 'mental-health-center',
+    label: 'Mental Health Center',
+    description: 'Counseling, therapy sessions, wellness spaces, and group support',
+    group: 'Healthcare',
+  },
 ]
 
 function imageUrl(categoryId: string, index: number): string {

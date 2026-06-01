@@ -12,7 +12,23 @@ import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useCategor
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
 import type { ProductPriceRule, PriceRuleType } from '@/types'
-import { ProductImageUpload, getMediaType } from '@/components/common/ImageUpload'
+import {
+  ProductImageUpload,
+  StagedMediaUpload,
+  VariantMediaUpload,
+  CatalogMediaSectionHeader,
+  getMediaType,
+  MEDIA_ACCEPT,
+  STAGED_PRODUCT_HELPER,
+  STAGED_VARIANT_HELPER,
+  EDIT_MEDIA_HELPER,
+  MEDIA_FORMATS_HELPER,
+  reorderMediaList,
+  adjustPrimaryIndexOnReorder,
+  adjustPrimaryIndexOnRemove,
+  findFirstImageIndex,
+  type VariantMediaItem,
+} from '@/components/common/ImageUpload'
 import {
   ArrowLeft, Loader2, Upload, X, ChevronDown, ChevronUp,
   Package, IndianRupee, Receipt, Boxes, RotateCcw,
@@ -404,7 +420,7 @@ function FormTintPanel({
         >
           {header}
           {children ? (
-            <div className="px-2 pb-2 pt-0.5 sm:px-2.5">{children}</div>
+            <div className="px-2 pb-1.5 pt-0 sm:px-2.5">{children}</div>
           ) : null}
         </div>
       </div>
@@ -435,13 +451,23 @@ function FormTintPanel({
           </div>
         </div>
       ))}
-      <div className="px-2 pb-2 pt-0.5 sm:px-2.5">{children}</div>
+      <div className="px-2 pb-1.5 pt-0 sm:px-2.5">{children}</div>
       </div>
     </div>
   )
 }
 
 const GENERATE_OPTIONS_ACCENT = '#0D9488'
+
+/** Compact variant/plan editor — tighter gaps, clearer section labels. */
+const variantFormUi = {
+  body: 'space-y-1 [&_label]:font-semibold [&_label]:text-gray-700',
+  grid: 'gap-1.5',
+  sectionRule: 'pt-1.5 border-t border-gray-200/90',
+  sectionHeading: 'text-[11px] font-semibold uppercase tracking-wide text-gray-800',
+  mediaHeading: 'text-[11px] font-semibold uppercase tracking-wide text-indigo-900 flex items-center gap-1.5',
+  mediaHint: 'font-normal normal-case tracking-normal text-gray-500',
+} as const
 
 function InputWithSuffix({ suffix, className, ...props }: React.ComponentProps<typeof Input> & { suffix: string }) {
   return (
@@ -750,45 +776,35 @@ const UOM_OPTIONS: { value: string; label: string; group: string }[] = [
 
 const UOM_GROUPS = [...new Set(UOM_OPTIONS.map(u => u.group))]
 
-// ── Variant Media Section ────────────────────────────────────────
+// ── Variant Media (edit mode — live upload) ─────────────────────
 
-const MEDIA_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf'
-
-function VariantMediaSection({
-  variantId, variantName, initialMedia, onChanged,
+function VariantMediaEdit({
+  variantId,
+  variantName,
+  initialMedia,
+  onChanged,
 }: {
   variantId: string
   variantName: string
-  initialMedia: { url: string; media_type: 'image' | 'video' | 'model3d'; is_primary: boolean; alt_text?: string; position: number }[]
+  initialMedia: VariantMediaItem[]
   onChanged: () => void
 }) {
   const [media, setMedia] = useState(initialMedia)
-  const [uploading, setUploading] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setMedia(initialMedia) }, [initialMedia])
 
-  const resolveUrl = (url: string) => mediaUrl(url)
-
-  const handleFiles = async (files: FileList | null) => {
-    if (!files) return
-    setUploading(true)
-    for (const file of Array.from(files)) {
-      const isVideo = file.type.startsWith('video/')
-      const is3D = file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')
-      const label = is3D ? '3D model' : isVideo ? 'Video' : 'Image'
-      try {
-        const result = await vendorApi.uploadVariantMedia(variantId, file)
-        setMedia(result.media)
-        onChanged()
-        toast.success(`${label} uploaded successfully`)
-      } catch (err: any) {
-        const detail = err?.response?.data?.detail || err?.message || 'Unknown error'
-        toast.error(`${label} upload failed: ${detail}`)
-      }
+  const uploadFile = async (file: File) => {
+    const mt = getMediaType(file)
+    const label = mt === 'model3d' ? '3D model' : mt === 'video' ? 'Video' : 'Image'
+    try {
+      const result = await vendorApi.uploadVariantMedia(variantId, file)
+      setMedia(result.media)
+      onChanged()
+      toast.success(`${label} uploaded successfully`)
+    } catch (err: unknown) {
+      const detail = extractApiError(err, 'Unknown error')
+      toast.error(`${label} upload failed: ${detail}`)
     }
-    setUploading(false)
-    if (inputRef.current) inputRef.current.value = ''
   }
 
   const handleDelete = async (url: string) => {
@@ -797,9 +813,8 @@ function VariantMediaSection({
       setMedia(result.media)
       onChanged()
       toast.success('Media removed')
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || err?.message || 'Unknown error'
-      toast.error(`Failed to delete media: ${detail}`)
+    } catch (err: unknown) {
+      toast.error(`Failed to delete media: ${extractApiError(err, 'Unknown error')}`)
     }
   }
 
@@ -809,77 +824,35 @@ function VariantMediaSection({
       setMedia(result.media)
       onChanged()
       toast.success('Primary image updated')
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || err?.message || 'Unknown error'
-      toast.error(`Failed to set primary: ${detail}`)
+    } catch (err: unknown) {
+      toast.error(`Failed to set primary: ${extractApiError(err, 'Unknown error')}`)
+    }
+  }
+
+  const handleReorder = async (urls: string[]) => {
+    try {
+      const result = await vendorApi.reorderVariantMedia(variantId, urls)
+      setMedia(result.media)
+      onChanged()
+    } catch {
+      toast.error('Failed to reorder media')
     }
   }
 
   return (
-    <div className="mt-4 pt-4 border-t border-indigo-100">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-medium text-indigo-700 uppercase tracking-wide flex items-center gap-1.5">
-          <Eye className="w-3.5 h-3.5" />
-          Variant Media
-          <span className="font-normal text-gray-400 normal-case tracking-normal">(overrides product media when shown)</span>
-        </p>
-        <span className="text-xs text-gray-400">{media.length} file{media.length !== 1 ? 's' : ''}</span>
-      </div>
-
-      {/* Drop zone */}
-      <div
-        onClick={() => !uploading && inputRef.current?.click()}
-        onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files) }}
-        onDragOver={e => e.preventDefault()}
-        className="border border-dashed border-indigo-200 rounded-lg p-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors"
-      >
-        {uploading ? (
-          <Loader2 className="w-5 h-5 mx-auto text-indigo-400 animate-spin" />
-        ) : (
-          <Upload className="w-5 h-5 mx-auto text-indigo-300" />
-        )}
-        <p className="text-xs text-gray-500 mt-1">{uploading ? 'Uploading…' : 'Drop or click to add images, videos, 3D models'}</p>
-        <input ref={inputRef} type="file" multiple accept={MEDIA_ACCEPT} className="hidden" onChange={e => handleFiles(e.target.files)} />
-      </div>
-
-      {/* Media grid */}
-      {media.length > 0 && (
-        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-3">
-          {media.map((item, i) => {
-            const mt = item.media_type || 'image'
-            const url = resolveUrl(item.url)
-            return (
-              <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border bg-gray-50">
-                {mt === 'video' ? (
-                  <video src={url} className="w-full h-full object-cover" muted playsInline onMouseOver={e => (e.target as HTMLVideoElement).play()} onMouseOut={e => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0 }} />
-                ) : mt === 'model3d' ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
-                    <Box className="w-6 h-6" />
-                    <span className="text-[8px] mt-0.5">3D</span>
-                  </div>
-                ) : (
-                  <img src={url} alt={item.alt_text || variantName} className="w-full h-full object-cover" />
-                )}
-                {item.is_primary && (
-                  <span className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 text-[7px] px-1 rounded font-bold">Primary</span>
-                )}
-                {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-primary text-white text-[7px] px-1 rounded">VID</span>}
-                {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[7px] px-1 rounded">3D</span>}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                  {!item.is_primary && mt === 'image' && (
-                    <button type="button" onClick={() => handleSetPrimary(item.url)} className="bg-yellow-400 text-yellow-900 rounded p-1" title="Set primary">
-                      <Star className="w-3 h-3" />
-                    </button>
-                  )}
-                  <button type="button" onClick={() => handleDelete(item.url)} className="bg-red-500 text-white rounded p-1" title="Delete">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+    <div className={cn(variantFormUi.sectionRule, 'mt-2')}>
+      <CatalogMediaSectionHeader
+        title="Variant Media"
+        helperText="(overrides product media when shown)"
+      />
+      <VariantMediaUpload
+        media={media}
+        onUpload={uploadFile}
+        onDelete={handleDelete}
+        onSetPrimary={handleSetPrimary}
+        onReorder={handleReorder}
+        pickerTitle={`Variant media — ${variantName}`}
+      />
     </div>
   )
 }
@@ -1003,7 +976,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
                     )}
                     {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-primary text-white text-[8px] font-bold px-1 rounded">VID</span>}
                     {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[8px] font-bold px-1 rounded">3D</span>}
-                    {img.is_primary && <span className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 text-[8px] px-1 rounded font-bold">Primary</span>}
+                    {img.is_primary && (
+                      <span className="absolute top-0.5 left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-yellow-900 shadow-sm" aria-label="Primary image">
+                        <Star className="h-2.5 w-2.5 fill-current" />
+                      </span>
+                    )}
                   </div>
                 )
               })}
@@ -2088,10 +2065,11 @@ export default function ProductForm() {
   const [showAddRule, setShowAddRule] = useState(false)
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [pendingPrimaryIndex, setPendingPrimaryIndex] = useState(0)
   const [pendingPreviews, setPendingPreviews] = useState<string[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  // Staged variant media for new products (index → files+previews)
-  const [pendingVariantMedia, setPendingVariantMedia] = useState<Map<number, { file: File; preview: string }[]>>(new Map())
+  // Staged variant media for new products (variant index → files + previews + primary)
+  type StagedVariantBucket = { files: File[]; previews: string[]; primaryIndex: number }
+  const [pendingVariantMedia, setPendingVariantMedia] = useState<Map<number, StagedVariantBucket>>(new Map())
 
   const [activeTab, setActiveTab] = useState('basic')
   const [visitedSections, setVisitedSections] = useState<Set<string>>(new Set(['basic']))
@@ -2530,17 +2508,114 @@ export default function ProductForm() {
     return () => { pendingPreviews.forEach(URL.revokeObjectURL) }
   }, [pendingPreviews])
 
-  const addPendingFiles = (files: FileList | null) => {
-    if (!files) return
+  const addPendingFiles = (files: FileList | File[] | null) => {
+    if (!files || (Array.isArray(files) ? files.length === 0 : files.length === 0)) return
     const newFiles = Array.from(files)
-    setPendingFiles(prev => [...prev, ...newFiles])
+    setPendingFiles(prev => {
+      const next = [...prev, ...newFiles]
+      if (prev.length === 0) {
+        const firstImage = findFirstImageIndex(next)
+        if (firstImage >= 0) setPendingPrimaryIndex(firstImage)
+      }
+      return next
+    })
     setPendingPreviews(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))])
   }
 
   const removePendingFile = (index: number) => {
     URL.revokeObjectURL(pendingPreviews[index])
-    setPendingFiles(prev => prev.filter((_, i) => i !== index))
+    setPendingFiles(prev => {
+      const next = prev.filter((_, i) => i !== index)
+      setPendingPrimaryIndex(p => adjustPrimaryIndexOnRemove(p, index, next.length))
+      return next
+    })
     setPendingPreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const reorderPendingFiles = (from: number, to: number) => {
+    setPendingFiles(prev => reorderMediaList(prev, from, to))
+    setPendingPreviews(prev => reorderMediaList(prev, from, to))
+    setPendingPrimaryIndex(prev => adjustPrimaryIndexOnReorder(prev, from, to))
+  }
+
+  const replacePendingFile = (index: number, file: File) => {
+    URL.revokeObjectURL(pendingPreviews[index])
+    setPendingFiles(prev => prev.map((f, i) => (i === index ? file : f)))
+    setPendingPreviews(prev => prev.map((url, i) => (i === index ? URL.createObjectURL(file) : url)))
+  }
+
+  const emptyStagedVariantBucket = (): StagedVariantBucket => ({ files: [], previews: [], primaryIndex: 0 })
+
+  const addStagedVariantFiles = (variantIndex: number, incoming: FileList | File[]) => {
+    const newFiles = Array.from(incoming)
+    if (!newFiles.length) return
+    setPendingVariantMedia(prev => {
+      const next = new Map(prev)
+      const bucket = next.get(variantIndex) ?? emptyStagedVariantBucket()
+      const mergedFiles = [...bucket.files, ...newFiles]
+      const mergedPreviews = [...bucket.previews, ...newFiles.map(f => URL.createObjectURL(f))]
+      let primaryIndex = bucket.primaryIndex
+      if (bucket.files.length === 0) {
+        const firstImage = findFirstImageIndex(mergedFiles)
+        if (firstImage >= 0) primaryIndex = firstImage
+      }
+      next.set(variantIndex, { files: mergedFiles, previews: mergedPreviews, primaryIndex })
+      return next
+    })
+  }
+
+  const removeStagedVariantFile = (variantIndex: number, fileIndex: number) => {
+    setPendingVariantMedia(prev => {
+      const next = new Map(prev)
+      const bucket = next.get(variantIndex)
+      if (!bucket) return prev
+      URL.revokeObjectURL(bucket.previews[fileIndex])
+      const files = bucket.files.filter((_, i) => i !== fileIndex)
+      const previews = bucket.previews.filter((_, i) => i !== fileIndex)
+      const primaryIndex = adjustPrimaryIndexOnRemove(bucket.primaryIndex, fileIndex, files.length)
+      if (files.length === 0) next.delete(variantIndex)
+      else next.set(variantIndex, { files, previews, primaryIndex })
+      return next
+    })
+  }
+
+  const reorderStagedVariantFiles = (variantIndex: number, from: number, to: number) => {
+    setPendingVariantMedia(prev => {
+      const next = new Map(prev)
+      const bucket = next.get(variantIndex)
+      if (!bucket) return prev
+      next.set(variantIndex, {
+        files: reorderMediaList(bucket.files, from, to),
+        previews: reorderMediaList(bucket.previews, from, to),
+        primaryIndex: adjustPrimaryIndexOnReorder(bucket.primaryIndex, from, to),
+      })
+      return next
+    })
+  }
+
+  const setStagedVariantPrimary = (variantIndex: number, primaryIndex: number) => {
+    setPendingVariantMedia(prev => {
+      const next = new Map(prev)
+      const bucket = next.get(variantIndex)
+      if (!bucket) return prev
+      next.set(variantIndex, { ...bucket, primaryIndex })
+      return next
+    })
+  }
+
+  const replaceStagedVariantFile = (variantIndex: number, fileIndex: number, file: File) => {
+    setPendingVariantMedia(prev => {
+      const next = new Map(prev)
+      const bucket = next.get(variantIndex)
+      if (!bucket) return prev
+      URL.revokeObjectURL(bucket.previews[fileIndex])
+      next.set(variantIndex, {
+        ...bucket,
+        files: bucket.files.map((f, i) => (i === fileIndex ? file : f)),
+        previews: bucket.previews.map((url, i) => (i === fileIndex ? URL.createObjectURL(file) : url)),
+      })
+      return next
+    })
   }
 
   const onSubmit = async (raw: FormData) => {
@@ -2669,16 +2744,25 @@ export default function ProductForm() {
         navigate('/products')
       } else {
         const newProduct = await createProduct.mutateAsync(
-          { data, images: pendingFiles.length > 0 ? pendingFiles : undefined }
+          { data, images: pendingFiles.length > 0 ? pendingFiles : undefined, primaryImageIndex: pendingPrimaryIndex }
         )
         await syncMerch(newProduct.id)
         // Upload staged variant media now that variants have DB IDs
         if (pendingVariantMedia.size > 0) {
-          for (const [variantIndex, items] of pendingVariantMedia.entries()) {
-            const dbVariant = (newProduct as any).variants?.[variantIndex]
-            if (dbVariant?.id && items.length > 0) {
-              for (const { file } of items) {
-                try { await vendorApi.uploadVariantMedia(dbVariant.id, file) } catch { /* best-effort */ }
+          for (const [variantIndex, bucket] of pendingVariantMedia.entries()) {
+            const dbVariant = (newProduct as { variants?: { id: string }[] }).variants?.[variantIndex]
+            if (dbVariant?.id && bucket.files.length > 0) {
+              let lastMedia: VariantMediaItem[] = []
+              for (const file of bucket.files) {
+                try {
+                  const result = await vendorApi.uploadVariantMedia(dbVariant.id, file)
+                  lastMedia = result.media
+                } catch { /* best-effort */ }
+              }
+              const sorted = [...lastMedia].sort((a, b) => a.position - b.position)
+              const primaryItem = sorted[bucket.primaryIndex]
+              if (primaryItem && (primaryItem.media_type || 'image') === 'image' && !primaryItem.is_primary) {
+                try { await vendorApi.setPrimaryVariantMedia(dbVariant.id, primaryItem.url) } catch { /* best-effort */ }
               }
             }
           }
@@ -2686,6 +2770,7 @@ export default function ProductForm() {
         }
         setPendingFiles([])
         setPendingPreviews([])
+        setPendingPrimaryIndex(0)
         navigate(`/products/${newProduct.id}?edit=true`, { replace: true })
       }
     } catch (err) {
@@ -2728,6 +2813,22 @@ export default function ProductForm() {
       qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
       toast.success('Primary image updated')
     } catch { toast.error('Failed to set primary image') }
+  }, [id, qc])
+
+  const handleReorderImages = useCallback(async (imageIds: string[]) => {
+    if (!id) return
+    try {
+      await vendorApi.reorderProductImages(id, imageIds)
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
+    } catch { toast.error('Failed to reorder media') }
+  }, [id, qc])
+
+  const handleEditImage = useCallback(async (imageId: string, file: File, wasPrimary: boolean) => {
+    if (!id) return
+    const uploaded = await vendorApi.uploadProductImage(id, file)
+    await vendorApi.deleteProductImage(id, imageId)
+    if (wasPrimary) await vendorApi.setPrimaryProductImage(id, uploaded.id)
+    qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
   }, [id, qc])
 
   const updateOptionRow = (index: number, field: keyof OptionRow, value: string) => {
@@ -3218,8 +3319,8 @@ export default function ProductForm() {
         {activeTab === 'basic' && isEdit && product && (
           <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeTab === 'basic'))}>
             <div className={formEditLayout.mediaCard}>
-              <h3 className={formEditLayout.mediaTitle}>Media</h3>
-              <ProductImageUpload images={product.images || []} onUpload={handleUpload} onDelete={handleDelete} onSetPrimary={handleSetPrimary} />
+              <CatalogMediaSectionHeader helperText={EDIT_MEDIA_HELPER} />
+              <ProductImageUpload images={product.images || []} onUpload={handleUpload} onDelete={handleDelete} onSetPrimary={handleSetPrimary} onReorder={handleReorderImages} onEditImage={handleEditImage} />
             </div>
           </Card>
         )}
@@ -3227,52 +3328,18 @@ export default function ProductForm() {
         {activeTab === 'basic' && !isEdit && (
           <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeTab === 'basic'))}>
             <div className={formEditLayout.mediaCard}>
-              <h3 className={formEditLayout.mediaTitle}>Media</h3>
-              <p className="mb-1 text-[0.6875rem] text-gray-400 sm:text-xs">Images, videos &amp; 3D models — uploaded after product is created</p>
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                onDrop={e => { e.preventDefault(); addPendingFiles(e.dataTransfer.files) }}
-                onDragOver={e => e.preventDefault()}
-                className={formDisplayCompact.mediaDropzone}
-              >
-                <Upload className="mx-auto h-6 w-6 text-gray-400" />
-                <p className="mt-1 text-xs text-gray-600 sm:text-sm">Click or drag files here</p>
-                <div className="flex items-center justify-center gap-3 mt-2">
-                  <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Eye className="w-3 h-3" />Images</span>
-                  <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Film className="w-3 h-3" />Videos</span>
-                  <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Box className="w-3 h-3" />3D Models</span>
-                </div>
-                <p className="text-xs text-gray-300 mt-1">Images: 5 MB · Videos: 50 MB · 3D (GLB/GLTF): 30 MB</p>
-                <input ref={fileInputRef} type="file" multiple
-                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf"
-                  className="hidden"
-                  onChange={e => { addPendingFiles(e.target.files); if (fileInputRef.current) fileInputRef.current.value = '' }} />
-              </div>
-              {pendingFiles.length > 0 && (
-                <div className="mt-2 grid grid-cols-3 gap-1.5 min-[26rem]:grid-cols-4 sm:gap-2 sm:mt-3">
-                  {pendingFiles.map((file, i) => {
-                    const mt = getMediaType(file)
-                    return (
-                      <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border bg-gray-50">
-                        {mt === 'video' ? (
-                          <video src={pendingPreviews[i]} className="w-full h-full object-cover" muted />
-                        ) : mt === 'model3d' ? (
-                          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
-                            <Box className="w-10 h-10" />
-                            <span className="text-xs mt-1 font-medium">{file.name.split('.').pop()?.toUpperCase()}</span>
-                          </div>
-                        ) : (
-                          <img src={pendingPreviews[i]} alt="" className="w-full h-full object-cover" />
-                        )}
-                        {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
-                        {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
-                        <button type="button" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3" /></button>
-                        {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+              <CatalogMediaSectionHeader helperText={STAGED_PRODUCT_HELPER} />
+              <StagedMediaUpload
+                files={pendingFiles}
+                previews={pendingPreviews}
+                primaryIndex={pendingPrimaryIndex}
+                onPrimaryIndexChange={setPendingPrimaryIndex}
+                onReorderFiles={reorderPendingFiles}
+                onAddFiles={addPendingFiles}
+                onRemoveFile={removePendingFile}
+                onReplaceFile={replacePendingFile}
+                pickerTitle="Product media"
+              />
             </div>
           </Card>
         )}
@@ -3281,7 +3348,7 @@ export default function ProductForm() {
         {!isBundleType && activeTab === 'variants' && (
           <div
             id="form-section-variants"
-            className={cn(formDisplayCompact.scrollMarginEdit, 'flex flex-col gap-2 sm:gap-2.5')}
+            className={cn(formDisplayCompact.scrollMarginEdit, 'flex flex-col gap-1.5 sm:gap-2')}
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-gray-600">
@@ -3456,12 +3523,12 @@ export default function ProductForm() {
                     }
                   >
                     {isExpanded && (
-                    <div className={cn(formEditLayout.sectionContent, 'space-y-1.5 sm:space-y-2 !px-0 !pb-0 !pt-0 border-t-0')}>
+                    <div className={cn(formEditLayout.sectionContent, variantFormUi.body, '!px-0 !pb-0 !pt-0 border-t-0')}>
                     {/* ── Subscription Billing + Price basis (compact) ── */}
                     {isSubscriptionType && (
-                      <div className="pt-2 border-t border-primary/20 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-medium text-primary uppercase tracking-wider flex items-center gap-1">
+                      <div className={cn(variantFormUi.sectionRule, 'space-y-1')}>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={cn(variantFormUi.sectionHeading, 'text-primary flex items-center gap-1')}>
                             <Repeat className="w-3 h-3" />Billing
                           </p>
                           <div className="inline-flex rounded border border-primary/30 overflow-hidden text-xs">
@@ -3475,7 +3542,7 @@ export default function ProductForm() {
                             >Per UOM</button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className={cn('grid grid-cols-2 md:grid-cols-4', variantFormUi.grid)}>
                           <FormField label="Interval">
                             <select {...register(`variants.${index}.subscription_interval`)} className={selectCls}>
                               <option value="">Select…</option>
@@ -3491,7 +3558,7 @@ export default function ProductForm() {
                         </div>
                         {/* Schedule modes allowed for customers */}
                         <div>
-                          <p className="text-xs font-medium text-gray-500 mb-1.5">Customer scheduling options</p>
+                          <p className={cn(variantFormUi.sectionHeading, 'mb-1')}>Customer scheduling options</p>
                           <div className="flex flex-wrap gap-1.5">
                             {([
                               { id: 'dates', label: 'Date Range' },
@@ -3565,8 +3632,8 @@ export default function ProductForm() {
                       }
                       return (
                         <>
-                          <div className="space-y-2 [&_label]:whitespace-nowrap [&_input[type=number]]:tabular-nums [&_input[type=number]]:[appearance:textfield] [&_input[type=number]]:[-moz-appearance:textfield] [&_input[type=number]]::-webkit-inner-spin-button]:appearance-none [&_input[type=number]]::-webkit-outer-spin-button]:appearance-none">
-                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-[1.35fr_1fr_1fr_minmax(5rem,0.8fr)]">
+                          <div className="space-y-1 [&_label]:whitespace-nowrap [&_input[type=number]]:tabular-nums [&_input[type=number]]:[appearance:textfield] [&_input[type=number]]:[-moz-appearance:textfield] [&_input[type=number]]::-webkit-inner-spin-button]:appearance-none [&_input[type=number]]::-webkit-outer-spin-button]:appearance-none">
+                            <div className={cn('grid grid-cols-4 sm:grid-cols-[1.35fr_1fr_1fr_minmax(5rem,0.8fr)]', variantFormUi.grid)}>
                               <FormField label={priceLabel}>
                                 <Input type="number" step="0.01" min="0" className="w-full"
                                   {...register(`variants.${index}.price`)}
@@ -3689,7 +3756,7 @@ export default function ProductForm() {
                       )
                     })()}
                     {/* ── Tax (compact row) ── */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                    <div className={cn('grid grid-cols-2 md:grid-cols-4 items-end', variantFormUi.grid)}>
                       <FormField label="Tax %"><Input type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.tax_rate`)} placeholder="0" /></FormField>
                       <FormField label="GST %"><Input type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.gst_rate`)} placeholder="0" /></FormField>
                       <FormField label="HSN"><Input {...register(`variants.${index}.hsn_code`)} placeholder="85171290" maxLength={8} /></FormField>
@@ -3700,7 +3767,7 @@ export default function ProductForm() {
                       </div>
                     </div>
                     {/* Identity — label & color are in the variant header row */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 border-t border-gray-100">
+                    <div className={cn('grid grid-cols-2 md:grid-cols-3 pt-1.5 border-t border-gray-200/90', variantFormUi.grid)}>
                       <FormField label="SKU"><Input {...register(`variants.${index}.sku`)} placeholder="Optional" /></FormField>
                       <FormField label="Barcode"><Input {...register(`variants.${index}.barcode`)} placeholder="Optional" /></FormField>
                       <FormField label="UOM">
@@ -3716,9 +3783,9 @@ export default function ProductForm() {
                       </FormField>
                     </div>
                     {/* ── Inventory (compact) ── */}
-                    <div className="pt-3 border-t border-gray-100 space-y-2">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className={cn(variantFormUi.sectionRule, 'space-y-1')}>
+                      <p className={variantFormUi.sectionHeading}>Stock</p>
+                      <div className={cn('grid grid-cols-2 md:grid-cols-4', variantFormUi.grid)}>
                         <FormField label="Qty on hand">
                           <Input type="number" min="0" {...register(`variants.${index}.quantity`)}
                             className="border-indigo-200 bg-indigo-50/60 font-semibold" />
@@ -3735,7 +3802,7 @@ export default function ProductForm() {
                       </div>
                     </div>
                     {/* ── Toggles (single compact row) ── */}
-                    <div className="flex flex-wrap gap-4 pt-1">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 pt-0.5">
                       <Controller name={`variants.${index}.track_inventory`} control={control} render={({ field }) => (
                         <Toggle label="Track Inventory" checked={field.value} onChange={field.onChange} />
                       )} />
@@ -3762,7 +3829,7 @@ export default function ProductForm() {
                     {/* Return & Warranty — expandable */}
                     {watch('return_warranty_per_variant') && watch(`variants.${index}.show_return_warranty`) && (
                       <div className="space-y-2">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className={cn('grid grid-cols-2 md:grid-cols-4', variantFormUi.grid)}>
                           <FormField label="Return Window (days)"><Input type="number" min="0" {...register(`variants.${index}.return_days`)} placeholder="30" /></FormField>
                           <FormField label="Refund Policy">
                             <select {...register(`variants.${index}.refund_policy`)} className={selectCls}>
@@ -3790,7 +3857,7 @@ export default function ProductForm() {
 
                     {/* ── Variant Media (existing variants — live upload) ── */}
                     {isEdit && watch(`variants.${index}.id`) && (
-                      <VariantMediaSection
+                      <VariantMediaEdit
                         key={watch(`variants.${index}.id`)}
                         variantId={watch(`variants.${index}.id`) as string}
                         variantName={variantName || `Variant ${index + 1}`}
@@ -3801,65 +3868,21 @@ export default function ProductForm() {
 
                     {/* ── Variant Media (new product — staged until saved) ── */}
                     {!isEdit && (() => {
-                      const staged = pendingVariantMedia.get(index) || []
-                      const addFiles = (files: FileList | null) => {
-                        if (!files) return
-                        const newItems = Array.from(files).map(f => ({ file: f, preview: URL.createObjectURL(f) }))
-                        setPendingVariantMedia(prev => {
-                          const next = new Map(prev)
-                          next.set(index, [...(next.get(index) || []), ...newItems])
-                          return next
-                        })
-                      }
-                      const removeFile = (fi: number) => {
-                        setPendingVariantMedia(prev => {
-                          const next = new Map(prev)
-                          const arr = [...(next.get(index) || [])]
-                          URL.revokeObjectURL(arr[fi].preview)
-                          arr.splice(fi, 1)
-                          next.set(index, arr)
-                          return next
-                        })
-                      }
+                      const bucket = pendingVariantMedia.get(index) ?? emptyStagedVariantBucket()
                       return (
-                        <div className="mt-4 pt-4 border-t border-indigo-100">
-                          <p className="text-xs font-medium text-indigo-700 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                            <Eye className="w-3.5 h-3.5" />Variant Media
-                            <span className="font-normal text-gray-400 normal-case tracking-normal">(uploaded when product is saved)</span>
-                          </p>
-                          <label className="flex items-center gap-2 cursor-pointer w-fit">
-                            <div className="flex items-center gap-1.5 border border-dashed border-indigo-300 rounded-lg px-3 py-2 text-xs text-indigo-600 hover:bg-indigo-50 transition-colors">
-                              <Upload className="w-3.5 h-3.5" />Add images / videos / 3D
-                            </div>
-                            <input type="file" multiple accept={MEDIA_ACCEPT} className="hidden" onChange={e => addFiles(e.target.files)} />
-                          </label>
-                          {staged.length > 0 && (
-                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-2">
-                              {staged.map(({ file, preview }, fi) => {
-                                const mt = getMediaType(file)
-                                return (
-                                  <div key={fi} className="relative group aspect-square rounded-lg overflow-hidden border bg-gray-50">
-                                    {mt === 'video' ? (
-                                      <video src={preview} className="w-full h-full object-cover" muted />
-                                    ) : mt === 'model3d' ? (
-                                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
-                                        <Box className="w-5 h-5" /><span className="text-[8px] mt-0.5">3D</span>
-                                      </div>
-                                    ) : (
-                                      <img src={preview} alt="" className="w-full h-full object-cover" />
-                                    )}
-                                    {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-primary text-white text-[7px] px-1 rounded">VID</span>}
-                                    {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[7px] px-1 rounded">3D</span>}
-                                    {fi === 0 && mt === 'image' && <span className="absolute top-0.5 left-0.5 bg-yellow-400 text-yellow-900 text-[7px] px-1 rounded font-bold">Primary</span>}
-                                    <button type="button" onClick={() => removeFile(fi)}
-                                      className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <X className="w-2.5 h-2.5" />
-                                    </button>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
+                        <div className={cn(variantFormUi.sectionRule, 'mt-2')}>
+                          <CatalogMediaSectionHeader title="Variant Media" helperText={STAGED_VARIANT_HELPER} />
+                          <StagedMediaUpload
+                            files={bucket.files}
+                            previews={bucket.previews}
+                            primaryIndex={bucket.primaryIndex}
+                            onPrimaryIndexChange={(pi) => setStagedVariantPrimary(index, pi)}
+                            onReorderFiles={(from, to) => reorderStagedVariantFiles(index, from, to)}
+                            onAddFiles={(files) => addStagedVariantFiles(index, files)}
+                            onRemoveFile={(fi) => removeStagedVariantFile(index, fi)}
+                            onReplaceFile={(fi, file) => replaceStagedVariantFile(index, fi, file)}
+                            pickerTitle={`Variant media — ${variantName || `Variant ${index + 1}`}`}
+                          />
                         </div>
                       )
                     })()}

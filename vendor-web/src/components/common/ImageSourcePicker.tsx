@@ -20,8 +20,12 @@ export type ImageSourcePickerProps = {
   disabled?: boolean
   uploading?: boolean
   showGallery?: boolean
+  /** Allow multiple gallery picks and multi file device upload. */
+  galleryMultiSelect?: boolean
   /** Handle image as a File (device, gallery, or fetched URL). */
   onFile: (file: File) => void | Promise<void>
+  /** Optional batch handler for multiple files (gallery multi or device multi). */
+  onFiles?: (files: File[]) => void | Promise<void>
   /** Optional: set a URL directly instead of uploading a File. */
   onUrl?: (url: string) => void | Promise<void>
   buttonLabel?: string
@@ -29,7 +33,36 @@ export type ImageSourcePickerProps = {
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon'
   buttonClassName?: string
   className?: string
+  deviceHint?: string
   children?: ReactNode | ((props: ImageSourcePickerTriggerProps) => ReactNode)
+}
+
+async function remoteUrlsToFiles(
+  urls: string[],
+  onFile: (file: File) => void | Promise<void>,
+  onFiles?: (files: File[]) => void | Promise<void>,
+  onUrl?: (url: string) => void | Promise<void>,
+) {
+  const files: File[] = []
+  for (const url of urls) {
+    try {
+      files.push(await galleryImageToFile(url))
+    } catch {
+      if (onUrl) {
+        await onUrl(url)
+        continue
+      }
+      throw new Error('Could not load image')
+    }
+  }
+  if (files.length === 0) return
+  if (onFiles) {
+    await onFiles(files)
+  } else {
+    for (const file of files) {
+      await onFile(file)
+    }
+  }
 }
 
 async function remoteUrlToFileOrUrl(
@@ -54,13 +87,16 @@ export function ImageSourcePicker({
   disabled,
   uploading = false,
   showGallery = true,
+  galleryMultiSelect = false,
   onFile,
+  onFiles,
   onUrl,
   buttonLabel = 'Upload image',
   buttonVariant = 'outline',
   buttonSize = 'sm',
   buttonClassName,
   className,
+  deviceHint,
   children,
 }: ImageSourcePickerProps) {
   const [open, setOpen] = useState(false)
@@ -83,11 +119,25 @@ export function ImageSourcePicker({
     [onFile, onUrl],
   )
 
+  const handleRemoteMany = useCallback(
+    async (urls: string[]) => {
+      await remoteUrlsToFiles(urls, onFile, onFiles, onUrl)
+    },
+    [onFile, onFiles, onUrl],
+  )
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const list = e.target.files
     e.target.value = ''
-    if (!file) return
-    await onFile(file)
+    if (!list?.length) return
+    const files = Array.from(list)
+    if (files.length > 1 && onFiles) {
+      await onFiles(files)
+    } else if (files.length > 1) {
+      for (const file of files) await onFile(file)
+    } else if (files[0]) {
+      await onFile(files[0])
+    }
   }
 
   const triggerProps: ImageSourcePickerTriggerProps = { open: openPicker, uploading, disabled }
@@ -118,6 +168,7 @@ export function ImageSourcePicker({
         ref={fileRef}
         type="file"
         accept={accept}
+        multiple={galleryMultiSelect}
         className="hidden"
         onChange={handleFileChange}
       />
@@ -127,8 +178,11 @@ export function ImageSourcePicker({
         onClose={() => setOpen(false)}
         title={title}
         showGallery={showGallery}
+        deviceHint={deviceHint}
+        galleryMultiSelect={galleryMultiSelect}
         onChooseLocal={handleLocal}
         onChooseGalleryUrl={handleRemote}
+        onChooseGalleryUrls={galleryMultiSelect ? handleRemoteMany : undefined}
         onChooseExternalUrl={handleRemote}
       />
     </div>
@@ -140,9 +194,12 @@ export function useImageSourcePicker({
   title,
   accept = 'image/*',
   showGallery = true,
+  galleryMultiSelect = false,
+  deviceHint,
   onFile,
+  onFiles,
   onUrl,
-}: Pick<ImageSourcePickerProps, 'title' | 'accept' | 'showGallery' | 'onFile' | 'onUrl'>) {
+}: Pick<ImageSourcePickerProps, 'title' | 'accept' | 'showGallery' | 'galleryMultiSelect' | 'deviceHint' | 'onFile' | 'onFiles' | 'onUrl'>) {
   const [open, setOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -160,11 +217,25 @@ export function useImageSourcePicker({
     [onFile, onUrl],
   )
 
+  const handleRemoteMany = useCallback(
+    async (urls: string[]) => {
+      await remoteUrlsToFiles(urls, onFile, onFiles, onUrl)
+    },
+    [onFile, onFiles, onUrl],
+  )
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const list = e.target.files
     e.target.value = ''
-    if (!file) return
-    await onFile(file)
+    if (!list?.length) return
+    const files = Array.from(list)
+    if (files.length > 1 && onFiles) {
+      await onFiles(files)
+    } else if (files.length > 1) {
+      for (const file of files) await onFile(file)
+    } else if (files[0]) {
+      await onFile(files[0])
+    }
   }
 
   const fileInput = (
@@ -172,6 +243,7 @@ export function useImageSourcePicker({
       ref={fileRef}
       type="file"
       accept={accept}
+      multiple={galleryMultiSelect}
       className="hidden"
       onChange={handleFileChange}
     />
@@ -183,8 +255,11 @@ export function useImageSourcePicker({
       onClose={() => setOpen(false)}
       title={title}
       showGallery={showGallery}
+      deviceHint={deviceHint}
+      galleryMultiSelect={galleryMultiSelect}
       onChooseLocal={handleLocal}
       onChooseGalleryUrl={handleRemote}
+      onChooseGalleryUrls={galleryMultiSelect ? handleRemoteMany : undefined}
       onChooseExternalUrl={handleRemote}
     />
   )

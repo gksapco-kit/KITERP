@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
+  Check,
   ChevronDown,
   FolderOpen,
   HardDrive,
@@ -8,7 +9,7 @@ import {
   Search,
   Upload,
 } from 'lucide-react'
-import { ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+import { ModalHeader, ModalOverlay, ModalPanel, ModalBody, ModalFooter } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -31,8 +32,14 @@ type Props = {
   /** @deprecated Use `title` instead */
   target?: MediaUploadPickerTarget
   showGallery?: boolean
+  /** Override subtitle under "From this device". */
+  deviceHint?: string
+  /** When true, gallery allows selecting multiple images before adding. */
+  galleryMultiSelect?: boolean
   onChooseLocal: () => void
   onChooseGalleryUrl: (url: string) => void | Promise<void>
+  /** Batch gallery pick (used when galleryMultiSelect is true). */
+  onChooseGalleryUrls?: (urls: string[]) => void | Promise<void>
   onChooseExternalUrl?: (url: string) => void | Promise<void>
 }
 
@@ -52,8 +59,11 @@ export function MediaUploadPickerModal({
   title: titleProp,
   target,
   showGallery = true,
+  deviceHint,
+  galleryMultiSelect = false,
   onChooseLocal,
   onChooseGalleryUrl,
+  onChooseGalleryUrls,
   onChooseExternalUrl,
 }: Props) {
   const [step, setStep] = useState<Step>('menu')
@@ -61,6 +71,7 @@ export function MediaUploadPickerModal({
   const [search, setSearch] = useState('')
   const [urlInput, setUrlInput] = useState('')
   const [applying, setApplying] = useState(false)
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(() => new Set())
   const defaultGalleryGroup =
     BUSINESS_IMAGE_CATEGORIES.find((c) => c.id === categoryId)?.group ?? IMAGE_CATEGORY_GROUPS[0]
   const [expandedGalleryGroups, setExpandedGalleryGroups] = useState<Set<string>>(
@@ -87,8 +98,24 @@ export function MediaUploadPickerModal({
     setSearch('')
     setUrlInput('')
     setApplying(false)
+    setSelectedUrls(new Set())
     onClose()
   }
+
+  const toggleGallerySelection = (url: string) => {
+    setSelectedUrls((prev) => {
+      const next = new Set(prev)
+      if (next.has(url)) next.delete(url)
+      else next.add(url)
+      return next
+    })
+  }
+
+  const selectAllVisible = () => {
+    setSelectedUrls(new Set(filteredGallery.map((img) => img.url)))
+  }
+
+  const clearSelection = () => setSelectedUrls(new Set())
 
   const handleLocal = () => {
     resetAndClose()
@@ -103,6 +130,32 @@ export function MediaUploadPickerModal({
     } finally {
       setApplying(false)
     }
+  }
+
+  const handleGalleryPickMultiple = async () => {
+    const urls = [...selectedUrls]
+    if (urls.length === 0) return
+    setApplying(true)
+    try {
+      if (onChooseGalleryUrls) {
+        await onChooseGalleryUrls(urls)
+      } else {
+        for (const url of urls) {
+          await onChooseGalleryUrl(url)
+        }
+      }
+      resetAndClose()
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const onGalleryImageClick = (url: string) => {
+    if (galleryMultiSelect) {
+      toggleGallerySelection(url)
+      return
+    }
+    void handleGalleryPick(url)
   }
 
   const handleUrlPick = async () => {
@@ -121,38 +174,46 @@ export function MediaUploadPickerModal({
 
   return (
     <ModalOverlay onClose={resetAndClose}>
-      <ModalPanel className="max-w-lg">
-        <div className="space-y-4 p-4 sm:p-5">
-          <ModalHeader
-            title={step === 'menu' ? title : step === 'gallery' ? 'Image gallery' : 'Image URL'}
-            subtitle={
-              step === 'menu' ? (
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Upload from your device or pick a stock image.
-                </p>
-              ) : step === 'gallery' ? (
-                <button
-                  type="button"
-                  className="mt-0.5 text-xs text-primary hover:underline"
-                  onClick={() => setStep('menu')}
-                >
-                  ← Back to options
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="mt-0.5 text-xs text-primary hover:underline"
-                  onClick={() => setStep('menu')}
-                >
-                  ← Back to options
-                </button>
-              )
-            }
-            onClose={resetAndClose}
-          />
+      <ModalPanel className={cn('max-w-lg', step === 'gallery' && 'max-h-[min(90dvh,calc(100vh-2rem))]')}>
+        <div className={cn('flex min-h-0 flex-col', step === 'gallery' ? 'max-h-[inherit]' : '')}>
+          <div className="shrink-0 space-y-4 p-4 sm:p-5 pb-0">
+            <ModalHeader
+              title={step === 'menu' ? title : step === 'gallery' ? 'Image gallery' : 'Image URL'}
+              subtitle={
+                step === 'menu' ? (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    Upload from your device or pick a stock image.
+                  </p>
+                ) : step === 'gallery' ? (
+                  <button
+                    type="button"
+                    className="mt-0.5 text-xs text-primary hover:underline"
+                    onClick={() => setStep('menu')}
+                  >
+                    ← Back to options
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="mt-0.5 text-xs text-primary hover:underline"
+                    onClick={() => setStep('menu')}
+                  >
+                    ← Back to options
+                  </button>
+                )
+              }
+              onClose={resetAndClose}
+            />
+
+            {step === 'gallery' && galleryMultiSelect && (
+              <p className="text-xs text-muted-foreground">
+                Click images to select multiple, then add them together.
+              </p>
+            )}
+          </div>
 
           {step === 'menu' && (
-            <div className="grid gap-2 sm:grid-cols-1">
+            <div className="grid gap-2 p-4 sm:p-5 pt-4 sm:grid-cols-1">
               <button
                 type="button"
                 onClick={handleLocal}
@@ -164,7 +225,7 @@ export function MediaUploadPickerModal({
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-foreground">From this device</span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Choose a PNG or JPG from your computer or phone.
+                    {deviceHint ?? 'Choose a PNG or JPG from your computer or phone.'}
                   </span>
                 </span>
               </button>
@@ -208,7 +269,8 @@ export function MediaUploadPickerModal({
           )}
 
           {step === 'gallery' && (
-            <div className="space-y-3">
+            <>
+              <ModalBody className="space-y-3 px-4 sm:px-5 py-4">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -285,34 +347,105 @@ export function MediaUploadPickerModal({
                 </div>
               )}
 
-              <div className="grid max-h-[min(22rem,50vh)] grid-cols-3 gap-2 overflow-y-auto overscroll-contain sm:grid-cols-4">
-                {filteredGallery.map((img) => (
-                  <button
-                    key={img.id}
-                    type="button"
-                    disabled={applying}
-                    onClick={() => handleGalleryPick(img.url)}
-                    className="group relative aspect-[4/3] overflow-hidden rounded-md border border-border bg-muted transition hover:border-primary hover:ring-2 hover:ring-primary/25 disabled:opacity-60"
-                    title={img.label}
-                  >
-                    <img
-                      src={img.url}
-                      alt={img.label}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
-                    />
-                  </button>
-                ))}
+              <div className={cn(
+                'grid grid-cols-3 gap-2 sm:grid-cols-4',
+                galleryMultiSelect ? 'max-h-none' : 'max-h-[min(22rem,50vh)] overflow-y-auto overscroll-contain',
+              )}>
+                {filteredGallery.map((img) => {
+                  const selected = selectedUrls.has(img.url)
+                  return (
+                    <button
+                      key={img.id}
+                      type="button"
+                      disabled={applying}
+                      onClick={() => onGalleryImageClick(img.url)}
+                      className={cn(
+                        'group relative aspect-[4/3] overflow-hidden rounded-md border bg-muted transition disabled:opacity-60',
+                        galleryMultiSelect && selected
+                          ? 'border-primary ring-2 ring-primary/40'
+                          : 'border-border hover:border-primary hover:ring-2 hover:ring-primary/25',
+                      )}
+                      title={img.label}
+                      aria-pressed={galleryMultiSelect ? selected : undefined}
+                    >
+                      <img
+                        src={img.url}
+                        alt={img.label}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                      />
+                      {galleryMultiSelect && (
+                        <span
+                          className={cn(
+                            'absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition-colors',
+                            selected
+                              ? 'border-primary bg-primary text-white'
+                              : 'border-white/80 bg-black/35 text-transparent group-hover:text-white/80',
+                          )}
+                        >
+                          <Check className="h-3 w-3" />
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
 
               {filteredGallery.length === 0 && (
                 <p className="py-6 text-center text-sm text-muted-foreground">No images match your search.</p>
               )}
-            </div>
+              </ModalBody>
+
+              {galleryMultiSelect && filteredGallery.length > 0 && (
+                <ModalFooter className="border-t border-border bg-card px-4 py-3 sm:px-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-primary hover:underline"
+                        onClick={selectAllVisible}
+                        disabled={applying}
+                      >
+                        Select all
+                      </button>
+                      {selectedUrls.size > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                          onClick={clearSelection}
+                          disabled={applying}
+                        >
+                          Clear
+                        </button>
+                      )}
+                      {selectedUrls.size > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {selectedUrls.size} selected
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={selectedUrls.size === 0 || applying}
+                      onClick={handleGalleryPickMultiple}
+                    >
+                      {applying ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5" />
+                      )}
+                      Add selected{selectedUrls.size > 0 ? ` (${selectedUrls.size})` : ''}
+                    </Button>
+                  </div>
+                </ModalFooter>
+              )}
+            </>
           )}
 
           {step === 'url' && onChooseExternalUrl && (
-            <div className="space-y-3">
+            <div className="space-y-3 p-4 sm:p-5 pt-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Image URL</label>
                 <Input

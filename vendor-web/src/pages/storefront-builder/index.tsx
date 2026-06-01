@@ -6,7 +6,7 @@ import { vendorApi } from '@/api/vendor'
 import { websiteApi } from '@/api/websites'
 import { useSiteList } from '@/hooks/useWebsites'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
-import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { ImageSourcePicker, useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -1085,8 +1085,22 @@ export default function StorefrontBuilderPage() {
     setPreviewTemplateId(null)
   }
   const aiEndRef = useRef<HTMLDivElement>(null)
-  const uploadRef = useRef<HTMLInputElement>(null)
   const pendingUploadFieldKey = useRef<string>('bg_image_url')
+
+  const { openPicker: openSectionImagePicker, modal: sectionImagePickerModal } = useImageSourcePicker({
+    title: 'Section image',
+    accept: 'image/jpeg,image/png,image/webp,image/gif',
+    onFile: (file) => {
+      if (!selectedSectionId) return
+      updateSectionProps(selectedSectionId, { [pendingUploadFieldKey.current]: URL.createObjectURL(file) })
+      toast.success('Image uploaded to section preview')
+    },
+    onUrl: (url) => {
+      if (!selectedSectionId) return
+      updateSectionProps(selectedSectionId, { [pendingUploadFieldKey.current]: url })
+      toast.success('Image applied to section preview')
+    },
+  })
 
   // Called by the right panel when a field is focused/toggled —
   // scrolls the section into view and blinks the field indicator.
@@ -2269,8 +2283,7 @@ export default function StorefrontBuilderPage() {
                   section={selectedSection}
                   onUpdate={(props) => updateSectionProps(selectedSection.id, props)}
                   vendor={vendor}
-                  onMediaUpload={uploadRef}
-                  onImageUpload={(key) => { pendingUploadFieldKey.current = key; uploadRef.current?.click() }}
+                  onImageUpload={(key) => { pendingUploadFieldKey.current = key; openSectionImagePicker() }}
                   onOpenMediaStudio={(fieldKey, fieldLabel) => {
                     setMediaApplyTarget({ sectionId: selectedSection.id, fieldKey, fieldLabel })
                     setActiveTab('media')
@@ -2298,16 +2311,9 @@ export default function StorefrontBuilderPage() {
         </div>
       </div>
 
-      {/* hidden file input */}
-      <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={e => {
-        const file = e.target.files?.[0]
-        if (!file || !selectedSectionId) return
-        const url = URL.createObjectURL(file)
-        updateSectionProps(selectedSectionId, { [pendingUploadFieldKey.current]: url })
-        toast.success('Image uploaded to section preview')
-        e.target.value = ''
-        pendingUploadFieldKey.current = 'bg_image_url'
-      }} />
+      {sectionImagePickerModal}
+
+      {/* hidden file input removed — section images use ImageSourcePicker (device · gallery · URL) */}
     </div>
   )
 }
@@ -2429,13 +2435,12 @@ interface RichPropEditorProps {
   section: BuilderSection
   onUpdate: (props: Partial<SectionProps>) => void
   vendor: Vendor | null
-  onMediaUpload: React.RefObject<HTMLInputElement>
   onImageUpload: (fieldKey: string) => void
   /** Opens the shared Media tab with this field as the apply target. */
   onOpenMediaStudio?: (fieldKey: string, fieldLabel: string) => void
   onFieldAction?: (fieldKey: string) => void
 }
-function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload, onImageUpload, onOpenMediaStudio, onFieldAction }: RichPropEditorProps) {
+function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onImageUpload, onOpenMediaStudio, onFieldAction }: RichPropEditorProps) {
   const id = section.id
   const p = section.props
   const fields = SECTION_FIELD_DEFS[id] ?? []
@@ -2598,7 +2603,7 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
                   {sf.type === 'image' && (
                     <div className="space-y-1.5">
                       <div className="flex gap-1.5">
-                        <button type="button" onClick={() => onMediaUpload.current?.click()}
+                        <button type="button" onClick={() => onImageUpload(sf.key)}
                           className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-primary/60 hover:text-primary transition-colors">
                           <ImageIcon className="w-3.5 h-3.5" />
                           {val(sf.key) ? 'Change' : 'Upload'}

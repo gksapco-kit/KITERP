@@ -1,9 +1,12 @@
-import { useCallback, useRef, useState } from 'react'
-import { formDisplayCompact } from '@/components/common/FormSectionNav'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { Upload, X, Star, Loader2, Film, Box, Image as ImageIcon } from 'lucide-react'
-import { ImageCropModal } from './ImageCropModal'
-import { ImageSourcePicker } from './ImageSourcePicker'
+import { Upload, X, Star, Loader2, Film, Box, Image as ImageIcon, GripVertical } from 'lucide-react'
+import { useImageSourcePicker } from './ImageSourcePicker'
+import {
+  CatalogMediaLightbox,
+  useCatalogMediaLightbox,
+  type LightboxMediaItem,
+} from './CatalogMediaLightbox'
 
 import { cn, mediaUrl } from '@/lib/utils'
 
@@ -16,6 +19,32 @@ function getMediaType(file: File): 'image' | 'video' | 'model3d' {
   const ext = file.name.split('.').pop()?.toLowerCase()
   if (ext === 'glb' || ext === 'gltf') return 'model3d'
   return 'image'
+}
+
+export function reorderMediaList<T>(list: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list
+  const next = [...list]
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
+}
+
+export function adjustPrimaryIndexOnReorder(primary: number, from: number, to: number): number {
+  if (primary === from) return to
+  if (from < primary && to >= primary) return primary - 1
+  if (from > primary && to <= primary) return primary + 1
+  return primary
+}
+
+export function adjustPrimaryIndexOnRemove(primary: number, removed: number, remainingCount: number): number {
+  if (remainingCount === 0) return 0
+  if (removed === primary) return Math.min(primary, remainingCount - 1)
+  if (removed < primary) return primary - 1
+  return primary
+}
+
+export function findFirstImageIndex(files: File[]): number {
+  return files.findIndex((f) => f.type.startsWith('image/'))
 }
 
 interface ProductImage {
@@ -32,44 +61,344 @@ interface ProductImageUploadProps {
   onUpload: (file: File) => Promise<void>
   onDelete: (imageId: string) => Promise<void>
   onSetPrimary: (imageId: string) => Promise<void>
+  onReorder?: (imageIds: string[]) => Promise<void>
+  onEditImage?: (imageId: string, file: File, wasPrimary: boolean) => Promise<void>
   disabled?: boolean
 }
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf'
+export const MEDIA_ACCEPT = ACCEPT
+
+const MEDIA_DEVICE_HINT = 'Images, videos, or 3D models (JPG, PNG, WebP, GIF, MP4, WebM, MOV, GLB/GLTF) from your device.'
+const MEDIA_PICKER_HINT = 'Device · Gallery · URL'
+export const MEDIA_FORMATS_HELPER = 'JPG, PNG, WebP, GIF · MP4, WebM, MOV · GLB/GLTF'
+
+/** Compact but readable catalog media UI for product/service forms. */
+const catalogMediaCompact = {
+  root: 'space-y-1.5',
+  row: 'flex items-center gap-2',
+  dropzone:
+    'flex h-[4.875rem] w-[7.5rem] max-w-full shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-gray-300 bg-gray-50/90 px-2 text-center shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50/60',
+  dropzoneIcon: 'h-4 w-4 text-gray-500',
+  dropzoneSpinner: 'h-4 w-4 text-blue-500 animate-spin',
+  dropzoneTitle: 'text-[11px] font-medium leading-snug text-gray-700',
+  headerRow: 'mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5',
+  headerTitle: 'text-xs font-semibold text-foreground',
+  headerHelper: 'text-[11px] leading-snug text-gray-500',
+  headerPickerHint: 'text-[10px] font-semibold tracking-wide text-primary',
+  thumbStrip: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5',
+  thumb: 'relative group aspect-square size-[4.875rem] shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm',
+  sectionLabel: 'flex items-center gap-1 text-[10px] font-medium text-gray-600',
+  sectionLabelIcon: 'h-2.5 w-2.5',
+  primaryBadge:
+    'absolute left-0.5 top-0.5 z-[3] flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-yellow-900 shadow-sm',
+  primaryBadgeIcon: 'h-2.5 w-2.5 fill-current',
+  setPrimaryBtn:
+    'absolute left-0.5 top-0.5 z-[4] flex h-4 w-4 items-center justify-center rounded-full bg-white/95 text-gray-600 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-yellow-400 hover:text-yellow-900',
+  setPrimaryBtnIcon: 'h-2.5 w-2.5',
+  orderBadge:
+    'absolute bottom-0.5 left-0.5 z-[3] flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[9px] font-bold tabular-nums text-white shadow-sm',
+  dragHandle:
+    'absolute bottom-0.5 right-0.5 z-[4] flex cursor-grab items-center justify-center rounded bg-black/45 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing',
+  dragHandleIcon: 'h-2.5 w-2.5',
+  thumbDragging: 'opacity-50 ring-2 ring-primary/50',
+  thumbDragOver: 'ring-2 ring-primary ring-offset-1',
+  deleteBtn: 'absolute right-0.5 top-0.5 z-[5] rounded-full bg-red-500 p-0.5 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100',
+  deleteBtnIcon: 'h-2 w-2',
+  model3dIcon: 'h-4 w-4',
+  model3dLabel: 'mt-0.5 text-[7px] font-medium',
+} as const
+
+function PrimaryTopLeft({
+  isPrimary,
+  canSetPrimary,
+  onSetPrimary,
+}: {
+  isPrimary?: boolean
+  canSetPrimary?: boolean
+  onSetPrimary?: () => void
+}) {
+  if (isPrimary) {
+    return (
+      <span className={catalogMediaCompact.primaryBadge} aria-label="Primary image">
+        <Star className={catalogMediaCompact.primaryBadgeIcon} />
+      </span>
+    )
+  }
+  if (!canSetPrimary || !onSetPrimary) return null
+  return (
+    <button
+      type="button"
+      className={catalogMediaCompact.setPrimaryBtn}
+      aria-label="Set as primary"
+      onClick={(e) => { e.stopPropagation(); onSetPrimary() }}
+    >
+      <Star className={catalogMediaCompact.setPrimaryBtnIcon} />
+    </button>
+  )
+}
+
+function ThumbDeleteButton({ onClick, label = 'Remove' }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      className={catalogMediaCompact.deleteBtn}
+    >
+      <X className={catalogMediaCompact.deleteBtnIcon} />
+    </button>
+  )
+}
+
+const EDIT_MEDIA_HELPER = 'Images, videos & 3D models'
+export const STAGED_PRODUCT_HELPER = 'Images, videos & 3D models — uploaded after product is created'
+export const STAGED_SERVICE_HELPER = 'Images, videos & 3D models — uploaded after service is created'
+export const STAGED_VARIANT_HELPER = 'Images, videos & 3D models — uploaded when product is saved'
+
+export function CatalogMediaSectionHeader({ helperText, title = 'Media' }: { helperText?: string; title?: string }) {
+  return (
+    <div className={catalogMediaCompact.headerRow}>
+      <h3 className={catalogMediaCompact.headerTitle}>{title}</h3>
+      {helperText ? (
+        <span className={catalogMediaCompact.headerHelper}>{helperText}</span>
+      ) : null}
+      <span className={catalogMediaCompact.headerHelper} title="Allowed file formats">
+        {MEDIA_FORMATS_HELPER}
+      </span>
+      <span className={catalogMediaCompact.headerPickerHint}>{MEDIA_PICKER_HINT}</span>
+      <span className="text-[10px] text-muted-foreground">Drag to reorder · ★ primary</span>
+    </div>
+  )
+}
 
 function MediaBadge({ type }: { type: string }) {
-  if (type === 'video') return <span className="absolute top-1 right-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>
-  if (type === 'model3d') return <span className="absolute top-1 right-1 bg-cyan-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>
+  if (type === 'video') return <span className="absolute right-0.5 top-0.5 flex items-center gap-0.5 rounded-full bg-primary px-0.5 py-px text-[7px] font-semibold text-white"><Film className="h-2 w-2" />Video</span>
+  if (type === 'model3d') return <span className="absolute right-0.5 top-0.5 flex items-center gap-0.5 rounded-full bg-cyan-600 px-0.5 py-px text-[7px] font-semibold text-white"><Box className="h-2 w-2" />3D</span>
   return null
 }
 
-function MediaPreview({ item }: { item: ProductImage }) {
+function MediaPreview({ item, compact }: { item: ProductImage; compact?: boolean }) {
   const url = resolveUrl(item.url)
   const mt = item.media_type || 'image'
 
   if (mt === 'video') {
-    return <video src={url} className="w-full h-full object-cover" muted loop playsInline onMouseOver={e => (e.target as HTMLVideoElement).play()} onMouseOut={e => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0 }} />
+    return <video src={url} className="h-full w-full object-cover" muted loop playsInline onMouseOver={e => (e.target as HTMLVideoElement).play()} onMouseOut={e => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0 }} />
   }
 
   if (mt === 'model3d') {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
-        <Box className="w-10 h-10" />
-        <span className="text-xs mt-1 font-medium">3D Model</span>
+      <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
+        <Box className={compact ? catalogMediaCompact.model3dIcon : 'h-10 w-10'} />
+        <span className={compact ? catalogMediaCompact.model3dLabel : 'mt-1 text-xs font-medium'}>3D</span>
       </div>
     )
   }
 
-  return <img src={url} alt={item.alt_text || ''} className="w-full h-full object-cover" />
+  return <img src={url} alt={item.alt_text || ''} className="h-full w-full object-cover" />
 }
 
-export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, disabled }: ProductImageUploadProps) {
+function CatalogMediaThumb({
+  onOpen,
+  children,
+  topLeft,
+  topRight,
+  orderNumber,
+  draggable = false,
+  isDragging = false,
+  isDragOver = false,
+  onDragHandleStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}: {
+  onOpen: () => void
+  children: ReactNode
+  topLeft?: ReactNode
+  topRight?: ReactNode
+  orderNumber?: number
+  draggable?: boolean
+  isDragging?: boolean
+  isDragOver?: boolean
+  onDragHandleStart?: (e: React.DragEvent) => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+  onDragEnd?: () => void
+}) {
+  return (
+    <div
+      className={cn(
+        catalogMediaCompact.thumb,
+        'group',
+        isDragging && catalogMediaCompact.thumbDragging,
+        isDragOver && catalogMediaCompact.thumbDragOver,
+      )}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 z-[1] rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        onClick={onOpen}
+        aria-label="View media"
+      />
+      <div className="relative z-0 h-full w-full">{children}</div>
+      {orderNumber !== undefined && (
+        <span className={catalogMediaCompact.orderBadge} aria-hidden>{orderNumber}</span>
+      )}
+      {topLeft}
+      {topRight}
+      {draggable && onDragHandleStart && (
+        <span
+          draggable
+          onDragStart={onDragHandleStart}
+          onDragEnd={onDragEnd}
+          className={catalogMediaCompact.dragHandle}
+          title="Drag to reorder"
+          aria-label="Drag to reorder"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className={catalogMediaCompact.dragHandleIcon} />
+        </span>
+      )}
+    </div>
+  )
+}
+
+function useThumbDragReorder(onReorder: (from: number, to: number) => void) {
+  const dragFrom = useRef<number | null>(null)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+
+  const handleDragStart = useCallback((index: number) => (e: React.DragEvent) => {
+    dragFrom.current = index
+    setDraggingIndex(index)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(index))
+  }, [])
+
+  const handleDragOver = useCallback((index: number) => (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIndex(index)
+  }, [])
+
+  const handleDrop = useCallback((index: number) => (e: React.DragEvent) => {
+    e.preventDefault()
+    const from = dragFrom.current
+    if (from !== null && from !== index) onReorder(from, index)
+    dragFrom.current = null
+    setDraggingIndex(null)
+    setDragOverIndex(null)
+  }, [onReorder])
+
+  const handleDragEnd = useCallback(() => {
+    dragFrom.current = null
+    setDraggingIndex(null)
+    setDragOverIndex(null)
+  }, [])
+
+  return { draggingIndex, dragOverIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd }
+}
+
+function CatalogMediaLightboxHost({
+  items,
+  children,
+  editable,
+  onSaveImage,
+}: {
+  items: LightboxMediaItem[]
+  children: (ctx: ReturnType<typeof useCatalogMediaLightbox> & { items: LightboxMediaItem[] }) => ReactNode
+  editable?: boolean
+  onSaveImage?: (index: number, file: File) => Promise<void>
+}) {
+  const lightbox = useCatalogMediaLightbox(items.length)
+  return (
+    <>
+      {children({ ...lightbox, items })}
+      <CatalogMediaLightbox
+        items={items}
+        index={lightbox.index}
+        onClose={lightbox.close}
+        onPrev={lightbox.goPrev}
+        onNext={lightbox.goNext}
+        editable={editable}
+        onSaveImage={onSaveImage}
+      />
+    </>
+  )
+}
+
+function CatalogMediaDropzone({
+  disabled,
+  uploading,
+  onDrop,
+  onClick,
+  pickerFileInput,
+  inputRef,
+  onInputChange,
+  accept,
+}: {
+  disabled?: boolean
+  uploading?: boolean
+  onDrop: (e: React.DragEvent) => void
+  onClick: () => void
+  pickerFileInput: React.ReactNode
+  inputRef: React.RefObject<HTMLInputElement | null>
+  onInputChange: (files: FileList | null) => void
+  accept: string
+}) {
+  return (
+    <div
+      onDrop={onDrop}
+      onDragOver={(e) => e.preventDefault()}
+      onClick={onClick}
+      className={cn(
+        catalogMediaCompact.dropzone,
+        disabled ? 'cursor-not-allowed bg-gray-100 opacity-60' : 'cursor-pointer',
+      )}
+    >
+      {uploading ? (
+        <Loader2 className={catalogMediaCompact.dropzoneSpinner} />
+      ) : (
+        <Upload className={catalogMediaCompact.dropzoneIcon} />
+      )}
+      <p className={catalogMediaCompact.dropzoneTitle}>
+        {uploading ? 'Uploading…' : 'Click or drag here'}
+      </p>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={accept}
+        className="hidden"
+        onChange={(e) => onInputChange(e.target.files)}
+        disabled={disabled}
+      />
+      {pickerFileInput}
+    </div>
+  )
+}
+
+export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, onReorder, onEditImage, disabled }: ProductImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  const [cropQueue, setCropQueue] = useState<File[]>([])
-  const nonImageQueue = useRef<File[]>([])
+
+  const sortedImages = useMemo(
+    () => [...images].sort((a, b) => a.position - b.position),
+    [images],
+  )
+
+  const handleReorder = useCallback((from: number, to: number) => {
+    if (!onReorder) return
+    const ids = reorderMediaList(sortedImages.map((img) => img.id), from, to)
+    void onReorder(ids)
+  }, [onReorder, sortedImages])
+
+  const thumbDrag = useThumbDragReorder(handleReorder)
 
   const processFiles = useCallback(async (files: File[]) => {
+    if (!files.length) return
     setUploading(true)
     for (const file of files) {
       try { await onUpload(file) } catch { /* handled by caller */ }
@@ -78,145 +407,106 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, d
   }, [onUpload])
 
   const handleFiles = useCallback((files: FileList | null) => {
-    if (!files) return
-    const images: File[] = []
-    const others: File[] = []
-    for (const f of Array.from(files)) {
-      if (f.type.startsWith('image/')) images.push(f)
-      else others.push(f)
-    }
-    nonImageQueue.current = others
-    if (images.length > 0) {
-      setCropQueue(images)
-    } else if (others.length > 0) {
-      processFiles(others)
-    }
+    if (!files?.length) return
+    void processFiles(Array.from(files))
     if (inputRef.current) inputRef.current.value = ''
   }, [processFiles])
 
-  const handleCropConfirm = useCallback(async (croppedFile: File) => {
-    setCropQueue((q) => {
-      const remaining = q.slice(1)
-      if (remaining.length === 0) {
-        processFiles([croppedFile, ...nonImageQueue.current])
-        nonImageQueue.current = []
-      } else {
-        processFiles([croppedFile])
-      }
-      return remaining
-    })
+  const handlePickerFile = useCallback(async (file: File) => {
+    await processFiles([file])
   }, [processFiles])
 
-  const handleCropCancel = useCallback(() => {
-    setCropQueue((q) => {
-      const remaining = q.slice(1)
-      if (remaining.length === 0 && nonImageQueue.current.length > 0) {
-        processFiles(nonImageQueue.current)
-        nonImageQueue.current = []
-      }
-      return remaining
-    })
+  const handlePickerFiles = useCallback((files: File[]) => {
+    void processFiles(files)
   }, [processFiles])
+
+  const { openPicker, fileInput: pickerFileInput, modal: pickerModal } = useImageSourcePicker({
+    title: 'Product media',
+    accept: ACCEPT,
+    deviceHint: MEDIA_DEVICE_HINT,
+    galleryMultiSelect: true,
+    onFile: handlePickerFile,
+    onFiles: handlePickerFiles,
+  })
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     handleFiles(e.dataTransfer.files)
   }, [handleFiles])
 
-  const imageItems = images.filter(i => (i.media_type || 'image') === 'image')
-  const videoItems = images.filter(i => i.media_type === 'video')
-  const modelItems = images.filter(i => i.media_type === 'model3d')
+  const imageItems = sortedImages.filter(i => (i.media_type || 'image') === 'image')
+  const videoItems = sortedImages.filter(i => i.media_type === 'video')
+  const modelItems = sortedImages.filter(i => i.media_type === 'model3d')
 
   return (
-    <div className="space-y-2">
-      {cropQueue.length > 0 && (
-        <ImageCropModal
-          file={cropQueue[0]}
-          title={`Crop Image${cropQueue.length > 1 ? ` (${cropQueue.length} remaining)` : ''}`}
-          onConfirm={handleCropConfirm}
-          onCancel={handleCropCancel}
-        />
-      )}
-      {/* Drop zone */}
-      <div
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        onClick={() => !disabled && inputRef.current?.click()}
-        className={cn(
-          formDisplayCompact.mediaDropzone,
-          disabled ? 'cursor-not-allowed opacity-50 bg-gray-50' : '',
-        )}
-      >
-        {uploading ? (
-          <Loader2 className="mx-auto h-6 w-6 text-blue-500 animate-spin" />
-        ) : (
-          <Upload className="mx-auto h-6 w-6 text-gray-400" />
-        )}
-        <p className="mt-1 text-xs text-gray-600 sm:text-sm">
-          {uploading ? 'Uploading...' : 'Click or drag files here'}
-        </p>
-        <div className="flex items-center justify-center gap-4 mt-2">
-          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><ImageIcon className="w-3 h-3" />Images</span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Film className="w-3 h-3" />Videos</span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Box className="w-3 h-3" />3D Models</span>
-        </div>
-        <p className="text-xs text-gray-300 mt-1">Images: 5 MB &middot; Videos: 50 MB &middot; 3D (GLB/GLTF): 30 MB</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept={ACCEPT}
-          className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
+    <div className={catalogMediaCompact.root}>
+      {pickerModal}
+      <div className={catalogMediaCompact.row}>
+        <CatalogMediaDropzone
           disabled={disabled}
-        />
-      </div>
-
-      <div className="flex justify-center">
-        <ImageSourcePicker
-          title="Product image"
-          disabled={disabled || uploading}
           uploading={uploading}
-          onFile={async (file) => setCropQueue([file])}
-          buttonLabel="Add image (device · gallery · URL)"
-          buttonVariant="outline"
-          buttonSize="sm"
-          buttonClassName="text-xs"
+          onDrop={handleDrop}
+          onClick={() => !disabled && !uploading && openPicker()}
+          pickerFileInput={pickerFileInput}
+          inputRef={inputRef}
+          onInputChange={handleFiles}
+          accept={ACCEPT}
         />
-      </div>
 
-      {/* Media grid */}
-      {images.length > 0 && (
-        <>
-          {/* Section labels */}
-          {imageItems.length > 0 && videoItems.length + modelItems.length > 0 && (
-            <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" />Images ({imageItems.length})</p>
-          )}
-          <div className="grid grid-cols-3 gap-1.5 min-[26rem]:grid-cols-4 sm:gap-2">
-            {images.map((item) => (
-              <div key={item.id} className="relative group rounded-lg overflow-hidden border bg-gray-50 aspect-square">
-                <MediaPreview item={item} />
-                <MediaBadge type={item.media_type || 'image'} />
-                {item.is_primary && (
-                  <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
-                    <Star className="w-3 h-3" />Primary
-                  </span>
+        {sortedImages.length > 0 && (
+          <CatalogMediaLightboxHost
+            items={sortedImages.map((item) => ({
+              id: item.id,
+              url: item.url,
+              media_type: item.media_type || 'image',
+              alt_text: item.alt_text,
+            }))}
+            editable={!!onEditImage}
+            onSaveImage={
+              onEditImage
+                ? async (index, file) => {
+                    const item = sortedImages[index]
+                    if (!item) return
+                    await onEditImage(item.id, file, item.is_primary)
+                  }
+                : undefined
+            }
+          >
+            {({ open }) => (
+              <div className={catalogMediaCompact.thumbStrip}>
+                {imageItems.length > 0 && videoItems.length + modelItems.length > 0 && (
+                  <p className={cn(catalogMediaCompact.sectionLabel, 'mb-1 w-full')}><ImageIcon className={catalogMediaCompact.sectionLabelIcon} />Images ({imageItems.length})</p>
                 )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  {!item.is_primary && (item.media_type || 'image') === 'image' && (
-                    <Button type="button" size="sm" variant="secondary" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); onSetPrimary(item.id) }}>
-                      <Star className="w-3 h-3 mr-1" />Primary
-                    </Button>
-                  )}
-                  <Button type="button" size="sm" variant="destructive" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); onDelete(item.id) }}>
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
+                {sortedImages.map((item, i) => (
+                  <CatalogMediaThumb
+                    key={item.id}
+                    orderNumber={i + 1}
+                    draggable={!!onReorder && !disabled}
+                    isDragging={thumbDrag.draggingIndex === i}
+                    isDragOver={thumbDrag.dragOverIndex === i}
+                    onDragHandleStart={thumbDrag.handleDragStart(i)}
+                    onDragOver={thumbDrag.handleDragOver(i)}
+                    onDrop={thumbDrag.handleDrop(i)}
+                    onDragEnd={thumbDrag.handleDragEnd}
+                    onOpen={() => open(i)}
+                    topLeft={
+                      <PrimaryTopLeft
+                        isPrimary={item.is_primary}
+                        canSetPrimary={(item.media_type || 'image') === 'image'}
+                        onSetPrimary={() => onSetPrimary(item.id)}
+                      />
+                    }
+                    topRight={<ThumbDeleteButton onClick={() => onDelete(item.id)} label="Delete" />}
+                  >
+                    <MediaPreview item={item} compact />
+                    <MediaBadge type={item.media_type || 'image'} />
+                  </CatalogMediaThumb>
+                ))}
               </div>
-            ))}
-          </div>
-        </>
-      )}
+            )}
+          </CatalogMediaLightboxHost>
+        )}
+      </div>
     </div>
   )
 }
@@ -236,16 +526,30 @@ interface ServiceMediaUploadProps {
   onUpload: (file: File) => Promise<void>
   onDelete: (mediaId: string) => Promise<void>
   onSetPrimary: (mediaId: string) => Promise<void>
+  onReorder?: (mediaIds: string[]) => Promise<void>
+  onEditMedia?: (mediaId: string, file: File, wasPrimary: boolean) => Promise<void>
   disabled?: boolean
 }
 
-export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, disabled }: ServiceMediaUploadProps) {
+export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, onReorder, onEditMedia, disabled }: ServiceMediaUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  const [cropQueue, setCropQueue] = useState<File[]>([])
-  const nonImageQueue = useRef<File[]>([])
+
+  const sortedMedia = useMemo(
+    () => [...media].sort((a, b) => a.position - b.position),
+    [media],
+  )
+
+  const handleReorder = useCallback((from: number, to: number) => {
+    if (!onReorder) return
+    const ids = reorderMediaList(sortedMedia.map((m) => m.id), from, to)
+    void onReorder(ids)
+  }, [onReorder, sortedMedia])
+
+  const thumbDrag = useThumbDragReorder(handleReorder)
 
   const processFiles = useCallback(async (files: File[]) => {
+    if (!files.length) return
     setUploading(true)
     for (const file of files) {
       try { await onUpload(file) } catch { /* handled by caller */ }
@@ -254,45 +558,27 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, di
   }, [onUpload])
 
   const handleFiles = useCallback((files: FileList | null) => {
-    if (!files) return
-    const imgs: File[] = []
-    const others: File[] = []
-    for (const f of Array.from(files)) {
-      if (f.type.startsWith('image/')) imgs.push(f)
-      else others.push(f)
-    }
-    nonImageQueue.current = others
-    if (imgs.length > 0) {
-      setCropQueue(imgs)
-    } else if (others.length > 0) {
-      processFiles(others)
-    }
+    if (!files?.length) return
+    void processFiles(Array.from(files))
     if (inputRef.current) inputRef.current.value = ''
   }, [processFiles])
 
-  const handleCropConfirm = useCallback(async (croppedFile: File) => {
-    setCropQueue((q) => {
-      const remaining = q.slice(1)
-      if (remaining.length === 0) {
-        processFiles([croppedFile, ...nonImageQueue.current])
-        nonImageQueue.current = []
-      } else {
-        processFiles([croppedFile])
-      }
-      return remaining
-    })
+  const handlePickerFile = useCallback(async (file: File) => {
+    await processFiles([file])
   }, [processFiles])
 
-  const handleCropCancel = useCallback(() => {
-    setCropQueue((q) => {
-      const remaining = q.slice(1)
-      if (remaining.length === 0 && nonImageQueue.current.length > 0) {
-        processFiles(nonImageQueue.current)
-        nonImageQueue.current = []
-      }
-      return remaining
-    })
+  const handlePickerFiles = useCallback((files: File[]) => {
+    void processFiles(files)
   }, [processFiles])
+
+  const { openPicker, fileInput: pickerFileInput, modal: pickerModal } = useImageSourcePicker({
+    title: 'Service media',
+    accept: ACCEPT,
+    deviceHint: MEDIA_DEVICE_HINT,
+    galleryMultiSelect: true,
+    onFile: handlePickerFile,
+    onFiles: handlePickerFiles,
+  })
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -300,90 +586,225 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, di
   }, [handleFiles])
 
   return (
-    <div className="space-y-2">
-      {cropQueue.length > 0 && (
-        <ImageCropModal
-          file={cropQueue[0]}
-          title={`Crop Image${cropQueue.length > 1 ? ` (${cropQueue.length} remaining)` : ''}`}
-          onConfirm={handleCropConfirm}
-          onCancel={handleCropCancel}
-        />
-      )}
-      <div
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        onClick={() => !disabled && inputRef.current?.click()}
-        className={cn(
-          formDisplayCompact.mediaDropzone,
-          disabled ? 'cursor-not-allowed opacity-50 bg-gray-50' : '',
-        )}
-      >
-        {uploading ? (
-          <Loader2 className="mx-auto h-6 w-6 text-blue-500 animate-spin" />
-        ) : (
-          <Upload className="mx-auto h-6 w-6 text-gray-400" />
-        )}
-        <p className="mt-1 text-xs text-gray-600 sm:text-sm">
-          {uploading ? 'Uploading...' : 'Click or drag files here'}
-        </p>
-        <div className="flex items-center justify-center gap-4 mt-2">
-          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><ImageIcon className="w-3 h-3" />Images</span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Film className="w-3 h-3" />Videos</span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Box className="w-3 h-3" />3D Models</span>
-        </div>
-        <p className="text-xs text-gray-300 mt-1">Images: 5 MB &middot; Videos: 50 MB &middot; 3D (GLB/GLTF): 30 MB</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept={ACCEPT}
-          className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
+    <div className={catalogMediaCompact.root}>
+      {pickerModal}
+      <div className={catalogMediaCompact.row}>
+        <CatalogMediaDropzone
           disabled={disabled}
-        />
-      </div>
-
-      <div className="flex justify-center">
-        <ImageSourcePicker
-          title="Service image"
-          disabled={disabled || uploading}
           uploading={uploading}
-          onFile={async (file) => setCropQueue([file])}
-          buttonLabel="Add image (device · gallery · URL)"
-          buttonVariant="outline"
-          buttonSize="sm"
-          buttonClassName="text-xs"
+          onDrop={handleDrop}
+          onClick={() => !disabled && !uploading && openPicker()}
+          pickerFileInput={pickerFileInput}
+          inputRef={inputRef}
+          onInputChange={handleFiles}
+          accept={ACCEPT}
         />
-      </div>
 
-      {media.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {media.map((item) => {
-            const asProductImage: ProductImage = { ...item }
-            return (
-              <div key={item.id} className="relative group rounded-lg overflow-hidden border bg-gray-50 aspect-square">
-                <MediaPreview item={asProductImage} />
-                <MediaBadge type={item.media_type || 'image'} />
-                {item.is_primary && (
-                  <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
-                    <Star className="w-3 h-3" />Primary
-                  </span>
-                )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  {!item.is_primary && item.media_type === 'image' && (
-                    <Button type="button" size="sm" variant="secondary" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); onSetPrimary(item.id) }}>
-                      <Star className="w-3 h-3 mr-1" />Primary
-                    </Button>
-                  )}
-                  <Button type="button" size="sm" variant="destructive" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); onDelete(item.id) }}>
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
+        {sortedMedia.length > 0 && (
+          <CatalogMediaLightboxHost
+            items={sortedMedia.map((item) => ({
+              id: item.id,
+              url: item.url,
+              media_type: item.media_type || 'image',
+              alt_text: item.alt_text,
+            }))}
+            editable={!!onEditMedia}
+            onSaveImage={
+              onEditMedia
+                ? async (index, file) => {
+                    const item = sortedMedia[index]
+                    if (!item) return
+                    await onEditMedia(item.id, file, item.is_primary)
+                  }
+                : undefined
+            }
+          >
+            {({ open }) => (
+              <div className={catalogMediaCompact.thumbStrip}>
+                {sortedMedia.map((item, i) => {
+                  const asProductImage: ProductImage = { ...item }
+                  return (
+                    <CatalogMediaThumb
+                      key={item.id}
+                      orderNumber={i + 1}
+                      draggable={!!onReorder && !disabled}
+                      isDragging={thumbDrag.draggingIndex === i}
+                      isDragOver={thumbDrag.dragOverIndex === i}
+                      onDragHandleStart={thumbDrag.handleDragStart(i)}
+                      onDragOver={thumbDrag.handleDragOver(i)}
+                      onDrop={thumbDrag.handleDrop(i)}
+                      onDragEnd={thumbDrag.handleDragEnd}
+                      onOpen={() => open(i)}
+                      topLeft={
+                        <PrimaryTopLeft
+                          isPrimary={item.is_primary}
+                          canSetPrimary={item.media_type === 'image'}
+                          onSetPrimary={() => onSetPrimary(item.id)}
+                        />
+                      }
+                      topRight={<ThumbDeleteButton onClick={() => onDelete(item.id)} label="Delete" />}
+                    >
+                      <MediaPreview item={asProductImage} compact />
+                      <MediaBadge type={item.media_type || 'image'} />
+                    </CatalogMediaThumb>
+                  )
+                })}
               </div>
-            )
-          })}
-        </div>
-      )}
+            )}
+          </CatalogMediaLightboxHost>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export interface VariantMediaItem {
+  url: string
+  media_type?: 'image' | 'video' | 'model3d'
+  is_primary: boolean
+  alt_text?: string
+  position: number
+}
+
+interface VariantMediaUploadProps {
+  media: VariantMediaItem[]
+  onUpload: (file: File) => Promise<void>
+  onDelete: (url: string) => Promise<void>
+  onSetPrimary: (url: string) => Promise<void>
+  onReorder?: (urls: string[]) => Promise<void>
+  disabled?: boolean
+  pickerTitle?: string
+}
+
+/** Catalog media UI for variant-level images/videos/3D (url-keyed). */
+export function VariantMediaUpload({
+  media,
+  onUpload,
+  onDelete,
+  onSetPrimary,
+  onReorder,
+  disabled,
+  pickerTitle = 'Variant media',
+}: VariantMediaUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  const sortedMedia = useMemo(
+    () => [...media].sort((a, b) => a.position - b.position),
+    [media],
+  )
+
+  const handleReorder = useCallback((from: number, to: number) => {
+    if (!onReorder) return
+    const urls = reorderMediaList(sortedMedia.map((m) => m.url), from, to)
+    void onReorder(urls)
+  }, [onReorder, sortedMedia])
+
+  const thumbDrag = useThumbDragReorder(handleReorder)
+
+  const processFiles = useCallback(async (files: File[]) => {
+    if (!files.length) return
+    setUploading(true)
+    for (const file of files) {
+      try { await onUpload(file) } catch { /* handled by caller */ }
+    }
+    setUploading(false)
+  }, [onUpload])
+
+  const handleFiles = useCallback((files: FileList | null) => {
+    if (!files?.length) return
+    void processFiles(Array.from(files))
+    if (inputRef.current) inputRef.current.value = ''
+  }, [processFiles])
+
+  const handlePickerFile = useCallback(async (file: File) => {
+    await processFiles([file])
+  }, [processFiles])
+
+  const handlePickerFiles = useCallback((files: File[]) => {
+    void processFiles(files)
+  }, [processFiles])
+
+  const { openPicker, fileInput: pickerFileInput, modal: pickerModal } = useImageSourcePicker({
+    title: pickerTitle,
+    accept: ACCEPT,
+    deviceHint: MEDIA_DEVICE_HINT,
+    galleryMultiSelect: true,
+    onFile: handlePickerFile,
+    onFiles: handlePickerFiles,
+  })
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    handleFiles(e.dataTransfer.files)
+  }, [handleFiles])
+
+  return (
+    <div className={catalogMediaCompact.root}>
+      {pickerModal}
+      <div className={catalogMediaCompact.row}>
+        <CatalogMediaDropzone
+          disabled={disabled}
+          uploading={uploading}
+          onDrop={handleDrop}
+          onClick={() => !disabled && !uploading && openPicker()}
+          pickerFileInput={pickerFileInput}
+          inputRef={inputRef}
+          onInputChange={handleFiles}
+          accept={ACCEPT}
+        />
+
+        {sortedMedia.length > 0 && (
+          <CatalogMediaLightboxHost
+            items={sortedMedia.map((item) => ({
+              id: item.url,
+              url: item.url,
+              media_type: item.media_type || 'image',
+              alt_text: item.alt_text,
+            }))}
+          >
+            {({ open }) => (
+              <div className={catalogMediaCompact.thumbStrip}>
+                {sortedMedia.map((item, i) => {
+                  const asProductImage: ProductImage = {
+                    id: item.url,
+                    url: item.url,
+                    alt_text: item.alt_text,
+                    position: item.position,
+                    is_primary: item.is_primary,
+                    media_type: item.media_type || 'image',
+                  }
+                  return (
+                    <CatalogMediaThumb
+                      key={item.url}
+                      orderNumber={i + 1}
+                      draggable={!!onReorder && !disabled}
+                      isDragging={thumbDrag.draggingIndex === i}
+                      isDragOver={thumbDrag.dragOverIndex === i}
+                      onDragHandleStart={thumbDrag.handleDragStart(i)}
+                      onDragOver={thumbDrag.handleDragOver(i)}
+                      onDrop={thumbDrag.handleDrop(i)}
+                      onDragEnd={thumbDrag.handleDragEnd}
+                      onOpen={() => open(i)}
+                      topLeft={
+                        <PrimaryTopLeft
+                          isPrimary={item.is_primary}
+                          canSetPrimary={(item.media_type || 'image') === 'image'}
+                          onSetPrimary={() => onSetPrimary(item.url)}
+                        />
+                      }
+                      topRight={<ThumbDeleteButton onClick={() => onDelete(item.url)} label="Delete" />}
+                    >
+                      <MediaPreview item={asProductImage} compact />
+                      <MediaBadge type={item.media_type || 'image'} />
+                    </CatalogMediaThumb>
+                  )
+                })}
+              </div>
+            )}
+          </CatalogMediaLightboxHost>
+        )}
+      </div>
     </div>
   )
 }
@@ -474,4 +895,142 @@ export function ServiceImageUpload({ imageUrl, galleryUrls, onUploadMain, onUplo
   )
 }
 
-export { getMediaType }
+export { getMediaType, catalogMediaCompact, EDIT_MEDIA_HELPER }
+
+interface StagedMediaUploadProps {
+  files: File[]
+  previews: string[]
+  primaryIndex: number
+  onPrimaryIndexChange: (index: number) => void
+  onReorderFiles: (from: number, to: number) => void
+  onAddFiles: (files: FileList | File[]) => void
+  onRemoveFile: (index: number) => void
+  onReplaceFile?: (index: number, file: File) => void
+  pickerTitle?: string
+  disabled?: boolean
+}
+
+/** Drop zone for media staged until product/service is saved (create flow). */
+export function StagedMediaUpload({
+  files,
+  previews,
+  primaryIndex,
+  onPrimaryIndexChange,
+  onReorderFiles,
+  onAddFiles,
+  onRemoveFile,
+  onReplaceFile,
+  pickerTitle = 'Media',
+  disabled,
+}: StagedMediaUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const thumbDrag = useThumbDragReorder(onReorderFiles)
+
+  const handleFiles = useCallback((fileList: FileList | null) => {
+    if (!fileList?.length) return
+    onAddFiles(Array.from(fileList))
+    if (inputRef.current) inputRef.current.value = ''
+  }, [onAddFiles])
+
+  const handlePickerFile = useCallback((file: File) => {
+    onAddFiles([file])
+  }, [onAddFiles])
+
+  const handlePickerFiles = useCallback((incoming: File[]) => {
+    onAddFiles(incoming)
+  }, [onAddFiles])
+
+  const { openPicker, fileInput: pickerFileInput, modal: pickerModal } = useImageSourcePicker({
+    title: pickerTitle,
+    accept: ACCEPT,
+    deviceHint: MEDIA_DEVICE_HINT,
+    galleryMultiSelect: true,
+    onFile: handlePickerFile,
+    onFiles: handlePickerFiles,
+  })
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    handleFiles(e.dataTransfer.files)
+  }, [handleFiles])
+
+  return (
+    <div className={catalogMediaCompact.root}>
+      {pickerModal}
+      <div className={catalogMediaCompact.row}>
+        <CatalogMediaDropzone
+          disabled={disabled}
+          uploading={false}
+          onDrop={handleDrop}
+          onClick={() => !disabled && openPicker()}
+          pickerFileInput={pickerFileInput}
+          inputRef={inputRef}
+          onInputChange={handleFiles}
+          accept={ACCEPT}
+        />
+        {files.length > 0 && (
+          <CatalogMediaLightboxHost
+            items={files.map((file, i) => ({
+              id: String(i),
+              url: previews[i],
+              media_type: getMediaType(file),
+            }))}
+            editable={!!onReplaceFile}
+            onSaveImage={
+              onReplaceFile
+                ? async (index, file) => {
+                    onReplaceFile(index, file)
+                  }
+                : undefined
+            }
+          >
+            {({ open }) => (
+              <div className={catalogMediaCompact.thumbStrip}>
+                {files.map((file, i) => {
+                  const mt = getMediaType(file)
+                  const isPrimary = i === primaryIndex && mt === 'image'
+                  return (
+                    <CatalogMediaThumb
+                      key={`${file.name}-${file.size}-${i}`}
+                      orderNumber={i + 1}
+                      draggable={!disabled}
+                      isDragging={thumbDrag.draggingIndex === i}
+                      isDragOver={thumbDrag.dragOverIndex === i}
+                      onDragHandleStart={thumbDrag.handleDragStart(i)}
+                      onDragOver={thumbDrag.handleDragOver(i)}
+                      onDrop={thumbDrag.handleDrop(i)}
+                      onDragEnd={thumbDrag.handleDragEnd}
+                      onOpen={() => open(i)}
+                      topLeft={
+                        <PrimaryTopLeft
+                          isPrimary={isPrimary}
+                          canSetPrimary={mt === 'image'}
+                          onSetPrimary={() => onPrimaryIndexChange(i)}
+                        />
+                      }
+                      topRight={<ThumbDeleteButton onClick={() => onRemoveFile(i)} />}
+                    >
+                      {mt === 'video' ? (
+                        <video src={previews[i]} className="h-full w-full object-cover" muted />
+                      ) : mt === 'model3d' ? (
+                        <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
+                          <Box className={catalogMediaCompact.model3dIcon} />
+                          <span className={catalogMediaCompact.model3dLabel}>{file.name.split('.').pop()?.toUpperCase()}</span>
+                        </div>
+                      ) : (
+                        <img src={previews[i]} alt="" className="h-full w-full object-cover" />
+                      )}
+                      {mt === 'video' && <span className="absolute right-0.5 top-0.5 flex items-center gap-0.5 rounded-full bg-primary px-0.5 py-px text-[7px] font-semibold text-white"><Film className="h-2 w-2" />Video</span>}
+                      {mt === 'model3d' && <span className="absolute right-0.5 top-0.5 flex items-center gap-0.5 rounded-full bg-cyan-600 px-0.5 py-px text-[7px] font-semibold text-white"><Box className="h-2 w-2" />3D</span>}
+                    </CatalogMediaThumb>
+                  )
+                })}
+              </div>
+            )}
+          </CatalogMediaLightboxHost>
+        )}
+      </div>
+    </div>
+  )
+}

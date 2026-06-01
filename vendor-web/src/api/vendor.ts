@@ -216,13 +216,16 @@ export const vendorApi = {
     return response.data
   },
 
-  createProduct: async (data: Record<string, unknown>, imageFiles?: File[]): Promise<Product> => {
+  createProduct: async (data: Record<string, unknown>, imageFiles?: File[], primaryImageIndex?: number): Promise<Product> => {
     const form = new FormData()
     form.append('product_data', JSON.stringify(data))
     if (imageFiles) {
       for (const file of imageFiles) {
         form.append('images', file)
       }
+    }
+    if (primaryImageIndex !== undefined && primaryImageIndex >= 0) {
+      form.append('primary_image_index', String(primaryImageIndex))
     }
     const response = await apiClient.post('/vendors/me/products', form)
     return response.data
@@ -380,6 +383,10 @@ export const vendorApi = {
     await apiClient.put(`/uploads/products/${productId}/images/${imageId}/primary`)
   },
 
+  reorderProductImages: async (productId: string, imageIds: string[]): Promise<void> => {
+    await apiClient.put(`/uploads/products/${productId}/images/reorder`, { image_ids: imageIds })
+  },
+
   // ── Variant Media ───────────────────────────────────────────
   uploadVariantMedia: async (variantId: string, file: File): Promise<{ media: VariantMediaItem[]; added: VariantMediaItem }> => {
     const form = new FormData()
@@ -395,6 +402,11 @@ export const vendorApi = {
 
   setPrimaryVariantMedia: async (variantId: string, url: string): Promise<{ media: VariantMediaItem[] }> => {
     const response = await apiClient.put(`/uploads/variants/${variantId}/media/primary`, null, { params: { url } })
+    return response.data
+  },
+
+  reorderVariantMedia: async (variantId: string, mediaUrls: string[]): Promise<{ media: VariantMediaItem[] }> => {
+    const response = await apiClient.put(`/uploads/variants/${variantId}/media/reorder`, { media_urls: mediaUrls })
     return response.data
   },
 
@@ -437,6 +449,11 @@ export const vendorApi = {
 
   setPrimaryServiceMedia: async (serviceId: string, mediaId: string): Promise<{ media: ServiceMediaItem[] }> => {
     const response = await apiClient.put(`/uploads/services/${serviceId}/media/${mediaId}/primary`)
+    return response.data
+  },
+
+  reorderServiceMedia: async (serviceId: string, mediaIds: string[]): Promise<{ media: ServiceMediaItem[] }> => {
+    const response = await apiClient.put(`/uploads/services/${serviceId}/media/reorder`, { media_ids: mediaIds })
     return response.data
   },
 

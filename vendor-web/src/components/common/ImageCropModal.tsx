@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop'
+import ReactCrop, {
+  type Crop,
+  type PixelCrop,
+  centerCrop,
+  convertToPixelCrop,
+  makeAspectCrop,
+} from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -100,18 +106,22 @@ export function ImageCropModal({
     reader.readAsDataURL(file)
   }, [file])
 
+  const applyCropSelection = useCallback((nextCrop: Crop, displayWidth: number, displayHeight: number) => {
+    setCrop(nextCrop)
+    setCompletedCrop(convertToPixelCrop(nextCrop, displayWidth, displayHeight))
+  }, [])
+
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth: nw, naturalHeight: nh, width, height } = e.currentTarget
     setNaturalSize({ w: nw, h: nh })
     setOutputW(String(nw))
     setOutputH(String(nh))
     const aspect = currentAspect
-    if (aspect) {
-      setCrop(centerAspectCrop(width, height, aspect))
-    } else {
-      setCrop(centerCrop({ unit: '%', width: 90, height: 90 }, width, height))
-    }
-  }, [currentAspect])
+    const initialCrop = aspect
+      ? centerAspectCrop(width, height, aspect)
+      : centerCrop({ unit: '%', width: 90, height: 90 }, width, height)
+    applyCropSelection(initialCrop, width, height)
+  }, [applyCropSelection, currentAspect])
 
   // Keep output W/H in sync with the completed crop region
   useEffect(() => {
@@ -167,11 +177,10 @@ export function ImageCropModal({
   const resetCrop = () => {
     if (!imgRef.current) return
     const { width, height } = imgRef.current
-    if (currentAspect) {
-      setCrop(centerAspectCrop(width, height, currentAspect))
-    } else {
-      setCrop(centerCrop({ unit: '%', width: 90, height: 90 }, width, height))
-    }
+    const nextCrop = currentAspect
+      ? centerAspectCrop(width, height, currentAspect)
+      : centerCrop({ unit: '%', width: 90, height: 90 }, width, height)
+    applyCropSelection(nextCrop, width, height)
   }
 
   const handleConfirm = async () => {
@@ -200,7 +209,7 @@ export function ImageCropModal({
   const useOriginal = () => onConfirm(file)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
@@ -218,6 +227,7 @@ export function ImageCropModal({
               onChange={(_, pct) => setCrop(pct)}
               onComplete={(c) => setCompletedCrop(c)}
               aspect={lockAspect ? currentAspect : undefined}
+              ruleOfThirds
               className="max-w-full max-h-full"
             >
               <img
@@ -314,11 +324,10 @@ export function ImageCropModal({
                   setLockAspect(p.aspect !== undefined)
                   if (imgRef.current) {
                     const { width, height } = imgRef.current
-                    if (p.aspect) {
-                      setCrop(centerAspectCrop(width, height, p.aspect))
-                    } else {
-                      setCrop(centerCrop({ unit: '%', width: 90, height: 90 }, width, height))
-                    }
+                    const nextCrop = p.aspect
+                      ? centerAspectCrop(width, height, p.aspect)
+                      : centerCrop({ unit: '%', width: 90, height: 90 }, width, height)
+                    applyCropSelection(nextCrop, width, height)
                   }
                 }}
                 className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${

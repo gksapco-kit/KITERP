@@ -28,12 +28,10 @@ import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import {
-  MediaUploadPickerModal,
   galleryImageToFile,
   resolveBrandingImageUrl,
-  MEDIA_UPLOAD_TARGET_LABELS,
-  type MediaUploadPickerTarget,
 } from '@/components/common/MediaUploadPickerModal'
+import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import {
   FormPageWithNav,
   FormSectionNav,
@@ -754,11 +752,6 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
   const [extraBannerUploading, setExtraBannerUploading] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
   const [cropTarget, setCropTarget] = useState<'logo' | 'banner' | null>(null)
-  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
-  const [mediaPickerTarget, setMediaPickerTarget] = useState<MediaUploadPickerTarget | null>(null)
-  const logoRef = useRef<HTMLInputElement>(null)
-  const bannerRef = useRef<HTMLInputElement>(null)
-  const extraBannerRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (vendor) {
@@ -779,20 +772,14 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
   const isDirty = useMemo(() => isProfileSectionDirty(form, vendor), [form, vendor])
   useSettingsSectionDirty('profile', isDirty)
 
-  const handleLogoFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleLogoFileSelected = (file: File) => {
     setCropFile(file)
     setCropTarget('logo')
-    if (logoRef.current) logoRef.current.value = ''
   }
 
-  const handleBannerFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleBannerFileSelected = (file: File) => {
     setCropFile(file)
     setCropTarget('banner')
-    if (bannerRef.current) bannerRef.current.value = ''
   }
 
   const handleCropConfirm = async (croppedFile: File) => {
@@ -945,10 +932,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
     }
   }
 
-  const handleExtraBannerFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (extraBannerRef.current) extraBannerRef.current.value = ''
+  const uploadExtraBannerFile = async (file: File) => {
     setExtraBannerUploading(true)
     try {
       if (unitBrandingEditable && activeStore) {
@@ -984,12 +968,9 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
     }
   }
 
-  const openMediaPicker = (target: MediaUploadPickerTarget) => {
-    setMediaPickerTarget(target)
-    setMediaPickerOpen(true)
-  }
+  type BrandingTarget = 'logo' | 'banner' | 'extra-banner'
 
-  const applyBrandingImageUrl = async (url: string, target: MediaUploadPickerTarget) => {
+  const applyBrandingImageUrl = async (url: string, target: BrandingTarget) => {
     if (target === 'logo') {
       if (unitBrandingEditable && activeStore) {
         await persistUnitBrandingSettings({ logo_url: url })
@@ -1017,38 +998,20 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
     toast.error('Extra banners must be uploaded as files')
   }
 
-  /** Gallery / URL picks are uploaded to /uploads so they display on storefront + settings. */
-  const applyBrandingFromFile = async (file: File, target: MediaUploadPickerTarget) => {
+  const applyBrandingFromFile = async (file: File, target: BrandingTarget) => {
     if (target === 'logo') {
-      setCropFile(file)
-      setCropTarget('logo')
+      handleLogoFileSelected(file)
       return
     }
     if (target === 'banner') {
-      setCropFile(file)
-      setCropTarget('banner')
+      handleBannerFileSelected(file)
       return
     }
     if (target !== 'extra-banner') return
-    setExtraBannerUploading(true)
-    try {
-      if (unitBrandingEditable && activeStore) {
-        const { url } = await vendorApi.uploadVendorBrandingAsset(file)
-        await persistBannerOrder([...orderedBanners, url])
-      } else {
-        const { extra_banners } = await vendorApi.uploadVendorExtraBanner(file)
-        syncThemeExtraBanners(extra_banners)
-      }
-      void qc.invalidateQueries({ queryKey: unitBrandingEditable ? vendorKeys.stores() : vendorKeys.me() })
-      toast.success('Banner added')
-    } catch {
-      toast.error('Could not upload banner — use a PNG or JPG under 5MB')
-    } finally {
-      setExtraBannerUploading(false)
-    }
+    await uploadExtraBannerFile(file)
   }
 
-  const applyBrandingFromRemoteImage = async (url: string, target: MediaUploadPickerTarget) => {
+  const applyBrandingFromRemoteImage = async (url: string, target: BrandingTarget) => {
     try {
       const file = await galleryImageToFile(url)
       await applyBrandingFromFile(file, target)
@@ -1065,11 +1028,26 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
     }
   }
 
-  const handleMediaChooseLocal = () => {
-    if (mediaPickerTarget === 'logo') logoRef.current?.click()
-    else if (mediaPickerTarget === 'banner') bannerRef.current?.click()
-    else if (mediaPickerTarget === 'extra-banner') extraBannerRef.current?.click()
-  }
+  const { openPicker: openLogoPicker, modal: logoPickerModal } = useImageSourcePicker({
+    title: 'Logo',
+    accept: 'image/jpeg,image/png,image/webp',
+    onFile: (file) => { void applyBrandingFromFile(file, 'logo') },
+    onUrl: (url) => { void applyBrandingFromRemoteImage(url, 'logo') },
+  })
+
+  const { openPicker: openBannerPicker, modal: bannerPickerModal } = useImageSourcePicker({
+    title: 'Store banner',
+    accept: 'image/jpeg,image/png,image/webp',
+    onFile: (file) => { void applyBrandingFromFile(file, 'banner') },
+    onUrl: (url) => { void applyBrandingFromRemoteImage(url, 'banner') },
+  })
+
+  const { openPicker: openExtraBannerPicker, modal: extraBannerPickerModal } = useImageSourcePicker({
+    title: 'Additional banner',
+    accept: 'image/jpeg,image/png,image/webp',
+    onFile: (file) => { void applyBrandingFromFile(file, 'extra-banner') },
+    onUrl: (url) => { void applyBrandingFromRemoteImage(url, 'extra-banner') },
+  })
 
   const imgUrl = resolveBrandingImageUrl
 
@@ -1086,16 +1064,9 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
         />
       )}
 
-      {mediaPickerTarget && (
-        <MediaUploadPickerModal
-          open={mediaPickerOpen}
-          onClose={() => setMediaPickerOpen(false)}
-          title={mediaPickerTarget ? `Add ${MEDIA_UPLOAD_TARGET_LABELS[mediaPickerTarget]}` : 'Add image'}
-          onChooseLocal={handleMediaChooseLocal}
-          onChooseGalleryUrl={(url) => applyBrandingFromRemoteImage(url, mediaPickerTarget)}
-          onChooseExternalUrl={(url) => applyBrandingFromRemoteImage(url, mediaPickerTarget)}
-        />
-      )}
+      {logoPickerModal}
+      {bannerPickerModal}
+      {extraBannerPickerModal}
 
       <form onSubmit={handleSubmit} className="space-y-2.5">
         {/* Logo & banner — single compact row */}
@@ -1111,11 +1082,10 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
             </span>
           </div>
           <div className="flex items-stretch gap-2">
-            <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFileSelected} />
             <div className="relative shrink-0">
               <button
                 type="button"
-                onClick={() => openMediaPicker('logo')}
+                onClick={() => openLogoPicker()}
                 title="Upload logo"
                 className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400 group"
               >
@@ -1148,14 +1118,11 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
             {/* Banners grid: compact list — delete shifts others up; any banner can be set primary */}
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFileSelected} />
-                <input ref={extraBannerRef} type="file" accept="image/*" className="hidden" onChange={handleExtraBannerFileSelected} />
-
                 {orderedBanners.length === 0 ? (
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => openMediaPicker('banner')}
+                      onClick={() => openBannerPicker()}
                       title="Upload primary banner (1200×400)"
                       className="group relative flex h-16 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
                     >
@@ -1176,7 +1143,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
                       {i === 0 ? (
                         <button
                           type="button"
-                          onClick={() => openMediaPicker('banner')}
+                          onClick={() => openBannerPicker()}
                           title="Replace primary banner"
                           className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
                         >
@@ -1224,7 +1191,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => openMediaPicker(orderedBanners.length === 0 ? 'banner' : 'extra-banner')}
+                    onClick={() => (orderedBanners.length === 0 ? openBannerPicker() : openExtraBannerPicker())}
                     title="Add another banner"
                     className="flex h-16 w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-primary hover:bg-primary/5"
                   >

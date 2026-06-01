@@ -431,6 +431,7 @@ async def _save_product_image(file: UploadFile) -> tuple[str, str]:
 async def create_product(
     product_data: str = Form(...),
     images: List[UploadFile] = File(default=[]),
+    primary_image_index: int = Form(default=0),
     current_user: User = Depends(get_current_active_user),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
@@ -474,14 +475,19 @@ async def create_product(
     if data.variants:
         await db.flush()
 
-    first_image_set = False
-    for i, img_file in enumerate(images):
+    media_items: list[tuple[str, str]] = []
+    for img_file in images:
         if not img_file.filename:
             continue
         url, media = await _save_product_image(img_file)
-        is_primary = not first_image_set and media == "image"
-        if is_primary:
-            first_image_set = True
+        media_items.append((url, media))
+
+    primary_idx = primary_image_index
+    if primary_idx < 0 or primary_idx >= len(media_items) or media_items[primary_idx][1] != "image":
+        primary_idx = next((i for i, (_, m) in enumerate(media_items) if m == "image"), -1)
+
+    for i, (url, media) in enumerate(media_items):
+        is_primary = i == primary_idx and media == "image"
         db.add(ProductImage(
             product_id=product.id,
             url=url,

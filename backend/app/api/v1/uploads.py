@@ -377,6 +377,35 @@ async def set_primary_product_image(
     return JSONResponse(content={"detail": "Primary image updated"})
 
 
+@router.put("/products/{product_id}/images/reorder")
+async def reorder_product_images(
+    product_id: UUID,
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reorder product images by id list (display order)."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    image_ids = body.get("image_ids") or []
+    if not image_ids:
+        raise HTTPException(status_code=400, detail="image_ids required")
+
+    id_to_img = {str(img.id): img for img in (product.images or [])}
+    for pos, img_id in enumerate(image_ids):
+        img = id_to_img.get(str(img_id))
+        if img:
+            img.position = pos
+
+    await db.commit()
+    return JSONResponse(content={"detail": "Images reordered"})
+
+
 # ── Variant Media ──────────────────────────────────────────────────
 
 @router.post("/variants/{variant_id}/media")
@@ -485,6 +514,53 @@ async def set_primary_variant_media(
     await db.commit()
 
     return JSONResponse(content={"media": current_media})
+
+
+@router.put("/variants/{variant_id}/media/reorder")
+async def reorder_variant_media(
+    variant_id: UUID,
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reorder variant media by url list (display order)."""
+    vendor_id = await _get_vendor_id(current_user, db)
+
+    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variant not found")
+
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(vendor_id, variant.product_id)
+    if not product:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    media_urls = body.get("media_urls") or []
+    if not media_urls:
+        raise HTTPException(status_code=400, detail="media_urls required")
+
+    url_to_item = {m.get("url"): m for m in (variant.media or [])}
+    reordered = []
+    seen = set()
+    for pos, url in enumerate(media_urls):
+        item = url_to_item.get(str(url))
+        if item:
+            item = dict(item)
+            item["position"] = pos
+            reordered.append(item)
+            seen.add(str(url))
+
+    for item in variant.media or []:
+        url = item.get("url")
+        if url and str(url) not in seen:
+            copy = dict(item)
+            copy["position"] = len(reordered)
+            reordered.append(copy)
+
+    variant.media = reordered
+    await db.commit()
+    return JSONResponse(content={"media": reordered})
 
 
 # ── Service Media ──────────────────────────────────────────────────
@@ -617,6 +693,46 @@ async def set_primary_service_media(
     await db.commit()
 
     return JSONResponse(content={"media": current_media})
+
+
+@router.put("/services/{service_id}/media/reorder")
+async def reorder_service_media(
+    service_id: UUID,
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reorder service media by id list (display order)."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    repo = ServiceRepository(db)
+    svc = await repo.get_by_vendor_and_id(vendor_id, service_id)
+
+    if not svc:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    media_ids = body.get("media_ids") or []
+    if not media_ids:
+        raise HTTPException(status_code=400, detail="media_ids required")
+
+    current_media = list(svc.media or [])
+    id_to_item = {item.get("id"): item for item in current_media if item.get("id")}
+    reordered = []
+    for pos, mid in enumerate(media_ids):
+        item = id_to_item.get(mid)
+        if item:
+            item["position"] = pos
+            reordered.append(item)
+    for item in current_media:
+        if item.get("id") not in media_ids:
+            item["position"] = len(reordered)
+            reordered.append(item)
+
+    svc.media = reordered
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(svc, "media")
+    await db.commit()
+
+    return JSONResponse(content={"media": reordered})
 
 
 # -- HR Document Upload --
