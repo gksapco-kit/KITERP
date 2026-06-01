@@ -43,7 +43,7 @@ export default function StorefrontContact() {
         {/* Contact cards */}
         <div className="space-y-4">
           {vendor.primary_phone && (
-            <a href={`tel:${vendor.primary_phone}`} className="flex items-center gap-4 bg-white rounded-xl border p-5 hover:shadow-md transition-shadow">
+            <a href={`tel:${vendor.primary_phone}`} className="flex items-center gap-4 bg-white rounded-xl border p-5 hover:shadow-md transition-shadow max-h-[90vh] overflow-y-auto">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${themeColor}15` }}>
                 <Phone className="w-6 h-6" style={{ color: themeColor }} />
               </div>
@@ -55,7 +55,7 @@ export default function StorefrontContact() {
           )}
 
           {vendor.primary_email && (
-            <a href={`mailto:${vendor.primary_email}`} className="flex items-center gap-4 bg-white rounded-xl border p-5 hover:shadow-md transition-shadow">
+            <a href={`mailto:${vendor.primary_email}`} className="flex items-center gap-4 bg-white rounded-xl border p-5 hover:shadow-md transition-shadow max-h-[90vh] overflow-y-auto">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${themeColor}15` }}>
                 <Mail className="w-6 h-6" style={{ color: themeColor }} />
               </div>

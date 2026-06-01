@@ -56,7 +56,7 @@ export default function ProgramDetailPage() {
           courses.map((c, idx) => {
             const Icon = CONTENT_ICONS[c.content_type] ?? FileText
             return (
-              <div key={c.id} className="bg-white border rounded-xl shadow-sm p-4">
+              <div key={c.id} className="bg-white border rounded-xl shadow-sm p-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold shrink-0">
                     {idx + 1}
@@ -148,7 +148,7 @@ function CourseModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onModalBackdropClick(onClose)}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
           <h2 className="text-lg font-bold">{course ? 'Edit Course' : 'Add Course'}</h2>

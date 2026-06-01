@@ -99,7 +99,7 @@ export default function AccountsReceivable() {
       )}
 
       {tab === 'apply' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-lg space-y-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
           <h2 className="font-semibold text-gray-800">Apply Payment to Invoice</h2>
           {[
             { label: 'Payment ID', key: 'payment_id' },

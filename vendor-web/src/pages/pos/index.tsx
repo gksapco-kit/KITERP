@@ -35,7 +35,7 @@ import {
   Tag, Star, Gift, Award, ImageIcon, ScanLine,
   AlertTriangle, ChevronDown, ChevronUp, PackagePlus, RefreshCw,
   LayoutGrid, LayoutList, XCircle, UserX, Info, CalendarDays, Pencil,
-  UtensilsCrossed,
+  UtensilsCrossed, Users,
 } from 'lucide-react'
 import { POSBookingPanel } from './POSBookingPanel'
 import { CreateBookingModal } from '@/pages/bookings/CreateBookingModal'
@@ -66,6 +66,30 @@ interface CartItem {
   duration_minutes?: number
   booking_notes?: string
   modifiers?: Array<{ group_id: string; group_name: string; option_id: string; option_name: string; price_delta: number }>
+}
+
+/** Per-line payable amount (discount + tax share) for split-by-cover billing. */
+function computeCartLineAmounts(
+  cart: CartItem[],
+  discountType: 'flat' | 'percentage',
+  cartDiscount: number,
+  couponDiscountAmt = 0,
+  loyaltyDiscountValue = 0,
+): number[] {
+  if (!cart.length) return []
+  const itemDiscountTotal = cart.reduce((s, i) => s + i.discount, 0)
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
+  const manualCartDiscount = discountType === 'percentage' ? subtotal * cartDiscount / 100 : cartDiscount
+  const cartLevelDiscount = manualCartDiscount + couponDiscountAmt + loyaltyDiscountValue
+  const pretaxAfterItemDiscounts = subtotal - itemDiscountTotal
+  return cart.map(i => {
+    const itemBase = i.price * i.qty - i.discount
+    const proportion = pretaxAfterItemDiscounts > 0 ? itemBase / pretaxAfterItemDiscounts : 1 / cart.length
+    const itemShareOfCartDiscount = cartLevelDiscount * proportion
+    const taxable = Math.max(0, itemBase - itemShareOfCartDiscount)
+    const tax = taxable * (i.tax_rate / 100)
+    return Math.round((itemBase - itemShareOfCartDiscount + tax) * 100) / 100
+  })
 }
 
 // Renders a catalog thumbnail with automatic fallback when the URL is broken/missing.
@@ -120,6 +144,7 @@ export default function POS() {
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('flat')
   const [paymentModal, setPaymentModal] = useState(false)
   const [restaurantTableLabel, setRestaurantTableLabel] = useState<string | null>(null)
+  const [restaurantCovers, setRestaurantCovers] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [sessionLoading, setSessionLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'products' | 'services'>('all')
@@ -270,15 +295,19 @@ export default function POS() {
         if (cancelled) return
         const items: CartItem[] = (order.items ?? [])
           .filter(i => i.qty > 0)
-          .map(i => ({
-            product_id: i.product_id ?? '',
-            name: i.name,
-            price: i.unit_price,
-            qty: i.qty,
-            tax_rate: i.tax_rate ?? 0,
-            discount: 0,
-            item_type: (i.item_type === 'service' ? 'service' : 'product') as 'product' | 'service',
-          }))
+          .map(i => {
+            const modifierExtra = (i.modifiers ?? []).reduce((s, m) => s + m.price_delta, 0)
+            return {
+              product_id: i.product_id ?? '',
+              name: i.name,
+              price: i.unit_price + modifierExtra,
+              qty: i.qty,
+              tax_rate: i.tax_rate ?? 0,
+              discount: 0,
+              item_type: (i.item_type === 'service' ? 'service' : 'product') as 'product' | 'service',
+              modifiers: i.modifiers,
+            }
+          })
         if (items.length === 0) {
           toast.warning('No items on this order to bill')
           restaurantOrderPrefilledRef.current = orderFromUrl
@@ -286,6 +315,7 @@ export default function POS() {
         }
         setCart(items)
         if (order.table_label) setRestaurantTableLabel(order.table_label)
+        if (order.covers && order.covers > 0) setRestaurantCovers(order.covers)
         restaurantOrderPrefilledRef.current = orderFromUrl
         toast.success(`Loaded ${items.length} item${items.length === 1 ? '' : 's'} from table order`)
       })
@@ -784,6 +814,16 @@ export default function POS() {
   const manualDiscount = manualCartDiscount + itemDiscountTotal
   const effectiveDiscount = manualDiscount + couponDiscountAmt + loyaltyDiscountValue
   const grandTotal = Math.max(0, Math.round(subtotal - effectiveDiscount + totalTax))
+  const cartLineAmounts = useMemo(
+    () => computeCartLineAmounts(
+      cart,
+      discountType,
+      cartDiscount,
+      couponApplied?.discount || 0,
+      loyaltyDiscountValue,
+    ),
+    [cart, discountType, cartDiscount, couponApplied, loyaltyDiscountValue],
+  )
 
   if (sessionLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
 
@@ -1659,6 +1699,7 @@ export default function POS() {
           total={grandTotal}
           sessionId={session!.id as string}
           cart={cart}
+          lineAmounts={cartLineAmounts}
           discountType={discountType}
           discountValue={cartDiscount}
           txnMode={txnMode}
@@ -1668,6 +1709,7 @@ export default function POS() {
           couponCode={couponApplied?.code}
           loyaltyPointsRedeem={loyaltyRedeem}
           restaurantTableId={tableFromUrl || undefined}
+          restaurantCovers={restaurantCovers ?? undefined}
           salesPersonVendorUserId={selectedSalesPerson?.id}
           onClose={() => setPaymentModal(false)}
           onComplete={(result) => {
@@ -1727,8 +1769,8 @@ export default function POS() {
 
       {/* Variant Picker Modal — shown when catalog product has variants */}
       {variantPickerProduct && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setVariantPickerProduct(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setVariantPickerProduct(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{variantPickerProduct.name}</h3>
@@ -1870,16 +1912,18 @@ export default function POS() {
 // ── Payment Modal ────────────────────────────────────────────────
 
 function PaymentModal({
- total, sessionId, cart, discountType, discountValue, txnMode, originalTxnId, selectedCustomer, notes, couponCode, loyaltyPointsRedeem, restaurantTableId, salesPersonVendorUserId, onClose, onComplete }: {
-  total: number; sessionId: string; cart: CartItem[]; discountType: string; discountValue: number
+ total, sessionId, cart, lineAmounts, discountType, discountValue, txnMode, originalTxnId, selectedCustomer, notes, couponCode, loyaltyPointsRedeem, restaurantTableId, restaurantCovers, salesPersonVendorUserId, onClose, onComplete }: {
+  total: number; sessionId: string; cart: CartItem[]; lineAmounts: number[]
+  discountType: string; discountValue: number
   txnMode: TxnMode; originalTxnId?: string; selectedCustomer?: { id: string; full_name: string } | null
   notes?: string; couponCode?: string; loyaltyPointsRedeem?: number
   restaurantTableId?: string
+  restaurantCovers?: number
   salesPersonVendorUserId?: string
   onClose: () => void; onComplete: (result: Record<string, unknown> | null) => void
 }) {
   const isRefund = txnMode === 'return'
-  const [method, setMethod] = useState<'cash' | 'upi' | 'card' | 'split'>('cash')
+  const [method, setMethod] = useState<'cash' | 'upi' | 'card' | 'split' | 'covers' | 'by_item'>('cash')
   const [cashReceived, setCashReceived] = useState(0)
   const [splitCash, setSplitCash] = useState(0)
   const [splitUpi, setSplitUpi] = useState(0)
@@ -1892,12 +1936,49 @@ function PaymentModal({
 
   const grandTotal = total + tipAmount + serviceChargeAmount
   const changeDue = method === 'cash' && !isRefund ? Math.max(0, cashReceived - grandTotal) : 0
+  const coverCount = restaurantCovers && restaurantCovers >= 2 ? restaurantCovers : 0
+  const perCoverAmount =
+    coverCount > 0 ? Math.round((grandTotal / coverCount) * 100) / 100 : 0
+  const canSplitByItem = coverCount >= 2 && cart.length >= 2 && lineAmounts.length === cart.length
+  const [itemCover, setItemCover] = useState<number[]>([])
+
+  useEffect(() => {
+    if (!canSplitByItem) return
+    setItemCover(cart.map((_, i) => i % coverCount))
+  }, [canSplitByItem, cart.length, coverCount])
 
   const handlePay = async () => {
     setLoading(true)
     let payments: { method: string; amount: number }[]
     let cashRcvd = 0
-    if (method === 'split') {
+    if (method === 'covers' && coverCount >= 2) {
+      payments = []
+      let remaining = grandTotal
+      for (let i = 0; i < coverCount; i += 1) {
+        const amt = i === coverCount - 1 ? Math.round(remaining * 100) / 100 : perCoverAmount
+        payments.push({ method: 'cash', amount: amt })
+        remaining -= amt
+      }
+      cashRcvd = grandTotal
+    } else if (method === 'by_item' && canSplitByItem) {
+      const coverTotals = Array.from({ length: coverCount }, () => 0)
+      cart.forEach((_, idx) => {
+        const c = itemCover[idx] ?? 0
+        coverTotals[c] += lineAmounts[idx] ?? 0
+      })
+      const baseSum = coverTotals.reduce((a, b) => a + b, 0)
+      const scale = baseSum > 0 ? grandTotal / baseSum : 1
+      const scaled = coverTotals.map(t => Math.round(t * scale * 100) / 100)
+      const active = scaled.map((v, i) => (v > 0 ? i : -1)).filter(i => i >= 0)
+      payments = []
+      let paid = 0
+      active.forEach((ci, n) => {
+        const amt = n === active.length - 1 ? Math.round((grandTotal - paid) * 100) / 100 : scaled[ci]
+        payments.push({ method: 'cash', amount: amt })
+        paid += amt
+      })
+      cashRcvd = grandTotal
+    } else if (method === 'split') {
       payments = []
       if (splitCash > 0) payments.push({ method: 'cash', amount: splitCash })
       if (splitUpi > 0) payments.push({ method: 'upi', amount: splitUpi })
@@ -1910,6 +1991,12 @@ function PaymentModal({
 
     const allNotes = [
       txnMode !== 'sale' ? `${txnMode.replace('_', ' ').toUpperCase()}` : '',
+      method === 'covers' && coverCount >= 2
+        ? `Split bill: ${coverCount} covers @ ${formatCurrency(perCoverAmount)} each`
+        : '',
+      method === 'by_item' && coverCount >= 2
+        ? `Split by item across ${coverCount} covers`
+        : '',
       returnDetailNotes,
       notes,
     ].filter(Boolean).join(' - ')
@@ -1964,10 +2051,16 @@ function PaymentModal({
     { key: 'upi' as const, icon: Smartphone, label: 'UPI', color: 'text-primary' },
     { key: 'card' as const, icon: CreditCard, label: 'Card', color: 'text-blue-600' },
     { key: 'split' as const, icon: FileText, label: 'Split', color: 'text-amber-600' },
+    ...(canSplitByItem
+      ? [{ key: 'by_item' as const, icon: LayoutList, label: 'By item', color: 'text-teal-600' }]
+      : []),
+    ...(coverCount >= 2
+      ? [{ key: 'covers' as const, icon: Users, label: `${coverCount} covers`, color: 'text-violet-600' }]
+      : []),
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className={`flex items-center justify-between px-6 py-4 border-b ${
           txnMode === 'return' ? 'bg-red-50' : ''
@@ -2015,7 +2108,7 @@ function PaymentModal({
 
           <div>
             <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">{isRefund ? 'Refund Method' : 'Payment Method'}</Label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className={`grid gap-2 ${paymentMethods.length > 4 ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-4'}`}>
               {paymentMethods.map(m => (
                 <button key={m.key} onClick={() => setMethod(m.key)}
                   className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-colors ${
@@ -2055,8 +2148,63 @@ function PaymentModal({
               <div className="flex gap-2 items-center"><Label className="w-12 shrink-0">Cash</Label><Input type="number" min={0} value={splitCash} onChange={e => setSplitCash(Number(e.target.value))} /></div>
               <div className="flex gap-2 items-center"><Label className="w-12 shrink-0">UPI</Label><Input type="number" min={0} value={splitUpi} onChange={e => setSplitUpi(Number(e.target.value))} /></div>
               <div className="flex gap-2 items-center"><Label className="w-12 shrink-0">Card</Label><Input type="number" min={0} value={splitCard} onChange={e => setSplitCard(Number(e.target.value))} /></div>
-              <p className={`text-sm font-medium ${splitCash + splitUpi + splitCard >= total ? 'text-green-600' : 'text-red-600'}`}>
-                Split: {formatCurrency(splitCash + splitUpi + splitCard)} / {formatCurrency(total)}
+              <p className={`text-sm font-medium ${splitCash + splitUpi + splitCard >= grandTotal ? 'text-green-600' : 'text-red-600'}`}>
+                Split: {formatCurrency(splitCash + splitUpi + splitCard)} / {formatCurrency(grandTotal)}
+              </p>
+            </div>
+          )}
+
+          {method === 'covers' && coverCount >= 2 && (
+            <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-2">
+              <p className="text-sm text-violet-900">
+                Equal split across <strong>{coverCount}</strong> covers from the table order.
+              </p>
+              <p className="text-lg font-bold text-violet-800">{formatCurrency(perCoverAmount)} per cover</p>
+              <p className="text-xs text-violet-600">
+                Records {coverCount} cash payments (one per cover). Adjust tip or service charge above before paying.
+              </p>
+            </div>
+          )}
+
+          {method === 'by_item' && canSplitByItem && (
+            <div className="rounded-lg border border-teal-200 bg-teal-50/80 p-3 space-y-2 max-h-48 overflow-y-auto">
+              <p className="text-xs font-medium text-teal-900">
+                Assign each line to a cover ({coverCount} guests). Totals include tax and discounts.
+              </p>
+              {cart.map((item, idx) => (
+                <div key={`${item.product_id}-${idx}`} className="flex items-center gap-2 text-sm">
+                  <span className="flex-1 min-w-0 truncate text-gray-800">
+                    {item.qty}× {item.name}
+                  </span>
+                  <span className="text-xs font-mono text-teal-800 shrink-0">
+                    {formatCurrency(lineAmounts[idx] ?? 0)}
+                  </span>
+                  <select
+                    className="h-8 rounded border border-teal-200 bg-white px-2 text-xs shrink-0"
+                    value={itemCover[idx] ?? 0}
+                    onChange={e => {
+                      const v = parseInt(e.target.value, 10)
+                      setItemCover(prev => {
+                        const next = [...prev]
+                        next[idx] = v
+                        return next
+                      })
+                    }}
+                  >
+                    {Array.from({ length: coverCount }, (_, c) => (
+                      <option key={c} value={c}>Cover {c + 1}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+              <p className="text-xs text-teal-700 pt-1 border-t border-teal-100">
+                {Array.from({ length: coverCount }, (_, c) => {
+                  const sum = cart.reduce(
+                    (s, __, idx) => s + ((itemCover[idx] ?? 0) === c ? (lineAmounts[idx] ?? 0) : 0),
+                    0,
+                  )
+                  return `Cover ${c + 1}: ${formatCurrency(sum)}`
+                }).join(' · ')}
               </p>
             </div>
           )}
@@ -2073,7 +2221,11 @@ function PaymentModal({
           <Button
             className={`w-full gap-2 ${txnMode === 'return' ? 'bg-red-600 hover:bg-red-700' : ''}`}
             size="lg" onClick={handlePay}
-            disabled={loading || (method === 'split' && splitCash + splitUpi + splitCard < total) || (!isRefund && method === 'cash' && cashReceived < total)}
+            disabled={
+              loading ||
+              (method === 'split' && splitCash + splitUpi + splitCard < grandTotal) ||
+              (!isRefund && method === 'cash' && cashReceived < grandTotal)
+            }
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <IndianRupee className="w-5 h-5" />}
             {txnMode === 'sale' ? 'Complete Sale' : 'Process Refund'}
@@ -2294,7 +2446,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
 
   return (
     <div className="max-w-lg mx-auto py-8 space-y-6">
-      <div className="bg-white rounded-2xl border shadow-lg overflow-hidden">
+      <div className="bg-white rounded-2xl border shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className={`px-6 py-5 text-center ${txnMode === 'return' ? 'bg-red-50' : 'bg-green-50'}`}>
           <div className={`w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center ${txnMode === 'return' ? 'bg-red-100' : 'bg-green-100'}`}>
             <Check className={`w-7 h-7 ${txnMode === 'return' ? 'text-red-600' : 'text-green-600'}`} />
@@ -3589,7 +3741,7 @@ function POSInvoiceSettingsModal({
   const previewWidth = isNarrow ? (localPaper === '2inch' ? 220 : localPaper === '3inch' ? 302 : 394) : 500
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl mx-4 max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-3.5 border-b bg-gray-50">
           <div>
@@ -3776,7 +3928,7 @@ function POSInvoiceSettingsModal({
 
             {/* ── Right: Live Preview ── */}
             <div className="flex-1 bg-gray-100 overflow-auto flex justify-center p-6">
-              <div style={{ width: previewWidth, minHeight: 400 }} className="bg-white shadow-lg rounded-lg overflow-hidden">
+              <div style={{ width: previewWidth, minHeight: 400 }} className="bg-white shadow-lg rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto">
                 {previewHtml ? (
                   <iframe srcDoc={previewHtml} title="POS Invoice Preview" className="w-full border-0"
                     style={{
@@ -4136,7 +4288,7 @@ function ModifierPickerModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>

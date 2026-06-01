@@ -111,8 +111,8 @@ function AttendanceModal({
   const isPending = mark.isPending || update.isPending
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-base font-semibold text-gray-900">{isEdit ? 'Edit Attendance Record' : 'Mark Attendance'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -367,7 +367,7 @@ function RangeMarkModal({
   // STEP 1 — Range + defaults
   // ═══════════════════════════════════════════════════════════════════
   if (step === 1) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col">
 
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
@@ -564,7 +564,7 @@ function RangeMarkModal({
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col">
 
         {/* Header */}
@@ -859,7 +859,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 mb-4">
+      <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-4 mb-4 max-h-[90vh] overflow-y-auto">
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <div className="flex items-center gap-2">
             <label className="text-xs text-muted-foreground whitespace-nowrap">From</label>
@@ -921,7 +921,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Table */}
-      <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : records.length === 0 ? (

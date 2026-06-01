@@ -207,7 +207,7 @@ function ConfigPanel({
   }
 
   return (
-    <div className="absolute right-0 top-10 z-50 w-72 bg-white rounded-xl border shadow-xl overflow-hidden">
+    <div className="absolute right-0 top-10 z-50 w-72 bg-white rounded-xl border shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
         <span className="text-sm font-bold text-gray-800">Configure Grid</span>
         <div className="flex items-center gap-2">

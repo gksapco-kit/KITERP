@@ -5,8 +5,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_current_vendor_user, require_permission
 from app.models.user import User
+from app.models.vendor_plan import VendorPlan
+from app.models.vendor_user import VendorUser
 from app.services.vendor_service import VendorService
 from app.services.restaurant_service import RestaurantService
 from app.schemas.restaurant import (
@@ -23,18 +25,34 @@ from app.schemas.restaurant import (
     RestaurantKOTStatusUpdate,
     RestaurantReservationCreate,
     RestaurantReservationStatusUpdate,
+    RestaurantReservationUpdate,
+    RestaurantMenuSettingsOut,
+    RestaurantMenuSettingsUpdate,
+    RestaurantSeatReservationIn,
 )
 from datetime import date as date_type
 
 router = APIRouter()
 
 
-async def _vendor_id(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)) -> UUID:
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(404, "No vendor found")
-    return vendor.id
+async def _check_restaurant_plan(vendor_id: UUID, db: AsyncSession) -> None:
+    from app.models.vendor import Vendor
+    vendor = await db.get(Vendor, vendor_id)
+    if vendor and vendor.plan_id:
+        plan = await db.get(VendorPlan, vendor.plan_id)
+        if plan and (plan.features or {}).get("restaurant") is False:
+            raise HTTPException(
+                403,
+                "Restaurant module is not included in your subscription plan",
+            )
+
+
+async def _vendor_id(
+    vu: VendorUser = Depends(require_permission("restaurant.view")),
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
+    await _check_restaurant_plan(vu.vendor_id, db)
+    return vu.vendor_id
 
 
 # ── Serialisers ───────────────────────────────────────────────────────
@@ -83,7 +101,7 @@ def _order_dict(o, table_label=None, kots=None):
     }
 
 
-def _kot_dict(k, table_label=None, covers=None):
+def _kot_dict(k, table_label=None, covers=None, order_status=None):
     d = {
         "id": str(k.id),
         "order_id": str(k.order_id),
@@ -94,6 +112,7 @@ def _kot_dict(k, table_label=None, covers=None):
         "items": k.items or [],
         "notes": k.notes,
         "covers": covers,
+        "order_status": order_status,
         "created_at": k.created_at.isoformat() if k.created_at else None,
     }
     return d
@@ -322,7 +341,7 @@ async def list_kots(
 ):
     svc = RestaurantService(db)
     rows = await svc.list_kots(vid, include_done=include_done)
-    items = [_kot_dict(k, tl, cov) for k, tl, cov in rows]
+    items = [_kot_dict(k, tl, cov, ost) for k, tl, cov, ost in rows]
     return JSONResponse(content={"items": items})
 
 
@@ -421,15 +440,117 @@ async def create_reservation(data: RestaurantReservationCreate, vid: UUID = Depe
 
 
 @router.patch("/reservations/{reservation_id}")
-async def update_reservation(reservation_id: str, data: RestaurantReservationStatusUpdate, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def update_reservation(
+    reservation_id: str,
+    data: RestaurantReservationUpdate,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.reservations")),
+):
     svc = RestaurantService(db)
-    r = await svc.update_reservation_status(
-        vid, UUID(reservation_id), data.status,
-        table_id=UUID(data.table_id) if data.table_id else None
+    r = await svc.update_reservation(
+        vid, UUID(reservation_id),
+        guest_name=data.guest_name,
+        guest_phone=data.guest_phone,
+        guest_email=data.guest_email,
+        reservation_date=data.reservation_date,
+        reservation_time=data.reservation_time,
+        party_size=data.party_size,
+        table_id=UUID(data.table_id) if data.table_id else None,
+        notes=data.notes,
+        status=data.status,
     )
     if not r:
         raise HTTPException(404, "Reservation not found")
-    return JSONResponse(content={"id": str(r.id), "status": r.status})
+    tl = None
+    if r.table_id:
+        from app.models.restaurant import RestaurantTable
+        t = await db.get(RestaurantTable, r.table_id)
+        tl = t.label if t else None
+    return JSONResponse(content=_reservation_dict(r, tl))
+
+
+@router.post("/reservations/{reservation_id}/seat", status_code=201)
+async def seat_reservation(
+    reservation_id: str,
+    data: RestaurantSeatReservationIn,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.reservations")),
+):
+    svc = RestaurantService(db)
+    try:
+        r, order = await svc.seat_reservation(
+            vid, UUID(reservation_id), UUID(data.table_id), covers=data.covers,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    tl = None
+    if r.table_id:
+        from app.models.restaurant import RestaurantTable
+        t = await db.get(RestaurantTable, r.table_id)
+        tl = t.label if t else None
+    return JSONResponse(content={
+        "reservation": _reservation_dict(r, tl),
+        "order_id": str(order.id),
+        "table_id": str(order.table_id) if order.table_id else None,
+    }, status_code=201)
+
+
+@router.get("/menu")
+async def get_restaurant_menu_settings(vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = RestaurantService(db)
+    settings = await svc.get_menu_settings(vid)
+    products = await svc.list_dine_in_catalog(vid)
+    return JSONResponse(content={
+        **settings,
+        "items": [
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "category": p.category,
+                "price": float(p.price or 0),
+                "status": p.status,
+            }
+            for p in products
+        ],
+    })
+
+
+@router.get("/dine-in-products")
+async def list_dine_in_products(vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    """Active products included on QR / staff dine-in catalog per menu settings."""
+    svc = RestaurantService(db)
+    products = await svc.list_dine_in_catalog(vid)
+    return JSONResponse(content={
+        "items": [
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "sku": p.sku,
+                "price": float(p.price or 0),
+                "tax_rate": float(p.tax_rate or p.gst_rate or 0),
+                "category": p.category,
+                "item_type": "product",
+            }
+            for p in products
+        ],
+    })
+
+
+@router.put("/menu")
+async def update_restaurant_menu_settings(
+    data: RestaurantMenuSettingsUpdate,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _vu: VendorUser = Depends(require_permission("restaurant.setup")),
+):
+    svc = RestaurantService(db)
+    try:
+        out = await svc.set_menu_settings(vid, data.mode, data.product_ids)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return JSONResponse(content=out)
 
 
 @router.delete("/reservations/{reservation_id}")

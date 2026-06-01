@@ -76,7 +76,7 @@ export default function StorefrontServices() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {data.items.map((s) => (
-              <Link key={s.id} to={`${base}/services/${s.slug}`} className="group bg-white rounded-xl border p-6 hover:shadow-lg transition-all">
+              <Link key={s.id} to={`${base}/services/${s.slug}`} className="group bg-white rounded-xl border p-6 hover:shadow-lg transition-all max-h-[90vh] overflow-y-auto">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 text-lg group-hover:underline">{s.name}</h3>

@@ -119,7 +119,7 @@ export default function Services() {
           <Button variant="ghost" onClick={() => setShowForm(false)}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
           <h1 className="text-xl font-bold text-gray-900">{editingId ? 'Edit Service' : 'Add Service'}</h1>
         </div>
-        <div className="bg-white rounded-xl border p-6 space-y-6 max-w-3xl">
+        <div className="bg-white rounded-xl border p-6 space-y-6 max-w-3xl max-h-[90vh] overflow-y-auto">
           {/* Basic Info */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-900">Basic Information</h3>

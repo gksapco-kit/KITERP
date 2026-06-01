@@ -369,7 +369,7 @@ export default function ProductAuditReport() {
               <ChevronDown className="w-3.5 h-3.5" />
             </Button>
             {showExportMenu && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg border shadow-lg z-50 py-1">
+              <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
                 <button
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   onClick={() => { downloadFile(buildCsvContent(filteredRows, product), `${slug}-audit.csv`, 'text/csv;charset=utf-8;'); setShowExportMenu(false); toast.success('CSV downloaded') }}
@@ -414,7 +414,7 @@ export default function ProductAuditReport() {
               <ChevronDown className="w-3.5 h-3.5" />
             </Button>
             {showShareMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg border shadow-lg z-50 py-1">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
                 <button
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   onClick={() => { shareReport(product, filteredRows, 'copy'); setShowShareMenu(false) }}

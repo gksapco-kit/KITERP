@@ -20,8 +20,8 @@ function DeleteConfirmModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onClose}
@@ -165,7 +165,7 @@ export default function PayrollDetailPage() {
       </div>
 
       {/* Entries */}
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Employee Payslips</h3>
           <span className="text-xs text-gray-400">{entries.length} entries</span>

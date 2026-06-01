@@ -62,7 +62,7 @@ export default function ESSAttendancePage() {
       </div>
 
       {/* Today card */}
-      <div className="bg-white rounded-xl border shadow-sm p-6 mb-6">
+      <div className="bg-white rounded-xl border shadow-sm p-6 mb-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm text-gray-500">
@@ -138,7 +138,7 @@ export default function ESSAttendancePage() {
       </div>
 
       {/* History */}
-      <div className="bg-white rounded-xl border shadow-sm">
+      <div className="bg-white rounded-xl border shadow-sm max-h-[90vh] overflow-y-auto">
         <div className="p-4 border-b flex items-center gap-3">
           <h3 className="font-semibold text-gray-900">Monthly History</h3>
           <select

@@ -18,6 +18,7 @@ import {
   loadPosInvoiceSettings, savePosInvoiceSettings, DEFAULT_LAYOUT_SECTIONS,
 } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings, PaperSize, LayoutSection } from '@/lib/invoiceTemplates'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 
 // ── Template visual thumbnails ────────────────────────────────────────────────
 
@@ -604,7 +605,6 @@ export default function InvoiceSettingsPage() {
   const { data: vendor } = useQuery({ queryKey: ['myVendor'], queryFn: vendorApi.getMyVendor })
   const updateSettings = useUpdateInvoiceSettings()
   const uploadSignature = useUploadInvoiceSignature()
-  const sigInputRef = useRef<HTMLInputElement>(null)
 
   // Tab: 'invoice' = standard customer invoice (API-backed), 'pos' = POS receipt (localStorage)
   const [activeTab, setActiveTab] = useState<'invoice' | 'pos'>('invoice')
@@ -696,16 +696,7 @@ export default function InvoiceSettingsPage() {
     toast.success('POS template reset to match invoice settings')
   }
 
-  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const result = await uploadSignature.mutateAsync(file)
-    set('signature_url', result.signature_url)
-  }
-
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const uploadLogo = async (file: File) => {
     try {
       const result = await vendorApi.uploadVendorLogo(file)
       set('logo_url', result.logo_url)
@@ -713,6 +704,11 @@ export default function InvoiceSettingsPage() {
     } catch {
       toast.error('Could not upload logo — use a PNG or JPG file under 2MB')
     }
+  }
+
+  const applySignatureUpload = async (file: File) => {
+    const result = await uploadSignature.mutateAsync(file)
+    set('signature_url', result.signature_url)
   }
 
   if (isLoading) {
@@ -782,7 +778,7 @@ export default function InvoiceSettingsPage() {
               <span className="text-xs text-gray-400">(sample data)</span>
             </div>
             <div className="border rounded-xl overflow-hidden bg-gray-100 min-h-[700px] flex items-start justify-center p-4">
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden"
+              <div className="bg-white shadow-lg rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto"
                 style={{
                   transform: 'scale(0.85)', transformOrigin: 'top center',
                   width: (posMerged().paper_size === '2inch') ? '220px'
@@ -1296,7 +1292,7 @@ export default function InvoiceSettingsPage() {
           </div>
           <div className="border rounded-xl overflow-hidden bg-gray-100 min-h-[700px] flex items-start justify-center p-4">
             <div
-              className="bg-white shadow-lg rounded-lg overflow-hidden"
+              className="bg-white shadow-lg rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto"
               style={{
                 transform: 'scale(0.85)',
                 transformOrigin: 'top center',
@@ -1484,12 +1480,14 @@ export default function InvoiceSettingsPage() {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <input type="file" accept="image/*" className="hidden" id="logo-upload" onChange={handleLogoUpload} />
-                <label htmlFor="logo-upload">
-                  <Button variant="outline" size="sm" className="gap-1.5 w-full cursor-pointer text-xs" asChild>
-                    <span><Upload className="w-3 h-3" /> {logoUrl ? 'Change' : 'Upload Logo'}</span>
-                  </Button>
-                </label>
+                <ImageSourcePicker
+                  title="Logo"
+                  onFile={uploadLogo}
+                  buttonLabel={logoUrl ? 'Change logo' : 'Upload logo'}
+                  buttonVariant="outline"
+                  buttonSize="sm"
+                  buttonClassName="gap-1.5 w-full cursor-pointer text-xs"
+                />
                 <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG • Max 2 MB</p>
               </div>
             </div>
@@ -1524,12 +1522,16 @@ export default function InvoiceSettingsPage() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <input type="file" accept="image/*" className="hidden" ref={sigInputRef} onChange={handleSignatureUpload} />
-                  <Button variant="outline" size="sm" className="gap-1.5 w-full text-xs"
-                    onClick={() => sigInputRef.current?.click()} disabled={uploadSignature.isPending}>
-                    {uploadSignature.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                    {settings.signature_url ? 'Change' : 'Upload'}
-                  </Button>
+                  <ImageSourcePicker
+                    title="Signature"
+                    onFile={applySignatureUpload}
+                    disabled={uploadSignature.isPending}
+                    uploading={uploadSignature.isPending}
+                    buttonLabel={settings.signature_url ? 'Change signature' : 'Upload signature'}
+                    buttonVariant="outline"
+                    buttonSize="sm"
+                    buttonClassName="gap-1.5 w-full text-xs"
+                  />
                   <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG recommended</p>
                 </div>
               </div>

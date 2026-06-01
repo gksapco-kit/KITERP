@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><title>Scenario 1 — Orders Management</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 0 auto; padding: 24px; background: #f8fafc; color: #111; }
+  h1 { font-size: 1.5rem; }
+  .summary { margin: 16px 0; padding: 12px 16px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .step { margin: 24px 0; padding: 16px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; page-break-inside: avoid; }
+  .step.fail { border-color: #fca5a5; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-right: 8px; vertical-align: middle; }
+  .pass .badge { background: #dcfce7; color: #166534; }
+  .fail .badge { background: #fee2e2; color: #991b1b; }
+  img { max-width: 100%; margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 6px; }
+  .note { color: #64748b; font-size: 0.9rem; }
+</style></head><body>
+  <h1>Scenario 1 — Orders Management</h1>
+  <div class="summary"><strong>5/5</strong> steps passed · 1/6/2026, 1:21:59 am</div>
+  
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 1.1 — Orders page loads with heading</h2>
+      
+      <img src="01-orders-list.png" alt="Orders page loads with heading" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 1.2 — Source filter tabs visible (All, Online, POS, Booking)</h2>
+      
+      <img src="02-source-filters.png" alt="Source filter tabs visible (All, Online, POS, Booking)" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 1.3 — POS source filter activates</h2>
+      
+      <img src="03-pos-filter.png" alt="POS source filter activates" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 1.4 — Status filters and SOURCE column visible</h2>
+      
+      <img src="04-status-and-table.png" alt="Status filters and SOURCE column visible" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 1.5 — Pending status filter applied</h2>
+      
+      <img src="05-pending-filter.png" alt="Pending status filter applied" />
+    </section>
+</body></html>

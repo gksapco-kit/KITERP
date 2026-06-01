@@ -21,6 +21,7 @@ import {
   ExternalLink, RefreshCcw, Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { toast } from 'sonner'
 import {
@@ -142,8 +143,25 @@ function SectionWrapper({
 function ProfileHero() {
   const { user } = useAuthStore()
   const { data: vendor } = useMyVendor()
-  const fileRef = useRef<HTMLInputElement>(null)
   const upload = useUploadAvatar()
+
+  const uploadAvatarFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file (JPEG, PNG, WebP, or GIF).')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image is too large (max 5 MB).')
+      return
+    }
+    upload.mutate(file)
+  }
+
+  const { openPicker, fileInput, modal } = useImageSourcePicker({
+    title: 'Profile photo',
+    accept: 'image/jpeg,image/png,image/webp,image/gif',
+    onFile: uploadAvatarFile,
+  })
 
   const initials = useMemo(() => {
     const name = user?.full_name || user?.email || 'U'
@@ -163,24 +181,7 @@ function ProfileHero() {
     } catch { return '' }
   }, [user?.created_at])
 
-  const onPickFile = () => fileRef.current?.click()
-  const onFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    if (!f.type.startsWith('image/')) {
-      toast.error('Please choose an image file (JPEG, PNG, WebP, or GIF).')
-      return
-    }
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error('Image is too large (max 5 MB).')
-      return
-    }
-    upload.mutate(f, {
-      onSettled: () => {
-        if (fileRef.current) fileRef.current.value = ''
-      },
-    })
-  }
+  const onPickFile = () => openPicker()
 
   const role = user?.vendor_role?.role_name || 'Member'
 
@@ -217,13 +218,8 @@ function ProfileHero() {
                 <Camera className="w-4 h-4 text-primary" />
               )}
             </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={onFileSelected}
-            />
+            {fileInput}
+            {modal}
           </div>
 
           <div className="flex-1 min-w-0">

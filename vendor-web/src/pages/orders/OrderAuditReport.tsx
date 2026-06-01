@@ -293,7 +293,7 @@ export default function OrderAuditReport() {
               <FileDown className="w-4 h-4" />Download<ChevronDown className="w-3.5 h-3.5" />
             </Button>
             {showExportMenu && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg border shadow-lg z-50 py-1">
+              <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { downloadFile(buildCsvContent(filteredRows, order), `order-${slug}-audit.csv`, 'text/csv;charset=utf-8;'); setShowExportMenu(false); toast.success('CSV downloaded') }}>
                   <FileDown className="w-4 h-4 text-green-600" /> Download as CSV
                 </button>
@@ -315,7 +315,7 @@ export default function OrderAuditReport() {
               <Share2 className="w-4 h-4" />Share<ChevronDown className="w-3.5 h-3.5" />
             </Button>
             {showShareMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg border shadow-lg z-50 py-1">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg border shadow-lg z-50 py-1 max-h-[90vh] overflow-y-auto">
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { shareReport(order, filteredRows, 'copy'); setShowShareMenu(false) }}><Copy className="w-4 h-4 text-gray-400" /> Copy to Clipboard</button>
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { shareReport(order, filteredRows, 'whatsapp'); setShowShareMenu(false) }}><MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp</button>
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => { shareReport(order, filteredRows, 'email'); setShowShareMenu(false) }}><Mail className="w-4 h-4 text-blue-500" /> Email</button>

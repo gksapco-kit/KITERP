@@ -40,7 +40,7 @@ export default function MyOnboardingPage() {
         {checklist.target_completion_date && ` · Target ${checklist.target_completion_date}`}
       </p>
 
-      <div className="bg-white border rounded-xl shadow-sm p-5 mb-5">
+      <div className="bg-white border rounded-xl shadow-sm p-5 mb-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-semibold text-gray-700">{done}/{tasks.length} tasks complete</p>
           <p className="text-2xl font-bold text-blue-600">{pct}%</p>
@@ -50,7 +50,7 @@ export default function MyOnboardingPage() {
         </div>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm divide-y">
+      <div className="bg-white border rounded-xl shadow-sm divide-y max-h-[90vh] overflow-y-auto">
         {tasks.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">No tasks assigned yet.</div>
         ) : tasks.map(t => {

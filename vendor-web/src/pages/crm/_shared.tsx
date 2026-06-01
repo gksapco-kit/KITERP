@@ -10,7 +10,7 @@ export function CrmModal({
   title, onClose, children, maxW = 'max-w-lg',
 }: { title: string; onClose: () => void; children: ReactNode; maxW?: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
       <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxW} max-h-[90vh] overflow-y-auto`}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10" onClick={e => e.stopPropagation()}>
           <h2 className="text-lg font-semibold">{title}</h2>

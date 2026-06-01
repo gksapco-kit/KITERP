@@ -13,6 +13,7 @@ import {
   Palette, ToggleLeft, FileOutput,
 } from 'lucide-react'
 import { generatePOHtml, PO_TEMPLATE_COLORS, DEFAULT_PO_SETTINGS } from '@/lib/poTemplates'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import type { POTemplateSettings } from '@/lib/poTemplates'
 
 // ── Template thumbnails ───────────────────────────────────────────────────────
@@ -294,7 +295,6 @@ export default function POTemplatesPage() {
   const { data: rawSettings, isLoading } = usePOTemplateSettings()
   const { data: vendor } = useQuery({ queryKey: ['myVendor'], queryFn: vendorApi.getMyVendor })
   const updateSettings = useUpdatePOTemplateSettings()
-  const sigFileRef = useRef<HTMLInputElement>(null)
 
   const [settings, setSettings] = useState<POTemplateSettings>({ ...DEFAULT_PO_SETTINGS })
   const [previewHtml, setPreviewHtml] = useState('')
@@ -355,9 +355,17 @@ export default function POTemplatesPage() {
     }
   }
 
-  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const uploadPoLogo = async (file: File) => {
+    try {
+      const result = await vendorApi.uploadVendorLogo(file)
+      set('logo_url', result.logo_url)
+      toast.success('Logo updated!')
+    } catch {
+      toast.error('Could not upload PO logo — use a PNG or JPG file under 2MB')
+    }
+  }
+
+  const applyPoSignatureUpload = async (file: File) => {
     setUploadingSignature(true)
     try {
       const result = await vendorApi.uploadInvoiceSignature(file)
@@ -367,18 +375,6 @@ export default function POTemplatesPage() {
       toast.error('Could not upload PO signature — use a PNG or JPG file under 2MB')
     } finally {
       setUploadingSignature(false)
-    }
-  }
-
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const result = await vendorApi.uploadVendorLogo(file)
-      set('logo_url', result.logo_url)
-      toast.success('Logo updated!')
-    } catch {
-      toast.error('Could not upload PO logo — use a PNG or JPG file under 2MB')
     }
   }
 
@@ -541,12 +537,14 @@ export default function POTemplatesPage() {
                   </div>
                 )}
                 <div className="flex-1">
-                  <input type="file" accept="image/*" className="hidden" id="po-logo-upload" onChange={handleLogoUpload} />
-                  <label htmlFor="po-logo-upload">
-                    <Button variant="outline" size="sm" className="gap-1.5 w-full cursor-pointer" asChild>
-                      <span><Upload className="w-3.5 h-3.5" /> {logoUrl ? 'Change Logo' : 'Upload Logo'}</span>
-                    </Button>
-                  </label>
+                  <ImageSourcePicker
+                    title="Logo"
+                    onFile={uploadPoLogo}
+                    buttonLabel={logoUrl ? 'Change logo' : 'Upload logo'}
+                    buttonVariant="outline"
+                    buttonSize="sm"
+                    buttonClassName="gap-1.5 w-full"
+                  />
                   <p className="text-xs text-gray-400 mt-1.5">PNG, JPG, SVG · Max 2 MB</p>
                 </div>
               </div>
@@ -580,11 +578,16 @@ export default function POTemplatesPage() {
                     </div>
                   )}
                   <div className="flex-1">
-                    <input type="file" accept="image/*" className="hidden" ref={sigFileRef} onChange={handleSignatureUpload} />
-                    <Button variant="outline" size="sm" className="gap-1.5 w-full" onClick={() => sigFileRef.current?.click()} disabled={uploadingSignature}>
-                      {uploadingSignature ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                      {settings.signature_url ? 'Change Signature' : 'Upload Signature'}
-                    </Button>
+                    <ImageSourcePicker
+                      title="Signature"
+                      onFile={applyPoSignatureUpload}
+                      disabled={uploadingSignature}
+                      uploading={uploadingSignature}
+                      buttonLabel={settings.signature_url ? 'Change signature' : 'Upload signature'}
+                      buttonVariant="outline"
+                      buttonSize="sm"
+                      buttonClassName="gap-1.5 w-full"
+                    />
                     <p className="text-xs text-gray-400 mt-1.5">PNG, JPG · transparent background recommended</p>
                   </div>
                 </div>

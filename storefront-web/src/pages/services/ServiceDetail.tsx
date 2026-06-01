@@ -240,8 +240,8 @@ function BookingModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 fade-in-0" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 fade-in-0 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2">
             <CalendarDays className={`w-5 h-5 ${themeUi.iconPrimary}`} />
@@ -419,7 +419,7 @@ function QuoteRequestModal({
   const otherFields = fields.filter(f => f.type !== 'date' && f.type !== 'time')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 fade-in-0 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white rounded-t-2xl z-10">
           <div className="flex items-center gap-2">
@@ -778,7 +778,7 @@ export default function ServiceDetail() {
 
         {/* Right — Sidebar */}
         <div className="lg:col-span-4 min-w-0">
-          <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-7 sticky top-4 space-y-6 shadow-sm ring-1 ring-black/[0.03]">
+          <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-7 sticky top-4 space-y-6 shadow-sm ring-1 ring-black/[0.03] max-h-[90vh] overflow-y-auto">
             {/* Mode toggle — shown when vendor enabled both booking & subscription */}
             {hasBothModes && (
               <div className="flex rounded-xl bg-gray-100/90 p-1 gap-1 ring-1 ring-gray-200/70">

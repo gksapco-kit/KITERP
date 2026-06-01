@@ -247,6 +247,7 @@ export interface Product {
   related_product_ids: string[]
   upsell_product_ids: string[]
   cross_sell_product_ids: string[]
+  addons?: import('@/lib/catalogAddons').CatalogAddon[]
   // Digital
   is_digital: boolean
   download_url?: string
@@ -480,7 +481,7 @@ export interface Service {
   meta_keywords: string[]
   // Advanced
   service_packages: unknown[]
-  addons: string[]
+  addons: import('@/lib/catalogAddons').CatalogAddon[] | string[]
   prerequisites?: string
   whats_included: string[]
   whats_not_included: string[]

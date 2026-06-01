@@ -315,3 +315,22 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 [data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast][data-styled='true'] [data-close-button]:hover {
   background: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* Viewport-safe centered modals — scrollable when zoomed or on short screens */
+@layer components {
+  .fixed.inset-0.flex.items-center.justify-center:not(.overflow-hidden):not([data-modal-fullscreen]) {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='max-h-']):not([class*='inset-']) {
+    max-height: min(90dvh, calc(100vh - 2rem));
+    overflow-y: auto;
+  }
+
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-'][class*='max-h-'][class*='flex-col']:not([class*='overflow-hidden']) {
+    overflow: hidden;
+  }
+}

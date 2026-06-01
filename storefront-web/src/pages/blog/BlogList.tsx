@@ -20,7 +20,7 @@ function PostCard({ post, storePath, primaryColor }: {
   return (
     <Link
       to={storePath(`/blog/${post.slug}`)}
-      className="group block bg-white rounded-2xl border border-gray-100 hover:border-primary/30 hover:shadow-md transition-all overflow-hidden"
+      className="group block bg-white rounded-2xl border border-gray-100 hover:border-primary/30 hover:shadow-md transition-all overflow-hidden max-h-[90vh] overflow-y-auto"
     >
       {post.cover_url ? (
         <div className="aspect-video overflow-hidden">

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Store, UserCircle, Copy, ExternalLink, Check, Globe, Settings } from 'lucide-react'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
-import { buildHrEssLoginUrl, isHrEssLinkVisibleForStore } from '@/lib/hrStorefrontLinks'
+import { buildHrEssLoginUrlForUnit, isHrEssLinkVisibleForStore } from '@/lib/hrStorefrontLinks'
+import { readHrModuleSettings } from '@/lib/hrModuleSettings'
 import { cn } from '@/lib/utils'
 import { useVendorStore } from '@/stores/vendorStore'
 
@@ -200,7 +201,9 @@ export default function VendorStorefrontLinksCard({
   const storeUrl = `${storeBase}${branchQ}`
   const showHr =
     !storeId || isHrEssLinkVisibleForStore(storeId, vendorSettings ?? undefined)
-  const hrUrl = showHr ? buildHrEssLoginUrl(slug, outletCode) : null
+  const hrSettings = vendorSettings ?? undefined
+  const hrCentral = readHrModuleSettings(hrSettings).hr_scope === 'central'
+  const hrUrl = showHr ? buildHrEssLoginUrlForUnit(slug, hrSettings, outletCode) : null
 
   async function copyText(key: CopyKey, text: string) {
     try {
@@ -234,7 +237,7 @@ export default function VendorStorefrontLinksCard({
               href={hrUrl}
               icon={UserCircle}
               label="HR & employee login"
-              hint={outletCode ? 'ESS portal for this business unit' : 'ESS portal for staff (vendor-wide)'}
+              hint={hrCentral ? 'Shared ESS portal for all staff' : outletCode ? 'ESS portal for this business unit' : 'ESS portal for staff (vendor-wide)'}
               iconClassName="text-emerald-600"
               copyKey="hr"
               copied={copied}

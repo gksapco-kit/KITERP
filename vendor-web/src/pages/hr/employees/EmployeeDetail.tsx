@@ -1122,7 +1122,7 @@ function AssigneeInput({
             onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); setNotified(false) }}
           />
           {open && (
-            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border rounded-xl shadow-xl overflow-hidden">
+            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border rounded-xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
               {employees.length > 0 ? (
                 <ul className="max-h-48 overflow-y-auto divide-y divide-gray-50">
                   {employees.map((emp: any) => {
@@ -2113,7 +2113,7 @@ export default function EmployeeDetailPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         <EmployeeTabBar activeTab={activeTab} onTabChange={setTab} />
         <div className="p-6">
           {activeTab === 'identity' && (

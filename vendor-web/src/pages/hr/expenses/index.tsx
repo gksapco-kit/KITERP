@@ -77,7 +77,7 @@ export default function ExpensesPage() {
         </select>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm min-w-0">
+      <div className="bg-white border rounded-xl shadow-sm min-w-0 max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (claims as ExpenseClaim[]).length === 0 ? (

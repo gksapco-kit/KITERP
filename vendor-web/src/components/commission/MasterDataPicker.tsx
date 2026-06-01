@@ -128,7 +128,7 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
         </div>
       )}
       {open && !loading && options.length === 0 && query.trim() && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 text-sm text-gray-500">
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 text-sm text-gray-500 max-h-[90vh] overflow-y-auto">
           No results found
         </div>
       )}

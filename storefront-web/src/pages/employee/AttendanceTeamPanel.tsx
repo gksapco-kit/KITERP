@@ -3,7 +3,7 @@ import { Users } from 'lucide-react'
 /** Manager view for team attendance — placeholder until team APIs are wired in ESS. */
 export default function AttendanceTeamPanel() {
   return (
-    <div className="mt-6 bg-white rounded-xl border shadow-sm p-6">
+    <div className="mt-6 bg-white rounded-xl border shadow-sm p-6 max-h-[90vh] overflow-y-auto">
       <div className="flex items-center gap-2 mb-2">
         <Users className="w-5 h-5 text-primary" />
         <h3 className="font-semibold text-gray-900">Team attendance</h3>

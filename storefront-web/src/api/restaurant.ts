@@ -1,6 +1,5 @@
 /**
  * Public restaurant API — no customer auth required.
- * Used by the QR table order page and online reservation form.
  */
 import axios from 'axios'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
@@ -8,6 +7,22 @@ import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 const BASE = getStorefrontApiBaseUrl()
 
 const client = axios.create({ baseURL: BASE, headers: { 'Content-Type': 'application/json' }, timeout: 15000 })
+
+export interface PublicModifierOption {
+  id: string
+  name: string
+  price_delta: number
+  is_default?: boolean
+}
+
+export interface PublicModifierGroup {
+  id: string
+  name: string
+  selection_type: 'single' | 'multiple' | string
+  is_required: boolean
+  min_select?: number
+  options: PublicModifierOption[]
+}
 
 export interface PublicMenuItem {
   id: string
@@ -18,6 +33,7 @@ export interface PublicMenuItem {
   tax_rate: number
   image_url?: string | null
   is_available: boolean
+  modifier_groups?: PublicModifierGroup[]
 }
 
 export interface PublicMenuCategory {
@@ -31,12 +47,21 @@ export interface PublicTableInfo {
   menu: PublicMenuCategory[]
 }
 
+export interface GuestOrderModifier {
+  group_id: string
+  group_name: string
+  option_id: string
+  option_name: string
+  price_delta: number
+}
+
 export interface GuestOrderItem {
   product_id: string
   name: string
   qty: number
   unit_price: number
   notes?: string
+  modifiers?: GuestOrderModifier[]
 }
 
 export const restaurantApi = {
@@ -48,7 +73,7 @@ export const restaurantApi = {
   submitGuestOrder: async (
     vendorSlug: string,
     qrToken: string,
-    body: { items: GuestOrderItem[]; guest_name?: string; notes?: string }
+    body: { items: GuestOrderItem[]; guest_name?: string; guest_phone?: string; notes?: string },
   ) => {
     const res = await client.post(`/public/restaurant/${vendorSlug}/table/${qrToken}/order`, body)
     return res.data as { order_id: string; table_label: string; status: string; items: unknown[]; created: boolean }
@@ -57,11 +82,23 @@ export const restaurantApi = {
   submitReservation: async (
     vendorSlug: string,
     body: {
-      guest_name: string; guest_phone?: string; guest_email?: string
-      reservation_date: string; reservation_time: string; party_size?: number; notes?: string
-    }
+      guest_name: string
+      guest_phone?: string
+      guest_email?: string
+      reservation_date: string
+      reservation_time: string
+      party_size?: number
+      notes?: string
+    },
   ) => {
     const res = await client.post(`/public/restaurant/${vendorSlug}/reserve`, body)
-    return res.data as { id: string; status: string; guest_name: string; reservation_date: string; reservation_time: string; party_size: number }
+    return res.data as {
+      id: string
+      status: string
+      guest_name: string
+      reservation_date: string
+      reservation_time: string
+      party_size: number
+    }
   },
 }

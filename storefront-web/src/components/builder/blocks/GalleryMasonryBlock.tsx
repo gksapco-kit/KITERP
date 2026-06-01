@@ -18,7 +18,7 @@ export default function GalleryMasonryBlock({ props, liveItems }: Props) {
         ))}
       </div>
       {lightbox && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setLightbox(null)}>
           <button className="absolute top-4 right-4 text-white" onClick={() => setLightbox(null)}><X className="w-8 h-8" /></button>
           <img src={lightbox} alt="" className="max-w-full max-h-full rounded-xl" onClick={e => e.stopPropagation()} />
         </div>

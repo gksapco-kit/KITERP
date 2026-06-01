@@ -26,7 +26,7 @@ export default function MerchProductGrid({ title, subtitle, products, storePath 
             ? Math.round((1 - p.price / p.compare_at_price) * 100) : 0
           return (
             <Link key={p.id} to={storePath(`/products/${p.slug}`)}
-              className="group bg-white rounded-xl border hover:shadow-md transition-all overflow-hidden">
+              className="group bg-white rounded-xl border hover:shadow-md transition-all overflow-hidden max-h-[90vh] overflow-y-auto">
               <div className="aspect-square bg-gray-50 relative overflow-hidden">
                 {primaryImg ? (
                   <img src={imgUrl(primaryImg.url)} alt={p.name}

@@ -47,7 +47,7 @@ export default function ESSTicketDetailPage() {
           <p className="text-sm text-gray-700 whitespace-pre-line">{String(t.description)}</p>
         </article>
       ) : null}
-      <section className="bg-white border rounded-xl shadow-sm">
+      <section className="bg-white border rounded-xl shadow-sm max-h-[90vh] overflow-y-auto">
         <h2 className="p-3 border-b text-sm font-semibold text-gray-700">Replies</h2>
         <ul className="divide-y">
           {comments.length === 0 ? (

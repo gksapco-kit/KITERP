@@ -35,7 +35,7 @@ export default function ESSTrainingPage() {
           {items.map((e: any) => {
             const stat = STATUS[e.status] ?? STATUS.enrolled
             return (
-              <div key={e.id} className="bg-white border rounded-xl shadow-sm overflow-hidden">
+              <div key={e.id} className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
                 {e.program?.cover_image_url ? (
                   <img
                     src={e.program.cover_image_url}

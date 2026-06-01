@@ -193,7 +193,7 @@ export default function PlansPage() {
           onClick={closeForm}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-2xl shadow-xl my-8"
+            className="bg-white rounded-xl w-full max-w-2xl shadow-xl my-8 max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">

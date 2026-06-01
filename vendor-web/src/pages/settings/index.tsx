@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,13 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useUpdateVendor, useUpdateStore, useStores } from '@/hooks/useVendor'
+import { useUpdateVendor, useUpdateStore, useStores, vendorKeys } from '@/hooks/useVendor'
 import type { StoreRecord } from '@/api/vendor'
 import { useBusinessUnitScopeLabel, type BusinessUnitScopeMode } from '@/hooks/useBusinessUnitScope'
 import StoresPage from '@/pages/stores'
 import { StoresListToolbar } from '@/components/business-units/StoresListToolbar'
 import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
-import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { vendorApi } from '@/api/vendor'
 import {
   Save, Loader2, Store, MapPin, FileText, Globe,
@@ -21,15 +20,24 @@ import {
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
   ChevronRight, Check,
   Info, CheckCircle2, Landmark, HelpCircle, Lock, Building, Plus,
-  Link2, AlertCircle, BadgeCheck, Mail,
+  Link2, AlertCircle, BadgeCheck, Mail, Star,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
+import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
+import {
+  MediaUploadPickerModal,
+  galleryImageToFile,
+  resolveBrandingImageUrl,
+  MEDIA_UPLOAD_TARGET_LABELS,
+  type MediaUploadPickerTarget,
+} from '@/components/common/MediaUploadPickerModal'
 import {
   FormPageWithNav,
   FormSectionNav,
+  formDisplayCompact,
   useFormActiveSection,
 } from '@/components/common/FormSectionNav'
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
@@ -37,8 +45,42 @@ import type { Vendor } from '@/types'
 import { ImageCropModal } from '@/components/common/ImageCropModal'
 import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/vendorAppMeta'
 import { PhoneInput } from '@/components/ui/PhoneInput'
+import { APP_SAVE_REQUEST_EVENT } from '@/lib/appSave'
+import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
+import {
+  SettingsDirtyProvider,
+  useSettingsDirtyContext,
+  useSettingsSectionDirty,
+} from '@/pages/settings/SettingsDirtyContext'
+import {
+  isAddressSectionDirty,
+  isBusinessHoursSectionDirty,
+  isContactSectionDirty,
+  isExternalDomainSectionDirty,
+  isOrderAcceptanceSectionDirty,
+  isProfileSectionDirty,
+  isTaxSectionDirty,
+  supportEmailsFromVendor,
+  supportPhonesFromVendor,
+} from '@/pages/settings/settingsDirtyHelpers'
 
 type Section = 'profile' | 'contact' | 'address' | 'tax' | 'hours-availability' | 'order-acceptance' | 'external-domain'
+
+function submitSettingsSectionForms(sectionKey: string): boolean {
+  const sectionEl = document.getElementById(`form-section-${sectionKey}`)
+  if (!sectionEl) return false
+
+  const editableForms = Array.from(sectionEl.querySelectorAll<HTMLFormElement>('form')).filter(
+    (form) => !form.querySelector('fieldset[disabled]'),
+  )
+  if (editableForms.length === 0) return false
+
+  for (const form of editableForms) {
+    form.requestSubmit()
+  }
+  return true
+}
 
 function vendorStatusLabel(status?: string | null): string {
   switch (status) {
@@ -83,9 +125,82 @@ function settingsScopeHelpText(mode: BusinessUnitScopeMode, scopeLabel: string):
   }
 }
 
+/** Derive green "Done" markers from saved vendor / unit data. */
+function computeSettingsCompletedSections(
+  vendor: Vendor | null,
+  activeStore: StoreRecord | undefined,
+  allBusinessUnitsMode: boolean,
+): Set<string> {
+  const done = new Set<string>()
+  if (!vendor) return done
+
+  const ext = vendor as Vendor & {
+    external_domain_enabled?: boolean
+    external_domain_name?: string
+    external_domain_access_status?: string
+  }
+
+  if (vendor.business_name?.trim() || vendor.display_name?.trim()) {
+    done.add('profile')
+  }
+
+  if (vendor.support_phone?.trim() || vendor.support_email?.trim()) {
+    done.add('contact')
+  }
+
+  const unitAddr = activeStore?.address
+  const hasUnitAddress = Boolean(unitAddr?.street?.trim() && unitAddr?.city?.trim())
+  const hasHqAddress = Boolean(vendor.street_address?.trim() && vendor.city?.trim())
+  if (allBusinessUnitsMode ? hasHqAddress : hasUnitAddress || hasHqAddress) {
+    done.add('address')
+  }
+
+  if (vendor.gstin?.trim() || vendor.pan_number?.trim()) {
+    done.add('tax')
+  }
+
+  if (vendor.business_hours && Object.keys(vendor.business_hours).length > 0) {
+    done.add('hours-availability')
+  }
+
+  const customOrderHours =
+    vendor.order_acceptance_hours != null && Object.keys(vendor.order_acceptance_hours).length > 0
+  if (vendor.order_acceptance_enabled === false || customOrderHours || done.has('hours-availability')) {
+    done.add('order-acceptance')
+  }
+
+  const domainStatus = ext.external_domain_access_status
+  if (domainStatus === 'active') {
+    done.add('external-domain')
+  }
+
+  return done
+}
+
+function computeSettingsPendingSections(vendor: Vendor | null): Set<string> {
+  const pending = new Set<string>()
+  if (!vendor) return pending
+
+  const ext = vendor as Vendor & { external_domain_access_status?: string }
+  if (ext.external_domain_access_status === 'pending') {
+    pending.add('external-domain')
+  }
+
+  return pending
+}
+
 export default function SettingsPage() {
+  return (
+    <SettingsDirtyProvider>
+      <SettingsPageBody />
+    </SettingsDirtyProvider>
+  )
+}
+
+function SettingsPageBody() {
   const vendor = useVendorStore((s) => s.vendor)
   const selectedStore = useVendorStore((s) => s.selectedStore)
+  const setSelectedStore = useVendorStore((s) => s.setSelectedStore)
   const { user } = useAuthStore()
   const { data: storesData } = useStores()
   const stores = [...(storesData?.stores ?? [])].sort((a, b) => {
@@ -106,8 +221,10 @@ export default function SettingsPage() {
       ? stores[0]
       : undefined
   const showUnitDetailInSettings = !allBusinessUnitsMode && Boolean(activeStoreRecord)
+  const showUnitsZone = allBusinessUnitsMode || (showUnitDetailInSettings && Boolean(activeStoreRecord))
   const [searchParams] = useSearchParams()
   const updateVendor = useUpdateVendor()
+  const { hasDirty, hasDirtyRef, discardAll, formResetKey } = useSettingsDirtyContext()
 
   // Deep-link: /settings?section=order-acceptance opens that accordion automatically
   const VALID_SECTIONS: Section[] = ['profile', 'contact', 'address', 'tax', 'hours-availability', 'order-acceptance', 'external-domain']
@@ -115,16 +232,38 @@ export default function SettingsPage() {
   const sectionParam = (rawSection && VALID_SECTIONS.includes(rawSection as Section) ? rawSection as Section : null)
   const [openSection, setOpenSection] = useState<Section | null>(sectionParam ?? 'profile')
   const [buListSearch, setBuListSearch] = useState('')
-  const [activeNavSection, setActiveNavSection] = useState<string | null>(null)
+  const [visitedSections, setVisitedSections] = useState<Set<string>>(() =>
+    new Set(sectionParam ? [sectionParam] : ['profile']),
+  )
+
+  const completedSections = useMemo(
+    () => computeSettingsCompletedSections(vendor, activeStoreRecord, allBusinessUnitsMode),
+    [vendor, activeStoreRecord, allBusinessUnitsMode],
+  )
+
+  const pendingSections = useMemo(
+    () => computeSettingsPendingSections(vendor),
+    [vendor],
+  )
+
+  useEffect(() => {
+    if (!openSection) return
+    setVisitedSections((prev) => {
+      if (prev.has(openSection)) return prev
+      const next = new Set(prev)
+      next.add(openSection)
+      return next
+    })
+  }, [openSection])
 
   const settingsSections = useMemo<FormSectionDef[]>(() => [
-    { key: 'profile',          label: 'Business Profile',       icon: Store,     hint: 'Name, branding, logo and banners.' },
-    { key: 'contact',          label: 'Contact Information',     icon: Phone,     hint: 'Phone, email and support details.' },
-    { key: 'address',          label: 'Addresses',               icon: MapPin,    hint: 'Branch location and HQ address.' },
-    { key: 'tax',              label: 'Tax & Compliance',        icon: FileText,  hint: 'GST, PAN and tax registration.' },
-    { key: 'hours-availability', label: 'Business Hours',        icon: Clock,     hint: 'Walk-in hours on your Business Front.' },
-    { key: 'order-acceptance', label: 'Online Orders',           icon: ShoppingBag, hint: 'When customers can place orders.' },
-    { key: 'external-domain',  label: 'External Domain',         icon: Globe,     hint: 'Own domain & registrar access.' },
+    { key: 'profile',          label: 'Business Profile',       icon: Store },
+    { key: 'contact',          label: 'Contact Information',     icon: Phone },
+    { key: 'address',          label: 'Addresses',               icon: MapPin },
+    { key: 'tax',              label: 'Tax & Compliance',        icon: FileText },
+    { key: 'hours-availability', label: 'Business Hours',        icon: Clock },
+    { key: 'order-acceptance', label: 'Online Orders',           icon: ShoppingBag },
+    { key: 'external-domain',  label: 'External Domain',         icon: Globe },
   ], [])
 
   const openSectionsMap = useMemo<Record<string, boolean>>(() => {
@@ -133,42 +272,118 @@ export default function SettingsPage() {
     return m
   }, [openSection, settingsSections])
 
-  const openAndScrollTo = (key: string) => {
-    setOpenSection(key as Section)
-    setTimeout(() => {
-      document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 60)
-  }
+  /** Align opened section header with the sticky dashboard bar + sidebar top. */
+  const scrollFormSectionIntoView = useCallback((key: string) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'auto', block: 'start' })
+      })
+    })
+  }, [])
 
-  const openAndScrollToSection = (key: string) => {
-    setOpenSection(key as Section)
-    setTimeout(() => {
-      const el = document.getElementById(`form-section-${key}`)
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      } else {
-        setTimeout(() => {
-          document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }, 200)
+  const saveOpenSection = useCallback(async (): Promise<boolean> => {
+    const key = (openSection ?? sectionParam) as Section | null
+    if (!key) {
+      toast.error('Open a settings section to save.')
+      return false
+    }
+    if (!hasDirtyRef.current) return true
+
+    const trySubmit = () => submitSettingsSectionForms(key)
+    if (!trySubmit()) {
+      if (openSection !== key) {
+        setOpenSection(key)
+        await new Promise((r) => window.setTimeout(r, 250))
       }
-    }, 150)
-  }
+      if (!trySubmit()) {
+        toast.error('Expand the section and fix any errors before saving.')
+        return false
+      }
+    }
+
+    const deadline = Date.now() + 12000
+    while (Date.now() < deadline) {
+      if (!hasDirtyRef.current) return true
+      await new Promise((r) => window.setTimeout(r, 100))
+    }
+
+    toast.error('Could not save — check highlighted fields and try again.')
+    return false
+  }, [openSection, sectionParam, hasDirtyRef])
+
+  const {
+    dialogOpen: unsavedDialogOpen,
+    saving: unsavedSaving,
+    handleCancel: handleUnsavedCancel,
+    handleDiscard: handleUnsavedDiscard,
+    handleSave: handleUnsavedSave,
+    confirmIfDirty,
+  } = useUnsavedChangesGuard({
+    when: hasDirty,
+    onSave: saveOpenSection,
+    onDiscard: discardAll,
+  })
+
+  const openAndScrollTo = useCallback((key: string) => {
+    setOpenSection(key as Section)
+    window.setTimeout(() => scrollFormSectionIntoView(key), 180)
+  }, [scrollFormSectionIntoView])
+
+  const requestOpenSection = useCallback((key: string) => {
+    if (openSection === key) return
+    confirmIfDirty(() => openAndScrollTo(key))
+  }, [openSection, confirmIfDirty, openAndScrollTo])
+
+  const toggleSection = useCallback((key: Section) => {
+    if (openSection === key) {
+      confirmIfDirty(() => setOpenSection(null))
+      return
+    }
+    requestOpenSection(key)
+  }, [openSection, confirmIfDirty, requestOpenSection])
 
   // URL ?section= deep-link (from search, nav, or first load)
   useEffect(() => {
     if (!sectionParam) return
-    openAndScrollToSection(sectionParam)
+    if (sectionParam === openSection) return
+    requestOpenSection(sectionParam)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to URL section param
   }, [sectionParam])
 
   // Custom event — fired when already on settings page (e.g. Configure button in BU panel)
   useEffect(() => {
     const handler = (e: Event) => {
       const key = (e as CustomEvent<string>).detail
-      if (key) openAndScrollToSection(key)
+      if (key) requestOpenSection(key)
     }
     window.addEventListener('open-settings-section', handler)
     return () => window.removeEventListener('open-settings-section', handler)
-  }, [])
+  }, [requestOpenSection])
+
+  // Toolbar Save — universal header button (settings page handler)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault()
+      const key = (openSection ?? sectionParam) as Section | null
+      if (!key) {
+        toast.error('Open a settings section to save.')
+        return
+      }
+      if (submitSettingsSectionForms(key)) return
+      if (openSection !== key) {
+        openAndScrollTo(key)
+        window.setTimeout(() => {
+          if (!submitSettingsSectionForms(key)) {
+            toast.error('Could not save — expand the section and try again.')
+          }
+        }, 220)
+        return
+      }
+      toast.error('Could not save — expand the section and try again.')
+    }
+    window.addEventListener(APP_SAVE_REQUEST_EVENT, handler)
+    return () => window.removeEventListener(APP_SAVE_REQUEST_EVENT, handler)
+  }, [openSection, sectionParam, openAndScrollTo])
 
   const showSupportAuditLink =
     !!vendor?.id &&
@@ -176,29 +391,20 @@ export default function SettingsPage() {
     user.vendor_role.vendor_id === vendor.id &&
     (user.vendor_role.role === 'owner' || user.vendor_role.role === 'platform_staff')
 
-  function copyAllBuLinks() {
-    const base = vendor?.slug ? getCustomerStorefrontBaseUrl(vendor.slug) : ''
-    const lines = stores.map((s) => {
-      const key = s.code || s.id
-      const url = base ? `${base}?branch=${encodeURIComponent(key)}` : key
-      return `${s.name}: ${url}`
-    }).join('\n')
-    navigator.clipboard.writeText(lines).then(() => toast.success(`${stores.length} store links copied!`))
-  }
-
   const supportAuditChip = showSupportAuditLink ? (
     <Link
       to="/settings/support-activity"
-      className="inline-flex items-center gap-1 rounded-full border border-blue-200/80 bg-blue-50/60 px-2 py-0.5 text-[0.68rem] font-medium text-blue-800 hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
+      className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-full border border-blue-200/80 bg-blue-50/60 px-1.5 text-[0.65rem] font-medium text-blue-800 hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
     >
       <HelpCircle className="h-2.5 w-2.5 shrink-0" />
-      Support audit
+      <span className="hidden sm:inline">Support audit</span>
+      <span className="sm:hidden">Audit</span>
     </Link>
   ) : null
 
   const statusChip = (
     <div
-      className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[0.68rem] text-muted-foreground"
+      className="flex h-6 shrink-0 items-center gap-1 rounded-full border border-border bg-muted/40 px-1.5 text-[0.65rem] text-muted-foreground"
       title={vendor?.status ?? undefined}
     >
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${vendor?.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'}`} />
@@ -207,144 +413,222 @@ export default function SettingsPage() {
   )
 
   return (
-    <div className="space-y-3">
-      {/* Header row */}
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-        <h1
-          className="flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-1.5 text-lg font-bold text-foreground"
-          title={`Settings — ${scopeHeading}`}
-        >
-          <span>Settings</span>
-          <span className="min-w-0 truncate text-sm font-semibold text-muted-foreground">
-            {scopeHeading}
-          </span>
-        </h1>
-
-        {allBusinessUnitsMode && (
-          <StoresListToolbar
-            stores={stores}
-            listSearch={buListSearch}
-            onListSearchChange={setBuListSearch}
-            onCopyLinks={copyAllBuLinks}
-            compact
-          />
-        )}
-
-        <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
-          <Link
-            to="/stores"
-            title={`Create new ${BUSINESS_UNIT_STORE_LABEL}`}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="space-y-1">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <h1
+            className="flex min-w-0 shrink-0 flex-wrap items-baseline gap-x-1 text-base font-bold text-foreground sm:text-lg"
+            title={`Settings — ${scopeHeading}`}
           >
-            <Plus className="h-3.5 w-3.5 shrink-0" />
-            New unit
-          </Link>
-          <button
-            type="button"
-            onClick={() => openAndScrollTo('external-domain')}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary transition-colors"
-          >
-            <Globe className="h-3.5 w-3.5 shrink-0" />
-            External Domain
-          </button>
-          {supportAuditChip}
-          {statusChip}
+            <span>Settings</span>
+            <span className="min-w-0 max-w-[9rem] truncate text-xs font-semibold text-muted-foreground sm:max-w-none sm:text-sm">
+              {scopeHeading}
+            </span>
+          </h1>
+
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-0.5 sm:gap-1">
+            {allBusinessUnitsMode && (
+              <StoresListToolbar
+                stores={stores}
+                listSearch={buListSearch}
+                onListSearchChange={setBuListSearch}
+                vendorSlug={vendor?.slug ?? ''}
+                vendorSettings={vendor?.settings as Record<string, unknown> | undefined}
+                variant="inline"
+              />
+            )}
+            <Button
+              asChild
+              size="sm"
+              className="h-6 gap-1 rounded-full px-2 text-[0.68rem] shadow-sm ring-1 ring-primary/25 hover:shadow-md sm:px-2.5"
+            >
+              <Link
+                to="/stores"
+                title={`Create new ${BUSINESS_UNIT_STORE_LABEL}`}
+              >
+                <Plus className="h-3 w-3 shrink-0" />
+                New unit
+              </Link>
+            </Button>
+            <button
+              type="button"
+              onClick={() => requestOpenSection('external-domain')}
+              className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-full border border-border bg-muted/40 px-1.5 text-[0.68rem] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary sm:gap-1 sm:px-2"
+            >
+              <Globe className="h-3 w-3 shrink-0" />
+              <span className="hidden sm:inline">External Domain</span>
+              <span className="sm:hidden">Domain</span>
+            </button>
+            {supportAuditChip}
+            {statusChip}
+          </div>
         </div>
+
+        <p className="text-[0.7rem] text-muted-foreground leading-snug">
+          {settingsScopeHelpText(scopeMode, scopeLabel)}
+        </p>
       </div>
-      <p className="text-[0.7rem] text-muted-foreground leading-snug">
-        {settingsScopeHelpText(scopeMode, scopeLabel)}
-      </p>
 
-      {allBusinessUnitsMode ? (
-        <StoresPage
-          embeddedInSettings
-          hideToolbar
-          listSearch={buListSearch}
-          onListSearchChange={setBuListSearch}
-        />
-      ) : showUnitDetailInSettings && activeStoreRecord ? (
-        <section className="space-y-2">
-          <BusinessUnitDetailPanel
-            key={activeStoreRecord.id}
-            store={activeStoreRecord}
-            embeddedInSettings
-          />
+      {showUnitsZone && (
+        <section
+          aria-labelledby="settings-units-heading"
+          className="rounded-xl border border-border bg-muted/20 shadow-sm"
+        >
+          <header className="border-b border-border bg-card/90 px-4 py-2.5">
+            <h2
+              id="settings-units-heading"
+              className="flex min-w-0 flex-wrap items-center gap-2"
+            >
+              <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-primary">
+                Step 1 · Units
+              </span>
+              <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                {allBusinessUnitsMode
+                  ? 'All business units'
+                  : activeStoreRecord?.name ?? scopeHeading}
+              </span>
+            </h2>
+            {allBusinessUnitsMode ? (
+              <p className="mt-1 text-xs text-foreground/70">
+                Pick a unit to scope settings, or add a new branch.
+              </p>
+            ) : null}
+          </header>
+          <div className="p-4">
+            {allBusinessUnitsMode ? (
+              <StoresPage
+                embeddedInSettings
+                hideToolbar
+                listSearch={buListSearch}
+                onListSearchChange={setBuListSearch}
+              />
+            ) : (
+              activeStoreRecord && (
+                <div className="space-y-3">
+                  {stores.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => confirmIfDirty(() => setSelectedStore(null))}
+                    >
+                      ← Back to all units
+                    </Button>
+                  )}
+                  <BusinessUnitDetailPanel
+                    key={activeStoreRecord.id}
+                    store={activeStoreRecord}
+                    embeddedInSettings
+                  />
+                </div>
+              )
+            )}
+          </div>
         </section>
-      ) : null}
+      )}
 
-      <FormPageWithNav
-        activeSectionKey={activeNavSection}
-        nav={(
-          <FormSectionNav
-            sections={settingsSections}
-            openSections={openSectionsMap}
-            visitedSections={new Set(VALID_SECTIONS)}
-            completedSections={new Set<string>()}
-            hasErrorSections={new Set<string>()}
-            onNavigate={openAndScrollTo}
-            onActiveSectionChange={setActiveNavSection}
-            scrollOffset={100}
-            stickyTopClass="top-16"
-          />
-        )}
+      <section
+        aria-labelledby="settings-config-heading"
+        className="rounded-xl border border-border bg-card shadow-sm"
       >
-        <div key={scopeStoreId ?? 'all-units'} className="flex flex-col gap-4">
-          <div id="form-section-profile">
+        <header className="border-b border-border bg-muted/30 px-4 py-2.5">
+          <h2
+            id="settings-config-heading"
+            className="flex min-w-0 flex-wrap items-center gap-2"
+          >
+            {showUnitsZone ? (
+              <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-primary">
+                Step 2 · Configuration
+              </span>
+            ) : null}
+            <span className="min-w-0 truncate text-sm font-semibold text-foreground">{scopeLabel}</span>
+          </h2>
+          <p className="mt-1 text-xs text-foreground/70">
+            Profile, Contact, Addresses, Tax, Hours, Online Orders, and Domain.
+          </p>
+        </header>
+
+        <div className="px-3 py-4 sm:px-4">
+          <FormPageWithNav
+            activeSectionKey={openSection}
+            nav={(
+              <FormSectionNav
+                sections={settingsSections}
+                openSections={openSectionsMap}
+                visitedSections={visitedSections}
+                completedSections={completedSections}
+                pendingSections={pendingSections}
+                hasErrorSections={new Set<string>()}
+                onNavigate={requestOpenSection}
+                highlightKey={openSection}
+                scrollOffset={72}
+                stickyTopClass="top-14"
+                navTitle="Sections"
+                showActiveHintInNav={false}
+              />
+            )}
+          >
+            <div key={`${formResetKey}-${scopeStoreId ?? 'all-units'}`} className="flex flex-col gap-4">
+          <div id="form-section-profile" className={formDisplayCompact.scrollMarginView}>
             <ProfileSection
               vendor={vendor}
+              activeStore={activeStoreRecord}
+              unitBrandingEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
               open={openSection === 'profile'}
-              toggle={() => setOpenSection(openSection === 'profile' ? null : 'profile')}
+              toggle={() => toggleSection('profile')}
               onSave={updateVendor}
             />
           </div>
-          <div id="form-section-contact">
+          <div id="form-section-contact" className={formDisplayCompact.scrollMarginView}>
             <ContactSection
               vendor={vendor}
               open={openSection === 'contact'}
-              toggle={() => setOpenSection(openSection === 'contact' ? null : 'contact')}
+              toggle={() => toggleSection('contact')}
               onSave={updateVendor}
             />
           </div>
-          <div id="form-section-address">
+          <div id="form-section-address" className={formDisplayCompact.scrollMarginView}>
             <AddressSection
               vendor={vendor}
               activeStore={activeStoreRecord}
               hqEditable={allBusinessUnitsMode}
               unitEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
               open={openSection === 'address'}
-              toggle={() => setOpenSection(openSection === 'address' ? null : 'address')}
+              toggle={() => toggleSection('address')}
               onSaveVendor={updateVendor}
             />
           </div>
-          <div id="form-section-tax">
+          <div id="form-section-tax" className={formDisplayCompact.scrollMarginView}>
             <TaxSection
               vendor={vendor}
               open={openSection === 'tax'}
-              toggle={() => setOpenSection(openSection === 'tax' ? null : 'tax')}
+              toggle={() => toggleSection('tax')}
               onSave={updateVendor}
             />
           </div>
-          <div id="form-section-hours-availability">
+          <div id="form-section-hours-availability" className={formDisplayCompact.scrollMarginView}>
             <BusinessHoursSection
               vendor={vendor}
               open={openSection === 'hours-availability'}
-              toggle={() => setOpenSection(openSection === 'hours-availability' ? null : 'hours-availability')}
+              toggle={() => toggleSection('hours-availability')}
               onSave={updateVendor}
             />
           </div>
-          <div id="form-section-order-acceptance">
+          <div id="form-section-order-acceptance" className={formDisplayCompact.scrollMarginView}>
             <OrderAcceptanceSection
               vendor={vendor}
               open={openSection === 'order-acceptance'}
-              toggle={() => setOpenSection(openSection === 'order-acceptance' ? null : 'order-acceptance')}
+              toggle={() => toggleSection('order-acceptance')}
               onSave={updateVendor}
             />
           </div>
-          <div id="form-section-external-domain">
+          <div id="form-section-external-domain" className={formDisplayCompact.scrollMarginView}>
             <ExternalDomainSection
               vendor={vendor}
               open={openSection === 'external-domain'}
-              toggle={() => setOpenSection(openSection === 'external-domain' ? null : 'external-domain')}
+              toggle={() => toggleSection('external-domain')}
               onSave={updateVendor}
             />
           </div>
@@ -357,8 +641,18 @@ export default function SettingsPage() {
               App version &amp; support info
             </Link>
           </div>
+            </div>
+          </FormPageWithNav>
         </div>
-      </FormPageWithNav>
+      </section>
+
+      <UnsavedChangesDialog
+        open={unsavedDialogOpen}
+        saving={unsavedSaving}
+        onCancel={handleUnsavedCancel}
+        onDiscard={handleUnsavedDiscard}
+        onSave={handleUnsavedSave}
+      />
     </div>
   )
 }
@@ -424,9 +718,31 @@ function SaveButton({ loading, compact }: { loading: boolean; compact?: boolean 
 
 // â”€â”€ Profile Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
+type ProfileSectionProps = SectionProps & {
+  activeStore?: StoreRecord
+  /** When a single BU is scoped, logo/banner save to that unit — not vendor-wide. */
+  unitBrandingEditable: boolean
+}
+
+function storeSettingStr(settings: Record<string, unknown> | undefined, key: string): string {
+  const v = settings?.[key]
+  return typeof v === 'string' && v.trim() ? v.trim() : ''
+}
+
+function storeExtraBannersList(settings: Record<string, unknown> | undefined): string[] {
+  const raw = settings?.extra_banners
+  if (!Array.isArray(raw)) return []
+  return raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+}
+
+function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEditable, open, toggle, onSave }: ProfileSectionProps) {
   const qc = useQueryClient()
   const setVendor = useVendorStore((s) => s.setVendor)
+  const { data: storesData } = useStores()
+  const activeStore = activeStoreProp
+    ? storesData?.stores?.find((s) => s.id === activeStoreProp.id) ?? activeStoreProp
+    : undefined
+  const storeSettings = (activeStore?.settings ?? {}) as Record<string, unknown>
   const [form, setForm] = useState({
     business_name: '',
     display_name: '',
@@ -438,6 +754,8 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [extraBannerUploading, setExtraBannerUploading] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
   const [cropTarget, setCropTarget] = useState<'logo' | 'banner' | null>(null)
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
+  const [mediaPickerTarget, setMediaPickerTarget] = useState<MediaUploadPickerTarget | null>(null)
   const logoRef = useRef<HTMLInputElement>(null)
   const bannerRef = useRef<HTMLInputElement>(null)
   const extraBannerRef = useRef<HTMLInputElement>(null)
@@ -457,6 +775,9 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
     e.preventDefault()
     onSave.mutate({ ...form, offering_type: form.offering_type as 'products' | 'services' | 'both' })
   }
+
+  const isDirty = useMemo(() => isProfileSectionDirty(form, vendor), [form, vendor])
+  useSettingsSectionDirty('profile', isDirty)
 
   const handleLogoFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -481,10 +802,16 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
     if (target === 'logo') {
       setLogoUploading(true)
       try {
-        const { logo_url } = await vendorApi.uploadVendorLogo(croppedFile)
-        if (vendor) setVendor({ ...vendor, logo_url })
-        await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
-        toast.success('Logo updated')
+        if (unitBrandingEditable && activeStore) {
+          const { url } = await vendorApi.uploadVendorBrandingAsset(croppedFile)
+          await persistUnitBrandingSettings({ logo_url: url })
+          toast.success('Unit logo updated')
+        } else {
+          const { logo_url } = await vendorApi.uploadVendorLogo(croppedFile)
+          if (vendor) setVendor({ ...vendor, logo_url })
+          await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+          toast.success('Logo updated')
+        }
       } catch {
         toast.error('Could not upload logo — use a PNG or JPG file under 2MB')
       }
@@ -492,10 +819,17 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
     } else if (target === 'banner') {
       setBannerUploading(true)
       try {
-        const { banner_url } = await vendorApi.uploadVendorBanner(croppedFile)
-        if (vendor) setVendor({ ...vendor, banner_url })
-        await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
-        toast.success('Banner updated')
+        if (unitBrandingEditable && activeStore) {
+          const { url } = await vendorApi.uploadVendorBrandingAsset(croppedFile)
+          const next = orderedBanners.length === 0 ? [url] : [url, ...orderedBanners.slice(1)]
+          await persistBannerOrder(next)
+          toast.success('Unit banner updated')
+        } else {
+          const { banner_url } = await vendorApi.uploadVendorBanner(croppedFile)
+          if (vendor) setVendor({ ...vendor, banner_url })
+          await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+          toast.success('Banner updated')
+        }
       } catch {
         toast.error('Could not upload banner — use a PNG or JPG file under 5MB')
       }
@@ -503,8 +837,113 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
     }
   }
 
-  const removeLogo = () => onSave.mutate({ logo_url: '' })
-  const removeBanner = () => onSave.mutate({ banner_url: '' })
+  const persistUnitBrandingSettings = async (patch: Record<string, unknown>) => {
+    if (!activeStore) return
+    const settings = { ...storeSettings, ...patch }
+    const { store } = await vendorApi.updateStore(activeStore.id, { settings })
+    qc.setQueryData(
+      vendorKeys.stores(),
+      (old: { stores: StoreRecord[]; total: number } | undefined) => {
+        if (!old?.stores) return old
+        return {
+          ...old,
+          stores: old.stores.map((s) => (s.id === store.id ? store : s)),
+        }
+      },
+    )
+    void qc.invalidateQueries({ queryKey: vendorKeys.stores() })
+    return store
+  }
+
+  const removeLogo = () => {
+    if (unitBrandingEditable && activeStore) {
+      void persistUnitBrandingSettings({ logo_url: '' }).then(() => toast.success('Unit logo removed'))
+      return
+    }
+    onSave.mutate({ logo_url: '' })
+  }
+
+  const syncThemeExtraBanners = (extra_banners: string[]) => {
+    const current = useVendorStore.getState().vendor
+    if (!current) return
+    setVendor({
+      ...current,
+      theme_config: { ...(current.theme_config || {}), extra_banners },
+    })
+  }
+
+  const extraBanners: string[] = unitBrandingEditable
+    ? storeExtraBannersList(storeSettings)
+    : (vendor?.theme_config as { extra_banners?: string[] } | undefined)?.extra_banners ?? []
+
+  const unitVisual = unitBrandingEditable && activeStore ? getBusinessUnitVisual(activeStore, vendor) : null
+  const displayLogoUrl = unitBrandingEditable
+    ? (unitVisual?.logoUrl ?? '')
+    : (vendor?.logo_url ? resolveBrandingImageUrl(vendor.logo_url) : '')
+  const hasLogoOverride = unitBrandingEditable
+    ? Boolean(storeSettingStr(storeSettings, 'logo_url'))
+    : Boolean(vendor?.logo_url?.trim())
+
+  const orderedBanners = useMemo(() => {
+    const primary = unitBrandingEditable
+      ? storeSettingStr(storeSettings, 'banner_url')
+      : vendor?.banner_url?.trim()
+    const list: string[] = []
+    if (primary) list.push(primary)
+    for (const u of extraBanners) {
+      const trimmed = u?.trim()
+      if (trimmed && !list.includes(trimmed)) list.push(trimmed)
+    }
+    return list
+  }, [unitBrandingEditable, storeSettings, vendor?.banner_url, extraBanners])
+
+  const persistBannerOrder = useCallback(async (banners: string[]) => {
+    const banner_url = banners[0] ?? ''
+    const extra_banners = banners.slice(1)
+    if (unitBrandingEditable && activeStore) {
+      await persistUnitBrandingSettings({ banner_url, extra_banners })
+      return
+    }
+    const current = useVendorStore.getState().vendor
+    if (!current) return
+    const theme_config = { ...(current.theme_config || {}), extra_banners }
+    const updated = await vendorApi.updateMyVendor({ banner_url, theme_config })
+    setVendor(updated)
+    void qc.invalidateQueries({ queryKey: vendorKeys.me() })
+  }, [activeStore, qc, setVendor, unitBrandingEditable, storeSettings])
+
+  const removeBannerAt = async (index: number) => {
+    const urlToRemove = orderedBanners[index]
+    if (!urlToRemove) return
+    const next = orderedBanners.filter((_, i) => i !== index)
+    try {
+      await persistBannerOrder(next)
+      try {
+        await vendorApi.removeVendorExtraBanner(urlToRemove)
+        void qc.invalidateQueries({ queryKey: vendorKeys.me() })
+      } catch {
+        /* file cleanup best-effort */
+      }
+      toast.success('Banner removed')
+    } catch {
+      toast.error('Could not remove banner')
+    }
+  }
+
+  const setPrimaryBanner = async (index: number) => {
+    if (index <= 0 || index >= orderedBanners.length) return
+    const next = [
+      orderedBanners[index],
+      ...orderedBanners.slice(0, index),
+      ...orderedBanners.slice(index + 1),
+    ]
+    try {
+      await persistBannerOrder(next)
+      toast.success('Primary banner updated')
+    } catch {
+      toast.error('Could not update primary banner')
+    }
+  }
 
   const handleExtraBannerFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -512,35 +951,127 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
     if (extraBannerRef.current) extraBannerRef.current.value = ''
     setExtraBannerUploading(true)
     try {
-      const { extra_banners } = await vendorApi.uploadVendorExtraBanner(file)
-      if (vendor) setVendor({ ...vendor, theme_config: { ...(vendor.theme_config || {}), extra_banners } })
-      await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
-      toast.success('Banner added')
+      if (unitBrandingEditable && activeStore) {
+        const { url } = await vendorApi.uploadVendorBrandingAsset(file)
+        await persistBannerOrder([...orderedBanners, url])
+        toast.success('Banner added')
+      } else {
+        const { extra_banners } = await vendorApi.uploadVendorExtraBanner(file)
+        syncThemeExtraBanners(extra_banners)
+        void qc.invalidateQueries({ queryKey: vendorKeys.me() })
+        toast.success('Banner added')
+      }
     } catch {
       toast.error('Could not upload banner — use a PNG or JPG under 5MB')
+    } finally {
+      setExtraBannerUploading(false)
     }
-    setExtraBannerUploading(false)
   }
 
   const removeExtraBanner = async (url: string) => {
+    const index = orderedBanners.indexOf(url)
+    if (index >= 0) {
+      await removeBannerAt(index)
+      return
+    }
     try {
       const { extra_banners } = await vendorApi.removeVendorExtraBanner(url)
-      if (vendor) setVendor({ ...vendor, theme_config: { ...(vendor.theme_config || {}), extra_banners } })
-      await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+      syncThemeExtraBanners(extra_banners)
+      void qc.invalidateQueries({ queryKey: vendorKeys.me() })
       toast.success('Banner removed')
     } catch {
       toast.error('Could not remove banner')
     }
   }
 
-  const extraBanners: string[] = (vendor?.theme_config as any)?.extra_banners ?? []
-
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
-  const imgUrl = (url?: string | null) => {
-    if (!url) return ''
-    if (url.startsWith('http')) return url
-    return `${API_URL.replace('/api/v1', '')}${url}`
+  const openMediaPicker = (target: MediaUploadPickerTarget) => {
+    setMediaPickerTarget(target)
+    setMediaPickerOpen(true)
   }
+
+  const applyBrandingImageUrl = async (url: string, target: MediaUploadPickerTarget) => {
+    if (target === 'logo') {
+      if (unitBrandingEditable && activeStore) {
+        await persistUnitBrandingSettings({ logo_url: url })
+      } else {
+        await onSave.mutateAsync({ logo_url: url })
+      }
+      toast.success('Logo updated')
+      return
+    }
+    if (target === 'banner') {
+      if (unitBrandingEditable && activeStore) {
+        if (orderedBanners.length === 0) {
+          await persistBannerOrder([url])
+        } else {
+          await persistBannerOrder([...orderedBanners, url])
+        }
+      } else if (orderedBanners.length === 0) {
+        await onSave.mutateAsync({ banner_url: url })
+      } else {
+        await persistBannerOrder([...orderedBanners, url])
+      }
+      toast.success('Banner updated')
+      return
+    }
+    toast.error('Extra banners must be uploaded as files')
+  }
+
+  /** Gallery / URL picks are uploaded to /uploads so they display on storefront + settings. */
+  const applyBrandingFromFile = async (file: File, target: MediaUploadPickerTarget) => {
+    if (target === 'logo') {
+      setCropFile(file)
+      setCropTarget('logo')
+      return
+    }
+    if (target === 'banner') {
+      setCropFile(file)
+      setCropTarget('banner')
+      return
+    }
+    if (target !== 'extra-banner') return
+    setExtraBannerUploading(true)
+    try {
+      if (unitBrandingEditable && activeStore) {
+        const { url } = await vendorApi.uploadVendorBrandingAsset(file)
+        await persistBannerOrder([...orderedBanners, url])
+      } else {
+        const { extra_banners } = await vendorApi.uploadVendorExtraBanner(file)
+        syncThemeExtraBanners(extra_banners)
+      }
+      void qc.invalidateQueries({ queryKey: unitBrandingEditable ? vendorKeys.stores() : vendorKeys.me() })
+      toast.success('Banner added')
+    } catch {
+      toast.error('Could not upload banner — use a PNG or JPG under 5MB')
+    } finally {
+      setExtraBannerUploading(false)
+    }
+  }
+
+  const applyBrandingFromRemoteImage = async (url: string, target: MediaUploadPickerTarget) => {
+    try {
+      const file = await galleryImageToFile(url)
+      await applyBrandingFromFile(file, target)
+    } catch {
+      if (target === 'extra-banner') {
+        toast.error('Could not load that image — try another from the gallery or upload from device')
+        return
+      }
+      try {
+        await applyBrandingImageUrl(url, target)
+      } catch {
+        toast.error('Could not use that image URL')
+      }
+    }
+  }
+
+  const handleMediaChooseLocal = () => {
+    if (mediaPickerTarget === 'logo') logoRef.current?.click()
+    else if (mediaPickerTarget === 'banner') bannerRef.current?.click()
+    else if (mediaPickerTarget === 'extra-banner') extraBannerRef.current?.click()
+  }
+
+  const imgUrl = resolveBrandingImageUrl
 
   return (
     <SectionWrapper title="Business Profile" helpText="Name, branding, logo, and banners" icon={Store} open={open} toggle={toggle}>
@@ -555,27 +1086,44 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
         />
       )}
 
+      {mediaPickerTarget && (
+        <MediaUploadPickerModal
+          open={mediaPickerOpen}
+          onClose={() => setMediaPickerOpen(false)}
+          title={mediaPickerTarget ? `Add ${MEDIA_UPLOAD_TARGET_LABELS[mediaPickerTarget]}` : 'Add image'}
+          onChooseLocal={handleMediaChooseLocal}
+          onChooseGalleryUrl={(url) => applyBrandingFromRemoteImage(url, mediaPickerTarget)}
+          onChooseExternalUrl={(url) => applyBrandingFromRemoteImage(url, mediaPickerTarget)}
+        />
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-2.5">
         {/* Logo & banner — single compact row */}
         <div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2">
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-foreground">Store branding</span>
-            <span className="text-xs text-muted-foreground">PNG/JPG · banner 3:1</span>
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-medium text-foreground">
+              {unitBrandingEditable ? `${activeStore?.name ?? 'Unit'} branding` : 'Store branding'}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {unitBrandingEditable
+                ? 'Applies to this unit only · PNG/JPG · banner 3:1'
+                : 'PNG/JPG · banner 3:1 · default for all units'}
+            </span>
           </div>
           <div className="flex items-stretch gap-2">
             <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFileSelected} />
             <div className="relative shrink-0">
               <button
                 type="button"
-                onClick={() => logoRef.current?.click()}
+                onClick={() => openMediaPicker('logo')}
                 title="Upload logo"
                 className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400 group"
               >
                 {logoUploading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                ) : vendor?.logo_url ? (
+                ) : displayLogoUrl ? (
                   <>
-                    <img src={imgUrl(vendor.logo_url)} alt="Logo" className="h-full w-full object-cover" />
+                    <img src={displayLogoUrl} alt="Logo" className="h-full w-full object-cover" />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                       <Camera className="h-3.5 w-3.5 text-white" />
                     </div>
@@ -584,7 +1132,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
                   <Building2 className="h-5 w-5 text-gray-400" />
                 )}
               </button>
-              {vendor?.logo_url && (
+              {hasLogoOverride && (
                 <button
                   type="button"
                   aria-label="Remove logo"
@@ -597,66 +1145,86 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
               <span className="mt-0.5 block text-center text-xs text-muted-foreground">Logo</span>
             </div>
 
-            {/* Banners grid: primary + extras + add slot */}
+            {/* Banners grid: compact list — delete shifts others up; any banner can be set primary */}
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {/* Primary banner */}
                 <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={handleBannerFileSelected} />
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => bannerRef.current?.click()}
-                    title="Upload primary banner (1200×400)"
-                    className="group relative flex h-16 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
-                  >
-                    {bannerUploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    ) : vendor?.banner_url ? (
-                      <>
-                        <img src={imgUrl(vendor.banner_url)} alt="Banner 1" className="h-full w-full object-cover" />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                          <Camera className="h-3.5 w-3.5 text-white" />
-                        </div>
-                      </>
-                    ) : (
-                      <span className="flex flex-col items-center gap-0.5 text-gray-400">
-                        <ImageIcon className="h-4 w-4" />
-                        <span className="text-[10px]">Primary</span>
-                      </span>
-                    )}
-                  </button>
-                  {vendor?.banner_url && (
-                    <button type="button" aria-label="Remove banner" onClick={removeBanner}
-                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90">
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  )}
-                  <span className="mt-0.5 block text-center text-[10px] text-muted-foreground">Banner 1</span>
-                </div>
-
-                {/* Extra banners */}
-                {extraBanners.map((url, i) => (
-                  <div key={url} className="relative">
-                    <div className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-                      <img src={imgUrl(url)} alt={`Banner ${i + 2}`} className="h-full w-full object-cover" />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                        <Camera className="h-3.5 w-3.5 text-white" />
-                      </div>
-                    </div>
-                    <button type="button" aria-label="Remove banner" onClick={() => removeExtraBanner(url)}
-                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90">
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                    <span className="mt-0.5 block text-center text-[10px] text-muted-foreground">Banner {i + 2}</span>
-                  </div>
-                ))}
-
-                {/* Add extra banner slot */}
                 <input ref={extraBannerRef} type="file" accept="image/*" className="hidden" onChange={handleExtraBannerFileSelected} />
+
+                {orderedBanners.length === 0 ? (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => openMediaPicker('banner')}
+                      title="Upload primary banner (1200×400)"
+                      className="group relative flex h-16 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
+                    >
+                      {bannerUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                      ) : (
+                        <span className="flex flex-col items-center gap-0.5 text-gray-400">
+                          <ImageIcon className="h-4 w-4" />
+                          <span className="text-[10px]">Primary</span>
+                        </span>
+                      )}
+                    </button>
+                    <span className="mt-0.5 block text-center text-[10px] text-muted-foreground">Banner 1</span>
+                  </div>
+                ) : (
+                  orderedBanners.map((url, i) => (
+                    <div key={url} className="relative">
+                      {i === 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => openMediaPicker('banner')}
+                          title="Replace primary banner"
+                          className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
+                        >
+                          {bannerUploading ? (
+                            <Loader2 className="mx-auto h-4 w-4 animate-spin text-gray-400" />
+                          ) : (
+                            <>
+                              <img src={imgUrl(url)} alt="Banner 1" className="h-full w-full object-cover" />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                                <Camera className="h-3.5 w-3.5 text-white" />
+                              </div>
+                            </>
+                          )}
+                          <span className="absolute bottom-1 left-1 rounded bg-primary px-1 py-0.5 text-[9px] font-semibold leading-none text-white shadow-sm">
+                            Primary
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                          <img src={imgUrl(url)} alt={`Banner ${i + 1}`} className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => void setPrimaryBanner(i)}
+                            title="Move to Banner 1 (primary)"
+                            className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded bg-white/95 px-1 py-0.5 text-[9px] font-semibold leading-none text-primary shadow-sm transition-colors hover:bg-primary hover:text-white"
+                          >
+                            <Star className="h-2.5 w-2.5" />
+                            Primary
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        aria-label={`Remove banner ${i + 1}`}
+                        onClick={() => void removeBannerAt(i)}
+                        className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                      <span className="mt-0.5 block text-center text-[10px] text-muted-foreground">Banner {i + 1}</span>
+                    </div>
+                  ))
+                )}
+
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => extraBannerRef.current?.click()}
+                    onClick={() => openMediaPicker(orderedBanners.length === 0 ? 'banner' : 'extra-banner')}
                     title="Add another banner"
                     className="flex h-16 w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-primary hover:bg-primary/5"
                   >
@@ -750,31 +1318,7 @@ function ProfileSection({ vendor, open, toggle, onSave }: SectionProps) {
   )
 }
 
-// â”€â”€ Contact Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function supportPhonesFromVendor(vendor: Vendor): string[] {
-  const settings = (vendor.settings || {}) as Record<string, unknown>
-  const extra = Array.isArray(settings.support_phones)
-    ? (settings.support_phones as string[]).filter((p) => typeof p === 'string' && p.trim())
-    : []
-  const primary = vendor.support_phone?.trim() || ''
-  if (primary) {
-    return [primary, ...extra.filter((p) => p.trim() !== primary)]
-  }
-  return extra.length > 0 ? extra : ['']
-}
-
-function supportEmailsFromVendor(vendor: Vendor): string[] {
-  const settings = (vendor.settings || {}) as Record<string, unknown>
-  const extra = Array.isArray(settings.support_emails)
-    ? (settings.support_emails as string[]).filter((e) => typeof e === 'string' && e.trim())
-    : []
-  const primary = vendor.support_email?.trim() || ''
-  if (primary) {
-    return [primary, ...extra.filter((e) => e.trim().toLowerCase() !== primary.toLowerCase())]
-  }
-  return extra.length > 0 ? extra : ['']
-}
+// ── Contact Section ───────────────────────────────────────────────────────────
 
 function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [supportEmails, setSupportEmails] = useState<string[]>([''])
@@ -825,6 +1369,12 @@ function ContactSection({ vendor, open, toggle, onSave }: SectionProps) {
       },
     } as Partial<Vendor>)
   }
+
+  const isDirty = useMemo(
+    () => isContactSectionDirty(supportEmails, supportPhones, vendor),
+    [supportEmails, supportPhones, vendor],
+  )
+  useSettingsSectionDirty('contact', isDirty)
 
   return (
     <SectionWrapper title="Contact Information" helpText="Phone, email, and support details" icon={Phone} open={open} toggle={toggle}>
@@ -1149,6 +1699,12 @@ function AddressSection({
     ? `Location for ${activeStore?.name ?? 'this unit'}`
     : `Select a ${BUSINESS_UNIT_STORE_LABEL} in the top bar to edit`
 
+  const isDirty = useMemo(
+    () => isAddressSectionDirty(hqForm, unitForm, vendor, activeStore, hqEditable, unitEditable),
+    [hqForm, unitForm, vendor, activeStore, hqEditable, unitEditable],
+  )
+  useSettingsSectionDirty('address', isDirty)
+
   return (
     <SectionWrapper title="Addresses" helpText="Branch location and registered HQ address" icon={MapPin} open={open} toggle={toggle}>
       <div className="grid grid-cols-1 gap-3 pt-2 lg:grid-cols-2 lg:items-stretch">
@@ -1236,13 +1792,19 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const gstin = form.is_gst_registered ? form.gstin.trim() : ''
+    const pan = form.pan_number.trim()
+    const rateRaw = form.default_tax_rate.trim()
     onSave.mutate({
       is_gst_registered: form.is_gst_registered,
-      gstin: form.gstin || undefined,
-      pan_number: form.pan_number || undefined,
-      default_tax_rate: form.default_tax_rate ? parseFloat(form.default_tax_rate) : undefined,
+      gstin: gstin || null,
+      pan_number: pan || null,
+      default_tax_rate: rateRaw ? parseFloat(rateRaw) : null,
     } as Partial<Vendor>)
   }
+
+  const isDirty = useMemo(() => isTaxSectionDirty(form, vendor), [form, vendor])
+  useSettingsSectionDirty('tax', isDirty)
 
   return (
     <SectionWrapper title="Tax & Compliance" helpText="GST, PAN, GSTIN and tax registration details" icon={FileText} open={open} toggle={toggle}>
@@ -1333,6 +1895,9 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   const updateDay = (day: string, field: string, value: string | boolean) => {
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }))
   }
+
+  const isDirty = useMemo(() => isBusinessHoursSectionDirty(hours, vendor), [hours, vendor])
+  useSettingsSectionDirty('hours-availability', isDirty)
 
   return (
     <SectionWrapper
@@ -1447,6 +2012,12 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
     setHours(h)
     toast.success('Copied from Offline Business Hours')
   }
+
+  const isDirty = useMemo(
+    () => isOrderAcceptanceSectionDirty(enabled, sameAsOfflineHours, hours, vendor),
+    [enabled, sameAsOfflineHours, hours, vendor],
+  )
+  useSettingsSectionDirty('order-acceptance', isDirty)
 
   return (
     <SectionWrapper
@@ -1743,6 +2314,27 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       <span className="max-w-[10rem] truncate font-mono">{domainName}</span>
     </div>
   ) : null
+
+  const isDirty = useMemo(
+    () =>
+      isExternalDomainSectionDirty(
+        {
+          enabled,
+          domainScope,
+          domainName,
+          registrar,
+          regEmail,
+          holder,
+          expiry,
+          accessStatus,
+          recoveryContact,
+          notes,
+        },
+        vendor,
+      ),
+    [enabled, domainScope, domainName, registrar, regEmail, holder, expiry, accessStatus, recoveryContact, notes, vendor],
+  )
+  useSettingsSectionDirty('external-domain', isDirty)
 
   return (
     <SectionWrapper
@@ -2051,7 +2643,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
 
       {/* OTP modal — deactivating an active domain */}
       {showOtpModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-6 space-y-4">
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />

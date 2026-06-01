@@ -109,6 +109,7 @@ class Product(Base):
     related_product_ids = Column(JSONB, default=[])
     upsell_product_ids = Column(JSONB, default=[])
     cross_sell_product_ids = Column(JSONB, default=[])
+    addons = Column(JSONB, default=[])
 
     # ── Digital Products ──────────────────────────────────────────
     is_digital = Column(Boolean, default=False)

@@ -98,7 +98,7 @@ export default function StorefrontProducts() {
                 <Link
                   key={p.id}
                   to={`${base}/products/${p.slug}`}
-                  className="group bg-white rounded-xl border overflow-hidden hover:shadow-lg transition-all"
+                  className="group bg-white rounded-xl border overflow-hidden hover:shadow-lg transition-all max-h-[90vh] overflow-y-auto"
                 >
                   <div className="aspect-square bg-gray-100 overflow-hidden">
                     {img ? (

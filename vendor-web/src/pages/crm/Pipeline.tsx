@@ -84,7 +84,7 @@ function DealCard({ deal, onDragStart }: { deal: Deal; onDragStart: (e: React.Dr
     <div
       draggable
       onDragStart={onDragStart}
-      className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing"
+      className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing max-h-[90vh] overflow-y-auto"
     >
       <p className="text-sm font-medium text-gray-900 line-clamp-2">{deal.title}</p>
       <p className="text-base font-semibold text-blue-600 mt-1">{formatCurrency(deal.amount, deal.currency)}</p>

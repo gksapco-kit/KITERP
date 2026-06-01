@@ -255,6 +255,10 @@ async def update_store(
     update_data = data.model_dump(exclude_unset=True)
     if "address" in update_data and update_data["address"]:
         update_data["address"] = {k: v for k, v in update_data["address"].items() if v is not None}
+    if "settings" in update_data and update_data["settings"] is not None:
+        merged_settings = dict(store.settings or {})
+        merged_settings.update(update_data["settings"])
+        update_data["settings"] = merged_settings
     if "manager_id" in update_data and update_data["manager_id"]:
         update_data["manager_id"] = UUID(update_data["manager_id"])
 

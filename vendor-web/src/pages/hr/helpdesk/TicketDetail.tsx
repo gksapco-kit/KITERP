@@ -56,7 +56,7 @@ export default function TicketDetailPage() {
         </div>
       )}
 
-      <div className="bg-white border rounded-xl shadow-sm">
+      <div className="bg-white border rounded-xl shadow-sm max-h-[90vh] overflow-y-auto">
         <div className="p-3 border-b text-sm font-semibold text-gray-700">Replies</div>
         <ul className="divide-y">
           {comments.length === 0 ? (

@@ -1245,13 +1245,13 @@ export default function ReportsPage() {
         {/* Selector dropdown */}
         <div className="relative">
           <button onClick={() => setSelectorOpen(v => !v)}
-            className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-800 hover:border-blue-400 hover:shadow-sm transition-all duration-150 min-w-[220px]">
+            className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-800 hover:border-blue-400 hover:shadow-sm transition-all duration-150 min-w-[220px] max-h-[90vh] overflow-y-auto">
             <div className={`p-1 rounded-lg ${def.bg} shrink-0`}><def.icon className={`w-4 h-4 ${def.color}`} /></div>
             <span className="flex-1 text-left">{def.label}</span>
             <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${selectorOpen ? 'rotate-180' : ''}`} />
           </button>
           {selectorOpen && (
-            <div className="absolute left-0 top-full mt-2 w-[380px] bg-white border border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+            <div className="absolute left-0 top-full mt-2 w-[380px] bg-white border border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden max-h-[90vh] overflow-y-auto">
               <div className="px-3 pt-3 pb-2 border-b">
                 <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
                   <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -1306,7 +1306,7 @@ export default function ReportsPage() {
 
       {/* ── WhatsApp Panel ──────────────────────────────────────── */}
       {waOpen && (
-        <div className="bg-white rounded-2xl border border-green-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-green-200 shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
           {/* Panel header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-green-100 bg-gradient-to-r from-green-50 to-emerald-50">
             <div className="flex items-center gap-2.5">
@@ -1579,7 +1579,7 @@ export default function ReportsPage() {
                           <span className="ml-auto text-xs text-gray-400 font-normal">Based on current data</span>
                         </p>
                         {/* Mockup phone bubble */}
-                        <div className="bg-white rounded-xl p-3 shadow-sm border border-green-100 mb-3">
+                        <div className="bg-white rounded-xl p-3 shadow-sm border border-green-100 mb-3 max-h-[90vh] overflow-y-auto">
                           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
                             <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                               <MessageCircle className="w-3 h-3 text-white" />
@@ -2164,7 +2164,7 @@ export default function ReportsPage() {
               {/* ── Toolbar: filters + export panel ────────────────────── */}
               <div className="flex flex-wrap items-center gap-2">
                 {/* Search */}
-                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 flex-1 min-w-[180px] max-w-xs shadow-sm">
+                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 flex-1 min-w-[180px] max-w-xs shadow-sm max-h-[90vh] overflow-y-auto">
                   <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <input value={mrpSearch} onChange={e => setMrpSearch(e.target.value)} placeholder="Search product, SKU, order…"
                     className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
@@ -2212,7 +2212,7 @@ export default function ReportsPage() {
                     <Settings2 className="w-3.5 h-3.5" /> Columns
                   </button>
                   {mrpColsOpen && (
-                    <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-3 min-w-[200px]">
+                    <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-3 min-w-[200px] max-h-[90vh] overflow-y-auto">
                       <p className="text-xs font-bold text-gray-500 uppercase mb-2">Optional Columns</p>
                       {MRP_OPTIONAL_COLS.map(col => (
                         <label key={col.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-lg px-1">
@@ -2238,7 +2238,7 @@ export default function ReportsPage() {
                     <Download className="w-3.5 h-3.5" /> Export &amp; Share
                   </button>
                   {mrpShareOpen && (
-                    <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-2 min-w-[210px] space-y-0.5">
+                    <div className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-2 min-w-[210px] space-y-0.5 max-h-[90vh] overflow-y-auto">
                       <button onClick={() => { exportMrpCSV(); setMrpShareOpen(false) }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-50 text-xs text-gray-700 font-medium">
                         <Download className="w-3.5 h-3.5 text-gray-500" /> Download CSV
@@ -2308,7 +2308,7 @@ export default function ReportsPage() {
                   <span className="text-sm font-semibold">{mrpSelected.size} item{mrpSelected.size > 1 ? 's' : ''} selected</span>
                   <div className="flex-1" />
                   <button onClick={() => setPoModal(true)}
-                    className="flex items-center gap-1.5 bg-white text-primary hover:bg-accent px-4 py-1.5 rounded-xl text-xs font-bold transition-colors shadow-sm">
+                    className="flex items-center gap-1.5 bg-white text-primary hover:bg-accent px-4 py-1.5 rounded-xl text-xs font-bold transition-colors shadow-sm max-h-[90vh] overflow-y-auto">
                     <Truck className="w-3.5 h-3.5" /> Create Purchase Order
                   </button>
                   <button onClick={() => { setProdTab('new'); setProdModal(true) }}
@@ -2322,7 +2322,7 @@ export default function ReportsPage() {
               )}
 
               {/* ── MRP Table ─────────────────────────────────────────── */}
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm max-h-[90vh] overflow-y-auto">
                 <div className="overflow-auto">
                   <ResizableTable tableId="rpt-mrp" defaultWidths={[40, 200, 130, 90, 90, 80, 90, 90, 130, 80]}>
                     <thead className="sticky top-0 bg-white z-10 border-b">
@@ -2527,7 +2527,7 @@ export default function ReportsPage() {
 
       {/* ── Purchase Order Modal (enhanced) ─────────────────────────────── */}
       {poModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setPoModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setPoModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-6 py-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="p-2 bg-blue-100 rounded-xl"><Truck className="w-5 h-5 text-blue-600" /></div>
@@ -2578,7 +2578,7 @@ export default function ReportsPage() {
                   </datalist>
                   {/* Recent suppliers dropdown */}
                   {poSupplierOpen && savedSuppliers.length > 0 && (
-                    <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                    <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto">
                       <p className="text-xs font-bold text-gray-400 uppercase px-3 pt-2 pb-1">Recent Suppliers</p>
                       {savedSuppliers.filter(s => !poSupplier || s.toLowerCase().includes(poSupplier.toLowerCase())).slice(0, 6).map(s => (
                         <button key={s} onClick={() => { setPoSupplier(s); setPoSupplierOpen(false) }}
@@ -2671,7 +2671,7 @@ export default function ReportsPage() {
 
       {/* ── Production Plan Modal ─────────────────────────────────────────── */}
       {prodModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setProdModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setProdModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 border-b bg-gradient-to-r from-accent to-primary/10 sticky top-0 z-10">

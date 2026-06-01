@@ -152,7 +152,7 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
         <div className={`grid gap-4 sm:gap-6 ${gridClass}`}>
           {products.items.map((p: any) => (
             <Link key={p.id} to={storePath(`/products/${p.slug}`)}
-              className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-200 overflow-hidden">
+              className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-200 overflow-hidden max-h-[90vh] overflow-y-auto">
               <div className="aspect-square bg-gray-50 overflow-hidden relative">
                 {p.images?.[0] ? (
                   <img src={imgUrl(p.images[0].url)} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -678,7 +678,7 @@ function StoreLocatorSection({
                 <div
                   key={store.id}
                   ref={isHighlighted ? highlightRef : undefined}
-                  className="flex items-start gap-4 bg-white border rounded-xl p-4 hover:shadow-sm transition-shadow"
+                  className="flex items-start gap-4 bg-white border rounded-xl p-4 hover:shadow-sm transition-shadow max-h-[90vh] overflow-y-auto"
                   style={isHighlighted ? { borderColor: colors.primary, boxShadow: `0 0 0 2px ${colors.primary}30` } : undefined}
                 >
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: colors.primary + '15' }}>
@@ -720,7 +720,7 @@ function StoreLocatorSection({
               <div
                 key={store.id}
                 ref={isHighlighted ? highlightRef : undefined}
-                className="bg-white border rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col gap-3"
+                className="bg-white border rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col gap-3 overflow-hidden"
                 style={isHighlighted ? { borderColor: colors.primary, boxShadow: `0 0 0 2px ${colors.primary}30` } : undefined}
               >
                 <div className="flex items-start gap-3">

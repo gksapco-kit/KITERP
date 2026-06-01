@@ -3,8 +3,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
   ShieldCheck, Plus, Pencil, Trash2, X, Check, ChevronDown, ChevronRight,
-  Lock, Eye, Package, Wrench, ShoppingCart, Users as UsersIcon,
-  MessageSquare, Settings, UserPlus, Shield, UserCog, ArrowLeft,
+  Lock, Shield, ArrowLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,6 +12,7 @@ import {
 import { useAuthStore } from '@/stores/authStore'
 import type { VendorRole } from '@/types'
 import { cn } from '@/lib/utils'
+import { PERMISSION_MODULE_ICONS, PERMISSION_MODULE_LABELS } from '@/lib/permissionModules'
 
 const BUILTIN_ROLE_STYLES: Record<string, { container: string; header: string }> = {
   owner: {
@@ -35,33 +35,22 @@ const BUILTIN_ROLE_STYLES: Record<string, { container: string; header: string }>
     container: 'border-border bg-muted/50 dark:bg-card',
     header: 'text-foreground',
   },
+  support: {
+    container: 'border-cyan-200 dark:border-cyan-500/30 bg-cyan-50 dark:bg-cyan-500/10',
+    header: 'text-cyan-700 dark:text-cyan-200',
+  },
+  marketing: {
+    container: 'border-pink-200 dark:border-pink-500/30 bg-pink-50 dark:bg-pink-500/10',
+    header: 'text-pink-700 dark:text-pink-200',
+  },
+  accountant: {
+    container: 'border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10',
+    header: 'text-violet-700 dark:text-violet-200',
+  },
 }
 
-const MODULE_ICONS: Record<string, React.ElementType> = {
-  dashboard: Eye,
-  products: Package,
-  services: Wrench,
-  orders: ShoppingCart,
-  customers: UsersIcon,
-  reviews: MessageSquare,
-  settings: Settings,
-  team: UserPlus,
-  roles: ShieldCheck,
-  hr: UserCog,
-}
-
-const MODULE_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
-  products: 'Products',
-  services: 'Services',
-  orders: 'Orders',
-  customers: 'Customers',
-  reviews: 'Reviews',
-  settings: 'Settings',
-  team: 'Staff Access Control',
-  roles: 'Roles',
-  hr: 'Human Resources',
-}
+const MODULE_ICONS = PERMISSION_MODULE_ICONS
+const MODULE_LABELS = PERMISSION_MODULE_LABELS
 
 export default function RolesPage() {
   const { user } = useAuthStore()
@@ -367,8 +356,8 @@ export default function RolesPage() {
 
       {/* Create/Edit Role Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-card rounded-xl shadow-xl border border-border w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowForm(false)}>
+          <div className="bg-card rounded-xl shadow-xl border border-border w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <h2 className="text-lg font-semibold text-foreground">
                 {editRole ? 'Edit Role' : 'Create New Role'}

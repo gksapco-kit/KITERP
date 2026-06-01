@@ -395,6 +395,9 @@ class VendorService:
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(vendor, field, value)
+            if field == "theme_config":
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(vendor, "theme_config")
         
         await self.db.commit()
         await self.db.refresh(vendor)

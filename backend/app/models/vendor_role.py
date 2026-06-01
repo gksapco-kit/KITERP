@@ -10,11 +10,43 @@ from app.database import Base
 # Default permission definitions
 ALL_PERMISSIONS = [
     "dashboard.view",
+    # Catalog
     "products.view", "products.create", "products.edit", "products.delete",
     "services.view", "services.create", "services.edit", "services.delete",
+    # Sales & billing
     "orders.view", "orders.manage",
+    "bookings.view", "bookings.manage",
+    "pos.view", "pos.manage", "pos.refund",
+    "invoices.view", "invoices.manage",
+    "memos.view", "memos.manage",
+    "coupons.view", "coupons.manage",
+    "subscriptions.view", "subscriptions.manage",
+    "rentals.view", "rentals.manage",
+    "production.view", "production.manage",
+    # Customers & reviews
     "customers.view", "customers.manage",
     "reviews.view", "reviews.reply",
+    # Inventory & procurement
+    "inventory.view", "inventory.manage",
+    "procurement.view", "procurement.manage",
+    # Merchandising & loyalty
+    "merchandising.view", "merchandising.manage",
+    "loyalty.view", "loyalty.manage",
+    # Restaurant operations
+    "restaurant.view",
+    "restaurant.floor",
+    "restaurant.kitchen",
+    "restaurant.reservations",
+    "restaurant.reports",
+    "restaurant.setup",
+    # Commission
+    "commission.read",
+    "commission.manage",
+    # Reports hub
+    "reports.view",
+    # Website builder
+    "websites.view", "websites.manage",
+    # Settings & access control
     "settings.view", "settings.edit",
     "team.view", "team.invite", "team.manage",
     "roles.view", "roles.manage",
@@ -25,7 +57,6 @@ ALL_PERMISSIONS = [
     "hr.salary_view", "hr.salary_manage",
     "hr.payroll",
     "hr.offers",
-    # Extended HR modules
     "hr.recruitment",
     "hr.onboarding",
     "hr.performance",
@@ -50,6 +81,7 @@ ALL_PERMISSIONS = [
     "crm.chat.handle",
     # Finance permissions
     "finance.view",
+    "finance.edit",
     "finance.coa.manage",
     "finance.journal.create", "finance.journal.post",
     "finance.ar.manage",
@@ -62,19 +94,6 @@ ALL_PERMISSIONS = [
     "finance.capital.manage",
     "finance.reports.view",
     "finance.audit.view",
-    # Sales commission (payees, plans, assignments, payouts)
-    "commission.read",
-    "commission.manage",
-    # POS
-    "pos.view",
-    "pos.manage",
-    "pos.refund",
-    # Restaurant operations
-    "restaurant.view",
-    "restaurant.floor",
-    "restaurant.kitchen",
-    "restaurant.reservations",
-    "restaurant.reports",
 ]
 
 DEFAULT_ROLE_PERMISSIONS = {
@@ -85,11 +104,20 @@ DEFAULT_ROLE_PERMISSIONS = {
         "products.view", "products.create", "products.edit",
         "services.view", "services.create", "services.edit",
         "orders.view", "orders.manage",
+        "bookings.view", "bookings.manage",
+        "pos.view", "pos.manage", "pos.refund",
+        "invoices.view", "invoices.manage",
+        "memos.view", "memos.manage",
+        "coupons.view", "coupons.manage",
+        "production.view", "production.manage",
         "customers.view", "customers.manage",
         "reviews.view", "reviews.reply",
+        "inventory.view", "inventory.manage",
+        "procurement.view", "procurement.manage",
+        "reports.view",
         "settings.view",
         "team.view",
-        # HR: can view employees, manage attendance, approve leaves
+        # HR: outlet managers — attendance, leave, recruitment pipeline
         "hr.view", "hr.attendance", "hr.leave_approve",
         "hr.recruitment", "hr.onboarding", "hr.performance",
         # CRM (full)
@@ -98,39 +126,57 @@ DEFAULT_ROLE_PERMISSIONS = {
         "crm.kb.manage", "crm.campaigns.manage", "crm.segments.manage",
         "crm.workflows.manage", "crm.reports.view", "crm.ai.use",
         "crm.chat.handle",
-        # Finance (view + budgets + reports)
-        "finance.view", "finance.budget.manage",
+        # Finance (view + budgets + reports + controlling edits)
+        "finance.view", "finance.edit", "finance.budget.manage",
         "finance.reports.view", "finance.controls.approve",
-        # Commission (outlet managers often configure payees / assignments)
+        # Commission
         "commission.read", "commission.manage",
+        # Restaurant + POS
+        "restaurant.view", "restaurant.floor", "restaurant.kitchen",
+        "restaurant.reservations", "restaurant.reports", "restaurant.setup",
     ],
     "sales": [
         "dashboard.view",
         "products.view",
         "services.view",
         "orders.view", "orders.manage",
+        "bookings.view", "bookings.manage",
+        "pos.view", "pos.manage",
+        "invoices.view",
+        "coupons.view",
         "customers.view", "customers.manage",
         "reviews.view",
+        "reports.view",
         # CRM (sales-focused)
         "crm.view", "crm.contacts.manage", "crm.leads.manage",
         "crm.deals.manage", "crm.activities.manage", "crm.tickets.manage",
         "crm.reports.view",
         "crm.ai.use",
+        # Commission (read own accruals)
+        "commission.read",
+        # Restaurant floor staff often take orders
+        "restaurant.view", "restaurant.floor",
     ],
     "staff": [
         "dashboard.view",
         "products.view",
         "services.view",
         "orders.view",
+        "bookings.view",
+        "pos.view",
         "customers.view",
         "reviews.view",
         # CRM (read-only-ish + log support tickets)
         "crm.view", "crm.activities.manage", "crm.tickets.manage", "crm.chat.handle",
+        # Restaurant kitchen / floor
+        "restaurant.view", "restaurant.floor", "restaurant.kitchen",
     ],
     "support": [
         "dashboard.view",
+        "orders.view",
         "customers.view",
         "reviews.view", "reviews.reply",
+        "bookings.view",
         "crm.view", "crm.contacts.manage", "crm.activities.manage",
         "crm.tickets.manage", "crm.kb.manage", "crm.chat.handle",
         "crm.reports.view",
@@ -139,6 +185,11 @@ DEFAULT_ROLE_PERMISSIONS = {
         "dashboard.view",
         "products.view",
         "customers.view",
+        "coupons.view", "coupons.manage",
+        "merchandising.view", "merchandising.manage",
+        "loyalty.view", "loyalty.manage",
+        "websites.view", "websites.manage",
+        "reports.view",
         "crm.view", "crm.contacts.manage", "crm.leads.manage",
         "crm.campaigns.manage", "crm.segments.manage",
         "crm.workflows.manage", "crm.reports.view", "crm.ai.use",
@@ -147,8 +198,12 @@ DEFAULT_ROLE_PERMISSIONS = {
         "dashboard.view",
         "orders.view",
         "customers.view",
+        "invoices.view", "invoices.manage",
+        "memos.view", "memos.manage",
+        "procurement.view",
+        "reports.view",
         # Full Finance access (no tax.file — owner-only action)
-        "finance.view",
+        "finance.view", "finance.edit",
         "finance.coa.manage",
         "finance.journal.create", "finance.journal.post",
         "finance.ar.manage",

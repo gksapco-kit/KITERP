@@ -68,7 +68,7 @@ export default function ESSLeavesPage() {
       {/* Balances */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {balances.map((b: any) => (
-          <div key={b.id} className="bg-white rounded-xl border shadow-sm p-4">
+          <div key={b.id} className="bg-white rounded-xl border shadow-sm p-4 max-h-[90vh] overflow-y-auto">
             <p className="text-xs font-medium text-gray-500">{b.leave_policy?.name ?? 'Leave'}</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">{Number(b.available).toFixed(1)}</p>
             <p className="text-xs text-gray-400">of {Number(b.allocated).toFixed(0)} days</p>
@@ -87,7 +87,7 @@ export default function ESSLeavesPage() {
 
       {/* Apply form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border shadow-sm p-5 mb-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border shadow-sm p-5 mb-6 space-y-4 max-h-[90vh] overflow-y-auto">
           <h3 className="font-semibold text-gray-900">New Leave Request</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -163,7 +163,7 @@ export default function ESSLeavesPage() {
       )}
 
       {/* History */}
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="px-4 py-3 border-b">
           <h3 className="font-semibold text-gray-900">Leave History</h3>
         </div>

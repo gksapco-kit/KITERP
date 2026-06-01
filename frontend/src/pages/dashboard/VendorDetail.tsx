@@ -1,4 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { adminApi } from '@/api/admin.api'
 import { toast } from 'sonner'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
@@ -942,7 +944,17 @@ function RestaurantInfoCard({ vendor, businessFrontUrl }: { vendor: AdminVendor;
   )
   const slug = vendor.slug
 
+  const { data: snapshot, isLoading: snapshotLoading } = useQuery({
+    queryKey: ['admin', 'restaurant-snapshot', vendor.id],
+    queryFn: () => adminApi.getRestaurantSnapshot(vendor.id),
+    enabled: isRestaurantEnabled,
+    refetchInterval: 30_000,
+  })
+
   if (!isRestaurantEnabled) return null
+
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
   return (
     <Card className="border-amber-200">
@@ -951,10 +963,52 @@ function RestaurantInfoCard({ vendor, businessFrontUrl }: { vendor: AdminVendor;
           <span className="text-lg">🍽️</span> Restaurant Module
         </CardTitle>
         <p className="text-xs text-gray-500 mt-1">
-          Restaurant is enabled for this vendor. Direct links to operational pages.
+          Read-only ops snapshot (refreshes every 30s). Vendor manages floor, kitchen, and QR in their dashboard.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
+        {snapshotLoading && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading snapshot…
+          </div>
+        )}
+        {snapshot && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+            <div className="rounded-lg border bg-white px-3 py-2">
+              <p className="text-[0.65rem] uppercase text-gray-400">Open orders today</p>
+              <p className="font-bold text-gray-900">{snapshot.today.open_orders}</p>
+            </div>
+            <div className="rounded-lg border bg-white px-3 py-2">
+              <p className="text-[0.65rem] uppercase text-gray-400">Covers today</p>
+              <p className="font-bold text-gray-900">{snapshot.today.total_covers}</p>
+            </div>
+            <div className="rounded-lg border bg-white px-3 py-2">
+              <p className="text-[0.65rem] uppercase text-gray-400">Revenue today</p>
+              <p className="font-bold text-gray-900">{fmt(snapshot.today.restaurant_revenue)}</p>
+            </div>
+            <div className="rounded-lg border bg-white px-3 py-2">
+              <p className="text-[0.65rem] uppercase text-gray-400">Active KOTs</p>
+              <p className="font-bold text-gray-900">{snapshot.today.active_kots}</p>
+            </div>
+          </div>
+        )}
+        {snapshot && (
+          <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+            {Object.entries(snapshot.tables_by_status).map(([status, cnt]) => (
+              <span key={status} className="rounded-full border px-2 py-0.5 bg-gray-50">
+                Tables {status}: {cnt}
+              </span>
+            ))}
+            {Object.entries(snapshot.kots_by_status).map(([status, cnt]) => (
+              <span key={`kot-${status}`} className="rounded-full border px-2 py-0.5 bg-amber-50">
+                KOT {status}: {cnt}
+              </span>
+            ))}
+            <span className="rounded-full border px-2 py-0.5 bg-blue-50">
+              Reservations (7d): {snapshot.upcoming_reservations}
+            </span>
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
           <a href={`${businessFrontUrl}/reserve`} target="_blank" rel="noopener noreferrer"
             className="rounded-lg border px-3 py-2 hover:bg-amber-50 hover:border-amber-300 transition-colors flex items-center gap-2 text-gray-700">
@@ -962,16 +1016,13 @@ function RestaurantInfoCard({ vendor, businessFrontUrl }: { vendor: AdminVendor;
           </a>
           {slug && (
             <span className="rounded-lg border px-3 py-2 bg-gray-50 text-gray-500 text-xs flex items-center gap-2">
-              🔗 QR URLs: <code>/store/{slug}/table/TOKEN</code>
+              🔗 QR: <code>/store/{slug}/table/TOKEN</code>
             </span>
           )}
           <span className="rounded-lg border border-green-200 px-3 py-2 bg-green-50 text-green-700 text-xs flex items-center gap-2 font-semibold">
             ✅ Module active
           </span>
         </div>
-        <p className="text-xs text-gray-400">
-          Floor plan, KDS kitchen board, reservations, QR table ordering, and restaurant reports are available in the vendor dashboard.
-        </p>
       </CardContent>
     </Card>
   )

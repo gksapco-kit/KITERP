@@ -126,7 +126,7 @@ export default function ContactFormBlock({ site, style, props, liveItems }: Prop
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm max-h-[90vh] overflow-y-auto">
           {done ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: `${primary}15` }}>

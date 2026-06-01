@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
 import { PhoneInput } from '@/components/ui/PhoneInput'
+import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 
 // ── Regex constants ───────────────────────────────────────────────────────────
 
@@ -698,7 +699,7 @@ function CountryPicker({ value, onChange, mode, className = '' }: CountryPickerP
         <ChevronDown className="w-3 h-3 text-gray-400" />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
           <div className="p-2 border-b">
             <input
               ref={inputRef}
@@ -785,7 +786,7 @@ function RelationPicker({ value, onChange }: { value: string; onChange: (v: stri
         placeholder="Search for a customer, vendor, partner…" className="text-sm"
       />
       {open && results.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto">
           {results.map(r => (
             <button key={r.id} type="button" onClick={() => pick(r)}
               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-primary/10 text-left">
@@ -835,13 +836,24 @@ export function AddPartyModal({
   const [customTypeInput, setCustomTypeInput] = useState('')
 
   // Profile picture
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [profilePreview, setProfilePreview] = useState<string | null>(() => {
     if (!editRecord) return null
     const id = (editRecord.raw as { id?: string }).id
     return id ? loadAvatar(id) : null
   })
   const [profileFile, setProfileFile] = useState<File | null>(null)
+
+  const applyProfileFile = useCallback((file: File) => {
+    setProfileFile(file)
+    const reader = new FileReader()
+    reader.onload = ev => setProfilePreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }, [])
+
+  const { openPicker: openProfilePicker, fileInput: profileFileInput, modal: profilePickerModal } = useImageSourcePicker({
+    title: 'Profile picture',
+    onFile: applyProfileFile,
+  })
 
   // Groups / Segments — seeded from last session, persisted on every change
   const [groups, setGroups] = useState<string[]>(loadSelectedGroups)
@@ -1066,15 +1078,7 @@ export function AddPartyModal({
     }
   }, [showSuggestions, updateDropdownRect])
 
-  // Profile picture
-  const handleProfilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setProfileFile(file)
-    const reader = new FileReader()
-    reader.onload = ev => setProfilePreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
-  }
+  // Profile picture — handled via ImageSourcePicker (applyProfileFile)
 
   // Party type
   const handlePartyType = (t: string) => {
@@ -1493,7 +1497,7 @@ export function AddPartyModal({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[92vh] overflow-y-auto">
 
         {/* Header */}
@@ -1585,13 +1589,14 @@ export function AddPartyModal({
               {/* Camera badge — only this triggers file picker */}
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={openProfilePicker}
                 title="Upload profile picture"
                 className="absolute -bottom-0.5 -right-0.5 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow hover:bg-primary/90 transition-colors"
               >
                 <Camera className="w-3.5 h-3.5 text-white" />
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePick} />
+              {profileFileInput}
+              {profilePickerModal}
               {profilePreview && (
                 <button type="button" aria-label="Close"
                   type="button"
@@ -2378,7 +2383,7 @@ export function AddPartyModal({
     {showSuggestions && suggestions.length > 0 && dropdownRect && createPortal(
       <div
         style={{ position: 'fixed', top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width, zIndex: 9999 }}
-        className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden"
+        className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
         onMouseDown={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border-b border-amber-100">

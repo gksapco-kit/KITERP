@@ -7,9 +7,10 @@ import { useMyVendor } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 
 function getTableQRUrl(vendorSlug: string, qrToken: string) {
-  return `${window.location.origin}/store/${vendorSlug}/table/${qrToken}`
+  return `${getCustomerStorefrontBaseUrl(vendorSlug)}/table/${qrToken}`
 }
 
 function TableQRSection({ table, vendorSlug }: { table: { id: string; label: string; qr_token?: string | null }; vendorSlug?: string }) {
@@ -235,10 +236,13 @@ export default function RestaurantSetupPage() {
         <Button variant="ghost" size="sm" asChild>
           <Link to="/restaurant/floor"><ArrowLeft className="w-4 h-4" /></Link>
         </Button>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-gray-900">Restaurant Setup</h1>
-          <p className="text-sm text-gray-500">Manage zones, tables, and QR codes for customer ordering.</p>
+          <p className="text-sm text-gray-500">Manage zones, tables, and QR codes. Configure menu items under Dine-in Menu.</p>
         </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/restaurant/menu">Dine-in Menu</Link>
+        </Button>
       </div>
 
       {/* Zones */}

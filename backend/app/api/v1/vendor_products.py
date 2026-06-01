@@ -162,6 +162,7 @@ def _product_to_dict(p) -> dict:
         "related_product_ids": p.related_product_ids or [],
         "upsell_product_ids": p.upsell_product_ids or [],
         "cross_sell_product_ids": p.cross_sell_product_ids or [],
+        "addons": p.addons or [],
         # Digital
         "is_digital": p.is_digital or False,
         "download_url": p.download_url,

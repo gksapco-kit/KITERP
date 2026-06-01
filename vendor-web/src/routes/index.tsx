@@ -35,6 +35,7 @@ import RestaurantSetupPage from '@/pages/restaurant/Setup'
 import RestaurantOrderPage from '@/pages/restaurant/Order'
 import RestaurantReservationsPage from '@/pages/restaurant/Reservations'
 import RestaurantReportsPage from '@/pages/restaurant/Reports'
+import RestaurantMenuPage from '@/pages/restaurant/Menu'
 import WorkspaceHubPage from '@/pages/workspace/Hub'
 import SubscriptionsSalesPage from '@/pages/sales/Subscriptions'
 import RentalHubPage from '@/pages/rental/RentalHub'
@@ -258,6 +259,7 @@ export const router = createBrowserRouter([
       { path: 'restaurant/floor', element: <RestaurantFloorPage /> },
       { path: 'restaurant/kitchen', element: <RestaurantKitchenPage /> },
       { path: 'restaurant/setup', element: <RestaurantSetupPage /> },
+      { path: 'restaurant/menu', element: <RestaurantMenuPage /> },
       { path: 'restaurant/order/:orderId', element: <RestaurantOrderPage /> },
       { path: 'restaurant/reservations', element: <RestaurantReservationsPage /> },
       { path: 'restaurant/reports', element: <RestaurantReportsPage /> },

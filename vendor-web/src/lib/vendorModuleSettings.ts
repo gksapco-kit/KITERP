@@ -138,15 +138,23 @@ export function isControllingNavVisible(settings: Record<string, unknown> | unde
 export function isPosNavVisible(
   settings: Record<string, unknown> | undefined | null,
   offeringType?: string,
+  planFeatures?: Record<string, unknown> | null,
 ): boolean {
-  return offeringIncludes(offeringType, ['products', 'both']) && flagEnabled(settings, 'pos_enabled')
+  if (!offeringIncludes(offeringType, ['products', 'both'])) return false
+  if (!flagEnabled(settings, 'pos_enabled')) return false
+  if (planFeatures && planFeatures.pos === false) return false
+  return true
 }
 
 export function isRestaurantNavVisible(
   settings: Record<string, unknown> | undefined | null,
   offeringType?: string,
+  planFeatures?: Record<string, unknown> | null,
 ): boolean {
-  return offeringIncludes(offeringType, ['products', 'both']) && flagEnabled(settings, 'restaurant_enabled')
+  if (!offeringIncludes(offeringType, ['products', 'both'])) return false
+  if (!flagEnabled(settings, 'restaurant_enabled')) return false
+  if (planFeatures && planFeatures.restaurant === false) return false
+  return true
 }
 
 export function isBookingsNavVisible(

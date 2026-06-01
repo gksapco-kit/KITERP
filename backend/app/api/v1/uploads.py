@@ -135,6 +135,18 @@ async def upload_vendor_banner(
     return JSONResponse(content={"banner_url": url})
 
 
+@router.post("/vendor/branding-asset")
+async def upload_vendor_branding_asset(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save a branding image and return its URL without changing vendor logo/banner."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    url = await _save_file(file, f"vendor-branding/{vendor_id}")
+    return JSONResponse(content={"url": url})
+
+
 @router.post("/vendor/extra-banner")
 async def upload_vendor_extra_banner(
     file: UploadFile = File(...),

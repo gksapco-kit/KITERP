@@ -146,3 +146,30 @@ class RestaurantReservationCreate(BaseModel):
 class RestaurantReservationStatusUpdate(BaseModel):
     status: Literal["pending", "confirmed", "seated", "cancelled", "no_show"]
     table_id: Optional[str] = None
+
+
+class RestaurantReservationUpdate(BaseModel):
+    guest_name: Optional[str] = Field(None, min_length=1, max_length=200)
+    guest_phone: Optional[str] = Field(None, max_length=30)
+    guest_email: Optional[str] = Field(None, max_length=200)
+    reservation_date: Optional[date] = None
+    reservation_time: Optional[str] = Field(None, min_length=4, max_length=10)
+    party_size: Optional[int] = Field(None, ge=1, le=50)
+    table_id: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[Literal["pending", "confirmed", "seated", "cancelled", "no_show"]] = None
+
+
+class RestaurantMenuSettingsOut(BaseModel):
+    mode: Literal["all_active", "curated"] = "all_active"
+    product_ids: List[str] = []
+
+
+class RestaurantMenuSettingsUpdate(BaseModel):
+    mode: Literal["all_active", "curated"] = "all_active"
+    product_ids: List[str] = Field(default_factory=list)
+
+
+class RestaurantSeatReservationIn(BaseModel):
+    table_id: str
+    covers: Optional[int] = Field(None, ge=1, le=99)

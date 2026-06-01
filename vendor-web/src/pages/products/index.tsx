@@ -66,7 +66,7 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
     <div
       ref={menuRef}
       style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999 }}
-      className="w-44 bg-white rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95"
+      className="w-44 bg-white rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 max-h-[90vh] overflow-y-auto"
     >
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
         onClick={() => { shareProduct(product, 'copy'); setOpen(false) }}>

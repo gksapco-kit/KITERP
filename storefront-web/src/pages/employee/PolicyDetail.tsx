@@ -37,7 +37,7 @@ export default function ESSPolicyDetailPage() {
           <p className="text-sm text-gray-800">{String(p.summary)}</p>
         </aside>
       ) : null}
-      <article className="bg-white border rounded-xl shadow-sm p-6 prose prose-sm max-w-none"
+      <article className="bg-white border rounded-xl shadow-sm p-6 prose prose-sm max-w-none max-h-[90vh] overflow-y-auto"
         dangerouslySetInnerHTML={{ __html: String(p.body ?? '<p class="text-gray-400">No content.</p>') }} />
       {p.attachment_url ? (
         <p className="mt-4">

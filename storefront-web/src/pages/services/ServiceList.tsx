@@ -91,7 +91,7 @@ export default function ServiceList() {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
         <aside className="hidden lg:block w-64 shrink-0">
-          <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sticky top-4 shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sticky top-4 shadow-sm max-h-[90vh] overflow-y-auto">
             <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-gray-900">
               <SlidersHorizontal className="w-4 h-4 text-gray-400" /> Filters
             </h3>
@@ -138,7 +138,7 @@ export default function ServiceList() {
         {/* Main */}
         <div className="flex-1 min-w-0">
           {/* Toolbar */}
-          <div className="bg-white rounded-2xl border border-gray-200/80 p-3 sm:p-4 mb-5 flex items-center justify-between gap-3 flex-wrap shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-200/80 p-3 sm:p-4 mb-5 flex items-center justify-between gap-3 flex-wrap shadow-sm max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3 flex-wrap">
               <Button variant="outline" size="sm" className="lg:hidden gap-1.5 rounded-lg" onClick={() => setShowFilters(!showFilters)}>
                 <SlidersHorizontal className="w-4 h-4" /> Filters
@@ -165,7 +165,7 @@ export default function ServiceList() {
 
           {/* Mobile Filters */}
           {showFilters && (
-            <div className="lg:hidden bg-white rounded-2xl border border-gray-200/80 p-4 mb-5 space-y-3 shadow-sm">
+            <div className="lg:hidden bg-white rounded-2xl border border-gray-200/80 p-4 mb-5 space-y-3 shadow-sm max-h-[90vh] overflow-y-auto">
               <form onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1); setShowFilters(false) }}
                 className="flex gap-2">
                 <Input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}

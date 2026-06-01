@@ -33,7 +33,7 @@ function AddCandidateToJobModal({
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onModalBackdropClick(onClose)}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Add Candidate to Pipeline</h2>
@@ -88,8 +88,8 @@ function ScheduleInterviewModal({
     onClose()
   }
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Schedule Interview</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
@@ -193,7 +193,7 @@ export default function JobDetailPage() {
             </div>
             <div className="space-y-2">
               {(grouped[stage.key] ?? []).map(app => (
-                <div key={app.id} className="bg-white border rounded-lg p-2 shadow-sm">
+                <div key={app.id} className="bg-white border rounded-lg p-2 shadow-sm max-h-[90vh] overflow-y-auto">
                   <p className="text-sm font-medium text-gray-900">{app.candidate?.full_name ?? '—'}</p>
                   <p className="text-xs text-gray-500 mb-1">{app.candidate?.current_designation ?? ''}</p>
                   {app.rating ? (

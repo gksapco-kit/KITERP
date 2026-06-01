@@ -38,7 +38,7 @@ export default function HolidaysPage() {
       </div>
 
       {showAdd && (
-        <form onSubmit={handleAdd} className="bg-white rounded-xl border shadow-sm p-4 mb-4 space-y-3">
+        <form onSubmit={handleAdd} className="bg-white rounded-xl border shadow-sm p-4 mb-4 space-y-3 max-h-[90vh] overflow-y-auto">
           <h3 className="font-semibold text-sm">New Holiday</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -64,14 +64,14 @@ export default function HolidaysPage() {
       {isLoading ? (
         <div className="p-8 text-center text-gray-400">Loading…</div>
       ) : holidays.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-xl border shadow-sm">
+        <div className="p-12 text-center bg-white rounded-xl border shadow-sm max-h-[90vh] overflow-y-auto">
           <Star className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No holidays added yet.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {Object.entries(grouped).map(([month, items]) => (
-            <div key={month} className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div key={month} className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
               <div className="px-4 py-2 bg-gray-50 border-b">
                 <h3 className="font-semibold text-sm text-gray-700">{month}</h3>
               </div>

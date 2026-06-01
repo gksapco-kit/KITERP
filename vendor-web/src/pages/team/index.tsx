@@ -462,15 +462,15 @@ export default function TeamPage() {
 
       {/* Invite Modal */}
       {showInvite && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowInvite(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowInvite(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">Add Team Member</h2>
               <button type="button" aria-label="Close" onClick={() => setShowInvite(false)} className="p-1 rounded hover:bg-gray-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
 
               <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
@@ -579,7 +579,7 @@ export default function TeamPage() {
                 A 6-digit verification OTP will be generated after creation. Share it with the member to verify their contact.
               </p>
             </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl shrink-0">
               <Button variant="ghost" onClick={() => setShowInvite(false)}>Cancel</Button>
               <Button
                 onClick={handleInvite}
@@ -594,8 +594,8 @@ export default function TeamPage() {
 
       {/* OTP Display Modal — shown after member creation or send-verification */}
       {otpModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm text-center p-8 space-y-5">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm text-center p-8 space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
               <KeyRound className="w-8 h-8 text-primary" />
             </div>
@@ -637,8 +637,8 @@ export default function TeamPage() {
 
       {/* OTP Verify Modal */}
       {verifyModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Enter OTP</h2>
               <button type="button" aria-label="Close" onClick={() => { setVerifyModal(null); setVerifyOtpInput('') }} className="p-1 rounded hover:bg-gray-100">
@@ -1076,15 +1076,15 @@ function EditRoleModal({
   const roleId = parsed.role_id
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
           <h2 className="text-lg font-semibold text-gray-900">Edit Member Role</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-gray-100">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
               {member.user?.full_name?.charAt(0)?.toUpperCase() || '?'}
@@ -1123,7 +1123,7 @@ function EditRoleModal({
             <span className="text-sm text-gray-700">Active</span>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl shrink-0">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button
             onClick={() => onSave({

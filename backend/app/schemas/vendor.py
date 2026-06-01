@@ -114,6 +114,7 @@ class VendorUpdate(BaseModel):
     order_acceptance_hours: Optional[dict] = None
     social_links: Optional[dict] = None
     settings: Optional[dict] = None
+    theme_config: Optional[dict] = None
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     street_address: Optional[str] = Field(None, min_length=5, max_length=500)
@@ -170,6 +171,7 @@ class VendorResponse(BaseModel):
     order_acceptance_hours: Optional[dict] = None
     social_links: Optional[dict] = None
     settings: Optional[dict] = None
+    theme_config: Optional[dict] = None
     status: Optional[str] = "pending"
     verification_status: Optional[str] = "pending"
     verified_at: Optional[str] = None

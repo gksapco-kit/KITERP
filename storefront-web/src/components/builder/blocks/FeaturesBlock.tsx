@@ -51,7 +51,7 @@ export default function FeaturesBlock({ style, props, blockType }: Props) {
       {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
       <div className={`grid ${colClass} gap-6`}>
         {features.map((feature, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow">
+          <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow max-h-[90vh] overflow-y-auto">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-2xl" style={{ backgroundColor: `${style.primary_color}15` }}>
               {feature.icon === 'Zap' ? '⚡' : feature.icon === 'Shield' ? '🛡️' : feature.icon === 'Star' ? '⭐' : feature.icon === 'Clock' ? '⏱️' : '✨'}
             </div>

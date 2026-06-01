@@ -610,7 +610,7 @@ export default function InvoiceDetail() {
 
       {/* Totals */}
       <div className="flex justify-end">
-        <div className="bg-white rounded-xl border p-5 w-full max-w-sm space-y-2">
+        <div className="bg-white rounded-xl border p-5 w-full max-w-sm space-y-2 max-h-[90vh] overflow-y-auto">
           {isEditing ? (
             <>
               <div className="flex justify-between text-sm">

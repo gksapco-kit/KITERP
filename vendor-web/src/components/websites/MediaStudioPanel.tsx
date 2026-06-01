@@ -11,6 +11,7 @@ import {
   Wand2,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { websiteApi } from '@/api/websites'
 import { useMedia, useUploadMedia } from '@/hooks/useWebsites'
 import type { WebsiteBlock, WebsiteMedia } from '@/types/websites'
@@ -211,6 +212,18 @@ export function MediaStudioPanel({
               <span className="text-xs text-gray-400">JPG, PNG, WebP, GIF, MP4 • Multiple files ok</span>
             </>
           )}
+        </div>
+        <div className="mt-2">
+          <ImageSourcePicker
+            title="Image"
+            disabled={uploadMedia.isPending}
+            uploading={uploadMedia.isPending}
+            onFile={doUpload}
+            buttonLabel="Add image (device · gallery · URL)"
+            buttonVariant="outline"
+            buttonSize="sm"
+            buttonClassName="w-full text-xs"
+          />
         </div>
       </div>
 

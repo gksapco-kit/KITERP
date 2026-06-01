@@ -104,7 +104,7 @@ export default function MyOrders() {
             const status = statusConfig[order.status] || statusConfig.pending
             return (
               <Link key={order.id} to={storePath(`/account/orders/${order.id}`)}
-                className="block bg-white rounded-xl border hover:shadow-md transition-all group overflow-hidden">
+                className="block bg-white rounded-xl border hover:shadow-md transition-all group overflow-hidden max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="bg-gray-50 px-5 py-3 border-b flex items-center justify-between flex-wrap gap-2 text-sm">
                   <div className="flex gap-6 flex-wrap">

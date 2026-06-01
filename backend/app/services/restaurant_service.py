@@ -8,10 +8,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.restaurant import RestaurantZone, RestaurantTable, RestaurantOrder, RestaurantKOT, RestaurantReservation
 from app.models.pos import POSTransaction
+from app.models.vendor_product import Product
+from app.models.vendor import Vendor
+from app.utils.restaurant_menu import parse_menu_settings, load_dine_in_products
+import logging
+
+log = logging.getLogger(__name__)
 
 TABLE_STATUSES = ("free", "seated", "ordering", "billed", "dirty")
 KOT_STATUSES = ("new", "preparing", "ready", "done")
 ORDER_STATUSES = ("open", "billed", "closed", "voided")
+
+
+def _order_line_key(item: dict) -> tuple:
+    """Match order lines by product + modifier selection (not name alone)."""
+    mods = item.get("modifiers") or []
+    mod_ids = tuple(sorted(m.get("option_id", "") for m in mods if isinstance(m, dict)))
+    return (item.get("product_id"), mod_ids)
+
+
+def _merge_order_line(current: list, new_item: dict) -> list:
+    key = _order_line_key(new_item)
+    for existing in current:
+        if _order_line_key(existing) == key:
+            existing["qty"] = existing.get("qty", 0) + new_item.get("qty", 1)
+            return current
+    current.append(new_item)
+    return current
 
 
 class RestaurantService:
@@ -244,16 +267,7 @@ class RestaurantService:
             raise ValueError("Cannot add items to an order that is not open")
         current = list(o.items or [])
         for new_item in new_items:
-            merged = False
-            product_id = new_item.get("product_id")
-            if product_id:
-                for existing in current:
-                    if existing.get("product_id") == product_id:
-                        existing["qty"] = existing.get("qty", 0) + new_item.get("qty", 1)
-                        merged = True
-                        break
-            if not merged:
-                current.append(new_item)
+            current = _merge_order_line(current, new_item)
         from sqlalchemy import update as sqla_update
         await self.db.execute(
             sqla_update(RestaurantOrder)
@@ -309,22 +323,14 @@ class RestaurantService:
             notes=notes,
         )
         self.db.add(kot)
+        await self.db.flush()
 
         # Accumulate sent items onto order.items so Order.tsx can show them
         # and the "Request Bill" button remains enabled after a KOT is sent.
         from sqlalchemy import update as sqla_update
         current = list(o.items or [])
         for new_item in items:
-            merged = False
-            product_id = new_item.get("product_id")
-            if product_id:
-                for existing in current:
-                    if existing.get("product_id") == product_id:
-                        existing["qty"] = existing.get("qty", 0) + new_item.get("qty", 1)
-                        merged = True
-                        break
-            if not merged:
-                current.append(new_item)
+            current = _merge_order_line(current, new_item)
         await self.db.execute(
             sqla_update(RestaurantOrder)
             .where(RestaurantOrder.id == order_id)
@@ -336,6 +342,30 @@ class RestaurantService:
             table = await self.db.get(RestaurantTable, o.table_id)
             if table and table.status == "seated":
                 table.status = "ordering"
+        # Deduct inventory for product lines on this KOT (best-effort)
+        from app.services.inventory_service import InventoryService
+        inv_svc = InventoryService(self.db)
+        for item in items:
+            pid = item.get("product_id")
+            if not pid or item.get("item_type") == "service":
+                continue
+            try:
+                async with self.db.begin_nested():
+                    product = await self.db.get(Product, UUID(str(pid)))
+                    if not product or not product.track_inventory:
+                        raise ValueError("skip")
+                    qty = int(item.get("qty") or 1)
+                    await inv_svc.deduct_for_sale(
+                        vendor_id=vendor_id,
+                        product_id=UUID(str(pid)),
+                        quantity=qty,
+                        reference_id=kot.id,
+                        reference_type="restaurant_kot",
+                        auto_commit=False,
+                    )
+            except Exception as e:
+                log.warning("KOT inventory deduction failed for %s: %s", pid, e)
+
         await self.db.commit()
         await self.db.refresh(kot)
         return kot
@@ -394,10 +424,10 @@ class RestaurantService:
         *,
         include_done: bool = False,
         limit: int = 100,
-    ) -> List[Tuple[RestaurantKOT, Optional[str], Optional[int]]]:
-        """Returns (kot, table_label, order_covers)."""
+    ) -> List[Tuple[RestaurantKOT, Optional[str], Optional[int], Optional[str]]]:
+        """Returns (kot, table_label, order_covers, order_status)."""
         q = (
-            select(RestaurantKOT, RestaurantTable.label, RestaurantOrder.covers)
+            select(RestaurantKOT, RestaurantTable.label, RestaurantOrder.covers, RestaurantOrder.status)
             .outerjoin(RestaurantTable, RestaurantKOT.table_id == RestaurantTable.id)
             .outerjoin(RestaurantOrder, RestaurantKOT.order_id == RestaurantOrder.id)
             .where(RestaurantKOT.vendor_id == vendor_id)
@@ -407,7 +437,7 @@ class RestaurantService:
         if not include_done:
             q = q.where(RestaurantKOT.status != "done")
         r = await self.db.execute(q)
-        return [(row[0], row[1], row[2]) for row in r.all()]
+        return [(row[0], row[1], row[2], row[3]) for row in r.all()]
 
     async def get_kots_for_order(self, vendor_id: UUID, order_id: UUID) -> List[RestaurantKOT]:
         r = await self.db.execute(
@@ -508,6 +538,110 @@ class RestaurantService:
         await self.db.commit()
         await self.db.refresh(r)
         return r
+
+    async def update_reservation(
+        self,
+        vendor_id: UUID,
+        reservation_id: UUID,
+        *,
+        guest_name: Optional[str] = None,
+        guest_phone: Optional[str] = None,
+        guest_email: Optional[str] = None,
+        reservation_date: Optional[date_type] = None,
+        reservation_time: Optional[str] = None,
+        party_size: Optional[int] = None,
+        table_id: Optional[UUID] = None,
+        notes: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> Optional[RestaurantReservation]:
+        r = await self.get_reservation(vendor_id, reservation_id)
+        if not r:
+            return None
+        if guest_name is not None:
+            r.guest_name = guest_name.strip()
+        if guest_phone is not None:
+            r.guest_phone = guest_phone
+        if guest_email is not None:
+            r.guest_email = guest_email
+        if reservation_date is not None:
+            r.reservation_date = reservation_date
+        if reservation_time is not None:
+            r.reservation_time = reservation_time
+        if party_size is not None:
+            r.party_size = party_size
+        if table_id is not None:
+            r.table_id = table_id
+        if notes is not None:
+            r.notes = notes
+        if status is not None:
+            r.status = status
+        await self.db.commit()
+        await self.db.refresh(r)
+        return r
+
+    async def seat_reservation(
+        self,
+        vendor_id: UUID,
+        reservation_id: UUID,
+        table_id: UUID,
+        covers: Optional[int] = None,
+    ) -> Tuple[RestaurantReservation, RestaurantOrder]:
+        """Mark reservation seated, assign table, open dine-in order tab."""
+        r = await self.get_reservation(vendor_id, reservation_id)
+        if not r:
+            raise ValueError("Reservation not found")
+        table = await self.db.get(RestaurantTable, table_id)
+        if not table or table.vendor_id != vendor_id:
+            raise ValueError("Table not found")
+        if table.status not in ("free",):
+            raise ValueError(f"Table {table.label} is not available ({table.status})")
+
+        party = covers or r.party_size or 2
+        notes = r.notes or ""
+        if r.guest_phone:
+            notes = (notes + f"\nGuest phone: {r.guest_phone}").strip()
+
+        order = await self.create_order(
+            vendor_id,
+            table_id,
+            covers=party,
+            server_name=None,
+            notes=notes or f"Reservation: {r.guest_name}",
+        )
+        r.status = "seated"
+        r.table_id = table_id
+        await self.db.commit()
+        await self.db.refresh(r)
+        await self.db.refresh(order)
+        return r, order
+
+    async def get_menu_settings(self, vendor_id: UUID) -> dict:
+        vendor = await self.db.get(Vendor, vendor_id)
+        if not vendor:
+            return {"mode": "all_active", "product_ids": []}
+        mode, ids = parse_menu_settings(vendor.settings or {})
+        return {"mode": mode, "product_ids": sorted(ids)}
+
+    async def set_menu_settings(self, vendor_id: UUID, mode: str, product_ids: list) -> dict:
+        from app.utils.restaurant_menu import menu_settings_payload
+        vendor = await self.db.get(Vendor, vendor_id)
+        if not vendor:
+            raise ValueError("Vendor not found")
+        settings = dict(vendor.settings or {})
+        patch = menu_settings_payload(mode, product_ids)
+        settings["restaurant_menu"] = patch["restaurant_menu"]
+        vendor.settings = settings
+        await self.db.commit()
+        await self.db.refresh(vendor)
+        return await self.get_menu_settings(vendor_id)
+
+    async def list_dine_in_catalog(self, vendor_id: UUID) -> list:
+        vendor = await self.db.get(Vendor, vendor_id)
+        if not vendor:
+            return []
+        return await load_dine_in_products(
+            self.db, vendor_id, vendor.settings or {}, limit=500,
+        )
 
     async def delete_reservation(self, vendor_id: UUID, reservation_id: UUID) -> bool:
         r = await self.get_reservation(vendor_id, reservation_id)

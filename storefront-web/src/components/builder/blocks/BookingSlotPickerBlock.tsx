@@ -97,7 +97,7 @@ export default function BookingSlotPickerBlock({ site, style, props, liveItems }
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 max-h-[90vh] overflow-y-auto">
           {/* Step 1: Service selection */}
           {step === 'service' && (
             <div>

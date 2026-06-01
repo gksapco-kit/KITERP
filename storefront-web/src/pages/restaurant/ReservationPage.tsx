@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 import { Calendar, Check, Loader2, Mail, Phone, User, Users } from 'lucide-react'
 import { restaurantApi } from '@/api/restaurant'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 
 function today() {
   return new Date().toISOString().slice(0, 10)
@@ -87,16 +88,17 @@ export default function ReservationPage() {
         </div>
 
         {/* Phone + email */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5 mb-1.5">
               <Phone className="w-4 h-4 text-gray-400" /> Phone
             </label>
-            <input
+            <PhoneInput
               value={form.guest_phone}
-              onChange={e => set('guest_phone', e.target.value)}
-              placeholder="+91 9876543210"
-              className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              onChange={v => set('guest_phone', v)}
+              defaultCountryIso="IN"
+              autoComplete="tel"
+              name="guest_phone"
             />
           </div>
           <div>

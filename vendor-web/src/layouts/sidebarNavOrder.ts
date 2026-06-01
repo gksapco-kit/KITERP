@@ -186,6 +186,27 @@ export function reconcileNavPlacements(
     const sid = home.get(to)
     if (sid) out[sid].push(to)
   }
+
+  // Restaurant ops routes always live under the Restaurant section (avoids losing items after drag-and-drop).
+  const restaurantOrder = [
+    '/restaurant/floor',
+    '/restaurant/kitchen',
+    '/restaurant/menu',
+    '/restaurant/reservations',
+    '/restaurant/reports',
+    '/restaurant/setup',
+  ]
+  const restaurantRoutes = [...validTos].filter((to) => to.startsWith('/restaurant/'))
+  if (restaurantRoutes.length && out.restaurant) {
+    for (const sid of Object.keys(out)) {
+      if (sid === 'restaurant') continue
+      out[sid] = out[sid].filter((to) => !to.startsWith('/restaurant/'))
+    }
+    const ordered = restaurantOrder.filter((to) => restaurantRoutes.includes(to))
+    const rest = restaurantRoutes.filter((to) => !ordered.includes(to))
+    out.restaurant = [...ordered, ...rest]
+  }
+
   return out
 }
 

@@ -344,7 +344,7 @@ function SupplierModal({
   }, [name, contactName, email, phone, street, city, state, postalCode, notes, gstin, panNumber, openingBalance, mode, supplier, createMut, updateMut, onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">{mode === 'create' ? 'Add Supplier' : 'Edit Supplier'}</h2>
@@ -830,8 +830,8 @@ function SupplierViewDrawer({
 
       {/* Soft Delete / Deactivate confirmation */}
       {confirmSoftDel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setConfirmSoftDel(false)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setConfirmSoftDel(false)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -860,8 +860,8 @@ function SupplierViewDrawer({
 
       {/* Hard Delete confirmation */}
       {confirmHardDel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                 <Trash className="w-5 h-5 text-red-700" />

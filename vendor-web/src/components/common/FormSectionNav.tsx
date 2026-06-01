@@ -2,7 +2,7 @@ import { Children, cloneElement, createContext, isValidElement, useCallback, use
 import type { ElementType, ReactNode, ReactElement } from 'react'
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
-import { CheckCircle2, Circle, ChevronRight } from 'lucide-react'
+import { CheckCircle2, Circle, Clock } from 'lucide-react'
 import { useFormContext, type FieldErrors } from 'react-hook-form'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
@@ -18,50 +18,53 @@ export function useFormActiveSection(): string | null {
 
 /** Responsive compact spacing for form view/edit pages (fits more sections on screen). */
 export const formDisplayCompact = {
-  pageGap: 'flex flex-col gap-1.5 sm:gap-2',
-  cardBody: 'p-2.5 sm:p-3 space-y-1.5 sm:space-y-2',
-  cardBodyTight: 'p-2 sm:p-2.5 space-y-1 sm:space-y-1.5',
+  pageGap: 'flex flex-col gap-1 sm:gap-1.5',
+  cardBody: 'p-2 space-y-1 sm:space-y-1.5',
+  cardBodyTight: 'p-1.5 sm:p-2 space-y-0.5 sm:space-y-1',
   sectionHeader: 'flex items-center gap-1.5 mb-0.5',
   sectionHeaderIcon: 'h-3.5 w-3.5 shrink-0 text-muted-foreground',
   sectionHeaderTitle: 'text-xs font-semibold text-foreground sm:text-sm',
   fieldGrid:
-    'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-x-2 sm:gap-x-3 gap-y-1 sm:gap-y-1.5',
+    'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-2 gap-y-1',
   fieldGrid4:
-    'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-2 sm:gap-x-3 gap-y-1 sm:gap-y-1.5',
+    'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-2 gap-y-1',
   fieldGrid2:
-    'grid grid-cols-1 min-[400px]:grid-cols-2 gap-x-2 sm:gap-x-3 gap-y-1 sm:gap-y-1.5',
+    'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-2 gap-y-1',
+  fieldGrid3:
+    'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-1',
   scrollMarginView: 'scroll-mt-14 sm:scroll-mt-[4.5rem]',
   scrollMarginEdit: 'scroll-mt-[5.25rem] sm:scroll-mt-[7rem]',
   mediaDropzone:
-    'w-full cursor-pointer rounded-md border-2 border-dashed p-2.5 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/30 sm:p-3',
+    'w-full cursor-pointer rounded-md border-2 border-dashed p-2 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/30 sm:p-2.5',
 } as const
 
-/** Create / edit form density — scales with viewport and zoom via rem + breakpoints. */
+/** Create / edit form density — compact grids, minimal vertical gaps. */
 export const formEditLayout = {
   pageStack: formDisplayCompact.pageGap,
-  formStack: 'w-full flex flex-col gap-1.5 sm:gap-2',
-  sectionBody: 'space-y-1.5 pt-1 sm:space-y-2 sm:pt-1.5',
+  formStack: 'w-full flex flex-col gap-1',
+  sectionBody: 'space-y-1 pt-0.5',
   fieldGrid: formDisplayCompact.fieldGrid2,
   fieldGridWide:
-    'grid grid-cols-1 min-[400px]:grid-cols-2 min-[720px]:grid-cols-3 min-[960px]:grid-cols-4 gap-x-2 sm:gap-x-3 gap-y-1 sm:gap-y-1.5',
-  mediaCard: 'p-2 sm:p-2.5',
-  mediaTitle: 'mb-0.5 text-xs font-semibold sm:text-sm',
+    'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-2 gap-y-1',
+  fieldGrid3: formDisplayCompact.fieldGrid3,
+  mediaCard: 'p-1.5 sm:p-2',
+  mediaTitle: 'mb-0.5 text-xs font-semibold',
   mediaDrop:
-    'w-full rounded-md border-2 border-dashed p-2.5 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/30 sm:p-3',
-  typeBanner: 'flex items-start gap-2 rounded-md border px-2.5 py-1.5 text-xs leading-snug sm:text-sm',
+    'w-full rounded-md border-2 border-dashed p-2 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/30',
+  typeBanner: 'flex items-start gap-2 rounded-md border px-2 py-1 text-xs leading-snug',
   sectionHeaderBtn:
-    'flex w-full items-center justify-between gap-1.5 px-2.5 py-1.5 text-left sm:px-3 sm:py-2',
-  sectionContent: 'border-t px-2.5 pb-2 pt-0 sm:px-3 sm:pb-2.5',
+    'flex w-full items-center justify-between gap-1.5 px-2 py-1 text-left sm:px-2.5',
+  sectionContent: 'border-t px-2 pb-1.5 pt-0 sm:px-2.5',
   stickyBar:
-    'sticky top-14 z-20 mb-1.5 border-b bg-white/95 px-2.5 py-1.5 shadow-sm backdrop-blur sm:mb-2 sm:px-3 sm:py-2',
-  variantCard: 'space-y-1.5 rounded-lg border px-2.5 py-2 sm:space-y-2 sm:px-3 sm:py-2.5',
+    'sticky top-14 z-20 mb-1 border-b bg-white/95 px-2 py-1 shadow-sm backdrop-blur sm:px-2.5',
+  variantCard: 'space-y-1 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5',
 } as const
 
 export const formSelectClass =
   'flex h-8 min-h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring sm:h-9 sm:px-2.5 sm:text-sm'
 
 export const formTextareaClass =
-  'flex w-full min-h-[3rem] resize-y rounded-md border border-input bg-background px-2 py-1.5 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[3.5rem] sm:px-2.5 sm:text-sm'
+  'flex w-full min-h-[2.25rem] resize-y rounded-md border border-input bg-background px-2 py-1 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[2.5rem] sm:px-2.5 sm:text-sm'
 
 export const formFieldShellClass =
   'space-y-0.5 rounded-md border border-transparent px-1 py-0.5 -mx-1 transition-colors focus-within:border-primary/35 focus-within:bg-primary/[0.04] focus-within:ring-1 focus-within:ring-primary/25'
@@ -263,11 +266,83 @@ export function resolveActiveFormSectionFromFocus(
   return visible.some((s) => s.key === key) ? key : null
 }
 
+// ── FormSectionTabs ────────────────────────────────────────────────────────────
+
+type FormSectionTabsProps = {
+  sections: FormSectionDef[]
+  activeKey: string
+  onChange: (key: string) => void
+  completedSections?: Set<string>
+  hasErrorSections?: Set<string>
+  className?: string
+}
+
+/** Horizontal scrollable tabs for product/service forms (replaces stacked accordions). */
+export function FormSectionTabs({
+  sections,
+  activeKey,
+  onChange,
+  completedSections,
+  hasErrorSections,
+  className,
+}: FormSectionTabsProps) {
+  const visible = sections.filter((s) => s.visible !== false)
+  const activeSection = visible.find((s) => s.key === activeKey)
+
+  return (
+    <div className={cn('space-y-1', className)}>
+      <div
+        className="sticky top-[calc(3.5rem+2.25rem)] z-10 -mx-2 rounded-lg border border-border bg-background/95 px-0.5 py-0.5 shadow-sm backdrop-blur sm:-mx-2.5"
+        role="tablist"
+        aria-label="Form sections"
+      >
+        <div className="flex gap-0.5 overflow-x-auto overscroll-x-contain pb-px scrollbar-thin">
+          {visible.map((sec) => {
+            const isActive = activeKey === sec.key
+            const hasError = hasErrorSections?.has(sec.key)
+            const isCompleted = completedSections?.has(sec.key)
+            const Icon = sec.icon
+
+            return (
+              <button
+                key={sec.key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => onChange(sec.key)}
+                className={cn(
+                  'flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium transition-colors sm:px-2.5 sm:text-xs',
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  hasError && !isActive && 'text-red-600 hover:text-red-700',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={isActive ? 2.25 : 2} />
+                <span className="whitespace-nowrap">{sec.label}</span>
+                {hasError ? (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">!</span>
+                ) : isCompleted && !isActive ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden />
+                ) : null}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {activeSection?.hint ? (
+        <p className="px-0.5 text-[0.6875rem] leading-snug text-muted-foreground">{activeSection.hint}</p>
+      ) : null}
+    </div>
+  )
+}
+
 // ── FormPageWithNav ──────────────────────────────────────────────────────────
 
 type FormPageWithNavProps = {
   children: ReactNode
-  nav: ReactNode
+  nav?: ReactNode
   /** Controlled active key (pass from parent); nav updates via scroll-spy. */
   activeSectionKey?: string | null
 }
@@ -311,6 +386,8 @@ type Props = {
   visitedSections: Set<string>
   completedSections: Set<string>
   hasErrorSections: Set<string>
+  /** Amber clock — submitted but awaiting external action (e.g. domain verification). */
+  pendingSections?: Set<string>
   onNavigate: (key: string) => void
   /** Called when scroll-spy changes the active section. */
   onActiveSectionChange?: (key: string | null) => void
@@ -318,6 +395,15 @@ type Props = {
   scrollOffset?: number
   /** Tailwind top class for sticky aside (view: top-14, edit with form bar: top-[7rem]). */
   stickyTopClass?: string
+  /** Sidebar heading (default: Quick Navigation). */
+  navTitle?: string
+  /** When false, active-section hint is omitted from the sidebar (show in main content instead). */
+  showActiveHintInNav?: boolean
+  /**
+   * Controlled nav highlight (e.g. accordion open key). When provided, scroll-spy is disabled
+   * so the highlight does not flicker during programmatic scroll.
+   */
+  highlightKey?: string | null
 }
 
 export function FormSectionNav({
@@ -326,13 +412,21 @@ export function FormSectionNav({
   visitedSections,
   completedSections,
   hasErrorSections,
+  pendingSections,
   onNavigate,
   onActiveSectionChange,
   scrollOffset = 88,
   stickyTopClass = 'top-[7rem]',
+  navTitle = 'Quick Navigation',
+  showActiveHintInNav = true,
+  highlightKey,
 }: Props) {
+  const isControlledHighlight = highlightKey !== undefined
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const rafRef = useRef<number | null>(null)
+  const navigatingToRef = useRef<string | null>(null)
+  const scrollIdleTimerRef = useRef<number | null>(null)
+  const navigationFallbackTimerRef = useRef<number | null>(null)
   const onActiveRef = useRef(onActiveSectionChange)
   onActiveRef.current = onActiveSectionChange
 
@@ -343,7 +437,24 @@ export function FormSectionNav({
     })
   }, [])
 
+  const clearNavigationLock = useCallback(() => {
+    navigatingToRef.current = null
+    if (scrollIdleTimerRef.current != null) {
+      window.clearTimeout(scrollIdleTimerRef.current)
+      scrollIdleTimerRef.current = null
+    }
+    if (navigationFallbackTimerRef.current != null) {
+      window.clearTimeout(navigationFallbackTimerRef.current)
+      navigationFallbackTimerRef.current = null
+    }
+  }, [])
+
   const syncActive = useCallback(() => {
+    const pinned = navigatingToRef.current
+    if (pinned) {
+      publishActive(pinned)
+      return
+    }
     const focusKey = resolveActiveFormSectionFromFocus(sections, document.activeElement)
     if (focusKey) {
       publishActive(focusKey)
@@ -352,8 +463,37 @@ export function FormSectionNav({
     publishActive(resolveActiveFormSectionKey(sections, scrollOffset))
   }, [sections, scrollOffset, publishActive])
 
+  const lockNavigation = useCallback((key: string) => {
+    navigatingToRef.current = key
+    publishActive(key)
+    if (navigationFallbackTimerRef.current != null) {
+      window.clearTimeout(navigationFallbackTimerRef.current)
+    }
+    navigationFallbackTimerRef.current = window.setTimeout(() => {
+      navigatingToRef.current = null
+      syncActive()
+    }, 1200)
+  }, [publishActive, syncActive])
+
   useEffect(() => {
+    if (isControlledHighlight) return
+
     const onScroll = () => {
+      const pinned = navigatingToRef.current
+      if (pinned) {
+        publishActive(pinned)
+        if (scrollIdleTimerRef.current != null) window.clearTimeout(scrollIdleTimerRef.current)
+        scrollIdleTimerRef.current = window.setTimeout(() => {
+          navigatingToRef.current = null
+          if (navigationFallbackTimerRef.current != null) {
+            window.clearTimeout(navigationFallbackTimerRef.current)
+            navigationFallbackTimerRef.current = null
+          }
+          syncActive()
+        }, 140)
+        return
+      }
+
       if (rafRef.current != null) return
       rafRef.current = window.requestAnimationFrame(() => {
         rafRef.current = null
@@ -362,6 +502,7 @@ export function FormSectionNav({
     }
 
     const onFocusOrPointer = (e: Event) => {
+      if (navigatingToRef.current) return
       const key = resolveActiveFormSectionFromFocus(sections, e.target)
       if (key) publishActive(key)
     }
@@ -375,33 +516,35 @@ export function FormSectionNav({
 
     return () => {
       window.clearTimeout(t)
+      clearNavigationLock()
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
       document.removeEventListener('focusin', onFocusOrPointer, true)
       document.removeEventListener('pointerdown', onFocusOrPointer, true)
       if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current)
     }
-  }, [syncActive, sections, publishActive])
+  }, [syncActive, sections, publishActive, clearNavigationLock, isControlledHighlight])
 
+  const resolvedActiveKey = isControlledHighlight ? highlightKey : activeKey
   const visible = sections.filter((s) => s.visible !== false)
-  const activeIndex = visible.findIndex((s) => s.key === activeKey)
+  const activeIndex = visible.findIndex((s) => s.key === resolvedActiveKey)
   const positionLabel =
     activeIndex >= 0 ? `${activeIndex + 1} / ${visible.length}` : `– / ${visible.length}`
   const handleNavigate = (key: string) => {
-    publishActive(key)
+    if (!isControlledHighlight) lockNavigation(key)
     onNavigate(key)
   }
 
   return (
     <aside
       className={cn(
-        'sticky hidden max-h-[calc(100dvh-3.5rem)] w-[9.25rem] shrink-0 flex-col sm:w-40 lg:flex xl:w-44',
+        'sticky z-20 hidden max-h-[calc(100dvh-4rem)] w-[9.25rem] shrink-0 self-start flex-col rounded-lg border border-border bg-muted/25 p-2 shadow-sm backdrop-blur-sm sm:w-40 lg:flex xl:w-44',
         stickyTopClass,
       )}
     >
-      <div className="mb-1.5 flex shrink-0 items-center justify-between px-1.5">
+      <div className="mb-1.5 flex shrink-0 items-center justify-between px-0.5">
         <p className="text-[0.58rem] font-semibold uppercase tracking-widest text-muted-foreground">
-          Quick Navigation
+          {navTitle}
         </p>
         <span
           className="rounded-full bg-primary/10 px-1 py-px text-[0.55rem] font-semibold tabular-nums text-primary"
@@ -413,12 +556,13 @@ export function FormSectionNav({
 
       <nav
         aria-label="Form sections"
-        className="relative flex min-h-0 flex-1 flex-col gap-px overflow-y-auto overscroll-contain pr-0.5"
+        className="relative flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain pr-0.5"
       >
         {visible.map((sec) => {
-          const isCurrent = activeKey === sec.key
-          const isOpen = !!openSections[sec.key]
+          const isCurrent = resolvedActiveKey === sec.key
+          const isOpen = !isControlledHighlight && !!openSections[sec.key]
           const isCompleted = completedSections.has(sec.key)
+          const isPending = pendingSections?.has(sec.key) ?? false
           const hasError = hasErrorSections.has(sec.key)
           const isVisited = visitedSections.has(sec.key)
           const Icon = sec.icon
@@ -430,73 +574,67 @@ export function FormSectionNav({
               onClick={() => handleNavigate(sec.key)}
               aria-current={isCurrent ? 'true' : undefined}
               aria-describedby={isCurrent && sec.hint ? `form-nav-hint-${sec.key}` : undefined}
-              title={!isCurrent ? sec.hint : undefined}
+              title={
+                !isCurrent
+                  ? (isPending ? 'Waiting for verification' : sec.hint)
+                  : undefined
+              }
               className={cn(
-                'group relative flex w-full flex-col rounded-md py-1 pl-2 pr-1.5 text-left text-[0.7rem] leading-tight transition-all sm:text-xs',
+                'group relative flex w-full flex-col rounded-md py-1.5 pl-2.5 pr-2 text-left text-[0.7rem] leading-tight sm:text-xs',
                 isCurrent
-                  ? 'bg-primary text-primary-foreground font-semibold shadow-sm shadow-primary/30 ring-1 ring-primary/40'
+                  ? 'bg-primary/10 font-medium text-foreground dark:bg-primary/15'
                   : isOpen
-                    ? 'bg-primary/5 text-foreground hover:bg-primary/10'
-                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                    ? 'text-foreground hover:bg-muted/50'
+                    : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground',
               )}
             >
-              {isCurrent && (
+              {isCurrent ? (
                 <span
                   aria-hidden
-                  className="absolute -left-1 top-2 bottom-2 w-1 rounded-full bg-primary"
+                  className="absolute bottom-1.5 left-0 top-1.5 w-[2px] rounded-r-full bg-primary"
                 />
-              )}
+              ) : null}
 
               <span className="flex w-full items-center gap-1.5">
-                <span className="shrink-0" aria-hidden>
-                  {hasError ? (
-                    <span
-                      className={cn(
-                        'flex h-3.5 w-3.5 items-center justify-center rounded-full',
-                        isCurrent ? 'bg-white/20 text-white' : 'bg-red-100 text-red-500',
-                      )}
-                    >
-                      <span className="text-[9px] font-bold">!</span>
-                    </span>
-                  ) : isCompleted ? (
-                    <CheckCircle2
-                      className={cn('h-3.5 w-3.5', isCurrent ? 'text-primary-foreground' : 'text-emerald-500')}
-                    />
-                  ) : isVisited ? (
-                    <Circle
-                      className={cn('h-3.5 w-3.5', isCurrent ? 'text-primary-foreground/80' : 'text-amber-400')}
-                    />
-                  ) : (
-                    <Circle
-                      className={cn('h-3.5 w-3.5', isCurrent ? 'text-primary-foreground/60' : 'text-border')}
-                    />
-                  )}
-                </span>
+                {!isCurrent ? (
+                  <span className="shrink-0" aria-hidden>
+                    {hasError ? (
+                      <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-950/60 dark:text-red-300">
+                        <span className="text-[9px] font-bold">!</span>
+                      </span>
+                    ) : isCompleted ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    ) : isPending ? (
+                      <Clock className="h-3.5 w-3.5 text-amber-500" />
+                    ) : isVisited ? (
+                      <Circle className="h-3.5 w-3.5 text-amber-400" />
+                    ) : (
+                      <Circle className="h-3.5 w-3.5 text-border" />
+                    )}
+                  </span>
+                ) : null}
 
                 <Icon
                   className={cn(
                     'h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5',
                     isCurrent
-                      ? 'text-primary-foreground'
+                      ? 'text-primary'
                       : isOpen
-                        ? 'text-primary'
+                        ? 'text-primary/80'
                         : 'text-muted-foreground group-hover:text-foreground',
                   )}
-                  strokeWidth={2}
+                  strokeWidth={isCurrent ? 2.25 : 2}
                 />
 
-                <span className="min-w-0 flex-1 truncate leading-tight">{sec.label}</span>
-
-                {isCurrent && <ChevronRight className="h-3 w-3 shrink-0" />}
+                <span className={cn('min-w-0 flex-1 truncate leading-tight', isCurrent && 'text-foreground')}>
+                  {sec.label}
+                </span>
               </span>
 
-              {isCurrent && sec.hint && (
+              {showActiveHintInNav && isCurrent && sec.hint && (
                 <p
                   id={`form-nav-hint-${sec.key}`}
-                  className={cn(
-                    'mt-0.5 line-clamp-2 pl-[1.35rem] pr-0.5 text-[0.55rem] font-normal leading-snug sm:text-[0.58rem]',
-                    isCurrent ? 'text-primary-foreground/90' : 'text-muted-foreground',
-                  )}
+                  className="mt-0.5 line-clamp-2 pl-[1.35rem] pr-0.5 text-[0.55rem] font-normal leading-snug text-muted-foreground sm:text-[0.58rem]"
                 >
                   {sec.hint}
                 </p>
@@ -520,7 +658,11 @@ export function FormSectionNav({
           </li>
           <li className="flex items-center gap-1 rounded bg-amber-500/12 px-1 py-0.5 text-amber-900 dark:text-amber-200">
             <Circle className="h-3 w-3 shrink-0 text-amber-500" aria-hidden />
-            <span className="font-medium">Active</span>
+            <span className="font-medium">Opened</span>
+          </li>
+          <li className="flex items-center gap-1 rounded bg-amber-500/10 px-1 py-0.5 text-amber-900 dark:text-amber-200">
+            <Clock className="h-3 w-3 shrink-0 text-amber-500" aria-hidden />
+            <span className="font-medium">Waiting</span>
           </li>
           <li className="flex items-center gap-1 rounded bg-slate-500/10 px-1 py-0.5 text-slate-600 dark:text-slate-300">
             <Circle className="h-3 w-3 shrink-0 text-slate-400" aria-hidden />

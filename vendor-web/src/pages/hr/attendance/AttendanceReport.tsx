@@ -46,7 +46,7 @@ export default function AttendanceReportPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-4 flex gap-3">
+      <div className="bg-white rounded-xl border shadow-sm p-4 mb-4 flex gap-3 max-h-[90vh] overflow-y-auto">
         <select className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={month} onChange={e => setMonth(parseInt(e.target.value))}>
           {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
             <option key={m} value={m}>{new Date(year, m - 1).toLocaleDateString('en-IN', { month: 'long' })}</option>
@@ -57,7 +57,7 @@ export default function AttendanceReportPage() {
         </select>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-xl border shadow-sm overflow-x-auto max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : summary.length === 0 ? (

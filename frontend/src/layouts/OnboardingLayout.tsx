@@ -13,7 +13,7 @@ export default function OnboardingLayout() {
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 max-h-[90vh] overflow-y-auto">
           <Outlet />
         </div>
       </div>

@@ -1,6 +1,6 @@
 # app/schemas/vendor_service.py
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 from enum import Enum
 
 
@@ -335,7 +335,7 @@ class ServiceCreate(BaseModel):
 
     # Advanced
     service_packages: Optional[list] = []
-    addons: List[str] = []
+    addons: List[Any] = []
     prerequisites: Optional[str] = None
     whats_included: List[str] = []
     whats_not_included: List[str] = []
@@ -432,7 +432,7 @@ class ServiceUpdate(BaseModel):
 
     # Advanced
     service_packages: Optional[list] = None
-    addons: Optional[List[str]] = None
+    addons: Optional[List[Any]] = None
     prerequisites: Optional[str] = None
     whats_included: Optional[List[str]] = None
     whats_not_included: Optional[List[str]] = None
@@ -530,7 +530,7 @@ class ServiceResponse(BaseModel):
 
     # Advanced
     service_packages: list = []
-    addons: List[str] = []
+    addons: List[Any] = []
     prerequisites: Optional[str] = None
     whats_included: List[str] = []
     whats_not_included: List[str] = []

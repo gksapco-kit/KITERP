@@ -247,9 +247,9 @@ function SlotPickerPopup({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -741,7 +741,7 @@ export default function BookingsPage() {
       {showCreate && (
         <div
           data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto"
           onClick={closeCreateModal}
         >
           <div
@@ -1304,8 +1304,8 @@ export default function BookingsPage() {
 
       {/* Reschedule Modal */}
       {rescheduleTarget && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 p-5 space-y-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <RotateCcw className="w-4 h-4 text-blue-600" />
@@ -1352,7 +1352,7 @@ export default function BookingsPage() {
 
       {/* Cancel Reason Modal */}
       {cancelTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto">
           <Card className="w-full max-w-md mx-4">
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center justify-between">

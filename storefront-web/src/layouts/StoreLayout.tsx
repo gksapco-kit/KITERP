@@ -71,7 +71,7 @@ function AccountDropdown({ isAuthenticated, customer, storePath, logout, account
         <ChevronDown className="w-3 h-3 opacity-60" />
       </button>
       {accountOpen && (
-        <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-1.5 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-1.5 overflow-hidden max-h-[90vh] overflow-y-auto">
           {isAuthenticated ? (
             <>
               <div className="px-4 py-3 bg-gray-50 border-b">

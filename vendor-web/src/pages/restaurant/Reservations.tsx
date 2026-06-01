@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Calendar, Check, Loader2, Plus, Trash2, UtensilsCrossed, Users,
   X, Phone, Mail, Clock,
@@ -9,6 +9,7 @@ import { vendorApi } from '@/api/vendor'
 import type { ReservationItem } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -29,20 +30,29 @@ function formatDate(d: string) {
 }
 
 export default function RestaurantReservationsPage() {
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const [dateFrom, setDateFrom] = useState(today())
+  const [exactDateOnly, setExactDateOnly] = useState(true)
   const [showForm, setShowForm] = useState(false)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['restaurant', 'reservations', dateFrom],
-    queryFn: () => vendorApi.restaurantListReservations({ date_from: dateFrom }),
+    queryKey: ['restaurant', 'reservations', dateFrom, exactDateOnly],
+    queryFn: () =>
+      vendorApi.restaurantListReservations({
+        date_from: dateFrom,
+        date_to: exactDateOnly ? dateFrom : undefined,
+      }),
     refetchInterval: 30_000,
   })
 
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      vendorApi.restaurantUpdateReservation(id, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] }),
+  const updateReservation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof vendorApi.restaurantUpdateReservation>[1] }) =>
+      vendorApi.restaurantUpdateReservation(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] })
+      toast.success('Reservation updated')
+    },
     onError: () => toast.error('Could not update reservation'),
   })
 
@@ -55,7 +65,27 @@ export default function RestaurantReservationsPage() {
     onError: () => toast.error('Could not delete reservation'),
   })
 
+  const tablesQ = useQuery({
+    queryKey: ['restaurant', 'tables'],
+    queryFn: () => vendorApi.restaurantListTables(),
+  })
+
+  const seatGuest = useMutation({
+    mutationFn: ({ id, table_id, covers }: { id: string; table_id: string; covers?: number }) =>
+      vendorApi.restaurantSeatReservation(id, { table_id, covers }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['restaurant'] })
+      toast.success('Guest seated — opening table order')
+      navigate(`/restaurant/order/${res.order_id}`)
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(typeof msg === 'string' ? msg : 'Could not seat reservation')
+    },
+  })
+
   const reservations = data?.items ?? []
+  const freeTables = (tablesQ.data?.items ?? []).filter(t => t.is_active && t.status === 'free')
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -71,8 +101,17 @@ export default function RestaurantReservationsPage() {
             <p className="text-xs text-gray-500 mt-0.5">Manage table bookings and walk-in pre-registrations</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-sm w-40" />
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none cursor-pointer">
+            <input
+              type="checkbox"
+              checked={exactDateOnly}
+              onChange={e => setExactDateOnly(e.target.checked)}
+              className="accent-primary"
+            />
+            This day only
+          </label>
           <Button size="sm" onClick={() => setShowForm(true)}>
             <Plus className="w-4 h-4 mr-1" /> Add
           </Button>
@@ -99,9 +138,12 @@ export default function RestaurantReservationsPage() {
           <ReservationRow
             key={r.id}
             reservation={r}
-            onStatusChange={(status) => updateStatus.mutate({ id: r.id, status })}
+            freeTables={freeTables}
+            onStatusChange={(status) => updateReservation.mutate({ id: r.id, body: { status } })}
+            onSeat={(tableId, covers) => seatGuest.mutate({ id: r.id, table_id: tableId, covers })}
+            onSaveEdit={(body) => updateReservation.mutate({ id: r.id, body })}
             onDelete={() => { if (confirm('Delete this reservation?')) deleteRes.mutate(r.id) }}
-            isPending={updateStatus.isPending || deleteRes.isPending}
+            isPending={updateReservation.isPending || deleteRes.isPending || seatGuest.isPending}
           />
         ))}
       </div>
@@ -110,13 +152,36 @@ export default function RestaurantReservationsPage() {
 }
 
 
-function ReservationRow({ reservation: r, onStatusChange, onDelete, isPending }: {
+function ReservationRow({
+  reservation: r,
+  freeTables,
+  onStatusChange,
+  onSeat,
+  onSaveEdit,
+  onDelete,
+  isPending,
+}: {
   reservation: ReservationItem
+  freeTables: Array<{ id: string; label: string; capacity: number }>
   onStatusChange: (status: string) => void
+  onSeat: (tableId: string, covers?: number) => void
+  onSaveEdit: (body: Parameters<typeof vendorApi.restaurantUpdateReservation>[1]) => void
   onDelete: () => void
   isPending: boolean
 }) {
   const [expand, setExpand] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [seatOpen, setSeatOpen] = useState(false)
+  const [seatTableId, setSeatTableId] = useState('')
+  const [edit, setEdit] = useState({
+    guest_name: r.guest_name,
+    guest_phone: r.guest_phone || '',
+    guest_email: r.guest_email || '',
+    reservation_date: r.reservation_date,
+    reservation_time: r.reservation_time,
+    party_size: r.party_size,
+    notes: r.notes || '',
+  })
   const cfg = STATUS_CONFIG[r.status] ?? STATUS_CONFIG.pending
 
   return (
@@ -144,28 +209,82 @@ function ReservationRow({ reservation: r, onStatusChange, onDelete, isPending }:
 
       {expand && (
         <div className="border-t px-4 py-3 bg-gray-50 space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-            {r.guest_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{r.guest_phone}</span>}
-            {r.guest_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{r.guest_email}</span>}
-            {r.notes && <span className="col-span-2 italic text-gray-500">{r.notes}</span>}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {['pending', 'confirmed', 'seated', 'cancelled', 'no_show'].map(s => (
-              <Button
-                key={s}
-                size="sm"
-                variant={r.status === s ? 'default' : 'outline'}
-                className="text-xs h-7"
-                disabled={isPending}
-                onClick={() => onStatusChange(s)}
+          {!editing ? (
+            <>
+              <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                {r.guest_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{r.guest_phone}</span>}
+                {r.guest_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{r.guest_email}</span>}
+                {r.notes && <span className="col-span-2 italic text-gray-500">{r.notes}</span>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['pending', 'confirmed', 'cancelled', 'no_show'].map(s => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={r.status === s ? 'default' : 'outline'}
+                    className="text-xs h-7"
+                    disabled={isPending}
+                    onClick={() => onStatusChange(s)}
+                  >
+                    {STATUS_CONFIG[s]?.label ?? s}
+                  </Button>
+                ))}
+                {r.status !== 'seated' && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-amber-300 text-amber-800" disabled={isPending} onClick={() => setSeatOpen(true)}>
+                    Seat at table
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" className="text-xs h-7" disabled={isPending} onClick={() => setEditing(true)}>
+                  Edit details
+                </Button>
+                <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" disabled={isPending} onClick={onDelete}>
+                  <Trash2 className="w-3 h-3 mr-1" /> Delete
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Input value={edit.guest_name} onChange={e => setEdit(x => ({ ...x, guest_name: e.target.value }))} className="h-8 text-sm col-span-2" placeholder="Guest name" />
+                <PhoneInput value={edit.guest_phone} onChange={v => setEdit(x => ({ ...x, guest_phone: v }))} defaultCountryIso="IN" />
+                <Input value={edit.guest_email} onChange={e => setEdit(x => ({ ...x, guest_email: e.target.value }))} className="h-8 text-sm" placeholder="Email" />
+                <Input type="date" value={edit.reservation_date} onChange={e => setEdit(x => ({ ...x, reservation_date: e.target.value }))} className="h-8 text-sm" />
+                <Input type="time" value={edit.reservation_time} onChange={e => setEdit(x => ({ ...x, reservation_time: e.target.value }))} className="h-8 text-sm" />
+                <Input type="number" min={1} value={edit.party_size} onChange={e => setEdit(x => ({ ...x, party_size: parseInt(e.target.value) || 1 }))} className="h-8 text-sm" />
+                <Input value={edit.notes} onChange={e => setEdit(x => ({ ...x, notes: e.target.value }))} className="h-8 text-sm col-span-2" placeholder="Notes" />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+                <Button size="sm" disabled={isPending} onClick={() => { onSaveEdit(edit); setEditing(false) }}>Save</Button>
+              </div>
+            </div>
+          )}
+          {seatOpen && (
+            <div className="rounded-lg border bg-white p-3 space-y-2">
+              <p className="text-xs font-medium text-gray-700">Assign a free table and open order</p>
+              <select
+                className="w-full h-9 rounded-md border px-2 text-sm"
+                value={seatTableId}
+                onChange={e => setSeatTableId(e.target.value)}
               >
-                {STATUS_CONFIG[s]?.label ?? s}
-              </Button>
-            ))}
-            <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" disabled={isPending} onClick={onDelete}>
-              <Trash2 className="w-3 h-3 mr-1" /> Delete
-            </Button>
-          </div>
+                <option value="">Select table…</option>
+                {freeTables.map(t => (
+                  <option key={t.id} value={t.id}>{t.label} ({t.capacity} seats)</option>
+                ))}
+              </select>
+              {freeTables.length === 0 && <p className="text-xs text-amber-700">No free tables — clear one on the floor first.</p>}
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="outline" onClick={() => setSeatOpen(false)}>Cancel</Button>
+                <Button
+                  size="sm"
+                  disabled={!seatTableId || isPending}
+                  onClick={() => { onSeat(seatTableId, edit.party_size); setSeatOpen(false) }}
+                >
+                  Seat &amp; order
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -198,7 +317,13 @@ function NewReservationForm({ onSuccess, onCancel }: { onSuccess: () => void; on
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">Phone</label>
-          <Input value={form.guest_phone} onChange={e => set('guest_phone', e.target.value)} className="h-9 text-sm" placeholder="+91 9876543210" />
+          <PhoneInput
+            value={form.guest_phone}
+            onChange={v => set('guest_phone', v)}
+            defaultCountryIso="IN"
+            autoComplete="tel"
+            name="guest_phone"
+          />
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">Email</label>

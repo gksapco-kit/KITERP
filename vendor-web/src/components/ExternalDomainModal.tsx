@@ -94,7 +94,7 @@ export function ExternalDomainModal({ vendor, onClose, onSave }: Props) {
   const guideUrl = registrar ? (registrarGuides[registrar] ?? null) : null
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
       <div className="w-full max-w-lg max-h-[90dvh] flex flex-col overflow-hidden rounded-2xl bg-card shadow-2xl border border-border">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">

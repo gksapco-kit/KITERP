@@ -118,6 +118,50 @@ export async function ensurePosSessionOpen(request: APIRequestContext, auth: Api
   }
 }
 
+export async function getVendorSlug(request: APIRequestContext, auth: ApiAuth): Promise<string> {
+  const me = await request.get(`${API_BASE}/vendors/me`, { headers: auth.headers });
+  if (!me.ok()) throw new Error(`GET /vendors/me failed: ${await me.text()}`);
+  const vendor = await me.json();
+  if (!vendor.slug) throw new Error('Vendor slug missing');
+  return vendor.slug as string;
+}
+
+export async function ensureTableQrToken(
+  request: APIRequestContext,
+  auth: ApiAuth,
+  tableId: string,
+): Promise<string> {
+  const tablesRes = await request.get(`${API_BASE}/vendors/me/restaurant/tables`, { headers: auth.headers });
+  if (!tablesRes.ok()) throw new Error(`List tables failed: ${await tablesRes.text()}`);
+  const items = (await tablesRes.json()).items || [];
+  const table = items.find((t: { id: string }) => t.id === tableId);
+  if (table?.qr_token) return table.qr_token as string;
+
+  const gen = await request.post(`${API_BASE}/vendors/me/restaurant/tables/${tableId}/generate-qr`, {
+    headers: auth.headers,
+    data: {},
+  });
+  if (!gen.ok()) throw new Error(`Generate QR failed: ${await gen.text()}`);
+  const body = await gen.json();
+  return body.qr_token as string;
+}
+
+export function storefrontTableOrderUrl(slug: string, qrToken: string): string {
+  const base = process.env.STOREFRONT_URL || 'http://127.0.0.1:3002';
+  return `${base}/store/${encodeURIComponent(slug)}/table/${encodeURIComponent(qrToken)}`;
+}
+
+export function storefrontReserveUrl(slug: string): string {
+  const base = process.env.STOREFRONT_URL || 'http://127.0.0.1:3002';
+  return `${base}/store/${encodeURIComponent(slug)}/reserve`;
+}
+
+export function dateOffset(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export async function resetTableForScenario(
   request: APIRequestContext,
   auth: ApiAuth,

@@ -390,7 +390,7 @@ export default function CostCenters() {
       {/* ── Cost Center dialog ── */}
       {ccDialog.open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto"
           onClick={() => setCcDialog({ open: false })}
         >
           <div
@@ -723,7 +723,7 @@ function CCRow({
           <MoreVertical className="w-4 h-4" />
         </button>
         {actionMenu === cc.id && (
-          <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-xl shadow-xl w-36 py-1 text-sm">
+          <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-xl shadow-xl w-36 py-1 text-sm max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => onEdit(cc)}
               className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-gray-700"

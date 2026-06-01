@@ -34,7 +34,7 @@ export default function HelpdeskPage() {
         </select>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (tickets as HelpdeskTicket[]).length === 0 ? (

@@ -131,7 +131,7 @@ function ShareMenu({ invoice, onClose }: {
   ]
 
   return (
-    <div ref={ref} className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-xl border w-48 py-1 animate-in fade-in zoom-in-95 duration-100">
+    <div ref={ref} className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-xl border w-48 py-1 animate-in fade-in zoom-in-95 duration-100 max-h-[90vh] overflow-y-auto">
       <p className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase">Share via</p>
       {shareOptions.map((opt) => (
         <button
@@ -417,7 +417,7 @@ function ItemSearchRow({
         </div>
 
         {open && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {/* Tabs */}
             <div className="flex border-b bg-gray-50 px-2 pt-1.5 gap-1">
               {(['all', 'product', 'service'] as const).map(t => (
@@ -573,7 +573,7 @@ function CreateInvoiceModal({
 
   return (
     <div data-kiterp-modal className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Create Invoice</h2>
           <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>

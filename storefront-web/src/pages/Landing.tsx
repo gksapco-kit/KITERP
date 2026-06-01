@@ -166,7 +166,7 @@ export default function Landing() {
                 desc: 'Browse, shop, and manage orders across multiple vendors from a single, unified platform.',
               },
             ].map((f) => (
-              <div key={f.title} className="bg-white rounded-2xl border p-8 hover:shadow-lg transition-shadow text-center">
+              <div key={f.title} className="bg-white rounded-2xl border p-8 hover:shadow-lg transition-shadow text-center max-h-[90vh] overflow-y-auto">
                 <div className={`w-14 h-14 rounded-xl ${f.color} flex items-center justify-center mx-auto mb-4`}>
                   <f.icon className="w-7 h-7" />
                 </div>

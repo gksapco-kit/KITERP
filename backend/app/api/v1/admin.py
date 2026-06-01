@@ -16,6 +16,10 @@ from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.vendor_rm_query import VendorRmQuery
 from app.models.vendor_plan import VendorPlan
+from app.models.restaurant import RestaurantOrder, RestaurantKOT, RestaurantTable, RestaurantReservation
+from app.models.pos import POSTransaction
+from datetime import date, timedelta
+from sqlalchemy import cast, Date, and_
 from app.models.platform_setting import PlatformSetting
 from app.models.platform_staff_audit import PlatformStaffAuditLog
 from app.schemas.vendor import (
@@ -487,6 +491,102 @@ async def create_vendor_dashboard_handoff(
         vendor_id=str(vendor_id),
         vendor_slug=vendor.slug or "",
     )
+
+
+@router.get("/vendors/{vendor_id}/restaurant-snapshot")
+async def admin_restaurant_snapshot(
+    vendor_id: UUID,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Read-only restaurant ops snapshot for platform support."""
+    vendor = await db.get(Vendor, vendor_id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    today = date.today()
+    vid = vendor_id
+
+    open_orders = (await db.execute(
+        select(func.count(RestaurantOrder.id))
+        .where(and_(
+            RestaurantOrder.vendor_id == vid,
+            RestaurantOrder.status.in_(["open", "billed"]),
+            cast(RestaurantOrder.created_at, Date) == today,
+        ))
+    )).scalar_one()
+
+    total_covers = (await db.execute(
+        select(func.coalesce(func.sum(RestaurantOrder.covers), 0))
+        .where(and_(
+            RestaurantOrder.vendor_id == vid,
+            cast(RestaurantOrder.created_at, Date) == today,
+        ))
+    )).scalar_one()
+
+    restaurant_revenue = (await db.execute(
+        select(func.coalesce(func.sum(POSTransaction.total), 0))
+        .where(and_(
+            POSTransaction.vendor_id == vid,
+            POSTransaction.transaction_type == "sale",
+            POSTransaction.restaurant_table_id.isnot(None),
+            cast(POSTransaction.created_at, Date) == today,
+        ))
+    )).scalar_one()
+
+    kot_status_rows = (await db.execute(
+        select(RestaurantKOT.status, func.count(RestaurantKOT.id).label("cnt"))
+        .where(and_(
+            RestaurantKOT.vendor_id == vid,
+            cast(RestaurantKOT.created_at, Date) == today,
+        ))
+        .group_by(RestaurantKOT.status)
+    )).all()
+
+    table_status_rows = (await db.execute(
+        select(RestaurantTable.status, func.count(RestaurantTable.id).label("cnt"))
+        .where(and_(RestaurantTable.vendor_id == vid, RestaurantTable.is_active == True))
+        .group_by(RestaurantTable.status)
+    )).all()
+
+    upcoming_reservations = (await db.execute(
+        select(func.count(RestaurantReservation.id))
+        .where(and_(
+            RestaurantReservation.vendor_id == vid,
+            RestaurantReservation.reservation_date >= today,
+            RestaurantReservation.reservation_date <= today + timedelta(days=7),
+            RestaurantReservation.status.in_(["pending", "confirmed"]),
+        ))
+    )).scalar_one()
+
+    active_kots = (await db.execute(
+        select(func.count(RestaurantKOT.id))
+        .where(and_(
+            RestaurantKOT.vendor_id == vid,
+            RestaurantKOT.status.in_(["new", "preparing", "ready"]),
+        ))
+    )).scalar_one()
+
+    settings = vendor.settings or {}
+    module_on = settings.get("restaurant_enabled") is not False and vendor.offering_type in (
+        "products",
+        "both",
+        None,
+    )
+
+    return JSONResponse(content={
+        "vendor_id": str(vendor_id),
+        "module_enabled": module_on,
+        "today": {
+            "open_orders": int(open_orders or 0),
+            "total_covers": int(total_covers or 0),
+            "restaurant_revenue": float(restaurant_revenue or 0),
+            "active_kots": int(active_kots or 0),
+        },
+        "kots_by_status": {r.status: r.cnt for r in kot_status_rows},
+        "tables_by_status": {r.status: r.cnt for r in table_status_rows},
+        "upcoming_reservations": int(upcoming_reservations or 0),
+    })
 
 
 @router.put("/vendors/{vendor_id}", response_model=VendorAdminResponse)

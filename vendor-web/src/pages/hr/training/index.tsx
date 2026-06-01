@@ -82,7 +82,7 @@ function ProgramsTab() {
           {(programs as TrainingProgram[]).map(p => {
             const stat = PROG_STATUS[p.status] ?? PROG_STATUS.draft
             return (
-              <div key={p.id} className="bg-white border rounded-xl shadow-sm overflow-hidden hover:shadow-md transition">
+              <div key={p.id} className="bg-white border rounded-xl shadow-sm overflow-hidden hover:shadow-md transition max-h-[90vh] overflow-y-auto">
                 {p.cover_image_url ? (
                   <img src={p.cover_image_url} alt={p.name} className="w-full h-32 object-cover" />
                 ) : (
@@ -159,7 +159,7 @@ function ProgramModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onModalBackdropClick(onClose)}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">{program ? 'Edit Program' : 'New Program'}</h2>
@@ -245,7 +245,7 @@ function EnrollmentsTab() {
           <Send className="w-4 h-4" /> Enroll Employees
         </button>
       </div>
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (enrollments as TrainingEnrollment[]).length === 0 ? (
@@ -318,7 +318,7 @@ function EnrollModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">Enroll Employees</h2>

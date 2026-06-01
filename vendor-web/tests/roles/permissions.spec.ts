@@ -22,9 +22,11 @@ test.describe('Feature 5: Roles — detailed permissions breakdown', () => {
       .first();
     await ownerRow.click();
 
-    // Wait for expansion - permission module labels should appear
-    // Module labels are: Dashboard, Products, Services, Orders, Customers, Reviews, Settings, Team, Roles
-    const moduleLabels = ['Dashboard', 'Products', 'Services', 'Orders', 'Customers', 'Reviews', 'Settings', 'Staff Access Control', 'Roles'];
+    // Module labels that should appear when Owner role is expanded
+    const moduleLabels = [
+      'Dashboard', 'Products', 'Orders', 'Point of Sale', 'CRM', 'Finance',
+      'Commission', 'Restaurant', 'Human Resources',
+    ];
     let sawModule = false;
     for (const label of moduleLabels) {
       const loc = page.getByText(label, { exact: true });

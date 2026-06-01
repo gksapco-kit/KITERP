@@ -93,7 +93,7 @@ export default function ESSDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Quick links */}
-        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
           <div className="flex items-center gap-2 p-3 border-b bg-gray-50">
             <FileText className="w-4 h-4 text-gray-500" />
             <h2 className="text-sm font-semibold text-gray-700">Quick Links</h2>
@@ -114,7 +114,7 @@ export default function ESSDashboard() {
         </div>
 
         {/* Recent announcements */}
-        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
           <div className="flex items-center gap-2 p-3 border-b bg-gray-50">
             <Megaphone className="w-4 h-4 text-gray-500" />
             <h2 className="text-sm font-semibold text-gray-700">Recent Announcements</h2>

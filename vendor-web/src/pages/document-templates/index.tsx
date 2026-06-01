@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 
 // ─── Template Type Definitions ────────────────────────────────────────────────
 
@@ -936,6 +937,12 @@ export default function DocumentTemplatesPage() {
     toast('Template reset to defaults')
   }
 
+  const applyDocLogoFile = useCallback((file: File) => {
+    const reader = new FileReader()
+    reader.onload = ev => set('logo_url', ev.target?.result as never)
+    reader.readAsDataURL(file)
+  }, [set])
+
   const s = activeType ? currentSettings() : null
 
   // ── Gallery view (no template selected) ──────────────────────────────────
@@ -959,7 +966,7 @@ export default function DocumentTemplatesPage() {
                 const saved = !!allSettings[tmpl.id]
                 return (
                   <button key={tmpl.id} onClick={() => { setActiveType(tmpl.id); setSettingsTab('design') }}
-                    className="group text-left bg-white border border-gray-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all relative">
+                    className="group text-left bg-white border border-gray-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all relative max-h-[90vh] overflow-y-auto">
                     {saved && (
                       <span className="absolute top-3 right-3 text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full flex items-center gap-1">
                         <Check className="w-2.5 h-2.5" /> Saved
@@ -1108,20 +1115,15 @@ export default function DocumentTemplatesPage() {
             <AccordionSection title="Logo" defaultOpen>
               <ToggleRow label="Show logo" checked={(s as BaseDocSettings)?.show_logo} onChange={v => set('show_logo', v as never)} />
               <div className="mt-2">
-                <input type="file" accept="image/*" className="hidden" id="doc-logo-upload"
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    const reader = new FileReader()
-                    reader.onload = ev => set('logo_url', ev.target?.result as never)
-                    reader.readAsDataURL(file)
-                    e.target.value = ''
-                  }} />
-                <label htmlFor="doc-logo-upload">
-                  <Button variant="outline" size="sm" className="gap-1.5 cursor-pointer" asChild>
-                    <span><Upload className="w-3.5 h-3.5" /> Upload Logo (PNG/SVG)</span>
-                  </Button>
-                </label>
+                <ImageSourcePicker
+                  title="Logo"
+                  onFile={applyDocLogoFile}
+                  onUrl={(url) => set('logo_url', url as never)}
+                  buttonLabel="Upload logo (PNG/SVG)"
+                  buttonVariant="outline"
+                  buttonSize="sm"
+                  buttonClassName="gap-1.5"
+                />
                 {(s as BaseDocSettings)?.logo_url && (
                   <div className="mt-2 flex items-center gap-2">
                     <img src={(s as BaseDocSettings).logo_url} alt="Logo" className="h-10 max-w-[100px] object-contain border rounded" />

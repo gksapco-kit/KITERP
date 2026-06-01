@@ -35,7 +35,7 @@ export default function MyAttendancePage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">My Attendance</h1>
 
       {/* Clock In/Out Card */}
-      <div className="bg-white rounded-xl border shadow-sm p-6 mb-6">
+      <div className="bg-white rounded-xl border shadow-sm p-6 mb-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-500">Today — {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
@@ -103,7 +103,7 @@ export default function MyAttendancePage() {
       </div>
 
       {/* Month selector + history */}
-      <div className="bg-white rounded-xl border shadow-sm">
+      <div className="bg-white rounded-xl border shadow-sm max-h-[90vh] overflow-y-auto">
         <div className="p-4 border-b flex items-center gap-3">
           <h3 className="font-semibold text-gray-900">Monthly History</h3>
           <select className="ml-auto border rounded-lg px-3 py-1.5 text-sm" value={month} onChange={e => setMonth(parseInt(e.target.value))}>

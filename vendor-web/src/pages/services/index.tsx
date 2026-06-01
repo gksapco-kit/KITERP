@@ -53,7 +53,7 @@ function MoreMenu({ service, onDelete }: {
         <MoreVertical className="w-4 h-4 text-gray-500" />
       </Button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg border shadow-lg z-50 py-1 animate-in fade-in-0 zoom-in-95">
+        <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg border shadow-lg z-50 py-1 animate-in fade-in-0 zoom-in-95 max-h-[90vh] overflow-y-auto">
           <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             onClick={() => { navigate(`/services/${service.id}`); setOpen(false) }}>
             <Pencil className="w-4 h-4 text-gray-400" /> Edit

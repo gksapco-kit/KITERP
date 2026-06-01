@@ -1,6 +1,6 @@
 # app/schemas/vendor_product.py
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 from enum import Enum
 
 
@@ -266,6 +266,7 @@ class ProductCreate(BaseModel):
     related_product_ids: List[str] = []
     upsell_product_ids: List[str] = []
     cross_sell_product_ids: List[str] = []
+    addons: List[Any] = []
 
     # Digital
     is_digital: bool = False
@@ -378,6 +379,7 @@ class ProductUpdate(BaseModel):
     related_product_ids: Optional[List[str]] = None
     upsell_product_ids: Optional[List[str]] = None
     cross_sell_product_ids: Optional[List[str]] = None
+    addons: Optional[List[Any]] = None
 
     # Digital
     is_digital: Optional[bool] = None
@@ -492,6 +494,7 @@ class ProductResponse(BaseModel):
     related_product_ids: List[str] = []
     upsell_product_ids: List[str] = []
     cross_sell_product_ids: List[str] = []
+    addons: List[Any] = []
 
     # Digital
     is_digital: bool = False

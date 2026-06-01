@@ -112,7 +112,7 @@ export default function ReviewDetailPage() {
 
       {/* KPI Scoring */}
       {kpiTemplate.length > 0 && (
-        <section className="bg-white border rounded-xl shadow-sm p-5 mb-4">
+        <section className="bg-white border rounded-xl shadow-sm p-5 mb-4 max-h-[90vh] overflow-y-auto">
           <h2 className="text-sm font-bold uppercase text-gray-700 mb-3">KPI Scoring (out of {cycle?.rating_scale_max ?? 5})</h2>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -162,7 +162,7 @@ export default function ReviewDetailPage() {
       )}
 
       {/* Self Assessment */}
-      <section className="bg-white border rounded-xl shadow-sm p-5 mb-4">
+      <section className="bg-white border rounded-xl shadow-sm p-5 mb-4 max-h-[90vh] overflow-y-auto">
         <h2 className="text-sm font-bold uppercase text-gray-700 mb-3">Self Assessment</h2>
         <div className="space-y-3">
           <textarea rows={5} value={self.self_assessment}
@@ -189,7 +189,7 @@ export default function ReviewDetailPage() {
 
       {/* Manager Review */}
       {(isMgrStage || r.manager_comments || r.overall_rating) && (
-        <section className="bg-white border rounded-xl shadow-sm p-5 mb-4">
+        <section className="bg-white border rounded-xl shadow-sm p-5 mb-4 max-h-[90vh] overflow-y-auto">
           <h2 className="text-sm font-bold uppercase text-gray-700 mb-3">Manager Review</h2>
           <div className="space-y-3">
             <textarea rows={4} value={mgr.manager_comments}
@@ -251,7 +251,7 @@ export default function ReviewDetailPage() {
 
       {/* Acknowledgement */}
       {(isAckStage || r.acknowledged_at) && (
-        <section className="bg-white border rounded-xl shadow-sm p-5 mb-4">
+        <section className="bg-white border rounded-xl shadow-sm p-5 mb-4 max-h-[90vh] overflow-y-auto">
           <h2 className="text-sm font-bold uppercase text-gray-700 mb-3">Employee Acknowledgement</h2>
           {r.acknowledged_at ? (
             <p className="text-sm text-green-700 flex items-center gap-2">

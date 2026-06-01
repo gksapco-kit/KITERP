@@ -660,7 +660,7 @@ export default function ProductList() {
                 // service fallback card
                 return (
                   <Link key={`${item.type}-${item.id}`} to={storePath(detailPath)}
-                    className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-200 overflow-hidden">
+                    className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-200 overflow-hidden max-h-[90vh] overflow-y-auto">
                     <div className="aspect-square bg-gray-50 overflow-hidden relative">
                       {imageUrl ? (
                         <img src={imgUrl(imageUrl)} alt={item.name}
@@ -739,7 +739,7 @@ export default function ProductList() {
                 
                 return (
                   <Link key={`${item.type}-${item.id}`} to={storePath(detailPath)}
-                    className="group flex gap-4 bg-white rounded-xl border p-4 hover:shadow-md transition-all">
+                    className="group flex gap-4 bg-white rounded-xl border p-4 hover:shadow-md transition-all max-h-[90vh] overflow-y-auto">
                     <div className="w-32 h-32 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative">
                       {imageUrl ? (
                         <img src={imgUrl(imageUrl)} alt={item.name} className="w-full h-full object-cover" />

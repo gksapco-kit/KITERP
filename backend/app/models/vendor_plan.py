@@ -34,6 +34,8 @@ class VendorPlan(Base):
         "priority_support": False,
         "white_label": False,
         "branded_app": False,
+        "restaurant": True,
+        "pos": True,
     })
     
     # Status

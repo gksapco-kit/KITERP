@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react'
-import { useUpdateVendor, useStores } from '@/hooks/useVendor'
+import { useUpdateVendor, useStores, useMyPlan } from '@/hooks/useVendor'
+import { planAllowsRestaurant } from '@/lib/planFeatures'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
@@ -184,6 +185,8 @@ export default function ModulesPage() {
   const { user } = useAuthStore()
   const updateVendor = useUpdateVendor()
   const { data: storesData } = useStores({ limit: 200 })
+  const { data: myPlanData } = useMyPlan()
+  const planAllowsRest = planAllowsRestaurant(myPlanData?.plan?.features)
   const stores = storesData?.stores ?? []
 
   const vendorRole = user?.vendor_role
@@ -452,7 +455,7 @@ export default function ModulesPage() {
                 <p className="text-[0.65rem] font-medium text-muted-foreground uppercase tracking-wide">HR scope</p>
                 <RadioOptions name="hr_scope" value={hrScope} onChange={setHrScope} options={HR_SCOPE_OPTIONS} />
                 <p className="text-[0.65rem] text-muted-foreground leading-snug px-0.5">
-                  ESS login links: Central → one URL per unit. Per-unit → only selected units. See Settings → All business units.
+                  ESS login links: Central → one shared URL for all units. Per-unit → one URL per selected unit. See Settings → All business units.
                 </p>
                 {hrScope === 'per_business_unit' && (
                   <div className="rounded-lg border border-border px-3 py-2 space-y-1.5">
@@ -565,6 +568,11 @@ export default function ModulesPage() {
       case 'restaurant':
         panelBody = (
           <div className="space-y-2">
+            {!planAllowsRest && (
+              <p className="text-[0.7rem] text-amber-800 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 leading-snug">
+                Your subscription plan does not include Restaurant. Upgrade your plan to enable floor, kitchen, and QR ordering.
+              </p>
+            )}
             {!productsCatalog && (
               <p className="text-[0.7rem] text-muted-foreground rounded-md border border-border bg-muted/30 px-2.5 py-1.5 leading-snug">
                 Set <strong>Catalog</strong> to Products only or Products &amp; services to use Restaurant.
@@ -573,8 +581,11 @@ export default function ModulesPage() {
             <EnableRow
               label="Enable Restaurant"
               hint="Floor, kitchen board, and table setup in the sidebar."
-              enabled={restaurantEnabled && productsCatalog}
-              onToggle={() => setRestaurantEnabled((v) => !v)}
+              enabled={restaurantEnabled && productsCatalog && planAllowsRest}
+              onToggle={() => {
+                if (!planAllowsRest) return
+                setRestaurantEnabled((v) => !v)
+              }}
             />
           </div>
         )

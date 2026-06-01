@@ -255,7 +255,7 @@ function StoreModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div
         className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
@@ -498,8 +498,8 @@ function TransferModal({
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b">
           <h2 className="text-lg font-semibold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5" />Stock Transfer</h2>
           <button type="button" aria-label="Close" onClick={onClose}>
@@ -774,12 +774,18 @@ export default function StoresPage({
     }
   }
 
-  function copyAllLinks() {
-    const lines = stores.map((s) => `${s.name}: ${storeLink(vendor?.slug, s)}`).join('\n')
-    copyText(lines, `${stores.length} store links copied!`)
+  function handleViewStore(store: StoreRecord) {
+    if (embeddedInSettings) {
+      setViewingStore(null)
+      if (selectedStore?.id !== store.id) {
+        setSelectedStore({ id: store.id, name: store.name, code: store.code, description: store.description })
+      }
+      return
+    }
+    setViewingStore(store)
   }
 
-  if (viewingStore) {
+  if (viewingStore && !embeddedInSettings) {
     const fresh = stores.find(s => s.id === viewingStore.id) ?? viewingStore
     return <StoreDetail store={fresh} onBack={() => setViewingStore(null)} />
   }
@@ -819,7 +825,8 @@ export default function StoresPage({
               stores={stores}
               listSearch={listSearch}
               onListSearchChange={setListSearch}
-              onCopyLinks={copyAllLinks}
+              vendorSlug={vendor?.slug ?? ''}
+              vendorSettings={vendor?.settings as Record<string, unknown> | undefined}
               onTransfer={() => setShowTransfer(true)}
             />
           </div>
@@ -873,14 +880,14 @@ export default function StoresPage({
               onSetDefault={() => {
                 if (window.confirm(`Use "${store.name}" as the default branch?`)) setDefaultMutation.mutate(store.id)
               }}
-              onView={() => setViewingStore(store)}
+              onView={() => handleViewStore(store)}
             />
           ))}
           {!searchNorm && (
           <button
             type="button"
             onClick={() => { setEditingStore(null); setModal('create') }}
-            className="flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border py-4 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+            className="flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-primary/35 bg-primary/5 py-4 text-primary transition-colors hover:border-primary/50 hover:bg-primary/10 dark:border-primary/40 dark:bg-primary/10 dark:hover:bg-primary/15"
           >
             <Plus className="h-5 w-5" />
             <span className="text-[0.65rem] font-medium">Add unit</span>

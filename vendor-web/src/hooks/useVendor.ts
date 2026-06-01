@@ -77,8 +77,18 @@ export function useMyVendor() {
     queryKey: vendorKeys.me(),
     queryFn: async () => {
       const vendor = await vendorApi.getMyVendor()
-      setVendor(vendor)
-      return vendor
+      const prev = useVendorStore.getState().vendor
+      const prevExtras = (prev?.theme_config as { extra_banners?: string[] } | undefined)?.extra_banners
+      const nextExtras = (vendor.theme_config as { extra_banners?: string[] } | undefined)?.extra_banners
+      const merged =
+        prevExtras?.length && !nextExtras?.length
+          ? {
+              ...vendor,
+              theme_config: { ...(vendor.theme_config || {}), extra_banners: prevExtras },
+            }
+          : vendor
+      setVendor(merged)
+      return merged
     },
     staleTime: 5 * 60 * 1000,
     retry: false,

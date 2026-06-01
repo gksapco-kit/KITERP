@@ -240,13 +240,17 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   {
     kind: 'nav', id: 'settings-assets-images',
     label: 'Images',
-    description: 'System Configuration → Assets → Images',
+    description: 'System Configuration → Gallery → Images',
     section: 'System Configuration', sectionId: 'system',
     to: '/system/assets/images',
     keywords: [
       'assets', 'images', 'stock photos', 'media library', 'image library',
       'business images', 'hero images', 'gallery', 'beauty', 'electronics',
       'jewelry', 'shop', 'store', 'supermarket', 'royalty free', 'stock images',
+      'retail', 'book store', 'furniture', 'pet store', 'toy store', 'liquor',
+      'optical', 'wholesale', 'distributor', 'ecommerce', 'department store',
+      'food', 'hospitality', 'restaurant', 'catering', 'banquet', 'bar', 'pub',
+      'resort', 'homestay', 'food truck', 'ice cream', 'juice', 'lounge', 'canteen',
     ],
   },
   {

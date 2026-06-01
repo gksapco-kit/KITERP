@@ -95,7 +95,7 @@ export default function StorefrontHome() {
                 <Link
                   key={s.id}
                   to={`${base}/services/${s.slug}`}
-                  className="bg-white rounded-xl p-6 hover:shadow-lg transition-shadow border"
+                  className="bg-white rounded-xl p-6 hover:shadow-lg transition-shadow border max-h-[90vh] overflow-y-auto"
                 >
                   <h3 className="font-semibold text-gray-900 text-lg">{s.name}</h3>
                   {s.short_description && (
@@ -143,7 +143,7 @@ function ProductCard({
   const currencySymbol = p.currency === 'INR' ? '\u20B9' : '$'
 
   return (
-    <Link to={`${base}/products/${p.slug}`} className="group bg-white rounded-xl border overflow-hidden hover:shadow-lg transition-shadow">
+    <Link to={`${base}/products/${p.slug}`} className="group bg-white rounded-xl border overflow-hidden hover:shadow-lg transition-shadow max-h-[90vh] overflow-y-auto">
       <div className="aspect-square bg-gray-100 overflow-hidden">
         {primaryImage ? (
           <img src={primaryImage.url} alt={primaryImage.alt_text || p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />

@@ -30,6 +30,8 @@ const FEATURE_META: Record<string, { label: string; icon: typeof Smartphone; des
   api_access: { label: 'API Access', icon: Code, description: 'Programmatic API access' },
   priority_support: { label: 'Priority Support', icon: Headphones, description: 'Faster support response' },
   white_label: { label: 'White Label', icon: Tag, description: 'Remove KITERP branding' },
+  restaurant: { label: 'Restaurant', icon: Tag, description: 'Floor plan, KDS, reservations, QR ordering' },
+  pos: { label: 'POS', icon: Tag, description: 'Point of sale and checkout' },
 }
 
 type EditPlanFormState = {
@@ -84,6 +86,8 @@ export default function Plans() {
           priority_support: false,
           white_label: false,
           branded_app: false,
+          restaurant: true,
+          pos: true,
         },
       },
       {

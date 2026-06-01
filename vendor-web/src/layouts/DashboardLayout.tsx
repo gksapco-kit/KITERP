@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
   Users, Settings, LogOut, Store, MessageSquare,
   UsersRound, ShieldCheck, Receipt, FileText, Tag, BarChart3, Palette, CreditCard, LayoutTemplate,
-  FolderTree, Truck, ClipboardList, Calendar, Bell,
+  FolderTree, Truck, ClipboardList, Calendar, Bell, List,
   ChevronDown, ChevronRight, Check, Menu, FilePlus, Factory, PieChart,
   UserCog, Clock, Plane, DollarSign, Award, Building2, FileSignature,
   HelpCircle, Phone, MessageCircle, User as UserIcon, Info,
@@ -21,8 +21,9 @@ import {
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
   GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
-  ArrowLeft, MoreHorizontal, Keyboard, Plus, Star,
+  ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save,
 } from 'lucide-react'
+import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { cn, mediaUrl } from '@/lib/utils'
 
 function ProfileAvatar({
@@ -128,7 +129,7 @@ import { useThemeStore } from '@/stores/themeStore'
 import { useVendorStore } from '@/stores/vendorStore'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useESSProfile } from '@/hooks/useVendor'
-import { useMyVendor, useStores } from '@/hooks/useVendor'
+import { useMyVendor, useMyPlan, useStores } from '@/hooks/useVendor'
 import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
 import { Button } from '@/components/ui/button'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -143,6 +144,7 @@ import {
   BUSINESS_UNIT_STORE_SETTINGS_LINK,
 } from '@/lib/businessUnitLabels'
 import { buildHrEssLoginUrl, isHrEssLinkVisibleForStore } from '@/lib/hrStorefrontLinks'
+import { BusinessUnitLogoThumb } from '@/components/business-units/BusinessUnitLogoThumb'
 import {
   isFinanceNavVisible,
   isCrmNavVisible,
@@ -272,7 +274,142 @@ const SETTINGS_SECTION_TITLES: Record<string, string> = {
   tax: 'Tax & Compliance',
   'hours-availability': 'Offline Business Hours',
   'order-acceptance': 'Online Orders',
+  'external-domain': 'External Domain',
   about: 'About',
+}
+
+function UniversalSaveToolbarButton() {
+  return (
+    <button
+      type="button"
+      onClick={dispatchAppSaveRequest}
+      title="Save changes on this page"
+      aria-label="Save changes"
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-emerald-600 transition-colors hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+    >
+      <Save className="h-4 w-4" />
+    </button>
+  )
+}
+
+/** Shared pill styling for top-bar controls (matches business-unit picker). */
+const headerBarPillClass =
+  'flex h-8 shrink-0 items-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground'
+
+const headerBarPillInteractiveClass = cn(headerBarPillClass, 'hover:bg-muted/80 hover:border-primary/30')
+
+type HeaderQuickActionButtonsProps = {
+  helpRef: React.RefObject<HTMLDivElement | null>
+  moreRef: React.RefObject<HTMLDivElement | null>
+  helpOpen: boolean
+  setHelpOpen: React.Dispatch<React.SetStateAction<boolean>>
+  moreOpen: boolean
+  setMoreOpen: React.Dispatch<React.SetStateAction<boolean>>
+  onOpenSearch: () => void
+  onNavigateNotifications: () => void
+  onNavigateSettings: () => void
+}
+
+function HeaderQuickActionButtons({
+  helpRef,
+  moreRef,
+  helpOpen,
+  setHelpOpen,
+  moreOpen,
+  setMoreOpen,
+  onOpenSearch,
+  onNavigateNotifications,
+  onNavigateSettings,
+}: HeaderQuickActionButtonsProps) {
+  const menuClass = 'absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1'
+  const iconBtn =
+    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors'
+
+  return (
+    <div
+      className={cn(headerBarPillClass, 'w-[8.5rem] justify-between px-1')}
+      aria-label="Page actions"
+    >
+      <button
+        type="button"
+        onClick={() => window.history.back()}
+        title="Go back"
+        aria-label="Go back"
+        className={cn(iconBtn, 'text-primary hover:bg-primary/10')}
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </button>
+
+      <UniversalSaveToolbarButton />
+
+      <div ref={helpRef} className="relative shrink-0">
+        <button
+          type="button"
+          title="Help & support"
+          aria-label="Help"
+          onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
+          className={cn(iconBtn, 'text-amber-500 hover:bg-amber-50', helpOpen && 'bg-amber-50')}
+        >
+          <HelpCircle className="h-4 w-4" />
+        </button>
+        {helpOpen && (
+          <div className={menuClass}>
+            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
+            <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+              onClick={() => setHelpOpen(false)}>
+              <BookOpen className="h-4 w-4 shrink-0 text-blue-500" /> Documentation
+            </a>
+            <a href="mailto:support@kiterp.com"
+              className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+              onClick={() => setHelpOpen(false)}>
+              <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
+            </a>
+            <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+              onClick={() => setHelpOpen(false)}>
+              <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
+            </a>
+          </div>
+        )}
+      </div>
+
+      <div ref={moreRef} className="relative shrink-0">
+        <button
+          type="button"
+          title="More options"
+          aria-label="More options"
+          onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
+          className={cn(iconBtn, 'text-blue-500 hover:bg-blue-50', moreOpen && 'bg-blue-50')}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+        {moreOpen && (
+          <div className={menuClass}>
+            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
+            <button type="button"
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+              onClick={() => { onOpenSearch(); setMoreOpen(false) }}>
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="flex-1 text-left">Search</span>
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
+            </button>
+            <button type="button"
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+              onClick={() => { onNavigateNotifications(); setMoreOpen(false) }}>
+              <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
+            </button>
+            <div className="mx-3 my-1 border-t border-border" />
+            <button type="button"
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+              onClick={() => { onNavigateSettings(); setMoreOpen(false) }}>
+              <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 interface NavSection {
@@ -313,14 +450,14 @@ const allSections: NavSection[] = [
     icon: ShoppingCart,
     items: [
       { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view' },
-      { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'] },
-      { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'] },
-      { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions' },
-      { to: '/rental', icon: Truck, label: 'Rentals', alwaysShow: true },
-      { to: '/production', icon: Factory, label: 'Production Orders', requiresOffering: ['products', 'both'] },
-      { to: '/invoices', icon: FileText, label: 'Invoices' },
-      { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos' },
-      { to: '/coupons', icon: Tag, label: 'Coupons' },
+      { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'], requiresPermission: 'bookings.view' },
+      { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
+      { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view' },
+      { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
+      { to: '/production', icon: Factory, label: 'Production Orders', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
+      { to: '/invoices', icon: FileText, label: 'Invoices', requiresPermission: 'invoices.view' },
+      { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos', requiresPermission: 'memos.view' },
+      { to: '/coupons', icon: Tag, label: 'Coupons', requiresPermission: 'coupons.view' },
     ],
   },
   {
@@ -328,11 +465,12 @@ const allSections: NavSection[] = [
     title: 'Restaurant',
     icon: UtensilsCrossed,
     items: [
-      { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'] },
-      { to: '/restaurant/kitchen', icon: ChefHat, label: 'Kitchen Board', requiresOffering: ['products', 'both'] },
-      { to: '/restaurant/reservations', icon: Calendar, label: 'Reservations', requiresOffering: ['products', 'both'] },
-      { to: '/restaurant/reports', icon: BarChart3, label: 'Restaurant Reports', requiresOffering: ['products', 'both'] },
-      { to: '/restaurant/setup', icon: Settings, label: 'Table Setup', requiresOffering: ['products', 'both'] },
+      { to: '/restaurant/floor', icon: UtensilsCrossed, label: 'Restaurant Floor', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.floor' },
+      { to: '/restaurant/kitchen', icon: ChefHat, label: 'Kitchen Board', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.kitchen' },
+      { to: '/restaurant/menu', icon: List, label: 'Dine-in Menu', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
+      { to: '/restaurant/reservations', icon: Calendar, label: 'Reservations', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.reservations' },
+      { to: '/restaurant/reports', icon: BarChart3, label: 'Restaurant Reports', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.reports' },
+      { to: '/restaurant/setup', icon: Settings, label: 'Table Setup', requiresOffering: ['products', 'both'], requiresPermission: 'restaurant.setup' },
     ],
   },
   {
@@ -357,8 +495,8 @@ const allSections: NavSection[] = [
       { to: '/products', icon: Package, label: 'Products', requiresOffering: ['products', 'both'], requiresPermission: 'products.view' },
       { to: '/services', icon: Wrench, label: 'Services', requiresOffering: ['services', 'both'], requiresPermission: 'services.view' },
       { to: '/categories', icon: FolderTree, label: 'Categories' },
-      { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'] },
-      { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresOffering: ['products', 'both'] },
+      { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresOffering: ['products', 'both'], requiresPermission: 'procurement.view' },
     ],
   },
   {
@@ -395,7 +533,7 @@ const allSections: NavSection[] = [
       { to: '/finance/reports/cash-flow', icon: TrendingUp, label: 'Cash Flow', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/reports/cost-analysis', icon: BarChart3, label: 'Cost Analysis', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/reports/gl', icon: BookOpen, label: 'GL Line Item Report', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
-      { to: '/reports', icon: LayoutDashboard, label: 'Reports' },
+      { to: '/reports', icon: LayoutDashboard, label: 'Reports', requiresPermission: 'reports.view' },
       // ── Governance
       { to: '/finance/approvals', icon: ClipboardCheck, label: 'Approvals', requiresPermission: 'finance.controls.approve', requiresFinanceMode: 'advanced', groupLabel: 'Governance', groupColor: 'blue' },
       { to: '/finance/audit', icon: ShieldCheck, label: 'Audit Log', requiresPermission: 'finance.audit.view', requiresFinanceMode: 'advanced' },
@@ -472,11 +610,11 @@ const allSections: NavSection[] = [
       { to: '/hr/employees', icon: UserCog, label: 'Employees', requiresPermission: 'hr.view' },
       { to: '/hr/attendance', icon: Clock, label: 'Attendance', requiresPermission: 'hr.view' },
       { to: '/hr/leaves', icon: Plane, label: 'Leave Requests', requiresPermission: 'hr.view' },
-      { to: '/hr/recruitment', icon: Briefcase, label: 'Recruitment', requiresPermission: 'hr.manage' },
-      { to: '/hr/onboarding', icon: UserCheck, label: 'Onboarding', requiresPermission: 'hr.manage' },
-      { to: '/hr/performance', icon: Target, label: 'Performance', requiresPermission: 'hr.manage' },
-      { to: '/hr/training', icon: GraduationCap, label: 'Training', requiresPermission: 'hr.manage' },
-      { to: '/hr/compliance', icon: ShieldAlert, label: 'Compliance', requiresPermission: 'hr.manage' },
+      { to: '/hr/recruitment', icon: Briefcase, label: 'Recruitment', requiresPermission: 'hr.recruitment' },
+      { to: '/hr/onboarding', icon: UserCheck, label: 'Onboarding', requiresPermission: 'hr.onboarding' },
+      { to: '/hr/performance', icon: Target, label: 'Performance', requiresPermission: 'hr.performance' },
+      { to: '/hr/training', icon: GraduationCap, label: 'Training', requiresPermission: 'hr.training' },
+      { to: '/hr/compliance', icon: ShieldAlert, label: 'Compliance', requiresPermission: 'hr.compliance' },
       { to: '/hr/announcements', icon: Megaphone, label: 'Announcements', requiresPermission: 'hr.manage' },
       { to: '/hr/expenses', icon: ReceiptIcon, label: 'Expense Claims', requiresPermission: 'hr.manage' },
       { to: '/hr/helpdesk', icon: LifeBuoy, label: 'Helpdesk', requiresPermission: 'hr.manage' },
@@ -491,8 +629,8 @@ const allSections: NavSection[] = [
     title: 'System Configuration',
     icon: Settings2,
     items: [
-      { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
-      { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
+      { to: '/websites', icon: Globe, label: 'Website Builder', requiresPermission: 'websites.view' },
+      { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', requiresPermission: 'websites.view' },
       { to: '/storefront-builder', icon: Wand2, label: 'Business Front Builder', alwaysShow: true },
       { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
@@ -501,7 +639,7 @@ const allSections: NavSection[] = [
       { to: '/invoices/templates', icon: FileText, label: 'Invoice Templates', alwaysShow: true },
       { to: '/purchase-orders/templates', icon: ClipboardList, label: 'PO Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
-      { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Assets', groupColor: 'violet' },
+      { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Gallery', groupColor: 'violet' },
       { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
     ],
@@ -806,7 +944,7 @@ const pageTitles: Record<string, string> = {
   '/system/modules': 'Module Settings',
   '/system/storefront-display': 'Business Front Display',
   '/system/social-links': 'Social & Web Links',
-  '/system/assets': 'Assets',
+  '/system/assets': 'Gallery',
   '/system/assets/images': 'Images',
 
   '/crm': 'CRM Dashboard',
@@ -1248,6 +1386,8 @@ export default function DashboardLayout() {
   const { show: showBrowserNotif, permission } = useBrowserNotifications()
 
   useMyVendor()
+  const { data: myPlanData } = useMyPlan()
+  const planFeatures = myPlanData?.plan?.features as Record<string, unknown> | undefined
 
   // Fetch unread count every 30 s
   const { data: stats } = useQuery<{ unread: number; total: number }>({
@@ -1384,8 +1524,11 @@ export default function DashboardLayout() {
   const filterItem = useCallback(
     (item: NavItem) => {
       if (item.alwaysShow) return true
-      if (item.to === '/pos' && !isPosNavVisible(vendorSettings, vendor?.offering_type)) return false
-      if (item.to.startsWith('/restaurant/') && !isRestaurantNavVisible(vendorSettings, vendor?.offering_type)) {
+      if (item.to === '/pos' && !isPosNavVisible(vendorSettings, vendor?.offering_type, planFeatures)) return false
+      if (
+        item.to.startsWith('/restaurant/') &&
+        !isRestaurantNavVisible(vendorSettings, vendor?.offering_type, planFeatures)
+      ) {
         return false
       }
       if (item.to === '/bookings' && !isBookingsNavVisible(vendorSettings, vendor?.offering_type)) return false
@@ -1401,7 +1544,7 @@ export default function DashboardLayout() {
       }
       return true
     },
-    [vendor, vendor?.offering_type, vendorSettings, vendorRole, isOwnerOrAdmin, permissions, financeMode],
+    [vendor, vendor?.offering_type, vendorSettings, vendorRole, isOwnerOrAdmin, permissions, financeMode, planFeatures],
   )
 
   const visibleSections = useMemo(
@@ -1413,6 +1556,12 @@ export default function DashboardLayout() {
           if (section.id === 'crm' && !crmNavVisible) return false
           if (section.id === 'commission' && !commissionNavVisible) return false
           if (section.id === 'controlling' && !controllingNavVisible) return false
+          if (
+            section.id === 'restaurant' &&
+            !isRestaurantNavVisible(vendorSettings, vendor?.offering_type, planFeatures)
+          ) {
+            return false
+          }
           return true
         })
         .map((section) => ({ ...section, items: section.items.filter(filterItem) }))
@@ -1814,15 +1963,18 @@ export default function DashboardLayout() {
             aria-selected={!selectedStore}
             onClick={() => { setSelectedStore(null); setStorePickerOpen(false) }}
             className={cn(
-              'w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-accent transition-colors',
+              'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors',
               !selectedStore && 'bg-primary/10 dark:bg-primary/20',
             )}
           >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              <Store className="h-3.5 w-3.5" aria-hidden />
+            </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground">All business units</p>
               <p className="text-xs text-muted-foreground">No filter applied</p>
             </div>
-            {!selectedStore && <Check className="w-4 h-4 text-primary shrink-0" />}
+            {!selectedStore && <Check className="h-4 w-4 shrink-0 text-primary" />}
           </button>
         )}
 
@@ -1851,8 +2003,13 @@ export default function DashboardLayout() {
                     }}
                     className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                   >
-                    <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                      <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div className="relative shrink-0">
+                      <BusinessUnitLogoThumb
+                        store={s}
+                        vendor={vendor}
+                        className="h-7 w-7 rounded-md bg-muted"
+                        iconClassName="h-3.5 w-3.5 text-muted-foreground"
+                      />
                       {isFav && (
                         <Star className="absolute -right-1 -top-1 h-3 w-3 fill-amber-400 text-amber-400" />
                       )}
@@ -2147,90 +2304,6 @@ export default function DashboardLayout() {
             KIT ERP
           </span>
         </button>
-
-        {/* Divider + action buttons — back, help, more */}
-        {!showIconOnlyNav && (
-          <div className="flex shrink-0 items-center gap-0.5">
-            <div className="mr-1.5 h-7 w-px bg-sidebar-foreground/20" />
-
-            <button
-              type="button"
-              onClick={() => window.history.back()}
-              title="Go back"
-              aria-label="Go back"
-              className="flex items-center justify-center rounded-md p-1.5 text-primary hover:bg-primary/10 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-
-            <div ref={helpRef} className="relative">
-              <button
-                type="button"
-                title="Help & support"
-                aria-label="Help"
-                onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
-                className={cn('flex items-center justify-center rounded-md p-1.5 text-amber-500 hover:bg-amber-50 transition-colors', helpOpen && 'bg-amber-50')}
-              >
-                <HelpCircle className="h-4 w-4" />
-              </button>
-              {helpOpen && (
-                <div className="absolute right-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
-                  <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
-                  <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                    onClick={() => setHelpOpen(false)}>
-                    <BookOpen className="h-4 w-4 shrink-0 text-blue-500" /> Documentation
-                  </a>
-                  <a href="mailto:support@kiterp.com"
-                    className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                    onClick={() => setHelpOpen(false)}>
-                    <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
-                  </a>
-                  <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                    onClick={() => setHelpOpen(false)}>
-                    <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
-                  </a>
-                </div>
-              )}
-            </div>
-
-            <div ref={moreRef} className="relative">
-              <button
-                type="button"
-                title="More options"
-                aria-label="More options"
-                onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
-                className={cn('flex items-center justify-center rounded-md p-1.5 text-blue-500 hover:bg-blue-50 transition-colors', moreOpen && 'bg-blue-50')}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
-              {moreOpen && (
-                <div className="absolute right-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
-                  <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
-                  <button type="button"
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                    onClick={() => { setSearchOpen(true); setMoreOpen(false) }}>
-                    <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="flex-1 text-left">Search</span>
-                    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
-                  </button>
-                  <button type="button"
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                    onClick={() => { navigate('/notifications'); setMoreOpen(false) }}>
-                    <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
-                  </button>
-                  <div className="mx-3 my-1 border-t border-border" />
-                  <button type="button"
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                    onClick={() => { navigate('/settings'); setMoreOpen(false) }}>
-                    <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Icon rail — desktop semi-collapsed mode */}
@@ -2901,147 +2974,57 @@ export default function DashboardLayout() {
             : undefined
         }
       >
-        {/* Top bar */}
+        {/* Top bar — title left; toolbar packed at the right end */}
         <header className="sticky top-0 z-30 overflow-visible border-b border-sidebar-border bg-card/80 backdrop-blur-md">
-          {/*
-            Title + search must shrink (min-w-0). Actions stay full width (shrink-0).
-            Do not use overflow-hidden here — it clips the unit picker when the row is tight.
-          */}
-          <div className="flex h-14 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-8">
-            {/* Title row — page name + inline action buttons */}
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+          <div className="flex h-14 w-full min-w-0 items-center gap-3 px-4">
+            {/* Title — fixed width on the left */}
+            <div className="flex h-8 w-[13rem] shrink-0 items-center gap-2">
               <button
                 type="button"
-                className="shrink-0 rounded-lg p-1.5 -ml-1 text-muted-foreground hover:bg-muted lg:hidden"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted lg:hidden"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open menu"
               >
                 <Menu className="h-5 w-5" />
               </button>
 
-              {location.pathname === '/settings' ? (
-                <div className="flex min-w-0 items-baseline gap-1.5 overflow-hidden sm:gap-2" title={pageTitle}>
-                  <h1 className="shrink-0 text-sm font-semibold text-foreground sm:text-base lg:text-lg">
-                    {settingsSectionTitle ?? 'Settings'}
-                  </h1>
-                  <span className="hidden min-w-0 truncate text-xs font-medium text-muted-foreground md:inline sm:text-sm">
-                    {settingsSectionTitle ? `Settings · ${settingsScopeHeading}` : settingsScopeHeading}
-                  </span>
-                </div>
-              ) : (
-                <h1 className="min-w-0 truncate text-sm font-semibold text-foreground sm:text-base lg:text-lg" title={pageTitle}>
-                  {pageTitle}
-                </h1>
-              )}
-
-              {/* Action buttons — shown only when sidebar is icon-only or on mobile (sidebar hidden) */}
-              {(showIconOnlyNav || sidebarMode === 'hidden') && (
-                <div className="flex shrink-0 items-center gap-0.5 ml-1.5">
-                  <div className="mr-1 h-5 w-px bg-border" />
-                  <button
-                    type="button"
-                    onClick={() => window.history.back()}
-                    title="Go back"
-                    aria-label="Go back"
-                    className="flex items-center justify-center rounded-md p-1.5 text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </button>
-
-                  <div ref={helpRef} className="relative">
-                    <button
-                      type="button"
-                      title="Help & support"
-                      aria-label="Help"
-                      onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
-                      className={cn('flex items-center justify-center rounded-md p-1.5 text-amber-500 hover:bg-amber-50 transition-colors', helpOpen && 'bg-amber-50')}
-                    >
-                      <HelpCircle className="h-4 w-4" />
-                    </button>
-                    {helpOpen && (
-                      <div className="absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
-                        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
-                        <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                          onClick={() => setHelpOpen(false)}>
-                          <BookOpen className="h-4 w-4 shrink-0 text-blue-500" /> Documentation
-                        </a>
-                        <a href="mailto:support@kiterp.com"
-                          className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                          onClick={() => setHelpOpen(false)}>
-                          <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
-                        </a>
-                        <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                          onClick={() => setHelpOpen(false)}>
-                          <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  <div ref={moreRef} className="relative">
-                    <button
-                      type="button"
-                      title="More options"
-                      aria-label="More options"
-                      onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
-                      className={cn('flex items-center justify-center rounded-md p-1.5 text-blue-500 hover:bg-blue-50 transition-colors', moreOpen && 'bg-blue-50')}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                    {moreOpen && (
-                      <div className="absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1">
-                        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
-                        <button type="button"
-                          className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                          onClick={() => { setSearchOpen(true); setMoreOpen(false) }}>
-                          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="flex-1 text-left">Search</span>
-                          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
-                        </button>
-                        <button type="button"
-                          className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                          onClick={() => { navigate('/notifications'); setMoreOpen(false) }}>
-                          <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
-                        </button>
-                        <div className="mx-3 my-1 border-t border-border" />
-                        <button type="button"
-                          className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                          onClick={() => { navigate('/settings'); setMoreOpen(false) }}>
-                          <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              <h1
+                className="min-w-0 flex-1 truncate text-sm font-semibold leading-none text-foreground lg:w-full"
+                title={pageTitle}
+              >
+                {location.pathname === '/settings'
+                  ? settingsSectionTitle
+                    ? `${settingsSectionTitle} · Settings`
+                    : `Settings · ${settingsScopeHeading}`
+                  : pageTitle}
+              </h1>
             </div>
 
-            {/* Search — fixed max width, yields space to actions */}
-            <div className="hidden shrink min-w-0 md:flex md:justify-center">
+            <div className="min-h-px min-w-0 flex-1" aria-hidden />
+
+            {/* Toolbar — pinned to the right end */}
+            <div className="flex shrink-0 items-center gap-2">
+              <HeaderQuickActionButtons
+                helpRef={helpRef}
+                moreRef={moreRef}
+                helpOpen={helpOpen}
+                setHelpOpen={setHelpOpen}
+                moreOpen={moreOpen}
+                setMoreOpen={setMoreOpen}
+                onOpenSearch={() => setSearchOpen(true)}
+                onNavigateNotifications={() => navigate('/notifications')}
+                onNavigateSettings={() => navigate('/settings')}
+              />
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="flex h-7 w-32 min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 text-muted-foreground transition-all hover:border-primary/30 hover:bg-muted hover:text-foreground lg:w-36"
+                className={cn(headerBarPillInteractiveClass, 'w-36 gap-1.5 px-2.5')}
               >
-                <Search className="h-3 w-3 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-left text-[11px]">Search…</span>
+                <Search className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate text-left text-xs">Search…</span>
               </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted md:hidden"
-              aria-label="Open search"
-            >
-              <Search className="h-5 w-5" />
-            </button>
 
-            {/* Actions — priority: never clipped */}
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-
-              <div ref={storePickerRef} className="relative">
+              <div ref={storePickerRef} className="relative shrink-0">
                 <button
                   type="button"
                   onClick={openStorePicker}
@@ -3049,14 +3032,32 @@ export default function DashboardLayout() {
                   aria-haspopup="listbox"
                   title={storeHeaderName}
                   className={cn(
-                    'flex min-w-[2.75rem] max-w-[11.5rem] items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all sm:max-w-[12.5rem] lg:max-w-[14rem]',
+                    headerBarPillClass,
+                    'w-[9.5rem] gap-1.5 px-2.5',
                     storePillActive
-                      ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90'
-                      : 'border-border bg-muted text-muted-foreground hover:bg-muted/80',
+                      ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90 hover:border-primary'
+                      : 'hover:bg-muted/80',
                   )}
                 >
-                  <Store className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden min-w-0 truncate sm:inline" title={storeHeaderName}>
+                  {rowForHeader ? (
+                    <BusinessUnitLogoThumb
+                      store={rowForHeader}
+                      vendor={vendor}
+                      className={cn('h-5 w-5', storePillActive && 'ring-1 ring-white/25')}
+                      iconClassName={cn('h-3.5 w-3.5 shrink-0', storePillActive ? 'text-white' : 'text-current')}
+                    />
+                  ) : (
+                    <span
+                      className={cn(
+                        'flex h-5 w-5 shrink-0 items-center justify-center rounded-md',
+                        storePillActive ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground',
+                      )}
+                      aria-hidden
+                    >
+                      <Store className="h-3.5 w-3.5 shrink-0" />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 truncate" title={storeHeaderName}>
                     {storeHeaderName}
                   </span>
                   <ChevronDown
@@ -3071,7 +3072,7 @@ export default function DashboardLayout() {
 
               <Link
                 to="/notifications"
-                className="relative inline-flex shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted"
+                className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:border-primary/30"
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
@@ -3080,22 +3081,30 @@ export default function DashboardLayout() {
                   </span>
                 )}
               </Link>
-              <div ref={profileMenuRef} className="relative shrink-0 border-l border-border pl-2 sm:pl-3">
+
+              <span
+                className="mx-0.5 shrink-0 select-none text-sm font-light leading-none text-muted-foreground/55"
+                aria-hidden
+              >
+                |
+              </span>
+
+              <div ref={profileMenuRef} className="relative flex h-8 w-[7.25rem] shrink-0 items-center">
                 <button
                   type="button"
                   onClick={() => setProfileOpen(v => !v)}
                   title={profileHoverTitle}
                   aria-label={profileHoverTitle ?? 'Open profile menu'}
                   className={cn(
-                    'flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-1 transition-colors sm:pr-1.5',
+                    'flex h-8 w-full min-w-0 items-center gap-1 rounded-full py-0.5 pl-0.5 pr-1',
                     profileOpen ? 'bg-muted ring-1 ring-border' : 'hover:bg-muted',
                   )}
                 >
                   <ProfileAvatar
                     user={user}
-                    className="h-6 w-6 shadow-sm ring-1 ring-black/15"
+                    className="h-6 w-6 shrink-0 shadow-sm ring-1 ring-black/15"
                   />
-                  <span className="hidden min-w-0 max-w-[4.25rem] flex-col items-start leading-none md:flex lg:max-w-[5rem]">
+                  <span className="flex min-w-0 flex-1 flex-col items-start leading-none">
                     <span
                       className="w-full truncate text-xs font-medium text-foreground"
                       title={profileName || undefined}
@@ -3110,7 +3119,7 @@ export default function DashboardLayout() {
                       <span className="truncate">{roleBadge}</span>
                     </span>
                   </span>
-                  <ChevronDown className={cn('hidden h-3 w-3 shrink-0 text-muted-foreground transition-transform md:block', profileOpen && 'rotate-180')} />
+                  <ChevronDown className={cn('h-3 w-3 shrink-0 text-muted-foreground', profileOpen && 'rotate-180')} />
                 </button>
 
                 {profileOpen && profilePanelPos && createPortal(

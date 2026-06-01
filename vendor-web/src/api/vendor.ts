@@ -67,6 +67,7 @@ export interface RestaurantOrderItem {
   tax_rate?: number
   item_type?: string
   notes?: string
+  modifiers?: SelectedModifier[]
 }
 
 export interface RestaurantKOT {
@@ -79,6 +80,7 @@ export interface RestaurantKOT {
   items: RestaurantOrderItem[]
   notes?: string | null
   covers?: number | null
+  order_status?: string | null
   created_at?: string | null
 }
 
@@ -320,6 +322,14 @@ export const vendorApi = {
     const form = new FormData()
     form.append('file', file)
     const response = await apiClient.post('/uploads/vendor/banner', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return response.data
+  },
+
+  /** Upload branding file without updating vendor logo/banner (for per-unit overrides). */
+  uploadVendorBrandingAsset: async (file: File): Promise<{ url: string }> => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await apiClient.post('/uploads/vendor/branding-asset', form, { headers: { 'Content-Type': 'multipart/form-data' } })
     return response.data
   },
 
@@ -910,12 +920,46 @@ export const vendorApi = {
     const response = await apiClient.post('/vendors/me/restaurant/reservations', body)
     return response.data as ReservationItem
   },
-  restaurantUpdateReservation: async (id: string, body: { status: string; table_id?: string }) => {
+  restaurantUpdateReservation: async (
+    id: string,
+    body: {
+      status?: string
+      table_id?: string
+      guest_name?: string
+      guest_phone?: string
+      guest_email?: string
+      reservation_date?: string
+      reservation_time?: string
+      party_size?: number
+      notes?: string
+    },
+  ) => {
     const response = await apiClient.patch(`/vendors/me/restaurant/reservations/${id}`, body)
-    return response.data as { id: string; status: string }
+    return response.data as ReservationItem
+  },
+  restaurantSeatReservation: async (id: string, body: { table_id: string; covers?: number }) => {
+    const response = await apiClient.post(`/vendors/me/restaurant/reservations/${id}/seat`, body)
+    return response.data as { reservation: ReservationItem; order_id: string; table_id?: string }
   },
   restaurantDeleteReservation: async (id: string) => {
     await apiClient.delete(`/vendors/me/restaurant/reservations/${id}`)
+  },
+
+  restaurantGetMenuSettings: async () => {
+    const response = await apiClient.get('/vendors/me/restaurant/menu')
+    return response.data as {
+      mode: 'all_active' | 'curated'
+      product_ids: string[]
+      items: Array<{ id: string; name: string; category?: string; price: number; status: string }>
+    }
+  },
+  restaurantUpdateMenuSettings: async (body: { mode: 'all_active' | 'curated'; product_ids: string[] }) => {
+    const response = await apiClient.put('/vendors/me/restaurant/menu', body)
+    return response.data as { mode: string; product_ids: string[] }
+  },
+  restaurantListDineInProducts: async () => {
+    const response = await apiClient.get('/vendors/me/restaurant/dine-in-products')
+    return response.data as { items: Array<{ id: string; name: string; sku?: string; price: number; tax_rate?: number; category?: string; item_type?: string }> }
   },
 
   // ── Restaurant Reports ────────────────────────────────────────────

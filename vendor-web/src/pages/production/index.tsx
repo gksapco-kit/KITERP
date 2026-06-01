@@ -781,7 +781,7 @@ export default function ProductionOrdersPage() {
 
         {/* ── Toolbar ────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 flex-1 min-w-[180px] max-w-sm shadow-sm">
+          <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 flex-1 min-w-[180px] max-w-sm shadow-sm max-h-[90vh] overflow-y-auto">
             <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by ref, product, customer…"
               className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400" />
@@ -881,7 +881,7 @@ export default function ProductionOrdersPage() {
             const curStepIdx = WORKFLOW_STEPS.findIndex(s => s.status === order.status)
 
             return (
-              <div className="flex-1 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+              <div className="flex-1 bg-card rounded-2xl border border-border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
                 {/* Panel header */}
                 <div className={`px-5 py-4 border-b flex items-start gap-3 ${order.type === 'mto' ? 'bg-indigo-50' : 'bg-teal-50'}`}>
                   <div className={`p-2 rounded-xl ${order.type === 'mto' ? 'bg-indigo-100' : 'bg-teal-100'}`}>
@@ -1455,7 +1455,7 @@ export default function ProductionOrdersPage() {
 
       {/* ── Create Order Drawer ──────────────────────────────────────────────── */}
       {showCreate && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowCreate(false); setCreateType(null) }}>
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => { setShowCreate(false); setCreateType(null) }}>
           <ModalEscapeHandler onClose={closeCreateModal} />
           <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
@@ -1913,8 +1913,8 @@ export default function ProductionOrdersPage() {
 
       {/* ── Variant Picker Modal ─────────────────────────────────────────────── */}
       {variantPickerProduct && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setVariantPickerProduct(null)}>
-          <div className="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 overflow-y-auto" onClick={() => setVariantPickerProduct(null)}>
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{variantPickerProduct.name}</h3>

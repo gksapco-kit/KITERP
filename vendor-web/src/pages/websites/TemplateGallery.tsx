@@ -88,7 +88,7 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-4 sm:p-5 mb-6">
+        <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-4 sm:p-5 mb-6 max-h-[90vh] overflow-y-auto">
           <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-400 mb-2">Apply template to</label>
           {sitesLoading && <p className="text-sm text-gray-500">Loading sites…</p>}
           {!sitesLoading && sites.length === 0 && (

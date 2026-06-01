@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><title>Scenario 2 — QR self-order</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 0 auto; padding: 24px; background: #f8fafc; color: #111; }
+  h1 { font-size: 1.5rem; }
+  .summary { margin: 16px 0; padding: 12px 16px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .step { margin: 24px 0; padding: 16px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .step.fail { border-color: #fca5a5; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-right: 8px; vertical-align: middle; }
+  .pass .badge { background: #dcfce7; color: #166534; }
+  .fail .badge { background: #fee2e2; color: #991b1b; }
+  img { max-width: 100%; margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 6px; }
+  .note { color: #64748b; font-size: 0.9rem; }
+</style></head><body>
+  <h1>Scenario 2 — Customer QR self-order</h1>
+  <div class="summary"><strong>10/10</strong> steps passed · 30/5/2026, 11:43:21 pm</div>
+  
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.1 — Setup shows T2 with QR</h2>
+      
+      <img src="01-vendor-setup.png" alt="Setup shows T2 with QR" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.2 — Storefront menu URL</h2>
+      <p class="note">http://127.0.0.1:3002/store/e2e-restaurant-2b3507ba/table/LcKJ36zYc5M4wu_u4pXJYfDgNqTdq6IC</p>
+      
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.3 — Guest menu loads for T2</h2>
+      
+      <img src="02-guest-menu.png" alt="Guest menu loads for T2" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.4–2.6 — Cart has 3 items</h2>
+      
+      <img src="03-guest-cart.png" alt="Cart has 3 items" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.7 — Order placed</h2>
+      
+      <img src="04-placed.png" alt="Order placed" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.8 — Kitchen KOT for T2</h2>
+      
+      <img src="05-kitchen.png" alt="Kitchen KOT for T2" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.9 — Floor T2 ordering</h2>
+      
+      <img src="06-floor.png" alt="Floor T2 ordering" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.10 — Vendor order shows QR items</h2>
+      
+      <img src="07-order.png" alt="Vendor order shows QR items" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.11 — Second batch placed</h2>
+      
+      <img src="08-more.png" alt="Second batch placed" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 2.12 — Two KOTs on order page</h2>
+      
+      <img src="09-two-kots.png" alt="Two KOTs on order page" />
+    </section>
+</body></html>

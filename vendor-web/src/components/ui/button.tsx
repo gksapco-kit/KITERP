@@ -12,9 +12,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Primary action — theme `--primary`
+        // Primary action — explicit white label (matches .btn-brand; readable on green in dark mode)
         default:
-          'bg-primary text-primary-foreground shadow-sm ' +
+          'bg-primary text-white shadow-sm ' +
           'hover:bg-primary/90 active:bg-primary/85 active:scale-[0.98]',
 
         // Danger
@@ -78,7 +78,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : 'button'
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant, size }), className)}
         ref={ref}
         {...props}
       />

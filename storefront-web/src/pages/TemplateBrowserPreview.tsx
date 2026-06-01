@@ -916,8 +916,8 @@ function BlockBasedPreview({ templateId }: { templateId: string }) {
           applyButton={<ApplyToStoreButton templateId={templateId} />}
         />
         {openingBuilder && (
-          <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center">
-            <div className="bg-white rounded-2xl shadow-2xl px-8 py-6 flex items-center gap-4">
+          <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl px-8 py-6 flex items-center gap-4 max-h-[90vh] overflow-y-auto">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
               <div>
                 <div className="font-bold text-gray-900">Opening in Builder…</div>

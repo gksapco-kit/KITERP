@@ -22,7 +22,7 @@ export default function BookingWidgetBlock({ style, props, liveItems }: Props) {
       {services.length > 0 ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.map(svc => (
-            <div key={svc.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
+            <div key={svc.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow max-h-[90vh] overflow-y-auto">
               <h3 className="font-semibold text-gray-900 mb-1">{svc.title}</h3>
               {!!svc.meta?.duration_minutes && (
                 <p className="text-xs text-gray-400 flex items-center gap-1 mb-2"><Clock className="w-3 h-3" />{Number(svc.meta.duration_minutes)} min</p>

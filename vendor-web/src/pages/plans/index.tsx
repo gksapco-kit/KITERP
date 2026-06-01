@@ -16,6 +16,8 @@ const FEATURE_META: Record<string, { label: string; icon: typeof Smartphone }> =
   api_access: { label: 'API Access', icon: Code },
   priority_support: { label: 'Priority Support', icon: Headphones },
   white_label: { label: 'White Label', icon: Tag },
+  restaurant: { label: 'Restaurant', icon: Package },
+  pos: { label: 'POS', icon: Zap },
 }
 
 function PlanBadge({ current, featured }: { current?: boolean; featured?: boolean }) {

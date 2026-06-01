@@ -26,6 +26,7 @@ import { BOMEditor } from '@/components/mrp/BOMEditor'
 import {
   FormPageWithNav,
   FormSectionNav,
+  FormSectionTabs,
   FormField,
   handleFormInvalid,
   formDisplayCompact,
@@ -43,6 +44,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
 import { extractApiError } from '@/lib/errorMessages'
+import { CatalogItemLink } from '@/components/common/CatalogItemLink'
+import { normalizeCatalogAddons, serializeCatalogAddons, type CatalogAddon } from '@/lib/catalogAddons'
 
 // ── Zod schema ──────────────────────────────────────────────────
 
@@ -159,9 +162,13 @@ const schema = z.object({
   refund_policy: optStr,
   // Shipping
   weight_kg: optNum,
+  weight_unit: z.string().default('kg'),
   length_cm: optNum,
+  length_unit: z.string().default('cm'),
   width_cm: optNum,
+  width_unit: z.string().default('cm'),
   height_cm: optNum,
+  height_unit: z.string().default('cm'),
   shipping_cost_type: z.string().default('fixed'),
   shipping_class: optStr,
   requires_shipping: z.boolean().default(true),
@@ -206,7 +213,7 @@ type FormData = z.infer<typeof schema>
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-function Section({ title, icon: Icon, open, onToggle, children, surface = 'standard', surfaceHint, sectionId }: {
+function Section({ title, icon: Icon, open, onToggle: _onToggle, children, surface = 'standard', surfaceHint, sectionId, badge }: {
   title: string
   icon: React.ElementType
   open: boolean
@@ -215,7 +222,9 @@ function Section({ title, icon: Icon, open, onToggle, children, surface = 'stand
   surface?: 'standard' | 'product' | 'variants'
   surfaceHint?: string
   sectionId?: string
+  badge?: React.ReactNode
 }) {
+  if (!open) return null
   const activeFormSection = useFormActiveSection()
   const scrollActive = !!sectionId && activeFormSection === sectionId
   const isProduct = surface === 'product'
@@ -233,59 +242,206 @@ function Section({ title, icon: Icon, open, onToggle, children, surface = 'stand
         scrollActive && isVariants && 'ring-2 ring-indigo-400/40',
       )}
     >
-      <button
-        type="button"
-        onClick={onToggle}
+      <CardContent
         className={cn(
-          formEditLayout.sectionHeaderBtn,
-          'rounded-t-xl transition-colors',
-          !isProduct && !isVariants && 'hover:bg-accent/80 dark:hover:bg-secondary/60',
-          isProduct && 'bg-gradient-to-r from-blue-50/80 via-white to-white hover:from-blue-50 dark:from-blue-950/40 dark:via-card dark:to-card dark:hover:from-blue-950/60',
-          isVariants && 'bg-gradient-to-r from-indigo-50/80 via-white to-white hover:from-indigo-50 dark:from-indigo-950/40 dark:via-card dark:to-card dark:hover:from-indigo-950/60',
+          'p-2',
+          !isProduct && !isVariants && 'bg-muted/15 dark:bg-black/20',
+          isProduct && 'bg-gradient-to-b from-blue-50/25 to-card dark:border-blue-900/50 dark:from-blue-950/30 dark:to-card',
+          isVariants && 'bg-gradient-to-b from-indigo-50/25 to-card dark:border-indigo-900/50 dark:from-indigo-950/30 dark:to-card',
         )}
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="mb-1 flex items-center gap-1.5 border-b border-border/60 pb-1">
           <Icon
             className={cn(
-              'h-4 w-4 shrink-0 sm:h-[1.125rem] sm:w-[1.125rem]',
+              'h-4 w-4 shrink-0',
               isProduct && 'text-blue-600',
               isVariants && 'text-indigo-600',
               !isProduct && !isVariants && 'text-muted-foreground',
             )}
           />
-          <div className="flex min-w-0 flex-col items-start gap-0 text-left leading-tight">
-            <span className="text-sm font-semibold text-gray-900">{title}</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
             {isProduct && (
-              <span className="text-[0.625rem] font-medium uppercase tracking-wide text-blue-600/80 sm:text-[0.65rem]">
+              <span className="text-[0.625rem] font-medium uppercase tracking-wide text-blue-600/80">
                 {surfaceHint ?? 'Main product'}
               </span>
             )}
             {isVariants && (
-              <span className="text-[0.625rem] font-medium uppercase tracking-wide text-indigo-600/80 sm:text-[0.65rem]">
+              <span className="text-[0.625rem] font-medium uppercase tracking-wide text-indigo-600/80">
                 {surfaceHint ?? 'SKUs & options'}
               </span>
             )}
+            {badge}
           </div>
         </div>
-        {open ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />}
-      </button>
-      {open && (
-        <CardContent
-          className={cn(
-            formEditLayout.sectionContent,
-            !isProduct && !isVariants && 'border-border bg-muted/15 dark:bg-black/20',
-            isProduct && 'border-blue-100/60 bg-gradient-to-b from-blue-50/25 to-card dark:border-blue-900/50 dark:from-blue-950/30 dark:to-card',
-            isVariants && 'border-indigo-100/60 bg-gradient-to-b from-indigo-50/25 to-card dark:border-indigo-900/50 dark:from-indigo-950/30 dark:to-card',
-          )}
-        >
-          {children}
-        </CardContent>
-      )}
+        {children}
+      </CardContent>
     </Card>
   )
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£' }
+
+const VARIANT_ACCENT_PALETTE = [
+  '#6366F1', '#10B981', '#F59E0B', '#EC4899', '#3B82F6', '#8B5CF6', '#EF4444', '#14B8A6',
+]
+
+const LIGHT_ACCENT_FALLBACK = '#94A3B8'
+
+function parseHexColor(color: string): { r: number; g: number; b: number } | null {
+  const c = color.trim()
+  if (!c.startsWith('#')) return null
+  const hex = c.length === 4
+    ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`
+    : c
+  if (hex.length < 7) return null
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 5 + 2), 16)
+  if ([r, g, b].some(n => Number.isNaN(n))) return null
+  return { r, g, b }
+}
+
+function normalizeHexColorInput(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  let hex = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('')
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null
+  return `#${hex.toUpperCase()}`
+}
+
+function colorPickerHexValue(raw: string | undefined | null): string {
+  return normalizeHexColorInput(raw || '') || '#FFFFFF'
+}
+
+function isLightAccentColor(color: string): boolean {
+  const c = color.trim().toLowerCase()
+  if (c === 'white') return true
+  const rgb = parseHexColor(c.startsWith('#') ? c : `#${c}`)
+  if (!rgb) return false
+  const lum = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255
+  return lum >= 0.9
+}
+
+function variantUiAccentColor(color: string, index: number): string {
+  if (isLightAccentColor(color)) return LIGHT_ACCENT_FALLBACK
+  return color
+}
+
+function resolveVariantAccentColor(raw: string | undefined | null, index: number): string {
+  const c = raw?.trim()
+  if (c) {
+    if (c.startsWith('#')) return c
+    if (/^[0-9A-Fa-f]{6}$/.test(c)) return `#${c}`
+    return c
+  }
+  return VARIANT_ACCENT_PALETTE[index % VARIANT_ACCENT_PALETTE.length]
+}
+
+function variantAccentBarGradient(color: string, active: boolean): string {
+  if (!active) return 'linear-gradient(to bottom, #9ca3af 0%, #d1d5db 100%)'
+  const ui = variantUiAccentColor(color, 0)
+  if (isLightAccentColor(color)) {
+    return 'linear-gradient(to bottom, #64748b 0%, #94a3b8 50%, #cbd5e1 100%)'
+  }
+  if (ui.startsWith('#') && ui.length >= 7) {
+    const r = parseInt(ui.slice(1, 3), 16)
+    const g = parseInt(ui.slice(3, 5), 16)
+    const b = parseInt(ui.slice(5, 7), 16)
+    return `linear-gradient(to bottom, rgb(${r},${g},${b}) 0%, rgba(${r},${g},${b},0.55) 50%, rgba(${r},${g},${b},0.18) 100%)`
+  }
+  return `linear-gradient(to bottom, ${ui} 0%, color-mix(in srgb, ${ui} 35%, white) 100%)`
+}
+
+function variantPanelSurface(color: string, active: boolean): string {
+  if (!active) return 'linear-gradient(to bottom, rgb(243 244 246) 0%, white 100%)'
+  if (isLightAccentColor(color)) {
+    return 'linear-gradient(to bottom, rgb(241 245 249) 0%, rgb(248 250 252) 30%, white 100%)'
+  }
+  if (color.startsWith('#') && color.length >= 7) {
+    const r = parseInt(color.slice(1, 3), 16)
+    const g = parseInt(color.slice(3, 5), 16)
+    const b = parseInt(color.slice(5, 7), 16)
+    return `linear-gradient(to bottom, rgba(${r},${g},${b},0.14) 0%, rgba(${r},${g},${b},0.06) 28%, rgba(255,255,255,0.98) 72%, white 100%)`
+  }
+  return `linear-gradient(to bottom, color-mix(in srgb, ${color} 14%, white) 0%, color-mix(in srgb, ${color} 5%, white) 28%, white 100%)`
+}
+
+/** Soft panel like Basic / Media — tinted background + left accent, no outer box border. */
+function FormTintPanel({
+  accentColor,
+  active = true,
+  title,
+  hint,
+  icon: Icon,
+  header,
+  headerAccentOnly = false,
+  children,
+  className,
+}: {
+  accentColor: string
+  active?: boolean
+  title?: string
+  hint?: string
+  icon?: React.ElementType
+  header?: React.ReactNode
+  headerAccentOnly?: boolean
+  children: React.ReactNode
+  className?: string
+}) {
+  if (headerAccentOnly && header) {
+    return (
+      <div className={cn('flex overflow-hidden rounded-lg border-0 shadow-none', !active && 'opacity-85', className)}>
+        <div
+          className="w-1 shrink-0 self-stretch min-h-full"
+          style={{ background: variantAccentBarGradient(accentColor, active) }}
+          aria-hidden
+        />
+        <div
+          className="flex min-w-0 flex-1 flex-col"
+          style={{ background: variantPanelSurface(accentColor, active) }}
+        >
+          {header}
+          {children ? (
+            <div className="px-2 pb-2 pt-0.5 sm:px-2.5">{children}</div>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('flex overflow-hidden rounded-lg border-0 shadow-none', !active && 'opacity-80', className)}>
+      <div
+        className="w-1 shrink-0 self-stretch min-h-full"
+        style={{ background: variantAccentBarGradient(accentColor, active) }}
+        aria-hidden
+      />
+      <div
+        className="flex min-w-0 flex-1 flex-col"
+        style={{ background: variantPanelSurface(accentColor, active) }}
+      >
+      {header ?? ((title || Icon) && (
+        <div className="mb-0.5 flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5">
+          {Icon && <Icon className="h-4 w-4 shrink-0" style={{ color: accentColor }} />}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {title && <h4 className="text-sm font-semibold text-foreground">{title}</h4>}
+            {hint && (
+              <span className="text-[0.625rem] font-medium uppercase tracking-wide" style={{ color: accentColor }}>
+                {hint}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+      <div className="px-2 pb-2 pt-0.5 sm:px-2.5">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+const GENERATE_OPTIONS_ACCENT = '#0D9488'
 
 function InputWithSuffix({ suffix, className, ...props }: React.ComponentProps<typeof Input> & { suffix: string }) {
   return (
@@ -749,7 +905,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
   const isBundleView = pType === 'bundle'
   const isDigital = pType === 'digital' || isBundleView || product.is_digital
   const isSubscription = pType === 'subscription' || product.is_subscription
-  const productAddons: any[] = product.addons || []
+  const productAddons = normalizeCatalogAddons((product as { addons?: unknown }).addons)
   const changeHistory: any[] = product.change_history || []
   const [activeViewSection, setActiveViewSection] = useState<string | null>(null)
   const sectionCls = (key: string) =>
@@ -1486,10 +1642,15 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
               <span className={formDisplayCompact.sectionHeaderTitle}>Add-ons & Linked Services</span>
             </div>
             <div className="space-y-2">
-              {productAddons.map((addon: any, i: number) => (
-                <div key={i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+              {productAddons.map((addon, i) => (
+                <div key={addon.id || i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
                   <div className="min-w-0">
-                    <span className="font-medium text-foreground">{addon.name || addon.linked_product_id || addon.id || `Add-on ${i + 1}`}</span>
+                    <CatalogItemLink
+                      id={addon.id}
+                      name={addon.name}
+                      itemType={addon.item_type}
+                      className="text-foreground"
+                    />
                     {addon.addon_type && <span className="ml-2 text-xs text-muted-foreground capitalize">{addon.addon_type}</span>}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1515,7 +1676,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
               </p>
             </div>
           </div>
-          {id && <ProductModifiers productId={id} />}
+          {product.id && <ProductModifiers productId={product.id} />}
         </CardContent>
       </Card>
 
@@ -1932,23 +2093,15 @@ export default function ProductForm() {
   // Staged variant media for new products (index → files+previews)
   const [pendingVariantMedia, setPendingVariantMedia] = useState<Map<number, { file: File; preview: string }[]>>(new Map())
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    isEdit ? { basic: true } : { basic: true, variants: true },
-  )
+  const [activeTab, setActiveTab] = useState('basic')
   const [visitedSections, setVisitedSections] = useState<Set<string>>(new Set(['basic']))
-  const [activeFormSection, setActiveFormSection] = useState<string | null>(null)
+  const [activeFormSection, setActiveFormSection] = useState<string | null>('basic')
   const toggle = (key: string) => {
-    setOpenSections(p => ({ ...p, [key]: !p[key] }))
-    setVisitedSections(p => new Set(p).add(key))
-  }
-  const openAndScrollTo = (key: string) => {
+    setActiveTab(key)
     setActiveFormSection(key)
-    setOpenSections(p => ({ ...p, [key]: true }))
     setVisitedSections(p => new Set(p).add(key))
-    setTimeout(() => {
-      document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
   }
+  const openAndScrollTo = toggle
   const [showCreateCategory, setShowCreateCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [quoteFields, setQuoteFields] = useState<QuoteFormFieldDraft[]>([...DEFAULT_QUOTE_FIELDS])
@@ -1958,6 +2111,7 @@ export default function ProductForm() {
     defaultValues: {
       status: 'active', quantity: 0, price: 0, currency: 'INR', product_type: 'physical', uom: 'piece',
       is_taxable: true, track_inventory: true, is_returnable: true, requires_shipping: true,
+      weight_unit: 'kg', length_unit: 'cm', width_unit: 'cm', height_unit: 'cm',
       is_visible: true, low_stock_threshold: 5, stock_status: 'in_stock',
       allow_quote_request: false, quote_form_config: [],
       variants: [],
@@ -1990,7 +2144,9 @@ export default function ProductForm() {
         setValue('variants.0.barcode', prefillBarcode)
       }
       // Auto-open the inventory and variants sections so the user can see it
-      setOpenSections(s => ({ ...s, inventory: true, variants: true }))
+      setActiveTab('variants')
+      setActiveFormSection('variants')
+      setVisitedSections(s => new Set(s).add('variants'))
     }
   }, [prefillBarcode]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2204,42 +2360,38 @@ export default function ProductForm() {
   const [bundleItemIds, setBundleItemIds] = useState<string[]>([])
 
   // Add-ons (linked services / products that can be sold alongside)
-  interface AddonItem {
-    id: string
-    name: string
-    item_type: 'product' | 'service'
-    addon_type: string          // 'install' | 'demo' | 'warranty' | 'maintenance' | 'delivery' | 'other'
-    booking_trigger: string     // 'at_sale' | 'after_delivery' | 'on_status'
-    trigger_status?: string     // e.g. 'delivered', 'shipped' — used when booking_trigger = 'on_status'
-    optional: boolean
-  }
+  type AddonItem = CatalogAddon
   const [productAddons, setProductAddons] = useState<AddonItem[]>([])
   const [addonSearch, setAddonSearch] = useState('')
   const [addonSearchResults, setAddonSearchResults] = useState<Array<{ id: string; name: string; item_type: 'product' | 'service' }>>([])
   const [addonSearchLoading, setAddonSearchLoading] = useState(false)
+  const [addonPickerOpen, setAddonPickerOpen] = useState(false)
 
-  // Search products + services for add-on picker
+  // Search products + services for add-on picker (browse on focus, filter when typing)
   const searchAddons = useCallback(async (q: string) => {
-    if (q.length < 2) { setAddonSearchResults([]); return }
     setAddonSearchLoading(true)
     try {
+      const trimmed = q.trim()
+      const params = trimmed.length >= 2 ? { search: trimmed, size: 10 } : { size: 10 }
       const [pRes, sRes] = await Promise.all([
-        vendorApi.listProducts({ search: q, size: 8 }),
-        vendorApi.listServices({ search: q, size: 8 }),
+        vendorApi.listProducts(params),
+        vendorApi.listServices(params),
       ])
       const combined = [
         ...(pRes?.items || []).map((p: any) => ({ id: p.id, name: p.name, item_type: 'product' as const })),
         ...(sRes?.items || []).map((s: any) => ({ id: s.id, name: s.name, item_type: 'service' as const })),
-      ].filter(x => !productAddons.some(a => a.id === x.id))
+      ].filter(x => !productAddons.some(a => a.id === x.id) && x.id !== id)
       setAddonSearchResults(combined)
     } catch { setAddonSearchResults([]) }
     finally { setAddonSearchLoading(false) }
-  }, [productAddons])
+  }, [productAddons, id])
 
   useEffect(() => {
-    const t = setTimeout(() => searchAddons(addonSearch), 300)
+    if (!addonPickerOpen) return
+    const delay = addonSearch.trim().length >= 2 ? 300 : 0
+    const t = setTimeout(() => searchAddons(addonSearch), delay)
     return () => clearTimeout(t)
-  }, [addonSearch, searchAddons])
+  }, [addonSearch, searchAddons, addonPickerOpen])
 
   useEffect(() => {
     if (!product) return
@@ -2276,8 +2428,10 @@ export default function ProductForm() {
       is_returnable: product.is_returnable,
       return_conditions: product.return_conditions || '',
       refund_policy: product.refund_policy || '',
-      weight_kg: product.weight_kg ?? undefined, length_cm: product.length_cm ?? undefined,
-      width_cm: product.width_cm ?? undefined, height_cm: product.height_cm ?? undefined,
+      weight_kg: product.weight_kg ?? undefined, weight_unit: (product as any).weight_unit || 'kg',
+      length_cm: product.length_cm ?? undefined, length_unit: (product as any).length_unit || 'cm',
+      width_cm: product.width_cm ?? undefined, width_unit: (product as any).width_unit || 'cm',
+      height_cm: product.height_cm ?? undefined, height_unit: (product as any).height_unit || 'cm',
       shipping_class: product.shipping_class || '', requires_shipping: product.requires_shipping,
       shipping_cost_type: product.shipping_cost_type || 'fixed',
       shipping_cost: product.shipping_cost ?? undefined,
@@ -2303,7 +2457,7 @@ export default function ProductForm() {
       subscription_billing_cycles: product.subscription_billing_cycles ?? undefined,
       variants: (product.variants || []).map(v => ({
         id: v.id,
-        name: v.name,
+        name: v.name === 'Default' ? 'Variant' : v.name,
         sku: v.sku || '',
         barcode: v.barcode || '',
         uom: v.uom || 'piece',
@@ -2361,6 +2515,8 @@ export default function ProductForm() {
       const customFields = savedConfig.filter(f => !DEFAULT_QUOTE_FIELDS.some(d => d.key === f.key))
       setQuoteFields([...merged, ...customFields.map(f => ({ ...f, options: f.options || [] }))])
     }
+
+    setProductAddons(normalizeCatalogAddons((product as { addons?: unknown }).addons))
   }, [product, reset])
 
   // Initialise bundle items when editing a bundle product
@@ -2470,6 +2626,8 @@ export default function ProductForm() {
       }
       // Bundle items stored as related_product_ids
       if (raw.product_type === 'bundle') data.related_product_ids = bundleItemIds
+
+      data.addons = serializeCatalogAddons(productAddons)
 
       // Include quote form config; explicitly clear when disabled
       if (raw.allow_quote_request) {
@@ -2601,6 +2759,42 @@ export default function ProductForm() {
   const addOptionRow = () => setOptionRows(prev => [...prev, { name: '', values: '' }])
   const removeOptionRow = (index: number) => setOptionRows(prev => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index))
 
+  const syncVariantNameAttributes = useCallback((index: number, newName: string) => {
+    const variants = getValues('variants') || []
+    const v = variants[index]
+    if (!v) return
+    let attrs: Record<string, string> = {}
+    try { attrs = v.attributes_json ? JSON.parse(v.attributes_json as string) : {} } catch { /* */ }
+    const attrKeys = Object.keys(attrs)
+    if (attrKeys.length === 1) {
+      const optKey = attrKeys[0]
+      const oldVal = attrs[optKey]
+      attrs[optKey] = newName
+      setValue(`variants.${index}.attributes_json`, JSON.stringify(attrs))
+      setOptionRows(prev => prev.map(r => {
+        if (r.name.trim().toLowerCase() === optKey.toLowerCase() && r.values.trim() === oldVal) {
+          return { ...r, values: newName }
+        }
+        return r
+      }))
+    } else if (attrKeys.length > 1) {
+      const parts = newName.split('/').map((p: string) => p.trim())
+      attrKeys.forEach((key, ki) => {
+        if (parts[ki] !== undefined) {
+          const oldVal = attrs[key]
+          attrs[key] = parts[ki]
+          setOptionRows(prev => prev.map(r => {
+            if (r.name.trim().toLowerCase() === key.toLowerCase() && r.values.trim() === oldVal) {
+              return { ...r, values: parts[ki] }
+            }
+            return r
+          }))
+        }
+      })
+      setValue(`variants.${index}.attributes_json`, JSON.stringify(attrs))
+    }
+  }, [getValues, setValue])
+
   const makeVariantDefaults = (name: string, attrs: Record<string, string>) => ({
     name,
     sku: '',
@@ -2658,9 +2852,9 @@ export default function ProductForm() {
       return
     }
     if (variantFields.length === 0 && !createVariantSeeded.current) {
-      appendVariant(makeVariantDefaults(isSubscriptionType ? 'Plan 1' : 'Default', {}))
+      appendVariant(makeVariantDefaults(isSubscriptionType ? 'Plan 1' : 'Variant', {}))
       setExpandedVariants({ 0: true })
-      setOpenSections(s => ({ ...s, variants: true }))
+      setVisitedSections(s => new Set(s).add('variants'))
       createVariantSeeded.current = true
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once per create session; makeVariantDefaults is stable enough for our guards
@@ -2669,7 +2863,7 @@ export default function ProductForm() {
   useEffect(() => {
     if (isEdit || isBundleType || variantFields.length !== 1) return
     const v0 = getValues('variants.0')
-    if (isSubscriptionType && v0?.name === 'Default') {
+    if (isSubscriptionType && (v0?.name === 'Default' || v0?.name === 'Variant')) {
       setValue('variants.0.name', 'Plan 1')
       setValue('variants.0.price_type', 'per_cycle')
       setValue('variants.0.subscription_interval', 'monthly')
@@ -2758,27 +2952,35 @@ export default function ProductForm() {
 
   const formValues = watch()
   const productSections: FormSectionDef[] = useMemo(() => [
-    { key: 'basic',            label: 'Product Information', icon: Package, hint: 'Name, type, category, and descriptions.' },
-    { key: 'media',            label: 'Product Media',       icon: Eye, visible: isEdit, hint: 'Upload images, video, or 3D models.' },
-    { key: 'variants',         label: isBundleType ? 'Bundle Items' : isSubscriptionType ? 'Subscription Plans' : 'Variants & Options', icon: Layers, visible: !isBundleType, hint: 'SKUs, options, stock, and per-variant pricing.' },
-    { key: 'bundle',           label: 'Bundle Items',        icon: Layers, visible: isBundleType, hint: 'Products included in this bundle.' },
-    { key: 'returns',          label: 'Return & Warranty',   icon: RotateCcw, visible: !isDigitalType && !isBundleType, hint: 'Return window, warranty, and refund policy.' },
-    { key: 'shipping',         label: 'Shipping & Tax',      icon: Truck, visible: !isDigitalType, hint: 'Weight, dimensions, shipping, and tax settings.' },
-    { key: 'storefrontOptions',label: 'Business Front',      icon: Globe, hint: 'Quote requests and storefront display options.' },
-    { key: 'visibility',       label: 'Visibility',          icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
-    { key: 'addons',           label: 'Add-ons',             icon: Link2, hint: 'Optional linked products or services.' },
-    { key: 'merch',            label: 'Merchandising',       icon: Tag, hint: 'Cross-sell and upsell on the business front.' },
-    { key: 'seo',              label: 'SEO & Metadata',      icon: Search, hint: 'Meta title, description, and search preview.' },
-    { key: 'advanced',         label: 'Advanced',            icon: Settings, hint: 'Attributes, specifications, and custom JSON.' },
-    { key: 'digital',          label: 'Digital Product',     icon: Download, visible: isDigitalType || isBundleType, hint: 'Download URL, limits, and expiry.' },
-    { key: 'bom',              label: 'Bill of Materials',   icon: Factory, visible: isEdit && !isBundleType, hint: 'Manufacturing components and quantities.' },
+    { key: 'basic',            label: 'Basic',             icon: Package, hint: 'Name, type, category, descriptions, and media.' },
+    { key: 'variants',         label: isBundleType ? 'Bundle' : isSubscriptionType ? 'Price & Plans' : 'Price & Variants', icon: Layers, visible: !isBundleType, hint: 'SKUs, pricing, options, stock, and per-variant settings.' },
+    { key: 'bundle',           label: 'Bundle Items',      icon: Layers, visible: isBundleType, hint: 'Products included in this bundle.' },
+    { key: 'returns',          label: 'Returns',           icon: RotateCcw, visible: !isDigitalType && !isBundleType, hint: 'Return window, warranty, and refund policy.' },
+    { key: 'shipping',         label: 'Shipping',          icon: Truck, visible: !isDigitalType, hint: 'Weight, dimensions, shipping, and tax settings.' },
+    { key: 'storefrontOptions',label: 'Business Front',    icon: Globe, hint: 'Quote requests and storefront display options.' },
+    { key: 'visibility',       label: 'Visibility',        icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
+    { key: 'addons',           label: 'Add-ons',           icon: Link2, hint: 'Optional linked products or services.' },
+    { key: 'merch',            label: 'Merchandising',     icon: Tag, hint: 'Cross-sell and upsell on the business front.' },
+    { key: 'seo',              label: 'SEO',               icon: Search, hint: 'Meta title, description, and search preview.' },
+    { key: 'advanced',         label: 'Advanced',          icon: Settings, hint: 'Attributes, specifications, and custom JSON.' },
+    { key: 'digital',          label: 'Digital',           icon: Download, visible: isDigitalType || isBundleType, hint: 'Download URL, limits, and expiry.' },
+    { key: 'bom',              label: 'BOM',               icon: Factory, visible: isEdit && !isBundleType, hint: 'Manufacturing components and quantities.' },
     { key: 'reports',          label: 'Reports',             icon: BarChart3, visible: isEdit, hint: 'Views, purchases, and version stats (read-only).' },
-  ], [isEdit, isBundleType, isSubscriptionType, isDigitalType])
+    { key: 'pricing-rules',    label: 'Pricing Rules',     icon: DollarSign, visible: isEdit && !!id, hint: 'Party, location, quantity, and channel price rules.' },
+  ], [isEdit, isBundleType, isSubscriptionType, isDigitalType, id])
+
+  useEffect(() => {
+    const visible = productSections.filter((s) => s.visible !== false)
+    if (!visible.some((s) => s.key === activeTab)) {
+      setActiveTab(visible[0]?.key ?? 'basic')
+    }
+  }, [productSections, activeTab])
 
   const completedSections = useMemo<Set<string>>(() => {
     const s = new Set<string>()
     if (formValues.name) s.add('basic')
-    if (isEdit && (product?.images?.length ?? 0) > 0) s.add('media')
+    if (isEdit && (product?.images?.length ?? 0) > 0) s.add('basic')
+    if (!isEdit && pendingFiles.length > 0) s.add('basic')
     if ((formValues.variants?.length ?? 0) > 0) s.add('variants')
     if (formValues.short_description || formValues.description) s.add('storefrontOptions')
     if (formValues.is_visible !== undefined) s.add('visibility')
@@ -2814,20 +3016,8 @@ export default function ProductForm() {
 
   return (
     <FormPageWithNav
-      activeSectionKey={activeFormSection}
-      nav={(
-        <FormSectionNav
-          sections={productSections}
-          openSections={openSections}
-          visitedSections={visitedSections}
-          completedSections={completedSections}
-          hasErrorSections={hasErrorSections}
-          onNavigate={openAndScrollTo}
-          onActiveSectionChange={setActiveFormSection}
-          scrollOffset={120}
-          stickyTopClass="top-[7rem]"
-        />
-      )}
+      activeSectionKey={activeTab}
+      nav={null}
     >
       {/* Sticky top bar */}
       <div className={formEditLayout.stickyBar}>
@@ -2868,21 +3058,22 @@ export default function ProductForm() {
         </div>
       </div>
 
-      {/* Media card for EDIT mode (outside form — instant upload) */}
-      {isEdit && product && (
-        <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeFormSection === 'media'))}><div className={formEditLayout.mediaCard}><h3 className={formEditLayout.mediaTitle}>Media</h3>
-          <ProductImageUpload images={product.images || []} onUpload={handleUpload} onDelete={handleDelete} onSetPrimary={handleSetPrimary} />
-        </div></Card>
-      )}
+      <FormSectionTabs
+        sections={productSections}
+        activeKey={activeTab}
+        onChange={toggle}
+        completedSections={completedSections}
+        hasErrorSections={hasErrorSections}
+      />
 
       {/* ── Form ──────────────────────────────────────────────── */}
       <FormProvider {...formMethods}>
       <form onSubmit={handleSubmit(onSubmit, onFormInvalid)} className={formEditLayout.formStack}>
 
-        {/* 1. Basic Information */}
-        <Section title="Basic Information" icon={Package} open={openSections.basic ?? true} onToggle={() => toggle('basic')} surface="product" sectionId="basic">
+        {/* 1. Basic */}
+        <Section title="Basic" icon={Package} open={activeTab === 'basic'} onToggle={() => toggle('basic')} surface="product" sectionId="basic">
           <div className={formEditLayout.sectionBody}>
-            <div className="grid grid-cols-3 gap-2 min-w-0 [&>div]:min-w-0 sm:grid-cols-[1.25fr_1fr_1fr]">
+            <div className={cn(formEditLayout.fieldGridWide, 'items-start')}>
               <FormField label="Name" required><Input className="w-full min-w-0" {...register('name')} placeholder="Product name" /></FormField>
               <FormField label="Brand"><Input className="w-full min-w-0" {...register('brand')} placeholder="e.g. Samsung" /></FormField>
               <FormField label="Product Type">
@@ -2893,6 +3084,7 @@ export default function ProductForm() {
                   <option value="bundle">Bundle</option>
                 </select>
               </FormField>
+              <FormField label="Tags (comma separated)"><Input {...register('tags')} placeholder="tag1, tag2, tag3" /></FormField>
             </div>
             {/* Product type context banner */}
             {productType && productType !== 'physical' && (
@@ -2912,12 +3104,14 @@ export default function ProductForm() {
                 </div>
               </div>
             )}
-            <FormField label="Short Description">
-              <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
-            </FormField>
-            <FormField label="Description">
-              <textarea {...register('description')} rows={3} className={textareaCls} placeholder="Detailed product description..." />
-            </FormField>
+            <div className={formEditLayout.fieldGrid3}>
+              <FormField label="Short Description">
+                <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
+              </FormField>
+              <FormField label="Description" className="sm:col-span-2">
+                <textarea {...register('description')} rows={2} className={textareaCls} placeholder="Detailed product description..." />
+              </FormField>
+            </div>
             <div className={cn(formEditLayout.fieldGrid, 'items-start')}>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
@@ -2991,9 +3185,9 @@ export default function ProductForm() {
               const allFields = [...catFields, ...subFields]
               if (allFields.length === 0) return null
               return (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                  <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Category Attributes</p>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-2 space-y-1.5">
+                  <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-blue-700">Category Attributes</p>
+                  <div className={formEditLayout.fieldGridWide}>
                     {allFields.map((f, i) => (
                       <div key={`cf-${i}`} className="space-y-1">
                         <Label className="text-xs">{f.name} {f.required && <span className="text-red-500">*</span>}</Label>
@@ -3017,13 +3211,21 @@ export default function ProductForm() {
                 </div>
               )
             })()}
-            <FormField label="Tags (comma separated)"><Input {...register('tags')} placeholder="tag1, tag2, tag3" /></FormField>
           </div>
         </Section>
 
-        {/* ── Media (new product only — staged until product is created) ── */}
-        {!isEdit && (
-          <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeFormSection === 'media'))}>
+        {/* Media — below basic on the same tab */}
+        {activeTab === 'basic' && isEdit && product && (
+          <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeTab === 'basic'))}>
+            <div className={formEditLayout.mediaCard}>
+              <h3 className={formEditLayout.mediaTitle}>Media</h3>
+              <ProductImageUpload images={product.images || []} onUpload={handleUpload} onDelete={handleDelete} onSetPrimary={handleSetPrimary} />
+            </div>
+          </Card>
+        )}
+
+        {activeTab === 'basic' && !isEdit && (
+          <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeTab === 'basic'))}>
             <div className={formEditLayout.mediaCard}>
               <h3 className={formEditLayout.mediaTitle}>Media</h3>
               <p className="mb-1 text-[0.6875rem] text-gray-400 sm:text-xs">Images, videos &amp; 3D models — uploaded after product is created</p>
@@ -3076,182 +3278,151 @@ export default function ProductForm() {
         )}
 
         {/* 4b. Variants — not applicable for bundle (bundle = set of other products) */}
-        {!isBundleType && (
-          <Section
-            title={isSubscriptionType ? 'Subscription Plans' : 'Variants & Options'}
-            icon={isSubscriptionType ? Repeat : Layers}
-            open={!!openSections.variants}
-            onToggle={() => toggle('variants')}
-            surface="variants"
-            surfaceHint={isSubscriptionType ? 'Plan tiers & pricing' : undefined}
-            sectionId="variants"
+        {!isBundleType && activeTab === 'variants' && (
+          <div
+            id="form-section-variants"
+            className={cn(formDisplayCompact.scrollMarginEdit, 'flex flex-col gap-2 sm:gap-2.5')}
           >
-          <div className={formEditLayout.sectionBody}>
-            <p className="text-sm text-gray-600">
-              {isSubscriptionType
-                ? 'Each variant represents a subscription plan tier. Set the per-cycle price on each plan.'
-                : 'Each variant has its own UOM, pricing, discount, and stock. Add SKUs for each size, color, or other combination the vendor offers.'}
-            </p>
-            {!isSubscriptionType && <div className={cn(formEditLayout.variantCard, 'bg-gray-50/80')}>
-              <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">Generate from options</p>
-              <p className="text-xs text-gray-500">Define option names and their values. All combinations will be created as variant rows.</p>
-              <div className="space-y-2">
-                {(() => {
-                  const allVariants = watchedVariants || []
-                  const claimed = new Set<number>()
-
-                  // Build rows with their variant numbers
-                  const rowsWithNums = optionRows.map((row, i) => {
-                    let variantNum: number | null = null
-                    if (row.name.trim() && row.values.trim()) {
-                      const optKey = row.name.trim().toLowerCase()
-                      const optVal = row.values.trim()
-                      for (let vi = 0; vi < allVariants.length; vi++) {
-                        if (claimed.has(vi)) continue
-                        try {
-                          const attrs = allVariants[vi].attributes_json ? JSON.parse(allVariants[vi].attributes_json as string) : {}
-                          const matchKey = Object.keys(attrs).find(k => k.toLowerCase() === optKey)
-                          if (matchKey && attrs[matchKey] === optVal) { variantNum = vi + 1; claimed.add(vi); break }
-                        } catch { /* */ }
-                      }
-                    }
-                    return { row, originalIndex: i, variantNum }
-                  })
-
-                  // Sort: matched rows by variant number, unmatched at the end
-                  rowsWithNums.sort((a, b) => {
-                    if (a.variantNum && b.variantNum) return a.variantNum - b.variantNum
-                    if (a.variantNum) return -1
-                    if (b.variantNum) return 1
-                    return a.originalIndex - b.originalIndex
-                  })
-
-                  return rowsWithNums.map(({ row, originalIndex: i, variantNum }) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0 ${
-                      variantNum ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
-                    }`}>{variantNum ?? '—'}</span>
-                    <div className="w-1/3">
-                      <Input
-                        value={row.name}
-                        onChange={e => updateOptionRow(i, 'name', e.target.value)}
-                        placeholder="Option name (e.g. Size)"
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <Input
-                        value={row.values}
-                        onChange={e => updateOptionRow(i, 'values', e.target.value)}
-                        placeholder="Values, comma separated (e.g. S, M, L, XL)"
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 px-2 text-indigo-500 hover:text-indigo-700"
-                      title="Copy option"
-                      onClick={() => setOptionRows(prev => [...prev, { name: row.name, values: `${row.values} (copy)` }])}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    {confirmDeleteOption === i ? (
-                      <div className="flex items-center gap-1">
-                        <Button type="button" size="sm" className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white" onClick={() => { removeOptionRow(i); setConfirmDeleteOption(null) }}>
-                          Yes
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setConfirmDeleteOption(null)}>
-                          No
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 px-2 text-red-500 hover:text-red-700"
-                        onClick={() => setConfirmDeleteOption(i)}
-                        disabled={optionRows.length <= 1}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                  ))
-                })()}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={addOptionRow}>
-                  <Plus className="w-3 h-3 mr-1" />Add option
-                </Button>
-                <Button type="button" variant="secondary" size="sm" onClick={generateVariantsFromOptions}>
-                  Generate variant rows
-                </Button>
-              </div>
-            </div>}
-            <div className="flex justify-end">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-gray-600">
+                {isSubscriptionType
+                  ? 'Each variant represents a subscription plan tier. Set the per-cycle price on each plan.'
+                  : 'Each variant has its own UOM, pricing, discount, and stock. Add SKUs for each size, color, or other combination the vendor offers.'}
+              </p>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="shrink-0 self-end sm:self-auto"
                 onClick={() => {
-                  appendVariant(makeVariantDefaults('', {}))
+                  appendVariant(makeVariantDefaults(
+                    isSubscriptionType ? `Plan ${variantFields.length + 1}` : `Variant ${variantFields.length + 1}`,
+                    {},
+                  ))
                   setExpandedVariants(p => ({ ...p, [variantFields.length]: true }))
                 }}
               >
                 <Plus className="w-4 h-4 mr-1" />{isSubscriptionType ? 'Add plan' : 'Add variant'}
               </Button>
             </div>
+
+            <div className={formDisplayCompact.pageGap}>
             {variantFields.length === 0 ? (
-              <p className="rounded-lg border border-dashed py-4 text-center text-xs text-gray-500 sm:text-sm">
+              <p className="rounded-lg bg-muted/25 py-4 text-center text-xs text-gray-500 sm:text-sm">
                 {isSubscriptionType
                   ? 'No plans yet — use Add plan to define pricing.'
                   : 'No variants yet — use Add variant or generate from options.'}
               </p>
             ) : (
-              <div className="space-y-2">
+              <>
                 {variantFields.map((vf, index) => {
                   const isActive = watch(`variants.${index}.is_active`)
                   const isExpanded = expandedVariants[index] ?? false
                   const variantName = watch(`variants.${index}.name`)
+                  const variantColor = watch(`variants.${index}.color`) as string | undefined
+                  const accentColor = resolveVariantAccentColor(variantColor, index)
+                  const uiAccent = variantUiAccentColor(accentColor, index)
+                  const lightAccent = isLightAccentColor(accentColor)
                   return (
-                  <div key={vf.id} className={cn(
-                    'rounded-lg shadow-sm transition-all duration-200',
-                    'focus-within:ring-2 focus-within:ring-indigo-400/40 focus-within:ring-offset-1 focus-within:ring-offset-background',
-                    isActive
-                      ? 'border border-indigo-200 bg-gradient-to-br from-white to-indigo-50/30'
-                      : 'border border-gray-300 bg-gray-50 opacity-70',
-                  )}>
-                    {/* Collapsible header */}
+                  <FormTintPanel
+                    key={vf.id}
+                    accentColor={accentColor}
+                    active={isActive}
+                    headerAccentOnly
+                    header={
                     <div
                       className={cn(
-                        'flex items-center justify-between gap-2 px-3 py-2 cursor-pointer select-none rounded-t-lg',
-                        isActive ? 'hover:bg-indigo-50/50' : 'hover:bg-gray-100',
+                        'flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-2 py-1.5 sm:px-2.5 cursor-pointer select-none',
+                        isActive ? 'hover:bg-black/[0.03]' : 'hover:bg-black/[0.04]',
                       )}
                       onClick={() => toggleVariant(index)}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold',
-                          isActive ? 'bg-indigo-600 text-white' : 'bg-gray-400 text-white',
-                        )}>{index + 1}</span>
-                        <span className={cn('text-sm font-semibold', isActive ? 'text-gray-800' : 'text-gray-500')}>{isSubscriptionType ? 'Plan' : 'Variant'} {index + 1}</span>
-                        {watch(`variants.${index}.color`) && (
-                          <span
-                            className="w-4 h-4 rounded-full border border-gray-300 shrink-0"
-                            style={{ backgroundColor: watch(`variants.${index}.color`) }}
-                          />
-                        )}
-                        {variantName && (
-                          <span className={`text-sm font-medium ${isActive ? 'text-indigo-600' : 'text-gray-400'}`}>— {variantName}</span>
-                        )}
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span
+                          className={cn(
+                            'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shrink-0',
+                            !isActive && 'bg-gray-400',
+                          )}
+                          style={isActive ? { backgroundColor: uiAccent } : undefined}
+                        >{index + 1}</span>
+                        <Input
+                          {...register(`variants.${index}.name`, {
+                            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                              register(`variants.${index}.name`).onChange(e)
+                              syncVariantNameAttributes(index, e.target.value)
+                            },
+                          })}
+                          onClick={e => e.stopPropagation()}
+                          onFocus={e => e.stopPropagation()}
+                          placeholder={isSubscriptionType ? `Plan ${index + 1}` : `Variant ${index + 1}`}
+                          className={cn(
+                            'h-8 min-w-[7rem] max-w-[12rem] flex-1 text-sm font-semibold',
+                            lightAccent
+                              ? 'bg-white border-gray-300 text-gray-800'
+                              : 'bg-white/70 border-white/60',
+                            !isActive && 'text-gray-500',
+                          )}
+                          style={isActive && !lightAccent ? { color: uiAccent } : undefined}
+                        />
                         {!isActive && (
-                          <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">Inactive</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200/80 text-gray-600 shrink-0">Inactive</span>
                         )}
+                        <div
+                          className="flex items-center gap-1.5 shrink-0"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {/* Color swatch — wrapper carries the border so it renders correctly in all browsers */}
+                          <div
+                            className="relative w-7 h-7 rounded border-2 border-gray-400 overflow-hidden shrink-0 cursor-pointer shadow-sm"
+                            style={{ backgroundColor: colorPickerHexValue(watch(`variants.${index}.color`)) }}
+                            title="Pick color"
+                          >
+                            <input
+                              type="color"
+                              value={colorPickerHexValue(watch(`variants.${index}.color`))}
+                              onChange={e => setValue(`variants.${index}.color`, e.target.value.toUpperCase(), { shouldDirty: true })}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                          </div>
+                          {/* Hex text input — py-0 + leading-none centre text; ring-0 removes the glowing focus ring */}
+                          <Input
+                            {...register(`variants.${index}.color`, {
+                              onBlur: e => {
+                                const normalized = normalizeHexColorInput(e.target.value)
+                                if (normalized) {
+                                  setValue(`variants.${index}.color`, normalized, { shouldDirty: true })
+                                }
+                              },
+                            })}
+                            placeholder="#FFFFFF"
+                            className={cn(
+                              'h-7 py-0 leading-none text-xs w-[5.25rem] shrink-0 font-mono uppercase tracking-tight text-gray-800',
+                              'border border-gray-300 bg-white',
+                              'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-gray-500',
+                            )}
+                            aria-label="Color hex code"
+                          />
+                          {/* 3 quick-pick swatches — no scroll */}
+                          {[
+                            { n: 'Red', h: '#EF4444' },
+                            { n: 'Blue', h: '#3B82F6' },
+                            { n: 'Black', h: '#111827' },
+                          ].map(c => {
+                            const selected = watch(`variants.${index}.color`)?.toLowerCase() === c.h.toLowerCase()
+                            return (
+                              <button key={c.h} type="button" title={c.n}
+                                className={cn(
+                                  'w-4 h-4 rounded-full border-2 transition-transform hover:scale-110 shrink-0',
+                                  selected ? 'border-gray-800 ring-1 ring-gray-400 scale-110' : 'border-gray-200',
+                                )}
+                                style={{ backgroundColor: c.h }}
+                                onClick={() => setValue(`variants.${index}.color`, c.h)}
+                              />
+                            )
+                          })}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 sm:gap-3 shrink-0" onClick={e => e.stopPropagation()}>
                         <Controller
                           name={`variants.${index}.is_active`}
                           control={control}
@@ -3282,95 +3453,10 @@ export default function ProductForm() {
                       </div>
                       <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
-                    {/* Collapsible body */}
+                    }
+                  >
                     {isExpanded && (
-                    <div className={cn(formEditLayout.sectionContent, 'space-y-1.5 border-t sm:space-y-2', isActive ? 'border-indigo-100' : 'border-gray-200')}>
-                    {/* Identity */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      <FormField label="Label" name={`variants.${index}.name`}>
-                        <Input {...register(`variants.${index}.name`, {
-                          onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                            const newName = e.target.value
-                            const variants = getValues('variants') || []
-                            const v = variants[index]
-                            if (!v) return
-                            let attrs: Record<string, string> = {}
-                            try { attrs = v.attributes_json ? JSON.parse(v.attributes_json as string) : {} } catch { /* */ }
-                            const attrKeys = Object.keys(attrs)
-                            if (attrKeys.length === 1) {
-                              const optKey = attrKeys[0]
-                              const oldVal = attrs[optKey]
-                              attrs[optKey] = newName
-                              setValue(`variants.${index}.attributes_json`, JSON.stringify(attrs))
-                              // Update the matching option row
-                              setOptionRows(prev => prev.map(r => {
-                                if (r.name.trim().toLowerCase() === optKey.toLowerCase() && r.values.trim() === oldVal) {
-                                  return { ...r, values: newName }
-                                }
-                                return r
-                              }))
-                            } else if (attrKeys.length > 1) {
-                              const parts = newName.split('/').map((p: string) => p.trim())
-                              attrKeys.forEach((key, ki) => {
-                                if (parts[ki] !== undefined) {
-                                  const oldVal = attrs[key]
-                                  attrs[key] = parts[ki]
-                                  setOptionRows(prev => prev.map(r => {
-                                    if (r.name.trim().toLowerCase() === key.toLowerCase() && r.values.trim() === oldVal) {
-                                      return { ...r, values: parts[ki] }
-                                    }
-                                    return r
-                                  }))
-                                }
-                              })
-                              setValue(`variants.${index}.attributes_json`, JSON.stringify(attrs))
-                            }
-                          }
-                        })} placeholder="e.g. S / Red" />
-                      </FormField>
-                      <FormField label="SKU"><Input {...register(`variants.${index}.sku`)} placeholder="Optional" /></FormField>
-                      <FormField label="Barcode"><Input {...register(`variants.${index}.barcode`)} placeholder="Optional" /></FormField>
-                      <FormField label="UOM">
-                        <select {...register(`variants.${index}.uom`)} className={selectCls}>
-                          {UOM_GROUPS.map(group => (
-                            <optgroup key={group} label={group}>
-                              {UOM_OPTIONS.filter(u => u.group === group).map(u => (
-                                <option key={u.value} value={u.value}>{u.label}</option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-                      </FormField>
-                    </div>
-                    {/* Color — compact: swatch + input inline */}
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs font-medium text-gray-500 shrink-0">Color</Label>
-                      <input
-                        type="color"
-                        value={watch(`variants.${index}.color`) || '#ffffff'}
-                        onChange={e => setValue(`variants.${index}.color`, e.target.value)}
-                        className="w-7 h-7 rounded border border-gray-300 cursor-pointer p-0.5 shrink-0"
-                      />
-                      <Input
-                        {...register(`variants.${index}.color`)}
-                        placeholder="#hex or name"
-                        className="h-8 text-xs w-28"
-                      />
-                      {[
-                        { n: 'Red', h: '#EF4444' }, { n: 'Blue', h: '#3B82F6' }, { n: 'Green', h: '#22C55E' },
-                        { n: 'Yellow', h: '#EAB308' }, { n: 'Purple', h: '#A855F7' }, { n: 'Black', h: '#111827' },
-                        { n: 'White', h: '#FFFFFF' }, { n: 'Gray', h: '#6B7280' },
-                      ].map(c => (
-                        <button key={c.h} type="button" title={c.n}
-                          className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 shrink-0 ${
-                            watch(`variants.${index}.color`)?.toLowerCase() === c.h.toLowerCase()
-                              ? 'border-indigo-600 ring-2 ring-indigo-300 scale-110' : 'border-gray-200'
-                          }`}
-                          style={{ backgroundColor: c.h }}
-                          onClick={() => setValue(`variants.${index}.color`, c.h)}
-                        />
-                      ))}
-                    </div>
+                    <div className={cn(formEditLayout.sectionContent, 'space-y-1.5 sm:space-y-2 !px-0 !pb-0 !pt-0 border-t-0')}>
                     {/* ── Subscription Billing + Price basis (compact) ── */}
                     {isSubscriptionType && (
                       <div className="pt-2 border-t border-primary/20 space-y-2">
@@ -3514,19 +3600,17 @@ export default function ProductForm() {
                               return (
                                 <div className="space-y-2 min-w-0 [&>div]:min-w-0">
                                   <div className={cn(
-                                    'grid gap-2',
-                                    hasPromo
-                                      ? 'grid-cols-3 sm:grid-cols-[4.5rem_minmax(5rem,1fr)_minmax(0,1.25fr)]'
-                                      : 'grid-cols-2 sm:max-w-xs sm:grid-cols-[4.5rem_minmax(0,1fr)]',
+                                    'grid gap-2 min-w-0',
+                                    hasPromo ? 'grid-cols-3' : 'grid-cols-2',
                                   )}>
-                                    <FormField label="Disc %" name={`variants.${index}.discount_percentage`}>
-                                      <InputWithSuffix suffix="%" type="number" step="0.01" min="0" max="100" {...register(`variants.${index}.discount_percentage`)} placeholder="0" />
+                                    <FormField label="Disc %" name={`variants.${index}.discount_percentage`} className="min-w-0">
+                                      <InputWithSuffix suffix="%" type="number" step="0.01" min="0" max="100" className="w-full" {...register(`variants.${index}.discount_percentage`)} placeholder="0" />
                                     </FormField>
-                                    <FormField label="Disc Amt" name={`variants.${index}.discount_amount`}>
-                                      <InputWithPrefix prefix={currSym} type="number" step="0.01" min="0" {...register(`variants.${index}.discount_amount`)} placeholder="0" />
+                                    <FormField label="Disc Amt" name={`variants.${index}.discount_amount`} className="min-w-0">
+                                      <InputWithPrefix prefix={currSym} type="number" step="0.01" min="0" className="w-full" {...register(`variants.${index}.discount_amount`)} placeholder="0" />
                                     </FormField>
                                     {hasPromo && (
-                                      <FormField label="Offer Label">
+                                      <FormField label="Offer Label" className="min-w-0">
                                         <Input
                                           className="w-full min-w-0"
                                           {...register(`variants.${index}.offer_label`)}
@@ -3614,6 +3698,22 @@ export default function ProductForm() {
                           <Toggle label="Taxable" checked={field.value} onChange={field.onChange} />
                         )} />
                       </div>
+                    </div>
+                    {/* Identity — label & color are in the variant header row */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 border-t border-gray-100">
+                      <FormField label="SKU"><Input {...register(`variants.${index}.sku`)} placeholder="Optional" /></FormField>
+                      <FormField label="Barcode"><Input {...register(`variants.${index}.barcode`)} placeholder="Optional" /></FormField>
+                      <FormField label="UOM">
+                        <select {...register(`variants.${index}.uom`)} className={selectCls}>
+                          {UOM_GROUPS.map(group => (
+                            <optgroup key={group} label={group}>
+                              {UOM_OPTIONS.filter(u => u.group === group).map(u => (
+                                <option key={u.value} value={u.value}>{u.label}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </FormField>
                     </div>
                     {/* ── Inventory (compact) ── */}
                     <div className="pt-3 border-t border-gray-100 space-y-2">
@@ -3765,18 +3865,123 @@ export default function ProductForm() {
                     })()}
                     </div>
                     )}
-                  </div>
+                  </FormTintPanel>
                   )
                 })}
-              </div>
+              </>
             )}
+            {!isSubscriptionType && (
+              <FormTintPanel
+                accentColor={GENERATE_OPTIONS_ACCENT}
+                title="Generate from options"
+                hint="Bulk variant builder"
+                icon={Layers}
+              >
+                <p className="text-xs text-gray-500 mb-2">Define option names and their values. All combinations will be created as variant rows.</p>
+                <div className="space-y-2">
+                  {(() => {
+                    const allVariants = watchedVariants || []
+                    const claimed = new Set<number>()
+
+                    // Build rows with their variant numbers
+                    const rowsWithNums = optionRows.map((row, i) => {
+                      let variantNum: number | null = null
+                      if (row.name.trim() && row.values.trim()) {
+                        const optKey = row.name.trim().toLowerCase()
+                        const optVal = row.values.trim()
+                        for (let vi = 0; vi < allVariants.length; vi++) {
+                          if (claimed.has(vi)) continue
+                          try {
+                            const attrs = allVariants[vi].attributes_json ? JSON.parse(allVariants[vi].attributes_json as string) : {}
+                            const matchKey = Object.keys(attrs).find(k => k.toLowerCase() === optKey)
+                            if (matchKey && attrs[matchKey] === optVal) { variantNum = vi + 1; claimed.add(vi); break }
+                          } catch { /* */ }
+                        }
+                      }
+                      return { row, originalIndex: i, variantNum }
+                    })
+
+                    // Sort: matched rows by variant number, unmatched at the end
+                    rowsWithNums.sort((a, b) => {
+                      if (a.variantNum && b.variantNum) return a.variantNum - b.variantNum
+                      if (a.variantNum) return -1
+                      if (b.variantNum) return 1
+                      return a.originalIndex - b.originalIndex
+                    })
+
+                    return rowsWithNums.map(({ row, originalIndex: i, variantNum }) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0 ${
+                        variantNum ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+                      }`}>{variantNum ?? '—'}</span>
+                      <div className="w-1/3">
+                        <Input
+                          value={row.name}
+                          onChange={e => updateOptionRow(i, 'name', e.target.value)}
+                          placeholder="Option name (e.g. Size)"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Input
+                          value={row.values}
+                          onChange={e => updateOptionRow(i, 'values', e.target.value)}
+                          placeholder="Values, comma separated (e.g. S, M, L, XL)"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 px-2 text-indigo-500 hover:text-indigo-700"
+                        title="Copy option"
+                        onClick={() => setOptionRows(prev => [...prev, { name: row.name, values: `${row.values} (copy)` }])}
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                      {confirmDeleteOption === i ? (
+                        <div className="flex items-center gap-1">
+                          <Button type="button" size="sm" className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white" onClick={() => { removeOptionRow(i); setConfirmDeleteOption(null) }}>
+                            Yes
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setConfirmDeleteOption(null)}>
+                            No
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 px-2 text-red-500 hover:text-red-700"
+                          onClick={() => setConfirmDeleteOption(i)}
+                          disabled={optionRows.length <= 1}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    ))
+                  })()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={addOptionRow}>
+                    <Plus className="w-3 h-3 mr-1" />Add option
+                  </Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={generateVariantsFromOptions}>
+                    Generate variant rows
+                  </Button>
+                </div>
+              </FormTintPanel>
+            )}
+            </div>
           </div>
-        </Section>
         )}
 
         {/* ── Bundle Items (only for bundle product type) ─────── */}
         {isBundleType && (
-          <Section title="Bundle Items" icon={ShoppingBag} open={!!openSections.bundle} onToggle={() => toggle('bundle')} sectionId="bundle">
+          <Section title="Bundle Items" icon={ShoppingBag} open={activeTab === 'bundle'} onToggle={() => toggle('bundle')} sectionId="bundle">
             <div className={formEditLayout.sectionBody}>
               <p className="text-sm text-gray-500">Select products to include in this bundle. Customers will receive all selected items as a set.</p>
               {allProducts.filter(p => !id || p.id !== id).length === 0 ? (
@@ -3807,7 +4012,7 @@ export default function ProductForm() {
         )}
 
         {/* 5c. Pricing & Inventory — bundle only (other types use variant-level pricing) */}
-        {isBundleType && <Section title="Pricing & Inventory" icon={IndianRupee} open={openSections.pricing ?? true} onToggle={() => toggle('pricing')}>
+        {isBundleType && <Section title="Pricing & Inventory" icon={IndianRupee} open={activeTab === 'bundle'} onToggle={() => toggle('bundle')}>
           <div className={formEditLayout.sectionBody}>
 
             {/* Base Pricing */}
@@ -4032,7 +4237,7 @@ export default function ProductForm() {
 
         {/* 5d. Advanced Pricing Rules — party, location, scheduled, quantity, channel */}
         {isEdit && id && (
-          <Section title="Advanced Pricing" icon={DollarSign} open={!!openSections.advancedPricing} onToggle={() => toggle('advancedPricing')}>
+          <Section title="Advanced Pricing" icon={DollarSign} open={activeTab === 'pricing-rules'} onToggle={() => toggle('pricing-rules')} sectionId="pricing-rules">
             <div className={formEditLayout.sectionBody}>
               {/* Rule type tabs */}
               <div className="flex flex-wrap gap-1 bg-gray-100 rounded-lg p-1">
@@ -4154,7 +4359,7 @@ export default function ProductForm() {
         )}
 
         {/* 6. Return & Warranty — not for digital or bundle */}
-        {!isDigitalType && !isBundleType && <Section title="Return & Warranty" icon={RotateCcw} open={!!openSections.returns} onToggle={() => toggle('returns')} sectionId="returns">
+        {!isDigitalType && !isBundleType && <Section title="Return & Warranty" icon={RotateCcw} open={activeTab === 'returns'} onToggle={() => toggle('returns')} sectionId="returns">
           <div className={formEditLayout.sectionBody}>
             <Controller name="return_warranty_per_variant" control={control} render={({ field }) => (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200">
@@ -4194,16 +4399,60 @@ export default function ProductForm() {
 
         {/* 7. Shipping & Delivery — physical and subscription only */}
         {(isPhysical || isSubscriptionType) && (
-          <Section title="Shipping & Delivery" icon={Truck} open={!!openSections.shipping} onToggle={() => toggle('shipping')} sectionId="shipping">
+          <Section title="Shipping & Delivery" icon={Truck} open={activeTab === 'shipping'} onToggle={() => toggle('shipping')} sectionId="shipping">
             <div className={formEditLayout.sectionBody}>
               <Controller name="requires_shipping" control={control} render={({ field }) => (
                 <Toggle label="Requires Shipping" checked={field.value} onChange={field.onChange} />
               )} />
+              {watch('requires_shipping') && (<>
               <div className="grid grid-cols-4 gap-4">
-                <FormField label="Weight (kg)"><Input type="number" step="0.001" min="0" {...register('weight_kg')} /></FormField>
-                <FormField label="Length (cm)"><Input type="number" step="0.01" min="0" {...register('length_cm')} /></FormField>
-                <FormField label="Width (cm)"><Input type="number" step="0.01" min="0" {...register('width_cm')} /></FormField>
-                <FormField label="Height (cm)"><Input type="number" step="0.01" min="0" {...register('height_cm')} /></FormField>
+                <FormField label={`Weight (${watch('weight_unit') || 'kg'})`}>
+                  <div className="flex">
+                    <Input type="number" step="0.001" min="0" {...register('weight_kg')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
+                    <select {...register('weight_unit')} className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}>
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="lb">lb</option>
+                      <option value="oz">oz</option>
+                    </select>
+                  </div>
+                </FormField>
+                <FormField label={`Length (${watch('length_unit') || 'cm'})`}>
+                  <div className="flex">
+                    <Input type="number" step="0.01" min="0" {...register('length_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
+                    <select {...register('length_unit')} className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}>
+                      <option value="cm">cm</option>
+                      <option value="mm">mm</option>
+                      <option value="m">m</option>
+                      <option value="in">in</option>
+                      <option value="ft">ft</option>
+                    </select>
+                  </div>
+                </FormField>
+                <FormField label={`Width (${watch('width_unit') || 'cm'})`}>
+                  <div className="flex">
+                    <Input type="number" step="0.01" min="0" {...register('width_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
+                    <select {...register('width_unit')} className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}>
+                      <option value="cm">cm</option>
+                      <option value="mm">mm</option>
+                      <option value="m">m</option>
+                      <option value="in">in</option>
+                      <option value="ft">ft</option>
+                    </select>
+                  </div>
+                </FormField>
+                <FormField label={`Height (${watch('height_unit') || 'cm'})`}>
+                  <div className="flex">
+                    <Input type="number" step="0.01" min="0" {...register('height_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
+                    <select {...register('height_unit')} className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}>
+                      <option value="cm">cm</option>
+                      <option value="mm">mm</option>
+                      <option value="m">m</option>
+                      <option value="in">in</option>
+                      <option value="ft">ft</option>
+                    </select>
+                  </div>
+                </FormField>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <FormField label="Shipping Class">
@@ -4244,12 +4493,13 @@ export default function ProductForm() {
                   {watch('shipping_cost_type') === 'calculated' && 'Shipping will be calculated at checkout based on carrier rates and destination.'}
                 </p>
               )}
+              </>)}
             </div>
           </Section>
         )}
 
         {/* Business Front Options */}
-        <Section title="Business Front Options" icon={ToggleRight} open={!!openSections.storefrontOptions} onToggle={() => toggle('storefrontOptions')} sectionId="storefrontOptions">
+        <Section title="Business Front Options" icon={ToggleRight} open={activeTab === 'storefrontOptions'} onToggle={() => toggle('storefrontOptions')} sectionId="storefrontOptions">
           <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500">Control how customers interact with this product on the business front.</p>
             <div className="divide-y rounded-lg border">
@@ -4280,7 +4530,7 @@ export default function ProductForm() {
         </Section>
 
         {/* 8. Visibility & Marketing — status + business front visibility live in sticky header */}
-        <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')} sectionId="visibility">
+        <Section title="Visibility & Marketing" icon={Eye} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility">
           <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
               <span className="font-medium text-gray-700">Draft / Active / Archived</span> and <span className="font-medium text-gray-700">Visible</span> are set in the bar at the top so you can change them without scrolling.
@@ -4300,7 +4550,7 @@ export default function ProductForm() {
         </Section>
 
         {/* 8a-extra: Add-ons & Linked Services */}
-        <Section title="Add-ons & Linked Services" icon={Plus} open={!!openSections.addons} onToggle={() => toggle('addons')} sectionId="addons">
+        <Section title="Add-ons & Linked Services" icon={Plus} open={activeTab === 'addons'} onToggle={() => toggle('addons')} sectionId="addons">
           <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500">
               Link services or products that can accompany this item — e.g. installation, demo, warranty, maintenance.
@@ -4317,17 +4567,27 @@ export default function ProductForm() {
                     placeholder="Search products or services to add as add-on…"
                     value={addonSearch}
                     onChange={e => setAddonSearch(e.target.value)}
+                    onFocus={() => setAddonPickerOpen(true)}
+                    onBlur={() => setTimeout(() => setAddonPickerOpen(false), 150)}
                     autoComplete="off"
                     className="w-full h-9 pl-9 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                   {addonSearchLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-gray-400" />}
                 </div>
               </div>
-              {addonSearchResults.length > 0 && (
+              {addonPickerOpen && (
                 <div className="absolute z-10 w-full mt-1 bg-white border rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                  {addonSearchResults.map(r => (
+                  {addonSearchLoading ? (
+                    <p className="px-3 py-4 text-center text-xs text-gray-400">Loading products and services…</p>
+                  ) : addonSearchResults.length === 0 ? (
+                    <p className="px-3 py-4 text-center text-xs text-gray-400">
+                      {addonSearch.trim().length >= 2 ? 'No matching products or services' : 'No products or services available to add'}
+                    </p>
+                  ) : (
+                    addonSearchResults.map(r => (
                     <button key={r.id} type="button"
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-indigo-50 border-b border-gray-50 last:border-0"
+                      onMouseDown={e => e.preventDefault()}
                       onClick={() => {
                         setProductAddons(prev => [...prev, {
                           id: r.id, name: r.name, item_type: r.item_type,
@@ -4337,13 +4597,14 @@ export default function ProductForm() {
                         }])
                         setAddonSearch('')
                         setAddonSearchResults([])
+                        setAddonPickerOpen(false)
                       }}>
                       <span className={`px-1.5 py-0.5 rounded text-xs font-bold uppercase ${r.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {r.item_type === 'service' ? 'SVC' : 'PRD'}
                       </span>
-                      <span className="font-medium text-gray-800">{r.name}</span>
+                      <CatalogItemLink id={r.id} name={r.name} itemType={r.item_type} stopPropagation className="text-gray-800 text-xs" />
                     </button>
-                  ))}
+                  )))}
                 </div>
               )}
             </div>
@@ -4363,7 +4624,12 @@ export default function ProductForm() {
                       <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {addon.item_type === 'service' ? 'Service' : 'Product'}
                       </span>
-                      <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{addon.name}</span>
+                      <CatalogItemLink
+                        id={addon.id}
+                        name={addon.name}
+                        itemType={addon.item_type}
+                        className="text-sm text-gray-800 flex-1 truncate block min-w-0"
+                      />
                       <label className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
                         <input type="checkbox" checked={addon.optional} onChange={e => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, optional: e.target.checked } : a))} className="rounded" />
                         Optional
@@ -4455,7 +4721,7 @@ export default function ProductForm() {
         </Section>
 
         {/* 8b. Merchandising */}
-        <Section title="Merchandising" icon={Link2} open={!!openSections.merch} onToggle={() => toggle('merch')} sectionId="merch">
+        <Section title="Merchandising" icon={Link2} open={activeTab === 'merch'} onToggle={() => toggle('merch')} sectionId="merch">
           <div className={formEditLayout.sectionBody}>
 
             {/* ── Cross-sell & Upsell sections ── */}
@@ -4646,36 +4912,38 @@ export default function ProductForm() {
         </Section>
 
         {/* 9. SEO & Metadata */}
-        <Section title="SEO & Metadata" icon={Search} open={!!openSections.seo} onToggle={() => toggle('seo')} sectionId="seo">
+        <Section title="SEO & Metadata" icon={Search} open={activeTab === 'seo'} onToggle={() => toggle('seo')} sectionId="seo">
           <div className={formEditLayout.sectionBody}>
-            <FormField label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (defaults to product name)" /></FormField>
-            <FormField label="Meta Description"><textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." /></FormField>
-            <FormField label="Meta Keywords (comma separated)"><Input {...register('meta_keywords')} placeholder="keyword1, keyword2" /></FormField>
-            <div className="grid grid-cols-2 gap-4">
+            <div className={formEditLayout.fieldGridWide}>
+              <FormField label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (defaults to product name)" /></FormField>
+              <FormField label="Meta Keywords (comma separated)"><Input {...register('meta_keywords')} placeholder="keyword1, keyword2" /></FormField>
               <FormField label="OG Image URL"><Input {...register('og_image_url')} placeholder="https://..." /></FormField>
               <FormField label="Canonical URL"><Input {...register('canonical_url')} placeholder="https://..." /></FormField>
             </div>
+            <FormField label="Meta Description"><textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." /></FormField>
           </div>
         </Section>
 
         {/* 10. Advanced Features */}
-        <Section title="Advanced Features" icon={Settings} open={!!openSections.advanced} onToggle={() => toggle('advanced')} sectionId="advanced">
+        <Section title="Advanced Features" icon={Settings} open={activeTab === 'advanced'} onToggle={() => toggle('advanced')} sectionId="advanced">
           <div className={formEditLayout.sectionBody}>
-            <FormField label="Attributes (JSON)"><textarea {...register('attributes')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"color": ["Red","Blue"], "size": ["S","M","L"]}' /></FormField>
-            <FormField label="Specifications (JSON)"><textarea {...register('specifications')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"weight": "250g", "material": "Cotton"}' /></FormField>
-            <FormField label="Custom Fields (JSON)"><textarea {...register('custom_fields')} rows={3} className={`${textareaCls} font-mono text-xs`} placeholder='{"vendor_note": "Handle with care"}' /></FormField>
+            <div className={formEditLayout.fieldGrid3}>
+              <FormField label="Attributes (JSON)"><textarea {...register('attributes')} rows={2} className={`${textareaCls} font-mono text-xs`} placeholder='{"color": ["Red","Blue"]}' /></FormField>
+              <FormField label="Specifications (JSON)"><textarea {...register('specifications')} rows={2} className={`${textareaCls} font-mono text-xs`} placeholder='{"weight": "250g"}' /></FormField>
+              <FormField label="Custom Fields (JSON)"><textarea {...register('custom_fields')} rows={2} className={`${textareaCls} font-mono text-xs`} placeholder='{"vendor_note": "..."}' /></FormField>
+            </div>
           </div>
         </Section>
 
         {/* 11. Digital Products — shown for digital and bundle types */}
         {(isDigitalType || isBundleType || product?.is_digital) && (
-          <Section title="Digital Product" icon={Download} open={openSections.digital ?? (isDigitalType || isBundleType)} onToggle={() => toggle('digital')}>
+          <Section title="Digital Product" icon={Download} open={activeTab === 'digital'} onToggle={() => toggle('digital')} sectionId="digital">
             <div className={formEditLayout.sectionBody}>
-              <Controller name="is_digital" control={control} render={({ field }) => (
-                <Toggle label="Is Digital Product" checked={field.value} onChange={field.onChange} />
-              )} />
-              <FormField label="Download URL"><Input {...register('download_url')} placeholder="https://storage.example.com/file.zip" /></FormField>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={formEditLayout.fieldGridWide}>
+                <Controller name="is_digital" control={control} render={({ field }) => (
+                  <Toggle label="Is Digital Product" checked={field.value} onChange={field.onChange} />
+                )} />
+                <FormField label="Download URL"><Input {...register('download_url')} placeholder="https://storage.example.com/file.zip" /></FormField>
                 <FormField label="Download Limit"><Input type="number" min="0" {...register('download_limit')} placeholder="e.g. 5" /></FormField>
                 <FormField label="Download Expiry (days)"><Input type="number" min="0" {...register('download_expiry_days')} placeholder="e.g. 30" /></FormField>
               </div>
@@ -4687,7 +4955,7 @@ export default function ProductForm() {
 
         {/* 13. Bill of Materials (MRP) */}
         {isEdit && id && (
-          <Section title="Bill of Materials (BOM)" icon={Factory} open={!!openSections.bom} onToggle={() => toggle('bom')} sectionId="bom">
+          <Section title="Bill of Materials (BOM)" icon={Factory} open={activeTab === 'bom'} onToggle={() => toggle('bom')} sectionId="bom">
             <div className="pt-4">
               <BOMEditor productId={id} productName={watch('name')} />
             </div>
@@ -4696,7 +4964,7 @@ export default function ProductForm() {
 
         {/* 14. Reports (UI-only links) */}
         {isEdit && (
-          <Section title="Reports & Analytics" icon={BarChart3} open={!!openSections.reports} onToggle={() => toggle('reports')} sectionId="reports">
+          <Section title="Reports & Analytics" icon={BarChart3} open={activeTab === 'reports'} onToggle={() => toggle('reports')} sectionId="reports">
             <div className={formEditLayout.sectionBody}>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="rounded-lg border p-4">

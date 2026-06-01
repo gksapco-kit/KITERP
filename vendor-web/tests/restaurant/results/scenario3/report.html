@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><title>Scenario 3 — Online reservation</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 0 auto; padding: 24px; background: #f8fafc; color: #111; }
+  h1 { font-size: 1.5rem; }
+  .summary { margin: 16px 0; padding: 12px 16px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .step { margin: 24px 0; padding: 16px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .step.fail { border-color: #fca5a5; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-right: 8px; vertical-align: middle; }
+  .pass .badge { background: #dcfce7; color: #166534; }
+  .fail .badge { background: #fee2e2; color: #991b1b; }
+  img { max-width: 100%; margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 6px; }
+  .note { color: #64748b; font-size: 0.9rem; }
+</style></head><body>
+  <h1>Scenario 3 — Online reservation</h1>
+  <div class="summary"><strong>4/4</strong> steps passed · 30/5/2026, 11:44:36 pm</div>
+  
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 3.1 — Reservation form loads</h2>
+      
+      <img src="01-form.png" alt="Reservation form loads" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 3.3 — Online reservation submitted</h2>
+      
+      <img src="02-confirmed.png" alt="Online reservation submitted" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 3.4 — Vendor list shows pending guest</h2>
+      
+      <img src="03-vendor-list.png" alt="Vendor list shows pending guest" />
+    </section>
+
+    <section class="step pass">
+      <h2><span class="badge">PASS</span> 3.6–3.7 — Confirmed and seated</h2>
+      
+      <img src="04-seated.png" alt="Confirmed and seated" />
+    </section>
+</body></html>

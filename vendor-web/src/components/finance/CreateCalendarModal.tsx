@@ -146,7 +146,7 @@ export default function CreateCalendarModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-cal-title"

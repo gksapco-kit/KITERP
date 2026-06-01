@@ -23,7 +23,7 @@ export default function CommissionLayout() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to}
-              className="group bg-white border border-gray-200 rounded-xl p-6 hover:border-primary/40 hover:shadow-sm transition-all">
+              className="group bg-white border border-gray-200 rounded-xl p-6 hover:border-primary/40 hover:shadow-sm transition-all max-h-[90vh] overflow-y-auto">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20">
                 <Icon className="h-6 w-6 text-primary" />
               </div>

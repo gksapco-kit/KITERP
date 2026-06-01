@@ -363,7 +363,7 @@ function SupplierEditModal({
   }, [name, contactName, email, phone, street, city, addrState, postalCode, notes, gstin, panNumber, openingBalance, supplier.id, updateMut, onClose])
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">Edit Supplier / Vendor</h2>
@@ -496,7 +496,7 @@ function CustomerEditModal({
   }, [fullName, companyName, email, phone, gstin, panNumber, openingBalance, street, city, addrState, pincode, customer.id, updateMut, onClose])
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold">Edit Customer</h2>
@@ -932,8 +932,8 @@ function MasterDataDrawer({
 
       {/* Soft Delete confirmation */}
       {confirmSoftDel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setConfirmSoftDel(false)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setConfirmSoftDel(false)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -959,9 +959,9 @@ function MasterDataDrawer({
 
       {/* Hard Delete confirmation (suppliers only) */}
       {confirmHardDel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto"
           onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                 <Trash className="w-5 h-5 text-red-700" />
@@ -1284,7 +1284,7 @@ export default function MasterDataReport() {
         const clearAll = () => { setSearch(''); setSelectedTypes(new Set()); setStatusTab('all'); setAdvFilters(EMPTY_ADV); setColFilters({}); setPage(1) }
 
         return (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3 max-h-[90vh] overflow-y-auto">
 
             {/* ── Search + Clear ── */}
             <div className="flex items-center gap-2">
@@ -1412,7 +1412,7 @@ export default function MasterDataReport() {
 
       {/* ── Advanced filter panel ────────────────────────────────────────── */}
       {showAdvFilters && (
-        <div className="bg-white rounded-xl border border-primary/30 shadow-sm p-4">
+        <div className="bg-white rounded-xl border border-primary/30 shadow-sm p-4 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
               <Filter className="w-4 h-4 text-primary/70" />
@@ -1557,7 +1557,7 @@ export default function MasterDataReport() {
               </span>
             </button>
             {showColPicker && (
-              <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-52">
+              <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-52 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium text-gray-700">Show / Hide Columns</span>
                   <button onClick={() => setVisibleCols(DEFAULT_VISIBLE_COLS)}
@@ -1608,7 +1608,7 @@ export default function MasterDataReport() {
       </div>
 
       {/* ── Table ────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Loading master data…

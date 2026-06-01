@@ -116,7 +116,7 @@ export default function VerifyEmail() {
         <div className="w-full max-w-md">
           {verified ? (
             /* Success State */
-            <div className="bg-white rounded-2xl border shadow-xl p-8 text-center">
+            <div className="bg-white rounded-2xl border shadow-xl p-8 text-center max-h-[90vh] overflow-y-auto">
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
@@ -133,7 +133,7 @@ export default function VerifyEmail() {
             </div>
           ) : (
             /* Verification Form */
-            <div className="bg-white rounded-2xl border shadow-xl p-8">
+            <div className="bg-white rounded-2xl border shadow-xl p-8 max-h-[90vh] overflow-y-auto">
               <div className="text-center mb-6">
                 <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
                   <MailCheck className="w-7 h-7 text-blue-600" />

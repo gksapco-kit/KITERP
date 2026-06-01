@@ -422,8 +422,8 @@ function AddEmployeeModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onModalBackdropClick(onClose)}>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[960px] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[960px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
@@ -1062,7 +1062,7 @@ export default function EmployeesPage() {
           { label: 'On Notice', value: stats.on_notice, icon: Clock, color: 'yellow' },
           { label: 'Probation', value: stats.probation, icon: UserX, color: 'purple' },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-xl border p-4 shadow-sm">
+          <div key={label} className="bg-white rounded-xl border p-4 shadow-sm max-h-[90vh] overflow-y-auto">
             <div className={`inline-flex p-2 rounded-lg bg-${color}-50 mb-2`}>
               <Icon className={`w-5 h-5 text-${color}-600`} />
             </div>
@@ -1073,7 +1073,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-4 flex flex-wrap gap-3">
+      <div className="bg-white rounded-xl border shadow-sm p-4 mb-4 flex flex-wrap gap-3 max-h-[90vh] overflow-y-auto">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -1101,7 +1101,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : employees.length === 0 ? (

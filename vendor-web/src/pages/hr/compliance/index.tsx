@@ -73,7 +73,7 @@ function PoliciesTab() {
           <Plus className="w-4 h-4" /> New Policy
         </button>
       </div>
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (policies as Policy[]).length === 0 ? (
@@ -174,7 +174,7 @@ function PolicyModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onModalBackdropClick(onClose)}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? `Edit Policy (v${existing.version})` : 'New Policy'}</h2>
@@ -287,7 +287,7 @@ function CertificationsTab() {
           <Plus className="w-4 h-4" /> New Certification
         </button>
       </div>
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (certs as ComplianceCertification[]).length === 0 ? (
@@ -381,7 +381,7 @@ function CertModal({
     onClose()
   }
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? 'Edit Certification' : 'New Certification'}</h2>
@@ -489,7 +489,7 @@ function AuditTab() {
           <Download className="w-4 h-4" /> Export CSV
         </button>
       </div>
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (logs as ComplianceAuditLog[]).length === 0 ? (

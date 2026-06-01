@@ -367,7 +367,7 @@ export default function PayeesPage() {
           onClick={closeForm}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-lg shadow-xl my-auto"
+            className="bg-white rounded-xl w-full max-w-lg shadow-xl my-auto max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">

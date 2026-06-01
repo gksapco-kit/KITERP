@@ -36,9 +36,9 @@ function SeatTableDialog({
   const [covers, setCovers] = useState(2)
   const [serverName, setServerName] = useState('')
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onCancel}>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onCancel}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 space-y-5"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -106,13 +106,13 @@ export default function RestaurantFloorPage() {
   const tablesQ = useQuery({
     queryKey: ['restaurant', 'tables'],
     queryFn: () => vendorApi.restaurantListTables(),
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
   })
 
   const ordersQ = useQuery({
     queryKey: ['restaurant', 'orders', 'open'],
     queryFn: () => vendorApi.restaurantListOrders({ status: undefined }),
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
   })
 
   const createOrder = useMutation({

@@ -110,7 +110,7 @@ export default function MyBookings() {
             const badge = STATUS_BADGE[b.status] || STATUS_BADGE.pending
             const canCancel = ['pending', 'confirmed'].includes(b.status)
             return (
-              <div key={b.id} className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow">
+              <div key={b.id} className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow max-h-[90vh] overflow-y-auto">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

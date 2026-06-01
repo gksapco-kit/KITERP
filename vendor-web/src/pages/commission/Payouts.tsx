@@ -170,11 +170,11 @@ export default function PayoutsPage() {
       {/* Create Modal */}
       {showCreate && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto"
           onClick={closeCreate}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-md shadow-xl"
+            className="bg-white rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">

@@ -3,6 +3,7 @@ import { formDisplayCompact } from '@/components/common/FormSectionNav'
 import { Button } from '@/components/ui/button'
 import { Upload, X, Star, Loader2, Film, Box, Image as ImageIcon } from 'lucide-react'
 import { ImageCropModal } from './ImageCropModal'
+import { ImageSourcePicker } from './ImageSourcePicker'
 
 import { cn, mediaUrl } from '@/lib/utils'
 
@@ -171,6 +172,19 @@ export function ProductImageUpload({ images, onUpload, onDelete, onSetPrimary, d
         />
       </div>
 
+      <div className="flex justify-center">
+        <ImageSourcePicker
+          title="Product image"
+          disabled={disabled || uploading}
+          uploading={uploading}
+          onFile={async (file) => setCropQueue([file])}
+          buttonLabel="Add image (device · gallery · URL)"
+          buttonVariant="outline"
+          buttonSize="sm"
+          buttonClassName="text-xs"
+        />
+      </div>
+
       {/* Media grid */}
       {images.length > 0 && (
         <>
@@ -326,6 +340,19 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, di
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
           disabled={disabled}
+        />
+      </div>
+
+      <div className="flex justify-center">
+        <ImageSourcePicker
+          title="Service image"
+          disabled={disabled || uploading}
+          uploading={uploading}
+          onFile={async (file) => setCropQueue([file])}
+          buttonLabel="Add image (device · gallery · URL)"
+          buttonVariant="outline"
+          buttonSize="sm"
+          buttonClassName="text-xs"
         />
       </div>
 

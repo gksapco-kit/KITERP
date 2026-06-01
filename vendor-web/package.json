@@ -12,7 +12,8 @@
     "test": "npx playwright test",
     "test:headed": "npx playwright test --headed",
     "test:ui": "npx playwright test --ui",
-    "test:report": "npx playwright show-report"
+    "test:report": "npx playwright show-report",
+    "test:sales": "npx playwright test tests/sales --reporter=list"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

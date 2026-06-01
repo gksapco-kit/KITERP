@@ -636,7 +636,7 @@ export default function SubscriptionConfigurator({
         )}
 
         {/* Pricing breakdown */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-100">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-100 max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between px-4 py-2.5 text-sm">
             <span className="text-gray-600">{priceLine}</span>
             <span className="font-semibold text-gray-900">{formatCurrency(pricePerCycle, currency)}</span>

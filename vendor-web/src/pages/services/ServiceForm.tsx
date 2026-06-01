@@ -27,6 +27,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
   FormPageWithNav,
   FormSectionNav,
+  FormSectionTabs,
   FormField,
   handleFormInvalid,
   formDisplayCompact,
@@ -39,6 +40,8 @@ import {
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { CatalogItemLink } from '@/components/common/CatalogItemLink'
+import { normalizeCatalogAddons, serializeCatalogAddons, type CatalogAddon } from '@/lib/catalogAddons'
 
 // ── Constants ─────────────────────────────────────────────────────
 
@@ -429,10 +432,11 @@ function newPlan(i: number): PlanDraft {
 const selectCls = formSelectClass
 const textareaCls = formTextareaClass
 
-function Section({ title, icon: Icon, open, onToggle, badge, children, sectionId }: {
+function Section({ title, icon: Icon, open, onToggle: _onToggle, badge, children, sectionId }: {
   title: string; icon: React.ElementType; open: boolean; onToggle: () => void
   badge?: React.ReactNode; children: React.ReactNode; sectionId?: string
 }) {
+  if (!open) return null
   const activeFormSection = useFormActiveSection()
   const scrollActive = !!sectionId && activeFormSection === sectionId
   return (
@@ -440,29 +444,14 @@ function Section({ title, icon: Icon, open, onToggle, badge, children, sectionId
       id={sectionId ? `form-section-${sectionId}` : undefined}
       className={cn('overflow-hidden shadow-sm', formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(scrollActive))}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className={cn(
-          formEditLayout.sectionHeaderBtn,
-          'rounded-t-xl text-left transition-colors',
-          scrollActive && 'bg-primary/8',
-          'hover:bg-accent/80 dark:hover:bg-secondary/60',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        )}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Icon className="h-4 w-4 shrink-0 text-primary sm:h-[1.125rem] sm:w-[1.125rem]" strokeWidth={2} aria-hidden />
-          <span className="min-w-0 truncate text-sm font-semibold leading-snug text-foreground">{title}</span>
+      <CardContent className={cn('p-2', 'bg-muted/20 dark:bg-black/20')}>
+        <div className="mb-1 flex items-center gap-1.5 border-b border-border/60 pb-1">
+          <Icon className="h-4 w-4 shrink-0 text-primary" strokeWidth={2} aria-hidden />
+          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{title}</h3>
           {badge ? <span className="shrink-0">{badge}</span> : null}
         </div>
-        {open ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />}
-      </button>
-      {open && (
-        <CardContent className={cn(formEditLayout.sectionContent, 'border-border bg-muted/20 dark:bg-black/20')}>
-          {children}
-        </CardContent>
-      )}
+        {children}
+      </CardContent>
     </Card>
   )
 }
@@ -472,7 +461,7 @@ function FormMediaCard({ children }: { children: React.ReactNode }) {
   return (
     <Card
       id="form-section-media"
-      className={cn('shadow-sm', formSectionSurfaceClass(activeFormSection === 'media'))}
+      className={cn('shadow-sm', formSectionSurfaceClass(activeFormSection === 'basic'))}
     >
       {children}
     </Card>
@@ -827,9 +816,15 @@ export default function ServiceForm() {
 
   const [viewMode, setViewMode] = useState(searchParams.get('mode') === 'view')
   const [isSaving, setIsSaving] = useState(false)
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ basic: true, storefrontOptions: true, subscription: true })
-  const [visitedSections, setVisitedSections] = useState<Set<string>>(new Set(['basic', 'storefrontOptions', 'subscription']))
-  const [activeFormSection, setActiveFormSection] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('basic')
+  const [visitedSections, setVisitedSections] = useState<Set<string>>(new Set(['basic']))
+  const [activeFormSection, setActiveFormSection] = useState<string | null>('basic')
+  const toggle = (key: string) => {
+    setActiveTab(key)
+    setActiveFormSection(key)
+    setVisitedSections(p => new Set(p).add(key))
+  }
+  const openAndScrollTo = toggle
   const [activeViewSection, setActiveViewSection] = useState<string | null>(null)
   const [availability, setAvailability] = useState<AvailSlot[]>(DEFAULT_AVAILABILITY)
   const [plans, setPlans] = useState<PlanDraft[]>(() => (isEdit ? [] : [newPlan(0)]))
@@ -842,7 +837,10 @@ export default function ServiceForm() {
     })
     setExpandedPlans(ep => ({ ...ep, [insertAt]: true }))
   }, [])
-  const [expandedPlans, setExpandedPlans] = useState<Record<number, boolean>>(() => (isEdit ? {} : { 0: true }))
+  const [expandedPlans, setExpandedPlans] = useState<Record<number, boolean>>(() => {
+    if (isEdit) return {}
+    return { 0: true }
+  })
   const [expandedPlanSections, setExpandedPlanSections] = useState<Record<string, boolean>>({})
   const [deletingPlanIdx, setDeletingPlanIdx] = useState<number | null>(null)
   useEscapeToClose(() => setDeletingPlanIdx(null), deletingPlanIdx !== null)
@@ -857,41 +855,37 @@ export default function ServiceForm() {
   const [showDocPicker, setShowDocPicker] = useState(false)
 
   // Structured add-ons (linked services / products with booking trigger rules)
-  interface ServiceAddonItem {
-    id: string
-    name: string
-    item_type: 'product' | 'service'
-    addon_type: string        // install | demo | warranty | maintenance | delivery | other
-    booking_trigger: string   // at_sale | after_delivery | on_status
-    trigger_status?: string
-    optional: boolean
-  }
+  type ServiceAddonItem = CatalogAddon
   const [serviceAddons, setServiceAddons] = useState<ServiceAddonItem[]>([])
   const [svcAddonSearch, setSvcAddonSearch] = useState('')
   const [svcAddonResults, setSvcAddonResults] = useState<Array<{ id: string; name: string; item_type: 'product' | 'service' }>>([])
   const [svcAddonLoading, setSvcAddonLoading] = useState(false)
+  const [svcAddonPickerOpen, setSvcAddonPickerOpen] = useState(false)
 
   const searchServiceAddons = useCallback(async (q: string) => {
-    if (q.length < 2) { setSvcAddonResults([]); return }
     setSvcAddonLoading(true)
     try {
+      const trimmed = q.trim()
+      const params = trimmed.length >= 2 ? { search: trimmed, size: 10 } : { size: 10 }
       const [pRes, sRes] = await Promise.all([
-        vendorApi.listProducts({ search: q, size: 8 }),
-        vendorApi.listServices({ search: q, size: 8 }),
+        vendorApi.listProducts(params),
+        vendorApi.listServices(params),
       ])
       const combined = [
         ...(pRes?.items || []).map((p: any) => ({ id: p.id, name: p.name, item_type: 'product' as const })),
         ...(sRes?.items || []).map((s: any) => ({ id: s.id, name: s.name, item_type: 'service' as const })),
-      ].filter(x => !serviceAddons.some(a => a.id === x.id))
+      ].filter(x => !serviceAddons.some(a => a.id === x.id) && x.id !== id)
       setSvcAddonResults(combined)
     } catch { setSvcAddonResults([]) }
     finally { setSvcAddonLoading(false) }
-  }, [serviceAddons])
+  }, [serviceAddons, id])
 
   useEffect(() => {
-    const t = setTimeout(() => searchServiceAddons(svcAddonSearch), 300)
+    if (!svcAddonPickerOpen) return
+    const delay = svcAddonSearch.trim().length >= 2 ? 300 : 0
+    const t = setTimeout(() => searchServiceAddons(svcAddonSearch), delay)
     return () => clearTimeout(t)
-  }, [svcAddonSearch, searchServiceAddons])
+  }, [svcAddonSearch, searchServiceAddons, svcAddonPickerOpen])
 
   const addPrintDoc = (docId: BookingDocTypeId) => {
     setPrintDocIds(prev => {
@@ -914,19 +908,6 @@ export default function ServiceForm() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [pendingPreviews, setPendingPreviews] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const toggle = (key: string) => {
-    setOpenSections(p => ({ ...p, [key]: !p[key] }))
-    setVisitedSections(p => new Set(p).add(key))
-  }
-  const openAndScrollTo = (key: string) => {
-    setActiveFormSection(key)
-    setOpenSections(p => ({ ...p, [key]: true }))
-    setVisitedSections(p => new Set(p).add(key))
-    setTimeout(() => {
-      document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
-  }
 
   const formMethods = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -1048,9 +1029,11 @@ export default function ServiceForm() {
       whats_included: (service.whats_included || []).join(', '),
       whats_not_included: (service.whats_not_included || []).join(', '),
       service_areas: (service.service_areas || []).join(', '),
-      addons: (service.addons || []).join(', '),
+      addons: '',
       service_packages: safeJsonStr(service.service_packages),
     })
+
+    setServiceAddons(normalizeCatalogAddons(service.addons))
 
     // Load plans with all per-plan feature overrides
     if (service.plans?.length) {
@@ -1168,7 +1151,7 @@ export default function ServiceForm() {
       }
       data.tags = csvToArray(raw.tags)
       data.meta_keywords = csvToArray(raw.meta_keywords)
-      data.addons = csvToArray(raw.addons)
+      data.addons = serializeCatalogAddons(serviceAddons)
       data.whats_included = csvToArray(raw.whats_included)
       data.whats_not_included = csvToArray(raw.whats_not_included)
       data.service_areas = csvToArray(raw.service_areas)
@@ -1327,17 +1310,23 @@ export default function ServiceForm() {
 
   const formValues = watch()
   const serviceSections: FormSectionDef[] = useMemo(() => [
-    { key: 'basic',             label: 'Basic Information',   icon: Briefcase, hint: 'Name, type, duration, and descriptions.' },
-    { key: 'media',             label: 'Service Media',       icon: Eye, hint: 'Gallery and hero media for bookings.' },
-    { key: 'storefrontOptions', label: 'Business Front',      icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
-    { key: 'subscription',      label: 'Plans',               icon: Repeat, hint: 'Plan tiers, billing cycle, and trial setup.' },
-    { key: 'visibility',        label: 'Visibility',          icon: Eye, hint: 'Status, visibility, and featured flags.' },
-    { key: 'seo',               label: 'SEO & Metadata',      icon: Search, hint: 'Search and social preview metadata.' },
-    { key: 'advanced',          label: 'Advanced',            icon: Settings, hint: 'Extra fields and structured data.' },
-    { key: 'addons',            label: 'Add-ons',             icon: Puzzle, hint: 'Linked products or services at booking.' },
-    { key: 'printDocs',         label: 'Print Documents',     icon: Printer, hint: 'Templates printed with bookings.' },
-    { key: 'stats',             label: 'Statistics',          icon: BarChart3, visible: isEdit, hint: 'Booking and performance summary (read-only).' },
+    { key: 'basic',             label: 'Basic',             icon: Briefcase, hint: 'Name, type, duration, descriptions, and media.' },
+    { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
+    { key: 'subscription',      label: 'Plans',             icon: Repeat, hint: 'Plan tiers, billing cycle, and trial setup.' },
+    { key: 'visibility',        label: 'Visibility',        icon: Eye, hint: 'Status, visibility, and featured flags.' },
+    { key: 'seo',               label: 'SEO',               icon: Search, hint: 'Search and social preview metadata.' },
+    { key: 'advanced',          label: 'Advanced',          icon: Settings, hint: 'Extra fields and structured data.' },
+    { key: 'addons',            label: 'Add-ons',           icon: Puzzle, hint: 'Linked products or services at booking.' },
+    { key: 'printDocs',         label: 'Print Docs',        icon: Printer, hint: 'Templates printed with bookings.' },
+    { key: 'stats',             label: 'Statistics',        icon: BarChart3, visible: isEdit, hint: 'Booking and performance summary (read-only).' },
   ], [isEdit])
+
+  useEffect(() => {
+    const visible = serviceSections.filter((s) => s.visible !== false)
+    if (!visible.some((s) => s.key === activeTab)) {
+      setActiveTab(visible[0]?.key ?? 'basic')
+    }
+  }, [serviceSections, activeTab])
 
   const serviceCompletedSections = useMemo<Set<string>>(() => {
     const s = new Set<string>()
@@ -1367,7 +1356,7 @@ export default function ServiceForm() {
       service.price ? `${sym}${service.price.toLocaleString()}` :
       (service.price_min && service.price_max) ? `${sym}${service.price_min}–${sym}${service.price_max}` : 'Quote'
 
-    const svcAddons: any[] = (service as any).addons || []
+    const svcAddons = normalizeCatalogAddons(service.addons)
     const svcPackages: any[] = (service as any).service_packages || []
     const svcPrintDocs: string[] = getServiceDocTemplates(service.id as string)
     const hasMedia = (service as any).media?.length > 0 || !!service.image_url || (service.gallery?.length ?? 0) > 0
@@ -1736,19 +1725,25 @@ export default function ServiceForm() {
           </Card>
         )}
 
-        {((service as any).addons || (service as any).service_packages) && (
+        {((svcAddons.length > 0) || (service as any).service_packages) && (
           <Card id="form-section-addons" className={sectionCls('addons')}>
             <CardContent className={formDisplayCompact.cardBody}>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" />Add-ons & Packages</p>
-              {(service as any).addons && (
+              {svcAddons.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Add-on Service IDs</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(typeof (service as any).addons === 'string'
-                      ? (service as any).addons.split(',').map((a: string) => a.trim()).filter(Boolean)
-                      : (service as any).addons
-                    ).map((a: string, i: number) => (
-                      <span key={i} className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{a}</span>
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-1">Linked Add-ons</p>
+                  <div className="space-y-2">
+                    {svcAddons.map((addon, i) => (
+                      <div key={addon.id || i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+                        <div className="min-w-0">
+                          <CatalogItemLink id={addon.id} name={addon.name} itemType={addon.item_type} className="text-foreground" />
+                          {addon.addon_type && <span className="ml-2 text-xs text-muted-foreground capitalize">{addon.addon_type}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {addon.optional !== undefined && <span>{addon.optional ? 'Optional' : 'Required'}</span>}
+                          {addon.booking_trigger && <span className="capitalize">{addon.booking_trigger.replace(/_/g, ' ')}</span>}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1880,22 +1875,7 @@ export default function ServiceForm() {
   // ── Edit / Create Mode ────────────────────────────────────────────
 
   return (
-    <FormPageWithNav
-      activeSectionKey={activeFormSection}
-      nav={(
-        <FormSectionNav
-          sections={serviceSections}
-          openSections={openSections}
-          visitedSections={visitedSections}
-          completedSections={serviceCompletedSections}
-          hasErrorSections={serviceErrorSections}
-          onNavigate={openAndScrollTo}
-          onActiveSectionChange={setActiveFormSection}
-          scrollOffset={120}
-          stickyTopClass="top-[7rem]"
-        />
-      )}
-    >
+    <FormPageWithNav activeSectionKey={activeTab} nav={null}>
       {/* Sticky header */}
       <div className={formEditLayout.stickyBar}>
         <div className="flex items-center justify-between gap-2 sm:gap-3">
@@ -1934,76 +1914,21 @@ export default function ServiceForm() {
         </div>
       </div>
 
-      {/* Media card — edit mode (instant upload like Product) */}
-      {isEdit && service ? (
-        <FormMediaCard><div className={formEditLayout.mediaCard}><h3 className={formEditLayout.mediaTitle}>Media</h3>
-          <ServiceMediaUpload
-            media={(service as any).media || []}
-            onUpload={handleMediaUpload}
-            onDelete={handleMediaDelete}
-            onSetPrimary={handleMediaSetPrimary}
-          />
-        </div></FormMediaCard>
-      ) : !isEdit ? (
-        /* Media card — create mode (staged until service is created) */
-        <FormMediaCard><div className={formEditLayout.mediaCard}>
-          <h3 className={formEditLayout.mediaTitle}>Media</h3>
-          <p className="mb-1 text-[0.6875rem] text-gray-400 sm:text-xs">Images, videos &amp; 3D models — uploaded after service is created</p>
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDrop={e => { e.preventDefault(); addPendingFiles(e.dataTransfer.files) }}
-            onDragOver={e => e.preventDefault()}
-            className={formDisplayCompact.mediaDropzone}
-          >
-            <Upload className="mx-auto h-6 w-6 text-gray-400" />
-            <p className="mt-1 text-xs text-gray-600 sm:text-sm">Click or drag files here</p>
-            <div className="flex items-center justify-center gap-3 mt-2">
-              <span className="inline-flex items-center gap-1 text-xs text-gray-400"><ImageIcon className="w-3 h-3" />Images</span>
-              <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Film className="w-3 h-3" />Videos</span>
-              <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Box className="w-3 h-3" />3D Models</span>
-            </div>
-            <p className="text-xs text-gray-300 mt-1">Images: 5 MB · Videos: 50 MB · 3D (GLB/GLTF): 30 MB</p>
-            <input ref={fileInputRef} type="file" multiple
-              accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf"
-              className="hidden"
-              onChange={e => { addPendingFiles(e.target.files); if (fileInputRef.current) fileInputRef.current.value = '' }} />
-          </div>
-            {pendingFiles.length > 0 && (
-            <div className="mt-2 grid grid-cols-3 gap-1.5 min-[26rem]:grid-cols-4 sm:mt-3 sm:gap-2">
-              {pendingFiles.map((file, i) => {
-                const mt = getMediaType(file)
-                return (
-                  <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border bg-gray-50">
-                    {mt === 'video' ? (
-                      <video src={pendingPreviews[i]} className="w-full h-full object-cover" muted />
-                    ) : mt === 'model3d' ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
-                        <Box className="w-10 h-10" />
-                        <span className="text-xs mt-1 font-medium">{file.name.split('.').pop()?.toUpperCase()}</span>
-                      </div>
-                    ) : (
-                      <img src={pendingPreviews[i]} alt="" className="w-full h-full object-cover" />
-                    )}
-                    {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
-                    {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
-                    <button type="button" aria-label="Close" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <X className="w-3 h-3" /></button>
-                    {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div></FormMediaCard>
-      ) : null}
+      <FormSectionTabs
+        sections={serviceSections}
+        activeKey={activeTab}
+        onChange={toggle}
+        completedSections={serviceCompletedSections}
+        hasErrorSections={serviceErrorSections}
+      />
 
       <FormProvider {...formMethods}>
       <form onSubmit={handleSubmit(onSubmit, onFormInvalid)} className={formEditLayout.formStack}>
 
-        {/* 1. Basic Information */}
-        <Section title="Basic Information" icon={Briefcase} open={openSections.basic ?? true} onToggle={() => toggle('basic')} sectionId="basic">
+        {/* 1. Basic */}
+        <Section title="Basic" icon={Briefcase} open={activeTab === 'basic'} onToggle={() => toggle('basic')} sectionId="basic">
           <div className={formEditLayout.sectionBody}>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+            <div className={formEditLayout.fieldGridWide}>
               <FormField label="Service Name" name="name" required>
                 <Input {...register('name')} placeholder="e.g. AC Repair & Service" />
               </FormField>
@@ -2014,41 +1939,105 @@ export default function ServiceForm() {
                   {serviceCategories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               </FormField>
-            </div>
-            {watchedCategory && (
-              <FormField label="Subcategory" className="w-full sm:max-w-md">
-                {(() => {
-                  const selectedCat = serviceCategories.find((c: any) => c.name === watchedCategory)
-                  const subs = (selectedCat?.children || []).filter((s: any) => s.applies_to === 'service' || s.applies_to === 'both')
-                  return subs.length > 0 ? (
-                    <select {...register('subcategory')} className={selectCls}>
-                      <option value="">Select…</option>
-                      {subs.map((s: any) => <option key={s.id} value={s.name}>{s.name}</option>)}
-                    </select>
-                  ) : (
-                    <Input {...register('subcategory')} placeholder="e.g. Repair, Installation" />
-                  )
-                })()}
+              {watchedCategory ? (
+                <FormField label="Subcategory">
+                  {(() => {
+                    const selectedCat = serviceCategories.find((c: any) => c.name === watchedCategory)
+                    const subs = (selectedCat?.children || []).filter((s: any) => s.applies_to === 'service' || s.applies_to === 'both')
+                    return subs.length > 0 ? (
+                      <select {...register('subcategory')} className={selectCls}>
+                        <option value="">Select…</option>
+                        {subs.map((s: any) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      </select>
+                    ) : (
+                      <Input {...register('subcategory')} placeholder="e.g. Repair, Installation" />
+                    )
+                  })()}
+                </FormField>
+              ) : null}
+              <FormField label="Tags (comma separated)">
+                <Input {...register('tags')} placeholder="repair, home-service, ac" />
               </FormField>
-            )}
-            <FormField label="Short Description">
-              <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
-            </FormField>
-            <FormField label="Full Description">
-              <textarea {...register('description')} rows={3} className={textareaCls} placeholder="Detailed service description..." />
-            </FormField>
-            <FormField label="Tags (comma separated)">
-              <Input {...register('tags')} placeholder="repair, home-service, ac, plumbing" />
-            </FormField>
+            </div>
+            <div className={formEditLayout.fieldGrid3}>
+              <FormField label="Short Description">
+                <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
+              </FormField>
+              <FormField label="Full Description" className="sm:col-span-2">
+                <textarea {...register('description')} rows={2} className={textareaCls} placeholder="Detailed service description..." />
+              </FormField>
+            </div>
           </div>
         </Section>
 
-        {/* 2. Plans & Options */}
-        {/* 2. Business Front Options */}
+        {/* Media — below basic on the same tab */}
+        {activeTab === 'basic' && isEdit && service ? (
+          <FormMediaCard><div className={formEditLayout.mediaCard}><h3 className={formEditLayout.mediaTitle}>Media</h3>
+            <ServiceMediaUpload
+              media={(service as any).media || []}
+              onUpload={handleMediaUpload}
+              onDelete={handleMediaDelete}
+              onSetPrimary={handleMediaSetPrimary}
+            />
+          </div></FormMediaCard>
+        ) : activeTab === 'basic' && !isEdit ? (
+          <FormMediaCard><div className={formEditLayout.mediaCard}>
+            <h3 className={formEditLayout.mediaTitle}>Media</h3>
+            <p className="mb-1 text-[0.6875rem] text-gray-400 sm:text-xs">Images, videos &amp; 3D models — uploaded after service is created</p>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDrop={e => { e.preventDefault(); addPendingFiles(e.dataTransfer.files) }}
+              onDragOver={e => e.preventDefault()}
+              className={formDisplayCompact.mediaDropzone}
+            >
+              <Upload className="mx-auto h-6 w-6 text-gray-400" />
+              <p className="mt-1 text-xs text-gray-600 sm:text-sm">Click or drag files here</p>
+              <div className="flex items-center justify-center gap-3 mt-2">
+                <span className="inline-flex items-center gap-1 text-xs text-gray-400"><ImageIcon className="w-3 h-3" />Images</span>
+                <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Film className="w-3 h-3" />Videos</span>
+                <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Box className="w-3 h-3" />3D Models</span>
+              </div>
+              <p className="text-xs text-gray-300 mt-1">Images: 5 MB · Videos: 50 MB · 3D (GLB/GLTF): 30 MB</p>
+              <input ref={fileInputRef} type="file" multiple
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.glb,.gltf"
+                className="hidden"
+                onChange={e => { addPendingFiles(e.target.files); if (fileInputRef.current) fileInputRef.current.value = '' }} />
+            </div>
+            {pendingFiles.length > 0 && (
+              <div className="mt-2 grid grid-cols-3 gap-1.5 min-[26rem]:grid-cols-4 sm:mt-3 sm:gap-2">
+                {pendingFiles.map((file, i) => {
+                  const mt = getMediaType(file)
+                  return (
+                    <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border bg-gray-50">
+                      {mt === 'video' ? (
+                        <video src={pendingPreviews[i]} className="w-full h-full object-cover" muted />
+                      ) : mt === 'model3d' ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
+                          <Box className="w-10 h-10" />
+                          <span className="text-xs mt-1 font-medium">{file.name.split('.').pop()?.toUpperCase()}</span>
+                        </div>
+                      ) : (
+                        <img src={pendingPreviews[i]} alt="" className="w-full h-full object-cover" />
+                      )}
+                      {mt === 'video' && <span className="absolute top-1 right-1 bg-primary text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Film className="w-2.5 h-2.5" />Video</span>}
+                      {mt === 'model3d' && <span className="absolute top-1 right-1 bg-cyan-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><Box className="w-2.5 h-2.5" />3D</span>}
+                      <button type="button" aria-label="Close" onClick={() => removePendingFile(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3" />
+                      </button>
+                      {i === 0 && mt === 'image' && <span className="absolute top-1 left-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-semibold">Primary</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div></FormMediaCard>
+        ) : null}
+
+        {/* Business Front Options */}
         <Section
           title="Business Front Options"
           icon={ToggleRight}
-          open={!!openSections.storefrontOptions}
+          open={activeTab === 'storefrontOptions'}
           onToggle={() => toggle('storefrontOptions')} sectionId="storefrontOptions"
         >
           <div className="pt-2">
@@ -2152,7 +2141,7 @@ export default function ServiceForm() {
         <Section
           title="Plans"
           icon={Layers}
-          open={!!openSections.subscription}
+          open={activeTab === 'subscription'}
           onToggle={() => toggle('subscription')} sectionId="subscription"
           badge={
             plans.length > 0
@@ -2727,7 +2716,7 @@ export default function ServiceForm() {
         {/* Pricing, Tax, Booking, Availability, and Lifecycle are now inside each plan card */}
 
         {/* 8. Visibility & Marketing */}
-        <Section title="Visibility & Marketing" icon={Eye} open={!!openSections.visibility} onToggle={() => toggle('visibility')} sectionId="visibility">
+        <Section title="Visibility & Marketing" icon={Eye} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility">
           <div className="pt-2">
             <p className="mb-2 rounded bg-blue-50 px-3 py-1.5 text-xs text-gray-400">Status and visibility are controlled from the top sticky bar.</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
@@ -2745,44 +2734,48 @@ export default function ServiceForm() {
         </Section>
 
         {/* 9. SEO */}
-        <Section title="SEO & Metadata" icon={Search} open={!!openSections.seo} onToggle={() => toggle('seo')} sectionId="seo">
+        <Section title="SEO & Metadata" icon={Search} open={activeTab === 'seo'} onToggle={() => toggle('seo')} sectionId="seo">
           <div className={formEditLayout.sectionBody}>
-            <FormField label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (leave blank to auto-generate)" /></FormField>
+            <div className={formEditLayout.fieldGridWide}>
+              <FormField label="Meta Title"><Input {...register('meta_title')} placeholder="SEO title (leave blank to auto-generate)" /></FormField>
+              <FormField label="Meta Keywords (comma separated)">
+                <Input {...register('meta_keywords')} placeholder="ac repair, cooling service" />
+              </FormField>
+            </div>
             <FormField label="Meta Description">
               <textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." />
-            </FormField>
-            <FormField label="Meta Keywords (comma separated)">
-              <Input {...register('meta_keywords')} placeholder="ac repair, cooling service, home service" />
             </FormField>
           </div>
         </Section>
 
         {/* 10. Advanced Features */}
-        <Section title="Advanced Features" icon={Puzzle} open={!!openSections.advanced} onToggle={() => toggle('advanced')} sectionId="advanced">
+        <Section title="Advanced Features" icon={Puzzle} open={activeTab === 'advanced'} onToggle={() => toggle('advanced')} sectionId="advanced">
           <div className={formEditLayout.sectionBody}>
-            <FormField label="Prerequisites">
-              <textarea {...register('prerequisites')} rows={2} className={textareaCls} placeholder="What the customer needs to prepare or have available..." />
-            </FormField>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={formEditLayout.fieldGrid3}>
+              <FormField label="Prerequisites">
+                <textarea {...register('prerequisites')} rows={2} className={textareaCls} placeholder="What the customer needs to prepare..." />
+              </FormField>
               <FormField label="What's Included (comma separated)">
                 <Input {...register('whats_included')} placeholder="Inspection, Labor, Parts" />
               </FormField>
               <FormField label="What's Not Included (comma separated)">
-                <Input {...register('whats_not_included')} placeholder="Travel charges, Spare parts above ₹500" />
+                <Input {...register('whats_not_included')} placeholder="Travel charges, Spare parts" />
               </FormField>
             </div>
-            <FormField label="Service Areas (pin codes or names, comma separated)">
-              <Input {...register('service_areas')} placeholder="560001, 560002, Koramangala, Indiranagar" />
-            </FormField>
-            <FormField label="Service Packages (JSON array)">
-              <textarea {...register('service_packages')} rows={3} className={`${textareaCls} font-mono text-xs`}
-                placeholder='[{"name":"Basic","price":999,"includes":["2hr service","1 visit"]},{"name":"Premium","price":1999}]' />
-            </FormField>
+            <div className={formEditLayout.fieldGridWide}>
+              <FormField label="Service Areas (pin codes or names, comma separated)">
+                <Input {...register('service_areas')} placeholder="560001, 560002, Koramangala" />
+              </FormField>
+              <FormField label="Service Packages (JSON array)">
+                <textarea {...register('service_packages')} rows={2} className={`${textareaCls} font-mono text-xs`}
+                  placeholder='[{"name":"Basic","price":999}]' />
+              </FormField>
+            </div>
           </div>
         </Section>
 
         {/* Add-ons & Linked Services/Products */}
-        <Section title="Add-ons & Linked Items" icon={Plus} open={!!openSections.addons} onToggle={() => toggle('addons')} sectionId="addons">
+        <Section title="Add-ons & Linked Items" icon={Plus} open={activeTab === 'addons'} onToggle={() => toggle('addons')} sectionId="addons">
           <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500">
               Attach products or services that can be sold or booked alongside this service — e.g. spare parts, installation, warranty, follow-up sessions.
@@ -2799,17 +2792,27 @@ export default function ServiceForm() {
                     placeholder="Search products or services to add…"
                     value={svcAddonSearch}
                     onChange={e => setSvcAddonSearch(e.target.value)}
+                    onFocus={() => setSvcAddonPickerOpen(true)}
+                    onBlur={() => setTimeout(() => setSvcAddonPickerOpen(false), 150)}
                     autoComplete="off"
                     className="w-full h-9 pl-9 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                   {svcAddonLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-gray-400" />}
                 </div>
               </div>
-              {svcAddonResults.length > 0 && (
+              {svcAddonPickerOpen && (
                 <div className="absolute z-10 w-full mt-1 bg-white border rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                  {svcAddonResults.map(r => (
+                  {svcAddonLoading ? (
+                    <p className="px-3 py-4 text-center text-xs text-gray-400">Loading products and services…</p>
+                  ) : svcAddonResults.length === 0 ? (
+                    <p className="px-3 py-4 text-center text-xs text-gray-400">
+                      {svcAddonSearch.trim().length >= 2 ? 'No matching products or services' : 'No products or services available to add'}
+                    </p>
+                  ) : (
+                    svcAddonResults.map(r => (
                     <button key={r.id} type="button"
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-indigo-50 border-b border-gray-50 last:border-0"
+                      onMouseDown={e => e.preventDefault()}
                       onClick={() => {
                         setServiceAddons(prev => [...prev, {
                           id: r.id, name: r.name, item_type: r.item_type,
@@ -2819,13 +2822,14 @@ export default function ServiceForm() {
                         }])
                         setSvcAddonSearch('')
                         setSvcAddonResults([])
+                        setSvcAddonPickerOpen(false)
                       }}>
                       <span className={`px-1.5 py-0.5 rounded text-xs font-bold uppercase ${r.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {r.item_type === 'service' ? 'SVC' : 'PRD'}
                       </span>
-                      <span className="font-medium text-gray-800">{r.name}</span>
+                      <CatalogItemLink id={r.id} name={r.name} itemType={r.item_type} stopPropagation className="text-gray-800 text-xs" />
                     </button>
-                  ))}
+                  )))}
                 </div>
               )}
             </div>
@@ -2844,7 +2848,12 @@ export default function ServiceForm() {
                       <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase shrink-0 ${addon.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
                         {addon.item_type === 'service' ? 'Service' : 'Product'}
                       </span>
-                      <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{addon.name}</span>
+                      <CatalogItemLink
+                        id={addon.id}
+                        name={addon.name}
+                        itemType={addon.item_type}
+                        className="text-sm text-gray-800 flex-1 truncate block min-w-0"
+                      />
                       <label className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
                         <input type="checkbox" checked={addon.optional} onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, optional: e.target.checked } : a))} className="rounded" />
                         Optional
@@ -2926,7 +2935,7 @@ export default function ServiceForm() {
         </Section>
 
         {/* 11. Print Document Templates */}
-        <Section title="Print Documents" icon={Printer} open={!!openSections.printDocs} onToggle={() => toggle('printDocs')} sectionId="printDocs">
+        <Section title="Print Documents" icon={Printer} open={activeTab === 'printDocs'} onToggle={() => toggle('printDocs')} sectionId="printDocs">
           <p className="text-xs text-gray-400 mb-3">
             Choose which document templates are available when printing from a booking for this service.
             {!isEdit && ' Templates will be saved once the service is created.'}
@@ -2995,7 +3004,7 @@ export default function ServiceForm() {
 
         {/* 12. Statistics */}
         {isEdit && (
-          <Section title="Statistics" icon={BarChart3} open={!!openSections.stats} onToggle={() => toggle('stats')} sectionId="stats">
+          <Section title="Statistics" icon={BarChart3} open={activeTab === 'stats'} onToggle={() => toggle('stats')} sectionId="stats">
             <div className="grid grid-cols-3 gap-4 text-center pt-4">
               <div className="rounded-lg border p-4">
                 <p className="text-2xl font-bold">{service?.view_count ?? 0}</p>
@@ -3025,8 +3034,8 @@ export default function ServiceForm() {
       </FormProvider>
 
       {deletingPlanIdx !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6 space-y-4 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6 space-y-4 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-100">
                 <Trash2 className="w-5 h-5 text-red-600" />

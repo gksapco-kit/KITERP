@@ -1,4 +1,4 @@
-import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
+import { getCustomerStorefrontBaseUrl, getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { readHrModuleSettings } from '@/lib/hrModuleSettings'
 
 export type HrEssLinkRow = {
@@ -19,7 +19,7 @@ export function buildHrEssLoginUrl(vendorSlug: string, branchCode?: string | nul
 
 type StoreLike = { id: string; code?: string | null; name: string }
 
-/** Stores that should expose an ESS login link (central = every unit; per-BU = selected only). */
+/** Stores that should expose an ESS login link (per-BU scope only; central uses one vendor-wide URL). */
 export function storesEligibleForHrEss(
   stores: StoreLike[],
   settings: Record<string, unknown> | undefined | null,
@@ -38,6 +38,21 @@ export function buildHrEssLinksForStores(
 ): HrEssLinkRow[] {
   const slug = vendorSlug.trim()
   if (!slug) return []
+  const hr = readHrModuleSettings(settings)
+  if (!hr.hr_enabled) return []
+
+  /** Central HR — one shared ESS login for the whole vendor (no branch in URL). */
+  if (hr.hr_scope === 'central') {
+    return [
+      {
+        storeId: '__central__',
+        code: '',
+        name: 'All business units',
+        url: buildHrEssLoginUrl(slug),
+      },
+    ]
+  }
+
   return storesEligibleForHrEss(stores, settings).map((s) => {
     const code = (s.code ?? s.id).trim()
     return {
@@ -49,6 +64,21 @@ export function buildHrEssLinksForStores(
   })
 }
 
+/** ESS login URL for a unit detail panel — respects central vs per-BU HR scope. */
+export function buildHrEssLoginUrlForUnit(
+  vendorSlug: string,
+  settings: Record<string, unknown> | undefined | null,
+  branchCode?: string | null,
+): string | null {
+  const hr = readHrModuleSettings(settings)
+  if (!hr.hr_enabled) return null
+  const slug = vendorSlug.trim()
+  if (!slug) return null
+  if (hr.hr_scope === 'central') return buildHrEssLoginUrl(slug)
+  const branch = (branchCode ?? '').trim()
+  return branch ? buildHrEssLoginUrl(slug, branch) : null
+}
+
 /** Whether a single business unit should show its ESS link in detail panels. */
 export function isHrEssLinkVisibleForStore(
   storeId: string,
@@ -58,4 +88,71 @@ export function isHrEssLinkVisibleForStore(
   if (!hr.hr_enabled) return false
   if (hr.hr_scope === 'central') return true
   return hr.hr_business_unit_ids.includes(storeId)
+}
+
+/** Customer store + HR ESS links for clipboard (all-units settings / stores list). */
+export function formatAllBusinessFrontLinksForClipboard(
+  vendorSlug: string,
+  stores: StoreLike[],
+  settings?: Record<string, unknown> | undefined | null,
+): { text: string; storeCount: number; hrCount: number } {
+  const slug = vendorSlug.trim()
+  const base = slug ? getCustomerStorefrontBaseUrl(slug) : ''
+  const storeLines = stores.map((s) => {
+    const key = (s.code || s.id).trim()
+    const url = base ? `${base}?branch=${encodeURIComponent(key)}` : key
+    return `${s.name}: ${url}`
+  })
+  const hrLinks = buildHrEssLinksForStores(slug, stores, settings)
+  const hrLines = hrLinks.map((r) => `${r.name}: ${r.url}`)
+
+  const blocks: string[] = []
+  if (storeLines.length) {
+    blocks.push('Customer store links', ...storeLines)
+  }
+  if (hrLines.length) {
+    if (blocks.length) blocks.push('')
+    blocks.push('HR & employee login', ...hrLines)
+  }
+
+  return {
+    text: blocks.join('\n'),
+    storeCount: storeLines.length,
+    hrCount: hrLines.length,
+  }
+}
+
+export type BusinessFrontLinkRow = {
+  id: string
+  label: string
+  sublabel: string
+  url: string
+  group: 'store' | 'hr'
+}
+
+export function buildBusinessFrontLinkRows(
+  vendorSlug: string,
+  stores: StoreLike[],
+  settings?: Record<string, unknown> | undefined | null,
+): { storeRows: BusinessFrontLinkRow[]; hrRows: BusinessFrontLinkRow[] } {
+  const slug = vendorSlug.trim()
+  const base = slug ? getCustomerStorefrontBaseUrl(slug) : ''
+  const storeRows: BusinessFrontLinkRow[] = stores.map((s) => {
+    const key = (s.code || s.id).trim()
+    return {
+      id: `store-${s.id}`,
+      label: s.name,
+      sublabel: 'Customer store',
+      url: base ? `${base}?branch=${encodeURIComponent(key)}` : key,
+      group: 'store',
+    }
+  })
+  const hrRows: BusinessFrontLinkRow[] = buildHrEssLinksForStores(slug, stores, settings ?? null).map((r) => ({
+    id: `hr-${r.storeId}`,
+    label: r.code ? `${r.code} — ${r.name}` : r.name,
+    sublabel: 'HR & employee login',
+    url: r.url,
+    group: 'hr' as const,
+  }))
+  return { storeRows, hrRows }
 }

@@ -286,7 +286,7 @@ function ToneDropdown({ value, onChange, volume }: {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={close} />
-          <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+          <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
                 {TONE_CATEGORIES.map(cat => {
                 const tones = TONE_OPTIONS.filter(t =>

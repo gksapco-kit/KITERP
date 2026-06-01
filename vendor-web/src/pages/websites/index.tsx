@@ -171,8 +171,8 @@ function CreateSiteModal({
   const isLoading = createSite.isPending
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-gradient-to-r from-primary to-info px-6 py-5 text-white flex items-start justify-between gap-3">
           <div>
@@ -329,7 +329,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group">
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group max-h-[90vh] overflow-y-auto">
       {/* Thumbnail */}
       <div
         className="relative h-40 bg-gradient-to-br from-accent via-info/10 to-primary/15 cursor-pointer overflow-hidden"
@@ -447,7 +447,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-8 z-30 bg-white border border-gray-200 rounded-xl shadow-xl w-44 py-1 overflow-hidden">
+                <div className="absolute right-0 top-8 z-30 bg-white border border-gray-200 rounded-xl shadow-xl w-44 py-1 overflow-hidden max-h-[90vh] overflow-y-auto">
                   <button
                     onClick={() => { navigate(`/websites/${site.id}`); setMenuOpen(false) }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
@@ -643,7 +643,7 @@ export default function WebsitesPage() {
               { icon: Sparkles, label: 'AI Copy', desc: 'Homepage, SEO, FAQs, and CTAs generated' },
               { icon: Globe, label: 'Go Live', desc: 'Mobile-ready pages with publish checklist' },
             ].map(f => (
-              <div key={f.label} className="bg-white rounded-xl p-4 shadow-sm border border-white">
+              <div key={f.label} className="bg-white rounded-xl p-4 shadow-sm border border-white max-h-[90vh] overflow-y-auto">
                 <f.icon className="w-5 h-5 text-primary mb-2" />
                 <div className="text-sm font-semibold text-gray-800">{f.label}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{f.desc}</div>

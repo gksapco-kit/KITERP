@@ -50,7 +50,7 @@ export default function ServicesCardsBlock({ site, style, props, liveItems }: Pr
           {items.map(item => (
             <div
               key={item.id}
-              className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col"
+              className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col overflow-hidden"
             >
               <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: `${style.primary_color}15` }}>
                 <Wrench className="w-6 h-6" style={{ color: style.primary_color }} />

@@ -62,7 +62,7 @@ export default function Account() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {menuItems.map((item) => (
           <Link key={item.to} to={item.to}
-            className="bg-white rounded-xl border p-5 hover:shadow-md transition-all flex items-center gap-4 group">
+            className="bg-white rounded-xl border p-5 hover:shadow-md transition-all flex items-center gap-4 group max-h-[90vh] overflow-y-auto">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}>
               <item.icon className="w-6 h-6" />
             </div>

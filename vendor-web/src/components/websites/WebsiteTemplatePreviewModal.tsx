@@ -309,10 +309,10 @@ export function WebsiteTemplatePreviewModal({
   }
 
   return (
-    <div className={cn('fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4', zIndexClass)}>
+    <div className={cn('fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto', zIndexClass)}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden max-h-[min(900px,95vh)] flex flex-col">
         {/* Header */}
-        <div className="flex items-start gap-4 p-5 border-b border-gray-100 shrink-0">
+        <div className="relative z-20 flex shrink-0 items-start gap-4 border-b border-gray-100 p-5">
           <div className="w-36 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
             {template.thumbnail
               ? <img src={template.thumbnail} className="w-full h-full object-cover" alt={template.name} />
@@ -358,7 +358,7 @@ export function WebsiteTemplatePreviewModal({
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="relative z-30 flex shrink-0 items-center gap-1.5">
                 {isStorefront && (
                   <button
                     type="button"

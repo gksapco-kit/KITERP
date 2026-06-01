@@ -68,7 +68,7 @@ function CountryDropdown({
     : orderedCountries
 
   return (
-    <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-72 overflow-hidden">
+    <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-72 overflow-hidden max-h-[90vh] overflow-y-auto">
       {/* Search */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-gray-50">
         <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
   Plus, Search, Pencil, Trash2, Eye, EyeOff, Loader2,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn, mediaUrl } from '@/lib/utils'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { vendorApi } from '@/api/vendor'
 import {
   useBlogPosts, useCreateBlogPost, useUpdateBlogPost,
@@ -50,7 +51,23 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
   const [tagsRaw, setTagsRaw] = useState((initial?.tags ?? []).join(', '))
   const [isPublished, setIsPublished] = useState(initial?.is_published ?? false)
   const [coverUploading, setCoverUploading] = useState(false)
-  const coverFileRef = useRef<HTMLInputElement>(null)
+
+  const uploadCoverFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file (JPEG, PNG, WebP, or GIF)')
+      return
+    }
+    setCoverUploading(true)
+    try {
+      const { cover_url } = await vendorApi.uploadBlogCover(file)
+      setCoverUrl(cover_url)
+      toast.success('Cover image uploaded')
+    } catch {
+      toast.error('Upload failed — try again or pick another image')
+    } finally {
+      setCoverUploading(false)
+    }
+  }
 
   const autoSlug = useCallback((t: string) =>
     t.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').slice(0, 180)
@@ -79,26 +96,6 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
       reading_minutes: readingMins,
       is_published: isPublished,
     })
-  }
-
-  const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please choose an image file (JPEG, PNG, WebP, or GIF)')
-      return
-    }
-    setCoverUploading(true)
-    try {
-      const { cover_url } = await vendorApi.uploadBlogCover(file)
-      setCoverUrl(cover_url)
-      toast.success('Cover image uploaded')
-    } catch {
-      toast.error('Upload failed — try again or paste an image URL')
-    } finally {
-      setCoverUploading(false)
-    }
   }
 
   return (
@@ -179,34 +176,15 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
           {/* Cover image */}
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1.5">Cover image</label>
-            <input
-              ref={coverFileRef}
-              type="file"
+            <ImageSourcePicker
+              title="Cover image"
               accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={handleCoverFile}
+              disabled={saving}
+              uploading={coverUploading}
+              onFile={uploadCoverFile}
+              onUrl={(url) => setCoverUrl(url)}
+              buttonClassName="w-full text-xs mb-2 h-8 border-primary/30 text-primary hover:bg-accent"
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={coverUploading || saving}
-              className="w-full gap-1.5 text-xs mb-2 h-8 border-primary/30 text-primary hover:bg-accent"
-              onClick={() => coverFileRef.current?.click()}
-            >
-              {coverUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              {coverUploading ? 'Uploading…' : 'Upload image'}
-            </Button>
-            <p className="text-xs text-gray-400 mb-1.5">Or paste a URL</p>
-            <div className="relative">
-              <ImageIcon className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
-              <input
-                value={coverUrl}
-                onChange={e => setCoverUrl(e.target.value)}
-                placeholder="https://…"
-                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
             {coverUrl && (
               <img
                 src={mediaUrl(coverUrl)}
@@ -395,7 +373,7 @@ export default function BlogManagerPage() {
             return (
             <div
               key={post.id}
-              className="flex gap-4 bg-white rounded-2xl border border-gray-100 hover:border-primary/30 hover:shadow-sm transition-all p-4"
+              className="flex gap-4 bg-white rounded-2xl border border-gray-100 hover:border-primary/30 hover:shadow-sm transition-all p-4 max-h-[90vh] overflow-y-auto"
             >
               {/* Cover thumbnail */}
               {post.cover_url ? (

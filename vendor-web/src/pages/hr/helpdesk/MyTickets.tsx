@@ -31,7 +31,7 @@ export default function MyTicketsPage() {
         </button>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (tickets as HelpdeskTicket[]).length === 0 ? (
@@ -85,8 +85,8 @@ function NewTicketModal({
     create.mutate(form as unknown as Record<string, unknown>, { onSuccess: onClose })
   }
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">Raise Ticket</h2>
           <button type="button" aria-label="Close" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>

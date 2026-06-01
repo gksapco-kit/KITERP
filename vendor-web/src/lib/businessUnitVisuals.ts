@@ -12,7 +12,7 @@ import {
   Car,
 } from 'lucide-react'
 import type { StoreRecord } from '@/api/vendor'
-import { mediaUrl } from '@/lib/utils'
+import { resolveBrandingImageUrl } from '@/components/common/MediaUploadPickerModal'
 
 const TYPE_GRADIENTS: Record<string, string> = {
   Retail: 'from-violet-500/90 via-fuchsia-500/80 to-pink-500/70',
@@ -87,8 +87,8 @@ export function getBusinessUnitVisual(
   const vendorLogo = vendor?.logo_url?.trim() ?? ''
   const vendorBanner = vendor?.banner_url?.trim() ?? ''
 
-  const logoUrl = mediaUrl(storeLogo || vendorLogo)
-  const bannerUrl = mediaUrl(storeBanner || vendorBanner)
+  const logoUrl = resolveBrandingImageUrl(storeLogo || vendorLogo)
+  const bannerUrl = resolveBrandingImageUrl(storeBanner || vendorBanner)
 
   return {
     logoUrl,

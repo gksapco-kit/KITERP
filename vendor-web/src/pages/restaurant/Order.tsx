@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -6,7 +6,8 @@ import {
   Search, Send, Trash2, UtensilsCrossed, XCircle,
 } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
-import type { RestaurantOrderItem } from '@/api/vendor'
+import type { RestaurantOrderItem, SelectedModifier } from '@/api/vendor'
+import { ModifierPickerModal, type ModifierPickerProduct } from '@/components/products/ModifierPickerModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -19,6 +20,25 @@ const KOT_STATUS_COLOR: Record<string, string> = {
   done:      'bg-gray-100 text-gray-600',
 }
 
+function lineTotal(item: RestaurantOrderItem): number {
+  const extra = (item.modifiers ?? []).reduce((s, m) => s + m.price_delta, 0)
+  return (item.unit_price + extra) * item.qty
+}
+
+function mergePendingItem(
+  prev: RestaurantOrderItem[],
+  item: RestaurantOrderItem,
+): RestaurantOrderItem[] {
+  const modsKey = JSON.stringify(item.modifiers ?? [])
+  const idx = prev.findIndex(
+    i => i.product_id === item.product_id && JSON.stringify(i.modifiers ?? []) === modsKey,
+  )
+  if (idx >= 0) {
+    return prev.map((i, n) => (n === idx ? { ...i, qty: i.qty + item.qty } : i))
+  }
+  return [...prev, item]
+}
+
 export default function RestaurantOrderPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const navigate = useNavigate()
@@ -27,52 +47,86 @@ export default function RestaurantOrderPage() {
   const [productSearch, setProductSearch] = useState('')
   const [pendingItems, setPendingItems] = useState<RestaurantOrderItem[]>([])
   const [kotNotes, setKotNotes] = useState('')
+  const [modifierPending, setModifierPending] = useState<ModifierPickerProduct | null>(null)
 
   const orderQ = useQuery({
     queryKey: ['restaurant', 'order', orderId],
     queryFn: () => vendorApi.restaurantGetOrder(orderId!),
     enabled: !!orderId,
-    refetchInterval: 20_000,
+    refetchInterval: 5_000,
   })
 
   const productsQ = useQuery({
-    queryKey: ['products', 'restaurant-catalog', productSearch],
-    queryFn: () => vendorApi.listProducts({ search: productSearch || undefined, limit: 40, status: 'active' }),
+    queryKey: ['restaurant', 'dine-in-products', productSearch],
+    queryFn: async () => {
+      const all = await vendorApi.restaurantListDineInProducts()
+      const q = productSearch.trim().toLowerCase()
+      if (!q) return all
+      return {
+        items: all.items.filter(
+          p =>
+            p.name?.toLowerCase().includes(q) ||
+            p.category?.toLowerCase().includes(q) ||
+            p.sku?.toLowerCase().includes(q),
+        ),
+      }
+    },
     staleTime: 60_000,
   })
 
   const order = orderQ.data
 
-  // Cart sub-total (order items + pending items combined)
   const allItems = [...(order?.items ?? []), ...pendingItems]
-  const subtotal = allItems.reduce((s, i) => s + (i.unit_price * i.qty), 0)
+  const subtotal = allItems.reduce((s, i) => s + lineTotal(i), 0)
 
-  function addProduct(p: { id: string; name: string; price?: number; tax_rate?: number; item_type?: string }) {
-    setPendingItems(prev => {
-      const exists = prev.findIndex(i => i.product_id === p.id)
-      if (exists >= 0) {
-        return prev.map((i, idx) => idx === exists ? { ...i, qty: i.qty + 1 } : i)
-      }
-      return [...prev, {
-        product_id: p.id,
-        name: p.name,
-        qty: 1,
-        unit_price: p.price ?? 0,
-        tax_rate: p.tax_rate ?? 0,
-        item_type: p.item_type ?? 'product',
-      }]
-    })
+  function addProductLine(line: RestaurantOrderItem) {
+    setPendingItems(prev => mergePendingItem(prev, line))
     setProductSearch('')
+  }
+
+  function handleProductTap(p: {
+    id: string
+    name: string
+    price?: number
+    tax_rate?: number
+    item_type?: string
+  }) {
+    const base: ModifierPickerProduct = {
+      id: p.id,
+      name: p.name,
+      price: Number(p.price ?? 0),
+      tax_rate: Number(p.tax_rate ?? 0),
+      item_type: (p.item_type === 'service' ? 'service' : 'product') as 'product' | 'service',
+    }
+    setModifierPending(base)
+  }
+
+  function onModifierConfirm(
+    item: ModifierPickerProduct & { modifiers: SelectedModifier[] },
+  ) {
+    const extra = item.modifiers.reduce((s, m) => s + m.price_delta, 0)
+    addProductLine({
+      product_id: item.id,
+      name: item.name,
+      qty: 1,
+      unit_price: item.price,
+      tax_rate: item.tax_rate ?? 0,
+      item_type: item.item_type,
+      modifiers: item.modifiers.length ? item.modifiers : undefined,
+    })
+    if (extra > 0) {
+      toast.success(`Added with ${formatCurrency(extra)} in extras`)
+    }
+    setModifierPending(null)
   }
 
   function changePendingQty(idx: number, delta: number) {
     setPendingItems(prev => {
-      const updated = prev.map((item, i) => i === idx ? { ...item, qty: item.qty + delta } : item)
+      const updated = prev.map((item, i) => (i === idx ? { ...item, qty: item.qty + delta } : item))
       return updated.filter(i => i.qty > 0)
     })
   }
 
-  // Send only the pending (unsent) items as a KOT
   const sendKOT = useMutation({
     mutationFn: () =>
       vendorApi.restaurantSendKOT(orderId!, {
@@ -94,7 +148,6 @@ export default function RestaurantOrderPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['restaurant', 'order', orderId] })
       qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] })
-      // Navigate to POS with all order items pre-loaded
       if (order) {
         const params = new URLSearchParams({
           table: order.table_id ?? '',
@@ -134,10 +187,10 @@ export default function RestaurantOrderPage() {
   }
 
   const isClosed = order.status === 'closed' || order.status === 'voided'
+  const pendingQty = pendingItems.reduce((s, i) => s + i.qty, 0)
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" asChild>
@@ -180,13 +233,11 @@ export default function RestaurantOrderPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5">
-        {/* ── Left: catalog + pending cart ── */}
         <div className="space-y-4">
           {!isClosed && (
             <section className="rounded-xl border bg-white p-4 space-y-3">
               <h2 className="text-sm font-semibold text-gray-700">Add items</h2>
 
-              {/* Product search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -208,7 +259,13 @@ export default function RestaurantOrderPage() {
                       <button
                         type="button"
                         className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-amber-50 active:bg-amber-100 text-left"
-                        onClick={() => addProduct({ id: p.id, name: p.name, price: Number(p.price ?? 0), tax_rate: Number(p.tax_rate ?? 0), item_type: 'product' })}
+                        onClick={() => handleProductTap({
+                          id: p.id,
+                          name: p.name,
+                          price: Number(p.price ?? 0),
+                          tax_rate: Number(p.tax_rate ?? 0),
+                          item_type: 'product',
+                        })}
                       >
                         <span className="text-gray-800 flex-1 min-w-0 truncate">{p.name}</span>
                         <span className="text-gray-500 shrink-0 ml-3 font-medium">{formatCurrency(Number(p.price ?? 0))}</span>
@@ -218,14 +275,24 @@ export default function RestaurantOrderPage() {
                 </ul>
               )}
 
-              {/* Pending (unsent) items */}
-              {pendingItems.length > 0 && (
-                <div className="space-y-2 pt-1">
-                  <h3 className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Pending (not yet sent)</h3>
-                  {pendingItems.map((item, idx) => (
+              <div className="space-y-2 pt-1">
+                <h3 className="text-xs text-amber-700 font-semibold uppercase tracking-wide">
+                  Pending (not yet sent)
+                </h3>
+                {pendingItems.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-2">Tap a product above to add items.</p>
+                ) : (
+                  pendingItems.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-sm">
-                      <div className="flex-1 text-gray-800">{item.name}</div>
-                      <div className="text-gray-500 text-xs">{formatCurrency(item.unit_price)}</div>
+                      <div className="flex-1 text-gray-800">
+                        {item.name}
+                        {(item.modifiers ?? []).length > 0 && (
+                          <span className="block text-xs text-gray-500">
+                            {(item.modifiers ?? []).map(m => m.option_name).join(', ')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-gray-500 text-xs">{formatCurrency(lineTotal(item) / item.qty)}/ea</div>
                       <div className="flex items-center gap-1">
                         <button type="button" onClick={() => changePendingQty(idx, -1)} className="p-1 text-gray-400 hover:text-gray-700">
                           <Minus className="w-3 h-3" />
@@ -239,28 +306,28 @@ export default function RestaurantOrderPage() {
                         </button>
                       </div>
                     </div>
-                  ))}
-                  <Input
-                    value={kotNotes}
-                    onChange={e => setKotNotes(e.target.value)}
-                    placeholder="KOT notes (optional)"
-                    className="h-8 text-xs"
-                  />
-                  <Button
-                    size="sm"
-                    className="w-full gap-2"
-                    disabled={sendKOT.isPending}
-                    onClick={() => sendKOT.mutate()}
-                  >
-                    {sendKOT.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    Send to Kitchen ({pendingItems.reduce((s, i) => s + i.qty, 0)} item{pendingItems.reduce((s, i) => s + i.qty, 0) !== 1 ? 's' : ''})
-                  </Button>
-                </div>
-              )}
+                  ))
+                )}
+                <Input
+                  value={kotNotes}
+                  onChange={e => setKotNotes(e.target.value)}
+                  placeholder="KOT notes (optional)"
+                  className="h-8 text-xs"
+                />
+                <Button
+                  size="sm"
+                  className="w-full gap-2"
+                  disabled={pendingQty === 0 || sendKOT.isPending}
+                  title={pendingQty === 0 ? 'Add items before sending to kitchen' : undefined}
+                  onClick={() => sendKOT.mutate()}
+                >
+                  {sendKOT.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Send to Kitchen ({pendingQty} item{pendingQty !== 1 ? 's' : ''})
+                </Button>
+              </div>
             </section>
           )}
 
-          {/* KOT history */}
           {order.kots.length > 0 && (
             <section className="rounded-xl border bg-white p-4 space-y-3">
               <h2 className="text-sm font-semibold text-gray-700">Kitchen Orders</h2>
@@ -276,19 +343,17 @@ export default function RestaurantOrderPage() {
                     {kot.items.map((item, i) => (
                       <li key={i} className="flex justify-between">
                         <span>{item.qty}× {item.name}</span>
-                        <span className="text-gray-400">{formatCurrency(item.unit_price * item.qty)}</span>
+                        <span className="text-gray-400">{formatCurrency(lineTotal(item))}</span>
                       </li>
                     ))}
                   </ul>
                   {kot.notes && <p className="text-xs text-gray-500 italic">{kot.notes}</p>}
-                  <p className="text-xs text-gray-400">{kot.created_at ? new Date(kot.created_at).toLocaleTimeString() : ''}</p>
                 </div>
               ))}
             </section>
           )}
         </div>
 
-        {/* ── Right: order summary + actions ── */}
         <div className="space-y-4">
           <section className="rounded-xl border bg-white p-4 space-y-3 sticky top-4">
             <h2 className="text-sm font-semibold text-gray-700">Order Summary</h2>
@@ -299,14 +364,21 @@ export default function RestaurantOrderPage() {
               <ul className="divide-y text-sm">
                 {order.items.map((item, i) => (
                   <li key={i} className="flex justify-between py-1.5 text-gray-700">
-                    <span>{item.qty}× {item.name}</span>
-                    <span>{formatCurrency(item.unit_price * item.qty)}</span>
+                    <span>
+                      {item.qty}× {item.name}
+                      {(item.modifiers ?? []).length > 0 && (
+                        <span className="block text-xs text-gray-400">
+                          {(item.modifiers ?? []).map(m => m.option_name).join(', ')}
+                        </span>
+                      )}
+                    </span>
+                    <span>{formatCurrency(lineTotal(item))}</span>
                   </li>
                 ))}
                 {pendingItems.map((item, i) => (
                   <li key={`p-${i}`} className="flex justify-between py-1.5 text-amber-700">
                     <span className="italic">{item.qty}× {item.name} (unsent)</span>
-                    <span>{formatCurrency(item.unit_price * item.qty)}</span>
+                    <span>{formatCurrency(lineTotal(item))}</span>
                   </li>
                 ))}
               </ul>
@@ -350,6 +422,15 @@ export default function RestaurantOrderPage() {
           </section>
         </div>
       </div>
+
+      {modifierPending && (
+        <ModifierPickerModal
+          item={modifierPending}
+          confirmLabel="Add to order"
+          onConfirm={onModifierConfirm}
+          onClose={() => setModifierPending(null)}
+        />
+      )}
     </div>
   )
 }

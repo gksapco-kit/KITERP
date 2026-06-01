@@ -32,7 +32,7 @@ export default function RestaurantKitchenPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['restaurant', 'kots', showDone],
     queryFn: () => vendorApi.restaurantListKOTs({ include_done: showDone }),
-    refetchInterval: 8_000,
+    refetchInterval: 5_000,
   })
 
   const mut = useMutation({
@@ -96,6 +96,7 @@ export default function RestaurantKitchenPage() {
                 'rounded-xl border bg-white p-4 shadow-sm flex flex-col gap-3',
                 kot.status === 'ready' && 'border-emerald-300 shadow-emerald-100',
                 kot.status === 'new' && 'border-blue-200',
+                kot.order_status === 'voided' && 'opacity-75 border-red-200 border-dashed',
               )}
             >
               {/* Ticket header */}
@@ -110,6 +111,11 @@ export default function RestaurantKitchenPage() {
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
+                  {kot.order_status === 'voided' && (
+                    <span className="text-xs font-bold uppercase px-2 py-0.5 rounded-full border border-red-300 text-red-700 bg-red-50">
+                      Order voided
+                    </span>
+                  )}
                   <span className={cn('text-xs font-bold uppercase px-2 py-0.5 rounded-full', cfg.badge)}>
                     {cfg.label}
                   </span>

@@ -482,7 +482,7 @@ export function ShareDropdown({
           <ChevronDown className="w-3 h-3 text-gray-400" />
         </button>
         {open && (
-          <div className="absolute right-0 mt-1 w-56 bg-white border rounded-xl shadow-lg z-50 py-1 text-sm">
+          <div className="absolute right-0 mt-1 w-56 bg-white border rounded-xl shadow-lg z-50 py-1 text-sm max-h-[90vh] overflow-y-auto">
             <button type="button" onClick={copyAll} className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700">
               <Copy className="w-3.5 h-3.5 text-gray-400" /> Copy access message
             </button>

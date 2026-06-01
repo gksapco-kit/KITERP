@@ -6,6 +6,10 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 222 20% 12%;
@@ -117,6 +121,10 @@
     --hosp-bg: 165 22% 12%;
     --hosp-ink: 150 25% 92%;
     --hosp-accent: 162 48% 45%;
+    /* Darker mint for solid primary fills — keeps white labels readable */
+    --primary-fill: 158 46% 34%;
+    --primary-fill-hover: 158 46% 40%;
+    --primary-fill-active: 158 46% 28%;
   }
 
   * {
@@ -209,7 +217,7 @@
            hover:border-primary/40 hover:bg-accent hover:text-primary;
   }
   .chip-active {
-    @apply chip border-primary bg-primary text-primary-foreground;
+    @apply chip border-primary bg-primary text-white;
   }
 
   /* Explicit brand green — avoids CSS-variable / HMR issues on native <button> */
@@ -320,12 +328,36 @@
   background-color: hsl(38 40% 14%) !important;
 }
 
+.dark .bg-amber-100 {
+  background-color: hsl(38 40% 16%) !important;
+}
+
+.dark .bg-amber-200 {
+  background-color: hsl(38 40% 20%) !important;
+}
+
+.dark .hover\:bg-amber-100:hover {
+  background-color: hsl(38 40% 18%) !important;
+}
+
+.dark .hover\:bg-amber-200:hover {
+  background-color: hsl(38 40% 22%) !important;
+}
+
 .dark .bg-red-50 {
   background-color: hsl(0 40% 14%) !important;
 }
 
 .dark .bg-emerald-50 {
   background-color: hsl(152 35% 12%) !important;
+}
+
+.dark .bg-emerald-100 {
+  background-color: hsl(152 35% 16%) !important;
+}
+
+.dark .hover\:bg-emerald-100:hover {
+  background-color: hsl(152 35% 18%) !important;
 }
 
 .dark .bg-green-50 {
@@ -353,6 +385,62 @@
   color: hsl(142 55% 68%) !important;
 }
 
+/*
+ * Dark mode — every solid primary (brand green) fill.
+ * Matches exact Tailwind token bg-primary only (not bg-primary/10, /90, etc.).
+ * One global rule — no per-page button fixes needed.
+ */
+.dark [class~='bg-primary'] {
+  background-color: hsl(var(--primary-fill)) !important;
+  color: #ffffff !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark [class~='bg-primary'] svg {
+  color: currentColor;
+}
+
+.dark [class~='bg-primary']:hover,
+.dark .hover\:bg-primary\/90:hover,
+.dark .hover\:bg-primary:hover {
+  background-color: hsl(var(--primary-fill-hover)) !important;
+  color: #ffffff !important;
+}
+
+.dark .active\:bg-primary\/85:active,
+.dark .active\:bg-primary:active {
+  background-color: hsl(var(--primary-fill-active)) !important;
+  color: #ffffff !important;
+}
+
+.dark .chip-active {
+  background-color: hsl(var(--primary-fill)) !important;
+  border-color: hsl(var(--primary-fill-hover)) !important;
+  color: #ffffff !important;
+}
+
+.dark .chip-active:hover {
+  background-color: hsl(var(--primary-fill-hover)) !important;
+}
+
+.dark .btn-brand {
+  background-color: hsl(var(--primary-fill)) !important;
+  color: #ffffff !important;
+}
+
+.dark .btn-brand:hover:not(:disabled) {
+  background-color: hsl(var(--primary-fill-hover)) !important;
+}
+
+.dark .text-emerald-700,
+.dark .text-emerald-800 {
+  color: hsl(152 65% 78%) !important;
+}
+
+.dark .text-emerald-600 {
+  color: hsl(152 55% 68%) !important;
+}
+
 .dark .text-red-800,
 .dark .text-red-700 {
   color: hsl(0 75% 78%) !important;
@@ -369,6 +457,23 @@
 
 .dark .text-amber-600 {
   color: hsl(38 75% 68%) !important;
+}
+
+.dark .bg-rose-50 {
+  background-color: hsl(350 35% 14%) !important;
+}
+
+.dark .bg-rose-100 {
+  background-color: hsl(350 40% 16%) !important;
+}
+
+.dark .text-rose-700,
+.dark .text-rose-600 {
+  color: hsl(350 75% 78%) !important;
+}
+
+.dark .border-rose-200 {
+  border-color: hsl(350 40% 28%) !important;
 }
 
 .dark .bg-gray-50\/80 {
@@ -430,6 +535,10 @@
 
 .dark .bg-green-100 {
   background-color: hsl(152 35% 16%) !important;
+}
+
+.dark .hover\:bg-green-100:hover {
+  background-color: hsl(152 35% 18%) !important;
 }
 
 .dark .bg-yellow-100 {
@@ -972,4 +1081,26 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
 [data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast][data-styled='true'] [data-close-button]:hover {
   background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/*
+ * Viewport-safe centered modals — keep content reachable when zoomed or on short screens.
+ * Targets standard overlay + panel markup used across vendor-web.
+ */
+@layer components {
+  .fixed.inset-0.flex.items-center.justify-center:not(.overflow-hidden):not([data-modal-fullscreen]) {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='max-h-']):not([class*='inset-']) {
+    max-height: min(90dvh, calc(100vh - 2rem));
+    overflow-y: auto;
+  }
+
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-'][class*='max-h-'][class*='flex-col']:not([class*='overflow-hidden']) {
+    overflow: hidden;
+  }
 }

@@ -17,7 +17,8 @@ type Props = {
 }
 
 /**
- * One ESS login URL per business unit (central HR = all units; per-BU HR = enabled units only).
+ * ESS login URL(s) for settings / stores list.
+ * Central HR → one shared link; per-BU HR → one link per enabled unit.
  */
 export default function HrEssLinksPanel({ links, settings, embedded, className }: Props) {
   const [copied, setCopied] = useState<CopyKey | null>(null)
@@ -27,8 +28,8 @@ export default function HrEssLinksPanel({ links, settings, embedded, className }
 
   const scopeHint =
     hr.hr_scope === 'central'
-      ? 'Central HR — one employee login link per business unit (branch in URL).'
-      : 'HR enabled on selected business units only.'
+      ? 'Central HR — one shared employee login link for all business units.'
+      : 'HR enabled on selected business units only — one login link per unit.'
 
   async function copyText(key: CopyKey, text: string) {
     try {
@@ -52,7 +53,7 @@ export default function HrEssLinksPanel({ links, settings, embedded, className }
             </span>
             <div className="min-w-0 flex-1">
               <span className="block text-sm font-medium text-foreground">
-                {row.code} — {row.name}
+                {row.code ? `${row.code} — ${row.name}` : row.name}
               </span>
               <span className="block text-xs text-muted-foreground">HR & employee login</span>
               <a

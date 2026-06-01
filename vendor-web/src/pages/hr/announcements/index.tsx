@@ -44,7 +44,7 @@ export default function AnnouncementsPage() {
           {(list as Announcement[]).map(a => {
             const stat = STATUS[a.status] ?? STATUS.draft
             return (
-              <div key={a.id} className="bg-white border rounded-xl shadow-sm p-4">
+              <div key={a.id} className="bg-white border rounded-xl shadow-sm p-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -114,7 +114,7 @@ function AnnouncementModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onModalBackdropClick(onClose)}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">{item ? 'Edit Announcement' : 'New Announcement'}</h2>

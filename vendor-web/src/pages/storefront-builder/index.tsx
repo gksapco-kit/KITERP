@@ -6,6 +6,7 @@ import { vendorApi } from '@/api/vendor'
 import { websiteApi } from '@/api/websites'
 import { useSiteList } from '@/hooks/useWebsites'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -1395,19 +1396,21 @@ export default function StorefrontBuilderPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] -m-6 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-4rem)] -m-6">
       {/* ── Header Bar ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center">
-            <Wand2 className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-gray-900">Business Front Builder</h1>
-            <p className="text-xs text-gray-400">{vendor?.display_name || vendor?.business_name}</p>
+      <div className="relative z-30 flex shrink-0 items-stretch border-b bg-white">
+        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto px-4 py-2.5">
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center">
+              <Wand2 className="w-4 h-4 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-sm font-bold text-gray-900 whitespace-nowrap">Business Front Builder</h1>
+              <p className="text-xs text-gray-400 truncate max-w-[200px] sm:max-w-none">{vendor?.display_name || vendor?.business_name}</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative z-10 flex shrink-0 items-center gap-2 border-l border-gray-100 bg-white px-4 py-2.5 shadow-[-8px_0_12px_-10px_rgba(0,0,0,0.08)]">
           <a href={storeUrl} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary transition-colors px-2 py-1.5 rounded-lg hover:bg-accent">
             <ExternalLink className="w-3.5 h-3.5" />
             View Live
@@ -1499,7 +1502,7 @@ export default function StorefrontBuilderPage() {
       </div>
 
       {/* ── 3-pane layout ── */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ─ LEFT PANEL ─────────────────────────────────────────────────────── */}
         <div className="w-72 border-r bg-white flex flex-col shrink-0">
@@ -2688,11 +2691,29 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onMediaUpload,
           {field.type === 'image' && (
             <div className="space-y-1.5">
               <div className="flex gap-1.5">
-                <button type="button" onClick={() => onImageUpload(field.key)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 px-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-primary/60 hover:text-primary transition-colors">
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  Upload
-                </button>
+                <ImageSourcePicker
+                  title={field.label}
+                  onFile={async (file) => {
+                    set(field.key)(URL.createObjectURL(file))
+                    onFieldAction?.(field.key)
+                  }}
+                  onUrl={async (url) => {
+                    set(field.key)(url)
+                    onFieldAction?.(field.key)
+                  }}
+                  className="flex-1"
+                >
+                  {({ open }) => (
+                    <button
+                      type="button"
+                      onClick={open}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-2 py-2 text-xs text-gray-500 transition-colors hover:border-primary/60 hover:text-primary"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      Upload
+                    </button>
+                  )}
+                </ImageSourcePicker>
                 {onOpenMediaStudio && (
                   <button
                     type="button"

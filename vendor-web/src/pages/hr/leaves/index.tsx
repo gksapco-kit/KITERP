@@ -22,8 +22,8 @@ function RejectModal({
     onClose()
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-3">
               <h2 className="text-lg font-semibold mb-3">Reject Leave Request</h2>
               <button
@@ -67,7 +67,7 @@ export default function LeaveRequestsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm p-3 mb-4 flex gap-2">
+      <div className="bg-white rounded-xl border shadow-sm p-3 mb-4 flex gap-2 max-h-[90vh] overflow-y-auto">
         {['', 'pending', 'approved', 'rejected', 'cancelled'].map(s => (
           <button
             key={s}
@@ -79,7 +79,7 @@ export default function LeaveRequestsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : requests.length === 0 ? (

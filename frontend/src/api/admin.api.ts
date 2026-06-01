@@ -14,6 +14,21 @@ export interface AdminVendor extends Vendor {
   relationship_manager?: RelationshipManagerBrief | null
 }
 
+/** Read-only restaurant ops snapshot for platform support. */
+export interface AdminRestaurantSnapshot {
+  vendor_id: string
+  module_enabled: boolean
+  today: {
+    open_orders: number
+    total_covers: number
+    restaurant_revenue: number
+    active_kots: number
+  }
+  kots_by_status: Record<string, number>
+  tables_by_status: Record<string, number>
+  upcoming_reservations: number
+}
+
 export interface VendorListResponse {
   items: AdminVendor[]
   total: number
@@ -220,6 +235,11 @@ export const adminApi = {
 
   getVendor: async (vendorId: string): Promise<AdminVendor> => {
     const response = await apiClient.get(`/admin/vendors/${vendorId}`)
+    return response.data
+  },
+
+  getRestaurantSnapshot: async (vendorId: string): Promise<AdminRestaurantSnapshot> => {
+    const response = await apiClient.get(`/admin/vendors/${vendorId}/restaurant-snapshot`)
     return response.data
   },
 

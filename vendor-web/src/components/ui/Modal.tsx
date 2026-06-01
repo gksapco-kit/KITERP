@@ -80,9 +80,40 @@ export function ModalPanel({
 }) {
   return (
     <div
-      className={cn('bg-white rounded-xl shadow-xl w-full my-auto', className)}
+      className={cn(
+        'bg-white rounded-xl shadow-xl w-full my-auto max-h-[min(90dvh,calc(100vh-2rem))] flex flex-col overflow-hidden',
+        className,
+      )}
       onClick={onClick ?? (e => e.stopPropagation())}
     >
+      {children}
+    </div>
+  )
+}
+
+export function ModalBody({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('overflow-y-auto flex-1 min-h-0', className)}>
+      {children}
+    </div>
+  )
+}
+
+export function ModalFooter({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('shrink-0', className)}>
       {children}
     </div>
   )
