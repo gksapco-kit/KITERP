@@ -1,5 +1,6 @@
 import type { BlockProps } from '@/types/websites'
 import { resolveFooterTheme, type FooterThemeFallback } from '@/lib/footerLayoutTheme'
+import { NAV_LAYOUT_SHELL_KEYS, resolveNavLayout } from '@/lib/navLayoutTheme'
 
 /** User-editable content preserved when switching layouts. */
 const CONTENT_PROP_KEYS = new Set([
@@ -12,20 +13,6 @@ const CONTENT_PROP_KEYS = new Set([
   'show_legal', 'show_credit_card_note', 'service_name', 'target_date', 'html', 'text',
   'plans', 'messages', 'links', 'menu_categories', 'products', 'hidden_kpi_ids',
 ])
-
-function resolveNavTheme(props: Record<string, unknown>, fallback: FooterThemeFallback) {
-  const style = String(props.nav_style ?? 'white')
-  if (style === 'dark') {
-    return { nav_style: 'dark', nav_bg: '#0f172a' }
-  }
-  if (style === 'transparent') {
-    return { nav_style: 'transparent', nav_bg: 'transparent' }
-  }
-  if (style === 'brand') {
-    return { nav_style: 'brand', nav_bg: fallback.primary_color || '#64C3A0' }
-  }
-  return { nav_style: 'white', nav_bg: '#ffffff' }
-}
 
 function normalizeFeaturesLayout(props: Record<string, unknown>): Record<string, unknown> {
   const layout = String(props.layout ?? '')
@@ -99,8 +86,11 @@ export function mergeLayoutBlockProps(
   }
 
   if (blockType === 'nav') {
-    const nav = resolveNavTheme({ ...merged, ...propsOverride }, fallback)
-    return { ...merged, ...nav } as BlockProps
+    const nav = resolveNavLayout({ ...merged, ...propsOverride }, fallback)
+    for (const key of NAV_LAYOUT_SHELL_KEYS) {
+      merged[key] = nav[key]
+    }
+    return merged as BlockProps
   }
 
   if (blockType === 'about_split') {
@@ -112,7 +102,8 @@ export function mergeLayoutBlockProps(
   /** Layout preset keys always win over stale values from a previous layout. */
   const LAYOUT_SHELL_PROP_KEYS = [
     'layout', 'full_page', 'show_map', 'columns', 'bg_style', 'gradient_preset', 'overlay',
-    'footer_style', 'nav_style', 'image_position', 'card_style', 'filterable', 'compact',
+    'footer_style', 'nav_style', 'nav_bg', 'nav_layout', 'nav_glass', 'nav_elevated', 'nav_compact',
+    'nav_accent_border', 'nav_cta_prominent', 'show_search', 'show_cart', 'image_position', 'card_style', 'filterable', 'compact',
     'variant', 'padding_top', 'padding_bottom', 'align', 'show_calendar', 'grayscale',
     'aspect_ratio', 'show_caption', 'show_newsletter', 'cta_square', 'eyebrow_plain',
     'item_gap', 'max_width', 'show_images', 'bg_color', 'show_annual_toggle', 'card_style',
@@ -133,6 +124,9 @@ export function mergeLayoutBlockProps(
       merged.columns = 4
     }
   }
+
+  // Preset override keys always win (layout picker selection).
+  Object.assign(merged, propsOverride)
 
   return merged as BlockProps
 }

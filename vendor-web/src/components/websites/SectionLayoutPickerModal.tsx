@@ -43,6 +43,7 @@ function LayoutOptionCard({
     [def.defaultProps, option.props],
   )
   const usesImages = blockSupportsGalleryCategory(def.type)
+  const isCommerceBlock = def.type.includes('.')
   const sampleUrls = useMemo(
     () => (usesImages ? pickGalleryImageUrls(categoryId, 8) : []),
     [usesImages, categoryId],
@@ -60,34 +61,37 @@ function LayoutOptionCard({
       )}
     >
       <div className="relative aspect-[4/3] bg-slate-100 border-b border-gray-100 overflow-hidden">
-        {/* Mini page frame so footer/nav previews read in context */}
-        <div className="absolute inset-2 rounded-md border border-slate-200/80 bg-white shadow-sm overflow-hidden flex flex-col">
-          {def.type === 'footer' && (
-            <div className="flex-1 min-h-0 bg-gradient-to-b from-slate-50 to-white p-1 space-y-0.5">
-              <div className="h-1.5 w-1/3 mx-auto rounded bg-slate-200" />
-              <div className="h-6 rounded bg-slate-100/80" />
-              <div className="flex-1 rounded bg-slate-50" />
-            </div>
-          )}
-          {def.type === 'nav' && (
-            <>
-              <div className="shrink-0 min-h-[22%]">
+        {isCommerceBlock ? (
+          <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+        ) : (
+          <div className="absolute inset-2 rounded-md border border-slate-200/80 bg-white shadow-sm overflow-hidden flex flex-col">
+            {def.type === 'footer' && (
+              <div className="flex-1 min-h-0 bg-gradient-to-b from-slate-50 to-white p-1 space-y-0.5">
+                <div className="h-1.5 w-1/3 mx-auto rounded bg-slate-200" />
+                <div className="h-6 rounded bg-slate-100/80" />
+                <div className="flex-1 rounded bg-slate-50" />
+              </div>
+            )}
+            {def.type === 'nav' && (
+              <>
+                <div className="shrink-0 min-h-[22%]">
+                  <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
+                </div>
+                <div className="flex-1 min-h-0 bg-gradient-to-b from-white to-slate-50 p-1">
+                  <div className="h-2 w-1/2 mx-auto rounded bg-slate-200 mb-1" />
+                  <div className="h-full rounded bg-slate-100/60" />
+                </div>
+              </>
+            )}
+            {def.type !== 'nav' && (
+              <div className={cn(
+                def.type === 'footer' ? 'mt-auto shrink-0 min-h-[38%]' : 'flex-1 min-h-0',
+              )}>
                 <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
               </div>
-              <div className="flex-1 min-h-0 bg-gradient-to-b from-white to-slate-50 p-1">
-                <div className="h-2 w-1/2 mx-auto rounded bg-slate-200 mb-1" />
-                <div className="h-full rounded bg-slate-100/60" />
-              </div>
-            </>
-          )}
-          {def.type !== 'nav' && (
-            <div className={cn(
-              def.type === 'footer' ? 'mt-auto shrink-0 min-h-[38%]' : 'flex-1 min-h-0',
-            )}>
-              <SectionLayoutPreview blockType={def.type} variantProps={merged} sampleUrls={sampleUrls} />
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
         <div className={cn(
           'absolute top-3 transition-opacity',
           isActive ? 'left-3 opacity-100' : 'right-3 opacity-0 group-hover:opacity-100',
@@ -159,7 +163,11 @@ export function SectionLayoutPickerModal({
           <div className="flex items-center justify-between px-4 sm:px-5 py-4 bg-gray-900 text-white shrink-0">
             <div>
               <h2 id="section-layout-picker-title" className="text-lg font-bold">Choose layout</h2>
-              <p className="text-sm text-gray-400 mt-0.5">All layouts use images from your selected category</p>
+              <p className="text-sm text-gray-400 mt-0.5">
+                {blockSupportsGalleryCategory(def.type)
+                  ? 'Preview uses images from your selected category'
+                  : `${options.length} layout styles — pick the look that fits your page`}
+              </p>
             </div>
             <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10">
               <X className="w-5 h-5" />
@@ -186,7 +194,7 @@ export function SectionLayoutPickerModal({
                     value={categorySearch}
                     onChange={e => setCategorySearch(e.target.value)}
                     placeholder="Search categories…"
-                    className="w-full pl-7 pr-2 py-1.5 text-xs rounded-lg bg-gray-800 border border-gray-700 text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    className="w-full pl-7 pr-2 py-1.5 text-xs rounded-lg bg-gray-800 border border-gray-700 text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
                   />
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1 pr-0.5">
@@ -198,7 +206,7 @@ export function SectionLayoutPickerModal({
                         onClick={() => setImageCategoryId(cat.id)}
                         className={cn(
                           'w-full text-left px-2 py-1.5 rounded-lg text-xs transition-colors',
-                          imageCategoryId === cat.id ? 'bg-primary/20 text-primary font-semibold' : 'text-gray-300 hover:bg-white/5',
+                          imageCategoryId === cat.id ? 'bg-orange-500/20 text-orange-400 font-semibold' : 'text-gray-300 hover:bg-white/5',
                         )}
                       >
                         {cat.label}
@@ -232,7 +240,7 @@ export function SectionLayoutPickerModal({
                                   onClick={() => setImageCategoryId(cat.id)}
                                   className={cn(
                                     'w-full text-left px-2.5 py-1 text-xs transition-colors',
-                                    imageCategoryId === cat.id ? 'bg-primary/20 text-primary font-semibold' : 'text-gray-300 hover:bg-white/5',
+                                    imageCategoryId === cat.id ? 'bg-orange-500/20 text-orange-400 font-semibold' : 'text-gray-300 hover:bg-white/5',
                                   )}
                                 >
                                   {cat.label}
@@ -251,31 +259,43 @@ export function SectionLayoutPickerModal({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-gray-50">
-              <div className="md:hidden mb-3 space-y-2">
-                <p className="text-xs font-medium text-gray-600">{def.label}</p>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-gray-500">Image category</label>
-                <select
-                  value={imageCategoryId}
-                  onChange={e => setImageCategoryId(e.target.value)}
-                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2 bg-white"
-                >
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.label}</option>
-                  ))}
-                </select>
+            <div className="flex-1 min-h-0 flex flex-col bg-gray-50">
+              <div className="shrink-0 p-4 sm:px-5 sm:pt-5 sm:pb-2 space-y-3">
+                <div className="md:hidden space-y-2">
+                  <p className="text-xs font-medium text-gray-600">{def.label}</p>
+                  <label className="block text-[10px] font-bold uppercase tracking-wide text-gray-500">Image category</label>
+                  <select
+                    value={imageCategoryId}
+                    onChange={e => setImageCategoryId(e.target.value)}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2 bg-white"
+                  >
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-gray-600">
+                    More layouts ({options.length} total)
+                  </p>
+                  {options.length > 6 && (
+                    <p className="text-[10px] text-gray-400 shrink-0">Scroll for more</p>
+                  )}
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                {options.map(opt => (
-                  <LayoutOptionCard
-                    key={opt.id}
-                    def={def}
-                    option={opt}
-                    categoryId={imageCategoryId}
-                    isActive={activeOptionId === opt.id}
-                    onSelect={() => onSelect(opt.props as Partial<BlockProps>, imageCategoryId)}
-                  />
-                ))}
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 pb-4 sm:pb-5 overscroll-contain">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                  {options.map(opt => (
+                    <LayoutOptionCard
+                      key={opt.id}
+                      def={def}
+                      option={opt}
+                      categoryId={imageCategoryId}
+                      isActive={activeOptionId === opt.id}
+                      onSelect={() => onSelect(opt.props as Partial<BlockProps>, imageCategoryId)}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </div>

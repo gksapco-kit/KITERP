@@ -2853,6 +2853,38 @@ function pagesNavKey(pages: WebsitePage[]): string {
 
 const GLOBAL_STRUCTURE_BLOCK_TYPES = new Set(['announcement_bar', 'nav', 'footer'])
 
+/** After layout apply / structure edits, ignore server block hydration for this long. */
+const SKIP_SERVER_HYDRATE_MS = 30_000
+
+function structureLayoutFingerprint(props: Record<string, unknown> | undefined): string {
+  if (!props) return ''
+  return [
+    props.nav_style,
+    props.footer_style,
+    props.layout,
+    props.variant,
+    props.color,
+    props.nav_bg,
+    props.footer_bg,
+    props.bg_style,
+    props.padding_top,
+    props.padding_bottom,
+  ].map(v => String(v ?? '')).join('|')
+}
+
+function syncSiteQueryBlocks(
+  site: WebsiteSite,
+  blocksByPage: Record<string, WebsiteBlock[]>,
+): WebsiteSite {
+  return {
+    ...site,
+    pages: site.pages.map(page => ({
+      ...page,
+      blocks: (blocksByPage[page.id] || page.blocks).map(b => ({ ...b })),
+    })),
+  }
+}
+
 function getPreferredBlockInsertIndex(
   blockType: string,
   blocks: WebsiteBlock[],
@@ -2907,7 +2939,6 @@ function ensureStructureBlocksOnAllPages(
   pages: WebsitePage[],
   sourceBlock: WebsiteBlock,
   blockType: string,
-  originPageId: string,
 ): Record<string, WebsiteBlock[]> {
   if (!GLOBAL_STRUCTURE_BLOCK_TYPES.has(blockType)) return blocksByPage
   let next = { ...blocksByPage }
@@ -2918,7 +2949,7 @@ function ensureStructureBlocksOnAllPages(
       next = { ...next, [page.id]: relocated }
       continue
     }
-    if (page.id === originPageId || blocks.some(b => b.block_type === blockType)) continue
+    if (blocks.some(b => b.block_type === blockType)) continue
     const clone: WebsiteBlock = {
       ...sourceBlock,
       id: `temp-${blockType}-${page.id}-${Date.now()}`,
@@ -2929,6 +2960,33 @@ function ensureStructureBlocksOnAllPages(
     next = { ...next, [page.id]: insertBlockAtIndex(blocks, clone, blockType, -1) }
   }
   return next
+}
+
+/** Copy global structure blocks (nav / footer / announcement) onto a newly created page. */
+function seedStructureBlocksForNewPage(
+  blocksByPage: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+  newPageId: string,
+): WebsiteBlock[] {
+  let pageBlocks: WebsiteBlock[] = []
+  for (const type of ['announcement_bar', 'nav', 'footer'] as const) {
+    let source: WebsiteBlock | undefined
+    for (const page of pages) {
+      if (page.id === newPageId) continue
+      source = (blocksByPage[page.id] || []).find(b => b.block_type === type)
+      if (source) break
+    }
+    if (!source) continue
+    const clone: WebsiteBlock = {
+      ...source,
+      id: `temp-${type}-${newPageId}-${Date.now()}`,
+      page_id: newPageId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    pageBlocks = insertBlockAtIndex(pageBlocks, clone, type, -1)
+  }
+  return pageBlocks
 }
 
 function normalizeAllStructureBlocks(
@@ -2943,6 +3001,59 @@ function normalizeAllStructureBlocks(
       if (relocated) pageBlocks = relocated
     }
     next = { ...next, [page.id]: pageBlocks }
+  }
+  return next
+}
+
+/** Find a global structure block (nav / footer / announcement bar) on any page. */
+function findStructureBlockInMap(
+  blocksByPage: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+  blockType: string,
+  preferredBlockId?: string,
+): { block: WebsiteBlock; pageId: string } | undefined {
+  if (preferredBlockId) {
+    for (const page of pages) {
+      const found = (blocksByPage[page.id] || []).find(b => b.id === preferredBlockId)
+      if (found?.block_type === blockType) return { block: found, pageId: page.id }
+    }
+  }
+  for (const page of pages) {
+    const found = (blocksByPage[page.id] || []).find(b => b.block_type === blockType)
+    if (found) return { block: found, pageId: page.id }
+  }
+  return undefined
+}
+
+/** Apply layout props to a structure block on every page (add missing clones). */
+function applyStructureLayoutToAllPages(
+  blocksByPage: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+  blockType: string,
+  def: { label: string },
+  finalProps: BlockProps,
+  activePageId: string,
+  sourceBlock: WebsiteBlock,
+): Record<string, WebsiteBlock[]> {
+  const stamp = new Date().toISOString()
+  let next: Record<string, WebsiteBlock[]> = { ...blocksByPage }
+  for (const page of pages) {
+    next[page.id] = (next[page.id] || []).map(b =>
+      b.block_type === blockType ? { ...b, props: finalProps, updated_at: stamp } : b,
+    )
+  }
+  const template: WebsiteBlock = {
+    ...sourceBlock,
+    block_type: blockType as WebsiteBlock['block_type'],
+    label: sourceBlock.label || def.label,
+    props: finalProps,
+    updated_at: stamp,
+  }
+  next = ensureStructureBlocksOnAllPages(next, pages, template, blockType)
+  for (const page of pages) {
+    next[page.id] = (next[page.id] || []).map(b =>
+      b.block_type === blockType ? { ...b, props: finalProps, updated_at: stamp } : b,
+    )
   }
   return next
 }
@@ -3356,60 +3467,46 @@ function BlockPreview({
         }
         // Nav background from layout preset or template
         const navStyle = String((p as any).nav_style ?? 'white')
-        const navBg = navStyle === 'transparent'
+        const navLayout = String((p as any).nav_layout ?? 'default')
+        const isNavCentered = navLayout === 'centered' || navStyle === 'centered' || navStyle === 'dark_centered'
+        const isNavGlass = !!(p as any).nav_glass || navStyle === 'glass'
+        const isNavElevated = !!(p as any).nav_elevated || navStyle === 'elevated'
+        const isNavCompact = !!(p as any).nav_compact || navStyle === 'compact'
+        const isNavAccentBorder = !!(p as any).nav_accent_border || navStyle === 'accent_border'
+        const isNavTransparentCta = !!(p as any).nav_cta_prominent || navStyle === 'transparent_cta'
+        const navBg = navStyle === 'transparent' || navStyle === 'transparent_cta'
           ? 'transparent'
           : String((p as any).nav_bg ?? '').trim()
             || (effectiveStyle.nav_bg as string)
-            || (navStyle === 'dark' ? '#0f172a' : navStyle === 'brand' ? primary_color : '#ffffff')
-        const _nH = navBg === 'transparent' ? 'ffffff' : navBg.replace('#', '')
-        const _nR = parseInt(_nH.substring(0, 2), 16) || 255
-        const _nG = parseInt(_nH.substring(2, 4), 16) || 255
-        const _nB = parseInt(_nH.substring(4, 6), 16) || 255
-        const navIsDark = navStyle === 'dark' || navStyle === 'brand' || (_nR + _nG + _nB) < 382
+            || (navStyle === 'dark' || navStyle === 'dark_centered' ? '#0f172a' : navStyle === 'brand' ? primary_color : '#ffffff')
+        const navIsDark = navStyle === 'dark' || navStyle === 'brand' || navStyle === 'dark_centered'
+          || (navBg !== 'transparent' && (() => {
+            const hex = navBg.replace('#', '')
+            if (hex.length < 6) return false
+            const r = parseInt(hex.substring(0, 2), 16) || 255
+            const g = parseInt(hex.substring(2, 4), 16) || 255
+            const b = parseInt(hex.substring(4, 6), 16) || 255
+            return r + g + b < 382
+          })())
         const navTextCol = navIsDark ? 'rgba(255,255,255,0.85)' : '#4B5563'
         const navBrandCol = navIsDark ? '#ffffff' : primary_color
-        return (
-          <div
-            className="flex items-center justify-between py-3 px-6 gap-4 relative"
-            style={{
-              backgroundColor: navBg === 'transparent' ? undefined : navBg,
-              borderBottom: navStyle === 'transparent'
-                ? 'none'
-                : `1px solid ${navIsDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6'}`,
-            }}
-          >
-            <div className="shrink-0 relative group/logo leading-tight">
-              <div className="font-bold text-base" style={{ fontFamily: font_heading, color: navBrandCol }}>
-              {logoSrc
-                ? (
-                  <div className="relative inline-block">
-                    <img src={mediaUrl(logoSrc as string)} className="h-8 object-contain" alt="logo" />
-                    {canEdit && (
-                      <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover/logo:opacity-100 transition-opacity bg-black/40 rounded">
-                        <label title="Replace logo" className="cursor-pointer p-1 bg-white/90 rounded text-xs font-bold text-gray-700 hover:bg-white flex items-center gap-0.5">
-                          <Upload className="w-3 h-3" />
-                          <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                            const file = e.target.files?.[0]; e.target.value = ''
-                            if (!file || !siteId) return
-                            try {
-                              const saved = await websiteApi.uploadMedia(siteId, file)
-                              commitProp('brand_logo', saved.original_url)
-                            } catch { toast.error('Upload failed') }
-                          }} />
-                        </label>
-                        <button type="button" aria-label="Close" title="Remove logo" type="button" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-xs font-bold text-red-600 hover:bg-white">
-                <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )
-                : (
-                  <div className="flex items-center gap-2">
-                    <InlineEditableText value={brandName} placeholder="Your Brand" editable={canEdit} as="span" onCommit={v => commitProp('brand', v)} />
-                    {canEdit && (
-                      <label title="Upload logo" className="cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-0.5 text-xs font-bold whitespace-nowrap">
-                        <Upload className="w-3 h-3" /> Logo
+        const navBorderBottom = navStyle === 'transparent' || navStyle === 'transparent_cta'
+          ? 'none'
+          : isNavAccentBorder
+            ? `3px solid ${primary_color}`
+            : `1px solid ${navIsDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6'}`
+
+        const navLogoBlock = (
+          <div className="shrink-0 relative group/logo leading-tight">
+            <div className="font-bold text-base" style={{ fontFamily: font_heading, color: navBrandCol }}>
+            {logoSrc
+              ? (
+                <div className="relative inline-block">
+                  <img src={mediaUrl(logoSrc as string)} className={cn('object-contain', isNavCompact ? 'h-6' : 'h-8')} alt="logo" />
+                  {canEdit && (
+                    <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover/logo:opacity-100 transition-opacity bg-black/40 rounded">
+                      <label title="Replace logo" className="cursor-pointer p-1 bg-white/90 rounded text-xs font-bold text-gray-700 hover:bg-white flex items-center gap-0.5">
+                        <Upload className="w-3 h-3" />
                         <input type="file" accept="image/*" className="hidden" onChange={async e => {
                           const file = e.target.files?.[0]; e.target.value = ''
                           if (!file || !siteId) return
@@ -3419,96 +3516,168 @@ function BlockPreview({
                           } catch { toast.error('Upload failed') }
                         }} />
                       </label>
-                    )}
-                  </div>
-                )
-              }
-              </div>
-              {(p as any).tagline ? (
-                <div className="text-xs uppercase tracking-[0.18em] opacity-70 mt-0.5" style={{ color: navTextCol }}>
-                  <InlineEditableText
-                    value={String((p as any).tagline)}
-                    placeholder="Tagline"
-                    editable={canEdit}
-                    as="span"
-                    onCommit={v => commitProp('tagline' as any, v)}
-                  />
-                </div>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-4 flex-1 justify-center flex-wrap">
-              {displayLinks.slice(0, 8).map((l: any, i: number) => (
-                <div
-                  key={i}
-                  role="button"
-                  tabIndex={0}
-                  onClick={e => {
-                    e.stopPropagation()
-                    onNavigatePage?.(navUrl(l))
-                  }}
-                  onKeyDown={e => {
-                    if (e.key !== 'Enter' && e.key !== ' ') return
-                    e.preventDefault()
-                    e.stopPropagation()
-                    onNavigatePage?.(navUrl(l))
-                  }}
-                  className="relative group/line flex items-center gap-1 rounded px-1 py-0.5 hover:bg-accent transition-colors"
-                  title={onNavigatePage ? `Open ${l.label || l}` : undefined}
-                >
-                  <InlineEditableText
-                    value={l.label || l}
-                    placeholder="Nav Link"
-                    editable={canEdit && !usesAutoPageNav && !onNavigatePage}
-                    as="span"
-                    className="text-sm"
-                    style={{ color: navTextCol }}
-                    onCommit={v => {
-                      const links = [...(p.nav_links as any[] || [{ label: 'Home' }, { label: 'About' }, { label: 'Contact' }])]
-                      links[i] = { ...links[i], label: v }
-                      commitProp('nav_links', links)
-                    }}
-                  />
-                  {canEdit && !usesAutoPageNav && (
-                    <button type="button" title="Remove link"
-                      onClick={e => {
-                        e.stopPropagation()
-                        const links = [...(p.nav_links as any[] || [])]
-                        links.splice(i, 1)
-                        commitProp('nav_links', links)
-                      }}
-                      className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
-                    >×</button>
+                      <button type="button" aria-label="Close" title="Remove logo" type="button" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-xs font-bold text-red-600 hover:bg-white">
+              <X className="w-3 h-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
-              ))}
-              {canEdit && !usesAutoPageNav && (
-                <button type="button"
-                  onClick={e => {
-                    e.stopPropagation()
-                    const links = [...(p.nav_links as any[] || []), { label: 'New Link', url: '/' }]
+              )
+              : (
+                <div className="flex items-center gap-2">
+                  <InlineEditableText value={brandName} placeholder="Your Brand" editable={canEdit} as="span" onCommit={v => commitProp('brand', v)} />
+                  {canEdit && (
+                    <label title="Upload logo" className="cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-0.5 text-xs font-bold whitespace-nowrap">
+                      <Upload className="w-3 h-3" /> Logo
+                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                        const file = e.target.files?.[0]; e.target.value = ''
+                        if (!file || !siteId) return
+                        try {
+                          const saved = await websiteApi.uploadMedia(siteId, file)
+                          commitProp('brand_logo', saved.original_url)
+                        } catch { toast.error('Upload failed') }
+                      }} />
+                    </label>
+                  )}
+                </div>
+              )
+            }
+            </div>
+            {(p as any).tagline ? (
+              <div className="text-xs uppercase tracking-[0.18em] opacity-70 mt-0.5" style={{ color: navTextCol }}>
+                <InlineEditableText
+                  value={String((p as any).tagline)}
+                  placeholder="Tagline"
+                  editable={canEdit}
+                  as="span"
+                  onCommit={v => commitProp('tagline' as any, v)}
+                />
+              </div>
+            ) : null}
+          </div>
+        )
+
+        const navLinksBlock = (
+          <div className={cn(
+            'flex items-center gap-4 flex-wrap',
+            isNavCentered ? 'justify-center' : 'flex-1 justify-center',
+          )}>
+            {displayLinks.slice(0, 8).map((l: any, i: number) => (
+              <div
+                key={i}
+                role="button"
+                tabIndex={0}
+                onClick={e => {
+                  e.stopPropagation()
+                  onNavigatePage?.(navUrl(l))
+                }}
+                onKeyDown={e => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onNavigatePage?.(navUrl(l))
+                }}
+                className="relative group/line flex items-center gap-1 rounded px-1 py-0.5 hover:bg-accent transition-colors"
+                title={onNavigatePage ? `Open ${l.label || l}` : undefined}
+              >
+                <InlineEditableText
+                  value={l.label || l}
+                  placeholder="Nav Link"
+                  editable={canEdit && !usesAutoPageNav && !onNavigatePage}
+                  as="span"
+                  className="text-sm"
+                  style={{ color: navTextCol }}
+                  onCommit={v => {
+                    const links = [...(p.nav_links as any[] || [{ label: 'Home' }, { label: 'About' }, { label: 'Contact' }])]
+                    links[i] = { ...links[i], label: v }
                     commitProp('nav_links', links)
                   }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-primary hover:bg-accent border border-dashed border-primary/40"
-                ><Plus className="w-3 h-3" /> Link</button>
-              )}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {p.show_search && (
-                <button type="button" className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: navTextCol }} aria-label="Search">
-                  <Search className="w-5 h-5" />
-                </button>
-              )}
-              {p.show_cart && (
-                <button type="button" className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: navTextCol }} aria-label="Cart">
-                  <ShoppingBag className="w-5 h-5" />
-                </button>
-              )}
-              {(p.cta_label || canEdit) && (
-                <button style={{ backgroundColor: primary_color, borderRadius: r, color: '#fff' }} className="px-4 py-2 text-sm font-semibold whitespace-nowrap">
-                  <InlineEditableText value={(p.cta_label as string) || ''} placeholder="CTA" editable={canEdit} as="span" onCommit={v => commitProp('cta_label', v)} />
-                </button>
-              )}
-            </div>
+                />
+                {canEdit && !usesAutoPageNav && (
+                  <button type="button" title="Remove link"
+                    onClick={e => {
+                      e.stopPropagation()
+                      const links = [...(p.nav_links as any[] || [])]
+                      links.splice(i, 1)
+                      commitProp('nav_links', links)
+                    }}
+                    className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
+                  >×</button>
+                )}
+              </div>
+            ))}
+            {canEdit && !usesAutoPageNav && (
+              <button type="button"
+                onClick={e => {
+                  e.stopPropagation()
+                  const links = [...(p.nav_links as any[] || []), { label: 'New Link', url: '/' }]
+                  commitProp('nav_links', links)
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-primary hover:bg-accent border border-dashed border-primary/40"
+              ><Plus className="w-3 h-3" /> Link</button>
+            )}
+          </div>
+        )
+
+        const navActionsBlock = (
+          <div className="flex items-center gap-2 shrink-0">
+            {p.show_search && (
+              <button type="button" className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: navTextCol }} aria-label="Search">
+                <Search className="w-5 h-5" />
+              </button>
+            )}
+            {p.show_cart && (
+              <button type="button" className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: navTextCol }} aria-label="Cart">
+                <ShoppingBag className="w-5 h-5" />
+              </button>
+            )}
+            {(p.cta_label || canEdit) && (
+              <button
+                style={{
+                  backgroundColor: isNavTransparentCta ? primary_color : primary_color,
+                  borderRadius: r,
+                  color: '#fff',
+                  boxShadow: isNavTransparentCta ? `0 4px 14px ${primary_color}66` : undefined,
+                }}
+                className={cn(
+                  'text-sm font-semibold whitespace-nowrap',
+                  isNavCompact ? 'px-3 py-1.5' : 'px-4 py-2',
+                  isNavTransparentCta && 'ring-2 ring-white/30',
+                )}
+              >
+                <InlineEditableText value={(p.cta_label as string) || ''} placeholder="CTA" editable={canEdit} as="span" onCommit={v => commitProp('cta_label', v)} />
+              </button>
+            )}
+          </div>
+        )
+
+        return (
+          <div
+            className={cn(
+              'relative gap-4',
+              isNavCentered ? 'flex flex-col items-center text-center' : 'flex items-center justify-between',
+              isNavCompact ? 'py-1.5 px-4' : 'py-3 px-6',
+              isNavElevated && 'mx-4 mt-2 rounded-xl shadow-lg',
+              isNavGlass && 'backdrop-blur-md',
+            )}
+            style={{
+              backgroundColor: navBg === 'transparent' ? undefined : navBg,
+              borderBottom: isNavElevated ? undefined : navBorderBottom,
+            }}
+          >
+            {isNavCentered ? (
+              <>
+                {navLogoBlock}
+                {navLinksBlock}
+                {navActionsBlock}
+              </>
+            ) : (
+              <>
+                {navLogoBlock}
+                {navLinksBlock}
+                {navActionsBlock}
+              </>
+            )}
             {usesAutoPageNav && !suppressLiveBadges && (
               <div className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Synced with site pages" />
             )}
@@ -10037,6 +10206,20 @@ export default function WebsiteBuilder() {
   useEffect(() => { blocksDirtyRef.current = blocksDirty }, [blocksDirty])
   useEffect(() => { styleDirtyRef.current = styleDirty }, [styleDirty])
 
+  /** Apply block map to canvas + ref immediately; optionally mirror into React Query site cache. */
+  const commitLocalBlocks = useCallback((
+    next: Record<string, WebsiteBlock[]>,
+    opts?: { syncQuery?: boolean },
+  ) => {
+    localBlocksRef.current = next
+    setLocalBlocks(next)
+    if (opts?.syncQuery !== false && siteId && site) {
+      queryClient.setQueryData<WebsiteSite>(['websites', siteId], old =>
+        old ? syncSiteQueryBlocks(old, next) : old,
+      )
+    }
+  }, [siteId, site, queryClient])
+
   useEffect(() => {
     if (!siteId) {
       setAppliedStoreIds([])
@@ -10064,6 +10247,10 @@ export default function WebsiteBuilder() {
 
   // Track pages locally too (for adds/deletes without refresh)
   const [localPages, setLocalPages] = useState<WebsitePage[]>([])
+  const localPagesRef = useRef<WebsitePage[]>([])
+  useEffect(() => {
+    localPagesRef.current = localPages
+  }, [localPages])
 
   useEffect(() => {
     if (!siteId) return
@@ -10222,51 +10409,60 @@ export default function WebsiteBuilder() {
         setLocalStyle({ ...DEFAULT_STYLE, ...(site.style_config as any) })
         if (pageStructureReplaced) setStyleDirty(false)
       }
-      setLocalPages(site.pages)
-      if (!blocksDirtyRef.current || pageStructureReplaced) {
-        const skipHydrate = skipServerHydrateRef.current > 0
-          && Date.now() - skipServerHydrateRef.current < 8000
-        if (!skipHydrate || pageStructureReplaced) {
-          navSyncBootRef.current = true
-          pagesNavKeyRef.current = pagesNavKey(site.pages)
-          setLocalBlocks(() => {
-            const next: Record<string, WebsiteBlock[]> = {}
-            site.pages.forEach(page => {
-              const serverBlocks = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
-              next[page.id] = serverBlocks
-            })
-            const normalized = normalizeAllStructureBlocks(next, site.pages)
-            return syncNavLinksInBlockMap(normalized, site.pages)
-          })
+      // Merge server pages with local-only pages (e.g. just created) so refetches cannot drop tabs.
+      setLocalPages(prev => {
+        const mergedMap = new Map<string, WebsitePage>()
+        for (const p of site.pages) mergedMap.set(p.id, p)
+        for (const p of prev) {
+          if (!mergedMap.has(p.id)) mergedMap.set(p.id, p)
         }
-        if (pageStructureReplaced) {
-          setBlocksDirty(false)
-          blocksDirtyRef.current = false
-          if (autoSaveTimerRef.current) {
-            clearTimeout(autoSaveTimerRef.current)
-            autoSaveTimerRef.current = null
-          }
-          setAutoSaveStatus('synced')
-          historyStack.current = [
-            JSON.parse(JSON.stringify(
-              syncNavLinksInBlockMap(
-                normalizeAllStructureBlocks(
-                  Object.fromEntries(
-                    site.pages.map(page => [
-                      page.id,
-                      page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order),
-                    ]),
-                  ),
-                  site.pages,
+        const merged = [...mergedMap.values()].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        localPagesRef.current = merged
+        return merged
+      })
+      const skipHydrate = skipServerHydrateRef.current > 0
+        && Date.now() - skipServerHydrateRef.current < SKIP_SERVER_HYDRATE_MS
+      const shouldHydrateBlocks = !skipHydrate && (!blocksDirtyRef.current || pageStructureReplaced)
+      if (shouldHydrateBlocks) {
+        navSyncBootRef.current = true
+        pagesNavKeyRef.current = pagesNavKey(site.pages)
+        setLocalBlocks(() => {
+          const next: Record<string, WebsiteBlock[]> = {}
+          site.pages.forEach(page => {
+            const serverBlocks = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
+            next[page.id] = serverBlocks
+          })
+          const normalized = normalizeAllStructureBlocks(next, site.pages)
+          return syncNavLinksInBlockMap(normalized, site.pages)
+        })
+      }
+      if (pageStructureReplaced) {
+        setBlocksDirty(false)
+        blocksDirtyRef.current = false
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current)
+          autoSaveTimerRef.current = null
+        }
+        setAutoSaveStatus('synced')
+        historyStack.current = [
+          JSON.parse(JSON.stringify(
+            syncNavLinksInBlockMap(
+              normalizeAllStructureBlocks(
+                Object.fromEntries(
+                  site.pages.map(page => [
+                    page.id,
+                    page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order),
+                  ]),
                 ),
                 site.pages,
               ),
-            )),
-          ]
-          historyIndex.current = 0
-          setCanUndo(false)
-          setCanRedo(false)
-        }
+              site.pages,
+            ),
+          )),
+        ]
+        historyIndex.current = 0
+        setCanUndo(false)
+        setCanRedo(false)
       }
       const ids = new Set(site.pages.map(p => p.id))
       setActivePageId(cur => {
@@ -10541,7 +10737,7 @@ export default function WebsiteBuilder() {
   ) => {
     if (!siteId) return
     const updates: { pageId: string; tempId?: string; saved?: WebsiteBlock }[] = []
-    await Promise.all(localPages.map(async page => {
+    await Promise.all(localPagesRef.current.map(async page => {
       const block = (blocksSnapshot[page.id] || []).find(b => b.block_type === def.type)
       if (!block) return
       if (block.id.startsWith('temp-')) {
@@ -10570,15 +10766,25 @@ export default function WebsiteBuilder() {
           if (!tempId || !saved) continue
           next[pageId] = (next[pageId] || []).map(b => b.id === tempId ? saved : b)
         }
+        localBlocksRef.current = next
+        if (siteId && site) {
+          queryClient.setQueryData<WebsiteSite>(['websites', siteId], old =>
+            old ? syncSiteQueryBlocks(old, next) : old,
+          )
+        }
         return next
       })
+    } else if (siteId && site) {
+      queryClient.setQueryData<WebsiteSite>(['websites', siteId], old =>
+        old ? syncSiteQueryBlocks(old, blocksSnapshot) : old,
+      )
     }
     skipServerHydrateRef.current = Date.now()
     setBlocksDirty(false)
     blocksDirtyRef.current = false
     setLastSavedAt(new Date())
     setAutoSaveStatus('synced')
-  }, [siteId, localPages])
+  }, [siteId, site, queryClient])
 
   const persistSingleBlockPropsNow = useCallback(async (
     pageId: string,
@@ -10627,23 +10833,45 @@ export default function WebsiteBuilder() {
     propsOverride: Partial<BlockProps>,
     imageCategoryId?: string,
   ) => {
-    if (!activePageId || !siteId) return
+    if (!activePageId || !siteId) return false
     const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
+    const prev = localBlocksRef.current
+    const pages = localPagesRef.current
 
+    skipServerHydrateRef.current = Date.now()
+    setBlocksDirty(true)
+    blocksDirtyRef.current = true
+
+    const structureHit = isStructure
+      ? findStructureBlockInMap(prev, pages, def.type, blockId)
+      : undefined
     let targetPageId = activePageId
     let targetBlock: WebsiteBlock | undefined
-    for (const page of localPages) {
-      const found = (localBlocks[page.id] || []).find(b => b.id === blockId)
-      if (found) {
-        targetBlock = found
-        targetPageId = page.id
-        break
+    let resolvedBlockId = blockId
+
+    if (isStructure && structureHit) {
+      targetBlock = structureHit.block
+      targetPageId = structureHit.pageId
+      resolvedBlockId = structureHit.block.id
+    } else {
+      for (const page of pages) {
+        const found = (prev[page.id] || []).find(b => b.id === blockId)
+        if (found) {
+          targetBlock = found
+          targetPageId = page.id
+          break
+        }
       }
     }
-    if (!targetBlock || targetBlock.block_type !== def.type) return
+
+    if (!targetBlock || targetBlock.block_type !== def.type) {
+      setBlocksDirty(false)
+      blocksDirtyRef.current = false
+      return false
+    }
 
     const resolvedCategoryId = imageCategoryId || suggestImageCategoryForBlock(def.category, site)
-    const nextProps = finalizeCategoryLayoutProps(
+    const finalProps = finalizeCategoryLayoutProps(
       def.type,
       applyCategoryImagesToBlockProps(
         def.type,
@@ -10658,31 +10886,40 @@ export default function WebsiteBuilder() {
         { forceRefresh: true },
       ),
     ) as BlockProps
-    const finalProps: BlockProps = {
-      ...nextProps,
+    const mergedFinalProps: BlockProps = {
+      ...finalProps,
       _image_category_id: resolvedCategoryId,
     }
 
-    let nextMap: Record<string, WebsiteBlock[]> = { ...localBlocks }
+    let nextMap: Record<string, WebsiteBlock[]>
     if (isStructure) {
-      for (const page of localPages) {
-        nextMap[page.id] = (nextMap[page.id] || []).map(b =>
-          b.block_type === def.type
-            ? { ...b, props: finalProps, updated_at: new Date().toISOString() }
-            : b,
-        )
-      }
-    } else {
-      nextMap[targetPageId] = (nextMap[targetPageId] || []).map(b =>
-        b.id === blockId ? { ...b, props: finalProps, updated_at: new Date().toISOString() } : b,
+      nextMap = applyStructureLayoutToAllPages(
+        prev,
+        pages,
+        def.type,
+        def,
+        mergedFinalProps,
+        activePageId,
+        targetBlock,
       )
+    } else {
+      nextMap = {
+        ...prev,
+        [targetPageId]: (prev[targetPageId] || []).map(b =>
+          b.id === resolvedBlockId
+            ? { ...b, props: mergedFinalProps, updated_at: new Date().toISOString() }
+            : b,
+        ),
+      }
     }
 
-    setLocalBlocks(nextMap)
-    pushHistory(nextMap)
     const focusId = isStructure
-      ? (nextMap[activePageId] || []).find(b => b.block_type === def.type)?.id ?? blockId
-      : blockId
+      ? (nextMap[activePageId] || []).find(b => b.block_type === def.type)?.id ?? resolvedBlockId
+      : resolvedBlockId
+
+    commitLocalBlocks(nextMap)
+
+    pushHistory(nextMap)
     setSelectedBlockId(focusId)
     setRightPanel('props')
     setRightCollapsed(false)
@@ -10693,9 +10930,9 @@ export default function WebsiteBuilder() {
 
     try {
       if (isStructure) {
-        await persistStructureLayoutNow(def, finalProps, nextMap)
+        await persistStructureLayoutNow(def, mergedFinalProps, nextMap)
       } else {
-        await persistSingleBlockPropsNow(targetPageId, blockId, finalProps, nextMap)
+        await persistSingleBlockPropsNow(targetPageId, resolvedBlockId, mergedFinalProps, nextMap)
       }
     } catch {
       setBlocksDirty(true)
@@ -10705,9 +10942,11 @@ export default function WebsiteBuilder() {
     } finally {
       setSavingBlockId(null)
     }
+    return true
   }, [
-    activePageId, siteId, localPages, localBlocks, site, layoutThemeFallback,
+    activePageId, siteId, site, layoutThemeFallback,
     scrollCanvasToBlock, pushHistory, persistStructureLayoutNow, persistSingleBlockPropsNow,
+    commitLocalBlocks,
   ])
 
   const handleAddBlock = useCallback(async (
@@ -10717,14 +10956,16 @@ export default function WebsiteBuilder() {
     imageCategoryId?: string,
   ) => {
     if (!activePageId) return
-    const currentBlocks = (localBlocks[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    const blocksMap = localBlocksRef.current
+    const pages = localPagesRef.current
+    const currentBlocks = (blocksMap[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
     const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
 
     if (isStructure) {
       const existingOnPage = currentBlocks.find(b => b.block_type === def.type)
       const existingAnyPage = existingOnPage ?? (() => {
-        for (const page of localPages) {
-          const hit = (localBlocks[page.id] || []).find(b => b.block_type === def.type)
+        for (const page of pages) {
+          const hit = (blocksMap[page.id] || []).find(b => b.block_type === def.type)
           if (hit) return hit
         }
         return undefined
@@ -10737,20 +10978,21 @@ export default function WebsiteBuilder() {
 
       const relocated = relocateExistingStructureBlock(currentBlocks, def.type, insertAtIdx)
       if (relocated) {
-        let nextMap: Record<string, WebsiteBlock[]> = { ...localBlocks, [activePageId]: relocated }
-        for (const page of localPages) {
+        let nextMap: Record<string, WebsiteBlock[]> = { ...blocksMap, [activePageId]: relocated }
+        for (const page of pages) {
           if (page.id === activePageId) continue
           const pb = (nextMap[page.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
           const pageRelocated = relocateExistingStructureBlock(pb, def.type, -1)
           if (pageRelocated) nextMap = { ...nextMap, [page.id]: pageRelocated }
         }
-        setLocalBlocks(nextMap)
+        commitLocalBlocks(nextMap)
         pushHistory(nextMap)
         const existing = relocated.find(b => b.block_type === def.type)!
         setSelectedBlockId(existing.id)
         setRightPanel('props')
         setRightCollapsed(false)
         setBlocksDirty(true)
+        blocksDirtyRef.current = true
         toast.success(`${def.label} moved to the ${def.type === 'footer' ? 'bottom' : 'top'}`)
         return
       }
@@ -10797,19 +11039,29 @@ export default function WebsiteBuilder() {
     }
 
     let pageBlocks = insertBlockAtIndex(currentBlocks, tempBlock, def.type, insertAtIdx)
-    let next = { ...localBlocks, [activePageId]: pageBlocks }
+    let next = { ...blocksMap, [activePageId]: pageBlocks }
     if (isStructure) {
-      next = ensureStructureBlocksOnAllPages(next, localPages, tempBlock, def.type, activePageId)
+      next = applyStructureLayoutToAllPages(
+        next,
+        pages,
+        def.type,
+        def,
+        initialProps,
+        activePageId,
+        tempBlock,
+      )
       pageBlocks = next[activePageId] || pageBlocks
     }
 
+    skipServerHydrateRef.current = Date.now()
+    setBlocksDirty(true)
+    blocksDirtyRef.current = true
     // 1. Immediately show in canvas + push history
-    setLocalBlocks(next)
+    commitLocalBlocks(next)
     pushHistory(next)
     setSelectedBlockId(tempId)
     setRightPanel('props')
     setRightCollapsed(false)
-    setBlocksDirty(true)
     scrollCanvasToBlock(tempId)
 
     // 2. Persist in background (active page first; clones on other pages save with Save/Apply)
@@ -10826,14 +11078,20 @@ export default function WebsiteBuilder() {
           [activePageId]: (prev[activePageId] || []).map(b => b.id === tempId ? saved : b),
         }
         if (isStructure) {
-          updated = ensureStructureBlocksOnAllPages(updated, localPages, saved, def.type, activePageId)
+          updated = ensureStructureBlocksOnAllPages(updated, localPagesRef.current, saved, def.type)
+        }
+        localBlocksRef.current = updated
+        if (site) {
+          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
+            old ? syncSiteQueryBlocks(old, updated) : old,
+          )
         }
         return updated
       })
       setSelectedBlockId(saved.id)
       scrollCanvasToBlock(saved.id)
       toast.success(
-        isStructure && localPages.length > 1
+        isStructure && pages.length > 1
           ? `${def.label} added — synced to all pages`
           : `${def.label} added`,
       )
@@ -10846,20 +11104,37 @@ export default function WebsiteBuilder() {
       setSelectedBlockId(null)
       toast.error('Failed to add block')
     }
-  }, [activePageId, localBlocks, localPages, siteId, pushHistory, site, layoutThemeFallback, scrollCanvasToBlock, applyLayoutToBlock])
+  }, [activePageId, siteId, site, pushHistory, layoutThemeFallback, scrollCanvasToBlock, applyLayoutToBlock, commitLocalBlocks, queryClient])
 
   const openSectionLayoutPicker = useCallback((def: BlockDef, insertAtIdx = -1, targetBlockId?: string) => {
-    setSectionLayoutPicker({ def, insertAtIdx, targetBlockId })
-  }, [])
+    let resolvedTargetId = targetBlockId
+    if (!resolvedTargetId && activePageId && selectedBlockId) {
+      const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
+      if (selected?.block_type === def.type) resolvedTargetId = selectedBlockId
+    }
+    if (!resolvedTargetId && GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)) {
+      resolvedTargetId = findStructureBlockInMap(localBlocksRef.current, localPagesRef.current, def.type)?.block.id
+    }
+    setSectionLayoutPicker({ def, insertAtIdx, targetBlockId: resolvedTargetId })
+  }, [activePageId, selectedBlockId])
 
   const shouldOpenLayoutPickerForBlock = useCallback((def: BlockDef) =>
-    getSectionLayoutOptions(def.type).length > 1 && !GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type),
+    getSectionLayoutOptions(def.type).length > 1,
   [])
 
   const layoutPickerCurrentProps = useMemo(() => {
     if (!sectionLayoutPicker || !activePageId) return undefined
     const blockId = sectionLayoutPicker.targetBlockId
       ?? ((localBlocks[activePageId] || []).find(b => b.id === selectedBlockId && b.block_type === sectionLayoutPicker.def.type)?.id)
+      ?? (GLOBAL_STRUCTURE_BLOCK_TYPES.has(sectionLayoutPicker.def.type)
+        ? (() => {
+            for (const page of localPages) {
+              const hit = (localBlocks[page.id] || []).find(b => b.block_type === sectionLayoutPicker.def.type)
+              if (hit) return hit.id
+            }
+            return undefined
+          })()
+        : undefined)
     if (!blockId) return undefined
     for (const page of localPages) {
       const block = (localBlocks[page.id] || []).find(b => b.id === blockId)
@@ -10884,21 +11159,36 @@ export default function WebsiteBuilder() {
     const { def, insertAtIdx, targetBlockId } = sectionLayoutPicker
     setSectionLayoutPicker(null)
 
-    if (targetBlockId) {
-      await applyLayoutToBlock(targetBlockId, def, propsOverride, imageCategoryId)
+    if (Object.keys(propsOverride).length === 0) {
+      await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId)
       return
     }
 
-    if (activePageId && selectedBlockId && Object.keys(propsOverride).length > 0) {
-      const selected = (localBlocks[activePageId] || []).find(b => b.id === selectedBlockId)
-      if (selected?.block_type === def.type) {
-        await applyLayoutToBlock(selectedBlockId, def, propsOverride, imageCategoryId)
-        return
-      }
+    const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
+    const pages = localPagesRef.current
+    const structureHit = isStructure
+      ? findStructureBlockInMap(localBlocksRef.current, pages, def.type, targetBlockId)
+      : undefined
+
+    let applyTargetId = targetBlockId
+    if (!applyTargetId && activePageId && selectedBlockId) {
+      const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
+      if (selected?.block_type === def.type) applyTargetId = selectedBlockId
+    }
+    if (!applyTargetId && structureHit) applyTargetId = structureHit.block.id
+
+    if (applyTargetId) {
+      const applied = await applyLayoutToBlock(applyTargetId, def, propsOverride, imageCategoryId)
+      if (applied) return
+    }
+
+    if (isStructure) {
+      await handleAddBlock(def, -1, propsOverride, imageCategoryId)
+      return
     }
 
     await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId)
-  }, [sectionLayoutPicker, handleAddBlock, applyLayoutToBlock, activePageId, selectedBlockId, localBlocks])
+  }, [sectionLayoutPicker, handleAddBlock, applyLayoutToBlock, activePageId, selectedBlockId])
 
   // Preview-only update — instant canvas update, no API call (used while typing)
   const handlePreviewBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
@@ -11056,37 +11346,95 @@ export default function WebsiteBuilder() {
     if (file) await uploadImageFileToSelection(file)
   }, [uploadImageFileToSelection])
 
-  // Delete block — optimistic, with arm-then-confirm UX
-  // First call arms the confirmation; second call (or context-menu path with
-  // `force=true`) actually deletes. The arm auto-expires after 2.5 s.
-  const handleDeleteBlock = useCallback(async (blockId: string, force = false) => {
-    if (!activePageId) return
+  // Delete block — optimistic. Canvas uses arm-then-confirm; sidebar/context use force.
+  const handleDeleteBlock = useCallback(async (
+    blockId: string,
+    options?: { pageId?: string; force?: boolean },
+  ) => {
+    const force = options?.force === true
+    const pages = localPagesRef.current
+    const prev = localBlocksRef.current
+
+    // Resolve which page owns this block.
+    let pageId = options?.pageId ?? activePageId ?? undefined
+    if (!pageId) {
+      for (const page of pages) {
+        if ((prev[page.id] || []).some(b => b.id === blockId)) {
+          pageId = page.id
+          break
+        }
+      }
+    }
+    if (!pageId) return
+
+    const pageBlocks = prev[pageId] || []
+    const target = pageBlocks.find(b => b.id === blockId)
+      ?? pages.flatMap(p => prev[p.id] || []).find(b => b.id === blockId)
+    if (!target) return
 
     if (!force && armedDeleteId !== blockId) {
-      // Arm: show red confirm state on the button
       if (armedDeleteTimer.current) clearTimeout(armedDeleteTimer.current)
       setArmedDeleteId(blockId)
       armedDeleteTimer.current = setTimeout(() => setArmedDeleteId(null), 2500)
       return
     }
 
-    // Confirmed — actually delete
     if (armedDeleteTimer.current) clearTimeout(armedDeleteTimer.current)
     setArmedDeleteId(null)
 
-    const backup = localBlocks[activePageId] || []
-    pushHistory(localBlocks)
-    const next = { ...localBlocks, [activePageId]: backup.filter(b => b.id !== blockId) }
-    setLocalBlocks(next)
+    const wasDirtyBeforeDelete = blocksDirtyRef.current
+    const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(target.block_type)
+    const backup = JSON.parse(JSON.stringify(prev)) as Record<string, WebsiteBlock[]>
+
+    let nextMap: Record<string, WebsiteBlock[]> = { ...prev }
+    if (isStructure) {
+      for (const page of pages) {
+        nextMap[page.id] = (nextMap[page.id] || []).filter(b => b.block_type !== target.block_type)
+      }
+    } else {
+      nextMap[pageId] = (nextMap[pageId] || []).filter(b => b.id !== blockId)
+    }
+
+    skipServerHydrateRef.current = Date.now()
+    setBlocksDirty(true)
+    blocksDirtyRef.current = true
+    commitLocalBlocks(nextMap)
+    pushHistory(nextMap)
     if (selectedBlockId === blockId) setSelectedBlockId(null)
+
+    const deleteJobs: { pageId: string; blockId: string }[] = []
+    if (isStructure) {
+      for (const page of pages) {
+        const hit = (backup[page.id] || []).find(b => b.block_type === target.block_type)
+        if (hit && !hit.id.startsWith('temp-')) deleteJobs.push({ pageId: page.id, blockId: hit.id })
+      }
+    } else if (!blockId.startsWith('temp-')) {
+      deleteJobs.push({ pageId, blockId })
+    }
+
     try {
-      await websiteApi.deleteBlock(siteId!, activePageId, blockId)
-      toast.success('Block deleted — Ctrl+Z to undo')
+      await Promise.all(deleteJobs.map(({ pageId: pid, blockId: bid }) =>
+        websiteApi.deleteBlock(siteId!, pid, bid),
+      ))
+      skipServerHydrateRef.current = Date.now()
+      if (site) {
+        queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
+          old ? syncSiteQueryBlocks(old, nextMap) : old,
+        )
+      }
+      if (!wasDirtyBeforeDelete) {
+        setBlocksDirty(false)
+        blocksDirtyRef.current = false
+      }
+      toast.success(isStructure ? `${target.label || target.block_type} removed from all pages` : 'Section deleted — Ctrl+Z to undo')
     } catch {
-      setLocalBlocks(prev => ({ ...prev, [activePageId]: backup }))
+      commitLocalBlocks(backup)
+      pushHistory(backup)
+      setBlocksDirty(true)
+      blocksDirtyRef.current = true
       toast.error('Delete failed — try again')
     }
-  }, [activePageId, localBlocks, siteId, selectedBlockId, armedDeleteId])
+  }, [activePageId, siteId, site, selectedBlockId, armedDeleteId, commitLocalBlocks, pushHistory, queryClient])
 
   // Duplicate block — optimistic
   const handleDuplicateBlock = useCallback(async (blockId: string) => {
@@ -11317,7 +11665,7 @@ export default function WebsiteBuilder() {
         icon: Trash2,
         shortcut: 'Del',
         danger: true,
-        onSelect: () => handleDeleteBlock(block.id, true),
+        onSelect: () => handleDeleteBlock(block.id, { force: true }),
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
@@ -11756,14 +12104,10 @@ export default function WebsiteBuilder() {
     if (!activePageId) return
     const def = BLOCK_CATALOG.find(d => d.type === blockType)
     if (!def) return
-    if (GLOBAL_STRUCTURE_BLOCK_TYPES.has(blockType)) {
-      void handleAddBlock(def, -1)
-      return
-    }
     const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
     const insertIdx = currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
     openSectionLayoutPicker(def, insertIdx)
-  }, [activePageId, activeBlocks, selectedBlockId, handleAddBlock, openSectionLayoutPicker])
+  }, [activePageId, activeBlocks, selectedBlockId, openSectionLayoutPicker])
 
   // Keep keyboard-shortcut ref in sync with latest handlers (avoids TDZ on init)
   kbHandlersRef.current.handleDeleteBlock = handleDeleteBlock
@@ -11773,20 +12117,38 @@ export default function WebsiteBuilder() {
   const persistAllBlocksToServer = useCallback(async () => {
     if (!siteId) return
     const replacements: { pageId: string; tempId: string; saved: WebsiteBlock }[] = []
-    const blocksToPersist = syncNavLinksInBlockMap(localBlocks, sortedSitePages)
+    const pages = [...localPagesRef.current].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const blocksToPersist = syncNavLinksInBlockMap(localBlocksRef.current, pages)
 
-    // Persist each page's blocks concurrently; within a page blocks are batched
-    // in parallel too (creates and updates fire together, then reorder once).
-    await Promise.all(sortedSitePages.map(async (page) => {
+    await Promise.all(pages.map(async (page) => {
       const blocks = (blocksToPersist[page.id] || []).map((b, i) => ({ ...b, sort_order: i }))
       if (!blocks.length) return
 
       const pageReplacements: { tempId: string; saved: WebsiteBlock }[] = []
       const persistedBlocks: WebsiteBlock[] = []
 
-      // Fire all creates + updates in parallel
       await Promise.all(blocks.map(async (b) => {
         if (b.id.startsWith('temp-')) {
+          const existingSameType = GLOBAL_STRUCTURE_BLOCK_TYPES.has(b.block_type)
+            ? blocks.find(x => x.block_type === b.block_type && !x.id.startsWith('temp-') && x.id !== b.id)
+            : undefined
+          if (existingSameType) {
+            await websiteApi.updateBlock(siteId, page.id, existingSameType.id, {
+              props: b.props,
+              style_overrides: b.style_overrides || {},
+              label: b.label,
+              visible: b.visible,
+              visible_on_mobile: b.visible_on_mobile,
+              visible_on_tablet: b.visible_on_tablet,
+              visible_on_desktop: b.visible_on_desktop,
+              animation: b.animation,
+              animation_delay: b.animation_delay,
+              sort_order: b.sort_order,
+            } as any)
+            pageReplacements.push({ tempId: b.id, saved: { ...existingSameType, ...b, id: existingSameType.id } })
+            persistedBlocks.push({ ...existingSameType, ...b, id: existingSameType.id })
+            return
+          }
           const saved = await websiteApi.createBlock(siteId, page.id, {
             block_type: b.block_type,
             label: b.label,
@@ -11819,9 +12181,6 @@ export default function WebsiteBuilder() {
         }
       }))
 
-      // Reorder after all creates/updates for this page have resolved.
-      // Sort by the block's own sort_order so the order is deterministic
-      // regardless of which Promise resolved first.
       if (persistedBlocks.length) {
         const ordered = [...persistedBlocks].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         await websiteApi.reorderBlocks(
@@ -11845,12 +12204,21 @@ export default function WebsiteBuilder() {
             [pageId]: (next[pageId] || []).map(b => b.id === tempId ? saved : b),
           }
         }
+        localBlocksRef.current = next
         return next
       })
       const selectedReplacement = replacements.find(r => r.tempId === selectedBlockId)
       if (selectedReplacement) setSelectedBlockId(selectedReplacement.saved.id)
     }
-  }, [siteId, sortedSitePages, localBlocks, selectedBlockId])
+
+    skipServerHydrateRef.current = Date.now()
+    if (site) {
+      const snapshot = localBlocksRef.current
+      queryClient.setQueryData<WebsiteSite>(['websites', siteId], old =>
+        old ? syncSiteQueryBlocks(old, snapshot) : old,
+      )
+    }
+  }, [siteId, site, selectedBlockId, queryClient])
 
   const persistAllPagesToServer = useCallback(async () => {
     if (!siteId) return
@@ -11892,6 +12260,9 @@ export default function WebsiteBuilder() {
       if (saveStyle) await websiteApi.updateSite(siteId, { style_config: localStyle as any })
       setStyleDirty(false)
       setBlocksDirty(false)
+      blocksDirtyRef.current = false
+      styleDirtyRef.current = false
+      skipServerHydrateRef.current = Date.now()
       setLastSavedAt(new Date())
       setAutoSaveStatus('synced')
       if (!opts?.silent) {
@@ -12043,15 +12414,31 @@ export default function WebsiteBuilder() {
         if (!title?.trim()) return
         const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
         try {
-          const page = await websiteApi.createPage(siteId!, { title, slug, page_type: 'custom', sort_order: localPages.length } as any)
-          setLocalPages(prev => [...prev, page])
-          setLocalBlocks(prev => ({ ...prev, [page.id]: [] }))
+          const page = await websiteApi.createPage(siteId!, { title, slug, page_type: 'custom', sort_order: localPagesRef.current.length } as any)
+          skipServerHydrateRef.current = Date.now()
+          setBlocksDirty(true)
+          blocksDirtyRef.current = true
+          const nextPages = [...localPagesRef.current, page]
+          localPagesRef.current = nextPages
+          setLocalPages(nextPages)
+          const seededBlocks = seedStructureBlocksForNewPage(localBlocksRef.current, nextPages, page.id)
+          const nextBlocks = { ...localBlocksRef.current, [page.id]: seededBlocks }
+          commitLocalBlocks(nextBlocks)
+          if (site) {
+            queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old => {
+              if (!old) return old
+              return {
+                ...old,
+                pages: [...old.pages, { ...page, blocks: seededBlocks }],
+              }
+            })
+          }
           setActivePageId(page.id)
           toast.success('Page created')
         } catch { toast.error('Failed to create page') }
       },
     })
-  }, [siteId, localPages, openTextPrompt])
+  }, [siteId, site, openTextPrompt, commitLocalBlocks, queryClient])
 
   // Delete page
   const handleDeletePage = useCallback((pageId: string, pageTitle: string) => {
@@ -13036,7 +13423,7 @@ export default function WebsiteBuilder() {
                                       <button type="button" onClick={() => handleMoveBlockOnPage(page.id, block.id, 'down')} className="p-0.5 hover:bg-gray-100 rounded" title="Move down">
                                         <ChevronDown className="w-3 h-3 text-gray-400" />
                                       </button>
-                                      <button type="button" onClick={() => handleDeleteBlock(block.id)} className="p-0.5 hover:bg-red-50 rounded" title="Remove">
+                                      <button type="button" onClick={() => handleDeleteBlock(block.id, { pageId: page.id, force: true })} className="p-0.5 hover:bg-red-50 rounded" title="Remove section">
                                         <Trash2 className="w-3 h-3 text-red-400" />
                                       </button>
                                     </div>
@@ -13680,6 +14067,7 @@ export default function WebsiteBuilder() {
                       {/* Canvas preview — offset top padding when design bar is showing */}
                       <div style={selectedBlockId === block.id ? { paddingTop: 48 } : undefined}>
                         <BlockPreview
+                          key={`${block.id}-${block.updated_at}-${structureLayoutFingerprint(block.props as Record<string, unknown>)}`}
                           block={block}
                           style={canvasStyle}
                           isSelected={selectedBlockId === block.id}
