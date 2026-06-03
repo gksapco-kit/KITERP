@@ -1,4 +1,5 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { imgUrl } from '@/lib/utils'
 
 interface FeatureItem { icon?: string; title: string; desc?: string; description?: string; image_url?: string }
 
@@ -28,7 +29,7 @@ export default function FeaturesBlock({ style, props, blockType }: Props) {
             </div>
             <div className={`${i % 2 === 1 ? 'lg:order-1' : ''}`}>
               {feature.image_url ? (
-                <img src={feature.image_url} alt={feature.title} className="w-full rounded-2xl shadow-lg object-cover aspect-video" loading="lazy" />
+                <img src={imgUrl(feature.image_url)} alt={feature.title} className="w-full rounded-2xl shadow-lg object-cover aspect-video" loading="lazy" />
               ) : (
                 <div className="w-full aspect-video rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${style.primary_color}10` }}>
                   <span className="text-gray-400">Feature Image</span>

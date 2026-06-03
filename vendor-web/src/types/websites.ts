@@ -279,6 +279,11 @@ export interface AIGenerateSiteRequest {
   pages?: string[]
   include_blog?: boolean
   include_pricing?: boolean
+  image_category?: string
+  selling_mode?: string
+  site_name?: string
+  business_type?: string
+  setup_features?: string[]
 }
 
 export interface AIGenerateSiteResponse {

@@ -1,0 +1,279 @@
+import type { StyleConfig } from '@/types/websites'
+
+/** Maps guided-setup business type → gallery image pack used for starter layouts. */
+export const BUSINESS_TYPE_IMAGE_CATEGORY: Record<string, string> = {
+  retail: 'store',
+  services: 'shop',
+  restaurant: 'catering-service',
+  fashion: 'shop',
+  electronics: 'electronics',
+  salon: 'beauty',
+  clinic: 'medical-equipment-store',
+  consulting: 'book-store',
+}
+
+export function imageCategoryForBusinessType(businessTypeId: string): string {
+  return BUSINESS_TYPE_IMAGE_CATEGORY[businessTypeId] ?? 'shop'
+}
+
+/** Checkbox options shown in the create-website wizard. */
+export type SetupFeatureId =
+  | 'homepage_copy'
+  | 'mobile_layout'
+  | 'products_sections'
+  | 'services_sections'
+  | 'reviews_trust'
+  | 'contact_form'
+  | 'commerce_blocks'
+  | 'seo_content'
+  | 'publish_checklist'
+  | 'about_page'
+  | 'services_page'
+  | 'pricing_page'
+  | 'blog_page'
+  | 'booking_blocks'
+  | 'menu_gallery'
+
+export interface SetupFeatureOption {
+  id: SetupFeatureId
+  label: string
+  description: string
+  /** Shown in wizard; some options are always on and non-toggleable. */
+  locked?: boolean
+}
+
+const ALL_SETUP_FEATURES: SetupFeatureOption[] = [
+  { id: 'homepage_copy', label: 'Homepage copy', description: 'Hero, headlines, and call-to-action text', locked: true },
+  { id: 'mobile_layout', label: 'Mobile-friendly layout', description: 'Responsive sections on phone and tablet', locked: true },
+  { id: 'products_sections', label: 'Products sections', description: 'Category cards and product showcase blocks' },
+  { id: 'services_sections', label: 'Services sections', description: 'Service cards with descriptions and icons' },
+  { id: 'reviews_trust', label: 'Reviews / trust blocks', description: 'Testimonials and social proof on the homepage' },
+  { id: 'contact_form', label: 'Contact or lead form', description: 'Contact page with inquiry form and CTA' },
+  { id: 'commerce_blocks', label: 'Cart or booking blocks', description: 'Shopping cart, checkout, or booking widgets' },
+  { id: 'seo_content', label: 'SEO starter content', description: 'Page titles and meta descriptions', locked: true },
+  { id: 'publish_checklist', label: 'Publish checklist', description: 'Go-live steps inside the builder', locked: true },
+  { id: 'about_page', label: 'About page', description: 'Company story, team, and brand message' },
+  { id: 'services_page', label: 'Services page', description: 'Dedicated page listing all services' },
+  { id: 'pricing_page', label: 'Pricing page', description: 'Plans, packages, and pricing tables' },
+  { id: 'blog_page', label: 'Blog / insights page', description: 'Articles and news grid layout' },
+  { id: 'booking_blocks', label: 'Online booking widget', description: 'Appointment scheduling on the homepage' },
+  { id: 'menu_gallery', label: 'Menu or photo gallery', description: 'Food menu or lifestyle photo masonry' },
+]
+
+export function getSetupFeatureById(id: SetupFeatureId): SetupFeatureOption | undefined {
+  return ALL_SETUP_FEATURES.find(f => f.id === id)
+}
+
+/** Always-on design quality shown in the create-website wizard. */
+export interface DesignQualityOption {
+  id: string
+  label: string
+  description: string
+}
+
+export const DESIGN_QUALITY_FEATURES: DesignQualityOption[] = [
+  { id: 'professional_layouts', label: 'Professional layouts', description: 'Split heroes, editorial grids, and balanced sections' },
+  { id: 'clean_ui', label: 'Clean UI', description: 'Generous spacing, rounded cards, and readable typography' },
+  { id: 'smooth_animations', label: 'Smooth animations', description: 'Fade and slide-in effects as visitors scroll' },
+  { id: 'modern_gradients', label: 'Modern gradients', description: 'Brand-colored gradient heroes and CTA sections' },
+  { id: 'wave_dividers', label: 'Wave dividers', description: 'Soft waves at the top and bottom of key sections' },
+]
+
+const BASE_STYLE_DEFAULTS: Partial<StyleConfig> = {
+  font_heading: 'Inter',
+  font_body: 'Inter',
+  border_radius: 'rounded',
+  spacing: 'comfortable',
+  animation: 'subtle',
+  shadow_style: 'soft',
+  button_style: 'filled',
+}
+
+/** Modern theme per business type — used when AI/local generator runs. */
+export const BUSINESS_STYLE_PRESETS: Record<string, Partial<StyleConfig>> = {
+  retail: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#64C3A0',
+    secondary_color: '#2D6A4F',
+    accent_color: '#40916C',
+    bg_color: '#ffffff',
+    surface_color: '#f8faf9',
+    text_color: '#1a1a2e',
+  },
+  services: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#6366f1',
+    secondary_color: '#4338ca',
+    accent_color: '#818cf8',
+    bg_color: '#ffffff',
+    surface_color: '#f5f3ff',
+    text_color: '#1e1b4b',
+  },
+  restaurant: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#c2410c',
+    secondary_color: '#7c2d12',
+    accent_color: '#ea580c',
+    bg_color: '#fffbf7',
+    surface_color: '#fff7ed',
+    text_color: '#292524',
+    font_heading: 'Playfair Display',
+  },
+  fashion: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#18181b',
+    secondary_color: '#3f3f46',
+    accent_color: '#a78bfa',
+    bg_color: '#ffffff',
+    surface_color: '#fafafa',
+    text_color: '#18181b',
+    font_heading: 'Playfair Display',
+    border_radius: 'sharp',
+  },
+  electronics: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#2563eb',
+    secondary_color: '#1e40af',
+    accent_color: '#38bdf8',
+    bg_color: '#ffffff',
+    surface_color: '#f8fafc',
+    text_color: '#0f172a',
+  },
+  salon: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#be185d',
+    secondary_color: '#831843',
+    accent_color: '#f472b6',
+    bg_color: '#fffbfb',
+    surface_color: '#fdf2f8',
+    text_color: '#500724',
+    font_heading: 'Playfair Display',
+  },
+  clinic: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#0d9488',
+    secondary_color: '#115e59',
+    accent_color: '#2dd4bf',
+    bg_color: '#ffffff',
+    surface_color: '#f0fdfa',
+    text_color: '#134e4a',
+  },
+  consulting: {
+    ...BASE_STYLE_DEFAULTS,
+    primary_color: '#1e3a5f',
+    secondary_color: '#0f172a',
+    accent_color: '#3b82f6',
+    bg_color: '#ffffff',
+    surface_color: '#f1f5f9',
+    text_color: '#0f172a',
+  },
+}
+
+export function stylePresetForBusinessType(businessTypeId: string): Partial<StyleConfig> {
+  return BUSINESS_STYLE_PRESETS[businessTypeId] ?? BUSINESS_STYLE_PRESETS.retail
+}
+
+function featureVisible(
+  id: SetupFeatureId,
+  businessType: string,
+  sellingMode: string,
+): boolean {
+  switch (id) {
+    case 'homepage_copy':
+    case 'mobile_layout':
+    case 'seo_content':
+    case 'publish_checklist':
+    case 'reviews_trust':
+    case 'contact_form':
+      return true
+    case 'products_sections':
+      return sellingMode === 'products' || sellingMode === 'both'
+    case 'services_sections':
+    case 'services_page':
+      return sellingMode === 'services' || sellingMode === 'both'
+    case 'commerce_blocks':
+      return sellingMode === 'products' || sellingMode === 'both' || businessType === 'restaurant'
+    case 'booking_blocks':
+      return ['salon', 'clinic', 'restaurant', 'services'].includes(businessType)
+    case 'menu_gallery':
+      return businessType === 'restaurant' || businessType === 'fashion'
+    case 'pricing_page':
+      return ['consulting', 'salon', 'clinic', 'services'].includes(businessType)
+    case 'blog_page':
+      return ['consulting', 'clinic', 'fashion'].includes(businessType)
+    case 'about_page':
+      return true
+    default:
+      return false
+  }
+}
+
+/** Options shown in the wizard for the current business + selling mode. */
+export function getAvailableSetupFeatures(
+  businessType: string,
+  sellingMode: string,
+): SetupFeatureOption[] {
+  return ALL_SETUP_FEATURES.filter(f => featureVisible(f.id, businessType, sellingMode))
+}
+
+/** Default checked features when business type or selling mode changes. */
+export function getDefaultSetupFeatures(
+  businessType: string,
+  sellingMode: string,
+): SetupFeatureId[] {
+  return getAvailableSetupFeatures(businessType, sellingMode)
+    .filter(f => {
+      if (f.locked) return true
+      if (f.id === 'about_page') return true
+      if (f.id === 'services_page') return sellingMode !== 'products'
+      if (f.id === 'products_sections') return sellingMode !== 'services'
+      if (f.id === 'services_sections') return sellingMode !== 'products'
+      if (f.id === 'commerce_blocks') return sellingMode === 'products' || businessType === 'restaurant'
+      if (f.id === 'booking_blocks') return ['salon', 'clinic', 'restaurant'].includes(businessType)
+      if (f.id === 'menu_gallery') return businessType === 'restaurant'
+      if (f.id === 'pricing_page') return businessType === 'consulting'
+      if (f.id === 'blog_page') return businessType === 'consulting'
+      return true
+    })
+    .map(f => f.id)
+}
+
+/** Map wizard checkboxes → page slugs sent to the generator. */
+export function buildPagesFromSetupFeatures(
+  features: SetupFeatureId[],
+  _businessType: string,
+): string[] {
+  const pages = new Set<string>(['home'])
+  if (features.includes('about_page')) pages.add('about')
+  if (features.includes('services_page') || features.includes('services_sections')) pages.add('services')
+  if (features.includes('contact_form')) pages.add('contact')
+  if (features.includes('pricing_page')) pages.add('pricing')
+  if (features.includes('blog_page')) pages.add('blog')
+  return [...pages]
+}
+
+export function buildGenerateSitePrompt(
+  businessType: string,
+  businessLabel: string,
+  siteName: string,
+  sellingMode: string,
+  sellingDesc: string,
+  basePrompt: string,
+  features: SetupFeatureId[],
+  extraDesc?: string,
+): string {
+  const featureLabels = features
+    .map(id => ALL_SETUP_FEATURES.find(f => f.id === id)?.label)
+    .filter(Boolean)
+  return [
+    basePrompt,
+    `Business name: ${siteName}.`,
+    `Business category: ${businessLabel}.`,
+    `Selling mode: ${sellingMode} — ${sellingDesc}.`,
+    `Include these sections: ${featureLabels.join(', ')}.`,
+    'Design quality: professional layouts, clean UI, smooth fade/slide animations, modern brand gradients on hero and CTA, and soft wave dividers at section top and bottom.',
+    'Use hero_split with bg_style gradient, category cards with photos, features with show_images, alternating layouts, testimonials with avatars, and gradient CTA sections.',
+    'Write polished, specific copy using the business name — no lorem ipsum.',
+    extraDesc?.trim() ? `Additional context: ${extraDesc.trim()}` : '',
+  ].filter(Boolean).join(' ')
+}

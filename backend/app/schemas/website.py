@@ -300,6 +300,11 @@ class AIGenerateSiteRequest(BaseModel):
     pages: Optional[List[str]] = None    # e.g. ["home","about","pricing","contact"] (auto if omitted)
     include_blog: bool = False
     include_pricing: bool = True
+    image_category: Optional[str] = None
+    selling_mode: Optional[str] = None   # products|services|both
+    site_name: Optional[str] = None
+    business_type: Optional[str] = None
+    setup_features: Optional[List[str]] = None
 
 
 class AIGenerateSiteResponse(BaseModel):

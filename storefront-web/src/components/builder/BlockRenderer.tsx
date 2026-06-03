@@ -18,6 +18,7 @@ import type { PublicBlock, PublicSite, LiveItem, StyleConfig } from '@/blocks/re
 import { DEFAULT_STYLE } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
+import SectionShapeDivider from './SectionShapeDivider'
 
 // Lazy-import the heavy block families to keep initial bundle small
 const NavBlock = lazy(() => import('./blocks/NavBlock'))
@@ -284,9 +285,19 @@ export function SingleBlock({ block, site, style, branchCode }: Omit<BlockProps,
       ? textScaleRaw
       : undefined
 
+  const topShape = typeof p.top_shape === 'string' ? p.top_shape : undefined
+  const bottomShape = typeof p.bottom_shape === 'string' ? p.bottom_shape : undefined
+  const shapeColor = (typeof p.shape_color === 'string' && p.shape_color) || style.surface_color || style.bg_color || '#ffffff'
+  const hasShape = (topShape && topShape !== 'none') || (bottomShape && bottomShape !== 'none')
+  const paddingTop = Number(p.padding_top ?? block.style_overrides?.padding_top ?? 0)
+  const paddingBottom = Number(p.padding_bottom ?? block.style_overrides?.padding_bottom ?? 0)
+
   const wrapperStyle: CSSProperties = {}
   if (block.animation_delay) wrapperStyle.animationDelay = `${block.animation_delay}ms`
   if (textTransformCss) wrapperStyle.textTransform = textTransformCss
+  if (paddingTop > 0) wrapperStyle.paddingTop = `${paddingTop}px`
+  if (paddingBottom > 0) wrapperStyle.paddingBottom = `${paddingBottom}px`
+  if (hasShape) wrapperStyle.position = 'relative'
 
   const sfBid = `sf${block.id.replace(/-/g, '')}`
   const blockLink = typeof p.block_link_url === 'string' ? p.block_link_url.trim() : ''
@@ -328,6 +339,9 @@ export function SingleBlock({ block, site, style, branchCode }: Omit<BlockProps,
       ].filter(Boolean).join(' ')}
       style={Object.keys(wrapperStyle).length ? wrapperStyle : undefined}
     >
+      {topShape && topShape !== 'none' && (
+        <SectionShapeDivider shape={topShape} fillColor={shapeColor} position="top" />
+      )}
       {(fontSizePx || textScaleEm) && (
         <style>{`
           [data-sf-bid="${sfBid}"] h1,
@@ -343,6 +357,9 @@ export function SingleBlock({ block, site, style, branchCode }: Omit<BlockProps,
         `}</style>
       )}
       {inner}
+      {bottomShape && bottomShape !== 'none' && (
+        <SectionShapeDivider shape={bottomShape} fillColor={shapeColor} position="bottom" />
+      )}
     </div>
   )
 }

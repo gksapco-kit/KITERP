@@ -11,6 +11,24 @@ import {
   Globe2, Link2,
   Pencil,
   X,
+  Smartphone,
+  ShoppingBag,
+  Wrench,
+  Star,
+  Mail,
+  ShoppingCart,
+  Search,
+  ClipboardList,
+  Users,
+  CreditCard,
+  BookOpen,
+  CalendarCheck,
+  GalleryHorizontal,
+  Lock,
+  LayoutGrid,
+  Palette,
+  Waves,
+  type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSiteList, useCreateSite, useDeleteSite, usePublishSite, useUnpublishSite, useUpdateSite } from '@/hooks/useWebsites'
@@ -18,6 +36,7 @@ import { websiteApi } from '@/api/websites'
 import type { SiteListItem } from '@/types/websites'
 import { cn } from '@/lib/utils'
 import { extractApiError } from '@/lib/errorMessages'
+import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getDefaultSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, DESIGN_QUALITY_FEATURES, type SetupFeatureId, type SetupFeatureOption } from '@/lib/businessSitePresets'
 import { shouldUseLocalStorefrontUrls } from '@/lib/storefrontPreviewUrl'
 import { format } from 'date-fns'
 
@@ -116,6 +135,211 @@ const STATUS_CONFIG = {
   archived:  { label: 'Archived',  icon: EyeOff,       color: 'text-gray-500 bg-gray-50 border-gray-200' },
 }
 
+const SETUP_FEATURE_ICONS: Record<SetupFeatureId, LucideIcon> = {
+  homepage_copy: FileText,
+  mobile_layout: Smartphone,
+  products_sections: ShoppingBag,
+  services_sections: Wrench,
+  reviews_trust: Star,
+  contact_form: Mail,
+  commerce_blocks: ShoppingCart,
+  seo_content: Search,
+  publish_checklist: ClipboardList,
+  about_page: Users,
+  services_page: Wrench,
+  pricing_page: CreditCard,
+  blog_page: BookOpen,
+  booking_blocks: CalendarCheck,
+  menu_gallery: GalleryHorizontal,
+}
+
+const DESIGN_QUALITY_ICONS: Record<string, LucideIcon> = {
+  professional_layouts: LayoutGrid,
+  clean_ui: Layout,
+  smooth_animations: Sparkles,
+  modern_gradients: Palette,
+  wave_dividers: Waves,
+}
+
+function DesignQualityPicker() {
+  return (
+    <div className="rounded-2xl border border-indigo-100 bg-gradient-to-b from-indigo-50/60 to-white overflow-hidden">
+      <div className="px-4 py-3 border-b border-indigo-100/80 bg-white/80">
+        <p className="text-sm font-semibold text-gray-900">Design quality — always included</p>
+        <p className="text-xs text-gray-500 mt-0.5">Every new site gets a polished, modern look out of the box.</p>
+      </div>
+      <div className="px-4 py-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {DESIGN_QUALITY_FEATURES.map(feature => {
+            const Icon = DESIGN_QUALITY_ICONS[feature.id] || Sparkles
+            return (
+              <div
+                key={feature.id}
+                title={feature.description}
+                className="flex items-start gap-2.5 rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold text-gray-900">{feature.label}</span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5 leading-snug">{feature.description}</span>
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SetupFeaturesPicker({
+  features,
+  selected,
+  businessType,
+  sellingMode,
+  disabled,
+  onToggle,
+  onSelectRecommended,
+}: {
+  features: SetupFeatureOption[]
+  selected: SetupFeatureId[]
+  businessType: string
+  sellingMode: string
+  disabled?: boolean
+  onToggle: (id: SetupFeatureId, locked?: boolean) => void
+  onSelectRecommended: () => void
+}) {
+  const core = features.filter(f => f.locked)
+  const optional = features.filter(f => !f.locked)
+  const optionalSelected = optional.filter(f => selected.includes(f.id)).length
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/80 overflow-hidden">
+      <div className="px-4 py-3.5 border-b border-gray-100 bg-white/90">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">4. Your ready-made setup includes</p>
+            <p className="text-xs text-gray-500 mt-0.5">Core features are always on. Toggle optional sections below.</p>
+          </div>
+          <span className="shrink-0 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary tabular-nums">
+            {selected.length} of {features.length}
+          </span>
+        </div>
+      </div>
+
+      {core.length > 0 && (
+        <div className="px-4 py-3 border-b border-gray-100">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2.5">Always included</p>
+          <div className="flex flex-wrap gap-2">
+            {core.map(feature => {
+              const Icon = SETUP_FEATURE_ICONS[feature.id]
+              return (
+                <div
+                  key={feature.id}
+                  title={feature.description}
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/90 px-3 py-1.5 text-[11px] font-medium text-emerald-800"
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
+                    <Check className="h-3 w-3 stroke-[3]" />
+                  </span>
+                  <Icon className="h-3.5 w-3.5 opacity-70" />
+                  <span>{feature.label}</span>
+                  <Lock className="h-3 w-3 opacity-40" aria-hidden />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {optional.length > 0 && (
+        <div className="px-4 py-3.5">
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              Optional sections
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-400 tabular-nums">{optionalSelected}/{optional.length} on</span>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={onSelectRecommended}
+                className="text-[10px] font-semibold text-primary hover:text-primary/80 disabled:opacity-50"
+              >
+                Reset to recommended
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {optional.map(feature => {
+              const Icon = SETUP_FEATURE_ICONS[feature.id]
+              const checked = selected.includes(feature.id)
+              return (
+                <button
+                  key={feature.id}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onToggle(feature.id, false)}
+                  aria-pressed={checked}
+                  className={cn(
+                    'group relative flex items-start gap-3 rounded-xl border-2 p-3 text-left transition-all',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
+                    checked
+                      ? 'border-primary bg-primary/[0.06] shadow-sm shadow-primary/10'
+                      : 'border-gray-200 bg-white hover:border-primary/30 hover:bg-gray-50/80',
+                    disabled && 'opacity-60 cursor-not-allowed',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
+                      checked ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-primary/10 group-hover:text-primary',
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="flex-1 min-w-0 pr-6">
+                    <span className={cn('block text-xs font-semibold leading-tight', checked ? 'text-gray-900' : 'text-gray-800')}>
+                      {feature.label}
+                    </span>
+                    <span className="block text-[11px] text-gray-500 mt-0.5 leading-snug line-clamp-2">
+                      {feature.description}
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      'absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-md border-2 transition-all',
+                      checked
+                        ? 'border-primary bg-primary text-white'
+                        : 'border-gray-300 bg-white group-hover:border-primary/50',
+                    )}
+                    aria-hidden
+                  >
+                    {checked && <Check className="h-3 w-3 stroke-[3]" />}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="px-4 py-3 bg-gray-50/90 border-t border-gray-100">
+        <p className="text-[11px] text-gray-500 leading-relaxed flex items-start gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+          <span>
+            We generate pages, modern layouts, and category photos from your{' '}
+            <strong className="font-medium text-gray-700">{businessType}</strong> setup
+            {sellingMode !== 'both' ? ` (${sellingMode})` : ''}.
+          </span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function CreateSiteModal({
  onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
@@ -125,38 +349,77 @@ function CreateSiteModal({
   const [desc, setDesc] = useState('')
   const [businessType, setBusinessType] = useState(BUSINESS_PRESETS[0].id)
   const [sellingMode, setSellingMode] = useState(BUSINESS_PRESETS[0].sells)
+  const [selectedFeatures, setSelectedFeatures] = useState<SetupFeatureId[]>(() =>
+    getDefaultSetupFeatures(BUSINESS_PRESETS[0].id, BUSINESS_PRESETS[0].sells),
+  )
+  const [generating, setGenerating] = useState(false)
 
   const selectedBusiness = BUSINESS_PRESETS.find(t => t.id === businessType) || BUSINESS_PRESETS[0]
+  const availableFeatures = getAvailableSetupFeatures(businessType, sellingMode)
+
+  useEffect(() => {
+    setSelectedFeatures(getDefaultSetupFeatures(businessType, sellingMode))
+  }, [businessType, sellingMode])
+
+  const toggleFeature = (id: SetupFeatureId, locked?: boolean) => {
+    if (locked) return
+    setSelectedFeatures(prev =>
+      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id],
+    )
+  }
 
   const handleGuidedCreate = async () => {
     const siteName = name.trim() || selectedBusiness.defaultName
     const siteDesc = desc.trim() || `${selectedBusiness.label} website for ${sellingMode === 'both' ? 'products and services' : sellingMode}.`
+    const imageCategoryId = imageCategoryForBusinessType(businessType)
+    const stylePreset = stylePresetForBusinessType(businessType)
+    const pages = buildPagesFromSetupFeatures(selectedFeatures, businessType)
     try {
-      const site = await createSite.mutateAsync({ name: siteName, description: siteDesc, style_config: {} } as any)
-      toast.success('Website created. Building ready-made pages…')
+      const site = await createSite.mutateAsync({
+        name: siteName,
+        description: siteDesc,
+        style_config: {
+          ...stylePreset,
+          image_category_id: imageCategoryId,
+          business_type: businessType,
+          selling_mode: sellingMode,
+        },
+      } as any)
+      toast.success('Website created. Building your pages…')
       onClose()
       navigate(`/websites/${site.id}`)
+      setGenerating(true)
 
       try {
         const selling = SELLING_MODES.find(s => s.id === sellingMode)
         const gen = await websiteApi.aiGenerateSite(site.id, {
-          business_description: [
+          business_description: buildGenerateSitePrompt(
+            businessType,
+            selectedBusiness.label,
+            siteName,
+            sellingMode,
+            selling?.desc || sellingMode,
             selectedBusiness.prompt,
-            `Business name: ${siteName}.`,
-            `Selling mode: ${selling?.label || sellingMode} - ${selling?.desc || ''}.`,
-            'Make it easy for a non-designer store owner: include clear section titles, practical CTAs, ready-to-edit copy, SEO-friendly pages, contact/lead capture, and commerce blocks where relevant.',
-          ].join(' '),
+            selectedFeatures,
+            desc,
+          ),
           niche: selectedBusiness.niche,
           tone: 'professional',
-          include_pricing: true,
-          include_blog: businessType === 'consulting' || businessType === 'clinic',
+          pages,
+          include_pricing: selectedFeatures.includes('pricing_page'),
+          include_blog: selectedFeatures.includes('blog_page'),
+          image_category: imageCategoryId,
+          selling_mode: sellingMode,
+          site_name: siteName,
+          business_type: businessType,
+          setup_features: selectedFeatures,
         })
         await websiteApi.aiApplyGeneratedSite(site.id, gen)
         await queryClient.invalidateQueries({ queryKey: ['websites', site.id] })
         await queryClient.invalidateQueries({ queryKey: ['websites'] })
-        toast.success(`Ready-made website generated — ${gen.pages?.length ?? 0} page(s). Review text, connect products/services, then publish.`)
+        toast.success(`Your website is ready — ${gen.pages?.length ?? pages.length} page(s) with modern layouts and photos.`)
       } catch (e) {
-        let msg = 'Ready-made setup failed. A blank site was created; you can still open the builder.'
+        let msg = 'Smart setup could not finish. A starter site was created — open the builder to continue.'
         if (isAxiosError(e)) {
           const d = e.response?.data as { detail?: unknown } | undefined
           if (d?.detail != null) msg = Array.isArray(d.detail) ? d.detail.map(x => typeof x === 'object' && x && 'msg' in x ? String((x as { msg: string }).msg) : String(x)).join('; ') : String(d.detail)
@@ -164,11 +427,13 @@ function CreateSiteModal({
         }
         toast.error(msg)
         await queryClient.invalidateQueries({ queryKey: ['websites', site.id] })
+      } finally {
+        setGenerating(false)
       }
     } catch (e) { toast.error(extractApiError(e, 'Failed to create site')) }
   }
 
-  const isLoading = createSite.isPending
+  const isLoading = createSite.isPending || generating
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
@@ -177,7 +442,7 @@ function CreateSiteModal({
         <div className="bg-gradient-to-r from-primary to-info px-6 py-5 text-white flex items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold">Create Website</h2>
-            <p className="text-primary-foreground/85 text-sm mt-1">Use a ready-made store setup first. Advanced editing stays available after creation.</p>
+            <p className="text-primary-foreground/85 text-sm mt-1">Pick your business type and name — we generate a modern website with photos, layouts, and pages in seconds.</p>
           </div>
           <button
             type="button"
@@ -226,7 +491,8 @@ function CreateSiteModal({
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">3. Site name</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder={selectedBusiness.defaultName}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                onKeyDown={e => e.key === 'Enter' && handleGuidedCreate()} />
+                onKeyDown={e => e.key === 'Enter' && !isLoading && handleGuidedCreate()} />
+              <p className="text-[11px] text-gray-500 mt-1">Your brand name appears in headlines, navigation, and SEO across all pages.</p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Extra details (optional)</label>
@@ -234,21 +500,21 @@ function CreateSiteModal({
                 placeholder="Example: We are a premium bakery in Bangalore selling cakes, cookies, and party orders..."
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
-            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
-              <div className="text-xs font-bold text-gray-700 mb-2">Your ready-made setup includes</div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-600">
-                {['Homepage copy', 'Products/services sections', 'Contact or lead form', 'SEO starter content', 'Mobile-friendly layout', 'Reviews / trust blocks', 'Cart or booking blocks', 'Publish checklist'].map(item => (
-                  <div key={item} className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> {item}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <SetupFeaturesPicker
+              features={availableFeatures}
+              selected={selectedFeatures}
+              businessType={selectedBusiness.label}
+              sellingMode={sellingMode}
+              disabled={isLoading}
+              onToggle={toggleFeature}
+              onSelectRecommended={() => setSelectedFeatures(getDefaultSetupFeatures(businessType, sellingMode))}
+            />
+            <DesignQualityPicker />
             <div className="flex items-center justify-end gap-3">
-              <Button variant="cancel" onClick={onClose}>Cancel</Button>
+              <Button variant="cancel" onClick={onClose} disabled={isLoading}>Cancel</Button>
               <Button onClick={handleGuidedCreate} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
-                Build Ready-Made Website
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                {generating ? 'Generating website…' : 'Build My Website'}
               </Button>
             </div>
           </div>
@@ -633,7 +899,7 @@ export default function WebsitesPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Build Your First Store Website</h2>
           <p className="text-gray-600 text-sm max-w-md mx-auto mb-6">
-            Choose your business type and we will create the pages, sections, copy, commerce blocks, and starter SEO for you.
+            Choose your business type, enter your name, pick what to include — we build modern pages with photos and layouts automatically.
           </p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 text-left">

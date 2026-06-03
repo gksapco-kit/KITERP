@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useVendorStore } from '@/stores/vendorStore'
+import { normalizeLoopbackInUrl } from '@/lib/loopbackHost'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1'
+const API_URL = normalizeLoopbackInUrl(import.meta.env.VITE_API_URL || '/api/v1')
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,

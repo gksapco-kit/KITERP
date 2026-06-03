@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { websiteApi } from '@/api/websites'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
-import { getStorefrontAppOrigin, STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS } from '@/lib/storefrontPreviewUrl'
+import { getStorefrontAppOrigin, STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS, wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
 
 // ── Fonts available via Google Fonts in storefront-web globals.css ────────────
 const HEADING_FONTS = ['Fraunces', 'Playfair Display', 'DM Serif Display', 'Space Grotesk', 'Manrope', 'Inter']
@@ -88,10 +88,12 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
     setStoreName(defaultStoreName)
   }
 
-  const previewUrl = getStorefrontTemplateBrowserPreviewUrl(template.id, {
-    primary, accent, bg, fg, displayFont, bodyFont,
-    storeName: storeName !== defaultStoreName ? storeName : undefined,
-  })
+  const previewUrl = wrapStorefrontPreviewForVendorBrowser(
+    getStorefrontTemplateBrowserPreviewUrl(template.id, {
+      primary, accent, bg, fg, displayFont, bodyFont,
+      storeName: storeName !== defaultStoreName ? storeName : undefined,
+    }),
+  )
 
   return (
     <div className="border border-primary/30 rounded-2xl bg-gradient-to-br from-accent/60 to-accent/60 p-4 mt-4">
@@ -376,7 +378,7 @@ export function WebsiteTemplatePreviewModal({
                   </button>
                 )}
                 <a
-                  href={getStorefrontTemplateBrowserPreviewUrl(template.id)}
+                  href={wrapStorefrontPreviewForVendorBrowser(getStorefrontTemplateBrowserPreviewUrl(template.id))}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS}

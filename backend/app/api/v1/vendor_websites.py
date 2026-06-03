@@ -2304,6 +2304,405 @@ async def apply_template(
 
 # ── AI: One-Prompt Site Generator ─────────────────────────────────────────────
 
+CATEGORY_IMAGE_POOLS: Dict[str, List[str]] = {
+    "shop": [
+        "https://images.unsplash.com/photo-1495121605193-b116b5b9c5fe?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80",
+    ],
+    "store": [
+        "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1555529665-1569b70306e2?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=1600&q=80",
+    ],
+    "beauty": [
+        "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1516975080664-ed2fc6a329cf?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=1600&q=80",
+    ],
+    "electronics": [
+        "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?auto=format&fit=crop&w=1600&q=80",
+    ],
+    "catering-service": [
+        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1600&q=80",
+    ],
+    "book-store": [
+        "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1507842217343-583bb7270bce?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1524995994132-5781c2a7a032?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=1600&q=80",
+    ],
+    "medical-equipment-store": [
+        "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1631217868264-e5b1a5fe279c?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1519494021062-207bded1ffb1?auto=format&fit=crop&w=1600&q=80",
+    ],
+}
+
+
+def _images_for_category(category_id: Optional[str], count: int = 12) -> List[str]:
+    pool = CATEGORY_IMAGE_POOLS.get((category_id or "").strip()) or CATEGORY_IMAGE_POOLS["shop"]
+    if not pool:
+        return []
+    return [pool[i % len(pool)] for i in range(count)]
+
+
+def _nav_links_from_page_dicts(pages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    """Build deduplicated nav links — one Home entry only."""
+    links: List[Dict[str, str]] = []
+    seen: set[str] = set()
+    ordered = sorted(
+        pages,
+        key=lambda p: (not p.get("is_homepage"), p.get("sort_order") or 0),
+    )
+    for pg in ordered:
+        if pg.get("show_in_nav") is False:
+            continue
+        url = "/" if pg.get("is_homepage") else f"/{str(pg.get('slug') or '').strip().lstrip('/')}"
+        if url == "/home":
+            url = "/"
+        if url in seen:
+            continue
+        seen.add(url)
+        label = "Home" if pg.get("is_homepage") else str(pg.get("title") or pg.get("slug") or "Page")
+        links.append({"label": label, "url": url})
+    return links
+
+
+def _enrich_block_props_with_category(
+    block_type: str,
+    props: Dict[str, Any],
+    images: List[str],
+    cursor: List[int],
+) -> Dict[str, Any]:
+    """Fill empty image fields on starter blocks from the selected business category pack."""
+    props = copy.deepcopy(props or {})
+    if not images:
+        return props
+
+    def next_img() -> str:
+        idx = cursor[0] % len(images)
+        cursor[0] += 1
+        return images[idx]
+
+    if block_type in ("hero", "hero_split", "hero_minimal"):
+        if not props.get("bg_image_url"):
+            props["bg_image_url"] = next_img()
+        if block_type == "hero_split" and not props.get("image_url"):
+            props["image_url"] = next_img()
+        if props.get("bg_style") in (None, "", "gradient", "minimal"):
+            props["bg_style"] = "image"
+        props.setdefault("overlay", True)
+    elif block_type == "cta" and not props.get("bg_image_url"):
+        props["bg_image_url"] = next_img()
+    elif block_type == "about_split" and not props.get("image_url"):
+        props["image_url"] = next_img()
+    elif block_type == "features" and props.get("show_images"):
+        for feat in props.get("features") or []:
+            if isinstance(feat, dict) and not feat.get("image_url"):
+                feat["image_url"] = next_img()
+    elif block_type == "features_alternating":
+        for feat in props.get("features") or []:
+            if isinstance(feat, dict) and not feat.get("image_url"):
+                feat["image_url"] = next_img()
+    elif block_type == "services_cards":
+        for feat in props.get("features") or []:
+            if isinstance(feat, dict) and not feat.get("image_url"):
+                feat["image_url"] = next_img()
+    elif block_type == "category_cards":
+        cats = props.get("categories") or []
+        if not cats:
+            props["categories"] = [
+                {"title": "New arrivals", "image_url": next_img()},
+                {"title": "Best sellers", "image_url": next_img()},
+                {"title": "Featured", "image_url": next_img()},
+            ]
+        else:
+            for cat in cats:
+                if isinstance(cat, dict) and not cat.get("image_url"):
+                    cat["image_url"] = next_img()
+    elif block_type == "testimonials":
+        for t in props.get("testimonials") or []:
+            if isinstance(t, dict) and not t.get("avatar_url"):
+                t["avatar_url"] = next_img()
+    elif block_type in ("gallery_masonry", "gallery_grid", "image_gallery"):
+        images = props.get("images") or []
+        if not images:
+            props["images"] = [{"src": next_img(), "caption": ""} for _ in range(3)]
+        else:
+            for img in images:
+                if isinstance(img, dict) and not img.get("src"):
+                    img["src"] = next_img()
+    return props
+
+
+def _style_for_business_type(business_type: Optional[str]) -> Dict[str, Any]:
+    presets: Dict[str, Dict[str, Any]] = {
+        "retail": {
+            "primary_color": "#64C3A0", "secondary_color": "#2D6A4F", "accent_color": "#40916C",
+            "bg_color": "#ffffff", "surface_color": "#f8faf9", "text_color": "#1a1a2e",
+        },
+        "services": {
+            "primary_color": "#6366f1", "secondary_color": "#4338ca", "accent_color": "#818cf8",
+            "bg_color": "#ffffff", "surface_color": "#f5f3ff", "text_color": "#1e1b4b",
+        },
+        "restaurant": {
+            "primary_color": "#c2410c", "secondary_color": "#7c2d12", "accent_color": "#ea580c",
+            "bg_color": "#fffbf7", "surface_color": "#fff7ed", "text_color": "#292524",
+            "font_heading": "Playfair Display",
+        },
+        "fashion": {
+            "primary_color": "#18181b", "secondary_color": "#3f3f46", "accent_color": "#a78bfa",
+            "bg_color": "#ffffff", "surface_color": "#fafafa", "text_color": "#18181b",
+            "font_heading": "Playfair Display", "border_radius": "sharp",
+        },
+        "electronics": {
+            "primary_color": "#2563eb", "secondary_color": "#1e40af", "accent_color": "#38bdf8",
+            "bg_color": "#ffffff", "surface_color": "#f8fafc", "text_color": "#0f172a",
+        },
+        "salon": {
+            "primary_color": "#be185d", "secondary_color": "#831843", "accent_color": "#f472b6",
+            "bg_color": "#fffbfb", "surface_color": "#fdf2f8", "text_color": "#500724",
+            "font_heading": "Playfair Display",
+        },
+        "clinic": {
+            "primary_color": "#0d9488", "secondary_color": "#115e59", "accent_color": "#2dd4bf",
+            "bg_color": "#ffffff", "surface_color": "#f0fdfa", "text_color": "#134e4a",
+        },
+        "consulting": {
+            "primary_color": "#1e3a5f", "secondary_color": "#0f172a", "accent_color": "#3b82f6",
+            "bg_color": "#ffffff", "surface_color": "#f1f5f9", "text_color": "#0f172a",
+        },
+    }
+    base = presets.get((business_type or "").strip(), presets["retail"])
+    return {
+        **base,
+        "font_heading": base.get("font_heading", "Inter"),
+        "font_body": "Inter",
+        "border_radius": base.get("border_radius", "rounded"),
+        "spacing": "comfortable",
+        "animation": "subtle",
+        "shadow_style": "soft",
+        "button_style": "filled",
+    }
+
+
+_NO_ANIM_BLOCKS = frozenset({"nav", "footer", "announcement_bar", "marquee_strip"})
+
+
+def _modern_design_animation(block_type: str, block_index: int) -> Dict[str, Any]:
+    if block_type in _NO_ANIM_BLOCKS:
+        return {}
+    return {
+        "animation": "slide-up" if block_index % 2 == 0 else "fade-in",
+        "animation_delay": min(block_index * 80, 480),
+    }
+
+
+def _apply_modern_design_props(
+    block_type: str,
+    props: Dict[str, Any],
+    style_cfg: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Professional layouts, gradients, and wave dividers on generated blocks."""
+    p = dict(props or {})
+    primary = style_cfg.get("primary_color", "#64C3A0")
+    secondary = style_cfg.get("secondary_color", "#13624A")
+    surface = style_cfg.get("surface_color", "#ffffff")
+    bg = style_cfg.get("bg_color", "#ffffff")
+
+    if block_type in ("hero", "hero_split", "hero_minimal"):
+        p["bg_style"] = "gradient"
+        p.setdefault("gradient_from", primary)
+        p.setdefault("gradient_to", secondary)
+        p.setdefault("gradient_dir", "135deg")
+        p.setdefault("layout", "split" if block_type == "hero_split" else p.get("layout", "centered"))
+        p.setdefault("bottom_shape", "wave")
+        p.setdefault("shape_color", surface)
+        p.setdefault("padding_bottom", 72)
+    elif block_type in (
+        "features", "features_alternating", "category_cards", "services_cards",
+        "testimonials", "testimonials_grid", "gallery_masonry", "booking_widget",
+        "about_split", "stats", "pricing",
+    ):
+        p.setdefault("top_shape", "wave_soft")
+        p.setdefault("bottom_shape", "wave_soft")
+        p.setdefault("shape_color", surface)
+        p.setdefault("padding_top", 64)
+        p.setdefault("padding_bottom", 64)
+    elif block_type in ("cta", "cta_split", "contact_form", "newsletter"):
+        p["bg_style"] = "gradient"
+        p.setdefault("gradient_from", primary)
+        p.setdefault("gradient_to", secondary)
+        p.setdefault("gradient_dir", "135deg")
+        p.setdefault("top_shape", "wave")
+        p.setdefault("bottom_shape", "wave_soft")
+        p.setdefault("shape_color", bg)
+        p.setdefault("padding_top", 72)
+        p.setdefault("padding_bottom", 72)
+
+    return p
+
+
+def _enrich_blocks_with_modern_design(
+    blocks: List[Dict[str, Any]],
+    style_cfg: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    content_idx = 0
+    for b in blocks:
+        b_type = b.get("block_type", "rich_text")
+        props = _apply_modern_design_props(b_type, b.get("props", {}) or {}, style_cfg)
+        meta = _modern_design_animation(b_type, content_idx)
+        if b_type not in _NO_ANIM_BLOCKS:
+            content_idx += 1
+        out.append({**b, "props": props, **meta})
+    return out
+
+
+def _professional_home_blocks(
+    short_name: str,
+    niche: str,
+    category_id: str,
+    selling_mode: str = "products",
+    business_type: str = "retail",
+    setup_features: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Category-aware starter homepage — hero, images, features, social proof."""
+    feats = set(setup_features or [])
+    imgs = _images_for_category(category_id, 16)
+    cursor = [0]
+
+    def snap_props(block_type: str, props: Dict[str, Any]) -> Dict[str, Any]:
+        enriched = _enrich_block_props_with_category(block_type, props, imgs, cursor)
+        enriched["_image_category_id"] = category_id
+        return enriched
+
+    hero_props: Dict[str, Any] = {
+        "headline": f"Build Something Amazing" if business_type in ("retail", "services") else f"Welcome to {short_name}",
+        "subtitle": f"The all-in-one {niche} experience — quality, trust, and care in every detail.",
+        "bg_style": "gradient",
+        "layout": "split",
+        "gradient_dir": "135deg",
+        "eyebrow": short_name.upper() if business_type == "fashion" else f"Welcome to {short_name}",
+        "cta_primary": "Get Started Free" if selling_mode != "services" else "Book now",
+        "cta_secondary": "Learn More",
+    }
+    if business_type == "fashion":
+        hero_props.update({
+            "headline": "Quiet luxury,",
+            "headline_line2": "built to last.",
+            "eyebrow_plain": True,
+            "eyebrow": "NEW COLLECTION",
+        })
+
+    blocks: List[Dict[str, Any]] = [
+        {"block_type": "nav", "label": "Navigation", "props": snap_props("nav", {
+            "brand": short_name,
+            "cta_label": "Get Started",
+        })},
+        {"block_type": "hero_split", "label": "Hero", "props": snap_props("hero_split", hero_props)},
+    ]
+
+    if business_type == "restaurant" and (not feats or "menu_gallery" in feats):
+        blocks.append({
+            "block_type": "gallery_masonry",
+            "label": "Gallery",
+            "props": snap_props("gallery_masonry", {
+                "title": "From our kitchen",
+                "eyebrow": "Gallery",
+                "columns": 3,
+                "images": [{"src": imgs[i % len(imgs)], "caption": f"Dish {i + 1}"} for i in range(min(6, len(imgs)))],
+            }),
+        })
+
+    if selling_mode in ("products", "both") and (not feats or "products_sections" in feats):
+        blocks.append({
+            "block_type": "category_cards",
+            "label": "Categories",
+            "props": snap_props("category_cards", {
+                "title": "Shop by category",
+                "eyebrow": "Collections",
+                "layout": "editorial",
+                "columns": 3,
+            }),
+        })
+    if selling_mode in ("services", "both") and (not feats or "services_sections" in feats):
+        blocks.append({
+            "block_type": "services_cards",
+            "label": "Services",
+            "props": snap_props("services_cards", {
+                "title": "What we offer",
+                "columns": 3,
+                "features": [
+                    {"title": "Consultation", "desc": "Expert guidance tailored to your needs."},
+                    {"title": "Premium service", "desc": "Professional results, every time."},
+                    {"title": "Ongoing support", "desc": "We are here when you need us."},
+                ],
+            }),
+        })
+
+    if business_type in ("salon", "clinic", "restaurant") and (not feats or "booking_blocks" in feats):
+        blocks.append({
+            "block_type": "booking_widget",
+            "label": "Book Online",
+            "props": snap_props("booking_widget", {
+                "title": "Book an appointment",
+                "subtitle": f"Schedule with {short_name} in seconds.",
+            }),
+        })
+
+    if not feats or "reviews_trust" in feats:
+        blocks.append({"block_type": "features", "label": "Features", "props": snap_props("features", {
+            "title": "Why Choose Us",
+            "layout": "grid-3",
+            "show_images": True,
+            "features": [
+                {"icon": "Star", "title": "Quality first", "desc": "Hand-picked products and trusted service."},
+                {"icon": "Shield", "title": "Secure checkout", "desc": "Safe payments and reliable delivery."},
+                {"icon": "Zap", "title": "Fast support", "desc": "Real people ready to help."},
+            ],
+        })})
+        blocks.append({"block_type": "testimonials", "label": "Testimonials", "props": snap_props("testimonials", {
+            "title": "What customers say",
+            "testimonials": [
+                {"name": "Sarah M.", "role": "Customer", "quote": f"{short_name} exceeded my expectations — highly recommend.", "rating": 5},
+                {"name": "James L.", "role": "Customer", "quote": "Professional, fast, and exactly what I needed.", "rating": 5},
+            ],
+        })})
+    else:
+        blocks.append({"block_type": "features", "label": "Features", "props": snap_props("features", {
+            "title": "Why Choose Us",
+            "layout": "grid-3",
+            "show_images": True,
+            "features": [
+                {"icon": "Star", "title": "Quality first", "desc": "Hand-picked products and trusted service."},
+                {"icon": "Shield", "title": "Secure checkout", "desc": "Safe payments and reliable delivery."},
+                {"icon": "Zap", "title": "Fast support", "desc": "Real people ready to help."},
+            ],
+        })})
+
+    if not feats or "contact_form" in feats:
+        blocks.append({"block_type": "cta", "label": "CTA", "props": snap_props("cta", {
+            "headline": "Ready to get started?",
+            "subtitle": f"Join customers who trust {short_name}.",
+            "cta_label": "Contact us today",
+        })})
+
+    blocks.append({"block_type": "footer", "label": "Footer", "props": _footer_props_standard()})
+    return blocks
+
+
 @router.post("/{site_id}/ai/generate-site", response_model=AIGenerateSiteResponse)
 async def ai_generate_site(
     site_id: str,
@@ -2365,9 +2764,12 @@ Fill in real copy for the business. No placeholder text."""
 
             prompt = (
                 f"Business: {body.business_description}\n"
+                f"Business name: {(body.site_name or site.name or '').strip() or 'Auto'}\n"
+                f"Business type: {(body.business_type or 'general').strip()}\n"
                 f"Niche: {body.niche or 'auto'}\n"
                 f"Pages: {', '.join(default_pages)}\n"
-                f"Tone: {body.tone}"
+                f"Tone: {body.tone}\n"
+                f"Use hero_split with bg_style gradient, category_cards, features with show_images, alternating layouts, testimonials with avatars, gradient CTA sections, top_shape/bottom_shape wave dividers, and block animations fade-in/slide-up."
             )
 
             async with httpx.AsyncClient(timeout=90) as client:
@@ -2387,31 +2789,45 @@ Fill in real copy for the business. No placeholder text."""
     except Exception:
         pass
 
-    # Fallback: smart template-based generation
+    # Fallback: smart template-based generation (works without OpenAI)
     niche = body.niche or "business"
     biz = body.business_description
-    short_name = biz.split()[0].title() if biz else "Your Business"
+    short_name = (body.site_name or site.name or "").strip()
+    if not short_name and biz:
+        short_name = biz.split(".")[0].split(",")[0][:60].strip() or "Your Business"
+    if not short_name:
+        short_name = "Your Business"
+    category_id = (body.image_category or "").strip() or str((site.style_config or {}).get("image_category_id") or "shop")
+    selling_mode = (body.selling_mode or "products").strip() or "products"
+    business_type = (body.business_type or str((site.style_config or {}).get("business_type") or "retail")).strip()
+    setup_features = body.setup_features or []
+    imgs = _images_for_category(category_id, 16)
+    img_cursor = [0]
+
+    if body.pages:
+        default_pages = [p if p != "home" else "home" for p in body.pages]
+        if "home" not in default_pages:
+            default_pages = ["home"] + default_pages
+    else:
+        default_pages = ["home", "about", "services", "contact"]
+        if body.include_pricing and "pricing" not in default_pages:
+            default_pages.append("pricing")
+        if body.include_blog and "blog" not in default_pages:
+            default_pages.append("blog")
 
     pages_out: List[Dict[str, Any]] = []
+    style_cfg = _style_for_business_type(business_type)
     for slug in default_pages:
         page_blocks: list = []
         if slug == "home":
-            page_blocks = [
-                {"block_type": "nav",        "label": "Navigation", "props": {"brand": short_name, "cta_label": "Get Started"}},
-                {"block_type": "hero",       "label": "Hero", "props": {"headline": f"Welcome to {short_name}", "subtitle": f"We help you with {niche}.", "bg_style": "gradient", "cta_primary": "Get Started", "cta_secondary": "Learn More"}},
-                {"block_type": "features",   "label": "Features", "props": {"title": "Why Choose Us", "layout": "grid-3"}},
-                {"block_type": "live_stock", "label": "From your catalog", "props": {"title": "Popular products", "show_count": 6}},
-                {"block_type": "order_status", "label": "Order tracking", "props": {"title": "Track your order", "placeholder": "Order number…"}},
-                {"block_type": "stats",      "label": "Stats", "props": {"stats": [{"value": "500+", "label": "Clients"}, {"value": "98%", "label": "Satisfaction"}, {"value": "10yr", "label": "Experience"}]}},
-                {"block_type": "testimonials","label": "Testimonials", "props": {"title": "What Our Clients Say"}},
-                {"block_type": "cta",        "label": "CTA", "props": {"headline": "Ready to Get Started?", "cta_label": "Contact Us Today"}},
-                {"block_type": "footer",     "label": "Footer", "props": _footer_props_standard()},
-            ]
+            page_blocks = _professional_home_blocks(
+                short_name, niche, category_id, selling_mode, business_type, setup_features,
+            )
         elif slug == "about":
             page_blocks = [
                 {"block_type": "nav",          "label": "Navigation", "props": {"brand": short_name}},
-                {"block_type": "hero_minimal", "label": "Hero", "props": {"headline": "About Us", "subtitle": "Our story, mission and values.", "bg_style": "minimal"}},
-                {"block_type": "about_split",  "label": "Our Story", "props": {"title": "Who We Are", "description": biz}},
+                {"block_type": "hero_minimal", "label": "Hero", "props": _enrich_block_props_with_category("hero_minimal", {"headline": "About Us", "subtitle": "Our story, mission and values.", "bg_style": "image"}, imgs, img_cursor)},
+                {"block_type": "about_split",  "label": "Our Story", "props": _enrich_block_props_with_category("about_split", {"title": "Who We Are", "description": biz}, imgs, img_cursor)},
                 {"block_type": "team_grid",    "label": "Team", "props": {"title": "Meet the Team", "columns": 3}},
                 {"block_type": "timeline",     "label": "Timeline", "props": {"title": "Our Journey"}},
                 {"block_type": "footer",       "label": "Footer", "props": _footer_props_standard()},
@@ -2448,27 +2864,27 @@ Fill in real copy for the business. No placeholder text."""
             ]
 
         pages_out.append({
-            "title": slug.capitalize(),
-            "slug": slug,
+            "title": "Home" if slug == "home" else slug.replace("-", " ").title(),
+            "slug": slug if slug != "home" else "home",
             "page_type": slug if slug in ("home", "about", "services", "contact", "blog", "pricing") else "custom",
             "is_homepage": slug == "home",
-            "seo_title": f"{slug.capitalize()} | {short_name}",
-            "seo_description": f"Explore the {slug} section of {short_name}.",
+            "show_in_nav": True,
+            "seo_title": f"{short_name} — {slug.replace('-', ' ').title()}" if slug != "home" else f"{short_name} — Home",
+            "seo_description": (biz[:150] if biz else f"Welcome to {short_name}."),
             "blocks": page_blocks,
         })
+
+    for page in pages_out:
+        if page.get("blocks"):
+            page["blocks"] = _enrich_blocks_with_modern_design(page["blocks"], style_cfg)
 
     return AIGenerateSiteResponse(
         site_name=short_name,
         tagline=f"Your trusted partner in {niche}",
         seo_title=f"{short_name} — {niche.capitalize()} Solutions",
-        seo_description=biz[:150],
+        seo_description=(biz[:150] if biz else f"Discover {short_name}."),
         summary=f"Generated {len(pages_out)} pages for {short_name}.",
-        style_config={
-            "primary_color": "#6d28d9", "secondary_color": "#4c1d95", "accent_color": "#f59e0b",
-            "bg_color": "#ffffff", "surface_color": "#f9fafb", "text_color": "#111827",
-            "font_heading": "Inter", "font_body": "Inter", "border_radius": "rounded",
-            "spacing": "comfortable", "animation": "subtle", "button_style": "filled",
-        },
+        style_config=style_cfg,
         pages=pages_out,
     )
 
@@ -2496,25 +2912,74 @@ async def apply_generated_site(
     if body.seo_description:
         site.seo_description = body.seo_description
 
+    category_id = str((site.style_config or {}).get("image_category_id") or "shop")
+    category_imgs = _images_for_category(category_id, 20)
+    img_cursor = [0]
+    homepage_set = False
+    page_dicts: List[Dict[str, Any]] = []
+
     for p_idx, p in enumerate(body.pages):
+        is_home = bool(p.get("is_homepage")) and not homepage_set
+        if is_home:
+            homepage_set = True
+        elif p_idx == 0 and not homepage_set:
+            is_home = True
+            homepage_set = True
+
         page_id_new = uuid.uuid4()
         page = WebsitePage(
             id=page_id_new, site_id=UUID(site_id),
             title=p.get("title", "Page"), slug=p.get("slug", f"page-{p_idx}"),
             page_type=p.get("page_type", "custom"),
-            is_homepage=p.get("is_homepage", p_idx == 0),
+            is_homepage=is_home,
+            show_in_nav=p.get("show_in_nav", True),
             seo_title=p.get("seo_title"), seo_description=p.get("seo_description"),
             sort_order=p_idx,
         )
         db.add(page)
         await db.flush()
+
+        page_dicts.append({
+            "title": page.title,
+            "slug": page.slug,
+            "is_homepage": page.is_homepage,
+            "show_in_nav": page.show_in_nav,
+            "sort_order": page.sort_order,
+        })
+
         for b_idx, b in enumerate(p.get("blocks", [])):
+            b_type = b.get("block_type", "rich_text")
+            props = _enrich_block_props_with_category(
+                b_type,
+                b.get("props", {}) or {},
+                category_imgs,
+                img_cursor,
+            )
+            if category_id and "_image_category_id" not in props:
+                props["_image_category_id"] = category_id
             block = WebsiteBlock(
                 id=uuid.uuid4(), page_id=page_id_new,
-                block_type=b.get("block_type", "rich_text"), label=b.get("label"),
-                props=b.get("props", {}), style_overrides={}, sort_order=b_idx,
+                block_type=b_type, label=b.get("label"),
+                props=props, style_overrides={}, sort_order=b_idx,
+                animation=b.get("animation"),
+                animation_delay=int(b.get("animation_delay") or 0),
             )
             db.add(block)
+
+    nav_links = _nav_links_from_page_dicts(page_dicts)
+    if nav_links:
+        nav_blocks = (await db.execute(
+            select(WebsiteBlock).where(
+                WebsiteBlock.page_id.in_(
+                    select(WebsitePage.id).where(WebsitePage.site_id == UUID(site_id))
+                ),
+                WebsiteBlock.block_type == "nav",
+            )
+        )).scalars().all()
+        for nav_block in nav_blocks:
+            props = dict(nav_block.props or {})
+            props["nav_links"] = nav_links
+            nav_block.props = props
 
     site.updated_at = datetime.utcnow()
     await db.commit()
@@ -2928,13 +3393,19 @@ async def get_live_resource(
             ))
 
     elif resource == "pages":
+        seen_urls: set[str] = set()
         for page in sorted(site.pages or [], key=lambda p: (not p.is_homepage, getattr(p, "sort_order", 0))):
             if not getattr(page, "is_published", True) or not getattr(page, "show_in_nav", True):
                 continue
             slug = "/" if page.is_homepage else f"/{page.slug or ''}"
+            if slug == "/home":
+                slug = "/"
+            if slug in seen_urls:
+                continue
+            seen_urls.add(slug)
             items.append(_norm_item(
                 id=str(page.id),
-                title=page.title or "Page",
+                title="Home" if page.is_homepage else (page.title or "Page"),
                 subtitle=page.slug,
                 url=slug,
                 meta={
@@ -3452,6 +3923,60 @@ async def create_builder_preview(
         payload=payload,
     )
     db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return {
+        "id": str(row.id),
+        "preview_token": row.preview_token,
+        "label": row.label,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+@router.put("/{site_id}/builder-previews/{token}")
+async def update_builder_preview(
+    site_id: str,
+    token: str,
+    body: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    """Update an existing draft preview snapshot in place (keeps the same browser tab token)."""
+    vendor = await _get_vendor(db, user)
+    await _get_site(db, site_id, vendor.id)
+    if not token or len(token) > 128:
+        raise HTTPException(status_code=400, detail="Invalid preview token")
+
+    payload = body.get("payload")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="payload must be an object")
+    pages = payload.get("pages")
+    if not isinstance(pages, list):
+        raise HTTPException(status_code=400, detail="payload.pages must be an array")
+    try:
+        raw = json.dumps(payload, default=str)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="payload must be JSON-serializable")
+    if len(raw.encode("utf-8")) > MAX_BUILDER_PREVIEW_BYTES:
+        raise HTTPException(status_code=400, detail="Preview payload too large (max 2MB)")
+
+    result = await db.execute(
+        select(WebsiteBuilderPreview).where(
+            WebsiteBuilderPreview.site_id == UUID(site_id),
+            WebsiteBuilderPreview.preview_token == token,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Preview not found")
+
+    label = body.get("label")
+    if label is not None:
+        if not isinstance(label, str) or len(label) > 200:
+            raise HTTPException(status_code=400, detail="label must be a string of at most 200 characters")
+        row.label = label
+
+    row.payload = payload
     await db.commit()
     await db.refresh(row)
     return {

@@ -4,6 +4,7 @@
   "description": "Run frontend apps from the repo root (each app lives in its own folder). Use npm run dev to start admin (:3000), vendor (:3001), and business front (:3002) together.",
   "scripts": {
     "dev": "node -e \"console.log('\\n  All three Vite apps start here. Wait for Local: lines for ports 3000, 3001, and 3002.\\n  If you only run npm run dev inside frontend/, only :3000 exists.\\n  In Cursor: Terminal → Run Task → Dev: ALL web apps (3000 + 3001 + 3002).\\n')\" && concurrently -n admin,vendor,business front -c blue,green,magenta \"npm run dev:admin\" \"npm run dev:vendor\" \"npm run dev:business front\"",
+    "dev:docker-bridge": "node scripts/localhost-bridge.mjs",
     "dev:vendor": "npm run dev --prefix vendor-web",
     "dev:business front": "npm run dev --prefix storefront-web",
     "dev:admin": "npm run dev --prefix frontend",
@@ -11,6 +12,7 @@
     "build:aws": "npm run build:bundle --prefix vendor-web && npm run build --prefix storefront-web && npm run build:bundle --prefix frontend"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "http-proxy": "^1.18.1"
   }
 }

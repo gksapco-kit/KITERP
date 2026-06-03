@@ -172,6 +172,18 @@ export const websiteApi = {
         { timeout: 120_000 },
       )
       .then(r => r.data),
+  updateBuilderPreview: (
+    siteId: string,
+    token: string,
+    body: { payload: Record<string, unknown>; label?: string },
+  ) =>
+    apiClient
+      .put<{ id: string; preview_token: string; label: string | null; created_at: string | null }>(
+        `${base}/${siteId}/builder-previews/${encodeURIComponent(token)}`,
+        body,
+        { timeout: 120_000 },
+      )
+      .then(r => r.data),
   listBuilderPreviews: (siteId: string) =>
     apiClient
       .get<{ id: string; preview_token: string; label: string | null; created_at: string | null }[]>(

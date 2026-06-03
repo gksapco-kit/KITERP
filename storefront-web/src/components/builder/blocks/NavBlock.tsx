@@ -84,10 +84,19 @@ export default function NavBlock({ site, style, props, liveItems, branchCode: br
   const announcement = (props.announcement as string | undefined) || null
 
   const rawLinks = (props.nav_links as Array<{ label: string; url: string }> | undefined) || []
-  const kitLinks: NavLinkItem[] =
+  const pageLinks: NavLinkItem[] =
     liveItems.length > 0
       ? liveItems.map((item) => ({ label: item.title, href: storePath(item.url || '/') }))
       : rawLinks.map((l) => ({ label: l.label, href: storePath(l.url) }))
+
+  const kitLinks: NavLinkItem[] = []
+  const seenHrefs = new Set<string>()
+  for (const link of pageLinks) {
+    const href = link.href
+    if (seenHrefs.has(href)) continue
+    seenHrefs.add(href)
+    kitLinks.push(link)
+  }
 
   if (kitLinks.length === 0) {
     kitLinks.push(

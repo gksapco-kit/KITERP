@@ -9,6 +9,8 @@ import { ThemeSync } from './components/ThemeSync'
 import { RootErrorBoundary } from './components/RootErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
+import { normalizeLoopbackInUrl } from './lib/loopbackHost'
+import { DRAFT_BROWSER_PREVIEW_PATH } from './lib/storefrontPreviewUrl'
 import './styles/globals.css'
 
 initGlobalEscapeHandler()
@@ -21,9 +23,18 @@ const queryClient = new QueryClient({
 
 // Handle token handoff from business front vendor signup (?token= access JWT on non-handoff routes).
 // Do not treat /auth/handoff?token= as signup — that query param is a short-lived handoff JWT.
+// Do not treat /preview/draft?token= as auth — that query param is a builder snapshot token.
+function isDraftPreviewPath(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, '') || '/'
+  return path === DRAFT_BROWSER_PREVIEW_PATH
+    || path.startsWith(`${DRAFT_BROWSER_PREVIEW_PATH}/`)
+    || path === '/websites/browser-preview'
+}
+
 ;(() => {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
   if (path === '/auth/handoff') return
+  if (isDraftPreviewPath(path)) return
 
   const params = new URLSearchParams(window.location.search)
   const token = params.get('token')
@@ -42,13 +53,14 @@ const queryClient = new QueryClient({
 })()
 
 console.log('%c🏪 VENDOR-WEB (Port 3001)', 'color: #10b981; font-size: 16px; font-weight: bold;')
-console.log('This is the vendor dashboard application')
+console.log('Open http://localhost:3001 — if it fails on Windows Docker, run scripts\\fix-localhost-docker.ps1 as Admin.')
 
 // Preflight: validate stored token in the background (clears stale auth if /auth/me fails).
 async function preflight() {
+  if (isDraftPreviewPath(window.location.pathname)) return
   const token = localStorage.getItem('access_token')
   if (!token) return
-  const API = import.meta.env.VITE_API_URL || '/api/v1'
+  const API = normalizeLoopbackInUrl(import.meta.env.VITE_API_URL || '/api/v1')
   const ac = new AbortController()
   const t = window.setTimeout(() => ac.abort(), 5000)
   try {

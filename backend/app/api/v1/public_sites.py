@@ -590,13 +590,19 @@ async def get_live_resource_public(
             items.append(_norm_item(id=cat, title=cat, subtitle=f"{cnt} item{'s' if cnt != 1 else ''}", meta={"count": cnt}))
 
     elif resource == "pages":
+        seen_urls: set[str] = set()
         for page in sorted(site.pages or [], key=lambda p: (not p.is_homepage, getattr(p, "sort_order", 0))):
             if not getattr(page, "is_published", True) or not getattr(page, "show_in_nav", True):
                 continue
             slug = "/" if page.is_homepage else f"/{page.slug or ''}"
+            if slug == "/home":
+                slug = "/"
+            if slug in seen_urls:
+                continue
+            seen_urls.add(slug)
             items.append(_norm_item(
                 id=str(page.id),
-                title=page.title or "Page",
+                title="Home" if page.is_homepage else (page.title or "Page"),
                 subtitle=page.slug,
                 url=slug,
                 meta={"is_homepage": bool(page.is_homepage), "slug": page.slug, "page_type": page.page_type},

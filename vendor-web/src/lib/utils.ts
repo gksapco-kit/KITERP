@@ -32,15 +32,17 @@ export function formatDateTime(dateStr?: string) {
   })
 }
 
+import { normalizeLoopbackOrigin } from '@/lib/loopbackHost'
+
 /**
- * Derive the backend origin (e.g. http://localhost:8000) from the available env vars.
+ * Derive the backend origin (e.g. http://127.0.0.1:8000) from the available env vars.
  * Priority: VITE_BACKEND_URL → VITE_API_URL stripped of /api/v1 → VITE_API_BASE → fallback.
  */
 function backendOrigin(): string {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '')
-  if (import.meta.env.VITE_API_URL)     return import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '')
-  if (import.meta.env.VITE_API_BASE)    return import.meta.env.VITE_API_BASE.replace(/\/$/, '')
-  return 'http://localhost:8000'
+  if (import.meta.env.VITE_BACKEND_URL) return normalizeLoopbackOrigin(import.meta.env.VITE_BACKEND_URL.replace(/\/$/, ''))
+  if (import.meta.env.VITE_API_URL) return normalizeLoopbackOrigin(import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '').replace(/\/$/, ''))
+  if (import.meta.env.VITE_API_BASE) return normalizeLoopbackOrigin(import.meta.env.VITE_API_BASE.replace(/\/$/, ''))
+  return 'http://127.0.0.1:8000'
 }
 
 /**

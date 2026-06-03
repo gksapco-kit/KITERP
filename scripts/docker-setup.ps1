@@ -36,13 +36,23 @@ switch ($Command) {
     "dev" {
         Write-Host "Starting KITERP in DEVELOPMENT mode..." -ForegroundColor Cyan
         docker compose up --build -d
+        Write-Host "Starting localhost bridge (3001/3002)..." -ForegroundColor Cyan
+        npm install --no-audit --no-fund 2>$null | Out-Null
+        Start-Process -WindowStyle Hidden -FilePath "node" -ArgumentList "scripts/localhost-bridge.mjs" -WorkingDirectory $PROJECT_ROOT
+        Start-Sleep -Seconds 2
         Write-Host ""
         Write-Host "Services are starting up!" -ForegroundColor Green
         Write-Host "  Backend API:    http://localhost:8000" -ForegroundColor White
         Write-Host "  API Docs:       http://localhost:8000/docs" -ForegroundColor White
         Write-Host "  Admin Panel:    http://localhost:3000" -ForegroundColor White
         Write-Host "  Vendor Panel:   http://localhost:3001" -ForegroundColor White
-        Write-Host "  Business Front:     http://localhost:3002" -ForegroundColor White
+        Write-Host "  Business Front: http://localhost:3002" -ForegroundColor White
+        Write-Host ""
+        Write-Host "If localhost still fails, run the bridge manually:" -ForegroundColor Yellow
+        Write-Host "  npm run dev:docker-bridge" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Or as Administrator (one-time Windows fix):" -ForegroundColor DarkGray
+        Write-Host "  .\scripts\fix-localhost-docker.ps1" -ForegroundColor DarkGray
         Write-Host ""
         Write-Host "Run '.\scripts\docker-setup.ps1 logs' to follow logs" -ForegroundColor Yellow
     }

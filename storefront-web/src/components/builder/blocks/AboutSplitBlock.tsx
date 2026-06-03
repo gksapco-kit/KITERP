@@ -1,4 +1,5 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { imgUrl } from '@/lib/utils'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
 
@@ -7,7 +8,8 @@ export default function AboutSplitBlock({ site, style, props, liveItems }: Props
   const title = (props.title as string) || profile?.title || 'About Us'
   const subtitle = (props.subtitle as string) || 'Our Story'
   const description = (props.description as string) || profile?.description || site.description || ''
-  const imageUrl = (props.image_url as string | null) || profile?.image_url || null
+  const imageRaw = (props.image_url as string | null) || profile?.image_url || null
+  const imageUrl = imageRaw ? imgUrl(imageRaw) : null
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">

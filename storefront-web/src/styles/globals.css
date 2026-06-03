@@ -98,6 +98,25 @@
   .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 }
 
+/* Builder block entrance animations (generated sites) */
+@keyframes builder-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes builder-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: builder-fade-in 0.65s ease-out both;
+}
+
+.animate-slide-up {
+  animation: builder-slide-up 0.7s ease-out both;
+}
+
 /* Storefront template animations */
 @keyframes sf-marquee {
   from { transform: translateX(0); }

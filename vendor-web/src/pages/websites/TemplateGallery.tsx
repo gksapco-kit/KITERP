@@ -6,6 +6,7 @@ import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { WebsiteTemplatePreviewModal, getStorefrontTemplateBrowserPreviewUrl } from '@/components/websites/WebsiteTemplatePreviewModal'
+import { wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -211,7 +212,7 @@ export default function WebsiteTemplateGalleryPage() {
                         type="button"
                         onClick={() => {
                           window.open(
-                            getStorefrontTemplateBrowserPreviewUrl(tpl.id),
+                            wrapStorefrontPreviewForVendorBrowser(getStorefrontTemplateBrowserPreviewUrl(tpl.id)),
                             '_blank',
                             'noopener,noreferrer',
                           )

@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { isAxiosError } from 'axios'
 import {
   ArrowLeft, Monitor, Tablet, Smartphone, Save, Eye, EyeOff,
   Undo2, Redo2, Plus, Trash2, Copy, ChevronUp, ChevronDown,
@@ -62,7 +63,8 @@ import { BLOCK_QUICK_PRESETS, getSectionLayoutOptions } from '@/lib/sectionLayou
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
 import { resolveFooterTheme } from '@/lib/footerLayoutTheme'
 import {
-  buildBuilderDraftPreviewUrl,
+  buildVendorDraftPreviewUrl,
+  openDraftPreviewInBrowser,
   BUILDER_CRISP_LABEL,
   getStorefrontAppOrigin,
   shouldUseLocalStorefrontUrls,
@@ -70,6 +72,7 @@ import {
 } from '@/lib/storefrontPreviewUrl'
 import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
+import { pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
 
 // ── Block definitions catalog ─────────────────────────────────────────────────
 
@@ -626,7 +629,8 @@ function useDraggablePopup(open: boolean) {
 function TextPromptPopup({
   open, anchor, title, subtitle, initialValue, placeholder, multiline, maxLength,
   helpText, minLength,
-  confirmLabel = 'Save', onSave, onClose,
+  confirmLabel = 'Save', confirmOnly, destructive,
+  onSave, onClose,
 }: {
   open: boolean
   anchor?: { x: number; y: number } | null
@@ -639,6 +643,8 @@ function TextPromptPopup({
   helpText?: string
   minLength?: number
   confirmLabel?: string
+  confirmOnly?: boolean
+  destructive?: boolean
   onSave: (v: string) => void
   onClose: () => void
 }) {
@@ -669,13 +675,18 @@ function TextPromptPopup({
         onMouseDown={e => e.stopPropagation()}
       >
         <div
-          className="px-4 py-3 bg-gradient-to-r from-primary to-emerald-700 text-white flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
+          className={cn(
+            'px-4 py-3 text-white flex items-center justify-between cursor-grab active:cursor-grabbing select-none',
+            destructive
+              ? 'bg-gradient-to-r from-red-600 to-red-700'
+              : 'bg-gradient-to-r from-primary to-emerald-700',
+          )}
           onMouseDown={headerMouseDown}
           title="Drag to move"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Move className="w-3 h-3 opacity-60 shrink-0" />
-            <Pencil className="w-4 h-4 shrink-0" />
+            {destructive ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <Pencil className="w-4 h-4 shrink-0" />}
             <span className="text-sm font-bold truncate">{title}</span>
           </div>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-white/20 shrink-0">
@@ -683,8 +694,12 @@ function TextPromptPopup({
           </button>
         </div>
         <div className="p-4 space-y-3">
-          {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
-          {multiline ? (
+          {subtitle && (
+            <p className={cn('text-sm leading-relaxed', confirmOnly ? 'text-gray-700' : 'text-xs text-gray-500')}>
+              {subtitle}
+            </p>
+          )}
+          {!confirmOnly && (multiline ? (
             <textarea
               autoFocus
               value={val}
@@ -712,11 +727,11 @@ function TextPromptPopup({
               }}
               onFocus={e => e.currentTarget.select()}
             />
-          )}
-          {helpText && (
+          ))}
+          {!confirmOnly && helpText && (
             <p className={cn('text-xs', canSubmit ? 'text-gray-400' : 'text-amber-600')}>{helpText}</p>
           )}
-          {maxLength && (
+          {!confirmOnly && maxLength && (
             <div className="text-xs text-gray-400 text-right">{val.length} / {maxLength}</div>
           )}
         </div>
@@ -727,9 +742,9 @@ function TextPromptPopup({
             disabled={!canSubmit}
             className={cn(
               'flex-1 py-2 rounded-lg text-xs font-bold',
-              canSubmit
-                ? 'bg-primary text-white hover:bg-primary/90'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+              !canSubmit && 'bg-gray-200 text-gray-400 cursor-not-allowed',
+              canSubmit && destructive && 'bg-red-600 text-white hover:bg-red-700',
+              canSubmit && !destructive && 'bg-primary text-white hover:bg-primary/90',
             )}
           >
             {confirmLabel}
@@ -1772,6 +1787,97 @@ function ItemMenuButton({
   )
 }
 
+/** Page row actions in the Pages sidebar — always visible menu with labeled options. */
+function PageActionsMenu({
+  page,
+  pageCount,
+  onSetHomepage,
+  onDuplicate,
+  onDelete,
+}: {
+  page: WebsitePage
+  pageCount: number
+  onSetHomepage: () => void
+  onDuplicate: () => void
+  onDelete: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const canDelete = !page.is_homepage && pageCount > 1
+  const deleteHint = page.is_homepage
+    ? 'Set another page as home before deleting.'
+    : pageCount <= 1
+      ? 'Your site needs at least one page.'
+      : null
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  const menuItem = (
+    label: string,
+    onClick: (() => void) | undefined,
+    icon: React.ReactNode,
+    tone: 'default' | 'danger' = 'default',
+  ) => (
+    <button
+      key={label}
+      type="button"
+      disabled={!onClick}
+      onClick={e => {
+        e.stopPropagation()
+        if (onClick) { onClick(); setOpen(false) }
+      }}
+      className={cn(
+        'w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors text-left',
+        !onClick && 'opacity-45 cursor-not-allowed text-gray-400',
+        onClick && tone === 'danger' && 'hover:bg-red-50 text-red-600',
+        onClick && tone !== 'danger' && 'hover:bg-gray-50 text-gray-700',
+      )}
+    >
+      <span className="w-4 h-4 flex items-center justify-center shrink-0">{icon}</span>
+      <span>{label}</span>
+    </button>
+  )
+
+  return (
+    <div ref={rootRef} className="relative shrink-0" onClick={e => e.stopPropagation()}>
+      <button
+        type="button"
+        title={`Page actions — ${page.title}`}
+        aria-label={`Page actions for ${page.title}`}
+        aria-expanded={open}
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+        className={cn(
+          'h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] font-semibold border transition-colors',
+          open
+            ? 'bg-primary text-white border-primary shadow-sm'
+            : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40 hover:text-primary hover:bg-accent/40',
+        )}
+      >
+        <MoreVertical className="w-3.5 h-3.5" />
+        <span>Actions</span>
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-40">
+          {!page.is_homepage && menuItem('Set as homepage', onSetHomepage, <span className="text-sm leading-none">🏠</span>)}
+          {menuItem('Duplicate page', onDuplicate, <Copy className="w-3.5 h-3.5" />)}
+          <div className="my-1 border-t border-gray-100" />
+          {menuItem('Delete page', canDelete ? onDelete : undefined, <Trash2 className="w-3.5 h-3.5" />, 'danger')}
+          {deleteHint && (
+            <p className="px-3 pt-1 pb-0.5 text-[10px] leading-snug text-gray-400">{deleteHint}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Inline Editable Rich Text (HTML) ─────────────────────────────────────────
 // For blocks that store HTML content (e.g. rich_text). When editable, a single
 // click focuses the contenteditable area preserving formatting; commits the
@@ -2801,12 +2907,84 @@ function SectionShapeDivider({ shape, fillColor, position }: {
 }
 
 function buildNavLinksFromPages(pages: WebsitePage[]): { label: string; url: string }[] {
-  return [...pages]
+  const sorted = [...pages]
+    .filter(p => p.show_in_nav !== false)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map(pg => ({
-      label: pg.title,
-      url: pg.is_homepage ? '/' : `/${String(pg.slug).replace(/^\/+/, '').replace(/\/+$/, '')}`,
-    }))
+
+  const seenUrls = new Set<string>()
+  const links: { label: string; url: string }[] = []
+
+  for (const pg of sorted) {
+    let url = pg.is_homepage
+      ? '/'
+      : `/${String(pg.slug).replace(/^\/+/, '').replace(/\/+$/, '')}`
+    if (url === '/home') url = '/'
+    if (seenUrls.has(url)) continue
+    seenUrls.add(url)
+
+    const label = pg.is_homepage ? 'Home' : (pg.title?.trim() || pg.slug || 'Page')
+    links.push({ label, url })
+  }
+
+  return links
+}
+
+function findPageIdForBlock(
+  blocksMap: Record<string, WebsiteBlock[]>,
+  pages: WebsitePage[],
+  blockId: string,
+  preferPageId?: string | null,
+): string | null {
+  if (preferPageId && (blocksMap[preferPageId] || []).some(b => b.id === blockId)) {
+    return preferPageId
+  }
+  for (const page of pages) {
+    if ((blocksMap[page.id] || []).some(b => b.id === blockId)) return page.id
+  }
+  return null
+}
+
+function uniquePageSlug(base: string, pages: WebsitePage[]): string {
+  const slugBase = base.replace(/^\/+/, '').replace(/\/+$/, '') || 'page'
+  const taken = new Set(pages.map(p => p.slug))
+  if (!taken.has(slugBase)) return slugBase
+  let n = 2
+  while (taken.has(`${slugBase}-${n}`)) n += 1
+  return `${slugBase}-${n}`
+}
+
+/** One homepage, unique slugs — fixes duplicate Home tabs after generate/merge. */
+function normalizeSitePages(pages: WebsitePage[]): WebsitePage[] {
+  const sorted = [...pages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  let hasHomepage = false
+  const seenSlugs = new Set<string>()
+  const out: WebsitePage[] = []
+  for (const page of sorted) {
+    let p = { ...page }
+    if (p.is_homepage) {
+      if (hasHomepage) p = { ...p, is_homepage: false }
+      else hasHomepage = true
+    }
+    let slug = (p.slug || '').trim().toLowerCase() || 'page'
+    if (seenSlugs.has(slug)) {
+      slug = uniquePageSlug(slug, out)
+      p = { ...p, slug }
+    }
+    seenSlugs.add(slug.toLowerCase())
+    out.push(p)
+  }
+  if (!hasHomepage && out.length > 0) {
+    out[0] = { ...out[0], is_homepage: true }
+  }
+  return out
+}
+
+function pageChipLabel(page: WebsitePage, pages: WebsitePage[]): string {
+  const dupTitle = pages.filter(p => p.title === page.title).length > 1
+  if (dupTitle) {
+    return page.is_homepage ? `${page.title} ★` : `${page.title} · /${page.slug}`
+  }
+  return page.is_homepage ? `${page.title} ★` : page.title
 }
 
 function navLinksEqual(
@@ -8194,6 +8372,9 @@ function PagePanel({
   siteStyle,
   onPageStyleChange,
   onClearPageStyle,
+  onDeletePage,
+  onDuplicatePage,
+  onSetHomepage,
 }: {
   pages: WebsitePage[]
   activePageId: string | null
@@ -8201,11 +8382,20 @@ function PagePanel({
   siteStyle: StyleConfig
   onPageStyleChange: (pageId: string, patch: PageStyleOverrides) => void
   onClearPageStyle: (pageId: string) => void
+  onDeletePage?: (pageId: string, pageTitle: string) => void
+  onDuplicatePage?: (page: WebsitePage) => void
+  onSetHomepage?: (page: WebsitePage) => void
 }) {
   const activePage = pages.find(p => p.id === activePageId) || null
   const pageOverrides = activePageId ? (siteStyle.page_styles?.[activePageId] || {}) : {}
   const effective = activePageId ? mergePageStyleConfig(siteStyle, activePageId) : siteStyle
   const hasOverrides = Object.keys(pageOverrides).length > 0
+  const canDelete = !!activePage && !activePage.is_homepage && pages.length > 1
+  const deleteBlockedReason = activePage?.is_homepage
+    ? 'Set another page as homepage before deleting this one.'
+    : pages.length <= 1
+      ? 'Your site needs at least one page.'
+      : null
 
   const colorField = (key: keyof PageStyleOverrides, label: string, fallback: string) => (
     <div key={key} className="flex items-center gap-2">
@@ -8246,7 +8436,7 @@ function PagePanel({
               <button
                 key={page.id}
                 type="button"
-                title={page.is_homepage ? `${page.title} (homepage)` : `/${page.slug}`}
+                title={page.is_homepage ? `${page.title} (homepage · /${page.slug})` : `/${page.slug}`}
                 onClick={() => onSelectPage(page.id)}
                 className={cn(
                   'shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors',
@@ -8255,7 +8445,7 @@ function PagePanel({
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
                 )}
               >
-                {page.title}
+                {pageChipLabel(page, pages)}
                 {customized && (
                   <span
                     className={cn('w-1.5 h-1.5 rounded-full shrink-0', selected ? 'bg-white/80' : 'bg-primary')}
@@ -8273,9 +8463,61 @@ function PagePanel({
       ) : (
         <>
           <div className="rounded-xl bg-accent/60 border border-primary/15 px-3 py-2">
-            <div className="text-xs font-bold text-primary">{activePage.title}</div>
-            <div className="text-[10px] text-primary/70 mt-0.5">Styles below apply to this page only</div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-primary truncate">{activePage.title}</div>
+                <div className="text-[10px] text-primary/70 mt-0.5 font-mono">/{activePage.slug}</div>
+              </div>
+              {activePage.is_homepage && (
+                <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-1.5 py-0.5 rounded">
+                  Homepage
+                </span>
+              )}
+            </div>
+            <div className="text-[10px] text-primary/70 mt-1">Styles below apply to this page only</div>
           </div>
+
+          {(onDeletePage || onDuplicatePage || onSetHomepage) && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3 space-y-2">
+              <div className="text-xs font-bold text-gray-700">Manage page</div>
+              <div className="flex flex-wrap gap-2">
+                {!activePage.is_homepage && onSetHomepage && (
+                  <button
+                    type="button"
+                    onClick={() => onSetHomepage(activePage)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-[11px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <span className="text-sm leading-none">🏠</span>
+                    Set as homepage
+                  </button>
+                )}
+                {onDuplicatePage && (
+                  <button
+                    type="button"
+                    onClick={() => onDuplicatePage(activePage)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-[11px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Duplicate
+                  </button>
+                )}
+              </div>
+              {onDeletePage && (
+                canDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => onDeletePage(activePage.id, activePage.title)}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete this page
+                  </button>
+                ) : (
+                  <p className="text-[11px] text-gray-500 leading-snug px-1">{deleteBlockedReason}</p>
+                )
+              )}
+            </div>
+          )}
 
           <div>
             <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Page colors</div>
@@ -10074,6 +10316,8 @@ export default function WebsiteBuilder() {
         confirmLabel?: string
         helpText?: string
         minLength?: number
+        confirmOnly?: boolean
+        destructive?: boolean
         anchor?: { x: number; y: number } | null
         onSave: (v: string) => void
       }
@@ -10089,6 +10333,8 @@ export default function WebsiteBuilder() {
     confirmLabel?: string
     helpText?: string
     minLength?: number
+    confirmOnly?: boolean
+    destructive?: boolean
     anchor?: { x: number; y: number } | null
     onSave: (v: string) => void
   }) => setTextPrompt(opts), [])
@@ -10282,7 +10528,7 @@ export default function WebsiteBuilder() {
     }
     setAutoSaveStatus('synced')
     setLocalStyle({ ...DEFAULT_STYLE, ...(nextSite.style_config as any) })
-    setLocalPages(nextSite.pages)
+    setLocalPages(normalizeSitePages(nextSite.pages))
     const nextBlocks: Record<string, WebsiteBlock[]> = {}
     nextSite.pages.forEach(page => {
       nextBlocks[page.id] = page.blocks.slice().sort((a, b) => a.sort_order - b.sort_order)
@@ -10337,24 +10583,33 @@ export default function WebsiteBuilder() {
 
   const handleClearTemplateSandbox = useCallback(async () => {
     if (!siteId || !isTemplateMode) return
-    setClearingTemplateSandbox(true)
-    setTemplatePanelSelectedId(null)
-    try {
-      const next = await websiteApi.ensureBlankSite(siteId)
-      queryClient.setQueryData(['websites', siteId], next)
-      hydrateEditorFromSite(next)
-      setStyleDirty(false)
-      setBlocksDirty(false)
-      blocksDirtyRef.current = false
-      styleDirtyRef.current = false
-      await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
-      toast.success('Cleared — blank site')
-    } catch {
-      toast.error('Could not clear site')
-    } finally {
-      setClearingTemplateSandbox(false)
-    }
-  }, [siteId, isTemplateMode, queryClient, hydrateEditorFromSite])
+    openTextPrompt({
+      title: 'Clear template sandbox?',
+      subtitle: 'All pages and sections in this template workspace will be removed. This cannot be undone.',
+      confirmLabel: 'Clear all',
+      confirmOnly: true,
+      destructive: true,
+      onSave: async () => {
+        setClearingTemplateSandbox(true)
+        setTemplatePanelSelectedId(null)
+        try {
+          const next = await websiteApi.ensureBlankSite(siteId)
+          queryClient.setQueryData(['websites', siteId], next)
+          hydrateEditorFromSite(next)
+          setStyleDirty(false)
+          setBlocksDirty(false)
+          blocksDirtyRef.current = false
+          styleDirtyRef.current = false
+          await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
+          toast.success('Cleared — blank site')
+        } catch {
+          toast.error('Could not clear site')
+        } finally {
+          setClearingTemplateSandbox(false)
+        }
+      },
+    })
+  }, [siteId, isTemplateMode, queryClient, hydrateEditorFromSite, openTextPrompt])
 
   const handleCopyTemplateJson = useCallback(async () => {
     try {
@@ -10369,12 +10624,11 @@ export default function WebsiteBuilder() {
   const handleResetCanvasFromServer = useCallback(() => {
     if (!siteId) return
     openTextPrompt({
-      title: 'Reset',
-      subtitle: 'Unsaved canvas and style changes will be lost. This cannot be undone.',
-      placeholder: 'Type anything to confirm…',
-      helpText: 'Enter at least 2 characters to enable Reset.',
-      minLength: 2,
+      title: 'Reset canvas?',
+      subtitle: 'Unsaved canvas and style changes will be lost. This reloads the last saved version from the server.',
       confirmLabel: 'Reset',
+      confirmOnly: true,
+      destructive: true,
       onSave: async () => {
         setResettingCanvasFromServer(true)
         try {
@@ -10383,6 +10637,8 @@ export default function WebsiteBuilder() {
           hydrateEditorFromSite(fresh)
           setStyleDirty(false)
           setBlocksDirty(false)
+          blocksDirtyRef.current = false
+          styleDirtyRef.current = false
           toast.success('Canvas reset to last saved version')
         } catch {
           toast.error('Could not reload site')
@@ -10411,12 +10667,19 @@ export default function WebsiteBuilder() {
       }
       // Merge server pages with local-only pages (e.g. just created) so refetches cannot drop tabs.
       setLocalPages(prev => {
+        if (pageStructureReplaced) {
+          const merged = normalizeSitePages(
+            [...site.pages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+          )
+          localPagesRef.current = merged
+          return merged
+        }
         const mergedMap = new Map<string, WebsitePage>()
         for (const p of site.pages) mergedMap.set(p.id, p)
         for (const p of prev) {
-          if (!mergedMap.has(p.id)) mergedMap.set(p.id, p)
+          if (!mergedMap.has(p.id) && p.id.startsWith('temp-')) mergedMap.set(p.id, p)
         }
-        const merged = [...mergedMap.values()].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        const merged = normalizeSitePages([...mergedMap.values()].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)))
         localPagesRef.current = merged
         return merged
       })
@@ -11192,26 +11455,31 @@ export default function WebsiteBuilder() {
 
   // Preview-only update — instant canvas update, no API call (used while typing)
   const handlePreviewBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
-    if (!activePageId) return
+    const pages = localPagesRef.current
+    const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
+    if (!pageId) return
     setLocalBlocks(prev => {
-      const blocks = prev[activePageId] || []
+      const blocks = prev[pageId] || []
       const block = blocks.find(b => b.id === blockId)
       if (!block) return prev
       const mergedProps = { ...block.props, ...propsUpdate }
       return {
         ...prev,
-        [activePageId]: blocks.map(b => b.id === blockId ? { ...b, props: mergedProps } : b),
+        [pageId]: blocks.map(b => b.id === blockId ? { ...b, props: mergedProps } : b),
       }
     })
   }, [activePageId])
 
   // Update block props — immediate UI; server sync on explicit Save
   const handleUpdateBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
-    if (!activePageId) return
+    const pages = localPagesRef.current
+    const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
+    if (!pageId) return
     scheduleEditorHistorySnapshot()
     setBlocksDirty(true)
+    blocksDirtyRef.current = true
     setLocalBlocks(prev => {
-      const blocks = prev[activePageId] || []
+      const blocks = prev[pageId] || []
       const block = blocks.find(b => b.id === blockId)
       if (!block) return prev
       const mergedProps: BlockProps = { ...block.props, ...propsUpdate }
@@ -11225,7 +11493,7 @@ export default function WebsiteBuilder() {
       })
       return {
         ...prev,
-        [activePageId]: blocks.map(b =>
+        [pageId]: blocks.map(b =>
           b.id === blockId ? { ...b, props: mergedProps, ...topLevel } : b,
         ),
       }
@@ -11438,37 +11706,56 @@ export default function WebsiteBuilder() {
 
   // Duplicate block — optimistic
   const handleDuplicateBlock = useCallback(async (blockId: string) => {
-    if (!activePageId) return
-    const original = (localBlocks[activePageId] || []).find(b => b.id === blockId)
+    const pages = localPagesRef.current
+    const blocksMap = localBlocksRef.current
+    const pageId = findPageIdForBlock(blocksMap, pages, blockId, activePageId)
+    if (!pageId) return
+    const original = (blocksMap[pageId] || []).find(b => b.id === blockId)
     if (!original) return
     const tempId = `temp-dup-${Date.now()}`
     const dupBlock = { ...original, id: tempId, sort_order: original.sort_order + 0.5 }
     setLocalBlocks(prev => ({
       ...prev,
-      [activePageId]: [...(prev[activePageId] || []), dupBlock].map((b, i) => ({ ...b, sort_order: i })),
+      [pageId]: [...(prev[pageId] || []), dupBlock].map((b, i) => ({ ...b, sort_order: i })),
     }))
     setSelectedBlockId(tempId)
+    setBlocksDirty(true)
+    blocksDirtyRef.current = true
     try {
-      const saved = await websiteApi.duplicateBlock(siteId!, activePageId, blockId)
+      const saved = blockId.startsWith('temp-')
+        ? await websiteApi.createBlock(siteId!, pageId, {
+            block_type: original.block_type,
+            label: original.label,
+            props: original.props,
+            sort_order: original.sort_order + 1,
+            visible: original.visible !== false,
+            visible_on_mobile: original.visible_on_mobile !== false,
+            visible_on_tablet: original.visible_on_tablet !== false,
+            visible_on_desktop: original.visible_on_desktop !== false,
+          } as any)
+        : await websiteApi.duplicateBlock(siteId!, pageId, blockId)
       setLocalBlocks(prev => ({
         ...prev,
-        [activePageId]: (prev[activePageId] || []).map(b => b.id === tempId ? saved : b),
+        [pageId]: (prev[pageId] || []).map(b => b.id === tempId ? saved : b),
       }))
       setSelectedBlockId(saved.id)
       toast.success('Block duplicated')
     } catch {
       setLocalBlocks(prev => ({
         ...prev,
-        [activePageId]: (prev[activePageId] || []).filter(b => b.id !== tempId),
+        [pageId]: (prev[pageId] || []).filter(b => b.id !== tempId),
       }))
-      toast.error('Failed to duplicate')
+      toast.error(blockId.startsWith('temp-') ? 'Save the section first, then duplicate' : 'Failed to duplicate')
     }
-  }, [activePageId, localBlocks, siteId])
+  }, [activePageId, siteId])
 
   // ── Open link editor for a block prop (e.g. hero cta_primary) ──────────────
   const openLinkEditorForProp = useCallback((blockId: string, propKey: string, anchor: { x: number; y: number }) => {
-    if (!activePageId) return
-    const block = (localBlocks[activePageId] || []).find(b => b.id === blockId)
+    const pages = localPagesRef.current
+    const blocksMap = localBlocksRef.current
+    const pageId = findPageIdForBlock(blocksMap, pages, blockId, activePageId)
+    if (!pageId) return
+    const block = (blocksMap[pageId] || []).find(b => b.id === blockId)
     if (!block) return
     const p = block.props as any
     const resolved = (() => {
@@ -11510,11 +11797,13 @@ export default function WebsiteBuilder() {
         } as any)
       },
     })
-  }, [activePageId, localBlocks, handleUpdateBlockProps])
+  }, [activePageId, handleUpdateBlockProps])
 
   // ── Open link editor for an overlay item (button / text / image / badge) ───
   const openLinkEditorForOverlay = useCallback((blockId: string, item: BlockOverlayItem, anchor: { x: number; y: number }) => {
-    if (!activePageId) return
+    const pages = localPagesRef.current
+    const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
+    if (!pageId) return
     // Use item.text as the authoritative button label so the link editor
     // and the "Edit button text" popup always start from the same value.
     const currentValue: LinkValue = {
@@ -11527,7 +11816,7 @@ export default function WebsiteBuilder() {
       anchor,
       value: currentValue,
       save: (v) => {
-        const block = (localBlocks[activePageId] || []).find(b => b.id === blockId)
+        const block = (localBlocksRef.current[pageId] || []).find(b => b.id === blockId)
         if (!block) return
         const overlays: BlockOverlayItem[] = ((block.props as any).overlays as BlockOverlayItem[]) || []
         const next = overlays.map(o => o.id === item.id ? {
@@ -11543,7 +11832,7 @@ export default function WebsiteBuilder() {
         handleUpdateBlockProps(blockId, { overlays: next } as any)
       },
     })
-  }, [activePageId, localBlocks, handleUpdateBlockProps])
+  }, [activePageId, handleUpdateBlockProps])
 
   // ── Context menus ────────────────────────────────────────────────────────
   // Opened via right-click on either a canvas block or an overlay element.
@@ -12165,18 +12454,38 @@ export default function WebsiteBuilder() {
           pageReplacements.push({ tempId: b.id, saved })
           persistedBlocks.push(saved)
         } else {
-          await websiteApi.updateBlock(siteId, page.id, b.id, {
-            props: b.props,
-            style_overrides: b.style_overrides || {},
-            label: b.label,
-            visible: b.visible,
-            visible_on_mobile: b.visible_on_mobile,
-            visible_on_tablet: b.visible_on_tablet,
-            visible_on_desktop: b.visible_on_desktop,
-            animation: b.animation,
-            animation_delay: b.animation_delay,
-            sort_order: b.sort_order,
-          } as any)
+          try {
+            await websiteApi.updateBlock(siteId, page.id, b.id, {
+              props: b.props,
+              style_overrides: b.style_overrides || {},
+              label: b.label,
+              visible: b.visible,
+              visible_on_mobile: b.visible_on_mobile,
+              visible_on_tablet: b.visible_on_tablet,
+              visible_on_desktop: b.visible_on_desktop,
+              animation: b.animation,
+              animation_delay: b.animation_delay,
+              sort_order: b.sort_order,
+            } as any)
+          } catch (err) {
+            if (!isAxiosError(err) || err.response?.status !== 404) throw err
+            const saved = await websiteApi.createBlock(siteId, page.id, {
+              block_type: b.block_type,
+              label: b.label,
+              props: b.props,
+              style_overrides: b.style_overrides || {},
+              visible: b.visible,
+              visible_on_mobile: b.visible_on_mobile,
+              visible_on_tablet: b.visible_on_tablet,
+              visible_on_desktop: b.visible_on_desktop,
+              animation: b.animation,
+              animation_delay: b.animation_delay,
+              sort_order: b.sort_order,
+            } as any)
+            pageReplacements.push({ tempId: b.id, saved })
+            persistedBlocks.push(saved)
+            return
+          }
           persistedBlocks.push(b)
         }
       }))
@@ -12222,13 +12531,14 @@ export default function WebsiteBuilder() {
 
   const persistAllPagesToServer = useCallback(async () => {
     if (!siteId) return
-    if (localPages.length) {
+    const realPages = localPages.filter(p => p.id && !p.id.startsWith('temp-'))
+    if (realPages.length) {
       await websiteApi.reorderPages(
         siteId,
-        localPages.map((page, i) => ({ id: page.id, sort_order: i })),
+        realPages.map((page, i) => ({ id: page.id, sort_order: i })),
       )
     }
-    for (const [idx, page] of localPages.entries()) {
+    for (const [idx, page] of realPages.entries()) {
       await websiteApi.updatePage(siteId, page.id, {
         title: page.title,
         slug: page.slug,
@@ -12265,6 +12575,17 @@ export default function WebsiteBuilder() {
       skipServerHydrateRef.current = Date.now()
       setLastSavedAt(new Date())
       setAutoSaveStatus('synced')
+      if (site) {
+        const pages = localPagesRef.current
+        const pageSlug = activePageId
+          ? pages.find(p => p.id === activePageId)?.slug
+          : undefined
+        void pushDraftPreviewUpdate(
+          siteId,
+          buildPublicSitePayloadFromLocal(site, pages, localBlocksRef.current, localStyle),
+          pageSlug,
+        ).catch(() => { /* preview tab closed or not open */ })
+      }
       if (!opts?.silent) {
         setSaveFlash(true)
         setTimeout(() => setSaveFlash(false), 1800)
@@ -12276,7 +12597,7 @@ export default function WebsiteBuilder() {
     }
     setIsSaving(false)
     isSavingRef.current = false
-  }, [siteId, localStyle, styleDirty, blocksDirty, persistAllBlocksToServer])
+  }, [siteId, localStyle, styleDirty, blocksDirty, persistAllBlocksToServer, site, activePageId])
 
   const handleSaveCanvasRef = useRef(handleSaveCanvas)
   useEffect(() => { handleSaveCanvasRef.current = handleSaveCanvas }, [handleSaveCanvas])
@@ -12309,6 +12630,23 @@ export default function WebsiteBuilder() {
     }
   }, [blocksDirty, styleDirty, siteId])
 
+  // Keep open browser preview in sync while editing (before auto-save completes).
+  useEffect(() => {
+    if (!siteId || !site || (!blocksDirty && !styleDirty)) return
+    const timer = setTimeout(() => {
+      const pages = localPagesRef.current
+      const pageSlug = activePageId
+        ? pages.find(p => p.id === activePageId)?.slug
+        : undefined
+      void pushDraftPreviewUpdate(
+        siteId,
+        buildPublicSitePayloadFromLocal(site, pages, localBlocksRef.current, localStyle),
+        pageSlug,
+      ).catch(() => { /* preview tab not open */ })
+    }, 3500)
+    return () => clearTimeout(timer)
+  }, [blocksDirty, styleDirty, siteId, site, activePageId, localStyle])
+
   /** Save current canvas + publish to make the loaded template live on the store. */
   const handleApplyToStore = useCallback(async (opts?: { storeIds?: string[] }) => {
     if (!siteId || isApplyingToStore) return
@@ -12321,7 +12659,7 @@ export default function WebsiteBuilder() {
     try {
       // Only persist if there are pending local changes — avoids redundant API
       // calls when the user clicks Apply immediately after loading a template.
-      if (blocksDirty || localPages.some(p => p.id && !p.id.startsWith('temp-'))) {
+      if (blocksDirty || styleDirty) {
         await persistAllPagesToServer()
       }
       if (blocksDirty) {
@@ -12354,8 +12692,7 @@ export default function WebsiteBuilder() {
           : appliedNames.join(', ')
       toast.success(`✅ Applied — live on ${scopeLabel} with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      toast.error(`Apply failed: ${msg}`)
+      toast.error(extractApiError(err, 'Apply to store'))
       console.error('[Apply to Store]', err)
     } finally {
       setIsApplyingToStore(false)
@@ -12412,7 +12749,10 @@ export default function WebsiteBuilder() {
       confirmLabel: 'Create page',
       onSave: async (title) => {
         if (!title?.trim()) return
-        const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+        const slug = uniquePageSlug(
+          title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'page',
+          localPagesRef.current,
+        )
         try {
           const page = await websiteApi.createPage(siteId!, { title, slug, page_type: 'custom', sort_order: localPagesRef.current.length } as any)
           skipServerHydrateRef.current = Date.now()
@@ -12442,28 +12782,116 @@ export default function WebsiteBuilder() {
 
   // Delete page
   const handleDeletePage = useCallback((pageId: string, pageTitle: string) => {
+    const target = localPages.find(p => p.id === pageId)
+    if (!target) return
+    if (target.is_homepage) {
+      toast.error('Cannot delete the homepage. Set another page as home first.')
+      return
+    }
+    if (localPages.length <= 1) {
+      toast.error('Your site needs at least one page.')
+      return
+    }
     openTextPrompt({
       title: `Delete "${pageTitle}"?`,
-      subtitle: 'This will permanently remove the page and all its blocks. This cannot be undone.',
-      placeholder: '',
+      subtitle: 'This permanently removes the page and all its sections. This cannot be undone.',
       confirmLabel: 'Delete page',
+      confirmOnly: true,
+      destructive: true,
       onSave: async () => {
-        const backup = localPages
+        const backupPages = localPages
+        const backupBlocks = localBlocksRef.current
         setLocalPages(prev => prev.filter(p => p.id !== pageId))
+        setLocalBlocks(prev => {
+          const next = { ...prev }
+          delete next[pageId]
+          localBlocksRef.current = next
+          return next
+        })
         if (activePageId === pageId) {
           const remaining = localPages.filter(p => p.id !== pageId)
           setActivePageId(remaining[0]?.id || null)
+          setSelectedBlockId(null)
         }
         try {
           await websiteApi.deletePage(siteId!, pageId)
-          toast.success('Page deleted')
+          if (site) {
+            queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
+              old ? { ...old, pages: old.pages.filter(p => p.id !== pageId) } : old,
+            )
+          }
+          toast.success(`"${pageTitle}" deleted`)
         } catch {
-          setLocalPages(backup)
+          setLocalPages(backupPages)
+          setLocalBlocks(backupBlocks)
+          localBlocksRef.current = backupBlocks
           toast.error('Failed to delete page')
         }
       },
     })
   }, [siteId, localPages, activePageId, openTextPrompt])
+
+  const handleDuplicatePage = useCallback(async (page: WebsitePage) => {
+    if (!siteId) return
+    try {
+      const slug = uniquePageSlug(`${page.slug}-copy`, localPagesRef.current)
+      const newPage = await websiteApi.createPage(siteId, {
+        title: `${page.title} (Copy)`,
+        slug,
+        page_type: page.page_type,
+        sort_order: localPagesRef.current.length,
+      } as any)
+      const currentBlocks = localBlocksRef.current[page.id] || []
+      const duplicatedBlocks: WebsiteBlock[] = []
+      for (const block of currentBlocks) {
+        const saved = await websiteApi.createBlock(siteId, newPage.id, {
+          block_type: block.block_type,
+          label: block.label,
+          props: block.props,
+          sort_order: block.sort_order,
+          visible: block.visible !== false,
+          visible_on_mobile: block.visible_on_mobile !== false,
+          visible_on_tablet: block.visible_on_tablet !== false,
+          visible_on_desktop: block.visible_on_desktop !== false,
+        } as any)
+        duplicatedBlocks.push(saved)
+      }
+      skipServerHydrateRef.current = Date.now()
+      const nextPages = [...localPagesRef.current, newPage]
+      localPagesRef.current = nextPages
+      setLocalPages(nextPages)
+      const nextBlocks = {
+        ...localBlocksRef.current,
+        [newPage.id]: duplicatedBlocks.sort((a, b) => a.sort_order - b.sort_order),
+      }
+      commitLocalBlocks(nextBlocks)
+      if (site) {
+        queryClient.setQueryData<WebsiteSite>(['websites', siteId], old => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: [...old.pages, { ...newPage, blocks: nextBlocks[newPage.id] }],
+          }
+        })
+      }
+      setActivePageId(newPage.id)
+      setSelectedBlockId(null)
+      toast.success(`"${page.title}" duplicated`)
+    } catch {
+      toast.error('Failed to duplicate page')
+    }
+  }, [siteId, site, commitLocalBlocks, queryClient])
+
+  const handleSetHomepage = useCallback(async (page: WebsitePage) => {
+    if (!siteId || page.is_homepage) return
+    try {
+      await websiteApi.updatePage(siteId, page.id, { is_homepage: true } as any)
+      setLocalPages(prev => prev.map(p => ({ ...p, is_homepage: p.id === page.id })))
+      toast.success(`"${page.title}" set as homepage`)
+    } catch {
+      toast.error('Failed to set homepage')
+    }
+  }, [siteId])
 
   // Store test URL — business front /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
@@ -12532,27 +12960,18 @@ export default function WebsiteBuilder() {
         payload,
         label: `Preview ${new Date().toLocaleString()}`,
       })
-      const url = buildBuilderDraftPreviewUrl(vendorSlug, preview_token, activePage?.slug)
-      const opened = window.open(url, '_blank', 'noopener,noreferrer')
-      if (!opened) toast.error('Pop-up blocked — allow pop-ups to open the draft preview.')
+      rememberDraftPreviewSession(siteId, preview_token)
+      const url = buildVendorDraftPreviewUrl(preview_token, activePage?.slug)
+      const opened = openDraftPreviewInBrowser(url)
+      if (!opened) {
+        toast.error('Pop-up blocked — allow pop-ups for this site, then try Preview in Browser again.')
+      }
     } catch (err) {
       console.error('[BrowserPreview] failed:', err)
-      // When the API DB has no wb_builder_previews table, still open something useful if we have a business front URL.
-      if (siteTestUrl && isBuilderPreviewInfraFailure(err)) {
-        const pageSlug = activePage?.slug?.trim()
-        const path =
-          pageSlug && pageSlug.length > 0 && pageSlug.toLowerCase() !== 'home'
-            ? `/${pageSlug.replace(/^\/+/, '')}`
-            : ''
-        const fallbackUrl = `${String(siteTestUrl).replace(/\/$/, '')}${path}`
-        const opened = window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
-        if (opened) {
-          toast.warning(
-            'Draft snapshot preview is not available on this server (run alembic upgrade web006 on the database your API uses, then restart the API). Opened your published business front instead — click Save first if you need the latest edits there.',
-          )
-        } else {
-          toast.error('Pop-up blocked — allow pop-ups to open the business front.')
-        }
+      if (isBuilderPreviewInfraFailure(err)) {
+        toast.error(
+          'Draft preview is not available on this server (run alembic upgrade web006 on the database your API uses, then restart the API). Preview opens on localhost:3001 only.',
+        )
       } else {
         toast.error(extractApiError(err, 'Browser preview'))
       }
@@ -12767,6 +13186,8 @@ export default function WebsiteBuilder() {
           confirmLabel={textPrompt.confirmLabel}
           helpText={textPrompt.helpText}
           minLength={textPrompt.minLength}
+          confirmOnly={textPrompt.confirmOnly}
+          destructive={textPrompt.destructive}
           onSave={(v) => { textPrompt.onSave(v); setTextPrompt(null) }}
           onClose={() => setTextPrompt(null)}
         />
@@ -12901,7 +13322,7 @@ export default function WebsiteBuilder() {
             type="button"
             disabled={openingBrowserPreview}
             onClick={() => void handleOpenBrowserPreview()}
-            title="Preview the draft on your business front in a new browser tab"
+            title="Preview your draft in the browser (localhost:3001, vendor-web only)"
             className={cn(
               STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS,
               openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-accent/95',
@@ -13255,9 +13676,14 @@ export default function WebsiteBuilder() {
                 {/* PAGES panel — pages with expandable sections */}
                 {leftPanel === 'pages' && (
                   <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-0.5">
-                      {localPages.length} page{localPages.length !== 1 ? 's' : ''}
-                    </p>
+                    <div className="px-1 mb-1">
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                        {localPages.length} page{localPages.length !== 1 ? 's' : ''}
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
+                        Open <strong className="font-semibold text-gray-500">Actions</strong> on a page to duplicate or delete it.
+                      </p>
+                    </div>
                     {pageSectionGroups.map(({ page, entries, totalBlocks }) => {
                       const isExpanded = expandedSectionPages.has(page.id)
                       const isActivePage = activePageId === page.id
@@ -13312,57 +13738,13 @@ export default function WebsiteBuilder() {
                             <span className="text-[10px] font-medium text-gray-400 shrink-0 tabular-nums px-1">
                               {totalBlocks}
                             </span>
-                            <div className={cn(
-                              'flex items-center gap-0.5 shrink-0 transition-opacity',
-                              isActivePage ? 'opacity-100' : 'opacity-0 group-hover/page:opacity-100',
-                            )}>
-                              {!page.is_homepage && (
-                                <button
-                                  title="Set as homepage"
-                                  onClick={e => {
-                                    e.stopPropagation()
-                                    websiteApi.updatePage(siteId!, page.id, { is_homepage: true } as any)
-                                      .then(() => {
-                                        setLocalPages(prev => prev.map(p => ({ ...p, is_homepage: p.id === page.id })))
-                                        toast.success(`"${page.title}" set as homepage`)
-                                      })
-                                      .catch(() => toast.error('Failed to set homepage'))
-                                  }}
-                                  className="p-1 hover:bg-primary/15 hover:text-primary rounded text-xs font-bold transition-colors"
-                                >
-                                  🏠
-                                </button>
-                              )}
-                              <button
-                                title="Duplicate page"
-                                onClick={async e => {
-                                  e.stopPropagation()
-                                  try {
-                                    const slug = `${page.slug}-copy`
-                                    const newPage = await websiteApi.createPage(siteId!, { title: `${page.title} (Copy)`, slug, page_type: page.page_type, sort_order: localPages.length } as any)
-                                    const currentBlocks = localBlocks[page.id] || []
-                                    for (const block of currentBlocks) {
-                                      await websiteApi.createBlock(siteId!, newPage.id, {
-                                        block_type: block.block_type, label: block.label, props: block.props, sort_order: block.sort_order,
-                                      } as any)
-                                    }
-                                    setLocalPages(prev => [...prev, newPage])
-                                    setLocalBlocks(prev => ({ ...prev, [newPage.id]: [] }))
-                                    setActivePageId(newPage.id)
-                                    toast.success(`"${page.title}" duplicated`)
-                                  } catch { toast.error('Failed to duplicate page') }
-                                }}
-                                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                              >
-                                <Copy className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={e => { e.stopPropagation(); handleDeletePage(page.id, page.title) }}
-                                className="p-1 hover:bg-red-100 hover:text-red-600 rounded transition-colors"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
+                            <PageActionsMenu
+                              page={page}
+                              pageCount={localPages.length}
+                              onSetHomepage={() => { void handleSetHomepage(page) }}
+                              onDuplicate={() => { void handleDuplicatePage(page) }}
+                              onDelete={() => handleDeletePage(page.id, page.title)}
+                            />
                           </div>
 
                           {isExpanded && (
@@ -13473,10 +13855,31 @@ export default function WebsiteBuilder() {
                     <button onClick={handleAddPage} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-xs text-primary font-semibold hover:bg-accent hover:border-primary/60 transition-colors mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add New Page
                     </button>
-                    <p className="text-xs text-gray-400 text-center pt-1">
-                      {isTemplateMode
-                        ? 'Expand a page to manage its sections. Hover for homepage, nav, duplicate, delete.'
-                        : 'Expand a page to see sections. Hover for page actions.'}
+                    {activePage && localPages.length > 0 && (
+                      <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2.5 space-y-2">
+                        <div className="text-[11px] font-semibold text-gray-700 truncate" title={activePage.title}>
+                          Current page: {activePage.title}
+                        </div>
+                        {activePage.is_homepage ? (
+                          <p className="text-[10px] leading-snug text-gray-500">
+                            Homepage cannot be deleted. Use <strong>Actions</strong> on another page to set a new home first.
+                          </p>
+                        ) : localPages.length <= 1 ? (
+                          <p className="text-[10px] leading-snug text-gray-500">Your site needs at least one page.</p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePage(activePage.id, activePage.title)}
+                            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete this page
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-400 text-center pt-1 leading-snug">
+                      Use <strong>Actions</strong> on any page for homepage, duplicate, or delete. Expand a page to manage its sections.
                     </p>
                   </div>
                 )}
@@ -14255,7 +14658,7 @@ export default function WebsiteBuilder() {
 
                 {rightPanel === 'page' && (
                   <PagePanel
-                    pages={localPages}
+                    pages={sortedSitePages}
                     activePageId={activePageId}
                     onSelectPage={pageId => {
                       setActivePageId(pageId)
@@ -14265,6 +14668,9 @@ export default function WebsiteBuilder() {
                     siteStyle={localStyle}
                     onPageStyleChange={handlePageStyleChange}
                     onClearPageStyle={handleClearPageStyle}
+                    onDeletePage={handleDeletePage}
+                    onDuplicatePage={page => { void handleDuplicatePage(page) }}
+                    onSetHomepage={page => { void handleSetHomepage(page) }}
                   />
                 )}
 
@@ -14332,12 +14738,31 @@ export default function WebsiteBuilder() {
                     onSavePage={(data) => {
                       if (!activePage) return
                       websiteApi.updatePage(siteId!, activePage.id, data as any)
-                        .then(() => toast.success('SEO saved!'))
+                        .then(updated => {
+                          setLocalPages(prev => prev.map(p =>
+                            p.id === activePage.id ? { ...p, ...data, ...updated } : p,
+                          ))
+                          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old => {
+                            if (!old) return old
+                            return {
+                              ...old,
+                              pages: old.pages.map(p =>
+                                p.id === activePage.id ? { ...p, ...data, ...updated } : p,
+                              ),
+                            }
+                          })
+                          toast.success('SEO saved!')
+                        })
                         .catch(() => toast.error('Save failed'))
                     }}
                     onSaveSite={(data) => {
                       websiteApi.updateSite(siteId!, data as any)
-                        .then(() => toast.success('Site SEO saved!'))
+                        .then(updated => {
+                          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
+                            old ? { ...old, ...data, ...updated } : old,
+                          )
+                          toast.success('Site SEO saved!')
+                        })
                         .catch(() => toast.error('Save failed'))
                     }}
                   />
@@ -14685,7 +15110,20 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
                   <p className="text-xs text-gray-500">Expose your site content as a JSON API for custom frontends (Next.js, Vue, mobile).</p>
                 </div>
                 <div className={cn('w-8 h-5 rounded-full shrink-0 transition-colors cursor-pointer flex items-center', siteHeadless ? 'bg-primary' : 'bg-gray-300')}
-                  onClick={() => siteHeadless ? disableHeadless.mutateAsync().catch(() => {}) : enableHeadless.mutateAsync().catch(() => {})}>
+                  onClick={() => {
+                    const toggle = () => {
+                      if (siteHeadless) {
+                        disableHeadless.mutateAsync()
+                          .then(() => toast.success('Headless API disabled'))
+                          .catch(() => toast.error('Could not disable headless API'))
+                      } else {
+                        enableHeadless.mutateAsync()
+                          .then(() => toast.success('Headless API enabled'))
+                          .catch(() => toast.error('Could not enable headless API'))
+                      }
+                    }
+                    void toggle()
+                  }}>
                   <div className={cn('w-4 h-4 bg-white rounded-full shadow transition-transform mx-0.5', siteHeadless ? 'translate-x-3' : 'translate-x-0')} />
                 </div>
               </div>

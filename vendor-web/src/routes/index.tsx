@@ -182,6 +182,9 @@ import WebsitesPage from '@/pages/websites/index'
 import WebsiteBuilder from '@/pages/websites/Builder'
 import WebsiteSubmissions from '@/pages/websites/Submissions'
 import WebsiteTemplateGallery from '@/pages/websites/TemplateGallery'
+import StorefrontBrowserPreviewShell from '@/pages/websites/StorefrontBrowserPreviewShell'
+import LegacyBrowserPreviewRedirect from '@/pages/websites/LegacyBrowserPreviewRedirect'
+import PreviewDraftStorePathRedirect from '@/pages/websites/PreviewDraftStorePathRedirect'
 
 // Commission pages
 import CommissionLayout from '@/pages/commission/index'
@@ -195,6 +198,18 @@ import CommissionReportPage from '@/pages/commission/reports/CommissionReport'
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
 export const router = createBrowserRouter([
+  {
+    path: '/preview/draft',
+    element: <StorefrontBrowserPreviewShell />,
+  },
+  {
+    path: '/preview/draft/store/:vendorSlug/*',
+    element: <PreviewDraftStorePathRedirect />,
+  },
+  {
+    path: '/websites/browser-preview',
+    element: <LegacyBrowserPreviewRedirect />,
+  },
   {
     path: '/login',
     element: <AuthLayout />,

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
+import { imgUrl } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 
 interface Props {
@@ -10,6 +11,14 @@ interface Props {
   liveItems: LiveItem[]
   branchCode?: string | null
   blockType: string
+}
+
+function borderRadiusPx(style: StyleConfig): number {
+  const br = style.border_radius as string | undefined
+  if (br === 'none' || br === 'sharp') return 0
+  if (br === 'sm') return 4
+  if (br === 'lg') return 16
+  return 8
 }
 
 export default function HeroBlock({ site, style, props, blockType }: Props) {
@@ -24,167 +33,269 @@ export default function HeroBlock({ site, style, props, blockType }: Props) {
   const ctaSecondary = (props.cta_secondary as string | null) || null
   const ctaUrl = (props.cta_primary_url as string) || (props.cta_url as string) || '/products'
   const ctaSecUrl = (props.cta_secondary_url as string) || '/about'
-  const imageUrl = (props.image_url as string | null) || null
   const bgStyle = (props.bg_style as string) || 'gradient'
   const layout = (props.layout as string) || 'centered'
-  const ctaSquare = props.cta_square === true || style.border_radius === 'sharp' || (style.border_radius as string) === 'none'
 
   const isSplit = blockType === 'hero_split' || layout === 'split'
-  const isMinimal = blockType === 'hero_minimal' || layout === 'minimal'
+  const isMinimal = blockType === 'hero_minimal' || bgStyle === 'minimal'
+
+  const gradientFrom = props.gradient_from as string | undefined
+  const gradientTo = props.gradient_to as string | undefined
+  const gradientDir = (props.gradient_dir as string) || '135deg'
+  const heroGrad =
+    gradientFrom && gradientTo
+      ? `linear-gradient(${gradientDir}, ${gradientFrom}, ${gradientTo})`
+      : `linear-gradient(135deg, ${style.primary_color}, ${style.secondary_color})`
+
+  const heroImageRaw =
+    (props.bg_image_url as string | undefined) ||
+    (bgStyle === 'image' ? (props.image_url as string | undefined) : undefined)
+  const sideImageRaw = (props.image_url as string | undefined) || (props.bg_image_url as string | undefined)
+  const heroImageUrl = heroImageRaw ? imgUrl(heroImageRaw) : undefined
+  const sideImageUrl = sideImageRaw ? imgUrl(sideImageRaw) : undefined
+
+  const hasSideImage = isSplit && !!sideImageUrl
+  const hasBgImg = !!heroImageUrl
+  const useFullBleedImageBg = hasBgImg && !hasSideImage
+  const heroUsesImageBg = useFullBleedImageBg && hasBgImg
+  const splitSideBySide = isSplit && hasSideImage && !useFullBleedImageBg
+
+  const heroBg = heroUsesImageBg
+    ? undefined
+    : hasSideImage
+      ? style.surface_color || style.bg_color || '#ffffff'
+      : bgStyle === 'gradient'
+        ? heroGrad
+        : bgStyle === 'dark'
+          ? '#111827'
+          : bgStyle === 'solid'
+            ? ((props.bg_color as string) || '#0f172a')
+            : bgStyle === 'image'
+              ? undefined
+              : isMinimal
+                ? style.bg_color
+                : `linear-gradient(135deg, ${style.bg_color}, ${style.surface_color})`
+
+  const heroBgImage = heroUsesImageBg ? `url(${heroImageUrl})` : undefined
+  const isDark =
+    heroUsesImageBg ||
+    bgStyle === 'gradient' ||
+    bgStyle === 'dark' ||
+    bgStyle === 'image' ||
+    bgStyle === 'solid'
+  const heroText = isDark && !splitSideBySide ? '#fff' : style.text_color
+  const heroSubText = isDark && !splitSideBySide ? 'rgba(255,255,255,0.82)' : `${style.text_color}cc`
+
+  const squareCta = props.cta_square === true || style.border_radius === 'sharp' || style.border_radius === 'none'
+  const ctaRadius = squareCta ? 0 : borderRadiusPx(style)
+  const ctaPadClass = squareCta ? 'px-7 h-12 inline-flex items-center' : 'px-6 py-3'
+
   const hasFashionHeadline = !!headlineLine2 || eyebrowPlain
 
-  const btnPrimaryCls = ctaSquare
-    ? 'inline-flex items-center px-7 h-12 text-sm font-bold rounded-none hover:opacity-90 transition-opacity'
-    : 'inline-flex items-center px-6 py-3 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity'
-  const btnSecondaryCls = ctaSquare
-    ? 'inline-flex items-center px-7 h-12 text-sm font-semibold rounded-none border-2 bg-transparent hover:opacity-80 transition-opacity'
-    : 'inline-flex items-center px-6 py-3 rounded-xl text-sm font-semibold border-2 bg-transparent hover:bg-gray-50 transition-opacity'
-
-  let bgClass = 'bg-gradient-to-br from-primary to-emerald-800'
-  let textClass = 'text-white'
-  if (bgStyle === 'minimal' || isMinimal) {
-    bgClass = 'bg-white'
-    textClass = 'text-gray-900'
-  } else if (bgStyle === 'image' && imageUrl && !isSplit) {
-    bgClass = ''
-  }
-
-  /** Atelier-style split: full-height image column, editorial type scale */
-  if (isSplit && imageUrl && bgStyle === 'minimal') {
-    const leftBg = style.surface_color || style.bg_color || '#ffffff'
+  const renderEyebrow = () => {
+    if (!eyebrow && !eyebrowPlain) return null
+    if (eyebrowPlain) {
+      return (
+        <span
+          className="text-xs uppercase tracking-[0.3em] opacity-70 mb-2 block"
+          style={{ color: splitSideBySide ? style.text_color : heroText }}
+        >
+          {eyebrow}
+        </span>
+      )
+    }
     return (
-      <section className="relative overflow-hidden border-b" style={{ borderColor: `${style.text_color}18`, color: style.text_color }}>
-        <div className="grid grid-cols-1 xl:grid-cols-2">
-          <div
-            className="flex max-w-xl flex-col justify-center px-6 py-16 sm:px-12 xl:max-w-none xl:py-28"
-            style={{ backgroundColor: leftBg, fontFamily: style.font_body }}
-          >
-            {(eyebrow || eyebrowPlain) && (
-              <span
-                className={
-                  eyebrowPlain
-                    ? 'text-xs uppercase tracking-[0.3em] opacity-70 mb-6 block'
-                    : 'text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full inline-block mb-4'
-                }
-                style={
-                  eyebrowPlain
-                    ? { color: style.text_color }
-                    : { backgroundColor: `${style.accent_color}22`, color: style.accent_color }
-                }
-              >
-                {eyebrow}
-              </span>
-            )}
-            {hasFashionHeadline ? (
-              <h1
-                className="font-semibold leading-[0.95] text-balance text-[clamp(1.65rem,4vw_+_0.45rem,2.65rem)] sm:text-[clamp(2rem,4.5vw_+_0.45rem,3.25rem)] lg:text-[clamp(2.35rem,5vw_+_0.5rem,3.75rem)] mb-6"
-                style={{ fontFamily: style.font_heading, color: style.text_color }}
-              >
-                <span className="block font-semibold">{headline}</span>
-                {headlineLine2 ? (
-                  <>
-                    <br />
-                    <em className="font-normal not-italic" style={{ fontStyle: 'italic', color: style.accent_color }}>
-                      {headlineLine2}
-                    </em>
-                  </>
-                ) : null}
-              </h1>
-            ) : (
-              <h1
-                className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-6"
-                style={{ fontFamily: style.font_heading, color: style.text_color }}
-              >
-                {headline}
-              </h1>
-            )}
-            {subtitle && <p className="text-base opacity-80 mb-8 max-w-md text-pretty leading-relaxed">{subtitle}</p>}
-            <div className="flex flex-wrap gap-3">
-              <Link
-                to={storePath(ctaUrl)}
-                className={btnPrimaryCls}
-                style={{ backgroundColor: style.primary_color, color: '#fff' }}
-              >
-                {ctaPrimary}
-                {hasFashionHeadline ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
-              </Link>
-              {ctaSecondary && (
-                <Link
-                  to={storePath(ctaSecUrl)}
-                  className={btnSecondaryCls}
-                  style={{ borderColor: `${style.text_color}99`, color: style.text_color }}
-                >
-                  {ctaSecondary}
-                </Link>
-              )}
-            </div>
-          </div>
-          <div
-            className="relative h-[min(44dvh,320px)] w-full min-h-[260px] sm:h-[min(50dvh,480px)] sm:min-h-[360px] md:h-[min(56dvh,560px)] md:min-h-[400px] xl:h-auto xl:min-h-[640px]"
-            style={{ backgroundColor: style.surface_color || '#f3f4f6' }}
-          >
-            <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-center" loading="lazy" />
-          </div>
-        </div>
-      </section>
+      <span
+        className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2"
+        style={{
+          backgroundColor: isDark && !splitSideBySide ? 'rgba(255,255,255,0.15)' : `${style.accent_color}22`,
+          color: isDark && !splitSideBySide ? '#fff' : style.accent_color,
+        }}
+      >
+        {eyebrow}
+      </span>
     )
   }
 
-  if (isSplit) {
+  const renderHeadline = () => {
+    if (headlineLine2 || (isSplit && hasFashionHeadline)) {
+      return (
+        <h1
+          className={
+            isSplit
+              ? hasFashionHeadline
+                ? 'font-semibold leading-[0.95] text-balance text-[clamp(1.65rem,4vw_+_0.45rem,2.65rem)] sm:text-[clamp(2rem,4.5vw_+_0.45rem,3.25rem)] lg:text-[clamp(2.35rem,5vw_+_0.5rem,3.75rem)] mb-5'
+                : 'text-4xl sm:text-5xl md:text-6xl font-semibold leading-[0.95] mb-5'
+              : 'text-3xl font-extrabold leading-tight mb-5'
+          }
+          style={{ fontFamily: style.font_heading, color: heroText }}
+        >
+          <span className="block font-semibold">{headline}</span>
+          {headlineLine2 ? (
+            <>
+              <br />
+              <em
+                className="font-normal not-italic"
+                style={{
+                  fontStyle: 'italic',
+                  color: isDark && !splitSideBySide ? 'rgba(255,255,255,0.95)' : style.accent_color,
+                }}
+              >
+                {headlineLine2}
+              </em>
+            </>
+          ) : null}
+        </h1>
+      )
+    }
     return (
-      <section className="bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight mb-6">{headline}</h1>
-            {subtitle && <p className="text-lg text-gray-600 mb-8">{subtitle}</p>}
-            <div className="flex flex-wrap gap-4">
-              <Link to={storePath(ctaUrl)} className="px-6 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-all" style={{ backgroundColor: style.primary_color }}>{ctaPrimary}</Link>
-              {ctaSecondary && <Link to={storePath(ctaSecUrl)} className="px-6 py-3 rounded-xl border-2 font-semibold hover:bg-gray-50 transition-all" style={{ borderColor: style.primary_color, color: style.primary_color }}>{ctaSecondary}</Link>}
-            </div>
-          </div>
-          <div className="relative">
-            {imageUrl ? (
-              <img src={imageUrl} alt={headline} className="aspect-video max-h-[min(48dvh,280px)] w-full rounded-2xl object-cover object-center shadow-2xl sm:max-h-none" loading="lazy" />
-            ) : (
-              <div className="w-full aspect-video rounded-2xl bg-gradient-to-br from-accent to-primary/25 flex items-center justify-center">
-                <span className="text-primary/70 text-lg font-medium">Hero Image</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      <h1
+        className={
+          isSplit
+            ? 'text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight mb-5'
+            : 'text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-5'
+        }
+        style={{ fontFamily: style.font_heading, color: heroText }}
+      >
+        {headline}
+      </h1>
     )
   }
 
-  const sectionStyle = bgStyle === 'image' && imageUrl
-    ? { backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : {}
+  const renderCtas = (centered = false) => (
+    <div className={`flex gap-3 flex-wrap pt-1 items-start ${centered ? 'justify-center' : ''}`}>
+      {ctaPrimary && (
+        <Link
+          to={storePath(ctaUrl)}
+          className={`font-bold text-sm shadow-lg hover:opacity-90 transition-opacity ${ctaPadClass}`}
+          style={{
+            backgroundColor: isDark && !splitSideBySide ? '#fff' : style.primary_color,
+            color: isDark && !splitSideBySide ? style.primary_color : '#fff',
+            borderRadius: ctaRadius,
+          }}
+        >
+          {ctaPrimary}
+          {hasFashionHeadline && splitSideBySide ? <ArrowRight className="ml-2 h-4 w-4 inline" /> : null}
+        </Link>
+      )}
+      {ctaSecondary && ctaSecondary !== ctaPrimary && (
+        <Link
+          to={storePath(ctaSecUrl)}
+          className={`font-semibold text-sm bg-transparent hover:opacity-80 transition-opacity ${ctaPadClass}`}
+          style={{
+            border: `2px solid ${isDark && !splitSideBySide ? 'rgba(255,255,255,0.5)' : `${style.text_color}99`}`,
+            color: heroText,
+            borderRadius: ctaRadius,
+          }}
+        >
+          {ctaSecondary}
+        </Link>
+      )}
+    </div>
+  )
+
+  const renderSideImage = () => {
+    if (!isSplit) return null
+    return (
+      <div
+        className={
+          splitSideBySide
+            ? 'relative z-10 w-full md:w-1/2 min-h-[420px] md:min-h-[640px]'
+            : 'relative z-10 w-full flex-1 md:w-auto'
+        }
+        style={splitSideBySide ? { backgroundColor: style.surface_color || '#f3f4f6' } : undefined}
+      >
+        {sideImageUrl ? (
+          <img
+            src={sideImageUrl}
+            alt=""
+            className={
+              splitSideBySide
+                ? 'absolute inset-0 h-full w-full min-h-[420px] md:min-h-[640px] object-cover'
+                : 'w-full object-cover shadow-2xl rounded-2xl'
+            }
+            style={
+              splitSideBySide
+                ? undefined
+                : { maxHeight: '640px', minHeight: hasSideImage ? '260px' : '220px' }
+            }
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className={
+              splitSideBySide
+                ? 'absolute inset-0 min-h-[420px] md:min-h-[640px] flex items-center justify-center'
+                : 'w-full h-56 flex items-center justify-center rounded-2xl'
+            }
+            style={{
+              background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)',
+              border: isDark ? '2px dashed rgba(255,255,255,0.3)' : '2px dashed rgba(0,0,0,0.12)',
+            }}
+          >
+            <span className={`text-sm font-medium ${isDark ? 'text-white/50' : 'text-gray-400'}`}>Hero Image</span>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <section className={`${bgClass} relative`} style={sectionStyle}>
-      {bgStyle === 'image' && imageUrl && <div className="absolute inset-0 bg-black/50" />}
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-20 lg:py-32 text-center">
-        <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-6 ${textClass}`} style={{ fontFamily: style.font_heading }}>{headline}</h1>
-        {subtitle && <p className={`text-lg sm:text-xl mb-10 max-w-2xl mx-auto leading-relaxed ${isMinimal ? 'text-gray-600' : 'text-white/90'}`}>{subtitle}</p>}
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link
-            to={storePath(ctaUrl)}
-            className={`px-8 py-4 rounded-xl font-semibold text-base transition-all hover:scale-105 ${isMinimal ? 'text-white hover:opacity-90' : 'bg-white hover:bg-gray-50'}`}
-            style={isMinimal ? { backgroundColor: style.primary_color } : { color: style.primary_color }}
+    <section
+      className={
+        splitSideBySide
+          ? 'relative overflow-hidden flex flex-col md:flex-row md:items-stretch'
+          : isSplit
+            ? 'relative px-8 flex flex-col md:flex-row items-center gap-10 py-16'
+            : 'relative px-8 py-24'
+      }
+      style={
+        splitSideBySide
+          ? { color: heroText, borderBottom: `1px solid ${style.text_color}18` }
+          : {
+              background: heroBg,
+              backgroundImage: heroBgImage,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              color: heroText,
+            }
+      }
+    >
+      {heroUsesImageBg && bgStyle === 'gradient' && (
+        <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: 0.82 }} />
+      )}
+      {heroUsesImageBg && bgStyle !== 'gradient' && props.overlay !== false && (
+        <div className="absolute inset-0 bg-black/45 z-0" />
+      )}
+
+      <div
+        className={
+          splitSideBySide
+            ? 'space-y-5 relative z-10 flex-1 md:w-1/2 px-6 sm:px-12 py-16 lg:py-28 flex flex-col justify-center max-w-xl md:max-w-none'
+            : isSplit
+              ? 'space-y-5 relative z-10 flex-1 max-w-xl'
+              : 'space-y-5 relative z-10 text-center max-w-3xl mx-auto'
+        }
+        style={
+          splitSideBySide
+            ? { backgroundColor: style.surface_color || style.bg_color || '#ffffff', zIndex: 1 }
+            : { zIndex: 1 }
+        }
+      >
+        {renderEyebrow()}
+        {renderHeadline()}
+        {subtitle && subtitle !== headline && (
+          <p
+            className={`text-base leading-relaxed max-w-lg text-pretty ${isSplit && !isDark ? 'opacity-80' : ''}`}
+            style={{ color: heroSubText, margin: isSplit ? undefined : '0 auto' }}
           >
-            {ctaPrimary}
-          </Link>
-          {ctaSecondary && (
-            <Link
-              to={storePath(ctaSecUrl)}
-              className={`px-8 py-4 rounded-xl font-semibold text-base transition-all border-2 ${isMinimal ? 'hover:bg-gray-50' : 'border-white/40 text-white hover:bg-white/10'}`}
-              style={isMinimal ? { borderColor: style.primary_color, color: style.primary_color } : {}}
-            >
-              {ctaSecondary}
-            </Link>
-          )}
-        </div>
+            {subtitle}
+          </p>
+        )}
+        {renderCtas(!isSplit)}
       </div>
+
+      {renderSideImage()}
     </section>
   )
 }

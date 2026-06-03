@@ -11,8 +11,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 
 
 // Debug: Identify which app is running
 console.log('%c🚀 STOREFRONT-WEB (Port 3002)', 'color: #3b82f6; font-size: 16px; font-weight: bold;')
-console.log('This is the customer-facing business front application')
-console.log(`Employee HR / ESS quick links: ${window.location.origin}/local/employee-hr`)
+console.log('Open http://localhost:3002 — if it fails on Windows Docker, run scripts\\fix-localhost-docker.ps1 as Admin.')
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
