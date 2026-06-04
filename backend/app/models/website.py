@@ -115,6 +115,9 @@ class WebsitePage(Base):
     publish_status = Column(String(20), default="published")   # draft | scheduled | published
     scheduled_publish_at = Column(DateTime, nullable=True)
 
+    # Soft delete — page stays recoverable for PAGE_TRASH_RETENTION_DAYS, then purged
+    deleted_at = Column(DateTime, nullable=True, index=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

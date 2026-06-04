@@ -82,7 +82,7 @@ def _page_out(p: WebsitePage, include_blocks: bool = True) -> Dict[str, Any]:
 def _site_out(site: WebsiteSite, pages: Optional[List[WebsitePage]] = None) -> Dict[str, Any]:
     pages_data = []
     if pages is not None:
-        pages_data = [_page_out(p) for p in sorted(pages, key=lambda x: (x.sort_order or 0)) if p.is_published]
+        pages_data = [_page_out(p) for p in sorted(pages, key=lambda x: (x.sort_order or 0)) if p.is_published and not p.deleted_at]
     return {
         "id": str(site.id),
         "vendor_id": str(site.vendor_id),
@@ -361,9 +361,9 @@ async def get_page_by_slug(
         raise HTTPException(status_code=404, detail="Site not found or not published")
 
     if slug in ("", "home", "/"):
-        page = next((p for p in (site.pages or []) if p.is_homepage and p.is_published), None)
+        page = next((p for p in (site.pages or []) if p.is_homepage and p.is_published and not p.deleted_at), None)
     else:
-        page = next((p for p in (site.pages or []) if p.slug == slug and p.is_published), None)
+        page = next((p for p in (site.pages or []) if p.slug == slug and p.is_published and not p.deleted_at), None)
 
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
@@ -592,7 +592,7 @@ async def get_live_resource_public(
     elif resource == "pages":
         seen_urls: set[str] = set()
         for page in sorted(site.pages or [], key=lambda p: (not p.is_homepage, getattr(p, "sort_order", 0))):
-            if not getattr(page, "is_published", True) or not getattr(page, "show_in_nav", True):
+            if getattr(page, "deleted_at", None) or not getattr(page, "is_published", True) or not getattr(page, "show_in_nav", True):
                 continue
             slug = "/" if page.is_homepage else f"/{page.slug or ''}"
             if slug == "/home":
@@ -937,7 +937,7 @@ async def get_sitemap_xml(
 
     urls = []
     for page in (site.pages or []):
-        if not page.is_published:
+        if not page.is_published or page.deleted_at:
             continue
         slug = "/" if page.is_homepage else f"/{page.slug}"
         loc = f"{base_url}{slug}"

@@ -5,13 +5,13 @@ from __future__ import annotations
 import copy
 import secrets
 import uuid, json, random
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, func, delete, update
+from sqlalchemy.orm import selectinload, with_loader_criteria
 from uuid import UUID
 
 from app.database import get_db
@@ -28,6 +28,7 @@ from app.models.website import (
 from app.services.vendor_service import VendorService
 from app.schemas.website import (
     SiteCreate, SiteUpdate, SiteOut, SiteListItem,
+    PageTrashOut,
     PageCreate, PageUpdate, PageOut,
     BlockCreate, BlockUpdate, BlockOut,
     BlockReorderRequest, PageReorderRequest,
@@ -48,6 +49,8 @@ from app.schemas.website import (
 
 router = APIRouter(redirect_slashes=False)
 
+PAGE_TRASH_RETENTION_DAYS = 7
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -57,9 +60,18 @@ async def _get_vendor(db: AsyncSession, user: User) -> Vendor:
 
 
 async def _get_site(db: AsyncSession, site_id: str, vendor_id: UUID) -> WebsiteSite:
+    """Load site with active pages only.
+
+    Do NOT assign ``site.pages = [...]`` to filter trashed pages — the pages
+    relationship uses ``delete-orphan`` cascade, so reassigning the list
+    permanently deletes any page removed from the collection (including trash).
+    """
     result = await db.execute(
         select(WebsiteSite)
-        .options(selectinload(WebsiteSite.pages).selectinload(WebsitePage.blocks))
+        .options(
+            selectinload(WebsiteSite.pages).selectinload(WebsitePage.blocks),
+            with_loader_criteria(WebsitePage, WebsitePage.deleted_at.is_(None)),
+        )
         .where(WebsiteSite.id == UUID(site_id), WebsiteSite.vendor_id == vendor_id)
     )
     site = result.scalar_one_or_none()
@@ -68,16 +80,124 @@ async def _get_site(db: AsyncSession, site_id: str, vendor_id: UUID) -> WebsiteS
     return site
 
 
-async def _get_page(db: AsyncSession, page_id: str, site_id: str) -> WebsitePage:
+async def _purge_expired_trashed_pages(db: AsyncSession, site_id: str) -> None:
+    cutoff = datetime.utcnow() - timedelta(days=PAGE_TRASH_RETENTION_DAYS)
     result = await db.execute(
+        select(WebsitePage).where(
+            WebsitePage.site_id == UUID(site_id),
+            WebsitePage.deleted_at.isnot(None),
+            WebsitePage.deleted_at < cutoff,
+        )
+    )
+    for page in result.scalars().all():
+        await db.delete(page)
+
+
+def _page_trash_out(page: WebsitePage) -> PageTrashOut:
+    deleted_at = page.deleted_at or datetime.utcnow()
+    purge_at = deleted_at + timedelta(days=PAGE_TRASH_RETENTION_DAYS)
+    seconds_left = (purge_at - datetime.utcnow()).total_seconds()
+    days_remaining = max(0, int((seconds_left + 86399) // 86400))
+    return PageTrashOut(
+        id=str(page.id),
+        title=page.title,
+        slug=page.slug,
+        deleted_at=deleted_at,
+        purge_at=purge_at,
+        days_remaining=days_remaining,
+        block_count=len(page.blocks or []),
+    )
+
+
+async def _get_page(
+    db: AsyncSession,
+    page_id: str,
+    site_id: str,
+    *,
+    include_deleted: bool = False,
+) -> WebsitePage:
+    query = (
         select(WebsitePage)
         .options(selectinload(WebsitePage.blocks))
         .where(WebsitePage.id == UUID(page_id), WebsitePage.site_id == UUID(site_id))
     )
+    if not include_deleted:
+        query = query.where(WebsitePage.deleted_at.is_(None))
+    result = await db.execute(query)
     page = result.scalar_one_or_none()
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
     return page
+
+
+async def _normalize_site_homepage(db: AsyncSession, site_id: str) -> None:
+    """Ensure exactly one active homepage per site (fixes duplicate flags from imports/AI)."""
+    result = await db.execute(
+        select(WebsitePage)
+        .where(WebsitePage.site_id == UUID(site_id), WebsitePage.deleted_at.is_(None))
+        .order_by(WebsitePage.sort_order, WebsitePage.created_at)
+    )
+    pages = list(result.scalars().all())
+    if not pages:
+        return
+    flagged = [p for p in pages if p.is_homepage]
+    keeper = flagged[0] if flagged else pages[0]
+    changed = False
+    for p in pages:
+        should_home = p.id == keeper.id
+        if p.is_homepage != should_home:
+            p.is_homepage = should_home
+            p.updated_at = datetime.utcnow()
+            changed = True
+    if changed:
+        await db.flush()
+
+
+async def _unique_active_slug(
+    db: AsyncSession,
+    site_id: str,
+    base_slug: str,
+    exclude_page_id: Optional[UUID] = None,
+) -> str:
+    slug = (base_slug or "page").strip().lower()[:200] or "page"
+    candidate = slug
+    n = 2
+    while True:
+        q = select(WebsitePage.id).where(
+            WebsitePage.site_id == UUID(site_id),
+            WebsitePage.deleted_at.is_(None),
+            WebsitePage.slug == candidate,
+        )
+        if exclude_page_id:
+            q = q.where(WebsitePage.id != exclude_page_id)
+        if not (await db.execute(q)).scalar_one_or_none():
+            return candidate
+        candidate = f"{slug}-{n}"
+        n += 1
+
+
+async def _prepare_page_mutation(db: AsyncSession, site_id: str) -> None:
+    await _purge_expired_trashed_pages(db, site_id)
+    await _normalize_site_homepage(db, site_id)
+    await db.flush()
+
+
+async def _pick_replacement_homepage(
+    db: AsyncSession,
+    site_id: str,
+    exclude_page_id: UUID,
+) -> Optional[WebsitePage]:
+    result = await db.execute(
+        select(WebsitePage)
+        .where(
+            WebsitePage.site_id == UUID(site_id),
+            WebsitePage.deleted_at.is_(None),
+            WebsitePage.id != exclude_page_id,
+        )
+        .order_by(WebsitePage.sort_order, WebsitePage.created_at)
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def _get_block(db: AsyncSession, block_id: str, page_id: str) -> WebsiteBlock:
@@ -297,7 +417,10 @@ async def list_sites(
     out = []
     for s in sites:
         page_count_res = await db.execute(
-            select(func.count(WebsitePage.id)).where(WebsitePage.site_id == s.id)
+            select(func.count(WebsitePage.id)).where(
+                WebsitePage.site_id == s.id,
+                WebsitePage.deleted_at.is_(None),
+            )
         )
         page_count = page_count_res.scalar() or 0
         out.append(SiteListItem(
@@ -383,6 +506,9 @@ async def get_site(
     user: User = Depends(get_current_active_user),
 ):
     vendor = await _get_vendor(db, user)
+    await _get_site(db, site_id, vendor.id)
+    await _normalize_site_homepage(db, site_id)
+    await db.commit()
     return await _get_site(db, site_id, vendor.id)
 
 
@@ -489,13 +615,36 @@ async def list_pages(
 ):
     vendor = await _get_vendor(db, user)
     await _get_site(db, site_id, vendor.id)
+    await _purge_expired_trashed_pages(db, site_id)
+    await _normalize_site_homepage(db, site_id)
     result = await db.execute(
         select(WebsitePage)
         .options(selectinload(WebsitePage.blocks))
-        .where(WebsitePage.site_id == site_id)
+        .where(WebsitePage.site_id == UUID(site_id), WebsitePage.deleted_at.is_(None))
         .order_by(WebsitePage.sort_order)
     )
-    return result.scalars().all()
+    pages = result.scalars().all()
+    await db.commit()
+    return pages
+
+
+@router.get("/{site_id}/pages/trash", response_model=List[PageTrashOut])
+async def list_trashed_pages(
+    site_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    vendor = await _get_vendor(db, user)
+    await _get_site(db, site_id, vendor.id)
+    await _prepare_page_mutation(db, site_id)
+    result = await db.execute(
+        select(WebsitePage)
+        .options(selectinload(WebsitePage.blocks))
+        .where(WebsitePage.site_id == UUID(site_id), WebsitePage.deleted_at.isnot(None))
+        .order_by(WebsitePage.deleted_at.desc())
+    )
+    await db.commit()
+    return [_page_trash_out(p) for p in result.scalars().all()]
 
 
 @router.post("/{site_id}/pages", response_model=PageOut, status_code=201)
@@ -540,7 +689,18 @@ async def update_page(
     await _snapshot_page(
         db, page_id, site_id, note="page edited", author_user_id=user.id,
     )
-    for k, v in body.dict(exclude_none=True).items():
+    data = body.dict(exclude_none=True)
+    if data.get("is_homepage") is True:
+        await db.execute(
+            update(WebsitePage)
+            .where(
+                WebsitePage.site_id == UUID(site_id),
+                WebsitePage.id != UUID(page_id),
+                WebsitePage.deleted_at.is_(None),
+            )
+            .values(is_homepage=False, updated_at=datetime.utcnow())
+        )
+    for k, v in data.items():
         setattr(page, k, v)
     page.updated_at = datetime.utcnow()
     await db.commit()
@@ -556,9 +716,55 @@ async def delete_page(
 ):
     vendor = await _get_vendor(db, user)
     await _get_site(db, site_id, vendor.id)
+    await _prepare_page_mutation(db, site_id)
     page = await _get_page(db, page_id, site_id)
-    await db.delete(page)
+    active_count = await db.execute(
+        select(func.count(WebsitePage.id)).where(
+            WebsitePage.site_id == UUID(site_id),
+            WebsitePage.deleted_at.is_(None),
+        )
+    )
+    if (active_count.scalar() or 0) <= 1:
+        raise HTTPException(status_code=400, detail="Your site needs at least one page")
+    if page.is_homepage:
+        replacement = await _pick_replacement_homepage(db, site_id, page.id)
+        if not replacement:
+            raise HTTPException(status_code=400, detail="Your site needs at least one page")
+        page.is_homepage = False
+        replacement.is_homepage = True
+        replacement.updated_at = datetime.utcnow()
+    page.deleted_at = datetime.utcnow()
+    page.is_published = False
+    page.show_in_nav = False
+    page.is_homepage = False
+    page.updated_at = datetime.utcnow()
     await db.commit()
+
+
+@router.post("/{site_id}/pages/{page_id}/restore", response_model=PageOut)
+async def restore_page(
+    site_id: str,
+    page_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    vendor = await _get_vendor(db, user)
+    await _get_site(db, site_id, vendor.id)
+    await _prepare_page_mutation(db, site_id)
+    page = await _get_page(db, page_id, site_id, include_deleted=True)
+    if not page.deleted_at:
+        raise HTTPException(status_code=400, detail="Page is not in trash")
+    new_slug = await _unique_active_slug(db, site_id, page.slug, exclude_page_id=page.id)
+    if new_slug != page.slug:
+        page.slug = new_slug
+    page.deleted_at = None
+    page.is_published = True
+    page.show_in_nav = True
+    page.is_homepage = False
+    page.updated_at = datetime.utcnow()
+    await _normalize_site_homepage(db, site_id)
+    await db.commit()
+    return await _get_page(db, page_id, site_id)
 
 
 @router.post("/{site_id}/pages/reorder")
@@ -571,15 +777,11 @@ async def reorder_pages(
     vendor = await _get_vendor(db, user)
     await _get_site(db, site_id, vendor.id)
     for item in body.items:
-        await db.execute(
-            select(WebsitePage).where(WebsitePage.id == item.id, WebsitePage.site_id == site_id)
-        )
-        result = await db.execute(
-            select(WebsitePage).where(WebsitePage.id == item.id)
-        )
-        page = result.scalar_one_or_none()
-        if page:
-            page.sort_order = item.sort_order
+        try:
+            page = await _get_page(db, str(item.id), site_id)
+        except HTTPException:
+            continue
+        page.sort_order = item.sort_order
     await db.commit()
     return {"ok": True}
 

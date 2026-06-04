@@ -40,6 +40,7 @@ import {
 import type {
   WebsiteSite, WebsiteBlock, WebsitePage, BlockType, DeviceMode, BuilderPanel,
   PageStyleOverrides,
+  PageTrashItem,
   StyleConfig, BlockProps,
   LiveResource, LiveItem,
 } from '@/types/websites'
@@ -645,17 +646,27 @@ function TextPromptPopup({
   confirmLabel?: string
   confirmOnly?: boolean
   destructive?: boolean
-  onSave: (v: string) => void
+  onSave: (v: string) => void | Promise<void>
   onClose: () => void
 }) {
   const [val, setVal] = useState(initialValue || '')
+  const [submitting, setSubmitting] = useState(false)
   const { ref, pos, headerMouseDown } = useDraggablePopup(open)
   useEffect(() => { if (open) setVal(initialValue || '') }, [open, initialValue])
 
   if (!open) return null
 
   const canSubmit = !minLength || val.trim().length >= minLength
-  const commit = () => { if (!canSubmit) return; onSave(val); onClose() }
+  const commit = async () => {
+    if (!canSubmit || submitting) return
+    setSubmitting(true)
+    try {
+      await onSave(val)
+      onClose()
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const style: React.CSSProperties = pos
     ? { position: 'fixed', top: pos.y, left: pos.x, zIndex: 100000 }
@@ -736,17 +747,18 @@ function TextPromptPopup({
           )}
         </div>
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50">
-          <button onClick={onClose} className="btn-cancel flex-1 py-2 rounded-lg text-xs font-medium text-gray-600 border border-[#ffc954]">Cancel</button>
+          <button onClick={onClose} disabled={submitting} className="btn-cancel flex-1 py-2 rounded-lg text-xs font-medium text-gray-600 border border-[#ffc954] disabled:opacity-50">Cancel</button>
           <button
-            onClick={commit}
-            disabled={!canSubmit}
+            onClick={() => { void commit() }}
+            disabled={!canSubmit || submitting}
             className={cn(
-              'flex-1 py-2 rounded-lg text-xs font-bold',
-              !canSubmit && 'bg-gray-200 text-gray-400 cursor-not-allowed',
-              canSubmit && destructive && 'bg-red-600 text-white hover:bg-red-700',
-              canSubmit && !destructive && 'bg-primary text-white hover:bg-primary/90',
+              'flex-1 py-2 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5',
+              (!canSubmit || submitting) && 'bg-gray-200 text-gray-400 cursor-not-allowed',
+              canSubmit && !submitting && destructive && 'bg-red-600 text-white hover:bg-red-700',
+              canSubmit && !submitting && !destructive && 'bg-primary text-white hover:bg-primary/90',
             )}
           >
+            {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {confirmLabel}
           </button>
         </div>
@@ -1803,12 +1815,14 @@ function PageActionsMenu({
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
-  const canDelete = !page.is_homepage && pageCount > 1
-  const deleteHint = page.is_homepage
-    ? 'Set another page as home before deleting.'
-    : pageCount <= 1
-      ? 'Your site needs at least one page.'
-      : null
+  const canDelete = pageCount > 1 && isPersistedPageId(page.id)
+  const deleteHint = pageCount <= 1
+    ? 'Your site needs at least one page.'
+    : !isPersistedPageId(page.id)
+      ? 'Save this page before moving it to trash.'
+      : page.is_homepage
+        ? 'Homepage will move to the next page automatically.'
+        : null
 
   useEffect(() => {
     if (!open) return
@@ -1868,11 +1882,93 @@ function PageActionsMenu({
           {!page.is_homepage && menuItem('Set as homepage', onSetHomepage, <span className="text-sm leading-none">🏠</span>)}
           {menuItem('Duplicate page', onDuplicate, <Copy className="w-3.5 h-3.5" />)}
           <div className="my-1 border-t border-gray-100" />
-          {menuItem('Delete page', canDelete ? onDelete : undefined, <Trash2 className="w-3.5 h-3.5" />, 'danger')}
+          {menuItem('Move to trash', canDelete ? onDelete : undefined, <Trash2 className="w-3.5 h-3.5" />, 'danger')}
           {deleteHint && (
             <p className="px-3 pt-1 pb-0.5 text-[10px] leading-snug text-gray-400">{deleteHint}</p>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+/** Trashed pages — recoverable for 7 days before permanent removal. */
+function DeletedPagesPanel({
+  items,
+  onRestore,
+  onRefresh,
+  loading,
+  alwaysShow = false,
+}: {
+  items: PageTrashItem[]
+  onRestore: (id: string, title: string) => void
+  onRefresh?: () => void | Promise<void>
+  loading?: boolean
+  /** When true, show the section even if trash is empty (Page tab). */
+  alwaysShow?: boolean
+}) {
+  if (!alwaysShow && !loading && items.length === 0) return null
+
+  return (
+    <div className={cn('rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2.5 space-y-2', alwaysShow ? 'mt-1' : 'mt-2')}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 min-w-0">
+          <Trash2 className="w-3 h-3 shrink-0" />
+          Recently deleted
+          {items.length > 0 && (
+            <span className="rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
+              {items.length}
+            </span>
+          )}
+        </div>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={() => void onRefresh()}
+            disabled={loading}
+            className="shrink-0 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2 py-1 text-[10px] font-semibold text-amber-900 hover:bg-amber-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
+            Refresh
+          </button>
+        )}
+      </div>
+      <p className="text-[10px] text-amber-900/70 leading-snug">
+        Pages stay here for 7 days, then are removed permanently.
+      </p>
+      {loading && items.length === 0 && (
+        <p className="text-[10px] text-gray-500 flex items-center gap-1.5">
+          <Loader2 className="w-3 h-3 animate-spin" /> Loading deleted pages…
+        </p>
+      )}
+      {!loading && items.length === 0 && (
+        <p className="text-[10px] text-gray-500 leading-snug">
+          No deleted pages right now. Use <strong>Move to trash</strong> above to remove a page — it will appear here.
+        </p>
+      )}
+      {items.length > 0 && (
+        <ul className="space-y-1.5">
+          {items.map(item => (
+            <li key={item.id} className="flex items-center gap-2 rounded-lg border border-amber-100 bg-white px-2 py-1.5">
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-semibold text-gray-800 truncate" title={item.title}>{item.title}</div>
+                <div className="text-[10px] text-gray-500">
+                  {item.days_remaining <= 0
+                    ? 'Purging soon'
+                    : `${item.days_remaining} day${item.days_remaining === 1 ? '' : 's'} left to restore`}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onRestore(item.id, item.title)}
+                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-primary/30 bg-accent px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/10 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Restore
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
@@ -2985,6 +3081,14 @@ function pageChipLabel(page: WebsitePage, pages: WebsitePage[]): string {
     return page.is_homepage ? `${page.title} ★` : `${page.title} · /${page.slug}`
   }
   return page.is_homepage ? `${page.title} ★` : page.title
+}
+
+function isPersistedPageId(pageId: string): boolean {
+  return Boolean(pageId) && !pageId.startsWith('temp-')
+}
+
+function countPersistedPages(pages: WebsitePage[]): number {
+  return pages.filter(p => isPersistedPageId(p.id)).length
 }
 
 function navLinksEqual(
@@ -8375,6 +8479,10 @@ function PagePanel({
   onDeletePage,
   onDuplicatePage,
   onSetHomepage,
+  trashedPages = [],
+  trashLoading = false,
+  onRestorePage,
+  onRefreshTrash,
 }: {
   pages: WebsitePage[]
   activePageId: string | null
@@ -8385,16 +8493,21 @@ function PagePanel({
   onDeletePage?: (pageId: string, pageTitle: string) => void
   onDuplicatePage?: (page: WebsitePage) => void
   onSetHomepage?: (page: WebsitePage) => void
+  trashedPages?: PageTrashItem[]
+  trashLoading?: boolean
+  onRestorePage?: (pageId: string, pageTitle: string) => void
+  onRefreshTrash?: () => void | Promise<void>
 }) {
   const activePage = pages.find(p => p.id === activePageId) || null
   const pageOverrides = activePageId ? (siteStyle.page_styles?.[activePageId] || {}) : {}
   const effective = activePageId ? mergePageStyleConfig(siteStyle, activePageId) : siteStyle
   const hasOverrides = Object.keys(pageOverrides).length > 0
-  const canDelete = !!activePage && !activePage.is_homepage && pages.length > 1
-  const deleteBlockedReason = activePage?.is_homepage
-    ? 'Set another page as homepage before deleting this one.'
-    : pages.length <= 1
-      ? 'Your site needs at least one page.'
+  const persistedPageCount = countPersistedPages(pages)
+  const canDelete = persistedPageCount > 1 && Boolean(activePage && isPersistedPageId(activePage.id))
+  const deleteBlockedReason = persistedPageCount <= 1
+    ? 'Your site needs at least one page.'
+    : activePage && !isPersistedPageId(activePage.id)
+      ? 'Save this page before moving it to trash.'
       : null
 
   const colorField = (key: keyof PageStyleOverrides, label: string, fallback: string) => (
@@ -8504,14 +8617,21 @@ function PagePanel({
               </div>
               {onDeletePage && (
                 canDelete ? (
-                  <button
-                    type="button"
-                    onClick={() => onDeletePage(activePage.id, activePage.title)}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Delete this page
-                  </button>
+                  <>
+                    {activePage.is_homepage && (
+                      <p className="text-[11px] text-gray-500 leading-snug px-1 mb-2">
+                        The next page in your list will become the new homepage.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onDeletePage(activePage.id, activePage.title)}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Move to trash
+                    </button>
+                  </>
                 ) : (
                   <p className="text-[11px] text-gray-500 leading-snug px-1">{deleteBlockedReason}</p>
                 )
@@ -8581,6 +8701,18 @@ function PagePanel({
             </button>
           )}
         </>
+      )}
+
+      {onRestorePage && (
+        <div className="pt-4 mt-2 border-t border-gray-100">
+          <DeletedPagesPanel
+            alwaysShow
+            items={trashedPages}
+            loading={trashLoading}
+            onRestore={onRestorePage}
+            onRefresh={onRefreshTrash}
+          />
+        </div>
       )}
     </div>
   )
@@ -10275,6 +10407,8 @@ export default function WebsiteBuilder() {
   const skipServerHydrateRef = useRef(0)
   const styleDirtyRef = useRef(false)    // mirror for style dirty flag
   const [openingBrowserPreview, setOpeningBrowserPreview] = useState(false)
+  const [trashedPages, setTrashedPages] = useState<PageTrashItem[]>([])
+  const [trashLoading, setTrashLoading] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [storePopover, setStorePopover] = useState(false)
   // ── Block delete confirmation ("arm then confirm") ─────────────────────────
@@ -10319,7 +10453,7 @@ export default function WebsiteBuilder() {
         confirmOnly?: boolean
         destructive?: boolean
         anchor?: { x: number; y: number } | null
-        onSave: (v: string) => void
+        onSave: (v: string) => void | Promise<void>
       }
   >(null)
 
@@ -10336,7 +10470,7 @@ export default function WebsiteBuilder() {
     confirmOnly?: boolean
     destructive?: boolean
     anchor?: { x: number; y: number } | null
-    onSave: (v: string) => void
+    onSave: (v: string) => void | Promise<void>
   }) => setTextPrompt(opts), [])
 
   // ── UNDO / REDO ────────────────────────────────────────────────────────────
@@ -10548,6 +10682,27 @@ export default function WebsiteBuilder() {
     setCanUndo(false)
     setCanRedo(false)
   }, [])
+
+  /** After trash/restore — refresh pages + blocks without wiping undo history. */
+  const syncEditorPagesFromSite = useCallback((fresh: WebsiteSite, focusPageId?: string | null) => {
+    const normalized = normalizeSitePages(fresh.pages)
+    localPagesRef.current = normalized
+    setLocalPages(normalized)
+    const nextBlocks: Record<string, WebsiteBlock[]> = {}
+    normalized.forEach(page => {
+      nextBlocks[page.id] = (page.blocks || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    })
+    const synced = syncNavLinksInBlockMap(normalizeAllStructureBlocks(nextBlocks, normalized), normalized)
+    localBlocksRef.current = synced
+    setLocalBlocks(synced)
+    queryClient.setQueryData<WebsiteSite>(['websites', siteId!], { ...fresh, pages: normalized })
+    const nextActive = focusPageId && normalized.some(p => p.id === focusPageId)
+      ? focusPageId
+      : normalized.find(p => p.is_homepage)?.id ?? normalized[0]?.id ?? null
+    setActivePageId(nextActive)
+    setSelectedBlockId(null)
+    return normalized
+  }, [queryClient, siteId])
 
   /** Load a template onto the canvas — no publish, user edits first then clicks Apply in toolbar. */
   const handleApplySelectedTemplate = useCallback(async (templateId: string) => {
@@ -12780,56 +12935,101 @@ export default function WebsiteBuilder() {
     })
   }, [siteId, site, openTextPrompt, commitLocalBlocks, queryClient])
 
-  // Delete page
+  // Delete page (soft delete — 7-day trash)
+  const loadTrashedPages = useCallback(async (): Promise<PageTrashItem[]> => {
+    if (!siteId) return []
+    setTrashLoading(true)
+    try {
+      const items = await websiteApi.listTrashedPages(siteId)
+      setTrashedPages(items)
+      return items
+    } catch (err) {
+      setTrashedPages([])
+      toast.error(extractApiError(err, 'Could not load deleted pages'))
+      return []
+    } finally {
+      setTrashLoading(false)
+    }
+  }, [siteId])
+
+  useEffect(() => {
+    void loadTrashedPages()
+  }, [loadTrashedPages])
+
+  useEffect(() => {
+    if (rightPanel === 'page' && siteId) {
+      void loadTrashedPages()
+    }
+  }, [rightPanel, siteId, loadTrashedPages])
+
   const handleDeletePage = useCallback((pageId: string, pageTitle: string) => {
     const target = localPages.find(p => p.id === pageId)
     if (!target) return
-    if (target.is_homepage) {
-      toast.error('Cannot delete the homepage. Set another page as home first.')
+    if (!isPersistedPageId(pageId)) {
+      toast.error('Save this page first before moving it to trash.')
       return
     }
-    if (localPages.length <= 1) {
+    if (countPersistedPages(localPages) <= 1) {
       toast.error('Your site needs at least one page.')
       return
     }
+    const isHome = target.is_homepage
     openTextPrompt({
-      title: `Delete "${pageTitle}"?`,
-      subtitle: 'This permanently removes the page and all its sections. This cannot be undone.',
-      confirmLabel: 'Delete page',
+      title: `Move "${pageTitle}" to trash?`,
+      subtitle: isHome
+        ? 'This is your homepage. It stays in trash for 7 days and the next page becomes home automatically.'
+        : 'The page stays in Recently deleted for 7 days. Restore anytime before then — after 7 days it is removed permanently.',
+      confirmLabel: 'Move to trash',
       confirmOnly: true,
       destructive: true,
       onSave: async () => {
         const backupPages = localPages
         const backupBlocks = localBlocksRef.current
-        setLocalPages(prev => prev.filter(p => p.id !== pageId))
-        setLocalBlocks(prev => {
-          const next = { ...prev }
-          delete next[pageId]
-          localBlocksRef.current = next
-          return next
-        })
-        if (activePageId === pageId) {
-          const remaining = localPages.filter(p => p.id !== pageId)
-          setActivePageId(remaining[0]?.id || null)
-          setSelectedBlockId(null)
-        }
+        const backupActivePageId = activePageId
         try {
           await websiteApi.deletePage(siteId!, pageId)
-          if (site) {
-            queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
-              old ? { ...old, pages: old.pages.filter(p => p.id !== pageId) } : old,
-            )
+          const fresh = await websiteApi.getSite(siteId!)
+          syncEditorPagesFromSite(fresh)
+          const trash = await loadTrashedPages()
+          if (!trash.some(p => p.id === pageId)) {
+            toast.error('Page was removed but did not appear in Recently deleted. Click Refresh below or reload the builder.')
+            return
           }
-          toast.success(`"${pageTitle}" deleted`)
-        } catch {
+          toast.success(
+            isHome
+              ? `"${pageTitle}" moved to trash — another page is now home`
+              : `"${pageTitle}" moved to trash — restore within 7 days in Recently deleted`,
+          )
+        } catch (err) {
           setLocalPages(backupPages)
           setLocalBlocks(backupBlocks)
           localBlocksRef.current = backupBlocks
-          toast.error('Failed to delete page')
+          setActivePageId(backupActivePageId)
+          toast.error(extractApiError(err, 'Failed to move page to trash'))
         }
       },
     })
-  }, [siteId, localPages, activePageId, openTextPrompt])
+  }, [siteId, localPages, activePageId, openTextPrompt, loadTrashedPages, syncEditorPagesFromSite])
+
+  const handleRestorePage = useCallback(async (pageId: string, pageTitle: string) => {
+    if (!siteId) return
+    const trashed = trashedPages.find(p => p.id === pageId)
+    try {
+      const restored = await websiteApi.restorePage(siteId, pageId)
+      const fresh = await websiteApi.getSite(siteId)
+      syncEditorPagesFromSite(fresh, restored.id)
+      setTrashedPages(prev => prev.filter(p => p.id !== pageId))
+      if (trashed && restored.slug !== trashed.slug) {
+        toast.success(`"${pageTitle}" restored as /${restored.slug} (original slug was in use)`)
+      } else {
+        toast.success(`"${pageTitle}" restored`)
+      }
+      void loadTrashedPages()
+    } catch (err) {
+      toast.error(extractApiError(err, 'Failed to restore page'))
+      void loadTrashedPages()
+    }
+  }, [siteId, trashedPages, syncEditorPagesFromSite, loadTrashedPages])
 
   const handleDuplicatePage = useCallback(async (page: WebsitePage) => {
     if (!siteId) return
@@ -13188,7 +13388,7 @@ export default function WebsiteBuilder() {
           minLength={textPrompt.minLength}
           confirmOnly={textPrompt.confirmOnly}
           destructive={textPrompt.destructive}
-          onSave={(v) => { textPrompt.onSave(v); setTextPrompt(null) }}
+          onSave={async (v) => { await textPrompt.onSave(v) }}
           onClose={() => setTextPrompt(null)}
         />
       )}
@@ -13740,7 +13940,7 @@ export default function WebsiteBuilder() {
                             </span>
                             <PageActionsMenu
                               page={page}
-                              pageCount={localPages.length}
+                              pageCount={countPersistedPages(localPages)}
                               onSetHomepage={() => { void handleSetHomepage(page) }}
                               onDuplicate={() => { void handleDuplicatePage(page) }}
                               onDelete={() => handleDeletePage(page.id, page.title)}
@@ -13860,21 +14060,26 @@ export default function WebsiteBuilder() {
                         <div className="text-[11px] font-semibold text-gray-700 truncate" title={activePage.title}>
                           Current page: {activePage.title}
                         </div>
-                        {activePage.is_homepage ? (
-                          <p className="text-[10px] leading-snug text-gray-500">
-                            Homepage cannot be deleted. Use <strong>Actions</strong> on another page to set a new home first.
-                          </p>
-                        ) : localPages.length <= 1 ? (
+                        {countPersistedPages(localPages) <= 1 ? (
                           <p className="text-[10px] leading-snug text-gray-500">Your site needs at least one page.</p>
+                        ) : !isPersistedPageId(activePage.id) ? (
+                          <p className="text-[10px] leading-snug text-gray-500">Save this page before moving it to trash.</p>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePage(activePage.id, activePage.title)}
-                            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete this page
-                          </button>
+                          <>
+                            {activePage.is_homepage && (
+                              <p className="text-[10px] leading-snug text-gray-500 mb-2">
+                                This is the homepage. The next page becomes home when you move it to trash.
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePage(activePage.id, activePage.title)}
+                              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Move to trash
+                            </button>
+                          </>
                         )}
                       </div>
                     )}
@@ -14671,6 +14876,10 @@ export default function WebsiteBuilder() {
                     onDeletePage={handleDeletePage}
                     onDuplicatePage={page => { void handleDuplicatePage(page) }}
                     onSetHomepage={page => { void handleSetHomepage(page) }}
+                    trashedPages={trashedPages}
+                    trashLoading={trashLoading}
+                    onRestorePage={handleRestorePage}
+                    onRefreshTrash={loadTrashedPages}
                   />
                 )}
 

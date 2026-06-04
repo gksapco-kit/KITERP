@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { websiteApi } from '@/api/websites'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
-import { getStorefrontAppOrigin, STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS, wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
+import { getStorefrontAppOrigin, openDraftPreviewInBrowser, STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS, wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
 
 // ── Fonts available via Google Fonts in storefront-web globals.css ────────────
 const HEADING_FONTS = ['Fraunces', 'Playfair Display', 'DM Serif Display', 'Space Grotesk', 'Manrope', 'Inter']
@@ -377,15 +377,18 @@ export function WebsiteTemplatePreviewModal({
                     Edit style
                   </button>
                 )}
-                <a
-                  href={wrapStorefrontPreviewForVendorBrowser(getStorefrontTemplateBrowserPreviewUrl(template.id))}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => {
+                    openDraftPreviewInBrowser(
+                      wrapStorefrontPreviewForVendorBrowser(getStorefrontTemplateBrowserPreviewUrl(template.id)),
+                    )
+                  }}
                   className={STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS}
                 >
                   <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                   Preview in Browser
-                </a>
+                </button>
                 <button
                   type="button"
                   onClick={handleClose}

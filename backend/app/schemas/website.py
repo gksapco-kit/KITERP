@@ -112,6 +112,7 @@ class PageOut(BaseModel):
     is_published: bool
     is_homepage: bool
     show_in_nav: bool
+    deleted_at: Optional[datetime] = None
     blocks: List[BlockOut] = []
     created_at: datetime
     updated_at: datetime
@@ -266,6 +267,21 @@ class SiteListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PageTrashOut(BaseModel):
+    id: str
+    title: str
+    slug: str
+    deleted_at: datetime
+    purge_at: datetime
+    days_remaining: int
+    block_count: int = 0
+
+    @field_validator('id', mode='before')
+    @classmethod
+    def coerce_uuid(cls, v: Any) -> str:
+        return _str_uuid(v)
 
 
 # ── Block reorder ─────────────────────────────────────────────────────────────

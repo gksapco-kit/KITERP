@@ -1,6 +1,7 @@
 import { apiClient } from '@/api/client'
 import type {
   WebsiteSite, SiteListItem, WebsitePage, WebsiteBlock, WebsiteMedia,
+  PageTrashItem,
   AITextRequest, AITextResponse, AIScreenshotResponse, AIUrlCloneResponse,
   AIUxReviewResponse, AIThemeResponse, MediaAdjustments, WebsiteTemplate,
   StyleConfig, BlockProps, SiteRedirect,
@@ -40,6 +41,10 @@ export const websiteApi = {
     apiClient.patch<WebsitePage>(`${base}/${siteId}/pages/${pageId}`, data).then(r => r.data),
   deletePage: (siteId: string, pageId: string) =>
     apiClient.delete(`${base}/${siteId}/pages/${pageId}`),
+  listTrashedPages: (siteId: string) =>
+    apiClient.get<PageTrashItem[]>(`${base}/${siteId}/pages/trash`).then(r => r.data),
+  restorePage: (siteId: string, pageId: string) =>
+    apiClient.post<WebsitePage>(`${base}/${siteId}/pages/${pageId}/restore`).then(r => r.data),
   reorderPages: (siteId: string, items: { id: string; sort_order: number }[]) =>
     apiClient.post(`${base}/${siteId}/pages/reorder`, { items }),
 

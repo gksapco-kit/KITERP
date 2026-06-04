@@ -179,9 +179,20 @@ export interface WebsitePage {
   is_published: boolean
   is_homepage: boolean
   show_in_nav: boolean
+  deleted_at?: string | null
   blocks: WebsiteBlock[]
   created_at: string
   updated_at: string
+}
+
+export interface PageTrashItem {
+  id: string
+  title: string
+  slug: string
+  deleted_at: string
+  purge_at: string
+  days_remaining: number
+  block_count: number
 }
 
 export interface StyleConfig {

@@ -114,22 +114,42 @@ export function wrapStorefrontPreviewForVendorBrowser(storefrontPreviewUrl: stri
   return shell.toString()
 }
 
-/** Open preview URL in a new tab; never navigate the builder tab away. */
+/** Reused preview tab name — repeat clicks navigate the same tab instead of opening new ones. */
+const PREVIEW_WINDOW_NAME = 'kiterp-draft-preview'
+
+let previewWindowRef: Window | null = null
+
+/** Open preview in one browser tab; never navigate the builder tab away. */
 export function openDraftPreviewInBrowser(previewShellUrl: string): boolean {
-  let tab = window.open(previewShellUrl, '_blank', 'noopener,noreferrer')
-  if (tab) return true
+  try {
+    if (previewWindowRef && !previewWindowRef.closed) {
+      previewWindowRef.location.href = previewShellUrl
+      previewWindowRef.focus()
+      return true
+    }
 
-  const link = document.createElement('a')
-  link.href = previewShellUrl
-  link.target = '_blank'
-  link.rel = 'noopener noreferrer'
-  link.style.display = 'none'
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
+    // Named window (no noopener) so we get a Window reference and reuse the same tab.
+    const tab = window.open(previewShellUrl, PREVIEW_WINDOW_NAME)
+    if (tab) {
+      previewWindowRef = tab
+      tab.focus()
+      return true
+    }
 
-  tab = window.open(previewShellUrl, '_blank', 'noopener,noreferrer')
-  return Boolean(tab)
+    // Pop-up blocked — single fallback only. Do not chain extra window.open calls:
+    // noopener makes window.open return null even when a tab opened, which caused 3 tabs.
+    const link = document.createElement('a')
+    link.href = previewShellUrl
+    link.target = PREVIEW_WINDOW_NAME
+    link.rel = 'noopener noreferrer'
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Crisp labels on dense builder toolbars (avoids muddy 12px extrabold on Windows). */
