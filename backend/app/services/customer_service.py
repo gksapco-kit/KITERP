@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
 from app.models.customer import Customer
-from app.schemas.customer import CustomerCreate, CustomerUpdate
+from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerPasswordChange
 from app.schemas.user import Token
 from app.repositories.customer_repo import CustomerRepository
 from app.core.security import (
@@ -108,6 +108,48 @@ class CustomerService:
         if data.default_address_index is not None:
             customer.default_address_index = data.default_address_index
 
+        await self.db.commit()
+        await self.db.refresh(customer)
+        return customer
+
+    async def change_password(
+        self, vendor_id: UUID, customer_id: UUID, data: CustomerPasswordChange,
+    ) -> None:
+        customer = await self.get_by_id(vendor_id, customer_id)
+        if not customer.password_hash:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Guest accounts cannot set a password here — please register first",
+            )
+        if not verify_password(data.current_password, customer.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect",
+            )
+        customer.password_hash = get_password_hash(data.new_password)
+        await self.db.commit()
+
+    async def get_or_create_guest(
+        self, vendor_id: UUID, full_name: str, email: str, phone: str | None = None,
+    ) -> Customer:
+        existing = await self.repo.get_by_vendor_and_email(vendor_id, email)
+        if existing:
+            if full_name and existing.full_name != full_name:
+                existing.full_name = full_name
+            if phone and not existing.phone:
+                existing.phone = phone
+            await self.db.commit()
+            await self.db.refresh(existing)
+            return existing
+
+        customer = Customer(
+            vendor_id=vendor_id,
+            full_name=full_name,
+            email=email,
+            phone=phone,
+            password_hash="",
+        )
+        self.db.add(customer)
         await self.db.commit()
         await self.db.refresh(customer)
         return customer

@@ -31,12 +31,14 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     e.preventDefault()
     e.stopPropagation()
     if (!item.id || String(item.id).startsWith('ph-')) return
-    if (!isAuthenticated) {
-      window.location.href = storePath('/login')
-      return
-    }
     try {
-      await addToCart.mutateAsync({ product_id: item.id, qty: 1 } as any)
+      await addToCart.mutateAsync({
+        product_id: item.id,
+        name: item.title ?? 'Product',
+        qty: 1,
+        price: Number(item.price ?? 0),
+        image_url: item.image_url ?? item.image,
+      } as any)
       setAddedIds(prev => { const next = new Set(prev); next.add(item.id!); return next })
       setTimeout(() => setAddedIds(prev => { const next = new Set(prev); next.delete(item.id!); return next }), 2000)
     } catch { /* mutation handles */ }

@@ -89,6 +89,7 @@ class Vendor(Base):
     
     # Business Hours
     business_hours = Column(JSONB, default={})
+    store_holidays = Column(JSONB, default=list)  # [{date, label, closed?}]
     
     # Order Acceptance
     order_acceptance_enabled = Column(Boolean, default=True)

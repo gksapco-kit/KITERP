@@ -1,12 +1,9 @@
 # app/api/v1/uploads.py
 """
 File upload endpoints for product and service images.
-Files are stored locally in the uploads/ directory.
+Uses FileService (S3 when configured, else backend/uploads/).
 """
-import os
 import uuid
-import aiofiles
-from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -21,18 +18,15 @@ from app.models.vendor_service import Service
 from app.services.vendor_service import VendorService
 from app.repositories.product_repo import ProductRepository
 from app.repositories.service_repo import ServiceRepository
+from app.services.media_upload import (
+    save_media_file,
+    save_hr_document,
+    delete_stored_file,
+    detect_media_type,
+    ALLOWED_IMAGE_TYPES,
+)
 
 router = APIRouter()
-
-UPLOAD_DIR = Path(__file__).resolve().parents[3] / "uploads"
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
-ALLOWED_3D_TYPES = {"model/gltf-binary", "model/gltf+json", "application/octet-stream"}
-ALLOWED_3D_EXTENSIONS = {".glb", ".gltf"}
-ALLOWED_TYPES = ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES | ALLOWED_3D_TYPES
-MAX_IMAGE_SIZE = 5 * 1024 * 1024    # 5 MB
-MAX_VIDEO_SIZE = 50 * 1024 * 1024   # 50 MB
-MAX_3D_SIZE = 30 * 1024 * 1024      # 30 MB
 
 
 async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
@@ -43,46 +37,8 @@ async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
     return vendor.id
 
 
-def _detect_media_type(file: UploadFile) -> str:
-    """Detect whether the file is image, video, or 3D model."""
-    ct = file.content_type or ""
-    ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
-    if ct in ALLOWED_VIDEO_TYPES:
-        return "video"
-    if ct in ALLOWED_3D_TYPES or ext in ALLOWED_3D_EXTENSIONS:
-        return "model3d"
-    return "image"
-
-
 async def _save_file(file: UploadFile, subfolder: str) -> str:
-    """Save an uploaded file and return the relative URL path."""
-    ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
-    is_3d = ext in ALLOWED_3D_EXTENSIONS
-    if not is_3d and file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File type {file.content_type} not allowed. Supported: images, videos (MP4/WebM), 3D models (GLB/GLTF).",
-        )
-
-    contents = await file.read()
-    media = _detect_media_type(file)
-    max_size = MAX_VIDEO_SIZE if media == "video" else MAX_3D_SIZE if media == "model3d" else MAX_IMAGE_SIZE
-    if len(contents) > max_size:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File too large. Max {max_size // (1024*1024)} MB for {media}.",
-        )
-
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    folder = UPLOAD_DIR / subfolder
-    folder.mkdir(parents=True, exist_ok=True)
-
-    filepath = folder / filename
-    async with aiofiles.open(str(filepath), "wb") as f:
-        await f.write(contents)
-
-    return f"/uploads/{subfolder}/{filename}"
+    return await save_media_file(file, subfolder)
 
 
 # ── Vendor Logo & Banner ──────────────────────────────────────────
@@ -102,9 +58,7 @@ async def upload_vendor_logo(
     url = await _save_file(file, "vendor-logos")
 
     if vendor.logo_url:
-        old_path = UPLOAD_DIR.parent / vendor.logo_url.lstrip("/")
-        if old_path.exists():
-            old_path.unlink()
+        await delete_stored_file(vendor.logo_url)
 
     vendor.logo_url = url
     await db.commit()
@@ -126,9 +80,7 @@ async def upload_vendor_banner(
     url = await _save_file(file, "vendor-banners")
 
     if vendor.banner_url:
-        old_path = UPLOAD_DIR.parent / vendor.banner_url.lstrip("/")
-        if old_path.exists():
-            old_path.unlink()
+        await delete_stored_file(vendor.banner_url)
 
     vendor.banner_url = url
     await db.commit()
@@ -191,10 +143,7 @@ async def remove_vendor_extra_banner(
     vendor.theme_config = cfg
     flag_modified(vendor, "theme_config")
 
-    # Also delete the file from disk
-    old_path = UPLOAD_DIR.parent / url.lstrip("/")
-    if old_path.exists():
-        old_path.unlink()
+    await delete_stored_file(url)
 
     await db.commit()
     return JSONResponse(content={"extra_banners": extras})
@@ -231,13 +180,8 @@ async def upload_user_avatar(
 
     url = await _save_file(file, f"users/{current_user.id}/avatar")
 
-    if current_user.avatar_url and current_user.avatar_url.startswith("/uploads/users/"):
-        old_path = UPLOAD_DIR.parent / current_user.avatar_url.lstrip("/")
-        try:
-            if old_path.exists():
-                old_path.unlink()
-        except Exception:
-            pass
+    if current_user.avatar_url:
+        await delete_stored_file(current_user.avatar_url)
 
     return JSONResponse(content={"url": url, "avatar_url": url})
 
@@ -277,7 +221,7 @@ async def upload_product_image(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    media = _detect_media_type(file)
+    media = detect_media_type(file)
     url = await _save_file(file, "products")
 
     existing_count = len(product.images) if product.images else 0
@@ -328,10 +272,7 @@ async def delete_product_image(
     if not target:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    # Delete file from disk
-    filepath = UPLOAD_DIR.parent / target.url.lstrip("/")
-    if filepath.exists():
-        filepath.unlink()
+    await delete_stored_file(target.url)
 
     was_primary = target.is_primary
     await db.delete(target)
@@ -429,7 +370,7 @@ async def upload_variant_media(
     if not product:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    media = _detect_media_type(file)
+    media = detect_media_type(file)
     url = await _save_file(file, f"variants/{variant_id}")
 
     current_media = list(variant.media or [])
@@ -479,10 +420,7 @@ async def delete_variant_media(
     variant.media = current_media
     await db.commit()
 
-    # Delete file from disk
-    filepath = UPLOAD_DIR.parent / url.lstrip("/")
-    if filepath.exists():
-        filepath.unlink()
+    await delete_stored_file(url)
 
     return JSONResponse(content={"media": current_media})
 
@@ -580,7 +518,7 @@ async def upload_service_media(
     if not svc:
         raise HTTPException(status_code=404, detail="Service not found")
 
-    media_type = _detect_media_type(file)
+    media_type = detect_media_type(file)
     url = await _save_file(file, "services")
 
     current_media = list(svc.media or [])
@@ -631,9 +569,7 @@ async def delete_service_media(
     if not target:
         raise HTTPException(status_code=404, detail="Media item not found")
 
-    filepath = UPLOAD_DIR.parent / target["url"].lstrip("/")
-    if filepath.exists():
-        filepath.unlink()
+    await delete_stored_file(target.get("url"))
 
     was_primary = target.get("is_primary", False)
     current_media.remove(target)
@@ -737,48 +673,15 @@ async def reorder_service_media(
 
 # -- HR Document Upload --
 
-ALLOWED_DOC_TYPES_HR = ALLOWED_IMAGE_TYPES | {
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-}
-MAX_DOC_SIZE = 10 * 1024 * 1024  # 10 MB
-
 
 @router.post("/hr/{emp_id}/documents")
-async def upload_hr_document(
+async def upload_hr_document_endpoint(
     emp_id: str,
     file: UploadFile = File(...),
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if file.content_type not in ALLOWED_DOC_TYPES_HR:
-        raise HTTPException(status_code=400, detail="Only images, PDFs and Word documents are allowed.")
-
-    contents = await file.read()
-    if len(contents) > MAX_DOC_SIZE:
-        raise HTTPException(status_code=413, detail="File too large (max 10 MB).")
-
-    dest_dir = UPLOAD_DIR / "hr" / emp_id
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    ext = Path(file.filename or "file").suffix or ".bin"
-    filename = f"{uuid.uuid4().hex}{ext}"
-    dest_path = dest_dir / filename
-
-    async with aiofiles.open(dest_path, "wb") as f:
-        await f.write(contents)
-
-    file_url = f"/uploads/hr/{emp_id}/{filename}"
-    is_image = file.content_type in ALLOWED_IMAGE_TYPES
-
-    return JSONResponse(content={
-        "file_url": file_url,
-        "original_name": file.filename,
-        "content_type": file.content_type,
-        "is_image": is_image,
-        "size": len(contents),
-    })
+    return JSONResponse(content=await save_hr_document(file, emp_id))
 
 
 # -- Expense receipt upload (no application size cap) --

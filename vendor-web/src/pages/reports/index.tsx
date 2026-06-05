@@ -22,6 +22,11 @@ import {
   BadgeAlert, BadgeCheck, CircleDot, Hammer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  urlsToLightboxItems,
+} from '@/components/common/ImageAttachmentLightbox'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -634,6 +639,18 @@ export default function ReportsPage() {
   const [prodNotes,        setProdNotes]        = useState('')
   const [prodRef,          setProdRef]          = useState(() => `WO-${Date.now().toString().slice(-6)}`)
   const [prodAttachments,  setProdAttachments]  = useState<ProdAttachment[]>([])
+  const [prodAttachLightboxIndex, setProdAttachLightboxIndex] = useState<number | null>(null)
+  const prodImageAttachments = useMemo(
+    () => prodAttachments.filter((a) => a.type.startsWith('image/')),
+    [prodAttachments],
+  )
+  const prodLightboxItems = useMemo(
+    () => urlsToLightboxItems(
+      prodImageAttachments.map((a) => a.dataUrl),
+      { idPrefix: 'prod-report', altText: (i) => prodImageAttachments[i]?.name ?? `Attachment ${i + 1}` },
+    ),
+    [prodImageAttachments],
+  )
   const [stockDispatches,  setStockDispatches]  = useState<StockDispatch[]>([])
   const [dispatchQty,      setDispatchQty]      = useState('')
   const [dispatchNotes,    setDispatchNotes]    = useState('')
@@ -2854,7 +2871,16 @@ export default function ReportsPage() {
                       {prodAttachments.map((a, i) => (
                         <div key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs">
                           {a.type.startsWith('image/') ? (
-                            <img src={a.dataUrl} alt={a.name} className="w-8 h-8 object-cover rounded-lg" />
+                            <ClickableImageButton
+                              src={a.dataUrl}
+                              alt={a.name}
+                              title="View image"
+                              className="w-8 h-8 rounded-lg shrink-0"
+                              imgClassName="w-8 h-8 object-cover rounded-lg"
+                              onClick={() => setProdAttachLightboxIndex(
+                                prodAttachments.slice(0, i).filter((x) => x.type.startsWith('image/')).length,
+                              )}
+                            />
                           ) : (
                             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                               <FileText className="w-4 h-4 text-blue-600" />
@@ -2864,13 +2890,18 @@ export default function ReportsPage() {
                             <p className="font-medium text-gray-800 truncate max-w-[120px]">{a.name}</p>
                             <p className="text-gray-400">{(a.size / 1024).toFixed(1)} KB</p>
                           </div>
-                          <button type="button" aria-label="Close" onClick={() => setProdAttachments(prev => prev.filter((_, j) => j !== i))}>
+                          <button type="button" aria-label="Close" onClick={(e) => { e.stopPropagation(); setProdAttachments(prev => prev.filter((_, j) => j !== i)) }}>
                 <X className="w-3 h-3 text-red-400 hover:text-red-600" />
                           </button>
                         </div>
                       ))}
                     </div>
                   )}
+                  <ImageLightboxSession
+                    items={prodLightboxItems}
+                    openIndex={prodAttachLightboxIndex}
+                    onClose={() => setProdAttachLightboxIndex(null)}
+                  />
                   <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-dashed border-gray-300 rounded-xl px-4 py-3 hover:bg-gray-100 transition-colors">
                     <Plus className="w-4 h-4 text-gray-500" />
                     <span className="text-sm text-gray-600">Click to attach images or documents</span>

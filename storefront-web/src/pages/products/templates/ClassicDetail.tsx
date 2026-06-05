@@ -3,13 +3,14 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency, imgUrl } from '@/lib/utils'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { PhoneInput } from '@/components/ui/PhoneInput'
 import {
   Minus, Plus, ShoppingCart, Loader2, ShoppingBag,
   Truck, ShieldCheck, RefreshCw, ChevronRight, Tag, Package, Box,
   Award, Zap, Check, Info, Calendar, Ruler, Repeat, MessageSquare, Send, X,
 } from 'lucide-react'
 import type { QuoteFormField } from '@/types'
+import { QuoteFormFieldInput } from '@/components/quote/QuoteFormFieldInput'
+import { isQuoteFieldEmpty } from '@/components/quote/quoteFieldHelpers'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
@@ -52,7 +53,7 @@ export function ProductQuoteModal({ productId, productName, formConfig, customer
     e.preventDefault()
     const newErrors: Record<string, boolean> = {}
     for (const f of fields) {
-      if (f.required && !formData[f.key]?.trim()) newErrors[f.key] = true
+      if (f.required && isQuoteFieldEmpty(f, formData[f.key] || '')) newErrors[f.key] = true
     }
     if (Object.keys(newErrors).length) { setErrors(newErrors); return }
     requestQuote.mutate(
@@ -67,38 +68,20 @@ export function ProductQuoteModal({ productId, productName, formConfig, customer
     }`
   const readOnlyCls = 'bg-gray-50 text-gray-500 cursor-not-allowed'
 
-  const renderField = (f: QuoteFormField) => {
-    const val = formData[f.key] || ''
-    const locked = autoKeys.has(f.key)
-    switch (f.type) {
-      case 'textarea':
-        return <textarea value={val} onChange={e => !locked && updateField(f.key, e.target.value)} readOnly={locked}
-          placeholder={f.placeholder} rows={3} className={`${inputCls(f.key)} resize-none ${locked ? readOnlyCls : ''}`} />
-      case 'date':
-        return <Input type="date" value={val} onChange={e => updateField(f.key, e.target.value)} min={today} className={inputCls(f.key)} />
-      case 'time':
-        return <Input type="time" value={val} onChange={e => updateField(f.key, e.target.value)} className={inputCls(f.key)} />
-      case 'number':
-        return <Input type="number" value={val} onChange={e => updateField(f.key, e.target.value)} placeholder={f.placeholder} min="0" className={inputCls(f.key)} />
-      case 'select':
-        return (
-          <select value={val} onChange={e => updateField(f.key, e.target.value)} className={inputCls(f.key)}>
-            <option value="">{f.placeholder || 'Select...'}</option>
-            {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        )
-      case 'phone':
-        return <PhoneInput value={val} onChange={v => !locked && updateField(f.key, v)}
-          disabled={locked} defaultCountryIso="IN" className={inputCls(f.key)} />
-      default:
-        return <Input type={f.type === 'email' ? 'email' : 'text'}
-          value={val} onChange={e => !locked && updateField(f.key, e.target.value)} readOnly={locked}
-          placeholder={f.placeholder} className={`${inputCls(f.key)} ${locked ? readOnlyCls : ''}`} />
-    }
-  }
+  const renderField = (f: QuoteFormField) => (
+    <QuoteFormFieldInput
+      field={f}
+      value={formData[f.key] || ''}
+      onChange={(v) => updateField(f.key, v)}
+      inputClassName={inputCls}
+      readOnly={autoKeys.has(f.key)}
+      readOnlyClassName={readOnlyCls}
+      today={today}
+    />
+  )
 
-  const dateTimeFields = fields.filter(f => f.type === 'date' || f.type === 'time')
-  const otherFields = fields.filter(f => f.type !== 'date' && f.type !== 'time')
+  const dateTimeFields = fields.filter((f) => f.type === 'date' || f.type === 'time')
+  const otherFields = fields.filter((f) => f.type !== 'date' && f.type !== 'time')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
@@ -156,7 +139,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
     displayOfferLabel, displayOnSale, discount, variantColors,
     selectedImage, setSelectedImage, displayMedia,
     selectedVariantId,
-    handleAddToCart, handleBuyNow, isAuthenticated, addToCartPending,
+    handleAddToCart, handleBuyNow, handleSubscribe, subscribePending, isAuthenticated, addToCartPending,
     storePath, warrantyDays, warrantyType, returnDays, returnPolicy,
     returnConditions, refundPolicy, isReturnable, specs,
     crossSellProducts, upsellProducts,
@@ -289,7 +272,8 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                   setupFee={subscriptionSetupFee}
                   maxCycles={subscriptionBillingCycles}
                   allowedModes={subscriptionScheduleModes}
-                  onSubscribe={() => handleBuyNow()}
+                  onSubscribe={(config) => (handleSubscribe ? handleSubscribe(config) : handleBuyNow())}
+                  subscribePending={subscribePending}
                   subscribePending={addToCartPending}
                   disabled={displayStock === 'out_of_stock'}
                 />

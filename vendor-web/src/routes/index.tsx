@@ -10,6 +10,7 @@ import SignupWelcome from '@/pages/auth/SignupWelcome'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
 import Dashboard from '@/pages/dashboard/index'
 import Orders from '@/pages/orders/index'
+import QuotationsPage from '@/pages/quotations/index'
 import OrderDetail from '@/pages/orders/OrderDetail'
 import OrderAuditReport from '@/pages/orders/OrderAuditReport'
 import Products from '@/pages/products/index'
@@ -38,6 +39,7 @@ import RestaurantReportsPage from '@/pages/restaurant/Reports'
 import RestaurantMenuPage from '@/pages/restaurant/Menu'
 import WorkspaceHubPage from '@/pages/workspace/Hub'
 import SubscriptionsSalesPage from '@/pages/sales/Subscriptions'
+import MarketplaceLeadsPage from '@/pages/sales/MarketplaceLeads'
 import RentalHubPage from '@/pages/rental/RentalHub'
 import InvoicesPage from '@/pages/invoices/index'
 import InvoiceDetail from '@/pages/invoices/InvoiceDetail'
@@ -49,6 +51,8 @@ import StorefrontBuilderPage from '@/pages/storefront-builder/index'
 import PlansPage from '@/pages/plans/index'
 import BookingsPage from '@/pages/bookings/index'
 import BookingDetail from '@/pages/bookings/BookingDetail'
+import ProjectsPage from '@/pages/projects/index'
+import ProjectDetail from '@/pages/projects/ProjectDetail'
 import NotificationsPage from '@/pages/notifications/index'
 import NotificationSettingsPage from '@/pages/notifications/settings'
 import SuppliersPage from '@/pages/suppliers/index'
@@ -251,6 +255,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'orders', element: <Orders /> },
+      { path: 'quotations', element: <QuotationsPage /> },
+      { path: 'quotations/templates', element: <InvoiceTemplatesPage /> },
+      { path: 'quotations/:id', element: <InvoiceDetail /> },
       { path: 'orders/:id/audit', element: <OrderAuditReport /> },
       { path: 'orders/:id', element: <OrderDetail /> },
       { path: 'products', element: <Products /> },
@@ -280,6 +287,7 @@ export const router = createBrowserRouter([
       { path: 'restaurant/reports', element: <RestaurantReportsPage /> },
       { path: 'workspace', element: <WorkspaceHubPage /> },
       { path: 'subscriptions', element: <SubscriptionsSalesPage /> },
+      { path: 'marketplace', element: <MarketplaceLeadsPage /> },
       { path: 'rental', element: <RentalHubPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },
@@ -321,6 +329,8 @@ export const router = createBrowserRouter([
       { path: 'plans', element: <PlansPage /> },
       { path: 'bookings', element: <BookingsPage /> },
       { path: 'bookings/:id', element: <BookingDetail /> },
+      { path: 'projects', element: <ProjectsPage /> },
+      { path: 'projects/:id', element: <ProjectDetail /> },
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'notifications/settings', element: <NotificationSettingsPage /> },
       // HR routes

@@ -12,6 +12,7 @@ import {
   CreditCard,
   Headphones,
   ScrollText,
+  AlertTriangle,
   Menu,
   X,
 } from 'lucide-react'
@@ -37,6 +38,7 @@ const adminNavItemsSuperuser = [
   { to: '/dashboard/plans', icon: CreditCard, label: 'Plans' },
   { to: '/dashboard/platform-team', icon: Headphones, label: 'Support team' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
+  { to: '/dashboard/disputes', icon: AlertTriangle, label: 'Disputes' },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ]
 

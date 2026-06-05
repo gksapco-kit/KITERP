@@ -12,11 +12,15 @@ import { useInvoiceSettings, useProducts, useServices } from '@/hooks/useVendor'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   Plus, Search, Loader2, FileText, ChevronLeft, ChevronRight,
   X, Eye, IndianRupee, ArrowRight, Download, Trash2, Share2,
-  MessageCircle, Mail, Smartphone, Copy, Send, Settings2, CalendarDays, Printer,
+  MessageCircle, Mail, Smartphone, Copy, Send, Settings2, CalendarDays, Printer, UserPlus,
 } from 'lucide-react'
+import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
+import { QuotationExtraFieldsEditor } from '@/components/quotations/QuotationExtraFieldsEditor'
+import { serializeQuotationExtraFields, type QuotationExtraField } from '@/types/quotation'
 import apiClient from '@/api/client'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -161,7 +165,13 @@ export default function InvoicesPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, typeFilter, statusFilter],
-    queryFn: () => vendorApi.listInvoices({ page, size: 15, invoice_type: typeFilter || undefined, status: statusFilter || undefined }),
+    queryFn: () => vendorApi.listInvoices({
+      page,
+      size: 15,
+      invoice_type: typeFilter || undefined,
+      exclude_invoice_type: typeFilter ? undefined : 'estimate',
+      status: statusFilter || undefined,
+    }),
   })
 
   type InvRow = Record<string, unknown>
@@ -197,8 +207,7 @@ export default function InvoicesPage() {
 
       <div className="flex gap-3 items-center">
         <select className="text-sm border rounded-lg px-3 py-2" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}>
-          <option value="">All Types</option>
-          <option value="estimate">Estimates</option>
+          <option value="">All Billing Types</option>
           <option value="invoice">Invoices</option>
           <option value="receipt">Receipts</option>
           <option value="credit_note">Credit Notes</option>
@@ -467,23 +476,23 @@ function ItemSearchRow({
       </div>
 
       {/* HSN */}
-      <div className="w-20">
-        <input className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+      <div className="w-32 shrink-0">
+        <input className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
           placeholder="HSN" value={item.hsn_sac} onChange={e => onUpdate('hsn_sac', e.target.value)} />
       </div>
       {/* Qty */}
-      <div className="w-16">
-        <input type="number" min={1} className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-center"
+      <div className="w-28 shrink-0">
+        <input type="number" min={1} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-center"
           value={item.qty} onChange={e => onUpdate('qty', Number(e.target.value))} />
       </div>
       {/* Rate */}
-      <div className="w-24">
-        <input type="number" min={0} placeholder="Rate" className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+      <div className="w-36 shrink-0">
+        <input type="number" min={0} placeholder="Rate" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
           value={item.rate} onChange={e => onUpdate('rate', Number(e.target.value))} />
       </div>
       {/* Tax % */}
-      <div className="w-16">
-        <input type="number" min={0} max={100} placeholder="Tax%" className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-center"
+      <div className="w-24 shrink-0">
+        <input type="number" min={0} max={100} placeholder="Tax%" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-center"
           value={item.tax_rate} onChange={e => onUpdate('tax_rate', Number(e.target.value))} />
       </div>
       {/* Remove */}
@@ -494,19 +503,53 @@ function ItemSearchRow({
   )
 }
 
-function CreateInvoiceModal({
- onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+export function CreateInvoiceModal({
+  onClose,
+  onCreated,
+  defaultType = 'invoice',
+  prefill,
+}: {
+  onClose: () => void
+  onCreated: (created?: Record<string, unknown>) => void
+  defaultType?: 'invoice' | 'estimate' | 'credit_note'
+  prefill?: {
+    customer_name?: string
+    customer_email?: string
+    customer_phone?: string
+    customer_gstin?: string
+    notes?: string
+    order_id?: string
+    items?: Array<{ name: string; hsn_sac: string; qty: number; rate: number; discount: number; tax_rate: number }>
+  }
+}) {
   useEscapeToClose(onClose)
 
   const [form, setForm] = useState({
-    invoice_type: 'invoice',
-    customer_name: '', customer_email: '', customer_phone: '', customer_gstin: '',
-    place_of_supply: '', is_inter_state: false, notes: '',
+    invoice_type: defaultType,
+    order_id: prefill?.order_id || '',
+    customer_name: prefill?.customer_name || '',
+    customer_email: prefill?.customer_email || '',
+    customer_phone: prefill?.customer_phone || '',
+    customer_gstin: prefill?.customer_gstin || '',
+    place_of_supply: '',
+    is_inter_state: false,
+    notes: prefill?.notes || '',
+    due_date: '',
+    terms_and_conditions: defaultType === 'estimate'
+      ? 'This quotation is valid until the date shown above. Prices are subject to change after expiry.'
+      : '',
   })
-  const [items, setItems] = useState([{ name: '', hsn_sac: '', qty: 1, rate: 0, discount: 0, tax_rate: 18 }])
+  const [items, setItems] = useState(
+    prefill?.items?.length
+      ? prefill.items
+      : [{ name: '', hsn_sac: '', qty: 1, rate: 0, discount: 0, tax_rate: 18 }],
+  )
   const [loading, setLoading] = useState(false)
   const [custSearch, setCustSearch] = useState('')
   const [custOpen, setCustOpen] = useState(false)
+  const [showQuickCreate, setShowQuickCreate] = useState(false)
+  const [extraFields, setExtraFields] = useState<QuotationExtraField[]>([])
+  const isQuotation = defaultType === 'estimate'
 
   // Catalogue — load products + services once
   const { data: productsData } = useProducts({ size: 200 })
@@ -533,7 +576,12 @@ function CreateInvoiceModal({
   })
   const customers: Array<{ id: string; full_name: string; phone?: string; email?: string; gstin?: string }> = custData ?? []
 
-  const applyCustomer = (c: typeof customers[0]) => {
+  const applyCustomer = (c: {
+    full_name: string
+    phone?: string
+    email?: string
+    gstin?: string
+  }) => {
     setForm(f => ({
       ...f,
       customer_name: c.full_name,
@@ -542,7 +590,7 @@ function CreateInvoiceModal({
       customer_gstin: c.gstin || f.customer_gstin,
     }))
     setCustOpen(false)
-    setCustSearch('')
+    setCustSearch(c.full_name)
   }
 
   const addLine = () => setItems([...items, { name: '', hsn_sac: '', qty: 1, rate: 0, discount: 0, tax_rate: 18 }])
@@ -564,36 +612,65 @@ function CreateInvoiceModal({
   const handleCreate = async () => {
     setLoading(true)
     try {
-      await vendorApi.createInvoice({ ...form, items })
-      toast.success('Invoice created!')
-      onCreated()
-    } catch { toast.error('Could not create invoice — check customer and line item details') }
+      const payload = {
+        ...form,
+        order_id: form.order_id || undefined,
+        items,
+        ...(isQuotation ? { extra_fields: serializeQuotationExtraFields(extraFields) } : {}),
+      }
+      const created = await vendorApi.createInvoice(payload)
+      toast.success(defaultType === 'estimate' ? 'Quotation created!' : 'Invoice created!')
+      onCreated(created as Record<string, unknown>)
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not create document — check customer and line item details'))
+    }
     setLoading(false)
   }
 
   return (
     <div data-kiterp-modal className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div
+        className={`bg-white rounded-xl shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto ${isQuotation ? 'max-w-5xl' : 'max-w-3xl'}`}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">Create Invoice</h2>
+          <h2 className="text-lg font-semibold">
+            {defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
+          </h2>
           <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
           {/* Customer picker */}
           <div className="relative">
             <Label>Select Customer (optional)</Label>
-            <div className="relative mt-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search existing customers…"
-                className="pl-9"
-                value={custSearch}
-                onFocus={() => setCustOpen(true)}
-                onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
-              />
+            <div className="flex gap-2 mt-1">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search existing customers…"
+                  className="pl-9"
+                  value={custSearch}
+                  onFocus={() => setCustOpen(true)}
+                  onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5 shrink-0"
+                onClick={() => setShowQuickCreate(true)}
+              >
+                <UserPlus className="w-4 h-4" /> Create Customer
+              </Button>
             </div>
+            {form.customer_name && (
+              <p className="text-xs text-gray-500 mt-1.5">
+                Selected: <span className="font-medium text-gray-700">{form.customer_name}</span>
+                {form.customer_phone ? ` · ${form.customer_phone}` : ''}
+              </p>
+            )}
             {custOpen && (
-              <div className="absolute z-30 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-52 overflow-y-auto">
+              <div className="absolute z-30 left-0 right-0 sm:right-auto sm:pr-[9.5rem] bg-white border rounded-lg shadow-lg mt-1 max-h-52 overflow-y-auto">
                 {customers.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-gray-400">No customers found</p>
                 ) : customers.map(c => (
@@ -612,15 +689,47 @@ function CreateInvoiceModal({
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div><Label>Type</Label>
-              <select className="w-full mt-1 text-sm border rounded-lg px-3 py-2" value={form.invoice_type} onChange={e => setForm({ ...form, invoice_type: e.target.value })}>
-                <option value="estimate">Estimate</option><option value="invoice">Invoice</option><option value="credit_note">Credit Note</option>
-              </select>
+          <div className={`grid grid-cols-1 gap-4 ${isQuotation ? 'sm:grid-cols-2' : 'sm:grid-cols-12'}`}>
+            {defaultType === 'invoice' ? (
+              <div className="sm:col-span-3">
+                <Label>Type</Label>
+                <select className="w-full mt-1 text-sm border rounded-lg px-3 py-2" value={form.invoice_type} onChange={e => setForm({ ...form, invoice_type: e.target.value as 'invoice' | 'estimate' | 'credit_note' })}>
+                  <option value="estimate">Estimate</option><option value="invoice">Invoice</option><option value="credit_note">Credit Note</option>
+                </select>
+              </div>
+            ) : (
+              <div>
+                <Label>Valid Until</Label>
+                <Input
+                  type="date"
+                  className="mt-1"
+                  value={form.due_date}
+                  onChange={e => setForm({ ...form, due_date: e.target.value })}
+                />
+              </div>
+            )}
+            <div className={isQuotation ? undefined : 'sm:col-span-3'}>
+              <Label>GSTIN</Label>
+              <Input className="mt-1" value={form.customer_gstin} onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })} maxLength={15} />
             </div>
-            <div><Label>Customer Name</Label><Input className="mt-1" value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} /></div>
-            <div><Label>Phone</Label><PhoneInput value={form.customer_phone} onChange={(v) => setForm({ ...form, customer_phone: v })} defaultCountryIso="IN" /></div>
-            <div><Label>GSTIN</Label><Input className="mt-1" value={form.customer_gstin} onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })} maxLength={15} /></div>
+            {!isQuotation && (
+              <>
+                <div className="sm:col-span-4">
+                  <Label>Customer Name</Label>
+                  <Input className="mt-1" value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} />
+                </div>
+                <div className="sm:col-span-5">
+                  <Label>Phone</Label>
+                  <PhoneInput
+                    className="mt-1"
+                    compactCountry
+                    value={form.customer_phone}
+                    onChange={(v) => setForm({ ...form, customer_phone: v })}
+                    defaultCountryIso="IN"
+                  />
+                </div>
+              </>
+            )}
           </div>
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_inter_state} onChange={e => setForm({ ...form, is_inter_state: e.target.checked })} className="w-4 h-4 rounded" /><span className="text-sm">Inter-state supply (IGST)</span></label>
 
@@ -634,12 +743,12 @@ function CreateInvoiceModal({
             </div>
             {/* Column headers */}
             <div className="flex gap-2 mb-1 px-0.5">
-              <p className="flex-1 text-xs font-medium text-gray-400 uppercase">Item</p>
-              <p className="w-20 text-xs font-medium text-gray-400 uppercase">HSN/SAC</p>
-              <p className="w-16 text-xs font-medium text-gray-400 uppercase text-center">Qty</p>
-              <p className="w-24 text-xs font-medium text-gray-400 uppercase">Rate (₹)</p>
-              <p className="w-16 text-xs font-medium text-gray-400 uppercase text-center">Tax %</p>
-              <div className="w-8" />
+              <p className="flex-1 min-w-0 text-xs font-medium text-gray-400 uppercase">Item</p>
+              <p className="w-32 shrink-0 text-xs font-medium text-gray-400 uppercase">HSN/SAC</p>
+              <p className="w-28 shrink-0 text-xs font-medium text-gray-400 uppercase text-center">Qty</p>
+              <p className="w-36 shrink-0 text-xs font-medium text-gray-400 uppercase">Rate (₹)</p>
+              <p className="w-24 shrink-0 text-xs font-medium text-gray-400 uppercase text-center">Tax %</p>
+              <div className="w-10 shrink-0" />
             </div>
             <div className="space-y-2">
               {items.map((item, i) => (
@@ -662,6 +771,19 @@ function CreateInvoiceModal({
           </div></div>
 
           <div><Label>Notes</Label><textarea className="w-full mt-1 text-sm border rounded-lg px-3 py-2 min-h-[60px]" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+          {defaultType === 'estimate' && (
+            <>
+              <QuotationExtraFieldsEditor fields={extraFields} onChange={setExtraFields} />
+              <div>
+                <Label>Terms &amp; Conditions</Label>
+                <textarea
+                  className="w-full mt-1 text-sm border rounded-lg px-3 py-2 min-h-[60px]"
+                  value={form.terms_and_conditions}
+                  onChange={e => setForm({ ...form, terms_and_conditions: e.target.value })}
+                />
+              </div>
+            </>
+          )}
         </div>
         <div className="px-6 py-4 border-t flex justify-end gap-3">
           <Button variant="cancel" onClick={onClose}>Cancel</Button>
@@ -670,6 +792,21 @@ function CreateInvoiceModal({
           </Button>
         </div>
       </div>
+
+      {showQuickCreate && (
+        <QuickCreateCustomerModal
+          onSelect={(c) => {
+            applyCustomer({
+              full_name: c.full_name,
+              phone: c.phone,
+              email: c.email,
+            })
+            setShowQuickCreate(false)
+          }}
+          onClose={() => setShowQuickCreate(false)}
+          returnTo="?returnTo=quotations"
+        />
+      )}
     </div>
   )
 }

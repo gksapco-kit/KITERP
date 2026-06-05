@@ -52,6 +52,16 @@ class Settings(BaseSettings):
     # Set to false if platform operators must review each signup.
     AUTO_APPROVE_NEW_VENDORS: bool = True
 
+    # Razorpay (online payments on business front checkout)
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+
+    # Twilio SMS (phone OTP — leave blank for dev mode with dev_hint in API)
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_FROM_NUMBER: str = ""
+
     model_config = SettingsConfigDict(
         env_file=str(_BACKEND_ROOT / ".env"),
         env_file_encoding="utf-8",

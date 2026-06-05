@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
-import { Package, User, MapPin, ChevronRight, Heart, Settings, ShoppingBag, CalendarDays, Bell } from 'lucide-react'
+import { Package, User, MapPin, ChevronRight, Heart, Settings, ShoppingBag, CalendarDays, Bell, Repeat, MessageSquareQuote, PackageOpen } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 
 export default function Account() {
@@ -13,6 +13,9 @@ export default function Account() {
     { to: storePath('/account/orders'), icon: Package, label: 'Your Orders', desc: 'Track, return, or buy again', color: 'bg-blue-50 text-blue-600' },
     { to: storePath('/account/bookings'), icon: CalendarDays, label: 'Your Bookings', desc: 'View service appointments', color: 'bg-indigo-50 text-indigo-600' },
     { to: storePath('/account/wishlist'), icon: Heart, label: 'Wishlist', desc: 'Saved products you love', color: 'bg-rose-50 text-rose-600' },
+    { to: storePath('/account/subscriptions'), icon: Repeat, label: 'Subscriptions', desc: 'Manage recurring orders', color: 'bg-violet-50 text-violet-600' },
+    { to: storePath('/account/marketplace'), icon: MessageSquareQuote, label: 'Marketplace', desc: 'Post requirements & compare quotes', color: 'bg-orange-50 text-orange-600' },
+    { to: storePath('/rentals'), icon: PackageOpen, label: 'Rentals', desc: 'Browse and book rental items', color: 'bg-teal-50 text-teal-600' },
     { to: storePath('/account/addresses'), icon: MapPin, label: 'Saved Addresses', desc: 'Manage delivery addresses', color: 'bg-green-50 text-green-600' },
     { to: storePath('/account/profile'), icon: Settings, label: 'Profile & Settings', desc: 'Edit profile, password, notifications', color: 'bg-accent text-primary' },
     { to: storePath('/cart'), icon: ShoppingBag, label: 'Your Cart', desc: 'View items in your cart', color: 'bg-amber-50 text-amber-600' },

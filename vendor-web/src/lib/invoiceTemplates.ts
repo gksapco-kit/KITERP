@@ -191,6 +191,16 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   show_payment_terms: true,
 }
 
+/** Defaults when quotation template settings have never been saved. */
+export const DEFAULT_QUOTATION_SETTINGS: InvoiceSettings = {
+  ...DEFAULT_INVOICE_SETTINGS,
+  show_amount_paid: false,
+  show_balance_due: false,
+  show_terms: true,
+  show_payment_terms: false,
+  default_terms: 'This quotation is valid until the date shown above. Prices are subject to change after expiry.',
+}
+
 export const TEMPLATE_COLORS = [
   { label: 'Blue',   value: '#1a56db' },
   { label: 'Teal',   value: '#0694a2' },
@@ -226,6 +236,31 @@ export function savePosInvoiceSettings(settings: Partial<InvoiceSettings>): void
 }
 
 type InvData = Record<string, unknown>
+
+function isQuotationDoc(inv: InvData): boolean {
+  return inv.invoice_type === 'estimate'
+}
+
+/** Rewrite invoice-centric labels in generated HTML for quotation documents. */
+function applyQuotationLabels(html: string, inv: InvData): string {
+  if (!isQuotationDoc(inv)) return html
+  let out = html
+  out = out.replace(/<title>Invoice /g, '<title>Quotation ')
+  out = out.replace(/TAX INVOICE/g, 'QUOTATION')
+  out = out.replace(/(?<=>)INVOICE(?=<)/g, 'QUOTATION')
+  out = out.replace(/Invoice No\.?/g, 'Quotation No.')
+  out = out.replace(/Invoice Date/g, 'Quotation Date')
+  out = out.replace(/Due Date/g, 'Valid Until')
+  out = out.replace(/>Due:</g, '>Valid:')
+  out = out.replace(/>Due </g, '>Valid ')
+  out = out.replace(/Computer generated invoice[^<]*/gi, 'Computer generated quotation.')
+  out = out.replace(/valid tax invoice/gi, 'valid quotation')
+  out = out.replace(/<tr[^>]*>[\s\S]*?Amount Paid[\s\S]*?<\/tr>/gi, '')
+  out = out.replace(/<tr[^>]*>[\s\S]*?Balance Due[\s\S]*?<\/tr>/gi, '')
+  out = out.replace(/Balance Due:/g, '')
+  out = out.replace(/Paid in Full/g, '')
+  return out
+}
 
 function fmt(n: unknown): string {
   return `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
@@ -343,8 +378,8 @@ function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
       <td style="padding:8px 10px;text-align:right">Total</td>
       <td style="padding:8px 10px;text-align:right">${fmt(total)}</td>
     </tr>
-    ${(settings.show_amount_paid ?? true) && paid > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#059669">Amount Paid</td><td style="padding:5px 10px;text-align:right;color:#059669">${fmt(paid)}</td></tr>` : ''}
-    ${(settings.show_balance_due ?? true) && bal > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#dc2626;font-weight:600">Balance Due</td><td style="padding:5px 10px;text-align:right;color:#dc2626;font-weight:600">${fmt(bal)}</td></tr>` : ''}
+    ${!isQuotationDoc(inv) && (settings.show_amount_paid ?? true) && paid > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#059669">Amount Paid</td><td style="padding:5px 10px;text-align:right;color:#059669">${fmt(paid)}</td></tr>` : ''}
+    ${!isQuotationDoc(inv) && (settings.show_balance_due ?? true) && bal > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#dc2626;font-weight:600">Balance Due</td><td style="padding:5px 10px;text-align:right;color:#dc2626;font-weight:600">${fmt(bal)}</td></tr>` : ''}
     ${settings.show_amount_in_words && total > 0 ? `<tr><td colspan="2" style="padding:6px 10px;border-top:1px dashed #e5e7eb;font-size:10px;color:#6b7280;font-style:italic">Amount in words: <span style="font-weight:500;color:#374151">${numToWords(total)}</span></td></tr>` : ''}
     ${settings.show_tax_inclusive_note ? `<tr><td colspan="2" style="padding:4px 10px;font-size:10px;color:#9ca3af;font-style:italic;text-align:right">* All prices are inclusive of applicable taxes</td></tr>` : ''}
   `
@@ -395,7 +430,56 @@ function signatureBlock(settings: InvoiceSettings, vendorName: string): string {
   </div>`
 }
 
+function quotationImageUrls(f: { value?: string; values?: string[] }): string[] {
+  if (Array.isArray(f.values) && f.values.length) return f.values.filter(Boolean)
+  return f.value ? [String(f.value)] : []
+}
+
+function quotationExtraFieldsBlock(inv: InvData): string {
+  if (!isQuotationDoc(inv)) return ''
+  const fields = (inv.extra_fields as Array<{ label?: string; type?: string; value?: string; values?: string[] }>) || []
+  const visible = fields.filter(f => {
+    if (!f.label) return false
+    if (f.type === 'image') return quotationImageUrls(f).length > 0
+    return Boolean(f.value)
+  })
+  if (visible.length === 0) return ''
+
+  const rows = visible.map(f => {
+    const label = String(f.label)
+    const value = String(f.value || '')
+    const type = String(f.type || 'text')
+    if (type === 'image') {
+      const imgs = quotationImageUrls(f)
+      const thumbs = imgs.map((url, i) => {
+        const src = resolveMediaUrl(url)
+        return `<img src="${src}" alt="${label} ${i + 1}" style="max-height:120px;max-width:160px;object-fit:contain;border-radius:6px;border:1px solid #e5e7eb;margin:0 8px 8px 0" crossorigin="anonymous"/>`
+      }).join('')
+      return `<div style="margin-bottom:10px">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;margin-bottom:6px">${label}</div>
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-start">${thumbs}</div>
+      </div>`
+    }
+    if (type === 'link') {
+      return `<div style="margin-bottom:6px;font-size:11px"><span style="color:#374151;font-weight:600">${label}:</span> <a href="${value}" style="color:#1a56db">${value}</a></div>`
+    }
+    if (type === 'email') {
+      return `<div style="margin-bottom:6px;font-size:11px"><span style="color:#374151;font-weight:600">${label}:</span> <a href="mailto:${value}" style="color:#1a56db">${value}</a></div>`
+    }
+    if (type === 'phone') {
+      return `<div style="margin-bottom:6px;font-size:11px"><span style="color:#374151;font-weight:600">${label}:</span> <span style="color:#6b7280">${value}</span></div>`
+    }
+    return `<div style="margin-bottom:6px;font-size:11px"><span style="color:#374151;font-weight:600">${label}:</span> <span style="color:#6b7280;white-space:pre-wrap">${value}</span></div>`
+  }).join('')
+
+  return `<div style="margin-bottom:14px;padding:12px 14px;background:#f8fafc;border-radius:6px;border:1px solid #e5e7eb">
+    <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:8px">Additional Information</div>
+    ${rows}
+  </div>`
+}
+
 function commonFooter(inv: InvData, settings: InvoiceSettings): string {
+  const extraFieldsHtml = quotationExtraFieldsBlock(inv)
   const notes      = (inv.notes as string) || settings.default_notes || ''
   const terms      = (inv.terms_and_conditions as string) || settings.default_terms || ''
   const shipAddr   = inv.shipping_address as Record<string, string> | null
@@ -444,7 +528,7 @@ function commonFooter(inv: InvData, settings: InvoiceSettings): string {
       Computer generated invoice. No signature required. | This is a valid tax invoice.
     </div>` : ''
 
-  return `${sec('gst', gstHtml)}${sec('footer', footerHtml)}${sec('legal', legalHtml)}`
+  return `${extraFieldsHtml}${sec('gst', gstHtml)}${sec('footer', footerHtml)}${sec('legal', legalHtml)}`
 }
 
 // ─── Template: Classic ───────────────────────────────────────────────────────
@@ -1600,6 +1684,7 @@ export function generateInvoiceHtml(
     default:           html = classicTemplate(inv, s, backendApiBase)
   }
   html = applyLayout(html, s)
+  html = applyQuotationLabels(html, inv)
   return injectPageCss(html, s.paper_size, s)
 }
 

@@ -32,6 +32,7 @@ import Settings from '@/pages/dashboard/Settings'
 import PlatformTeam from '@/pages/dashboard/PlatformTeam'
 import PlatformTeamMemberDetail from '@/pages/dashboard/PlatformTeamMemberDetail'
 import AccountActivity from '@/pages/dashboard/AccountActivity'
+import OrderDisputes from '@/pages/dashboard/OrderDisputes'
 
 // Business Front Pages
 import StorefrontHome from '@/pages/storefront/Home'
@@ -101,6 +102,7 @@ export const router = createBrowserRouter([
       { path: 'platform-team', element: <PlatformTeam /> },
       { path: 'platform-team/:userId', element: <PlatformTeamMemberDetail /> },
       { path: 'account-activity', element: <AccountActivity /> },
+      { path: 'disputes', element: <OrderDisputes /> },
       { path: 'products', element: <Products /> },
       { path: 'services', element: <Services /> },
       { path: 'inventory', element: <Inventory /> },

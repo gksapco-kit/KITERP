@@ -169,6 +169,14 @@ export function apiError(context: string) {
 export type AmbiguousVendorOption = { slug: string; name: string }
 
 /** When /auth/login returns ambiguous_login, use this to show a business picker instead of a generic toast. */
+/** When /auth/login returns requires_2fa, prompt for authenticator code and retry. */
+export function parseRequires2fa(error: unknown): boolean {
+  const ax = error as AxiosError<{ detail?: unknown }>
+  const raw = ax?.response?.data?.detail
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
+  return (raw as Record<string, unknown>).error === 'requires_2fa'
+}
+
 export function parseAmbiguousVendorLogin(error: unknown): { vendors: AmbiguousVendorOption[] } | null {
   const ax = error as AxiosError<{ detail?: unknown }>
   const raw = ax?.response?.data?.detail

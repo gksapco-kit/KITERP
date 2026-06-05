@@ -8,7 +8,8 @@ from uuid import UUID
 import math
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
+from app.models.vendor_user import VendorUser
 from app.models.user import User
 from app.services.vendor_service import VendorService
 from app.services.pos_service import POSService
@@ -106,7 +107,13 @@ def _txn_dict(t, *, order_number: str = None, invoice_number: str = None, invoic
 # ── Sessions ──────────────────────────────────────────────────────
 
 @router.post("/sessions/open", status_code=201)
-async def open_session(data: POSSessionOpen, user: User = Depends(get_current_active_user), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def open_session(
+    data: POSSessionOpen,
+    user: User = Depends(get_current_active_user),
+    _perm: VendorUser = Depends(require_permission("pos.manage")),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
     svc = POSService(db)
     try:
         s = await svc.open_session(vid, user.id, data.opening_cash, data.notes)
@@ -116,7 +123,14 @@ async def open_session(data: POSSessionOpen, user: User = Depends(get_current_ac
 
 
 @router.post("/sessions/{session_id}/close")
-async def close_session(session_id: str, data: POSSessionClose, user: User = Depends(get_current_active_user), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def close_session(
+    session_id: str,
+    data: POSSessionClose,
+    user: User = Depends(get_current_active_user),
+    _perm: VendorUser = Depends(require_permission("pos.manage")),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
     svc = POSService(db)
     try:
         s = await svc.close_session(UUID(session_id), vid, user.id, data.closing_cash, data.notes)
@@ -157,7 +171,13 @@ async def list_sessions(status: str = None, page: int = Query(1, ge=1), size: in
 # ── Transactions ──────────────────────────────────────────────────
 
 @router.post("/transactions", status_code=201)
-async def create_transaction(data: POSTransactionCreate, user: User = Depends(get_current_active_user), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def create_transaction(
+    data: POSTransactionCreate,
+    user: User = Depends(get_current_active_user),
+    _perm: VendorUser = Depends(require_permission("pos.manage")),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
     svc = POSService(db)
     try:
         items = [i.model_dump() for i in data.items]
@@ -297,6 +317,7 @@ async def void_memo_transaction(
     txn_id: str,
     data: Optional[POSTransactionVoid] = Body(default=None),
     user: User = Depends(get_current_active_user),
+    _perm: VendorUser = Depends(require_permission("pos.manage")),
     vid: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -319,6 +340,7 @@ async def update_memo_transaction(
     txn_id: str,
     data: POSTransactionMemoUpdate,
     user: User = Depends(get_current_active_user),
+    _perm: VendorUser = Depends(require_permission("pos.manage")),
     vid: UUID = Depends(_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):

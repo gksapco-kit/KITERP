@@ -1,20 +1,17 @@
 import { Link } from 'react-router-dom'
-import { useNavigate } from 'react-router-dom'
 import { useVendor } from '@/contexts/VendorContext'
 import { WishlistPage } from '@/kit/account/AccountBlocks'
 import { useAddToCart } from '@/hooks/useStore'
 import { ChevronRight } from 'lucide-react'
-import { useWishlistStore } from '@/stores/wishlistStore'
+import { useWishlist, useRemoveWishlistItem } from '@/hooks/useStore'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
 export default function MyWishlist() {
   const { storePath } = useVendor()
-  const navigate = useNavigate()
   const addToCart = useAddToCart()
-
-  // Wishlist items come from a local zustand store (created below)
-  // or from localStorage. This page also shows a graceful empty state.
-  const { items, remove } = useWishlistStore()
+  const { data: items = [], isLoading } = useWishlist()
+  const removeItem = useRemoveWishlistItem()
 
   const handleMoveToCart = async (id: string) => {
     const item = items.find((i) => i.id === id)
@@ -27,7 +24,7 @@ export default function MyWishlist() {
         price: item.price,
         image_url: item.image,
       })
-      remove(id)
+      await removeItem.mutateAsync(id)
       toast.success(`${item.name} moved to cart`)
     } catch {
       toast.error('Could not add to cart')
@@ -42,7 +39,11 @@ export default function MyWishlist() {
         <span className="text-gray-900 font-medium">Wishlist</span>
       </nav>
 
-      <WishlistPage items={items} onMoveToCart={handleMoveToCart} />
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-gray-400" /></div>
+      ) : (
+        <WishlistPage items={items} onMoveToCart={handleMoveToCart} />
+      )}
     </div>
   )
 }

@@ -128,6 +128,23 @@ async def create_booking(
     return JSONResponse(content=_booking_to_dict(booking), status_code=201)
 
 
+@router.get("/slots")
+async def get_booking_slots(
+    service_id: str,
+    booking_date: date,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return bookable time slots for a service on a given date."""
+    try:
+        svc_uuid = UUID(service_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid service_id")
+    svc = BookingService(db)
+    slots = await svc.get_available_slots(vendor_id, svc_uuid, booking_date)
+    return JSONResponse(content={"slots": slots, "date": booking_date.isoformat()})
+
+
 @router.get("")
 async def list_my_bookings(
     page: int = Query(1, ge=1),

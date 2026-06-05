@@ -119,7 +119,19 @@ export interface ServiceAvailability {
 export interface QuoteFormField {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'date' | 'time' | 'number' | 'email' | 'phone' | 'select'
+  type:
+    | 'text'
+    | 'textarea'
+    | 'date'
+    | 'time'
+    | 'number'
+    | 'email'
+    | 'phone'
+    | 'select'
+    | 'document'
+    | 'photo_video'
+    | 'photo_document'
+    | 'location'
   required: boolean
   enabled: boolean
   placeholder?: string

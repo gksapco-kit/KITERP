@@ -1,5 +1,18 @@
 # KITERP — Full Implementation Plan
 
+> **Last updated:** 2026-06-05 — Tiers A/B/C+ and follow-up dev work landed (Razorpay webhooks, wishlist sync, marketplace API + storefront UI, subscriptions, public booking slots, DNS verify, 2FA, rentals, disputes, Alembic merge `d002_merge_all_heads`). Many rows below are **stale**; treat the tier summary as source of truth for recent work.
+
+## Recent completion summary (Tiers A → C+)
+
+| Tier | Focus | Status |
+|------|--------|--------|
+| A | Production readiness (S3 uploads, Razorpay webhooks, quote file/location, Twilio OTP) | Done |
+| B | Wishlist sync, marketplace lead/quote API, customer subscriptions | Done |
+| C+ | Public booking slots, DNS TXT verify, notification prefs, 2FA, rentals, order disputes | Done |
+| Dev follow-up | Storefront marketplace/rentals UI, vendor 2FA setup, domain DNS panel, booking block live slots, migration merge | Done |
+
+**Apply DB:** `cd backend && alembic upgrade d002_merge_all_heads`
+
 ## Audit Summary: What Exists vs What's Needed
 
 ### Legend

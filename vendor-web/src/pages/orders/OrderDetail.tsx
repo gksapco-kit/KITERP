@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,8 +20,13 @@ import { formatCurrency, formatDateTime, formatDate, mediaUrl } from '@/lib/util
 import {
   ArrowLeft, Loader2, Package, Truck, CheckCircle, User, Mail, Phone,
   XCircle, X, Clock, MapPin, CreditCard, FileText, RotateCcw, Repeat, FileDown, MessageSquare,
-  CalendarDays, Play, ExternalLink,
+  CalendarDays, Play, ExternalLink, Users,
 } from 'lucide-react'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  urlsToLightboxItems,
+} from '@/components/common/ImageAttachmentLightbox'
 
 const statusTimeline = [
   { key: 'pending', label: 'Pending', icon: Clock, color: 'yellow' },
@@ -61,6 +68,7 @@ const MAX_ORDER_MEDIA = 10
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { data: order, isLoading } = useOrder(id!)
   const updateStatus = useUpdateOrderStatus()
   const resolveReturn = useResolveReturn()
@@ -80,6 +88,31 @@ export default function OrderDetail() {
   const [vendorCancelUploading, setVendorCancelUploading] = useState(false)
   const [initiateAttachments, setInitiateAttachments] = useState<OrderAttachmentRef[]>([])
   const [initiateUploading, setInitiateUploading] = useState(false)
+  const [cancelLightboxIndex, setCancelLightboxIndex] = useState<number | null>(null)
+  const [initiateLightboxIndex, setInitiateLightboxIndex] = useState<number | null>(null)
+  const [selectedDeliveryStaff, setSelectedDeliveryStaff] = useState('')
+  const [assigningDelivery, setAssigningDelivery] = useState(false)
+
+  const { data: teamData } = useQuery({
+    queryKey: ['team-for-delivery'],
+    queryFn: () => vendorApi.listTeamMembers({ size: 100 }),
+  })
+  const teamMembers = teamData?.items || []
+
+  const cancelImageItems = useMemo(
+    () => urlsToLightboxItems(
+      vendorCancelAttachments.filter((a) => a.kind === 'image').map((a) => a.url),
+      { idPrefix: 'cancel-att', altText: (i) => `Evidence ${i + 1}` },
+    ),
+    [vendorCancelAttachments],
+  )
+  const initiateImageItems = useMemo(
+    () => urlsToLightboxItems(
+      initiateAttachments.filter((a) => a.kind === 'image').map((a) => a.url),
+      { idPrefix: 'initiate-att', altText: (i) => `Evidence ${i + 1}` },
+    ),
+    [initiateAttachments],
+  )
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
   if (!order) return <p className="text-center py-20 text-gray-500">Order not found</p>
@@ -474,6 +507,77 @@ export default function OrderDetail() {
         </CardContent>
       </Card>
 
+      {/* Delivery Assignment */}
+      {!isBooking && !isTerminal && order.shipping_address && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Users className="w-4 h-4" /> Delivery Staff
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {order.delivery_staff_name ? (
+              <div className="flex items-center gap-3 bg-blue-50 rounded-lg p-3">
+                <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                  {order.delivery_staff_name[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-blue-900">{order.delivery_staff_name}</p>
+                  <p className="text-xs text-blue-600 capitalize">
+                    {order.delivery_status || 'assigned'}
+                    {order.delivery_assigned_at && ` · ${formatDate(order.delivery_assigned_at)}`}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No delivery staff assigned yet.</p>
+            )}
+            {['confirmed', 'processing', 'shipped'].includes(order.status) && (
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 h-9 px-2 border rounded-lg text-sm"
+                  value={selectedDeliveryStaff}
+                  onChange={(e) => setSelectedDeliveryStaff(e.target.value)}
+                >
+                  <option value="">Select delivery staff…</option>
+                  {teamMembers.map((m: { id: string; full_name?: string; name?: string }) => (
+                    <option key={m.id} value={m.id}>
+                      {m.full_name || m.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  size="sm"
+                  disabled={!selectedDeliveryStaff || assigningDelivery}
+                  onClick={async () => {
+                    const member = teamMembers.find((m: { id: string }) => m.id === selectedDeliveryStaff)
+                    if (!member) return
+                    setAssigningDelivery(true)
+                    try {
+                      await vendorApi.assignOrderDelivery(order.id, {
+                        staff_id: member.id,
+                        staff_name: (member as { full_name?: string; name?: string }).full_name
+                          || (member as { full_name?: string; name?: string }).name
+                          || 'Staff',
+                      })
+                      toast.success('Delivery staff assigned')
+                      setSelectedDeliveryStaff('')
+                      qc.invalidateQueries({ queryKey: ['order', order.id] })
+                    } catch {
+                      toast.error('Could not assign delivery staff')
+                    } finally {
+                      setAssigningDelivery(false)
+                    }
+                  }}
+                >
+                  {assigningDelivery ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Assign'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Shipping & Tracking */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {order.shipping_address && (
@@ -602,14 +706,23 @@ export default function OrderDetail() {
                     {vendorCancelAttachments.map((a, i) => (
                       <div key={`${a.url}-${i}`} className="relative">
                         {a.kind === 'image' ? (
-                          <img src={mediaUrl(a.url)} alt="" className="h-16 w-16 object-cover rounded-lg border" />
+                          <ClickableImageButton
+                            src={mediaUrl(a.url)}
+                            alt={`Evidence ${i + 1}`}
+                            title="View image"
+                            className="h-16 w-16 rounded-lg border"
+                            imgClassName="h-16 w-16 object-cover rounded-lg"
+                            onClick={() => setCancelLightboxIndex(
+                              vendorCancelAttachments.slice(0, i).filter((x) => x.kind === 'image').length,
+                            )}
+                          />
                         ) : (
                           <video src={mediaUrl(a.url)} className="h-16 w-24 object-cover rounded-lg border" muted />
                         )}
                         <button
                           type="button"
                           className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs leading-5"
-                          onClick={() => setVendorCancelAttachments((prev) => prev.filter((_, j) => j !== i))}
+                          onClick={(e) => { e.stopPropagation(); setVendorCancelAttachments((prev) => prev.filter((_, j) => j !== i)) }}
                         >
                           ×
                         </button>
@@ -617,6 +730,11 @@ export default function OrderDetail() {
                     ))}
                   </div>
                 )}
+                <ImageLightboxSession
+                  items={cancelImageItems}
+                  openIndex={cancelLightboxIndex}
+                  onClose={() => setCancelLightboxIndex(null)}
+                />
                 {vendorCancelUploading && <p className="text-xs text-gray-500 mt-1">Uploading…</p>}
               </div>
             </div>
@@ -735,8 +853,9 @@ export default function OrderDetail() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-semibold">Initiate Return/Exchange</h2>
-              <button type="button" aria-label="Close"
+              <button
                 type="button"
+                aria-label="Close"
                 onClick={() => { setShowInitiateModal(false); setInitiateReason(''); setInitiateAttachments([]) }}
                 className="p-1 rounded-lg hover:bg-gray-100"
               >
@@ -810,14 +929,23 @@ export default function OrderDetail() {
                     {initiateAttachments.map((a, i) => (
                       <div key={`${a.url}-${i}`} className="relative">
                         {a.kind === 'image' ? (
-                          <img src={mediaUrl(a.url)} alt="" className="h-16 w-16 object-cover rounded-lg border" />
+                          <ClickableImageButton
+                            src={mediaUrl(a.url)}
+                            alt={`Evidence ${i + 1}`}
+                            title="View image"
+                            className="h-16 w-16 rounded-lg border"
+                            imgClassName="h-16 w-16 object-cover rounded-lg"
+                            onClick={() => setInitiateLightboxIndex(
+                              initiateAttachments.slice(0, i).filter((x) => x.kind === 'image').length,
+                            )}
+                          />
                         ) : (
                           <video src={mediaUrl(a.url)} className="h-16 w-24 object-cover rounded-lg border" muted />
                         )}
                         <button
                           type="button"
                           className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs leading-5"
-                          onClick={() => setInitiateAttachments((prev) => prev.filter((_, j) => j !== i))}
+                          onClick={(e) => { e.stopPropagation(); setInitiateAttachments((prev) => prev.filter((_, j) => j !== i)) }}
                         >
                           ×
                         </button>
@@ -825,6 +953,11 @@ export default function OrderDetail() {
                     ))}
                   </div>
                 )}
+                <ImageLightboxSession
+                  items={initiateImageItems}
+                  openIndex={initiateLightboxIndex}
+                  onClose={() => setInitiateLightboxIndex(null)}
+                />
                 {initiateUploading && <p className="text-xs text-gray-500">Uploading…</p>}
               </div>
 

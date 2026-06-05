@@ -69,6 +69,10 @@ def _order_to_dict(order: Order) -> dict:
         "shipping_address": order.shipping_address,
         "tracking_number": order.tracking_number,
         "tracking_url": order.tracking_url,
+        "delivery_staff_id": _safe(getattr(order, "delivery_staff_id", None)),
+        "delivery_staff_name": getattr(order, "delivery_staff_name", None),
+        "delivery_assigned_at": order.delivery_assigned_at.isoformat() if getattr(order, "delivery_assigned_at", None) else None,
+        "delivery_status": getattr(order, "delivery_status", None),
         # Source
         "source": getattr(order, "source", "online") or "online",
         "pos_transaction_id": _safe(getattr(order, "pos_transaction_id", None)),
@@ -204,6 +208,25 @@ async def get_order(
             detail="Order not found",
         )
 
+    return JSONResponse(content=_order_to_dict(order))
+
+
+@router.put("/{order_id}/assign-delivery")
+async def assign_order_delivery(
+    order_id: UUID,
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Assign a delivery staff member to an order."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    service = OrderService(db)
+    order = await service.assign_delivery(
+        vendor_id,
+        order_id,
+        staff_id=body.get("staff_id"),
+        staff_name=body.get("staff_name"),
+    )
     return JSONResponse(content=_order_to_dict(order))
 
 

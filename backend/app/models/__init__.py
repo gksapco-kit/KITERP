@@ -9,6 +9,8 @@ from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
 from app.models.vendor_plan import VendorPlan
 from app.models.customer import Customer
 from app.models.cart import Cart
+from app.models.wishlist import Wishlist
+from app.models.customer_subscription import CustomerSubscription
 from app.models.order import Order
 from app.models.payment import Payment
 from app.models.review import Review
@@ -19,7 +21,10 @@ from app.models.restaurant import RestaurantZone, RestaurantTable, RestaurantOrd
 from app.models.invoice import Invoice
 from app.models.coupon import Coupon, CouponUsage
 from app.models.lead import Lead, Quote
+from app.models.rental import RentalAsset, RentalBooking
+from app.models.order_dispute import OrderDispute
 from app.models.booking import Booking
+from app.models.project import Project, ProjectTask
 from app.models.notification import Notification
 from app.models.vendor_category import VendorCategory
 from app.models.procurement import Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt
@@ -147,6 +152,8 @@ __all__ = [
     "Lead",
     "Quote",
     "Booking",
+    "Project",
+    "ProjectTask",
     "Notification",
     "VendorCategory",
     "Supplier",

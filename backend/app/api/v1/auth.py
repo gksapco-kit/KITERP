@@ -119,6 +119,7 @@ def user_to_dict(user: User) -> dict:
             else None
         ),
         "pending_email": getattr(user, "pending_email", None),
+        "is_2fa_enabled": bool(getattr(user, "is_2fa_enabled", False)),
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None,
     }
@@ -149,11 +150,13 @@ async def login(
         body = await request.json()
         login_val = body.get("login") or body.get("email") or ""
         password = body.get("password", "")
+        totp_code = body.get("totp_code") or body.get("otp")
         vendor_slug_raw = body.get("vendor_slug")
     else:
         form = await request.form()
         login_val = form.get("username") or form.get("login") or ""
         password = form.get("password") or ""
+        totp_code = form.get("totp_code") or form.get("otp")
         vendor_slug_raw = form.get("vendor_slug")
 
     if not login_val or not password:
@@ -187,7 +190,9 @@ async def login(
                 resolved_vendor_id = v.id
 
     try:
-        tokens = await service.login(str(login_val), str(password), vendor_id=resolved_vendor_id)
+        tokens = await service.login(
+            str(login_val), str(password), vendor_id=resolved_vendor_id, totp_code=totp_code,
+        )
     except HTTPException as exc:
         # Wrong vendor slug (env, ?vendor=, or host) must not block login when the user
         # belongs to another business — retry without tenant scope.
@@ -197,7 +202,9 @@ async def login(
             and resolved_vendor_id is not None
             and exc.detail == "No team account on this business for that email or phone."
         ):
-            tokens = await service.login(str(login_val), str(password), vendor_id=None)
+            tokens = await service.login(
+                str(login_val), str(password), vendor_id=None, totp_code=totp_code,
+            )
         else:
             raise
     return {
@@ -762,16 +769,21 @@ async def send_phone_otp(
     db.add(current_user)
     await db.commit()
 
-    logger.info("[phone-otp:dev] user=%s phone=%s code=%s", current_user.id, current_user.phone, code)
+    from app.services.sms_service import SmsService
+    sms = SmsService()
+    sms_sent = await sms.send_otp(current_user.phone, code, purpose="phone verification")
+    if not sms_sent:
+        logger.info("[phone-otp:dev] user=%s phone=%s code=%s", current_user.id, current_user.phone, code)
 
-    return {
+    resp: dict = {
         "sent": True,
         "channel": "phone",
         "to": _mask_phone(current_user.phone),
         "expires_at": expires.isoformat(),
-        # No SMS provider yet — always return the code so the UI can show it.
-        "dev_hint": code,
     }
+    if not sms_sent:
+        resp["dev_hint"] = code
+    return resp
 
 
 @router.post("/phone/verify-otp")
@@ -859,14 +871,20 @@ async def vendor_signup_send_phone_otp(body: VendorSignupPhoneOtpSend, db: Async
     code = f"{secrets.randbelow(900000) + 100000}"
     expires = datetime.now(timezone.utc) + timedelta(minutes=10)
     _vendor_signup_phone_otp[key] = {"code": code, "expires_at": expires}
-    logger.info("[vendor-signup phone otp] key_suffix=%s code=%s", key[-4:], code)
-    return {
+    from app.services.sms_service import SmsService
+    sms = SmsService()
+    sms_sent = await sms.send_otp(phone, code, purpose="vendor signup")
+    if not sms_sent:
+        logger.info("[vendor-signup phone otp] key_suffix=%s code=%s", key[-4:], code)
+    resp: dict = {
         "sent": True,
         "channel": "phone",
         "to": _mask_phone(phone),
         "expires_at": expires.isoformat(),
-        "dev_hint": code,
     }
+    if not sms_sent:
+        resp["dev_hint"] = code
+    return resp
 
 
 @router.post("/vendor-signup", status_code=status.HTTP_201_CREATED)
@@ -995,6 +1013,10 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
 
     await db.commit()
 
+    await event_emitter.emit(
+        "vendor.registered",
+        {"vendor_id": str(vendor.id), "user_id": str(user.id)},
+    )
     if auto_approved:
         await event_emitter.emit(
             "vendor.approved",
@@ -1046,3 +1068,58 @@ async def verify_email(data: EmailVerifyRequest, db: AsyncSession = Depends(get_
     del _email_verification_codes[data.email.lower()]
 
     return {"verified": True, "message": "Email verified successfully"}
+
+
+class TwoFactorEnableRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+@router.post("/2fa/setup")
+async def setup_2fa(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a TOTP secret (not enabled until confirmed with /2fa/enable)."""
+    from app.services.totp_service import generate_totp_secret, provisioning_uri
+
+    secret = generate_totp_secret()
+    current_user.totp_secret = secret
+    current_user.is_2fa_enabled = False
+    await db.commit()
+    return {
+        "secret": secret,
+        "provisioning_uri": provisioning_uri(secret, current_user.email or current_user.full_name),
+    }
+
+
+@router.post("/2fa/enable")
+async def enable_2fa(
+    body: TwoFactorEnableRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.totp_service import verify_totp
+
+    if not current_user.totp_secret:
+        raise HTTPException(400, "Call /auth/2fa/setup first")
+    if not verify_totp(current_user.totp_secret, body.code):
+        raise HTTPException(400, "Invalid authenticator code")
+    current_user.is_2fa_enabled = True
+    await db.commit()
+    return {"enabled": True}
+
+
+@router.post("/2fa/disable")
+async def disable_2fa(
+    body: TwoFactorEnableRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.totp_service import verify_totp
+
+    if not current_user.totp_secret or not verify_totp(current_user.totp_secret, body.code):
+        raise HTTPException(400, "Invalid authenticator code")
+    current_user.is_2fa_enabled = False
+    current_user.totp_secret = None
+    await db.commit()
+    return {"enabled": False}

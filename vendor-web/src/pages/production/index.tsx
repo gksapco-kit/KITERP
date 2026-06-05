@@ -17,6 +17,11 @@ import {
   BarChart3, Edit2, Eye, Lock, ScanLine, Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  urlsToLightboxItems,
+} from '@/components/common/ImageAttachmentLightbox'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useProducts, useServices, useCustomers, useCreateCustomer, useTeamMembers, useSuppliers, useOrderReservations } from '@/hooks/useVendor'
 import {
@@ -238,6 +243,18 @@ export default function ProductionOrdersPage() {
   const { data: viewOrderDetail } = useProductionOrder(viewOrderId)
   const viewOrder = (viewOrderDetail ?? orders.find(o => o.id === viewOrderId) ?? null) as ProductionOrder | null
 
+  const detailImageAttachments = useMemo(
+    () => (viewOrder?.attachments ?? []).filter((a) => a.type.startsWith('image/')),
+    [viewOrder?.attachments],
+  )
+  const detailLightboxItems = useMemo(
+    () => urlsToLightboxItems(
+      detailImageAttachments.map((a) => a.dataUrl),
+      { idPrefix: 'prod-detail', altText: (i) => detailImageAttachments[i]?.name ?? `Attachment ${i + 1}` },
+    ),
+    [detailImageAttachments],
+  )
+
   useEffect(() => {
     setViewOrderId(null)
   }, [storeId])
@@ -255,6 +272,19 @@ export default function ProductionOrdersPage() {
   const [formNotes,        setFormNotes]        = useState('')
   const [formItems,        setFormItems]        = useState<POItem[]>([])
   const [formAttachments,  setFormAttachments]  = useState<Attachment[]>([])
+  const [detailAttachLightboxIndex, setDetailAttachLightboxIndex] = useState<number | null>(null)
+  const [formAttachLightboxIndex, setFormAttachLightboxIndex] = useState<number | null>(null)
+  const formImageAttachments = useMemo(
+    () => formAttachments.filter((a) => a.type.startsWith('image/')),
+    [formAttachments],
+  )
+  const formLightboxItems = useMemo(
+    () => urlsToLightboxItems(
+      formImageAttachments.map((a) => a.dataUrl),
+      { idPrefix: 'prod-form', altText: (i) => formImageAttachments[i]?.name ?? `Attachment ${i + 1}` },
+    ),
+    [formImageAttachments],
+  )
   // MTO customer fields
   const [customerSearch,      setCustomerSearch]      = useState('')
   const [customerDropOpen,    setCustomerDropOpen]    = useState(false)
@@ -1343,7 +1373,18 @@ export default function ProductionOrdersPage() {
                           {order.attachments.map((a, i) => (
                             <div key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2.5">
                               {a.type.startsWith('image/')
-                                ? <img src={a.dataUrl} alt={a.name} className="w-10 h-10 object-cover rounded-lg shrink-0" />
+                                ? (
+                                  <ClickableImageButton
+                                    src={a.dataUrl}
+                                    alt={a.name}
+                                    title="View image"
+                                    className="w-10 h-10 rounded-lg shrink-0"
+                                    imgClassName="w-10 h-10 object-cover rounded-lg"
+                                    onClick={() => setDetailAttachLightboxIndex(
+                                      order.attachments.slice(0, i).filter((x) => x.type.startsWith('image/')).length,
+                                    )}
+                                  />
+                                )
                                 : <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0"><FileText className="w-5 h-5 text-blue-600" /></div>}
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium text-gray-800 truncate">{a.name}</p>
@@ -1356,6 +1397,11 @@ export default function ProductionOrdersPage() {
                           ))}
                         </div>
                       )}
+                      <ImageLightboxSession
+                        items={detailLightboxItems}
+                        openIndex={detailAttachLightboxIndex}
+                        onClose={() => setDetailAttachLightboxIndex(null)}
+                      />
                       <div className="border-t pt-3 space-y-4">
                         {/* Key dates summary */}
                         <div>
@@ -1883,13 +1929,34 @@ export default function ProductionOrdersPage() {
                       <div className="flex flex-wrap gap-2 mb-2">
                         {formAttachments.map((a, i) => (
                           <div key={i} className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2.5 py-1.5 text-xs text-gray-700">
-                            {a.type.startsWith('image/') ? '🖼' : '📄'} {a.name}
-                            <button type="button" aria-label="Close" onClick={() => setFormAttachments(prev => prev.filter((_, j) => j !== i))}>
+                            {a.type.startsWith('image/') ? (
+                              <ClickableImageButton
+                                src={a.dataUrl}
+                                alt={a.name}
+                                title="View image"
+                                className="w-8 h-8 rounded-lg shrink-0"
+                                imgClassName="w-8 h-8 object-cover rounded-lg"
+                                onClick={() => setFormAttachLightboxIndex(
+                                  formAttachments.slice(0, i).filter((x) => x.type.startsWith('image/')).length,
+                                )}
+                              />
+                            ) : (
+                              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                                <FileText className="w-4 h-4 text-blue-600" />
+                              </div>
+                            )}
+                            <span className="truncate max-w-[120px]">{a.name}</span>
+                            <button type="button" aria-label="Close" onClick={(e) => { e.stopPropagation(); setFormAttachments(prev => prev.filter((_, j) => j !== i)) }}>
                 <X className="w-3 h-3 text-red-400" /></button>
                           </div>
                         ))}
                       </div>
                     )}
+                    <ImageLightboxSession
+                      items={formLightboxItems}
+                      openIndex={formAttachLightboxIndex}
+                      onClose={() => setFormAttachLightboxIndex(null)}
+                    />
                     <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-dashed border-gray-300 rounded-xl px-4 py-2.5 hover:bg-gray-100 text-sm text-muted-foreground transition-colors">
                       <Paperclip className="w-4 h-4" /> Attach images or documents
                       <input type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={handleAttachFile} className="hidden" />

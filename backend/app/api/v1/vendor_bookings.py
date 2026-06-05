@@ -223,7 +223,15 @@ async def update_booking_status(
         pass
 
     elif new_status == "completed":
+        otp_code = data.get("completion_otp") or data.get("otp")
+        if booking.completion_otp:
+            if not otp_code or str(otp_code).strip() != str(booking.completion_otp):
+                raise HTTPException(400, "Invalid or missing completion OTP")
+            if booking.completion_otp_expires_at and booking.completion_otp_expires_at < datetime.now(timezone.utc):
+                raise HTTPException(400, "Completion OTP has expired — send a new code")
         booking.completed_at = datetime.now(timezone.utc)
+        booking.completion_otp = None
+        booking.completion_otp_expires_at = None
         booking.payment_status = "paid"
         if data.get("delivery_notes"):
             booking.delivery_notes = data["delivery_notes"]
@@ -253,6 +261,43 @@ async def update_booking_status(
     await db.commit()
     await db.refresh(booking)
     return _booking_dict(booking)
+
+
+@router.post("/{booking_id}/generate-otp")
+@router.post("/{booking_id}/send-completion-otp")
+async def send_completion_otp(
+    booking_id: str,
+    current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send OTP to customer for job completion verification."""
+    import secrets
+    from datetime import timedelta
+    from app.config import settings
+
+    booking = await db.get(Booking, UUID(booking_id))
+    if not booking or booking.vendor_id != vendor_id:
+        raise HTTPException(404, "Booking not found")
+    otp = f"{secrets.randbelow(900000) + 100000:06d}"
+    booking.completion_otp = otp
+    booking.completion_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    sent = False
+    if booking.customer_phone:
+        try:
+            from app.services.sms_service import send_sms
+            await send_sms(
+                booking.customer_phone,
+                f"Your service completion code for booking {booking.booking_number} is {otp}.",
+            )
+            sent = True
+        except Exception:
+            pass
+    await db.commit()
+    payload = {"sent": sent, "expires_in_minutes": 15}
+    if settings.DEBUG:
+        payload["dev_hint"] = otp
+    return payload
 
 
 @router.put("/{booking_id}/assign")

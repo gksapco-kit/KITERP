@@ -321,6 +321,23 @@ export const vendorApi = {
     return response.data
   },
 
+  getQuotationSettings: async (): Promise<Record<string, unknown>> => {
+    const response = await apiClient.get('/vendors/me/invoices/settings/quotation')
+    return response.data
+  },
+
+  updateQuotationSettings: async (data: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const response = await apiClient.put('/vendors/me/invoices/settings/quotation', data)
+    return response.data
+  },
+
+  uploadQuotationSignature: async (file: File): Promise<{ signature_url: string }> => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await apiClient.post('/vendors/me/invoices/settings/quotation-signature', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return response.data
+  },
+
   uploadVendorBanner: async (file: File): Promise<{ banner_url: string }> => {
     const form = new FormData()
     form.append('file', file)
@@ -495,6 +512,11 @@ export const vendorApi = {
     const form = new FormData()
     form.append('file', file)
     const response = await apiClient.post(`/vendors/me/orders/${orderId}/upload-media`, form)
+    return response.data
+  },
+
+  assignOrderDelivery: async (id: string, data: { staff_id?: string; staff_name: string }): Promise<Order> => {
+    const response = await apiClient.put(`/vendors/me/orders/${id}/assign-delivery`, data)
     return response.data
   },
 
@@ -1308,12 +1330,71 @@ export const vendorApi = {
   },
 
   generateBookingOtp: async (id: string) => {
-    const response = await apiClient.post(`/vendors/me/bookings/${id}/generate-otp`)
-    return response.data
+    const response = await apiClient.post(`/vendors/me/bookings/${id}/send-completion-otp`)
+    return response.data as { sent: boolean; expires_in_minutes: number; dev_hint?: string }
   },
 
   verifyBookingOtp: async (id: string, otp: string) => {
     const response = await apiClient.post(`/vendors/me/bookings/${id}/verify-otp`, { otp })
+    return response.data
+  },
+
+  // ── Projects ───────────────────────────────────────────────────
+  getProjectsOverview: async () => {
+    const response = await apiClient.get('/vendors/me/projects/overview')
+    return response.data
+  },
+
+  listProjects: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/projects', { params })
+    return response.data
+  },
+
+  createProject: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/projects', data)
+    return response.data
+  },
+
+  getProject: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/projects/${id}`)
+    return response.data
+  },
+
+  updateProject: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/projects/${id}`, data)
+    return response.data
+  },
+
+  deleteProject: async (id: string) => {
+    const response = await apiClient.delete(`/vendors/me/projects/${id}`)
+    return response.data
+  },
+
+  listProjectTasks: async (projectId: string) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/tasks`)
+    return response.data
+  },
+
+  createProjectTask: async (projectId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/tasks`, data)
+    return response.data
+  },
+
+  updateProjectTask: async (projectId: string, taskId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/projects/${projectId}/tasks/${taskId}`, data)
+    return response.data
+  },
+
+  deleteProjectTask: async (projectId: string, taskId: string) => {
+    const response = await apiClient.delete(`/vendors/me/projects/${projectId}/tasks/${taskId}`)
+    return response.data
+  },
+
+  reorderProjectTasks: async (
+    projectId: string,
+    items: Array<{ id: string; status: string; position: number }>,
+  ) => {
+    const response = await apiClient.put(`/vendors/me/projects/${projectId}/tasks/reorder`, { items })
     return response.data
   },
 

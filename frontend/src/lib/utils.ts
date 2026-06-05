@@ -24,3 +24,11 @@ export function formatDateTime(date: string | Date): string {
     timeStyle: 'short',
   }).format(new Date(date))
 }
+
+const BACKEND_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
+
+export function mediaUrl(url?: string | null): string {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) return url
+  return `${BACKEND_BASE}${url}`
+}

@@ -52,6 +52,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Chart of Accounts':                    ['coa', 'accounts', 'gl', 'ledger accounts', 'account list'],
   'Trial Balance':                        ['tb', 'balance', 'closing balance'],
   'Invoice Templates':                    ['print', 'layout', 'design', 'invoice format', 'invoice style', 'receipt format'],
+  'Quotation Templates':                  ['quotation', 'estimate', 'quote format', 'quote layout', 'quotation design'],
   'PO Templates':                         ['purchase order template', 'print po', 'po format', 'po layout'],
   'Inventory':                            ['stock', 'warehouse', 'quantity', 'stock levels', 'goods'],
   'Purchase Orders':                      ['po', 'supplier', 'buy', 'procurement', 'purchasing'],
@@ -70,7 +71,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Master Data — Customers & Suppliers':  ['customer', 'supplier', 'contacts', 'parties', 'vendors', 'client list'],
   'Website Builder':                      ['web', 'site', 'page', 'cms', 'website', 'web builder'],
   'Business Front Builder':                   ['store', 'shop', 'ecommerce', 'online store', 'store builder'],
-  'Document Templates':                   ['doc', 'template', 'prescription', 'sop', 'challan', 'document'],
+  'Document Templates':                   ['doc', 'template', 'prescription', 'sop', 'challan', 'document', 'invoice template', 'quotation template', 'po template', 'purchase order template', 'billing', 'estimate'],
   'Blog Manager':                         ['blog', 'post', 'article', 'content', 'news'],
   'Notifications':                        ['alerts', 'bell', 'updates', 'notification list'],
   'Payroll':                              ['salary', 'pay', 'wages', 'payslip', 'payrun', 'compensation'],
@@ -89,9 +90,11 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Audit Log':                            ['audit', 'history', 'log', 'activity log', 'change log'],
   'Coupons':                              ['discount', 'promo', 'voucher', 'coupon', 'offer code'],
   'Bookings':                             ['appointment', 'reservation', 'schedule', 'booking list'],
+  'Quotations':                           ['quote', 'estimate', 'quotation', 'proposal', 'price quote'],
   'Subscriptions':                        ['recurring', 'subscription', 'renewal', 'recurring billing'],
   'Rentals':                              ['rent', 'hire', 'lease', 'rental'],
   'Production Orders':                    ['manufacturing', 'factory', 'bom', 'production', 'work order'],
+  'Projects':                             ['project management', 'tasks', 'milestones', 'kanban', 'pm', 'delivery'],
   'Products':                             ['items', 'goods', 'inventory', 'product list', 'catalogue'],
   'Services':                             ['offerings', 'service list', 'services catalogue'],
   'Categories':                           ['category', 'tags', 'classification', 'product category'],
@@ -276,6 +279,7 @@ export const EXTRA_NAV_ENTRIES: NavSearchEntry[] = [
   { kind: 'nav', id: 'business-units',     label: 'Business Units / Branches', description: 'Finance → Business units',              section: 'Finance Management',     sectionId: 'finance',   to: '/stores',                    keywords: ['business unit', 'branch', 'outlet', 'unit code', 'multi store', 'locations'] },
   { kind: 'nav', id: 'pos-settings',       label: 'POS Invoice Settings',     description: 'POS → Print template settings',        section: 'Sales Management',       sectionId: 'sales',     to: '/pos',                       keywords: ['pos', 'receipt', 'print receipt', 'pos template', 'pos invoice'] },
   { kind: 'nav', id: 'master-data',        label: 'Customers & Suppliers',    description: 'Master Data → All parties',             section: 'Master Data Management', sectionId: 'master-data', to: '/master-data',             keywords: ['customer', 'supplier', 'parties', 'contacts', 'client', 'vendor', 'debtor', 'creditor'] },
+  { kind: 'nav', id: 'projects-hub',       label: 'Projects',                 description: 'Sales → Project management',            section: 'Sales Management',       sectionId: 'sales',     to: '/projects',                  keywords: ['project', 'tasks', 'milestones', 'kanban', 'pm', 'delivery', 'project management'] },
 ]
 
 // ── Builder ───────────────────────────────────────────────────────────────────

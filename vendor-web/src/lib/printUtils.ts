@@ -257,7 +257,7 @@ function _downloadHtmlFallback(html: string, name: string): void {
  * Build a clean share message for invoices/POs.
  */
 export function buildShareMessage(opts: {
-  type: 'invoice' | 'po' | 'receipt'
+  type: 'invoice' | 'po' | 'receipt' | 'quotation'
   number: string
   vendorName: string
   customerOrSupplier: string
@@ -267,7 +267,11 @@ export function buildShareMessage(opts: {
   status?: string
 }): string {
   const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-  const label = opts.type === 'po' ? 'Purchase Order' : opts.type === 'receipt' ? 'Receipt' : 'Invoice'
+  const label =
+    opts.type === 'po' ? 'Purchase Order'
+    : opts.type === 'receipt' ? 'Receipt'
+    : opts.type === 'quotation' ? 'Quotation'
+    : 'Invoice'
   const lines: string[] = [
     `*${opts.vendorName}*`,
     `${label}: *${opts.number}*`,

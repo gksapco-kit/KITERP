@@ -98,6 +98,27 @@ class NotificationService:
         except Exception as e:
             log.warning("Failed to save order-status notification: %s", e)
 
+    async def notify_marketplace_lead(
+        self,
+        vendor_id: UUID,
+        lead_title: str,
+        lead_id: UUID,
+        category: str,
+    ):
+        """Notify a vendor about a new marketplace lead in their area."""
+        try:
+            await self._save_notification(
+                vendor_id=vendor_id,
+                title="New marketplace lead",
+                message=f'"{lead_title}" ({category}) — submit a quote before it expires.',
+                notif_type="marketplace",
+                reference_id=lead_id,
+                reference_type="lead",
+            )
+            await self.db.commit()
+        except Exception as e:
+            log.warning("Failed to save marketplace-lead notification: %s", e)
+
     async def notify_low_stock(
         self,
         vendor_id: UUID,

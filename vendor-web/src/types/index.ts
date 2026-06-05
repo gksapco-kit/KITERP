@@ -35,6 +35,7 @@ export interface User {
   is_superuser?: boolean
   is_email_verified?: boolean
   is_phone_verified?: boolean
+  is_2fa_enabled?: boolean
   vendor_role?: VendorRoleInfo | null
   created_at: string
   updated_at: string
@@ -123,6 +124,7 @@ export interface Vendor {
   logo_url?: string
   banner_url?: string
   business_hours?: Record<string, { open: string; close: string; closed?: boolean }>
+  store_holidays?: Array<{ date: string; label?: string; closed?: boolean }>
   order_acceptance_enabled?: boolean
   order_acceptance_hours?: Record<string, { open: string; close: string; closed?: boolean }>
   social_links?: Record<string, string>
@@ -602,6 +604,10 @@ export interface Order {
   shipping_address?: Record<string, string>
   tracking_number?: string
   tracking_url?: string
+  delivery_staff_id?: string
+  delivery_staff_name?: string
+  delivery_assigned_at?: string
+  delivery_status?: string
   notes?: string
   cancel_reason?: string
   cancel_attachments?: OrderAttachmentRef[]

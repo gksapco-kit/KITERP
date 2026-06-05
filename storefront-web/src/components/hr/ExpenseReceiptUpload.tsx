@@ -1,6 +1,12 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Upload, X, FileIcon, Loader2, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  urlsToLightboxItems,
+} from '@/components/common/CatalogMediaLightbox'
+import { mediaUrl } from '@/lib/utils'
 
 export type ExpenseReceipt = { url: string; name?: string }
 
@@ -11,9 +17,29 @@ type Props = {
   disabled?: boolean
 }
 
+function isImageReceipt(receipt: ExpenseReceipt): boolean {
+  const hint = `${receipt.name ?? ''} ${receipt.url}`.toLowerCase()
+  return /\.(jpe?g|png|gif|webp|heic|heif|bmp|svg)(\?|$)/i.test(hint)
+    || hint.includes('image/')
+}
+
 export function ExpenseReceiptUpload({ receipts, onChange, uploadFile, disabled }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  const imageReceipts = useMemo(
+    () => receipts.map((r, i) => ({ r, i })).filter(({ r }) => isImageReceipt(r)),
+    [receipts],
+  )
+
+  const lightboxItems = useMemo(
+    () => urlsToLightboxItems(
+      imageReceipts.map(({ r }) => r.url),
+      { idPrefix: 'receipt', altText: (i) => imageReceipts[i]?.r.name ?? `Receipt ${i + 1}` },
+    ),
+    [imageReceipts],
+  )
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList?.length || disabled) return
@@ -70,38 +96,61 @@ export function ExpenseReceiptUpload({ receipts, onChange, uploadFile, disabled 
 
       {receipts.length > 0 && (
         <ul className="space-y-1.5">
-          {receipts.map((r, i) => (
-            <li
-              key={`${r.url}-${i}`}
-              className="flex items-center gap-2 rounded-lg border bg-gray-50 px-3 py-2 text-sm"
-            >
-              <FileIcon className="w-4 h-4 text-gray-400 shrink-0" />
-              <span className="flex-1 truncate text-gray-800" title={r.name ?? r.url}>
-                {r.name ?? r.url.split('/').pop()}
-              </span>
-              <a
-                href={r.url}
-                target="_blank"
-                rel="noreferrer"
-                className="p-1 text-gray-400 hover:text-blue-600"
-                title="View"
+          {receipts.map((r, i) => {
+            const image = isImageReceipt(r)
+            const imageIndex = image
+              ? imageReceipts.findIndex(({ i: orig }) => orig === i)
+              : -1
+            return (
+              <li
+                key={`${r.url}-${i}`}
+                className="flex items-center gap-2 rounded-lg border bg-gray-50 px-3 py-2 text-sm"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => removeAt(i)}
-                  className="p-1 text-gray-400 hover:text-red-600"
-                  title="Remove"
+                {image ? (
+                  <ClickableImageButton
+                    src={mediaUrl(r.url)}
+                    alt={r.name ?? 'Receipt'}
+                    title="View image"
+                    className="h-10 w-10 shrink-0 rounded border"
+                    imgClassName="h-10 w-10 object-cover rounded"
+                    onClick={() => setLightboxIndex(imageIndex)}
+                  />
+                ) : (
+                  <FileIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                )}
+                <span className="flex-1 truncate text-gray-800" title={r.name ?? r.url}>
+                  {r.name ?? r.url.split('/').pop()}
+                </span>
+                <a
+                  href={mediaUrl(r.url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1 text-gray-400 hover:text-blue-600"
+                  title="View"
                 >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </li>
-          ))}
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => removeAt(i)}
+                    className="p-1 text-gray-400 hover:text-red-600"
+                    title="Remove"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
+
+      <ImageLightboxSession
+        items={lightboxItems}
+        openIndex={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+      />
     </div>
   )
 }

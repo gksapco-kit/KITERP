@@ -19,6 +19,22 @@ class InvoiceStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class QuotationExtraFieldType(str, Enum):
+    TEXT = "text"
+    EMAIL = "email"
+    PHONE = "phone"
+    LINK = "link"
+    IMAGE = "image"
+
+
+class QuotationExtraField(BaseModel):
+    id: Optional[str] = None
+    label: str = Field(min_length=1, max_length=120)
+    type: QuotationExtraFieldType = QuotationExtraFieldType.TEXT
+    value: str = ""
+    values: Optional[List[str]] = None
+
+
 class InvoiceLineItem(BaseModel):
     name: str
     description: Optional[str] = None
@@ -47,6 +63,7 @@ class InvoiceCreate(BaseModel):
     notes: Optional[str] = None
     terms_and_conditions: Optional[str] = None
     order_id: Optional[str] = None
+    extra_fields: Optional[List[QuotationExtraField]] = None
 
 
 class InvoiceUpdate(BaseModel):
@@ -65,6 +82,7 @@ class InvoiceUpdate(BaseModel):
     notes: Optional[str] = None
     terms_and_conditions: Optional[str] = None
     status: Optional[InvoiceStatus] = None
+    extra_fields: Optional[List[QuotationExtraField]] = None
 
 
 class InvoiceConvert(BaseModel):
@@ -118,6 +136,7 @@ class InvoiceResponse(BaseModel):
     is_inter_state: bool
     notes: Optional[str] = None
     terms_and_conditions: Optional[str] = None
+    extra_fields: Optional[list] = None
     reference_invoice_id: Optional[str] = None
     converted_from_id: Optional[str] = None
     created_by: Optional[str] = None

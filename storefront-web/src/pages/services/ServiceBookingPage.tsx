@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useService, useCreateBooking } from '@/hooks/useStore'
+import { useService, useCreateBooking, useBookingSlots } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { AvailabilityCalendar, TimeSlotPicker } from '@/kit/bookings/AvailabilityCalendar'
 import { GroupBookingFlow, RecurringBookingFlow, WaitlistFlow } from '@/kit/bookings/BookingFlows'
-import { mockSlotsForDay } from '@/kit/mock'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,7 +45,11 @@ export default function ServiceBookingPage() {
   const [confirmed, setConfirmed] = useState(false)
   const [bookingMode, setBookingMode] = useState<'single' | 'group' | 'recurring' | 'waitlist'>('single')
 
-  const slots = selectedDate ? mockSlotsForDay(selectedDate) : []
+  const dateStr = selectedDate
+    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+    : undefined
+  const { data: slotsData, isLoading: slotsLoading } = useBookingSlots(service?.id, dateStr)
+  const slots = slotsData?.slots ?? []
 
   if (isLoading) {
     return (
@@ -92,19 +95,16 @@ export default function ServiceBookingPage() {
       return
     }
     try {
+      const slot = slots.find(s => s.start === selectedSlot)
       await createBooking.mutateAsync({
         service_id: service.id,
-        date: selectedDate.toISOString().split('T')[0],
-        start_time: new Date(selectedSlot).toTimeString().slice(0, 5),
-        name,
-        email,
-        phone,
-        notes,
-      } as any)
+        booking_date: dateStr!,
+        start_time: slot?.start_time ?? new Date(selectedSlot).toTimeString().slice(0, 5),
+        notes: notes || undefined,
+      })
       setConfirmed(true)
     } catch {
-      // If API errors, still show confirmed for demo purposes
-      setConfirmed(true)
+      /* mutation shows error toast */
     }
   }
 
@@ -142,7 +142,9 @@ export default function ServiceBookingPage() {
                 <Card>
                   <CardHeader><CardTitle>Select a time slot</CardTitle></CardHeader>
                   <CardContent>
-                    {slots.length > 0 ? (
+                    {slotsLoading ? (
+                      <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                    ) : slots.length > 0 ? (
                       <TimeSlotPicker slots={slots} value={selectedSlot} onChange={setSelectedSlot} />
                     ) : (
                       <p className="text-sm text-muted-foreground">No slots available on this date.</p>

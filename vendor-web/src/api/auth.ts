@@ -10,13 +10,15 @@ export const authApi = {
   },
 
   /** Optional vendorSlug scopes login when the same email exists on multiple User rows (dev: env or ?vendor=). */
-  login: async (email: string, password: string, vendorSlug?: string): Promise<Token> => {
+  login: async (email: string, password: string, vendorSlug?: string, totpCode?: string): Promise<Token> => {
     // OAuth2PasswordRequestForm expects application/x-www-form-urlencoded
     const params = new URLSearchParams()
     params.append('username', email)
     params.append('password', password)
     const s = vendorSlug?.trim()
     if (s) params.append('vendor_slug', s)
+    const code = totpCode?.trim()
+    if (code) params.append('totp_code', code)
     const response = await apiClient.post('/auth/login', params, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     })
@@ -101,6 +103,21 @@ export const authApi = {
   /** Call before OTP modal / signup — 400 if email or phone already exists on a user. */
   vendorSignupCheckContact: async (payload: { email?: string; phone?: string }): Promise<{ available: boolean }> => {
     const response = await apiClient.post('/auth/vendor-signup/check-contact', payload)
+    return response.data
+  },
+
+  setup2fa: async (): Promise<{ secret: string; provisioning_uri: string }> => {
+    const response = await apiClient.post('/auth/2fa/setup')
+    return response.data
+  },
+
+  enable2fa: async (code: string): Promise<{ enabled: boolean }> => {
+    const response = await apiClient.post('/auth/2fa/enable', { code })
+    return response.data
+  },
+
+  disable2fa: async (code: string): Promise<{ enabled: boolean }> => {
+    const response = await apiClient.post('/auth/2fa/disable', { code })
     return response.data
   },
 }

@@ -1,5 +1,4 @@
-import { useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { CheckoutConfigProvider, type CheckoutLayout, type PaymentMode, useCheckoutConfig } from '@/checkout/config'
 import { TwoColumnLayout } from '@/checkout/layouts/TwoColumnLayout'
@@ -8,7 +7,6 @@ import { AccordionLayout } from '@/checkout/layouts/AccordionLayout'
 import { CheckoutHeader, CheckoutFooter } from '@/checkout/components/Header'
 import { useStoreBridgeCheckout } from '@/hooks/useStoreBridgeCheckout'
 import { useCart, useStoreInfo } from '@/hooks/useStore'
-import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { buildCheckoutThemeFromSiteStyle } from '@/checkout/buildCheckoutThemeFromSiteStyle'
@@ -16,11 +14,9 @@ import type { StyleConfig } from '@/blocks/registry'
 
 export default function Checkout() {
   const { storePath } = useVendor()
-  const { isAuthenticated, accessToken } = useAuthStore()
   const { data: cart, isLoading: cartLoading } = useCart()
   const { data: storeInfo } = useStoreInfo()
   const { builderSite } = useBuilderSite()
-  const navigate = useNavigate()
   const [params] = useSearchParams()
 
   // Precedence: URL param (QA/demo) > wb_site style_config (website builder)
@@ -35,13 +31,7 @@ export default function Checkout() {
     ? buildCheckoutThemeFromSiteStyle(builderSite.style_config as Partial<StyleConfig> & Record<string, unknown>)
     : undefined
 
-  useEffect(() => {
-    if (!cartLoading && (!isAuthenticated || !accessToken)) {
-      navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
-    }
-  }, [isAuthenticated, accessToken, cartLoading, navigate, storePath])
-
-  if (cartLoading || (!isAuthenticated && accessToken === null)) {
+  if (cartLoading) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
@@ -70,8 +60,9 @@ export default function Checkout() {
         showTrustBadges: true,
         showTaxBreakdown: true,
         showShippingMethods: true,
-        allowGuest: false,
-        enabledProviders: ['stripe', 'paypal'],
+        allowGuest: true,
+        enabledProviders: ['stripe'],
+        paymentMode: 'tabs',
         ...(layout && { layout }),
         ...(paymentMode && { paymentMode }),
       }}

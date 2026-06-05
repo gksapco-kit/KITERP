@@ -53,6 +53,7 @@ import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { formatStoreCode } from '@/lib/verification'
 import CommerceLibraryPreview from '@/components/websites/CommerceLibraryPreview'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
 import {
   applyCategoryImagesToBlockProps,
@@ -6878,7 +6879,6 @@ function InlineMediaPicker({
   const [tab, setTab] = useState<'library' | 'url'>('library')
   const [urlInput, setUrlInput] = useState(value || '')
   const fileRef = useRef<HTMLInputElement>(null)
-  const resolved = value ? mediaUrl(value) : ''
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -6896,33 +6896,45 @@ function InlineMediaPicker({
     <div className="relative">
       <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">{label}</label>
 
-      {/* Image thumbnail / trigger */}
-      <div
-        onClick={() => setOpen(o => !o)}
-        className={cn(
-          'relative w-full h-24 rounded-xl overflow-hidden border-2 border-dashed cursor-pointer transition-all group',
-          resolved ? 'border-primary/40' : 'border-gray-200 hover:border-primary/40'
-        )}
-      >
-        {resolved ? (
-          <>
-            <img src={resolved} className="w-full h-full object-cover" alt=""
-              onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3' }} />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span className="text-white text-xs font-bold">Change Image</span>
-            </div>
+      {value ? (
+        <div className="space-y-1.5">
+          <SingleImagePreview
+            url={value}
+            alt={label}
+            resolveUrl={mediaUrl}
+            className="w-full h-24 rounded-xl overflow-hidden border-2 border-primary/40 group"
+            imgClassName="w-full h-full object-cover"
+            editable
+            onSave={async (file) => {
+              const saved = await uploadMedia.mutateAsync(file)
+              onChange(saved.original_url)
+            }}
+          >
             <button
-              onClick={e => { e.stopPropagation(); onChange('') }}
-              className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+              type="button"
+              onClick={() => onChange('')}
+              className="absolute top-1 right-1 z-10 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
             >✕</button>
-          </>
-        ) : (
+          </SingleImagePreview>
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            className="w-full rounded-lg border border-dashed border-gray-200 py-1.5 text-xs font-bold text-primary hover:border-primary/40 hover:bg-accent transition-colors"
+          >
+            Change Image
+          </button>
+        </div>
+      ) : (
+        <div
+          onClick={() => setOpen(o => !o)}
+          className="relative w-full h-24 rounded-xl overflow-hidden border-2 border-dashed border-gray-200 hover:border-primary/40 cursor-pointer transition-all"
+        >
           <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-400">
             <ImageIcon className="w-6 h-6 opacity-40" />
             <span className="text-xs">Click to add image</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Dropdown picker */}
       {open && (
@@ -7611,26 +7623,35 @@ function BlockImagePickerField({
             <img
               key={resolved}
               src={resolved}
-              className="w-full object-cover"
-              style={{ maxHeight: '140px', display: imgOk ? undefined : 'none' }}
+              className="hidden"
               alt=""
               onLoad={() => setImgOk(true)}
               onError={() => setImgOk(false)}
             />
-            {!imgOk && (
+            {imgOk ? (
+              <SingleImagePreview
+                url={currentUrl}
+                alt=""
+                resolveUrl={mediaUrl}
+                className="w-full"
+                imgClassName="w-full object-cover max-h-[140px]"
+                viewOnlyTitle="View image"
+              >
+                <div className="absolute top-1.5 right-1.5 z-10 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(resolved); toast.success('URL copied!') }}
+                    className="p-1 bg-black/50 rounded text-white hover:bg-black/70"
+                    title="Copy URL"
+                  ><Copy className="w-3 h-3" /></button>
+                </div>
+              </SingleImagePreview>
+            ) : (
               <div className="w-full h-24 flex flex-col items-center justify-center text-gray-400 gap-1">
                 <ImageIcon className="w-6 h-6 opacity-40" />
                 <span className="text-xs">Cannot preview (URL may be invalid)</span>
               </div>
             )}
-            <div className="absolute top-1.5 right-1.5 flex gap-1">
-              <button
-                type="button"
-                onClick={() => { navigator.clipboard.writeText(resolved); toast.success('URL copied!') }}
-                className="p-1 bg-black/50 rounded text-white hover:bg-black/70"
-                title="Copy URL"
-              ><Copy className="w-3 h-3" /></button>
-            </div>
           </>
         ) : (
           <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-gray-400 w-full">
@@ -14458,7 +14479,7 @@ export default function WebsiteBuilder() {
                   fontFamily: canvasStyle.font_body,
                   fontSize: canvasStyle.font_size_base ? `${canvasStyle.font_size_base}px` : undefined,
                 }}
-                className="bg-white shadow-2xl rounded-xl overflow-hidden min-h-[600px] max-h-[90vh] overflow-y-auto"
+                className="bg-white shadow-2xl rounded-xl min-h-[600px]"
               >
               {(canvasStyle.font_heading || canvasStyle.font_size_heading) && (
                 <style>{`

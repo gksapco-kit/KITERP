@@ -5,10 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
 from slugify import slugify
-from pathlib import Path
 import math
 import uuid as uuid_mod
-import aiofiles
 import json
 
 from app.database import get_db
@@ -24,18 +22,9 @@ from app.schemas.vendor_product import (
 )
 from app.services.vendor_service import VendorService
 from app.repositories.product_repo import ProductRepository
+from app.services.media_upload import save_media_file, detect_media_type
 
 from datetime import date as date_type, datetime
-
-UPLOAD_DIR = Path(__file__).resolve().parents[3] / "uploads"
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
-ALLOWED_3D_EXTENSIONS = {".glb", ".gltf"}
-ALLOWED_MEDIA_TYPES = ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES | {"model/gltf-binary", "model/gltf+json", "application/octet-stream"}
-MAX_IMAGE_SIZE = 5 * 1024 * 1024
-MAX_VIDEO_SIZE = 50 * 1024 * 1024
-MAX_3D_SIZE = 30 * 1024 * 1024
-
 
 DATE_FIELDS = {"expiration_date", "manufacture_date", "best_before_date"}
 DATETIME_FIELDS = {"discount_start_date", "discount_end_date"}
@@ -397,34 +386,11 @@ async def list_products(
     })
 
 
-def _detect_media_type_vp(file: UploadFile) -> str:
-    ct = file.content_type or ""
-    ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
-    if ct in ALLOWED_VIDEO_TYPES:
-        return "video"
-    if ct in {"model/gltf-binary", "model/gltf+json", "application/octet-stream"} or ext in ALLOWED_3D_EXTENSIONS:
-        return "model3d"
-    return "image"
-
-
 async def _save_product_image(file: UploadFile) -> tuple[str, str]:
-    """Save media file to disk and return (url, media_type)."""
-    ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
-    is_3d = ext in ALLOWED_3D_EXTENSIONS
-    if not is_3d and file.content_type not in ALLOWED_MEDIA_TYPES:
-        raise HTTPException(400, f"File type {file.content_type} not allowed")
-    contents = await file.read()
-    media = _detect_media_type_vp(file)
-    max_size = MAX_VIDEO_SIZE if media == "video" else MAX_3D_SIZE if media == "model3d" else MAX_IMAGE_SIZE
-    if len(contents) > max_size:
-        raise HTTPException(400, f"File too large. Max {max_size // (1024*1024)} MB for {media}.")
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
-    filename = f"{uuid_mod.uuid4().hex}.{ext}"
-    folder = UPLOAD_DIR / "products"
-    folder.mkdir(parents=True, exist_ok=True)
-    async with aiofiles.open(str(folder / filename), "wb") as f:
-        await f.write(contents)
-    return f"/uploads/products/{filename}", media
+    """Save media via FileService and return (url, media_type)."""
+    media = detect_media_type(file)
+    url = await save_media_file(file, "products")
+    return url, media
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

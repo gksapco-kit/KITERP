@@ -1,9 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useInvoiceSettings, useUpdateInvoiceSettings, useUploadInvoiceSignature } from '@/hooks/useVendor'
+import {
+  useInvoiceSettings, useUpdateInvoiceSettings, useUploadInvoiceSignature,
+  useQuotationSettings, useUpdateQuotationSettings, useUploadQuotationSignature,
+} from '@/hooks/useVendor'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { toast } from 'sonner'
@@ -14,11 +17,26 @@ import {
   FileOutput, ToggleLeft, QrCode,
 } from 'lucide-react'
 import {
-  generateInvoiceHtml, TEMPLATE_COLORS, DEFAULT_INVOICE_SETTINGS, PAPER_SIZES,
+  generateInvoiceHtml, TEMPLATE_COLORS, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
   loadPosInvoiceSettings, savePosInvoiceSettings, DEFAULT_LAYOUT_SECTIONS,
 } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings, PaperSize, LayoutSection } from '@/lib/invoiceTemplates'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+
+function resolveOriginPath(url: string) {
+  if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url
+  return `${window.location.origin}${url}`
+}
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = ev => resolve(ev.target?.result as string)
+    reader.onerror = () => reject(new Error('read failed'))
+    reader.readAsDataURL(file)
+  })
+}
 
 // ── Template visual thumbnails ────────────────────────────────────────────────
 
@@ -597,14 +615,39 @@ const SAMPLE_INVOICE = {
   booking_number: 'BK-00007',
 }
 
+const SAMPLE_QUOTATION = {
+  ...SAMPLE_INVOICE,
+  invoice_number: 'EST/2026-27/0001',
+  invoice_type: 'estimate',
+  status: 'draft',
+  due_date: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+  amount_paid: 0,
+  balance_due: 0,
+  payment_terms: '',
+  notes: '',
+  terms_and_conditions: DEFAULT_QUOTATION_SETTINGS.default_terms,
+  booking_number: undefined,
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function InvoiceSettingsPage() {
   const navigate = useNavigate()
-  const { data: rawSettings, isLoading } = useInvoiceSettings()
+  const location = useLocation()
+  const isQuotationMode = location.pathname.startsWith('/quotations/templates')
+
+  const { data: rawInvoiceSettings, isLoading: invoiceSettingsLoading } = useInvoiceSettings()
+  const { data: rawQuotationSettings, isLoading: quotationSettingsLoading } = useQuotationSettings()
+  const rawSettings = isQuotationMode ? rawQuotationSettings : rawInvoiceSettings
+  const isLoading = isQuotationMode ? quotationSettingsLoading : invoiceSettingsLoading
+
   const { data: vendor } = useQuery({ queryKey: ['myVendor'], queryFn: vendorApi.getMyVendor })
-  const updateSettings = useUpdateInvoiceSettings()
-  const uploadSignature = useUploadInvoiceSignature()
+  const updateInvoiceSettings = useUpdateInvoiceSettings()
+  const updateQuotationSettings = useUpdateQuotationSettings()
+  const updateSettings = isQuotationMode ? updateQuotationSettings : updateInvoiceSettings
+  const uploadInvoiceSignature = useUploadInvoiceSignature()
+  const uploadQuotationSignature = useUploadQuotationSignature()
+  const uploadSignature = isQuotationMode ? uploadQuotationSignature : uploadInvoiceSignature
 
   // Tab: 'invoice' = standard customer invoice (API-backed), 'pos' = POS receipt (localStorage)
   const [activeTab, setActiveTab] = useState<'invoice' | 'pos'>('invoice')
@@ -613,7 +656,9 @@ export default function InvoiceSettingsPage() {
   // POS settings panel tabs
   const [posTab, setPosTab] = useState<'design' | 'content' | 'export'>('design')
 
-  const [settings, setSettings] = useState<InvoiceSettings>({ ...DEFAULT_INVOICE_SETTINGS })
+  const [settings, setSettings] = useState<InvoiceSettings>(
+    isQuotationMode ? { ...DEFAULT_QUOTATION_SETTINGS } : { ...DEFAULT_INVOICE_SETTINGS },
+  )
   const [previewHtml, setPreviewHtml] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [sigMode, setSigMode] = useState<'upload' | 'draw'>('upload')
@@ -630,28 +675,33 @@ export default function InvoiceSettingsPage() {
 
   // Load settings from API
   useEffect(() => {
-    if (rawSettings) {
-      setSettings(prev => ({ ...prev, ...(rawSettings as Partial<InvoiceSettings>) }))
+    const base = isQuotationMode ? DEFAULT_QUOTATION_SETTINGS : DEFAULT_INVOICE_SETTINGS
+    if (rawSettings && Object.keys(rawSettings).length > 0) {
+      setSettings({ ...base, ...(rawSettings as Partial<InvoiceSettings>) })
+    } else if (isQuotationMode) {
+      setSettings({ ...DEFAULT_QUOTATION_SETTINGS })
     }
-  }, [rawSettings])
+  }, [rawSettings, isQuotationMode])
 
   // Use vendor logo
   const logoUrl = settings.logo_url || vendor?.logo_url || ''
 
-  // Regenerate invoice preview whenever settings change
+  // Regenerate document preview whenever settings change
   useEffect(() => {
+    const sampleBase = isQuotationMode ? SAMPLE_QUOTATION : SAMPLE_INVOICE
     const sampleData = {
-      ...SAMPLE_INVOICE,
-      vendor_name: vendor?.business_name || SAMPLE_INVOICE.vendor_name,
-      vendor_gstin: vendor?.gstin || SAMPLE_INVOICE.vendor_gstin,
+      ...sampleBase,
+      vendor_name: vendor?.business_name || sampleBase.vendor_name,
+      vendor_gstin: vendor?.gstin || sampleBase.vendor_gstin,
       vendor_address: vendor?.street_address
         ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
-        : SAMPLE_INVOICE.vendor_address,
+        : sampleBase.vendor_address,
       vendor_logo_url: logoUrl,
+      terms_and_conditions: settings.default_terms || sampleBase.terms_and_conditions,
     }
     const html = generateInvoiceHtml(sampleData, { ...settings, logo_url: logoUrl || undefined }, window.location.origin)
     setPreviewHtml(html)
-  }, [settings, vendor, logoUrl])
+  }, [settings, vendor, logoUrl, isQuotationMode])
 
   // Regenerate POS preview whenever posSettings change
   useEffect(() => {
@@ -711,6 +761,18 @@ export default function InvoiceSettingsPage() {
     set('signature_url', result.signature_url)
   }
 
+  const applyDrawnSignatureSave = async (file: File) => {
+    set('signature_url', await fileToDataUrl(file))
+  }
+
+  const applyQrDataUrl = async (file: File) => {
+    set('qr_code_url', await fileToDataUrl(file))
+  }
+
+  const applyPosQrDataUrl = async (file: File) => {
+    setPos('qr_code_url', await fileToDataUrl(file))
+  }
+
   if (isLoading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
   }
@@ -720,39 +782,45 @@ export default function InvoiceSettingsPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between pb-4 border-b mb-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/invoices')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(isQuotationMode ? '/quotations' : '/invoices')}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Invoice Settings</h1>
-            <p className="text-xs text-gray-500">Customise how your invoices look and what they include</p>
+            <h1 className="text-xl font-bold text-gray-900">{isQuotationMode ? 'Quotation Templates' : 'Invoice Settings'}</h1>
+            <p className="text-xs text-gray-500">
+              {isQuotationMode
+                ? 'Customise quotation print and PDF templates — layout, branding, and content'
+                : 'Customise how your invoices look and what they include'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Tab switcher */}
-          <div className="flex rounded-lg border bg-gray-50 p-0.5 gap-0.5">
-            <button
-              onClick={() => setActiveTab('invoice')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                activeTab === 'invoice' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5" /> Customer Invoice
-            </button>
-            <button
-              onClick={() => setActiveTab('pos')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                activeTab === 'pos' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <ShoppingCart className="w-3.5 h-3.5" /> POS Receipt
-            </button>
-          </div>
+          {/* Tab switcher — invoices only (POS receipt is separate) */}
+          {!isQuotationMode && (
+            <div className="flex rounded-lg border bg-gray-50 p-0.5 gap-0.5">
+              <button
+                onClick={() => setActiveTab('invoice')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  activeTab === 'invoice' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" /> Customer Invoice
+              </button>
+              <button
+                onClick={() => setActiveTab('pos')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  activeTab === 'pos' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <ShoppingCart className="w-3.5 h-3.5" /> POS Receipt
+              </button>
+            </div>
+          )}
 
-          {activeTab === 'invoice' ? (
+          {(isQuotationMode || activeTab === 'invoice') ? (
             <Button onClick={handleSave} disabled={isSaving} className="gap-2 bg-primary hover:bg-primary/90">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              Save Settings
+              {isQuotationMode ? 'Save Templates' : 'Save Settings'}
             </Button>
           ) : (
             <div className="flex gap-2">
@@ -768,7 +836,7 @@ export default function InvoiceSettingsPage() {
       </div>
 
       {/* ── POS Receipt Tab ─────────────────────────────────────── */}
-      {activeTab === 'pos' && (
+      {!isQuotationMode && activeTab === 'pos' && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
           {/* Left: POS preview */}
           <div className="space-y-3">
@@ -1085,16 +1153,21 @@ export default function InvoiceSettingsPage() {
               <div className="space-y-3 pt-2">
                 <div className="flex items-center gap-3">
                   {posMerged().qr_code_url ? (
-                    <div className="relative shrink-0">
-                      <img src={posMerged().qr_code_url} alt="QR Code"
-                        className="w-20 h-20 object-contain border rounded-lg p-1 bg-white" />
+                    <SingleImagePreview
+                      url={posMerged().qr_code_url!}
+                      alt="QR Code"
+                      className="shrink-0 rounded-lg"
+                      imgClassName="w-20 h-20 object-contain border rounded-lg p-1 bg-white"
+                      editable
+                      onSave={applyPosQrDataUrl}
+                    >
                       <button
                         onClick={() => setPos('qr_code_url', '')}
-                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
+                        className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
                       >
                         <X className="w-2.5 h-2.5" />
                       </button>
-                    </div>
+                    </SingleImagePreview>
                   ) : (
                     <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 shrink-0 bg-gray-50">
                       <QrCode className="w-6 h-6 text-gray-300" />
@@ -1281,7 +1354,7 @@ export default function InvoiceSettingsPage() {
       )}
 
       {/* ── Customer Invoice Tab ─────────────────────────────────── */}
-      {activeTab === 'invoice' && (
+      {(isQuotationMode || activeTab === 'invoice') && (
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
         {/* Left: Live Preview */}
         <div className="space-y-3">
@@ -1305,7 +1378,7 @@ export default function InvoiceSettingsPage() {
             >
               <iframe
                 srcDoc={previewHtml}
-                title="Invoice Preview"
+                title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
                 className="w-full border-0"
                 style={{ height: '950px', pointerEvents: 'none' }}
               />
@@ -1466,14 +1539,20 @@ export default function InvoiceSettingsPage() {
           <AccordionSection title="Company Logo" defaultOpen>
             <div className="flex items-center gap-3">
               {logoUrl ? (
-                <div className="relative shrink-0">
-                  <img src={`${window.location.origin}${logoUrl}`} alt="Logo"
-                    className="h-12 max-w-[100px] object-contain border rounded-lg p-1" />
+                <SingleImagePreview
+                  url={logoUrl}
+                  alt="Logo"
+                  resolveUrl={resolveOriginPath}
+                  className="shrink-0 rounded-lg"
+                  imgClassName="h-12 max-w-[100px] object-contain border rounded-lg p-1"
+                  editable
+                  onSave={uploadLogo}
+                >
                   <button onClick={() => set('logo_url', '')}
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
+                    className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
                     <X className="w-2.5 h-2.5" />
                   </button>
-                </div>
+                </SingleImagePreview>
               ) : (
                 <div className="h-12 w-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center shrink-0">
                   <Building2 className="w-5 h-5 text-gray-300" />
@@ -1507,14 +1586,20 @@ export default function InvoiceSettingsPage() {
             {sigMode === 'upload' ? (
               <div className="flex items-center gap-3">
                 {settings.signature_url && !settings.signature_url.startsWith('data:') ? (
-                  <div className="relative shrink-0">
-                    <img src={`${window.location.origin}${settings.signature_url}`} alt="Signature"
-                      className="h-12 max-w-[120px] object-contain border rounded-lg p-1 bg-white" />
+                  <SingleImagePreview
+                    url={settings.signature_url}
+                    alt="Signature"
+                    resolveUrl={resolveOriginPath}
+                    className="shrink-0 rounded-lg"
+                    imgClassName="h-12 max-w-[120px] object-contain border rounded-lg p-1 bg-white"
+                    editable
+                    onSave={applySignatureUpload}
+                  >
                     <button onClick={() => set('signature_url', '')}
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
+                      className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
                       <X className="w-2.5 h-2.5" />
                     </button>
-                  </div>
+                  </SingleImagePreview>
                 ) : (
                   <div className="h-12 w-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-0.5 shrink-0">
                     <Pen className="w-4 h-4 text-gray-300" />
@@ -1538,14 +1623,19 @@ export default function InvoiceSettingsPage() {
             ) : (
               <div className="space-y-2">
                 {settings.signature_url?.startsWith('data:') && (
-                  <div className="relative">
-                    <img src={settings.signature_url} alt="Drawn signature"
-                      className="h-14 border rounded-lg p-2 bg-white object-contain w-full" />
+                  <SingleImagePreview
+                    url={settings.signature_url}
+                    alt="Drawn signature"
+                    className="rounded-lg w-full"
+                    imgClassName="h-14 border rounded-lg p-2 bg-white object-contain w-full"
+                    editable
+                    onSave={applyDrawnSignatureSave}
+                  >
                     <button onClick={() => set('signature_url', '')}
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
+                      className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
                       <X className="w-2.5 h-2.5" />
                     </button>
-                  </div>
+                  </SingleImagePreview>
                 )}
                 <SignaturePad
                   onSave={dataUrl => set('signature_url', dataUrl)}
@@ -1579,19 +1669,21 @@ export default function InvoiceSettingsPage() {
               {/* Upload area */}
               <div className="flex items-center gap-3">
                 {settings.qr_code_url ? (
-                  <div className="relative shrink-0">
-                    <img
-                      src={settings.qr_code_url}
-                      alt="QR Code"
-                      className="w-20 h-20 object-contain border rounded-lg p-1 bg-white"
-                    />
+                  <SingleImagePreview
+                    url={settings.qr_code_url}
+                    alt="QR Code"
+                    className="shrink-0 rounded-lg"
+                    imgClassName="w-20 h-20 object-contain border rounded-lg p-1 bg-white"
+                    editable
+                    onSave={applyQrDataUrl}
+                  >
                     <button
                       onClick={() => set('qr_code_url', '')}
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
+                      className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
                     >
                       <X className="w-2.5 h-2.5" />
                     </button>
-                  </div>
+                  </SingleImagePreview>
                 ) : (
                   <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 shrink-0 bg-gray-50">
                     <QrCode className="w-6 h-6 text-gray-300" />
@@ -1902,7 +1994,7 @@ export default function InvoiceSettingsPage() {
                 { label: 'GSTIN (vendor + customer)', key: 'show_gstin',          val: settings.show_gstin },
                 // ── Invoice Meta ──
                 { label: 'Financial Year (F.Y.)',   key: 'show_financial_year',   val: settings.show_financial_year ?? true },
-                { label: 'Due Date',                key: 'show_due_date',         val: settings.show_due_date ?? true },
+                { label: isQuotationMode ? 'Valid Until' : 'Due Date', key: 'show_due_date', val: settings.show_due_date ?? true },
                 { label: 'Booking / Ref. No.',      key: 'show_booking_number',   val: settings.show_booking_number ?? true },
                 // ── Bill To ──
                 { label: 'Customer / Bill To',      key: 'show_customer_address', val: settings.show_customer_address ?? true },
@@ -1925,7 +2017,9 @@ export default function InvoiceSettingsPage() {
                 { label: 'Place of Supply',         key: 'show_place_of_supply',  val: settings.show_place_of_supply },
                 { label: 'Payment Terms',           key: 'show_payment_terms',    val: settings.show_payment_terms ?? true },
                 { label: 'Legal Footer Line',       key: 'show_legal_note',       val: settings.show_legal_note ?? true },
-              ] as { label: string; key: keyof InvoiceSettings; val: boolean }[]).map(({ label, key, val }) => (
+              ] as { label: string; key: keyof InvoiceSettings; val: boolean }[])
+                .filter(row => !(isQuotationMode && ['show_amount_paid', 'show_balance_due', 'show_payment_terms'].includes(row.key)))
+                .map(({ label, key, val }) => (
                 <button
                   key={key}
                   onClick={() => set(key, !val as never)}
@@ -2001,13 +2095,13 @@ export default function InvoiceSettingsPage() {
 
           {/* ── Reset + Save ── always visible ── */}
           <div className="flex gap-2 pt-1">
-            <Button variant="outline" onClick={() => setSettings({ ...DEFAULT_INVOICE_SETTINGS })}
+            <Button variant="outline" onClick={() => setSettings({ ...(isQuotationMode ? DEFAULT_QUOTATION_SETTINGS : DEFAULT_INVOICE_SETTINGS) })}
               className="gap-1.5 text-gray-600" title="Reset all settings to defaults">
               <RotateCcw className="w-4 h-4" /> Reset
             </Button>
             <Button onClick={handleSave} disabled={isSaving} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              Save Invoice Settings
+              {isQuotationMode ? 'Save Quotation Templates' : 'Save Invoice Settings'}
             </Button>
           </div>
         </div>

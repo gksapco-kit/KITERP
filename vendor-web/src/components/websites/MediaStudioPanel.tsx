@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   Check,
@@ -12,6 +12,11 @@ import {
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  urlsToLightboxItems,
+} from '@/components/common/CatalogMediaLightbox'
 import { websiteApi } from '@/api/websites'
 import { useMedia, useUploadMedia } from '@/hooks/useWebsites'
 import type { WebsiteBlock, WebsiteMedia } from '@/types/websites'
@@ -73,6 +78,19 @@ export function MediaStudioPanel({
   })
   const [adjustedUrl, setAdjustedUrl] = useState<string | null>(null)
   const [isAdjusting, setIsAdjusting] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  const imageMedia = useMemo(
+    () => mediaList.filter(m => m.file_type !== 'video'),
+    [mediaList],
+  )
+  const lightboxItems = useMemo(
+    () => urlsToLightboxItems(
+      imageMedia.map(m => m.original_url),
+      { idPrefix: 'library', altText: i => imageMedia[i]?.filename ?? `Image ${i + 1}` },
+    ),
+    [imageMedia],
+  )
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLDivElement>(null)
 
@@ -270,21 +288,20 @@ export function MediaStudioPanel({
                       <PlayCircle className="w-6 h-6 text-white opacity-80" />
                     </div>
                   ) : (
-                    <img
-                      src={src}
-                      className="w-full h-full object-cover"
-                      alt={m.filename}
-                      onError={e => {
-                        const el = e.target as HTMLImageElement
-                        el.style.display = 'none'
-                        const ph = el.nextElementSibling as HTMLElement | null
-                        if (ph) ph.classList.remove('hidden')
-                      }}
-                    />
+                    <div className="w-full h-full" onClick={ev => ev.stopPropagation()}>
+                      <ClickableImageButton
+                        src={src}
+                        alt={m.filename}
+                        title="View image"
+                        className="h-full w-full rounded-none"
+                        imgClassName="w-full h-full object-cover"
+                        onClick={() => {
+                          const idx = imageMedia.findIndex(x => x.id === m.id)
+                          if (idx >= 0) setLightboxIndex(idx)
+                        }}
+                      />
+                    </div>
                   )}
-                  <div className="hidden absolute inset-0 flex items-center justify-center bg-gray-100">
-                    <ImageIcon className="w-5 h-5 text-gray-300" />
-                  </div>
                   {m.ai_tags?.includes('ai-generated') && (
                     <div className="absolute top-1 left-1 bg-primary text-white text-[8px] font-bold px-1 py-0.5 rounded">AI</div>
                   )}
@@ -321,6 +338,11 @@ export function MediaStudioPanel({
             })}
           </div>
         )}
+        <ImageLightboxSession
+          items={lightboxItems}
+          openIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       </div>
 
       {selectedMediaObj && (

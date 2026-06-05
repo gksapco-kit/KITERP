@@ -35,6 +35,7 @@ import {
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 
 // ── Regex constants ───────────────────────────────────────────────────────────
 
@@ -1562,8 +1563,9 @@ export function AddPartyModal({
                     </div>
                   )}
                 </div>
-                <button type="button" aria-label="Close"
+                <button
                   type="button"
+                  aria-label="Close"
                   onClick={() => { setDuplicateError(null); setErrors({}) }}
                   className="shrink-0 p-0.5 rounded hover:bg-black/5"
                 >
@@ -1578,13 +1580,20 @@ export function AddPartyModal({
 
             {/* Profile picture — compact, top-left */}
             <div className="relative shrink-0">
-              {/* Avatar — display only, not a click target */}
               <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-indigo-100 to-blue-100 border-2 border-primary/30 flex items-center justify-center overflow-hidden select-none">
-                {profilePreview
-                  ? <img src={profilePreview} alt="Profile" className="w-full h-full object-cover" />
-                  : name.trim()
-                    ? <span className="text-xl font-bold text-primary leading-none">{name.trim()[0].toUpperCase()}</span>
-                    : <User className="w-6 h-6 text-primary/60" />}
+                {profilePreview ? (
+                  <SingleImagePreview
+                    url={profilePreview}
+                    alt="Profile"
+                    resolveUrl={(u) => u}
+                    editable
+                    onSave={async (file) => { applyProfileFile(file) }}
+                    className="h-full w-full rounded-full"
+                    imgClassName="h-full w-full object-cover"
+                  />
+                ) : name.trim()
+                  ? <span className="text-xl font-bold text-primary leading-none">{name.trim()[0].toUpperCase()}</span>
+                  : <User className="w-6 h-6 text-primary/60" />}
               </div>
               {/* Camera badge — only this triggers file picker */}
               <button
@@ -1598,8 +1607,9 @@ export function AddPartyModal({
               {profileFileInput}
               {profilePickerModal}
               {profilePreview && (
-                <button type="button" aria-label="Close"
+                <button
                   type="button"
+                  aria-label="Remove photo"
                   onClick={() => { setProfilePreview(null); setProfileFile(null) }}
                   title="Remove photo"
                   className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
@@ -1777,8 +1787,9 @@ export function AddPartyModal({
                   >
                     {ct}
                   </button>
-                  <button type="button" aria-label="Close"
+                  <button
                     type="button"
+                    aria-label={`Remove ${ct}`}
                     onClick={() => removeCustomPartyType(ct)}
                     title={`Remove ${ct}`}
                     className={`pr-2 py-1.5 opacity-60 hover:opacity-100 transition-opacity`}

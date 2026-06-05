@@ -163,6 +163,7 @@ function applyFormState(
     setRestaurantEnabled: (v: boolean) => void
     setBookingsEnabled: (v: boolean) => void
     setSubscriptionsEnabled: (v: boolean) => void
+    setProjectsEnabled: (v: boolean) => void
   },
 ) {
   setters.setOfferingType(state.offeringType)
@@ -178,6 +179,7 @@ function applyFormState(
   setters.setRestaurantEnabled(state.restaurantEnabled)
   setters.setBookingsEnabled(state.bookingsEnabled)
   setters.setSubscriptionsEnabled(state.subscriptionsEnabled)
+  setters.setProjectsEnabled(state.projectsEnabled)
 }
 
 export default function ModulesPage() {
@@ -214,6 +216,7 @@ export default function ModulesPage() {
   const [restaurantEnabled, setRestaurantEnabled] = useState(true)
   const [bookingsEnabled, setBookingsEnabled] = useState(true)
   const [subscriptionsEnabled, setSubscriptionsEnabled] = useState(true)
+  const [projectsEnabled, setProjectsEnabled] = useState(true)
 
   const productsCatalog = offeringIncludes(offeringType, ['products', 'both'])
   const servicesCatalog = offeringIncludes(offeringType, ['services', 'both'])
@@ -233,6 +236,7 @@ export default function ModulesPage() {
       setRestaurantEnabled,
       setBookingsEnabled,
       setSubscriptionsEnabled,
+      setProjectsEnabled,
     }),
     [],
   )
@@ -252,6 +256,7 @@ export default function ModulesPage() {
       restaurantEnabled,
       bookingsEnabled,
       subscriptionsEnabled,
+      projectsEnabled,
     }),
     [
       offeringType,
@@ -267,6 +272,7 @@ export default function ModulesPage() {
       restaurantEnabled,
       bookingsEnabled,
       subscriptionsEnabled,
+      projectsEnabled,
     ],
   )
 
@@ -614,6 +620,16 @@ export default function ModulesPage() {
             hint="Recurring product and service plans in the Subscriptions catalog."
             enabled={subscriptionsEnabled}
             onToggle={() => setSubscriptionsEnabled((v) => !v)}
+          />
+        )
+        break
+      case 'projects':
+        panelBody = (
+          <EnableRow
+            label="Enable Projects"
+            hint="Project management with tasks, milestones, and kanban under Sales Management."
+            enabled={projectsEnabled}
+            onToggle={() => setProjectsEnabled((v) => !v)}
           />
         )
         break

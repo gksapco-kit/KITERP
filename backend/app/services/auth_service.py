@@ -55,7 +55,14 @@ class AuthService:
         await self.db.refresh(user)
         return user
 
-    async def login(self, login: str, password: str, vendor_id: Optional[UUID] = None) -> Token:
+    async def login(
+        self,
+        login: str,
+        password: str,
+        vendor_id: Optional[UUID] = None,
+        *,
+        totp_code: Optional[str] = None,
+    ) -> Token:
         login = str(login or "").strip()
         if not login:
             raise HTTPException(
@@ -127,6 +134,19 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User account is disabled",
             )
+
+        if getattr(user, "is_2fa_enabled", False) and user.totp_secret:
+            from app.services.totp_service import verify_totp
+            if not totp_code:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail={"error": "requires_2fa", "message": "Enter your authenticator code"},
+                )
+            if not verify_totp(user.totp_secret, totp_code):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authenticator code",
+                )
 
         token_data = {"sub": str(user.id)}
         if user.email:

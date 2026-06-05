@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn, mediaUrl } from '@/lib/utils'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { vendorApi } from '@/api/vendor'
 import {
   useBlogPosts, useCreateBlogPost, useUpdateBlogPost,
@@ -186,11 +187,14 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
               buttonClassName="w-full text-xs mb-2 h-8 border-primary/30 text-primary hover:bg-accent"
             />
             {coverUrl && (
-              <img
-                src={mediaUrl(coverUrl)}
-                alt=""
-                className="mt-2 rounded-lg w-full h-28 object-cover border border-gray-100"
-                onError={e => { e.currentTarget.style.display = 'none' }}
+              <SingleImagePreview
+                url={coverUrl}
+                alt="Cover image"
+                resolveUrl={mediaUrl}
+                className="mt-2 rounded-lg w-full"
+                imgClassName="rounded-lg w-full h-28 object-cover border border-gray-100"
+                editable
+                onSave={uploadCoverFile}
               />
             )}
           </div>

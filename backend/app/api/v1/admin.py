@@ -1710,3 +1710,79 @@ async def reset_platform_staff_password(
     mgr_names = await _platform_staff_manager_name_map(db, [u])
     rm_counts = await _relationship_manager_vendor_counts(db, [u.id])
     return _platform_staff_member_response(u, mgr_names, rm_counts)
+
+
+# ── Order disputes & fraud triage ────────────────────────────────────────────
+
+class DisputeUpdate(BaseModel):
+    status: str = Field(..., pattern="^(open|investigating|resolved|rejected)$")
+    resolution_notes: Optional[str] = None
+
+
+@router.get("/disputes")
+async def list_order_disputes(
+    status: Optional[str] = Query(None),
+    dispute_type: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.order_dispute import OrderDispute
+    from app.models.order import Order
+
+    filters = []
+    if status:
+        filters.append(OrderDispute.status == status)
+    if dispute_type:
+        filters.append(OrderDispute.dispute_type == dispute_type)
+    count_stmt = select(func.count(OrderDispute.id))
+    for f in filters:
+        count_stmt = count_stmt.where(f)
+    total = (await db.execute(count_stmt)).scalar() or 0
+    base = select(OrderDispute, Order.order_number).join(Order, Order.id == OrderDispute.order_id)
+    for f in filters:
+        base = base.where(f)
+    rows = (
+        await db.execute(
+            base.order_by(OrderDispute.created_at.desc()).offset((page - 1) * size).limit(size)
+        )
+    ).all()
+    items = [
+        {
+            "id": str(d.id),
+            "order_id": str(d.order_id),
+            "order_number": order_number,
+            "vendor_id": str(d.vendor_id),
+            "dispute_type": d.dispute_type,
+            "reason": d.reason,
+            "status": d.status,
+            "amount": float(d.amount) if d.amount else None,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        }
+        for d, order_number in rows
+    ]
+    return {"items": items, "total": total, "page": page, "size": size, "pages": math.ceil(total / size) if total else 0}
+
+
+@router.patch("/disputes/{dispute_id}")
+async def update_order_dispute(
+    dispute_id: UUID,
+    body: DisputeUpdate,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import datetime, timezone
+    from app.models.order_dispute import OrderDispute
+
+    result = await db.execute(select(OrderDispute).where(OrderDispute.id == dispute_id))
+    dispute = result.scalar_one_or_none()
+    if not dispute:
+        raise HTTPException(404, "Dispute not found")
+    dispute.status = body.status
+    if body.resolution_notes:
+        dispute.resolution_notes = body.resolution_notes
+    if body.status in ("resolved", "rejected"):
+        dispute.resolved_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"ok": True, "id": str(dispute.id), "status": dispute.status}

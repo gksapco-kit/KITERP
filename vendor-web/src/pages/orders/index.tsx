@@ -12,7 +12,8 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { processRows, type SortDir } from '@/lib/tableList'
 import type { Order } from '@/types'
-import { Search, ChevronLeft, ChevronRight, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Store } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Store, Plus } from 'lucide-react'
+import { CreateBookingModal } from '@/pages/bookings/CreateBookingModal'
 const statusFilters = [
   { label: 'All', value: '' },
   { label: 'Quote Requests', value: 'quote_requested' },
@@ -85,6 +86,7 @@ export default function Orders() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkStatus, setBulkStatus] = useState('')
   const [mrpOrder, setMrpOrder] = useState<{ id: string; order_number: string; items: MRPItem[] } | null>(null)
+  const [showCreateBooking, setShowCreateBooking] = useState(false)
 
   const { data: storesData } = useStores()
   const stores = storesData?.stores ?? []
@@ -171,7 +173,27 @@ export default function Orders() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Button className="gap-1.5" onClick={() => navigate('/pos')}>
+            <Plus className="w-4 h-4" /> Create Order
+          </Button>
+          <Button variant="outline" className="gap-1.5" onClick={() => navigate('/pos')}>
+            <Monitor className="w-4 h-4" /> Open POS
+          </Button>
+          <Button variant="outline" className="gap-1.5" onClick={() => setShowCreateBooking(true)}>
+            <CalendarDays className="w-4 h-4" /> Bookings
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => navigate('/quotations')}
+          >
+            <MessageSquare className="w-4 h-4" /> Quotations
+          </Button>
+        </div>
+      </div>
 
       <Card>
         <CardContent className="pt-6 space-y-3">
@@ -385,6 +407,16 @@ export default function Orders() {
           orderRef={mrpOrder.order_number}
           items={mrpOrder.items}
           onClose={() => setMrpOrder(null)}
+        />
+      )}
+
+      {showCreateBooking && (
+        <CreateBookingModal
+          onClose={() => setShowCreateBooking(false)}
+          onCreated={(bookingId) => {
+            setShowCreateBooking(false)
+            navigate(`/bookings/${bookingId}`)
+          }}
         />
       )}
     </div>

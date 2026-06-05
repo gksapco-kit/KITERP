@@ -15,6 +15,7 @@ export type ModuleFormState = {
   restaurantEnabled: boolean
   bookingsEnabled: boolean
   subscriptionsEnabled: boolean
+  projectsEnabled: boolean
 }
 
 function normalizeRoleKey(role: string | undefined | null): string {
@@ -39,6 +40,7 @@ export function getAllModulesEnabledState(
     restaurantEnabled: true,
     bookingsEnabled: true,
     subscriptionsEnabled: true,
+    projectsEnabled: true,
   }
 }
 
@@ -61,6 +63,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       restaurantEnabled: true,
       bookingsEnabled: true,
       subscriptionsEnabled: true,
+      projectsEnabled: true,
     }
   }
 
@@ -79,6 +82,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       restaurantEnabled: true,
       bookingsEnabled: true,
       subscriptionsEnabled: true,
+      projectsEnabled: true,
     }
   }
 
@@ -97,6 +101,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       restaurantEnabled: false,
       bookingsEnabled: false,
       subscriptionsEnabled: false,
+      projectsEnabled: false,
     }
   }
 
@@ -114,6 +119,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
     restaurantEnabled: true,
     bookingsEnabled: true,
     subscriptionsEnabled: true,
+    projectsEnabled: true,
   }
 }
 
@@ -136,6 +142,7 @@ export function moduleFormStateFromVendor(
     restaurantEnabled: s?.restaurant_enabled !== false,
     bookingsEnabled: s?.bookings_enabled !== false,
     subscriptionsEnabled: s?.subscriptions_enabled !== false,
+    projectsEnabled: s?.projects_enabled !== false,
   }
 }
 
@@ -153,6 +160,7 @@ export function moduleFormStatesEqual(a: ModuleFormState, b: ModuleFormState): b
     a.restaurantEnabled === b.restaurantEnabled &&
     a.bookingsEnabled === b.bookingsEnabled &&
     a.subscriptionsEnabled === b.subscriptionsEnabled &&
+    a.projectsEnabled === b.projectsEnabled &&
     a.hrBusinessUnitIds.length === b.hrBusinessUnitIds.length &&
     a.hrBusinessUnitIds.every((id, i) => id === b.hrBusinessUnitIds[i])
   )
@@ -178,6 +186,7 @@ export function buildModuleSettingsPayload(
       restaurant_enabled: state.restaurantEnabled,
       bookings_enabled: state.bookingsEnabled,
       subscriptions_enabled: state.subscriptionsEnabled,
+      projects_enabled: state.projectsEnabled,
     },
   }
   if (includeOfferingType) {

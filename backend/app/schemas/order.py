@@ -35,6 +35,7 @@ class PaymentMethod(str, Enum):
     CARD = "card"
     NETBANKING = "netbanking"
     WALLET = "wallet"
+    RAZORPAY = "razorpay"
 
 
 class ShippingAddress(BaseModel):
@@ -58,6 +59,32 @@ class OrderItemResponse(BaseModel):
 class CheckoutRequest(BaseModel):
     shipping_address: ShippingAddress
     payment_method: PaymentMethod
+    shipping_method_id: str = "free"
+    notes: Optional[str] = Field(None, max_length=500)
+    coupon_code: Optional[str] = Field(None, max_length=50)
+
+
+class GuestCustomerInfo(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=255)
+    email: str = Field(..., min_length=3, max_length=255)
+    phone: Optional[str] = Field(None, min_length=10, max_length=20)
+
+
+class GuestCartItem(BaseModel):
+    product_id: str
+    variant_id: Optional[str] = None
+    name: str
+    qty: int = Field(..., ge=1, le=100)
+    price: float = Field(..., ge=0)
+    image_url: Optional[str] = None
+
+
+class GuestCheckoutRequest(BaseModel):
+    customer: GuestCustomerInfo
+    items: List[GuestCartItem] = Field(..., min_length=1)
+    shipping_address: ShippingAddress
+    payment_method: PaymentMethod
+    shipping_method_id: str = "free"
     notes: Optional[str] = Field(None, max_length=500)
     coupon_code: Optional[str] = Field(None, max_length=50)
 

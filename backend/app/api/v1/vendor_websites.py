@@ -1199,44 +1199,37 @@ async def ai_ux_review(
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def _download_and_save_image(db: AsyncSession, site_id: str, vendor_id: UUID, external_url: str, prompt: str = "", source: str = "ai") -> str:
-    """Download an external image and persist it to the media library. Returns the local /uploads/... URL."""
-    import os, aiofiles, httpx as _httpx
-    from pathlib import Path
-
-    # Must match app.main: StaticFiles on backend/uploads (parents[4] was repo root — files were invisible to /uploads).
-    upload_dir = Path(__file__).resolve().parents[3] / "uploads" / "websites" / site_id
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    fname = f"{source}_{uuid.uuid4()}.jpg"
-    filepath = upload_dir / fname
+    """Download an external image and persist it to the media library."""
+    import httpx as _httpx
+    from app.services.media_upload import get_file_service
 
     async with _httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
         r = await client.get(external_url)
         r.raise_for_status()
         content = r.content
 
-    # Detect extension from content-type
     ct = r.headers.get("content-type", "image/jpeg")
+    ext = ".jpg"
     if "png" in ct:
-        fname = fname.replace(".jpg", ".png")
-        filepath = upload_dir / fname
+        ext = ".png"
     elif "webp" in ct:
-        fname = fname.replace(".jpg", ".webp")
-        filepath = upload_dir / fname
+        ext = ".webp"
     elif "gif" in ct:
-        fname = fname.replace(".jpg", ".gif")
-        filepath = upload_dir / fname
+        ext = ".gif"
 
-    async with aiofiles.open(str(filepath), "wb") as f:
-        await f.write(content)
-
-    local_url = f"/uploads/websites/{site_id}/{fname}"
+    local_url = await get_file_service().upload_bytes(
+        content,
+        f"websites/{site_id}",
+        ext,
+        ct,
+    )
 
     # Persist to media table
     media = WebsiteMedia(
         id=uuid.uuid4(),
         site_id=UUID(site_id),
         vendor_id=vendor_id,
-        filename=prompt[:80] or fname,
+        filename=prompt[:80] or f"{source}_{uuid.uuid4().hex}{ext}",
         original_url=local_url,
         file_type="image",
         file_size=len(content),
@@ -1749,23 +1742,17 @@ async def upload_media(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_user),
 ):
-    import os, aiofiles
     from pathlib import Path
+    from app.services.media_upload import save_media_file
 
     vendor = await _get_vendor(db, user)
     await _get_site(db, site_id, vendor.id)
 
     ext = Path(file.filename or "image.jpg").suffix.lower()
-    fname = f"{uuid.uuid4()}{ext}"
-    upload_dir = Path(__file__).resolve().parents[3] / "uploads" / "websites" / site_id
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    filepath = upload_dir / fname
-
-    async with aiofiles.open(str(filepath), "wb") as f:
-        content = await file.read()
-        await f.write(content)
-
-    url = f"/uploads/websites/{site_id}/{fname}"
+    content = await file.read()
+    await file.seek(0)
+    url = await save_media_file(file, f"websites/{site_id}")
+    fname = file.filename or f"upload{ext}"
     media = WebsiteMedia(
         id=uuid.uuid4(),
         site_id=UUID(site_id),
@@ -4415,8 +4402,19 @@ async def domain_verify_check(
     if not site.custom_domain or not site.domain_verification_token:
         raise HTTPException(400, "No pending domain verification")
 
-    # In production: asyncio-based DNS lookup via dnspython/aiodns
-    # For now we set verified=True and queue an SSL cert job
+    from app.services.dns_service import verify_txt_record
+
+    hostname = f"_kiterp-verify.{site.custom_domain}"
+    from app.config import settings
+    verified = await verify_txt_record(hostname, site.domain_verification_token)
+    if not verified and not settings.DEBUG:
+        return {
+            "verified": False,
+            "custom_domain": site.custom_domain,
+            "dns_record_name": hostname,
+            "message": "TXT record not found yet. DNS can take up to 48 hours to propagate.",
+        }
+
     site.domain_verified = True
     site.domain_ssl_status = "issued"
     site.updated_at = datetime.utcnow()

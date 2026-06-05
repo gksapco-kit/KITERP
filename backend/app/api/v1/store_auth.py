@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.api.deps import get_store_vendor_id, get_current_active_customer
 from app.models.customer import Customer
-from app.schemas.customer import CustomerCreate, CustomerLogin, CustomerUpdate, CustomerResponse
+from app.schemas.customer import CustomerCreate, CustomerLogin, CustomerUpdate, CustomerPasswordChange
 from app.services.customer_service import CustomerService
 from app.core.security import decode_token, create_access_token, create_refresh_token
 
@@ -28,6 +28,7 @@ def customer_to_dict(c: Customer) -> dict:
         "is_active": c.is_active,
         "total_orders": c.total_orders or 0,
         "total_spent": float(c.total_spent or 0),
+        "notification_preferences": c.notification_preferences or {},
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }
@@ -189,3 +190,37 @@ async def update_me(
     service = CustomerService(db)
     updated = await service.update_profile(vendor_id, customer.id, data)
     return JSONResponse(content=customer_to_dict(updated))
+
+
+@router.get("/notification-preferences")
+async def get_notification_preferences(
+    customer: Customer = Depends(get_current_active_customer),
+):
+    return JSONResponse(content=customer.notification_preferences or {})
+
+
+@router.put("/notification-preferences")
+async def update_notification_preferences(
+    body: dict,
+    customer: Customer = Depends(get_current_active_customer),
+    db: AsyncSession = Depends(get_db),
+):
+    prefs = dict(customer.notification_preferences or {})
+    prefs.update(body)
+    customer.notification_preferences = prefs
+    await db.commit()
+    await db.refresh(customer)
+    return JSONResponse(content=prefs)
+
+
+@router.post("/change-password")
+async def change_password(
+    data: CustomerPasswordChange,
+    customer: Customer = Depends(get_current_active_customer),
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change the logged-in customer's password."""
+    service = CustomerService(db)
+    await service.change_password(vendor_id, customer.id, data)
+    return JSONResponse(content={"ok": True, "message": "Password updated"})

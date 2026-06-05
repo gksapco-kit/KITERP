@@ -1,8 +1,8 @@
-import { useState, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
-import { useUpdateInvoice, useInvoiceSettings } from '@/hooks/useVendor'
+import { useUpdateInvoice, useInvoiceSettings, useQuotationSettings } from '@/hooks/useVendor'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,9 +18,15 @@ import {
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { printInvoice, generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, loadPosInvoiceSettings } from '@/lib/invoiceTemplates'
+import { printInvoice, generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, loadPosInvoiceSettings } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import { fetchAsDataUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
+import { QuotationExtraFieldsEditor, QuotationExtraFieldsDisplay } from '@/components/quotations/QuotationExtraFieldsEditor'
+import {
+  normalizeQuotationExtraFields,
+  serializeQuotationExtraFields,
+  type QuotationExtraField,
+} from '@/types/quotation'
 
 const statusBadge: Record<string, { bg: string; text: string; label: string }> = {
   draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft' },
@@ -32,7 +38,7 @@ const statusBadge: Record<string, { bg: string; text: string; label: string }> =
 }
 
 const typeBadge: Record<string, { bg: string; text: string; label: string }> = {
-  estimate: { bg: 'bg-accent', text: 'text-primary', label: 'Estimate' },
+  estimate: { bg: 'bg-accent', text: 'text-primary', label: 'Quotation' },
   invoice: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Invoice' },
   receipt: { bg: 'bg-green-50', text: 'text-green-700', label: 'Receipt' },
   credit_note: { bg: 'bg-red-50', text: 'text-red-700', label: 'Credit Note' },
@@ -123,17 +129,18 @@ function emptyLineItem(): LineItem {
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const isQuotationRoute = location.pathname.startsWith('/quotations/')
   const updateInvoice = useUpdateInvoice()
-  const { data: rawInvSettings, isLoading: settingsLoading } = useInvoiceSettings()
+  const { data: rawInvSettings, isLoading: invoiceSettingsLoading } = useInvoiceSettings()
+  const { data: rawQuoteSettings, isLoading: quotationSettingsLoading } = useQuotationSettings()
+  const settingsLoading = invoiceSettingsLoading || quotationSettingsLoading
 
-  // Always merge with defaults so template/color/etc. are never undefined.
-  // For POS-originated invoices (notes contain "POS Transaction") we also layer
-  // the POS localStorage overrides so Print and PDF use exactly the same
-  // settings as the POS page — fixing the classic-vs-modern mismatch.
   const invSettings = useMemo<InvoiceSettings>(() => {
-    const base: InvoiceSettings = { ...DEFAULT_INVOICE_SETTINGS, ...(rawInvSettings as Partial<InvoiceSettings> || {}) }
-    return base
-  }, [rawInvSettings])
+    const baseDefaults = isQuotationRoute ? DEFAULT_QUOTATION_SETTINGS : DEFAULT_INVOICE_SETTINGS
+    const raw = isQuotationRoute ? rawQuoteSettings : rawInvSettings
+    return { ...baseDefaults, ...(raw as Partial<InvoiceSettings> || {}) }
+  }, [rawInvSettings, rawQuoteSettings, isQuotationRoute])
 
   // Effective settings used for print/PDF — layered after inv loads so POS
   // overrides are applied only for POS receipts.
@@ -151,12 +158,32 @@ export default function InvoiceDetail() {
     enabled: !!id,
   })
 
+  const isQuotation = isQuotationRoute || inv?.invoice_type === 'estimate'
+  const listPath = isQuotation ? '/quotations' : '/invoices'
+  const shareDocType = isQuotation ? 'quotation' as const : 'invoice' as const
+
+  useEffect(() => {
+    if (!inv || isLoading || !id) return
+    if (inv.invoice_type === 'estimate' && location.pathname.startsWith('/invoices/')) {
+      navigate(`/quotations/${id}`, { replace: true })
+      return
+    }
+    if (inv.invoice_type !== 'estimate' && isQuotationRoute) {
+      navigate(`/invoices/${id}`, { replace: true })
+    }
+  }, [inv, isLoading, id, location.pathname, isQuotationRoute, navigate])
+
   const [isEditing, setIsEditing] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerGstin, setCustomerGstin] = useState('')
   const [notes, setNotes] = useState('')
   const [editItems, setEditItems] = useState<LineItem[]>([])
+  const [editExtraFields, setEditExtraFields] = useState<QuotationExtraField[]>([])
+  const displayExtraFields = useMemo(
+    () => normalizeQuotationExtraFields(inv?.extra_fields),
+    [inv?.extra_fields],
+  )
 
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -191,6 +218,7 @@ export default function InvoiceDetail() {
     setCustomerGstin(inv.customer_gstin || '')
     setNotes(inv.notes || '')
     setEditItems(parseLineItems(inv.items || []))
+    setEditExtraFields(normalizeQuotationExtraFields(inv.extra_fields))
     setIsEditing(true)
   }, [inv])
 
@@ -252,6 +280,7 @@ export default function InvoiceDetail() {
             rate: item.rate,
             tax_rate: item.tax_rate,
           })),
+          ...(isQuotation ? { extra_fields: serializeQuotationExtraFields(editExtraFields) } : {}),
         },
       },
       {
@@ -260,7 +289,7 @@ export default function InvoiceDetail() {
         },
       },
     )
-  }, [id, editItems, customerName, customerPhone, customerGstin, notes, updateInvoice])
+  }, [id, editItems, editExtraFields, isQuotation, customerName, customerPhone, customerGstin, notes, updateInvoice])
 
   if (isLoading) {
     return (
@@ -274,9 +303,9 @@ export default function InvoiceDetail() {
     return (
       <div className="text-center py-20">
         <FileText className="w-14 h-14 text-gray-200 mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-gray-900">Invoice not found</h2>
-        <Button variant="outline" className="mt-4" onClick={() => navigate('/invoices')}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Invoices
+        <h2 className="text-lg font-bold text-gray-900">{isQuotationRoute ? 'Quotation not found' : 'Invoice not found'}</h2>
+        <Button variant="outline" className="mt-4" onClick={() => navigate(isQuotationRoute ? '/quotations' : '/invoices')}>
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to {isQuotationRoute ? 'Quotations' : 'Invoices'}
         </Button>
       </div>
     )
@@ -291,7 +320,7 @@ export default function InvoiceDetail() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/invoices')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(listPath)}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
@@ -337,7 +366,7 @@ export default function InvoiceDetail() {
               </Button>
               <Button variant="outline" size="sm" onClick={() => {
                 const msg = buildShareMessage({
-                  type: 'invoice',
+                  type: shareDocType,
                   number: inv.invoice_number as string,
                   vendorName: inv.vendor_name as string || '',
                   customerOrSupplier: inv.customer_name as string || '',
@@ -354,7 +383,7 @@ export default function InvoiceDetail() {
               </Button>
               <Button variant="outline" size="sm" onClick={() => {
                 const msg = buildShareMessage({
-                  type: 'invoice',
+                  type: shareDocType,
                   number: inv.invoice_number as string,
                   vendorName: inv.vendor_name as string || '',
                   customerOrSupplier: inv.customer_name as string || '',
@@ -366,17 +395,18 @@ export default function InvoiceDetail() {
                 <MessageSquare className="w-4 h-4 mr-1.5 text-amber-600" /> SMS
               </Button>
               <Button variant="outline" size="sm" onClick={() => {
+                const docLabel = isQuotation ? 'Quotation' : 'Invoice'
                 if (navigator.share) {
-                  navigator.share({ title: `Invoice ${inv.invoice_number}`, text: `Invoice ${inv.invoice_number} — Total: ₹${inv.total}` }).catch(() => {})
+                  navigator.share({ title: `${docLabel} ${inv.invoice_number}`, text: `${docLabel} ${inv.invoice_number} — Total: ₹${inv.total}` }).catch(() => {})
                 } else {
-                  navigator.clipboard.writeText(`Invoice: ${inv.invoice_number}\nTotal: ₹${inv.total}\nCustomer: ${inv.customer_name}`)
-                  toast.success('Invoice details copied!')
+                  navigator.clipboard.writeText(`${docLabel}: ${inv.invoice_number}\nTotal: ₹${inv.total}\nCustomer: ${inv.customer_name}`)
+                  toast.success(`${docLabel} details copied!`)
                 }
               }}>
                 <Share2 className="w-4 h-4 mr-1.5 text-primary" /> Share
               </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/invoices/templates')}>
-                <Settings2 className="w-4 h-4 mr-1.5" /> Settings
+              <Button variant="outline" size="sm" onClick={() => navigate(isQuotation ? '/quotations/templates' : '/invoices/templates')}>
+                <Settings2 className="w-4 h-4 mr-1.5" /> {isQuotation ? 'Templates' : 'Settings'}
               </Button>
             </>
           )}
@@ -439,8 +469,16 @@ export default function InvoiceDetail() {
           <InfoRow icon={Building2} label="Vendor" value={inv.vendor_name} />
           <InfoRow icon={Hash} label="GSTIN" value={inv.vendor_gstin} />
           <InfoRow icon={Calendar} label="Created" value={formatDate(inv.created_at)} />
-          {inv.due_date && <InfoRow icon={Calendar} label="Due Date" value={formatDate(inv.due_date)} />}
-          {inv.payment_terms && <InfoRow icon={FileText} label="Payment Terms" value={inv.payment_terms} />}
+          {inv.due_date && (
+            <InfoRow
+              icon={Calendar}
+              label={isQuotation ? 'Valid Until' : 'Due Date'}
+              value={formatDate(inv.due_date)}
+            />
+          )}
+          {!isQuotation && inv.payment_terms && (
+            <InfoRow icon={FileText} label="Payment Terms" value={inv.payment_terms} />
+          )}
           {inv.place_of_supply && <InfoRow icon={MapPin} label="Place of Supply" value={inv.place_of_supply} />}
           {inv.is_inter_state && (
             <p className="text-xs text-amber-600 bg-amber-50 rounded px-2 py-1 w-fit">Inter-state supply (IGST)</p>
@@ -678,7 +716,7 @@ export default function InvoiceDetail() {
                 <span className="flex items-center gap-1"><IndianRupee className="w-4 h-4" /> Total</span>
                 <span>{formatCurrency(inv.total)}</span>
               </div>
-              {(inv.amount_paid > 0 || inv.balance_due > 0) && (
+              {!isQuotation && (inv.amount_paid > 0 || inv.balance_due > 0) && (
                 <>
                   <div className="flex justify-between text-sm pt-1">
                     <span className="text-gray-500">Amount Paid</span>
@@ -696,6 +734,16 @@ export default function InvoiceDetail() {
           )}
         </div>
       </div>
+
+      {/* Quotation extra fields */}
+      {isQuotation && isEditing && (
+        <div className="bg-white rounded-xl border p-5">
+          <QuotationExtraFieldsEditor fields={editExtraFields} onChange={setEditExtraFields} />
+        </div>
+      )}
+      {isQuotation && !isEditing && displayExtraFields.length > 0 && (
+        <QuotationExtraFieldsDisplay fields={displayExtraFields} />
+      )}
 
       {/* Notes & Terms */}
       {isEditing ? (

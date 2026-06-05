@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useProducts, useServices } from '@/hooks/useVendor'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { customerSubscriptionsApi } from '@/api/marketplace'
 
 function isSubscribedService(s: Record<string, unknown>): boolean {
   return !!(s.is_subscription || s.subscription_interval)
@@ -38,6 +40,11 @@ export default function SubscriptionsSalesPage() {
     return [...svc, ...prd]
   }, [services, products])
 
+  const { data: activeSubs = [], isLoading: la } = useQuery({
+    queryKey: ['customer-subscriptions'],
+    queryFn: () => customerSubscriptionsApi.list(),
+  })
+
   const loading = ls || lp
 
   return (
@@ -65,6 +72,41 @@ export default function SubscriptionsSalesPage() {
         </div>
       )}
 
+      <div>
+        <h2 className="text-sm font-semibold text-gray-800 mb-3">Active customer subscriptions</h2>
+        {la && <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}
+        {!la && activeSubs.length === 0 && (
+          <p className="text-sm text-gray-500 border border-dashed rounded-lg p-4">No customer subscriptions yet.</p>
+        )}
+        {!la && activeSubs.length > 0 && (
+          <div className="rounded-xl border bg-white overflow-hidden mb-8">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Item</th>
+                  <th className="px-4 py-3">Cadence</th>
+                  <th className="px-4 py-3 text-right">Per cycle</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {(activeSubs as Record<string, unknown>[]).map((s) => (
+                  <tr key={String(s.id)}>
+                    <td className="px-4 py-3">{String(s.customer_name || '—')}</td>
+                    <td className="px-4 py-3 font-medium">{String(s.item_name)}</td>
+                    <td className="px-4 py-3 capitalize">{String(s.interval)}</td>
+                    <td className="px-4 py-3 text-right">{formatCurrency(Number(s.price_per_cycle || 0))}</td>
+                    <td className="px-4 py-3 capitalize">{String(s.status)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <h2 className="text-sm font-semibold text-gray-800">Subscription catalog</h2>
       <div className="rounded-xl border bg-white overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">

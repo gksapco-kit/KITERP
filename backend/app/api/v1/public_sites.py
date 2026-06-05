@@ -819,6 +819,80 @@ async def submit_contact_public(
     }
 
 
+@router.get("/{site_id}/live/booking-slots")
+async def public_booking_slots(
+    site_id: str,
+    service_id: str,
+    booking_date: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public availability for website builder booking_slot_picker block."""
+    from datetime import date as date_type
+    from app.services.booking_service import BookingService
+
+    result = await db.execute(
+        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+    )
+    site = result.scalar_one_or_none()
+    if not site:
+        raise HTTPException(404, "Site not found")
+    try:
+        svc_uuid = UUID(service_id)
+        bdate = date_type.fromisoformat(booking_date)
+    except ValueError:
+        raise HTTPException(400, "Invalid service_id or booking_date")
+    slots = await BookingService(db).get_available_slots(site.vendor_id, svc_uuid, bdate)
+    return {"slots": slots, "date": booking_date}
+
+
+@router.post("/{site_id}/live/booking")
+async def public_create_booking(
+    site_id: str,
+    body: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a service booking from a published site (guest customer)."""
+    from datetime import date as date_type
+    from app.services.booking_service import BookingService
+    from app.services.customer_service import CustomerService
+
+    result = await db.execute(
+        select(WebsiteSite).where(WebsiteSite.id == UUID(site_id), WebsiteSite.is_published == True)
+    )
+    site = result.scalar_one_or_none()
+    if not site:
+        raise HTTPException(404, "Site not found")
+
+    service_id = body.get("service_id")
+    booking_date = body.get("booking_date") or body.get("date")
+    start_time = body.get("start_time") or body.get("time")
+    name = (body.get("name") or "Guest").strip()
+    email = (body.get("email") or "").strip()
+    phone = (body.get("phone") or "").strip() or None
+    notes = body.get("notes") or body.get("message")
+
+    if not service_id or not booking_date or not start_time:
+        raise HTTPException(400, "service_id, booking_date, and start_time are required")
+    if not email:
+        raise HTTPException(400, "email is required for booking confirmation")
+
+    customer = await CustomerService(db).get_or_create_guest(site.vendor_id, name, email, phone)
+    booking = await BookingService(db).create(
+        vendor_id=site.vendor_id,
+        customer_id=customer.id,
+        data={
+            "service_id": service_id,
+            "booking_date": booking_date,
+            "start_time": start_time,
+            "notes": notes,
+            "customer_name": name,
+            "customer_email": email,
+            "customer_phone": phone,
+        },
+    )
+    return {"ok": True, "booking_id": str(booking.id), "booking_number": booking.booking_number}
+
+
 @router.post("/{site_id}/live/newsletter")
 async def submit_newsletter_public(
     site_id: str,

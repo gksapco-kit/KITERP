@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
-  BarChart3, FileText, LayoutTemplate, Megaphone, Factory, ClipboardList,
-  MessageSquare, GraduationCap, Truck, ClipboardCheck, Mail,
+  BarChart3, FileText, LayoutTemplate, Megaphone, ClipboardList,
+  MessageSquare, GraduationCap, Truck, ClipboardCheck, Mail, FolderKanban,
 } from 'lucide-react'
 
 const tiles: { to: string; title: string; desc: string; icon: typeof BarChart3 }[] = [
@@ -11,7 +11,7 @@ const tiles: { to: string; title: string; desc: string; icon: typeof BarChart3 }
   { to: '/hr/expenses', title: 'Finance Expenses', desc: 'Vendor Expense Claims (Finance Visibility).', icon: ClipboardCheck },
   { to: '/crm/campaigns', title: 'Email Marketing', desc: 'Campaigns And Templates Under CRM.', icon: Megaphone },
   { to: '/crm/segments', title: 'Segments', desc: 'Audience Segments For Outreach.', icon: Mail },
-  { to: '/controlling/internal-orders', title: 'Projects', desc: 'Internal & Project Manufacturing Orders.', icon: Factory },
+  { to: '/projects', title: 'Projects', desc: 'Task boards, milestones, and project delivery tracking.', icon: FolderKanban },
   { to: '/hr/attendance', title: 'Timesheets (Attendance)', desc: 'Clock-Based Attendance; CO Shop-Floor Time Uses Manufacturing.', icon: ClipboardList },
   { to: '/crm/tickets', title: 'Field & Support', desc: 'Tickets And Knowledge Base As Service Hub.', icon: Truck },
   { to: '/crm/inbox', title: 'Discuss / Inbox', desc: 'CRM Inbox For Customer Conversations.', icon: MessageSquare },

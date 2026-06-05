@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, User, Briefcase, FileText, Calendar, Plane, DollarSign, Receipt,
@@ -33,6 +33,11 @@ import {
 import { employeeDisplayName, sanitizeEmployeeUpdatePayload } from '@/lib/hrEmployeeDisplay'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useVendorStore } from '@/stores/vendorStore'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  urlsToLightboxItems,
+} from '@/components/common/ImageAttachmentLightbox'
 
 const CLEARANCE_ITEMS = [
   { key: 'it', label: 'IT / Assets' },
@@ -514,6 +519,21 @@ function DocumentsTab({ empId }: { empId: string }) {
   }
 
   const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg)/i
+  const [galleryLightboxIndex, setGalleryLightboxIndex] = useState<number | null>(null)
+  const galleryImageDocs = useMemo(
+    () => docs.filter((doc) => doc.file_url && imageExtensions.test(doc.file_url)),
+    [docs],
+  )
+  const galleryLightboxItems = useMemo(
+    () => urlsToLightboxItems(
+      galleryImageDocs.map((doc) => doc.file_url as string),
+      {
+        idPrefix: 'emp-doc',
+        altText: (i) => galleryImageDocs[i]?.document_name ?? `Document ${i + 1}`,
+      },
+    ),
+    [galleryImageDocs],
+  )
 
   return (
     <div>
@@ -697,10 +717,16 @@ function DocumentsTab({ empId }: { empId: string }) {
             return (
               <div key={doc.id} className="group relative border rounded-xl overflow-hidden bg-gray-50 hover:shadow-md transition-shadow">
                 {isImg ? (
-                  <img
+                  <ClickableImageButton
                     src={doc.file_url}
                     alt={doc.document_name}
-                    className="w-full h-32 object-cover"
+                    title="View image"
+                    className="w-full"
+                    imgClassName="w-full h-32 object-cover"
+                    onClick={() => {
+                      const imgIdx = galleryImageDocs.findIndex((d) => d.id === doc.id)
+                      if (imgIdx >= 0) setGalleryLightboxIndex(imgIdx)
+                    }}
                   />
                 ) : (
                   <div className="w-full h-32 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-50">
@@ -721,7 +747,7 @@ function DocumentsTab({ empId }: { empId: string }) {
                       <Upload className="w-3 h-3" />
                     </a>
                   )}
-                  <button onClick={() => deleteDoc(doc.id)} className="p-1 bg-white rounded-full shadow text-red-400 hover:bg-red-50">
+                  <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc.id) }} className="p-1 bg-white rounded-full shadow text-red-400 hover:bg-red-50">
                     <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
@@ -730,6 +756,11 @@ function DocumentsTab({ empId }: { empId: string }) {
           })}
         </div>
       )}
+      <ImageLightboxSession
+        items={galleryLightboxItems}
+        openIndex={galleryLightboxIndex}
+        onClose={() => setGalleryLightboxIndex(null)}
+      />
 
       {/* List View */}
       {viewMode === 'list' && docs.length > 0 && (

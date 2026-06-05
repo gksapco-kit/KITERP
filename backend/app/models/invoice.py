@@ -74,6 +74,8 @@ class Invoice(Base):
 
     notes = Column(Text)
     terms_and_conditions = Column(Text)
+    # Quotation-only custom fields: [{id, label, type, value}] — type: text|email|phone|link|image
+    extra_fields = Column(JSONB, default=list)
 
     created_by = Column(UUID(as_uuid=True), ForeignKey("user.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

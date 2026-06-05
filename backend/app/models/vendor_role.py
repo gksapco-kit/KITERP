@@ -23,6 +23,8 @@ ALL_PERMISSIONS = [
     "subscriptions.view", "subscriptions.manage",
     "rentals.view", "rentals.manage",
     "production.view", "production.manage",
+    # Project management
+    "projects.view", "projects.manage",
     # Customers & reviews
     "customers.view", "customers.manage",
     "reviews.view", "reviews.reply",
@@ -110,6 +112,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "memos.view", "memos.manage",
         "coupons.view", "coupons.manage",
         "production.view", "production.manage",
+        "projects.view", "projects.manage",
         "customers.view", "customers.manage",
         "reviews.view", "reviews.reply",
         "inventory.view", "inventory.manage",
@@ -165,6 +168,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "services.view",
         "orders.view",
         "bookings.view",
+        "projects.view",
         "pos.view",
         "customers.view",
         "reviews.view",
@@ -195,6 +199,27 @@ DEFAULT_ROLE_PERMISSIONS = {
         "crm.view", "crm.contacts.manage", "crm.leads.manage",
         "crm.campaigns.manage", "crm.segments.manage",
         "crm.workflows.manage", "crm.reports.view", "crm.ai.use",
+    ],
+    "cashier": [
+        "dashboard.view",
+        "products.view",
+        "orders.view",
+        "pos.view", "pos.manage",
+        "customers.view",
+        "invoices.view",
+        "restaurant.view", "restaurant.floor",
+    ],
+    "technician": [
+        "dashboard.view",
+        "bookings.view", "bookings.manage",
+        "services.view",
+        "customers.view",
+        "orders.view",
+    ],
+    "delivery_staff": [
+        "dashboard.view",
+        "orders.view", "orders.manage",
+        "customers.view",
     ],
     "accountant": [
         "dashboard.view",

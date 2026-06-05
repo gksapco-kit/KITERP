@@ -1,12 +1,19 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useOrder, useCancelOrder, useRequestReturn, useOrderInvoice } from '@/hooks/useStore'
 import { storeApi } from '@/api/store'
 import type { OrderAttachmentRef } from '@/types'
 import { formatCurrency, formatDate, imgUrl } from '@/lib/utils'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  urlsToLightboxItems,
+} from '@/components/common/CatalogMediaLightbox'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, Loader2, Package, Truck, CheckCircle, Clock, XCircle, ShoppingBag, ExternalLink, RotateCcw, Repeat, Info, Download, CalendarDays } from 'lucide-react'
+import { ChevronRight, Loader2, Package, Truck, CheckCircle, Clock, XCircle, ShoppingBag, ExternalLink, RotateCcw, Repeat, Info, Download, CalendarDays, AlertTriangle } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
+import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 
 const MAX_ORDER_MEDIA = 10
 
@@ -121,6 +128,28 @@ export default function OrderDetail() {
   const [returnReason, setReturnReason] = useState('')
   const [returnAttachments, setReturnAttachments] = useState<OrderAttachmentRef[]>([])
   const [returnUploading, setReturnUploading] = useState(false)
+  const [cancelLightboxIndex, setCancelLightboxIndex] = useState<number | null>(null)
+  const [returnLightboxIndex, setReturnLightboxIndex] = useState<number | null>(null)
+  const [showDispute, setShowDispute] = useState(false)
+  const [disputeReason, setDisputeReason] = useState('')
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false)
+  const [disputeFiled, setDisputeFiled] = useState(false)
+
+  const cancelImageItems = useMemo(
+    () => urlsToLightboxItems(
+      cancelAttachments.filter((a) => a.kind === 'image').map((a) => a.url),
+      { idPrefix: 'cancel' },
+    ),
+    [cancelAttachments],
+  )
+
+  const returnImageItems = useMemo(
+    () => urlsToLightboxItems(
+      returnAttachments.filter((a) => a.kind === 'image').map((a) => a.url),
+      { idPrefix: 'return' },
+    ),
+    [returnAttachments],
+  )
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-gray-300" /></div>
   if (!order) {
@@ -141,6 +170,7 @@ export default function OrderDetail() {
   const canCancel = !isBooking && ['pending', 'confirmed'].includes(order.status)
   const isDelivered = order.status === 'delivered'
   const canRequestReturn = isDelivered && !order.return_status
+  const canFileDispute = !isBooking && !isQuote && !isCancelled && ['pending', 'confirmed', 'shipped', 'delivered'].includes(order.status) && !disputeFiled
   const hasReturnRequest = !!order.return_status
   const isReturnOrExchange = ['return_requested', 'exchange_requested', 'returned', 'exchanged', 'refunded'].includes(order.status)
 
@@ -324,6 +354,22 @@ export default function OrderDetail() {
               {order.return_resolved_at && <p className="text-xs text-gray-500">Resolved on {formatDate(order.return_resolved_at)}</p>}
             </div>
           </div>
+        </div>
+      )}
+
+      {canFileDispute && (
+        <div className="bg-white rounded-xl border p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            <p className="text-sm font-medium text-gray-700">Issue with this order?</p>
+          </div>
+          <Button
+            variant="outline"
+            className="gap-2 text-amber-700 border-amber-200 hover:bg-amber-50"
+            onClick={() => setShowDispute(true)}
+          >
+            File a dispute
+          </Button>
         </div>
       )}
 
@@ -549,14 +595,23 @@ export default function OrderDetail() {
                   {cancelAttachments.map((a, i) => (
                     <div key={`${a.url}-${i}`} className="relative group">
                       {a.kind === 'image' ? (
-                        <img src={imgUrl(a.url)} alt="" className="h-16 w-16 object-cover rounded-lg border" />
+                        <ClickableImageButton
+                          src={imgUrl(a.url)}
+                          alt={`Evidence ${i + 1}`}
+                          title="View image"
+                          className="h-16 w-16 rounded-lg border"
+                          imgClassName="h-16 w-16 object-cover rounded-lg"
+                          onClick={() => setCancelLightboxIndex(
+                            cancelAttachments.slice(0, i).filter((x) => x.kind === 'image').length,
+                          )}
+                        />
                       ) : (
                         <video src={imgUrl(a.url)} className="h-16 w-24 object-cover rounded-lg border" muted />
                       )}
                       <button
                         type="button"
                         className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs leading-5"
-                        onClick={() => setCancelAttachments((prev) => prev.filter((_, j) => j !== i))}
+                        onClick={(e) => { e.stopPropagation(); setCancelAttachments((prev) => prev.filter((_, j) => j !== i)) }}
                       >
                         ×
                       </button>
@@ -564,6 +619,11 @@ export default function OrderDetail() {
                   ))}
                 </div>
               )}
+              <ImageLightboxSession
+                items={cancelImageItems}
+                openIndex={cancelLightboxIndex}
+                onClose={() => setCancelLightboxIndex(null)}
+              />
               {cancelUploading && <p className="text-xs text-gray-500 mt-1">Uploading…</p>}
             </div>
             <div className="flex gap-3 mt-4">
@@ -687,14 +747,23 @@ export default function OrderDetail() {
                   {returnAttachments.map((a, i) => (
                     <div key={`${a.url}-${i}`} className="relative group">
                       {a.kind === 'image' ? (
-                        <img src={imgUrl(a.url)} alt="" className="h-16 w-16 object-cover rounded-lg border" />
+                        <ClickableImageButton
+                          src={imgUrl(a.url)}
+                          alt={`Evidence ${i + 1}`}
+                          title="View image"
+                          className="h-16 w-16 rounded-lg border"
+                          imgClassName="h-16 w-16 object-cover rounded-lg"
+                          onClick={() => setReturnLightboxIndex(
+                            returnAttachments.slice(0, i).filter((x) => x.kind === 'image').length,
+                          )}
+                        />
                       ) : (
                         <video src={imgUrl(a.url)} className="h-16 w-24 object-cover rounded-lg border" muted />
                       )}
                       <button
                         type="button"
                         className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs leading-5"
-                        onClick={() => setReturnAttachments((prev) => prev.filter((_, j) => j !== i))}
+                        onClick={(e) => { e.stopPropagation(); setReturnAttachments((prev) => prev.filter((_, j) => j !== i)) }}
                       >
                         ×
                       </button>
@@ -702,6 +771,11 @@ export default function OrderDetail() {
                   ))}
                 </div>
               )}
+              <ImageLightboxSession
+                items={returnImageItems}
+                openIndex={returnLightboxIndex}
+                onClose={() => setReturnLightboxIndex(null)}
+              />
               {returnUploading && <p className="text-xs text-gray-500 mt-1">Uploading…</p>}
             </div>
 
@@ -730,6 +804,53 @@ export default function OrderDetail() {
               >
                 {returnMut.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 Submit Request
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDispute && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto"
+          onClick={() => { setShowDispute(false); setDisputeReason('') }}
+        >
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-1">File a dispute</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Describe the issue with order {order.order_number}. Our platform team will review it.
+            </p>
+            <textarea
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+              rows={4}
+              placeholder="What went wrong? (min 10 characters)"
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+            />
+            <div className="flex gap-3 mt-4">
+              <Button variant="outline" className="flex-1" onClick={() => { setShowDispute(false); setDisputeReason('') }}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-amber-600 hover:bg-amber-700"
+                disabled={disputeReason.trim().length < 10 || disputeSubmitting}
+                onClick={async () => {
+                  setDisputeSubmitting(true)
+                  try {
+                    await storeApi.fileOrderDispute(order.id, { reason: disputeReason.trim() })
+                    setDisputeFiled(true)
+                    setShowDispute(false)
+                    setDisputeReason('')
+                    toast.success('Dispute submitted — we will review it shortly')
+                  } catch (err) {
+                    toast.error(extractApiError(err, 'Could not file dispute'))
+                  } finally {
+                    setDisputeSubmitting(false)
+                  }
+                }}
+              >
+                {disputeSubmitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Submit dispute
               </Button>
             </div>
           </div>

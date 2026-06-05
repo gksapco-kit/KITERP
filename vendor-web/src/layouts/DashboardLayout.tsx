@@ -18,7 +18,7 @@ import {
   ScrollText, HardDrive, Coins, LineChart, CircleDollarSign, FilePieChart,
   Shuffle, ClipboardCheck, Wand2, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image,
-  UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw,
+  UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
   GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
   ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save,
@@ -154,6 +154,7 @@ import {
   isRestaurantNavVisible,
   isBookingsNavVisible,
   isSubscriptionsNavVisible,
+  isProjectsNavVisible,
 } from '@/lib/vendorModuleSettings'
 import {
   DndContext,
@@ -450,9 +451,12 @@ const allSections: NavSection[] = [
     icon: ShoppingCart,
     items: [
       { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view' },
+      { to: '/quotations', icon: ScrollText, label: 'Quotations', requiresPermission: 'orders.view' },
       { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'], requiresPermission: 'bookings.view' },
+      { to: '/projects', icon: FolderKanban, label: 'Projects', requiresPermission: 'projects.view' },
       { to: '/pos', icon: Receipt, label: 'POS', requiresOffering: ['products', 'both'], requiresPermission: 'pos.view' },
       { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions', requiresPermission: 'subscriptions.view' },
+      { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view' },
       { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
       { to: '/production', icon: Factory, label: 'Production Orders', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
       { to: '/invoices', icon: FileText, label: 'Invoices', requiresPermission: 'invoices.view' },
@@ -636,8 +640,6 @@ const allSections: NavSection[] = [
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
-      { to: '/invoices/templates', icon: FileText, label: 'Invoice Templates', alwaysShow: true },
-      { to: '/purchase-orders/templates', icon: ClipboardList, label: 'PO Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
       { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Gallery', groupColor: 'violet' },
       { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
@@ -902,6 +904,8 @@ function buildNavItemBlocks(
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard — Analytics',
   '/orders': 'Orders',
+  '/quotations': 'Quotations',
+  '/quotations/templates': 'Quotation Templates',
   '/products': 'Products',
   '/products/new': 'New Product',
   '/services': 'Services',
@@ -917,11 +921,13 @@ const pageTitles: Record<string, string> = {
   '/workspace': 'Workspace Apps',
   '/relationship-manager': 'Relationship Manager',
   '/subscriptions': 'Subscriptions Catalog',
+  '/marketplace': 'Marketplace Leads',
   '/rental': 'Rentals',
   '/invoices': 'Invoices',
   '/memos': 'Credit & Debit Memos',
   '/coupons': 'Coupons',
   '/bookings': 'Bookings',
+  '/projects': 'Projects',
   '/notifications': 'Notifications',
   '/master-data': 'Master Data — Customers / Suppliers',
   '/reviews': 'Reviews',
@@ -1532,6 +1538,7 @@ export default function DashboardLayout() {
         return false
       }
       if (item.to === '/bookings' && !isBookingsNavVisible(vendorSettings, vendor?.offering_type)) return false
+      if (item.to === '/projects' && !isProjectsNavVisible(vendorSettings)) return false
       if (item.to === '/subscriptions' && !isSubscriptionsNavVisible(vendorSettings)) return false
       if (item.requiresOffering && vendor?.offering_type) {
         if (!item.requiresOffering.includes(vendor.offering_type)) return false
@@ -1924,8 +1931,11 @@ export default function DashboardLayout() {
          location.pathname.startsWith('/services/') ? 'Service Details' :
          location.pathname.startsWith('/orders/') ? 'Order Details' :
          location.pathname.startsWith('/customers/') ? 'Customer Details' :
+         location.pathname.startsWith('/quotations/templates') ? 'Quotation Templates' :
+         location.pathname.startsWith('/quotations/') ? 'Quotation Details' :
          location.pathname.startsWith('/invoices/') ? 'Invoice Details' :
          location.pathname.startsWith('/purchase-orders/') ? 'Purchase Order' :
+         location.pathname.startsWith('/projects/') ? 'Project Details' :
          location.pathname.startsWith('/controlling/orders/') ? 'CO Manufacturing Order' :
          'Dashboard')
 

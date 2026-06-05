@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getStorefrontApiBaseUrl } from "@/lib/apiBase";
 import { ChevronLeft, ChevronRight, Clock, MapPin, CalendarCheck, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +114,9 @@ interface SlotProps {
   columns?: number;
   showDuration?: boolean;
   cta?: string;
+  siteId?: string;
+  serviceId?: string;
+  bookingDate?: string;
 }
 
 const slotColsClass: Record<number, string> = {
@@ -126,8 +130,38 @@ export function TimeSlotPicker({
   columns = 4,
   showDuration = true,
   cta = "Continue",
+  siteId,
+  serviceId,
+  bookingDate,
 }: SlotProps) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [liveSlots, setLiveSlots] = useState<Array<{ time: string; available: boolean }> | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const dateIso = bookingDate || new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    if (!siteId || !serviceId) {
+      setLiveSlots(null);
+      return;
+    }
+    setLoadingSlots(true);
+    const base = getStorefrontApiBaseUrl().replace(/\/$/, "");
+    fetch(`${base}/public/sites/${siteId}/live/booking-slots?service_id=${encodeURIComponent(serviceId)}&booking_date=${dateIso}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setLiveSlots(
+          (data.slots || []).map((s: { start_time: string; available?: boolean }) => ({
+            time: s.start_time,
+            available: s.available !== false,
+          })),
+        );
+      })
+      .catch(() => setLiveSlots([]))
+      .finally(() => setLoadingSlots(false));
+  }, [siteId, serviceId, dateIso]);
+
+  const slots = liveSlots ?? mockSlots.map((s) => ({ time: s.time, available: s.available }));
+
   return (
     <section className="p-6">
       <div className="mx-auto max-w-xl rounded-lg border border-border bg-card p-5">
@@ -145,7 +179,9 @@ export function TimeSlotPicker({
             slotColsClass[columns] ?? slotColsClass[4],
           )}
         >
-          {mockSlots.map((s) => (
+          {loadingSlots ? (
+            <p className="col-span-full text-center text-sm text-muted-foreground py-4">Loading slots…</p>
+          ) : slots.map((s) => (
             <button
               key={s.time}
               disabled={!s.available}
@@ -161,7 +197,7 @@ export function TimeSlotPicker({
             </button>
           ))}
         </div>
-        <Button className="mt-5 w-full" disabled={!selected}>
+        <Button className="mt-5 w-full" disabled={!selected || loadingSlots}>
           {cta}
         </Button>
       </div>

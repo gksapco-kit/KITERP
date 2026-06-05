@@ -7,7 +7,7 @@ from sqlalchemy import select, func, and_
 from fastapi import HTTPException, status
 
 from app.models.booking import Booking
-from app.models.vendor_service import Service
+from app.models.vendor_service import Service, ServiceAvailability
 
 log = logging.getLogger(__name__)
 
@@ -100,6 +100,80 @@ class BookingService:
             pass
 
         return booking
+
+    async def get_available_slots(
+        self,
+        vendor_id: UUID,
+        service_id: UUID,
+        booking_date: date,
+    ) -> list[dict]:
+        from datetime import timedelta
+
+        result = await self.db.execute(
+            select(Service).where(Service.id == service_id, Service.vendor_id == vendor_id)
+        )
+        service = result.scalar_one_or_none()
+        if not service:
+            raise HTTPException(status_code=404, detail="Service not found")
+
+        if booking_date < date.today():
+            return []
+
+        dow = booking_date.weekday()  # 0=Monday, matches service_availability.day_of_week
+        avail_result = await self.db.execute(
+            select(ServiceAvailability).where(
+                ServiceAvailability.service_id == service_id,
+                ServiceAvailability.day_of_week == dow,
+                ServiceAvailability.is_available.is_(True),
+            )
+        )
+        windows = list(avail_result.scalars().all())
+        if not windows:
+            windows = [
+                type("_Win", (), {"start_time": "09:00", "end_time": "17:00"})(),
+            ]
+
+        duration = service.duration_minutes or 60
+        slots: list[dict] = []
+
+        for window in windows:
+            start_t = time.fromisoformat(window.start_time)
+            end_t = time.fromisoformat(window.end_time)
+            cursor = datetime.combine(booking_date, start_t)
+            end_dt = datetime.combine(booking_date, end_t)
+            step = timedelta(minutes=duration)
+            while cursor + step <= end_dt:
+                slot_end = cursor + step
+                slots.append({
+                    "start": cursor.isoformat(),
+                    "end": slot_end.isoformat(),
+                    "start_time": cursor.strftime("%H:%M"),
+                    "available": True,
+                })
+                cursor = slot_end
+
+        booked_result = await self.db.execute(
+            select(Booking).where(
+                Booking.service_id == service_id,
+                Booking.booking_date == booking_date,
+                Booking.status.notin_(["cancelled", "rejected"]),
+            )
+        )
+        booked_times = {
+            b.start_time.strftime("%H:%M")
+            for b in booked_result.scalars().all()
+            if b.start_time
+        }
+
+        now = datetime.now()
+        for slot in slots:
+            slot_dt = datetime.fromisoformat(slot["start"])
+            if slot["start_time"] in booked_times:
+                slot["available"] = False
+            elif booking_date == date.today() and slot_dt <= now:
+                slot["available"] = False
+
+        return slots
 
     async def list_by_customer(
         self,

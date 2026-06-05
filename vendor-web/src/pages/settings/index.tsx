@@ -41,6 +41,12 @@ import {
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import type { Vendor } from '@/types'
 import { ImageCropModal } from '@/components/common/ImageCropModal'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  SingleImagePreview,
+  urlsToLightboxItems,
+} from '@/components/common/CatalogMediaLightbox'
 import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/vendorAppMeta'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { APP_SAVE_REQUEST_EVENT } from '@/lib/appSave'
@@ -752,6 +758,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
   const [extraBannerUploading, setExtraBannerUploading] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
   const [cropTarget, setCropTarget] = useState<'logo' | 'banner' | null>(null)
+  const [bannerLightboxIndex, setBannerLightboxIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (vendor) {
@@ -782,27 +789,32 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
     setCropTarget('banner')
   }
 
+  const uploadLogoFile = async (croppedFile: File) => {
+    setLogoUploading(true)
+    try {
+      if (unitBrandingEditable && activeStore) {
+        const { url } = await vendorApi.uploadVendorBrandingAsset(croppedFile)
+        await persistUnitBrandingSettings({ logo_url: url })
+      } else {
+        const { logo_url } = await vendorApi.uploadVendorLogo(croppedFile)
+        if (vendor) setVendor({ ...vendor, logo_url })
+        await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+      }
+    } catch {
+      toast.error('Could not upload logo — use a PNG or JPG file under 2MB')
+      throw new Error('logo upload failed')
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
   const handleCropConfirm = async (croppedFile: File) => {
     const target = cropTarget
     setCropFile(null)
     setCropTarget(null)
     if (target === 'logo') {
-      setLogoUploading(true)
-      try {
-        if (unitBrandingEditable && activeStore) {
-          const { url } = await vendorApi.uploadVendorBrandingAsset(croppedFile)
-          await persistUnitBrandingSettings({ logo_url: url })
-          toast.success('Unit logo updated')
-        } else {
-          const { logo_url } = await vendorApi.uploadVendorLogo(croppedFile)
-          if (vendor) setVendor({ ...vendor, logo_url })
-          await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
-          toast.success('Logo updated')
-        }
-      } catch {
-        toast.error('Could not upload logo — use a PNG or JPG file under 2MB')
-      }
-      setLogoUploading(false)
+      await uploadLogoFile(croppedFile)
+      toast.success(unitBrandingEditable ? 'Unit logo updated' : 'Logo updated')
     } else if (target === 'banner') {
       setBannerUploading(true)
       try {
@@ -1051,6 +1063,40 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
 
   const imgUrl = resolveBrandingImageUrl
 
+  const bannerLightboxItems = useMemo(
+    () => urlsToLightboxItems(
+      orderedBanners.map((u) => imgUrl(u)),
+      { idPrefix: 'banner', altText: (i) => `Banner ${i + 1}` },
+    ),
+    [orderedBanners],
+  )
+
+  const saveBannerAtIndex = async (index: number, file: File) => {
+    setBannerUploading(true)
+    try {
+      let url: string
+      if (unitBrandingEditable && activeStore) {
+        const result = await vendorApi.uploadVendorBrandingAsset(file)
+        url = result.url
+      } else if (index === 0) {
+        const { banner_url } = await vendorApi.uploadVendorBanner(file)
+        url = banner_url
+      } else {
+        const result = await vendorApi.uploadVendorBrandingAsset(file)
+        url = result.url
+      }
+      const next = [...orderedBanners]
+      if (index < next.length) next[index] = url
+      else next.push(url)
+      await persistBannerOrder(next)
+    } catch {
+      toast.error('Could not upload banner — use a PNG or JPG file under 5MB')
+      throw new Error('banner upload failed')
+    } finally {
+      setBannerUploading(false)
+    }
+  }
+
   return (
     <SectionWrapper title="Business Profile" helpText="Name, branding, logo, and banners" icon={Store} open={open} toggle={toggle}>
       {/* Image crop modal */}
@@ -1083,25 +1129,39 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
           </div>
           <div className="flex items-stretch gap-2">
             <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => openLogoPicker()}
-                title="Upload logo"
-                className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400 group"
-              >
-                {logoUploading ? (
+              {logoUploading ? (
+                <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50">
                   <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                ) : displayLogoUrl ? (
-                  <>
-                    <img src={displayLogoUrl} alt="Logo" className="h-full w-full object-cover" />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Camera className="h-3.5 w-3.5 text-white" />
-                    </div>
-                  </>
-                ) : (
+                </div>
+              ) : displayLogoUrl ? (
+                <SingleImagePreview
+                  url={displayLogoUrl}
+                  alt="Logo"
+                  resolveUrl={(u) => u}
+                  editable
+                  onSave={uploadLogoFile}
+                  className="h-14 w-14 rounded-lg border border-dashed border-gray-300 bg-gray-50"
+                  imgClassName="h-full w-full rounded-lg object-cover"
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); openLogoPicker() }}
+                    title="Replace logo"
+                    className="absolute bottom-0.5 right-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white shadow hover:bg-black/80"
+                  >
+                    <Camera className="h-3 w-3" />
+                  </button>
+                </SingleImagePreview>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openLogoPicker()}
+                  title="Upload logo"
+                  className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
+                >
                   <Building2 className="h-5 w-5 text-gray-400" />
-                )}
-              </button>
+                </button>
+              )}
               {hasLogoOverride && (
                 <button
                   type="button"
@@ -1141,29 +1201,41 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
                   orderedBanners.map((url, i) => (
                     <div key={url} className="relative">
                       {i === 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => openBannerPicker()}
-                          title="Replace primary banner"
-                          className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
-                        >
+                        <div className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50">
                           {bannerUploading ? (
-                            <Loader2 className="mx-auto h-4 w-4 animate-spin text-gray-400" />
+                            <div className="flex h-full w-full items-center justify-center">
+                              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                            </div>
                           ) : (
-                            <>
-                              <img src={imgUrl(url)} alt="Banner 1" className="h-full w-full object-cover" />
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                                <Camera className="h-3.5 w-3.5 text-white" />
-                              </div>
-                            </>
+                            <ClickableImageButton
+                              src={imgUrl(url)}
+                              alt="Banner 1"
+                              className="h-full w-full"
+                              imgClassName="h-full w-full object-cover"
+                              onClick={() => setBannerLightboxIndex(i)}
+                            />
                           )}
-                          <span className="absolute bottom-1 left-1 rounded bg-primary px-1 py-0.5 text-[9px] font-semibold leading-none text-white shadow-sm">
+                          <button
+                            type="button"
+                            onClick={() => openBannerPicker()}
+                            title="Replace primary banner"
+                            className="absolute bottom-1 right-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white shadow hover:bg-black/80"
+                          >
+                            <Camera className="h-3 w-3" />
+                          </button>
+                          <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-primary px-1 py-0.5 text-[9px] font-semibold leading-none text-white shadow-sm">
                             Primary
                           </span>
-                        </button>
+                        </div>
                       ) : (
                         <div className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-                          <img src={imgUrl(url)} alt={`Banner ${i + 1}`} className="h-full w-full object-cover" />
+                          <ClickableImageButton
+                            src={imgUrl(url)}
+                            alt={`Banner ${i + 1}`}
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover"
+                            onClick={() => setBannerLightboxIndex(i)}
+                          />
                           <button
                             type="button"
                             onClick={() => void setPrimaryBanner(i)}
@@ -1207,6 +1279,13 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
                   <span className="mt-0.5 block text-center text-[10px] text-muted-foreground opacity-0">·</span>
                 </div>
               </div>
+              <ImageLightboxSession
+                items={bannerLightboxItems}
+                openIndex={bannerLightboxIndex}
+                onClose={() => setBannerLightboxIndex(null)}
+                editable
+                onSaveImage={saveBannerAtIndex}
+              />
             </div>
           </div>
         </div>
@@ -1832,8 +1911,11 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
 
 // â”€â”€ Business Hours Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+type StoreHoliday = { date: string; label: string; closed: boolean }
+
 function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
+  const [holidays, setHolidays] = useState<StoreHoliday[]>([])
   const savingRef = useRef(false)
 
   useEffect(() => {
@@ -1848,13 +1930,23 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
         }
       }
       setHours(h)
+      setHolidays(
+        (vendor.store_holidays || []).map((entry) => ({
+          date: entry.date || '',
+          label: entry.label || '',
+          closed: entry.closed !== false,
+        })),
+      )
     }
   }, [vendor])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     savingRef.current = true
-    onSave.mutate({ business_hours: hours } as Partial<Vendor>, {
+    onSave.mutate({
+      business_hours: hours,
+      store_holidays: holidays.filter((h) => h.date),
+    } as Partial<Vendor>, {
       onSettled: () => { savingRef.current = false },
     })
   }
@@ -1863,7 +1955,18 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }))
   }
 
-  const isDirty = useMemo(() => isBusinessHoursSectionDirty(hours, vendor), [hours, vendor])
+  const isDirty = useMemo(() => {
+    if (isBusinessHoursSectionDirty(hours, vendor)) return true
+    const saved = (vendor?.store_holidays || []).map((h) => ({
+      date: h.date || '',
+      label: h.label || '',
+      closed: h.closed !== false,
+    }))
+    if (saved.length !== holidays.length) return true
+    return holidays.some((h, i) =>
+      h.date !== saved[i]?.date || h.label !== saved[i]?.label || h.closed !== saved[i]?.closed,
+    )
+  }, [hours, holidays, vendor])
   useSettingsSectionDirty('hours-availability', isDirty)
 
   return (
@@ -1911,6 +2014,55 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
             )}
           </div>
         ))}
+
+        <div className="border-t pt-4 mt-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-foreground">Store holidays</p>
+              <p className="text-xs text-muted-foreground">Dates when your store is closed (bookings and orders may be blocked).</p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setHolidays((prev) => [...prev, { date: '', label: '', closed: true }])}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" /> Add
+            </Button>
+          </div>
+          {holidays.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No holidays configured.</p>
+          ) : (
+            <div className="space-y-2">
+              {holidays.map((holiday, index) => (
+                <div key={index} className="flex flex-wrap items-center gap-2">
+                  <Input
+                    type="date"
+                    value={holiday.date}
+                    onChange={(e) => setHolidays((prev) => prev.map((h, i) => i === index ? { ...h, date: e.target.value } : h))}
+                    className="w-40 text-sm"
+                  />
+                  <Input
+                    value={holiday.label}
+                    onChange={(e) => setHolidays((prev) => prev.map((h, i) => i === index ? { ...h, label: e.target.value } : h))}
+                    placeholder="Label (e.g. Diwali)"
+                    className="flex-1 min-w-[140px] text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-600"
+                    onClick={() => setHolidays((prev) => prev.filter((_, i) => i !== index))}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="flex justify-end pt-2">
           <SaveButton loading={onSave.isPending} />
         </div>

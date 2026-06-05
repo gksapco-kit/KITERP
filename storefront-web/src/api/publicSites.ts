@@ -56,4 +56,12 @@ export const publicSitesApi = {
   /** Subscribe to newsletter. */
   submitNewsletter: (siteId: string, email: string): Promise<{ ok: boolean }> =>
     publicApi.post(`/${siteId}/live/newsletter`, { email }).then(r => r.data),
+
+  getBookingSlots: (siteId: string, serviceId: string, bookingDate: string) =>
+    publicApi
+      .get(`/${siteId}/live/booking-slots`, { params: { service_id: serviceId, booking_date: bookingDate } })
+      .then(r => r.data as { slots: Array<{ start_time: string; available: boolean }>; date: string }),
+
+  createBooking: (siteId: string, body: Record<string, unknown>) =>
+    publicApi.post(`/${siteId}/live/booking`, body).then(r => r.data as { ok: boolean; booking_number?: string }),
 }

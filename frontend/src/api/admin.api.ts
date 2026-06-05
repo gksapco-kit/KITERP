@@ -349,4 +349,42 @@ export const adminApi = {
     const response = await apiClient.post(`/admin/vendors/${vendorId}/dashboard-handoff`)
     return response.data
   },
+
+  listOrderDisputes: async (params?: {
+    status?: string
+    dispute_type?: string
+    page?: number
+    size?: number
+  }): Promise<OrderDisputeListResponse> => {
+    const response = await apiClient.get('/admin/disputes', { params })
+    return response.data
+  },
+
+  updateOrderDispute: async (
+    disputeId: string,
+    data: { status: string; resolution_notes?: string },
+  ): Promise<{ ok: boolean; id: string; status: string }> => {
+    const response = await apiClient.patch(`/admin/disputes/${disputeId}`, data)
+    return response.data
+  },
+}
+
+export interface OrderDisputeItem {
+  id: string
+  order_id: string
+  order_number: string
+  vendor_id: string
+  dispute_type: string
+  reason: string
+  status: string
+  amount: number | null
+  created_at: string | null
+}
+
+export interface OrderDisputeListResponse {
+  items: OrderDisputeItem[]
+  total: number
+  page: number
+  size: number
+  pages: number
 }

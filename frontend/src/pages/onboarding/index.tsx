@@ -9,6 +9,8 @@ import axios from 'axios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+import { mediaUrl } from '@/lib/utils'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
@@ -109,24 +111,39 @@ export default function OnboardingBasic() {
             {/* Logo */}
             <div className="flex flex-col items-center gap-2">
               <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e, 'logo')} />
-              <button type="button" onClick={() => logoRef.current?.click()}
-                className="relative w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center overflow-hidden group transition-colors bg-gray-50">
-                {logoUploading ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                ) : logoUrl ? (
-                  <>
-                    <img src={fullImageUrl(logoUrl)} alt="Logo" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Camera className="w-5 h-5 text-white" />
+              {logoUrl ? (
+                <div className="relative w-24 h-24">
+                  <SingleImagePreview
+                    url={logoUrl}
+                    alt="Logo"
+                    resolveUrl={mediaUrl}
+                    className="w-24 h-24 rounded-xl border-2 border-gray-200 overflow-hidden"
+                    imgClassName="w-full h-full object-cover"
+                    editable
+                    onSave={(file) => uploadFile(file, 'logo')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => logoRef.current?.click()}
+                    title="Replace logo"
+                    className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border bg-white shadow hover:bg-gray-50"
+                  >
+                    {logoUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => logoRef.current?.click()}
+                  className="relative w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center overflow-hidden group transition-colors bg-gray-50">
+                  {logoUploading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-gray-400">
+                      <Store className="w-8 h-8" />
+                      <span className="text-xs font-medium">Add Logo</span>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-gray-400">
-                    <Store className="w-8 h-8" />
-                    <span className="text-xs font-medium">Add Logo</span>
-                  </div>
-                )}
-              </button>
+                  )}
+                </button>
+              )}
               {logoUrl && (
                 <button type="button" onClick={() => setLogoUrl('')} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-0.5">
                   <X className="w-3 h-3" /> Remove
@@ -138,25 +155,40 @@ export default function OnboardingBasic() {
             {/* Banner */}
             <div className="flex-1 flex flex-col gap-2">
               <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e, 'banner')} />
-              <button type="button" onClick={() => bannerRef.current?.click()}
-                className="relative w-full h-24 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center overflow-hidden group transition-colors bg-gray-50">
-                {bannerUploading ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                ) : bannerUrl ? (
-                  <>
-                    <img src={fullImageUrl(bannerUrl)} alt="Banner" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Camera className="w-5 h-5 text-white" />
+              {bannerUrl ? (
+                <div className="relative w-full h-24">
+                  <SingleImagePreview
+                    url={bannerUrl}
+                    alt="Banner"
+                    resolveUrl={mediaUrl}
+                    className="w-full h-24 rounded-xl border-2 border-gray-200 overflow-hidden"
+                    imgClassName="w-full h-full object-cover"
+                    editable
+                    onSave={(file) => uploadFile(file, 'banner')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => bannerRef.current?.click()}
+                    title="Replace banner"
+                    className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full border bg-white shadow hover:bg-gray-50"
+                  >
+                    {bannerUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => bannerRef.current?.click()}
+                  className="relative w-full h-24 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center overflow-hidden group transition-colors bg-gray-50">
+                  {bannerUploading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-gray-400">
+                      <Image className="w-8 h-8" />
+                      <span className="text-xs font-medium">Add Store Banner</span>
+                      <span className="text-xs">Recommended: 1200 x 400</span>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-gray-400">
-                    <Image className="w-8 h-8" />
-                    <span className="text-xs font-medium">Add Store Banner</span>
-                    <span className="text-xs">Recommended: 1200 x 400</span>
-                  </div>
-                )}
-              </button>
+                  )}
+                </button>
+              )}
               {bannerUrl && (
                 <button type="button" onClick={() => setBannerUrl('')} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-0.5 self-start">
                   <X className="w-3 h-3" /> Remove

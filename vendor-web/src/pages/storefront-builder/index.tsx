@@ -7,6 +7,7 @@ import { websiteApi } from '@/api/websites'
 import { useSiteList } from '@/hooks/useWebsites'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
 import { ImageSourcePicker, useImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -2620,12 +2621,22 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onImageUpload,
                         )}
                       </div>
                       {val(sf.key) && (
-                        <div className="mt-1.5 rounded-lg overflow-hidden h-16 relative group">
-                          <img src={resolveStorefrontPreviewImageSrc(val(sf.key))} alt="" className="w-full h-full object-cover" />
-                          <button type="button" onClick={() => set(sf.key)('')} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <SingleImagePreview
+                          url={val(sf.key)}
+                          alt=""
+                          resolveUrl={resolveStorefrontPreviewImageSrc}
+                          className="mt-1.5 rounded-lg overflow-hidden h-16 group"
+                          imgClassName="w-full h-full object-cover"
+                          editable
+                          onSave={async (file) => {
+                            set(sf.key)(URL.createObjectURL(file))
+                            onFieldAction?.(sf.key)
+                          }}
+                        >
+                          <button type="button" onClick={() => set(sf.key)('')} className="absolute top-1 right-1 z-10 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <X className="w-3 h-3 text-white" />
                           </button>
-                        </div>
+                        </SingleImagePreview>
                       )}
                     </div>
                   )}
@@ -2731,13 +2742,23 @@ function RichPropertyEditor({ section, onUpdate, vendor: _vendor, onImageUpload,
                 )}
               </div>
               {val(field.key) && (
-                <div className="mt-1.5 rounded-lg overflow-hidden h-20 relative group">
-                  <img src={resolveStorefrontPreviewImageSrc(val(field.key))} alt="" className="w-full h-full object-cover" />
+                <SingleImagePreview
+                  url={val(field.key)}
+                  alt=""
+                  resolveUrl={resolveStorefrontPreviewImageSrc}
+                  className="mt-1.5 rounded-lg overflow-hidden h-20 group"
+                  imgClassName="w-full h-full object-cover"
+                  editable
+                  onSave={async (file) => {
+                    set(field.key)(URL.createObjectURL(file))
+                    onFieldAction?.(field.key)
+                  }}
+                >
                   <button type="button" onClick={() => set(field.key)('')}
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    className="absolute top-1 right-1 z-10 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <X className="w-3 h-3 text-white" />
                   </button>
-                </div>
+                </SingleImagePreview>
               )}
             </div>
           )}

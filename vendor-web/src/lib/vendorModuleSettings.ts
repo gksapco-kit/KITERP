@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Briefcase,
   Calendar,
+  FolderKanban,
   Gauge,
   Landmark,
   Percent,
@@ -24,6 +25,7 @@ export type VendorModuleId =
   | 'restaurant'
   | 'bookings'
   | 'subscriptions'
+  | 'projects'
 
 export type VendorModuleTile = {
   id: VendorModuleId
@@ -105,6 +107,13 @@ export const VENDOR_MODULE_TILES: VendorModuleTile[] = [
     icon: RefreshCw,
     configurable: true,
   },
+  {
+    id: 'projects',
+    label: 'Projects',
+    description: 'Project tasks, milestones, and kanban boards.',
+    icon: FolderKanban,
+    configurable: true,
+  },
 ]
 
 export function offeringIncludes(
@@ -166,6 +175,10 @@ export function isBookingsNavVisible(
 
 export function isSubscriptionsNavVisible(settings: Record<string, unknown> | undefined | null): boolean {
   return flagEnabled(settings, 'subscriptions_enabled')
+}
+
+export function isProjectsNavVisible(settings: Record<string, unknown> | undefined | null): boolean {
+  return flagEnabled(settings, 'projects_enabled')
 }
 
 /** Short status line for module tiles */
@@ -232,6 +245,10 @@ export function moduleEnabledStatus(
     case 'subscriptions': {
       if (!flagEnabled(settings, 'subscriptions_enabled')) return { enabled: false }
       return { enabled: true, detail: 'Recurring sales' }
+    }
+    case 'projects': {
+      if (!flagEnabled(settings, 'projects_enabled')) return { enabled: false }
+      return { enabled: true, detail: 'Tasks & milestones' }
     }
     default:
       return { enabled: false }

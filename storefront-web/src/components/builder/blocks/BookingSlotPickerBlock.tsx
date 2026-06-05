@@ -38,29 +38,35 @@ export default function BookingSlotPickerBlock({ site, style, props, liveItems }
 
   const services = liveItems.filter(i => (i as any).category !== 'product')
 
-  // Fetch slots when date selected
   useEffect(() => {
     if (!selectedDate || !selectedService) return
     setLoadingSlots(true)
     setSlots([])
-    // Simulate slot fetching — in production, call /live/availability?service_id=&date=
-    setTimeout(() => {
-      const mock = ['09:00', '09:30', '10:00', '10:30', '11:00', '14:00', '14:30', '15:00', '15:30', '16:00']
-      setSlots(mock)
-      setLoadingSlots(false)
-    }, 600)
-  }, [selectedDate, selectedService?.id])
+    publicSitesApi
+      .getBookingSlots(site.id, selectedService.id, selectedDate)
+      .then((res) => {
+        setSlots(
+          (res.slots || [])
+            .filter((s) => s.available !== false)
+            .map((s) => s.start_time),
+        )
+      })
+      .catch(() => setSlots([]))
+      .finally(() => setLoadingSlots(false))
+  }, [selectedDate, selectedService?.id, site.id])
 
   const handleConfirm = async () => {
     if (!selectedService || !selectedDate || !selectedSlot) return
     setSubmitting(true)
     try {
-      await publicSitesApi.submitContact(site.id, {
+      await publicSitesApi.createBooking(site.id, {
+        service_id: selectedService.id,
+        booking_date: selectedDate,
+        start_time: selectedSlot,
         name: form.name,
         email: form.email,
         phone: form.phone,
-        message: `Booking request for "${selectedService.title}" on ${selectedDate} at ${selectedSlot}. Notes: ${form.notes}`,
-        booking: { service_id: selectedService.id, date: selectedDate, time: selectedSlot },
+        notes: form.notes,
       })
       setStep('done')
     } catch {

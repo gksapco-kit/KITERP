@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils'
 import { extractApiError } from '@/lib/errorMessages'
 import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getDefaultSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, DESIGN_QUALITY_FEATURES, type SetupFeatureId, type SetupFeatureOption } from '@/lib/businessSitePresets'
 import { shouldUseLocalStorefrontUrls } from '@/lib/storefrontPreviewUrl'
+import { CustomDomainVerifyPanel } from '@/components/websites/CustomDomainVerifyPanel'
 import { format } from 'date-fns'
 
 const BUSINESS_PRESETS = [
@@ -525,6 +526,7 @@ function CreateSiteModal({
 
 function SiteCard({ site }: { site: SiteListItem }) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const deleteSite = useDeleteSite()
   const publishSite = usePublishSite(site.id)
   const unpublishSite = useUnpublishSite(site.id)
@@ -532,6 +534,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [settingLink, setSettingLink] = useState(false)
+  const [showDomainPanel, setShowDomainPanel] = useState(false)
   const [subdomainInput, setSubdomainInput] = useState(
     site.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
   )
@@ -729,6 +732,12 @@ function SiteCard({ site }: { site: SiteListItem }) {
                     </button>
                   )}
                   <button
+                    onClick={() => { setShowDomainPanel((v) => !v); setMenuOpen(false) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
+                  >
+                    <Globe2 className="w-4 h-4 text-gray-400" /> Custom domain
+                  </button>
+                  <button
                     onClick={handleTogglePublish}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
                   >
@@ -749,6 +758,17 @@ function SiteCard({ site }: { site: SiteListItem }) {
             )}
           </div>
         </div>
+
+        {showDomainPanel && (
+          <div className="mt-3">
+            <CustomDomainVerifyPanel
+              siteId={site.id}
+              customDomain={site.custom_domain}
+              domainVerified={(site as { domain_verified?: boolean }).domain_verified}
+              onUpdated={() => queryClient.invalidateQueries({ queryKey: ['websites'] })}
+            />
+          </div>
+        )}
 
         {/* Meta row */}
         <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">

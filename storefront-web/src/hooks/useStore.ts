@@ -1,9 +1,13 @@
+import { useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { storeApi } from '@/api/store'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
+import { useGuestCartStore } from '@/stores/guestCartStore'
+import { useVendor } from '@/contexts/VendorContext'
 import { apiError, extractApiError } from '@/lib/errorMessages'
+import type { Cart } from '@/types'
 
 export const storeKeys = {
   info: ['store-info'] as const,
@@ -22,6 +26,10 @@ export const storeKeys = {
   blog: (slug: string) => ['blog-post', slug] as const,
   notificationStats: ['store-notification-stats'] as const,
   notifications: (p?: { limit?: number; unread_only?: boolean }) => ['store-notifications', p] as const,
+  wishlist: ['wishlist'] as const,
+  subscriptions: ['subscriptions'] as const,
+  marketplaceLeads: ['marketplace-leads'] as const,
+  rentalAssets: ['store-rentals'] as const,
 }
 
 export function useStoreInfo() {
@@ -48,38 +56,96 @@ export function useService(slug: string) {
   return useQuery({ queryKey: storeKeys.service(slug), queryFn: () => storeApi.getService(slug), enabled: !!slug })
 }
 
+function buildGuestCart(items: ReturnType<typeof useGuestCartStore.getState>['byVendor'][string]): Cart {
+  const subtotal = (items ?? []).reduce((s, i) => s + i.price * i.qty, 0)
+  return {
+    id: 'guest_cart',
+    vendor_id: '',
+    customer_id: '',
+    items: items ?? [],
+    item_count: (items ?? []).reduce((s, i) => s + i.qty, 0),
+    subtotal,
+    coupon_code: null,
+    discount_amount: 0,
+  } as Cart
+}
+
 // Cart
 export function useCart() {
   const { setCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
-  return useQuery({
-    queryKey: storeKeys.cart, queryFn: async () => { const cart = await storeApi.getCart(); setCart(cart); return cart },
+  const { vendorSlug } = useVendor()
+  const guestItems = useGuestCartStore(s => s.byVendor[vendorSlug] ?? [])
+
+  const guestCart = useMemo(() => buildGuestCart(guestItems), [guestItems])
+
+  const server = useQuery({
+    queryKey: storeKeys.cart,
+    queryFn: async () => { const cart = await storeApi.getCart(); setCart(cart); return cart },
     enabled: isAuthenticated,
   })
+
+  if (!isAuthenticated) {
+    return { ...server, data: guestCart, isLoading: false, isFetched: true, isSuccess: true }
+  }
+  return server
 }
 
 export function useAddToCart() {
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuthStore()
+  const { vendorSlug } = useVendor()
+  const guestStore = useGuestCartStore()
   return useMutation({
-    mutationFn: storeApi.addToCart,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: storeKeys.cart }); toast.success('Added to cart!') },
+    mutationFn: async (item: Parameters<typeof storeApi.addToCart>[0]) => {
+      if (!isAuthenticated) {
+        guestStore.addItem(vendorSlug, item)
+        return buildGuestCart(guestStore.getItems(vendorSlug))
+      }
+      return storeApi.addToCart(item)
+    },
+    onSuccess: () => {
+      if (isAuthenticated) qc.invalidateQueries({ queryKey: storeKeys.cart })
+      toast.success('Added to cart!')
+    },
     onError: apiError('Could not add item to cart — it may be out of stock'),
   })
 }
 
 export function useUpdateCartItem() {
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuthStore()
+  const { vendorSlug } = useVendor()
+  const guestStore = useGuestCartStore()
   return useMutation({
-    mutationFn: ({ index, qty }: { index: number; qty: number }) => storeApi.updateCartItem(index, qty),
-    onSuccess: () => qc.invalidateQueries({ queryKey: storeKeys.cart }),
+    mutationFn: async ({ index, qty }: { index: number; qty: number }) => {
+      if (!isAuthenticated) {
+        guestStore.updateQty(vendorSlug, index, qty)
+        return buildGuestCart(guestStore.getItems(vendorSlug))
+      }
+      return storeApi.updateCartItem(index, qty)
+    },
+    onSuccess: () => { if (isAuthenticated) qc.invalidateQueries({ queryKey: storeKeys.cart }) },
   })
 }
 
 export function useRemoveCartItem() {
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuthStore()
+  const { vendorSlug } = useVendor()
+  const guestStore = useGuestCartStore()
   return useMutation({
-    mutationFn: (index: number) => storeApi.removeCartItem(index),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: storeKeys.cart }); toast.success('Item removed') },
+    mutationFn: async (index: number) => {
+      if (!isAuthenticated) {
+        guestStore.removeItem(vendorSlug, index)
+        return buildGuestCart(guestStore.getItems(vendorSlug))
+      }
+      return storeApi.removeCartItem(index)
+    },
+    onSuccess: () => {
+      if (isAuthenticated) qc.invalidateQueries({ queryKey: storeKeys.cart })
+      toast.success('Item removed')
+    },
   })
 }
 
@@ -285,6 +351,15 @@ export function useBooking(id: string) {
   })
 }
 
+export function useBookingSlots(serviceId: string | undefined, bookingDate: string | undefined) {
+  return useQuery({
+    queryKey: ['booking-slots', serviceId, bookingDate],
+    queryFn: () => storeApi.getBookingSlots(serviceId!, bookingDate!),
+    enabled: !!serviceId && !!bookingDate,
+    staleTime: 60_000,
+  })
+}
+
 export function useCreateBooking() {
   const qc = useQueryClient()
   return useMutation({
@@ -322,6 +397,124 @@ export function useCustomerLogout() {
     toast.success('Logged out')
     // Navigation is handled by the calling component
   }
+}
+
+function mapWishlistItems(raw: { items?: Array<Record<string, unknown>> }) {
+  return (raw.items ?? []).map((i) => ({
+    id: String(i.product_id),
+    slug: String(i.slug || i.product_id),
+    name: String(i.name || ''),
+    price: Number(i.price || 0),
+    image: String(i.image_url || ''),
+    savedAt: String(i.saved_at || new Date().toISOString()),
+  }))
+}
+
+export function useWishlist() {
+  const { isAuthenticated } = useAuthStore()
+  return useQuery({
+    queryKey: storeKeys.wishlist,
+    queryFn: async () => mapWishlistItems(await storeApi.getWishlist()),
+    enabled: isAuthenticated,
+  })
+}
+
+export function useToggleWishlist() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: storeApi.toggleWishlistItem,
+    onSuccess: () => qc.invalidateQueries({ queryKey: storeKeys.wishlist }),
+    onError: apiError('Could not update wishlist'),
+  })
+}
+
+export function useRemoveWishlistItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: storeApi.removeWishlistItem,
+    onSuccess: () => qc.invalidateQueries({ queryKey: storeKeys.wishlist }),
+    onError: apiError('Could not remove from wishlist'),
+  })
+}
+
+export function useSyncWishlistOnLogin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (localItems: Array<Record<string, unknown>>) => {
+      const synced = await storeApi.syncWishlist(localItems)
+      return mapWishlistItems(synced)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: storeKeys.wishlist }),
+  })
+}
+
+export function useSubscriptions() {
+  const { isAuthenticated } = useAuthStore()
+  return useQuery({
+    queryKey: storeKeys.subscriptions,
+    queryFn: storeApi.listSubscriptions,
+    enabled: isAuthenticated,
+  })
+}
+
+export function useCreateSubscription() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: storeApi.createSubscription,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: storeKeys.subscriptions })
+      toast.success('Subscription started')
+    },
+    onError: apiError('Could not start subscription'),
+  })
+}
+
+export function useUpdateSubscription() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'paused' | 'active' | 'cancelled' }) =>
+      storeApi.updateSubscription(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: storeKeys.subscriptions })
+      toast.success('Subscription updated')
+    },
+    onError: apiError('Could not update subscription'),
+  })
+}
+
+export function useMarketplaceLeads() {
+  const { isAuthenticated } = useAuthStore()
+  return useQuery({
+    queryKey: storeKeys.marketplaceLeads,
+    queryFn: storeApi.listMarketplaceLeads,
+    enabled: isAuthenticated,
+  })
+}
+
+export function useCreateMarketplaceLead() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: storeApi.createMarketplaceLead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: storeKeys.marketplaceLeads })
+      toast.success('Requirement posted')
+    },
+    onError: apiError('Could not post requirement'),
+  })
+}
+
+export function useAcceptMarketplaceQuote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ leadId, quoteId }: { leadId: string; quoteId: string }) =>
+      storeApi.acceptMarketplaceQuote(leadId, quoteId),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: storeKeys.marketplaceLeads })
+      const orderNumber = (data as Record<string, unknown>)?.order_number
+      toast.success(orderNumber ? `Quote accepted — order ${orderNumber} created` : 'Quote accepted')
+    },
+    onError: apiError('Could not accept quote'),
+  })
 }
 
 export function useBlogPosts(params?: {

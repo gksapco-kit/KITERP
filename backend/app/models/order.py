@@ -47,6 +47,10 @@ class Order(Base):
     shipping_address = Column(JSONB)
     tracking_number = Column(String(100))
     tracking_url = Column(String(500))
+    delivery_staff_id = Column(UUID(as_uuid=True), nullable=True)
+    delivery_staff_name = Column(String(255), nullable=True)
+    delivery_assigned_at = Column(DateTime(timezone=True), nullable=True)
+    delivery_status = Column(String(30), nullable=True)  # assigned, out_for_delivery, delivered
 
     # Source: online, pos, booking
     source = Column(String(20), default="online", index=True)

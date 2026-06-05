@@ -36,6 +36,9 @@ import MyBookings from '@/pages/account/MyBookings'
 import ProfileSettings from '@/pages/account/ProfileSettings'
 import AddressesPage from '@/pages/account/AddressesPage'
 import MyWishlist from '@/pages/account/MyWishlist'
+import MySubscriptions from '@/pages/account/MySubscriptions'
+import MyMarketplace from '@/pages/account/MyMarketplace'
+import RentalsPage from '@/pages/rentals/RentalsPage'
 import MyNotifications from '@/pages/account/MyNotifications'
 import BlogList from '@/pages/blog/BlogList'
 import BlogPost from '@/pages/blog/BlogPost'
@@ -138,8 +141,8 @@ export const router = createBrowserRouter([
       { path: 'services/:slug', element: <ServiceDetail /> },
       { path: 'services/:slug/book', element: <ServiceBookingPage /> },
       { path: 'cart', element: <CartPage /> },
-      { path: 'checkout', element: <ProtectedRoute><Checkout /></ProtectedRoute> },
-      { path: 'order/:orderId/confirmation', element: <ProtectedRoute><OrderConfirmationPage /></ProtectedRoute> },
+      { path: 'checkout', element: <Checkout /> },
+      { path: 'order/:orderId/confirmation', element: <OrderConfirmationPage /> },
       { path: 'order/:orderId/status', element: <OrderStatusPage /> },
       { path: 'account', element: <ProtectedRoute><Account /></ProtectedRoute> },
       { path: 'account/orders', element: <ProtectedRoute><MyOrders /></ProtectedRoute> },
@@ -148,6 +151,9 @@ export const router = createBrowserRouter([
       { path: 'account/profile', element: <ProtectedRoute><ProfileSettings /></ProtectedRoute> },
       { path: 'account/addresses', element: <ProtectedRoute><AddressesPage /></ProtectedRoute> },
       { path: 'account/wishlist', element: <ProtectedRoute><MyWishlist /></ProtectedRoute> },
+      { path: 'account/subscriptions', element: <ProtectedRoute><MySubscriptions /></ProtectedRoute> },
+      { path: 'account/marketplace', element: <ProtectedRoute><MyMarketplace /></ProtectedRoute> },
+      { path: 'rentals', element: <RentalsPage /> },
       { path: 'account/notifications', element: <ProtectedRoute><MyNotifications /></ProtectedRoute> },
       { path: 'blog', element: <BlogList /> },
       { path: 'blog/:slug', element: <BlogPost /> },

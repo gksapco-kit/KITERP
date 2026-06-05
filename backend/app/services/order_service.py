@@ -9,7 +9,11 @@ from fastapi import HTTPException, status
 from app.models.order import Order, OrderStatusHistory
 from app.models.payment import Payment
 from app.models.vendor_product import Product
-from app.schemas.order import CheckoutRequest, OrderStatusUpdate, OrderCancelRequest, ReturnExchangeRequest, ReturnResolveRequest
+from app.schemas.order import (
+    CheckoutRequest, GuestCheckoutRequest, OrderStatusUpdate,
+    OrderCancelRequest, ReturnExchangeRequest, ReturnResolveRequest,
+)
+from app.services.customer_service import CustomerService
 from app.repositories.order_repo import OrderRepository
 from app.repositories.cart_repo import CartRepository
 from app.repositories.customer_repo import CustomerRepository
@@ -17,6 +21,9 @@ from app.repositories.payment_repo import PaymentRepository
 from app.services.inventory_service import InventoryService
 from app.services.notification_service import NotificationService
 from app.services.invoice_service import InvoiceService
+from app.services.checkout_service import CheckoutService
+from app.services.coupon_service import CouponService
+from app.repositories.vendor_repo import VendorRepository
 
 log = logging.getLogger(__name__)
 
@@ -62,23 +69,51 @@ class OrderService:
         self.db.add(entry)
 
     async def checkout(
-        self, vendor_id: UUID, customer_id: UUID, data: CheckoutRequest
+        self,
+        vendor_id: UUID,
+        customer_id: UUID,
+        data: CheckoutRequest,
+        *,
+        items_override: list[dict] | None = None,
+        clear_cart: bool = True,
     ) -> Order:
-        # Get cart
-        cart = await self.cart_repo.get_by_customer(vendor_id, customer_id)
-        if not cart or not cart.items:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cart is empty",
-            )
+        cart = None
+        if items_override is not None:
+            items = items_override
+            if not items:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart is empty")
+        else:
+            cart = await self.cart_repo.get_by_customer(vendor_id, customer_id)
+            if not cart or not cart.items:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cart is empty",
+                )
+            items = cart.items
 
-        # Calculate totals
-        items = cart.items
-        subtotal = sum(i.get("price", 0) * i.get("qty", 0) for i in items)
-        tax_amount = round(subtotal * 0.18, 2)  # 18% GST
-        discount_amount = float(cart.discount_amount or 0)
-        shipping_amount = 0  # Free shipping for now
-        total = round(subtotal + tax_amount - discount_amount + shipping_amount, 2)
+        # Server-authoritative totals (GST per product, shipping, coupon)
+        vendor_repo = VendorRepository(self.db)
+        vendor = await vendor_repo.get_by_id(vendor_id)
+        if not vendor:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+        shipping_state = data.shipping_address.state if data.shipping_address else None
+        preview = await CheckoutService(self.db).preview(
+            vendor=vendor,
+            items=items,
+            shipping_method_id=data.shipping_method_id,
+            coupon_code=data.coupon_code,
+            customer_id=customer_id,
+            shipping_state=shipping_state,
+        )
+        subtotal = preview["subtotal"]
+        tax_amount = preview["tax_amount"]
+        discount_amount = preview["discount_amount"]
+        shipping_amount = preview["shipping_amount"]
+        total = preview["total"]
+
+        online_methods = {"card", "upi", "netbanking", "wallet", "razorpay"}
+        is_online = data.payment_method.value in online_methods
 
         # Generate order number
         order_number = await self.order_repo.get_next_order_number(vendor_id)
@@ -115,17 +150,21 @@ class OrderService:
             amount=total,
             currency="INR",
             method=data.payment_method.value,
-            status="completed" if data.payment_method.value == "cod" else "pending",
+            status="pending",
         )
         self.db.add(payment)
 
-        # If COD, mark order as confirmed and payment as pending-on-delivery
+        # COD: confirm immediately; online: stay pending until gateway verify
         if data.payment_method.value == "cod":
             order.payment_status = "pending"
             order.status = "confirmed"
             order.confirmed_at = datetime.now(timezone.utc)
             payment.status = "pending"
             self._record_status(order.id, "pending", "confirmed", changed_by_role="system", notes="Auto-confirmed (COD)")
+        elif is_online:
+            order.payment_status = "pending"
+            order.status = "pending"
+            payment.status = "pending"
 
         # Auto-generate invoice for confirmed (COD) orders
         if order.status == "confirmed":
@@ -140,11 +179,11 @@ class OrderService:
             customer.total_orders = (customer.total_orders or 0) + 1
             customer.total_spent = float(customer.total_spent or 0) + total
 
-        # Deduct inventory for each product in the order
-        await self._deduct_inventory_for_order(vendor_id, order)
-
-        # Clear cart
-        await self.cart_repo.clear_cart(cart)
+        # COD: deduct stock and clear cart immediately; online: defer until payment verify
+        if not is_online:
+            await self._deduct_inventory_for_order(vendor_id, order)
+            if clear_cart and cart is not None:
+                await self.cart_repo.clear_cart(cart)
 
         # Increment purchase_count for each product in the order
         for item in items:
@@ -160,6 +199,19 @@ class OrderService:
 
         await self.db.commit()
         await self.db.refresh(order)
+
+        if data.coupon_code and discount_amount > 0:
+            try:
+                coupon_svc = CouponService(self.db)
+                result = await coupon_svc.validate_coupon(
+                    vendor_id, data.coupon_code, subtotal, customer_id=customer_id,
+                )
+                if result.get("valid") and result.get("coupon"):
+                    await coupon_svc.record_usage(
+                        result["coupon"].id, customer_id, order.id, discount_amount,
+                    )
+            except Exception as e:
+                log.warning("Coupon usage record failed for order %s: %s", order.id, e)
 
         # Send WhatsApp notification to vendor for new order
         try:
@@ -200,23 +252,50 @@ class OrderService:
 
         return order
 
+    async def guest_checkout(self, vendor_id: UUID, data: GuestCheckoutRequest) -> Order:
+        customer_svc = CustomerService(self.db)
+        customer = await customer_svc.get_or_create_guest(
+            vendor_id,
+            full_name=data.customer.full_name,
+            email=data.customer.email,
+            phone=data.customer.phone,
+        )
+        items = [i.model_dump() for i in data.items]
+        checkout_data = CheckoutRequest(
+            shipping_address=data.shipping_address,
+            payment_method=data.payment_method,
+            shipping_method_id=data.shipping_method_id,
+            notes=data.notes,
+            coupon_code=data.coupon_code,
+        )
+        return await self.checkout(
+            vendor_id,
+            customer.id,
+            checkout_data,
+            items_override=items,
+            clear_cart=False,
+        )
+
     async def _deduct_inventory_for_order(self, vendor_id: UUID, order: Order):
         """Deduct stock for each item in the order that has track_inventory enabled."""
         for item in (order.items or []):
             product_id = item.get("product_id")
+            variant_id = item.get("variant_id")
             qty = item.get("qty", 0)
             if not product_id or qty <= 0:
                 continue
             try:
-                product = await self.db.get(Product, UUID(product_id))
+                product = await self.db.get(Product, UUID(str(product_id)))
                 if not product or not product.track_inventory:
                     continue
+                vid = UUID(str(variant_id)) if variant_id else None
                 await self.inventory_svc.deduct_for_sale(
                     vendor_id=vendor_id,
-                    product_id=UUID(product_id),
+                    product_id=UUID(str(product_id)),
                     quantity=qty,
                     reference_id=order.id,
                     reference_type="order",
+                    variant_id=vid,
                 )
             except Exception as e:
                 log.warning("Inventory deduction failed for product %s: %s", product_id, e)
@@ -225,21 +304,49 @@ class OrderService:
         """Restore stock for each item when an order is cancelled."""
         for item in (order.items or []):
             product_id = item.get("product_id")
+            variant_id = item.get("variant_id")
             qty = item.get("qty", 0)
             if not product_id or qty <= 0:
                 continue
             try:
-                product = await self.db.get(Product, UUID(product_id))
+                product = await self.db.get(Product, UUID(str(product_id)))
                 if not product or not product.track_inventory:
                     continue
+                vid = UUID(str(variant_id)) if variant_id else None
                 await self.inventory_svc.return_stock(
                     vendor_id=vendor_id,
-                    product_id=UUID(product_id),
+                    product_id=UUID(str(product_id)),
                     quantity=qty,
                     reference_id=order.id,
+                    variant_id=vid,
                 )
             except Exception as e:
                 log.warning("Inventory restoration failed for product %s: %s", product_id, e)
+
+    async def assign_delivery(
+        self,
+        vendor_id: UUID,
+        order_id: UUID,
+        *,
+        staff_id: str | None = None,
+        staff_name: str | None = None,
+    ) -> Order:
+        order = await self.order_repo.get_by_vendor_and_id(vendor_id, order_id)
+        if not order:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+        if not staff_name and not staff_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="staff_name or staff_id required")
+        order.delivery_staff_name = staff_name
+        if staff_id:
+            try:
+                order.delivery_staff_id = UUID(str(staff_id))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid staff_id")
+        order.delivery_assigned_at = datetime.now(timezone.utc)
+        order.delivery_status = "assigned"
+        await self.db.commit()
+        await self.db.refresh(order)
+        return order
 
     async def update_status(
         self, vendor_id: UUID, order_id: UUID, data: OrderStatusUpdate, user_id: UUID | None = None,

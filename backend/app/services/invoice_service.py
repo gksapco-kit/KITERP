@@ -14,6 +14,19 @@ from app.models.booking import Booking
 
 log = logging.getLogger(__name__)
 
+
+def _parse_optional_date(val) -> date | None:
+    """Coerce API date strings (YYYY-MM-DD) for asyncpg DATE columns."""
+    if val is None or val == '':
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, date):
+        return val
+    if isinstance(val, str):
+        return date.fromisoformat(val[:10])
+    return None
+
 # Finance GL posting (non-blocking — failures logged but don't break invoice flow)
 async def _try_post_invoice(db, vendor_id, invoice):
     try:
@@ -196,10 +209,11 @@ class InvoiceService:
             is_gst=vendor_gst,
             place_of_supply=data.get("place_of_supply"),
             is_inter_state=is_inter_state,
-            due_date=data.get("due_date"),
+            due_date=_parse_optional_date(data.get("due_date")),
             payment_terms=data.get("payment_terms"),
             notes=data.get("notes"),
             terms_and_conditions=data.get("terms_and_conditions"),
+            extra_fields=data.get("extra_fields") or [],
             created_by=created_by,
         )
         self.db.add(invoice)
@@ -217,6 +231,9 @@ class InvoiceService:
 
         if invoice.status in ("paid", "cancelled"):
             raise ValueError(f"Cannot edit invoice in '{invoice.status}' status")
+
+        if "due_date" in data:
+            data = {**data, "due_date": _parse_optional_date(data.get("due_date"))}
 
         for key, value in data.items():
             if value is not None and hasattr(invoice, key) and key not in ("id", "vendor_id", "invoice_number"):
@@ -301,10 +318,20 @@ class InvoiceService:
         await self.db.refresh(invoice)
         return invoice
 
-    async def list_invoices(self, vendor_id: UUID, invoice_type: str = None, status: str = None, page: int = 1, size: int = 20):
+    async def list_invoices(
+        self,
+        vendor_id: UUID,
+        invoice_type: str = None,
+        exclude_invoice_type: str = None,
+        status: str = None,
+        page: int = 1,
+        size: int = 20,
+    ):
         conditions = [Invoice.vendor_id == vendor_id]
         if invoice_type:
             conditions.append(Invoice.invoice_type == invoice_type)
+        elif exclude_invoice_type:
+            conditions.append(Invoice.invoice_type != exclude_invoice_type)
         if status:
             conditions.append(Invoice.status == status)
 

@@ -4,8 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 from uuid import UUID
-import math, uuid, aiofiles
-from pathlib import Path
+import math, uuid
 
 from app.database import get_db
 from app.api.deps import get_current_active_user
@@ -15,8 +14,10 @@ from app.services.vendor_service import VendorService
 from app.services.invoice_service import InvoiceService
 from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, RecordPayment
 from app.utils.pdf_generator import generate_invoice_pdf
+from app.services.media_upload import save_image_file, delete_stored_file
 
-UPLOAD_DIR = Path("/app/uploads")
+SIGNATURE_ALLOWED = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"}
+MAX_SIGNATURE_BYTES = 2 * 1024 * 1024
 
 router = APIRouter()
 
@@ -56,6 +57,7 @@ def _inv_dict(inv) -> dict:
         "is_gst": inv.is_gst, "place_of_supply": inv.place_of_supply,
         "is_inter_state": inv.is_inter_state,
         "notes": inv.notes, "terms_and_conditions": inv.terms_and_conditions,
+        "extra_fields": getattr(inv, "extra_fields", None) or [],
         "reference_invoice_id": str(inv.reference_invoice_id) if inv.reference_invoice_id else None,
         "converted_from_id": str(inv.converted_from_id) if inv.converted_from_id else None,
         "created_by": str(inv.created_by) if inv.created_by else None,
@@ -66,12 +68,14 @@ def _inv_dict(inv) -> dict:
 
 @router.get("")
 async def list_invoices(
-    invoice_type: str = None, status: str = None,
+    invoice_type: str = None,
+    exclude_invoice_type: str = None,
+    status: str = None,
     page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
     vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db),
 ):
     svc = InvoiceService(db)
-    items, total = await svc.list_invoices(vid, invoice_type, status, page, size)
+    items, total = await svc.list_invoices(vid, invoice_type, exclude_invoice_type, status, page, size)
     return JSONResponse(content={
         "items": [_inv_dict(i) for i in items], "total": total,
         "page": page, "size": size, "pages": math.ceil(total / size) if total else 0,
@@ -84,6 +88,8 @@ async def create_invoice(data: InvoiceCreate, user: User = Depends(get_current_a
     try:
         payload = data.model_dump()
         payload["items"] = [i.model_dump() for i in data.items]
+        if data.extra_fields is not None:
+            payload["extra_fields"] = [f.model_dump() for f in data.extra_fields]
         inv = await svc.create_invoice(vid, payload, user.id)
         return JSONResponse(content=_inv_dict(inv), status_code=201)
     except ValueError as e:
@@ -144,33 +150,94 @@ async def upload_invoice_signature(
     if not vendor:
         raise HTTPException(404, "Vendor not found")
 
-    allowed_types = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"}
-    if file.content_type not in allowed_types:
-        raise HTTPException(400, "Only image files are allowed for signature")
-
-    contents = await file.read()
-    if len(contents) > 2 * 1024 * 1024:
-        raise HTTPException(400, "Signature image must be under 2 MB")
-
-    ext = (file.filename or "sig.png").rsplit(".", 1)[-1].lower()
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    folder = UPLOAD_DIR / "vendor-signatures"
-    folder.mkdir(parents=True, exist_ok=True)
-    filepath = folder / filename
-    async with aiofiles.open(str(filepath), "wb") as f:
-        await f.write(contents)
-
-    url = f"/uploads/vendor-signatures/{filename}"
+    url = await save_image_file(
+        file,
+        "vendor-signatures",
+        allowed_types=SIGNATURE_ALLOWED,
+        max_bytes=MAX_SIGNATURE_BYTES,
+    )
 
     result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
     db_vendor = result.scalar_one_or_none()
     current_settings = dict(db_vendor.settings or {})
     inv_settings = dict(current_settings.get("invoice_settings", {}))
+    old_url = inv_settings.get("signature_url")
     inv_settings["signature_url"] = url
     current_settings["invoice_settings"] = inv_settings
     db_vendor.settings = current_settings
     flag_modified(db_vendor, "settings")
     await db.commit()
+    if old_url and old_url != url:
+        await delete_stored_file(old_url)
+    return JSONResponse(content={"signature_url": url})
+
+
+@router.get("/settings/quotation")
+async def get_quotation_settings(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+    settings = vendor.settings or {}
+    return JSONResponse(content=settings.get("quotation_settings", {}))
+
+
+@router.put("/settings/quotation")
+async def update_quotation_settings(
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await request.json()
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+    result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
+    db_vendor = result.scalar_one_or_none()
+    if not db_vendor:
+        raise HTTPException(404, "Vendor record not found")
+    current_settings = dict(db_vendor.settings or {})
+    current_settings["quotation_settings"] = data
+    db_vendor.settings = current_settings
+    flag_modified(db_vendor, "settings")
+    await db.commit()
+    return JSONResponse(content=data)
+
+
+@router.post("/settings/quotation-signature")
+async def upload_quotation_signature(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+
+    url = await save_image_file(
+        file,
+        "vendor-signatures",
+        allowed_types=SIGNATURE_ALLOWED,
+        max_bytes=MAX_SIGNATURE_BYTES,
+    )
+
+    result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
+    db_vendor = result.scalar_one_or_none()
+    current_settings = dict(db_vendor.settings or {})
+    quote_settings = dict(current_settings.get("quotation_settings", {}))
+    old_url = quote_settings.get("signature_url")
+    quote_settings["signature_url"] = url
+    current_settings["quotation_settings"] = quote_settings
+    db_vendor.settings = current_settings
+    flag_modified(db_vendor, "settings")
+    await db.commit()
+    if old_url and old_url != url:
+        await delete_stored_file(old_url)
     return JSONResponse(content={"signature_url": url})
 
 
@@ -225,6 +292,8 @@ async def update_invoice(invoice_id: str, data: InvoiceUpdate, vid: UUID = Depen
         payload = data.model_dump(exclude_unset=True)
         if data.items:
             payload["items"] = [i.model_dump() for i in data.items]
+        if data.extra_fields is not None:
+            payload["extra_fields"] = [f.model_dump() for f in data.extra_fields]
         inv = await svc.update_invoice(UUID(invoice_id), vid, payload)
         return JSONResponse(content=_inv_dict(inv))
     except ValueError as e:

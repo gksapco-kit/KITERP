@@ -212,10 +212,10 @@ class VendorService:
             )
         await file.seek(0)
         
-        # Upload to storage (for now, use a placeholder URL)
         file_url = await self.file_service.upload_file(
             file=file,
             folder=f"vendors/{vendor_id}/documents",
+            content=contents,
         )
         
         # Create document record
@@ -395,9 +395,9 @@ class VendorService:
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(vendor, field, value)
-            if field == "theme_config":
+            if field in ("theme_config", "store_holidays", "business_hours", "order_acceptance_hours"):
                 from sqlalchemy.orm.attributes import flag_modified
-                flag_modified(vendor, "theme_config")
+                flag_modified(vendor, field)
         
         await self.db.commit()
         await self.db.refresh(vendor)

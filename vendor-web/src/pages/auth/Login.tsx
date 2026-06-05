@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { checkBackendReachable, getBackendHealthUrl } from '@/lib/apiHealth'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
-import { extractApiError, parseAmbiguousVendorLogin, type AmbiguousVendorOption } from '@/lib/errorMessages'
+import { extractApiError, parseAmbiguousVendorLogin, parseRequires2fa, type AmbiguousVendorOption } from '@/lib/errorMessages'
 import type { AxiosError } from 'axios'
 import { toast } from 'sonner'
 
@@ -64,15 +64,19 @@ export default function Login() {
   const savedLogin = useMemo(() => readSavedLogin(), [])
   const [rememberEmail, setRememberEmail] = useState(() => !!savedLogin)
   const [ambiguousVendors, setAmbiguousVendors] = useState<AmbiguousVendorOption[] | null>(null)
+  const [needs2fa, setNeeds2fa] = useState(false)
+  const [totpCode, setTotpCode] = useState('')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { setTokens } = useAuthStore()
 
   const loginMut = useMutation({
-    mutationFn: (vars: { login: string; password: string; vendorSlug?: string; persistLogin: boolean }) =>
-      authApi.login(vars.login, vars.password, vars.vendorSlug),
+    mutationFn: (vars: { login: string; password: string; vendorSlug?: string; totpCode?: string; persistLogin: boolean }) =>
+      authApi.login(vars.login, vars.password, vars.vendorSlug, vars.totpCode),
     onSuccess: (tokens, vars) => {
       setAmbiguousVendors(null)
+      setNeeds2fa(false)
+      setTotpCode('')
       setTokens(tokens)
       queryClient.invalidateQueries({ queryKey: authKeys.me() })
       toast.success('Login successful!')
@@ -97,6 +101,10 @@ export default function Login() {
       const amb = parseAmbiguousVendorLogin(err)
       if (amb) {
         setAmbiguousVendors(amb.vendors)
+        return
+      }
+      if (parseRequires2fa(err)) {
+        setNeeds2fa(true)
         return
       }
       const ax = err as AxiosError
@@ -142,15 +150,19 @@ export default function Login() {
 
   const showOffline = apiOk === false
 
-  const onSubmit = (data: LoginForm) => {
+  const submitLogin = (login: string, password: string, vendorSlug?: string) => {
     setAmbiguousVendors(null)
-    const loginTrim = data.login.trim()
     loginMut.mutate({
-      login: loginTrim,
-      password: data.password,
-      vendorSlug: vendorSlugForLogin,
+      login: login.trim(),
+      password,
+      vendorSlug,
+      totpCode: needs2fa ? totpCode.trim() : undefined,
       persistLogin: rememberEmail,
     })
+  }
+
+  const onSubmit = (data: LoginForm) => {
+    submitLogin(data.login, data.password, vendorSlugForLogin)
   }
 
   const continueWithVendor = (slug: string) => {
@@ -159,12 +171,7 @@ export default function Login() {
       toast.error('Enter your email and password first.')
       return
     }
-    loginMut.mutate({
-      login: login.trim(),
-      password,
-      vendorSlug: slug,
-      persistLogin: rememberEmail,
-    })
+    submitLogin(login, password, slug)
   }
 
   return (
@@ -316,10 +323,29 @@ export default function Login() {
             {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
 
+          {needs2fa && (
+            <div className="w-full space-y-1">
+              <Label htmlFor="totp_code" className="text-xs font-medium text-foreground">
+                Authenticator code
+              </Label>
+              <Input
+                id="totp_code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="6-digit code"
+                className="h-[calc(2.75rem*0.95*0.76*1.05)] min-h-[calc(2.75rem*0.95*0.76*1.05)] w-full text-xs tracking-widest font-mono"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">Enter the code from your authenticator app.</p>
+            </div>
+          )}
+
           <Button
             type="submit"
             className="h-[calc(2.75rem*0.95*0.76*1.05)] min-h-[calc(2.75rem*0.95*0.76*1.05)] w-full rounded-md px-3 text-xs font-bold"
-            disabled={loginMut.isPending}
+            disabled={loginMut.isPending || (needs2fa && totpCode.length < 6)}
           >
             {loginMut.isPending
               ? (
@@ -328,7 +354,7 @@ export default function Login() {
                   Signing in…
                 </>
               )
-              : 'Sign In'}
+              : needs2fa ? 'Verify & Sign In' : 'Sign In'}
           </Button>
 
           <div className="flex justify-center">

@@ -1,18 +1,18 @@
 /**
  * Bridges the existing store API (useCart, useCheckout, useAuthStore)
  * to the checkout template's { state, actions } shape.
- *
- * Drop-in replacement for useCheckoutDemo() in the deployed business front context.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout } from './useStore'
+import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInfo } from './useStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useGuestCartStore } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { storeApi } from '@/api/store'
+import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
 import type { Address, Cart, Customer, PaymentSelection, ShippingMethod } from '@/checkout/types'
 
-const SHIPPING_METHODS: ShippingMethod[] = [
+const FALLBACK_SHIPPING: ShippingMethod[] = [
   {
     id: 'free',
     label: 'Free Delivery',
@@ -20,23 +20,14 @@ const SHIPPING_METHODS: ShippingMethod[] = [
     price: { amount: 0, currency: 'INR' },
     estimatedDays: { min: 3, max: 7 },
   },
-  {
-    id: 'express',
-    label: 'Express Delivery',
-    description: '1–2 business days',
-    price: { amount: 9900, currency: 'INR' },
-    estimatedDays: { min: 1, max: 2 },
-  },
 ]
 
-/** Map store payment method id → checkout PaymentSelection */
 function paymentToCheckout(method: 'cod' | 'upi' | 'card'): PaymentSelection {
-  if (method === 'upi')  return { kind: 'provider', provider: 'paypal' }
-  if (method === 'cod')  return { kind: 'tab', tab: 'bank_transfer' }
+  if (method === 'upi') return { kind: 'provider', provider: 'paypal' }
+  if (method === 'cod') return { kind: 'tab', tab: 'bank_transfer' }
   return { kind: 'tab', tab: 'card' }
 }
 
-/** Map checkout PaymentSelection → store payment_method */
 function checkoutToPayment(sel?: PaymentSelection): 'cod' | 'upi' | 'card' {
   if (!sel) return 'card'
   if (sel.kind === 'provider') return 'upi'
@@ -44,18 +35,29 @@ function checkoutToPayment(sel?: PaymentSelection): 'cod' | 'upi' | 'card' {
   return 'card'
 }
 
+function isOnlinePayment(method: 'cod' | 'upi' | 'card'): boolean {
+  return method !== 'cod'
+}
+
 export function useStoreBridgeCheckout() {
   const navigate = useNavigate()
   const { storePath } = useVendor()
-  const { customer } = useAuthStore()
+  const { customer, isAuthenticated, setTokens, setCustomer } = useAuthStore()
+  const { vendorSlug } = useVendor()
+  const clearGuestCart = useGuestCartStore(s => s.clear)
+  const isGuest = !isAuthenticated
   const { data: cart } = useCart()
+  const { data: storeInfo } = useStoreInfo()
   const updateItem = useUpdateCartItem()
   const removeItem = useRemoveCartItem()
   const checkoutMutation = useCheckout()
 
   const currency = 'INR'
+  const storeName =
+    (storeInfo as { display_name?: string; business_name?: string } | undefined)?.display_name
+    ?? (storeInfo as { business_name?: string } | undefined)?.business_name
+    ?? 'Store'
 
-  // ── Convert saved addresses ─────────────────────────────────────────────────
   const savedAddresses: Address[] = ((customer?.shipping_addresses ?? []) as unknown as Record<string, string>[]).map((a, i) => ({
     id: String(i),
     label: a.label || 'home',
@@ -69,37 +71,97 @@ export function useStoreBridgeCheckout() {
     isDefault: i === (customer?.default_address_index ?? 0),
   }))
 
-  // ── Local form state ────────────────────────────────────────────────────────
   const [customerInfo, setCustomerInfo] = useState<Partial<Customer>>({
     email: customer?.email ?? '',
     firstName: customer?.full_name?.split(' ')[0],
     lastName: customer?.full_name?.split(' ').slice(1).join(' ') || undefined,
-    isGuest: false,
-    savedAddresses,
+    isGuest,
+    savedAddresses: isGuest ? [] : savedAddresses,
   })
   const [shippingAddress, setShippingAddressState] = useState<Address | undefined>(savedAddresses[0])
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | undefined>(
-    savedAddresses.length > 0 ? String(customer?.default_address_index ?? 0) : undefined
+    savedAddresses.length > 0 ? String(customer?.default_address_index ?? 0) : undefined,
   )
   const [shippingMethodId, setShippingMethodId] = useState<string>('free')
   const [payment, setPayment] = useState<PaymentSelection | undefined>({ kind: 'tab', tab: 'card' })
   const [notes, setNotes] = useState('')
   const [giftMessage, setGiftMessage] = useState('')
-  const [couponDiscount, setCouponDiscount] = useState(0)
   const [couponCode, setCouponCode] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | undefined>()
+  const [serverPreview, setServerPreview] = useState<Awaited<ReturnType<typeof storeApi.checkoutPreview>> | null>(null)
 
-  // ── Map store cart → checkout Cart ─────────────────────────────────────────
-  const subtotalAmount = Math.round(
-    ((cart?.items ?? []) as any[]).reduce((s: number, i: any) => s + i.price * i.qty, 0) * 100
+  const resolvedAddress: Address | undefined = shippingAddress
+    ?? (selectedSavedAddressId !== undefined
+      ? savedAddresses.find(a => a.id === selectedSavedAddressId)
+      : savedAddresses[0])
+
+  const cartItemsPayload = useMemo(
+    () => ((cart?.items ?? []) as Record<string, unknown>[]).map(item => ({
+      product_id: String(item.product_id ?? ''),
+      variant_id: item.variant_id ? String(item.variant_id) : undefined,
+      name: String(item.name ?? ''),
+      qty: Number(item.qty),
+      price: Number(item.price),
+      image_url: item.image_url ? String(item.image_url) : undefined,
+    })),
+    [cart?.items],
   )
-  const shippingMethod = SHIPPING_METHODS.find(m => m.id === shippingMethodId)
-  const shippingAmount = shippingMethod?.price.amount ?? 0
-  const taxAmount = Math.round(subtotalAmount * 0.18)
-  const discountAmount = Math.round(couponDiscount * 100)
+
+  const refreshPreview = useCallback(async (coupon?: string | null) => {
+    if (!cartItemsPayload.length) {
+      setServerPreview(null)
+      return
+    }
+    setPreviewLoading(true)
+    setPreviewError(undefined)
+    try {
+      const previewBody = {
+        shipping_method_id: shippingMethodId,
+        coupon_code: coupon ?? couponCode ?? undefined,
+        shipping_state: resolvedAddress?.region,
+      }
+      const data = isGuest
+        ? await storeApi.guestCheckoutPreview({ ...previewBody, items: cartItemsPayload })
+        : await storeApi.checkoutPreview(previewBody)
+      setServerPreview(data)
+      if (data.shipping_methods?.length && !data.shipping_methods.some(m => m.id === shippingMethodId)) {
+        setShippingMethodId(data.shipping_methods[0].id)
+      }
+    } catch {
+      setPreviewError('Could not load checkout totals')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [cartItemsPayload, shippingMethodId, couponCode, resolvedAddress?.region, isGuest])
+
+  useEffect(() => {
+    void refreshPreview()
+  }, [refreshPreview])
+
+  const shippingMethods: ShippingMethod[] = useMemo(() => {
+    const methods = serverPreview?.shipping_methods
+    if (!methods?.length) return FALLBACK_SHIPPING
+    return methods.map(m => ({
+      id: m.id,
+      label: m.label,
+      description: m.description,
+      price: { amount: Math.round((m.amount ?? 0) * 100), currency },
+      estimatedDays: {
+        min: m.estimated_days_min ?? 0,
+        max: m.estimated_days_max ?? 0,
+      },
+    }))
+  }, [serverPreview, currency])
+
+  const subtotalAmount = Math.round((serverPreview?.subtotal ?? 0) * 100)
+  const shippingAmount = Math.round((serverPreview?.shipping_amount ?? 0) * 100)
+  const taxAmount = Math.round((serverPreview?.tax_amount ?? 0) * 100)
+  const discountAmount = Math.round((serverPreview?.discount_amount ?? 0) * 100)
 
   const checkoutCart: Cart = useMemo(() => ({
     id: 'store_cart',
-    items: ((cart?.items ?? []) as any[]).map((item: Record<string, unknown>, i: number) => ({
+    items: ((cart?.items ?? []) as Record<string, unknown>[]).map((item, i) => ({
       id: String(i),
       productId: String(item.product_id ?? i),
       variantId: String(item.variant_id ?? i),
@@ -115,17 +177,51 @@ export function useStoreBridgeCheckout() {
     discounts: discountAmount > 0 && couponCode
       ? [{ code: couponCode, label: couponCode, amount: { amount: discountAmount, currency } }]
       : [],
-    taxes: [{ label: 'GST (18%)', amount: { amount: taxAmount, currency } }],
-    total: { amount: subtotalAmount + shippingAmount + taxAmount - discountAmount, currency },
-  }), [cart, subtotalAmount, shippingAmount, taxAmount, discountAmount, couponCode, currency])
+    taxes: (serverPreview?.tax_lines ?? [{ label: 'GST', amount: serverPreview?.tax_amount ?? 0 }]).map(t => ({
+      label: t.label,
+      amount: { amount: Math.round((typeof t.amount === 'number' ? t.amount : 0) * 100), currency },
+    })),
+    total: {
+      amount: Math.round((serverPreview?.total ?? 0) * 100),
+      currency,
+    },
+  }), [cart, subtotalAmount, shippingAmount, taxAmount, discountAmount, couponCode, serverPreview, currency])
 
-  // ── Resolve selected address ────────────────────────────────────────────────
-  const resolvedAddress: Address | undefined = shippingAddress
-    ?? (selectedSavedAddressId !== undefined
-      ? savedAddresses.find(a => a.id === selectedSavedAddressId)
-      : savedAddresses[0])
+  const completeOnlinePayment = useCallback(async (orderId: string) => {
+    const rzp = await storeApi.createRazorpayOrder(orderId)
 
-  // ── Actions ─────────────────────────────────────────────────────────────────
+    const finish = async (payment: {
+      razorpay_payment_id: string
+      razorpay_order_id: string
+      razorpay_signature: string
+    }) => {
+      await storeApi.verifyRazorpayPayment({
+        order_id: orderId,
+        ...payment,
+      })
+      navigate(storePath(`/order/${orderId}/confirmation`))
+    }
+
+    if (rzp.dev_mode) {
+      const mock = await mockRazorpayPay(rzp.razorpay_order_id)
+      await finish(mock)
+      return
+    }
+
+    await openRazorpayCheckout({
+      key: rzp.key_id,
+      amount: rzp.amount,
+      currency: rzp.currency,
+      name: storeName,
+      description: `Order payment`,
+      order_id: rzp.razorpay_order_id,
+      prefill: rzp.prefill,
+      handler: (response) => {
+        void finish(response)
+      },
+    })
+  }, [navigate, storePath, storeName])
+
   const actions = useMemo(() => ({
     setCustomer: (c: Partial<Customer>) => setCustomerInfo(c),
 
@@ -156,48 +252,99 @@ export function useStoreBridgeCheckout() {
 
     applyCoupon: async (code: string): Promise<{ ok: boolean; message?: string }> => {
       try {
-        const result = await storeApi.validateCoupon(code, subtotalAmount / 100)
-        if (result.valid) {
-          setCouponDiscount(result.discount_amount)
+        const previewBody = {
+          shipping_method_id: shippingMethodId,
+          coupon_code: code,
+          shipping_state: resolvedAddress?.region,
+        }
+        const result = isGuest
+          ? await storeApi.guestCheckoutPreview({ ...previewBody, items: cartItemsPayload })
+          : await storeApi.checkoutPreview(previewBody)
+        if (result.coupon_valid !== false && result.discount_amount >= 0) {
           setCouponCode(code)
+          setServerPreview(result)
           return { ok: true }
         }
-        return { ok: false, message: result.message }
+        return { ok: false, message: result.coupon_message ?? 'Invalid coupon' }
       } catch {
         return { ok: false, message: 'Could not validate coupon — check the code and try again.' }
       }
     },
     removeCoupon: (_code: string) => {
-      setCouponDiscount(0)
       setCouponCode(null)
+      void refreshPreview(null)
     },
 
     placeOrder: async (): Promise<{ ok: boolean; orderId?: string; error?: string }> => {
-      if (!resolvedAddress) {
+      const paymentMethod = checkoutToPayment(payment)
+      const shippingPayload = {
+        street_address: resolvedAddress?.line1 ?? '',
+        city: resolvedAddress?.city ?? '',
+        state: resolvedAddress?.region ?? '',
+        postal_code: resolvedAddress?.postalCode ?? '',
+        country: resolvedAddress?.country || 'India',
+      }
+
+      if (isGuest) {
+        const email = customerInfo.email?.trim()
+        const name = [customerInfo.firstName, customerInfo.lastName].filter(Boolean).join(' ').trim()
+        if (!email) return { ok: false, error: 'Please enter your email address.' }
+        if (!name) return { ok: false, error: 'Please enter your name.' }
+        if (!resolvedAddress?.line1) return { ok: false, error: 'Please enter a delivery address.' }
+      } else if (!resolvedAddress) {
         return { ok: false, error: 'Please select a delivery address.' }
       }
+
       try {
-        const order = await checkoutMutation.mutateAsync({
-          shipping_address: {
-            street_address: resolvedAddress.line1,
-            city: resolvedAddress.city,
-            state: resolvedAddress.region,
-            postal_code: resolvedAddress.postalCode,
-            country: resolvedAddress.country || 'India',
-          },
-          payment_method: checkoutToPayment(payment),
-          notes: notes || undefined,
-          coupon_code: couponCode ?? undefined,
-        })
-        navigate(storePath(`/account/orders/${order.id}`))
-        return { ok: true, orderId: order.id }
+        let orderId: string
+
+        if (isGuest) {
+          const guestName = [customerInfo.firstName, customerInfo.lastName].filter(Boolean).join(' ').trim()
+          const result = await storeApi.guestCheckout({
+            customer: {
+              full_name: guestName,
+              email: customerInfo.email!.trim(),
+              phone: customerInfo.phone,
+            },
+            items: cartItemsPayload,
+            shipping_address: shippingPayload,
+            payment_method: paymentMethod,
+            shipping_method_id: shippingMethodId,
+            notes: notes || undefined,
+            coupon_code: couponCode ?? undefined,
+          })
+          if (result.access_token && result.refresh_token) {
+            setTokens({ access_token: result.access_token, refresh_token: result.refresh_token, token_type: 'bearer' })
+            if (result.customer) setCustomer(result.customer as any)
+          }
+          orderId = result.id
+          clearGuestCart(vendorSlug)
+        } else {
+          const order = await checkoutMutation.mutateAsync({
+            shipping_address: shippingPayload,
+            payment_method: paymentMethod,
+            shipping_method_id: shippingMethodId,
+            notes: notes || undefined,
+            coupon_code: couponCode ?? undefined,
+          })
+          orderId = order.id
+        }
+
+        if (isOnlinePayment(paymentMethod)) {
+          await completeOnlinePayment(orderId)
+        } else {
+          navigate(storePath(`/order/${orderId}/confirmation`))
+        }
+        return { ok: true, orderId }
       } catch {
         return { ok: false, error: 'Order placement failed. Please check your details and try again.' }
       }
     },
   }), [
-    resolvedAddress, payment, notes, couponCode, subtotalAmount,
+    resolvedAddress, payment, notes, couponCode, shippingMethodId,
     checkoutMutation, navigate, storePath, removeItem, updateItem,
+    completeOnlinePayment, refreshPreview, isGuest, customerInfo,
+    cartItemsPayload, setTokens, setCustomer, clearGuestCart, vendorSlug,
   ])
 
   return {
@@ -206,18 +353,18 @@ export function useStoreBridgeCheckout() {
       customer: {
         ...customerInfo,
         email: customerInfo.email ?? customer?.email ?? '',
-        isGuest: false,
-        savedAddresses,
+        isGuest,
+        savedAddresses: isGuest ? [] : savedAddresses,
       } as Customer,
       shippingAddress: resolvedAddress,
       selectedSavedAddressId,
       shippingMethodId,
-      shippingMethods: SHIPPING_METHODS,
+      shippingMethods,
       payment,
       notes,
       giftMessage,
-      isPlacing: checkoutMutation.isPending,
-      error: undefined as string | undefined,
+      isPlacing: checkoutMutation.isPending || previewLoading,
+      error: previewError,
     },
     actions,
   }

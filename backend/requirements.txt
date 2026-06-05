@@ -31,6 +31,8 @@ aiofiles>=23.2.1
 python-slugify==8.0.1
 python-dateutil==2.8.2
 httpx==0.26.0
+dnspython==2.6.1
+pyotp==2.9.0
 aiosmtplib==3.0.1
 
 # Background Tasks

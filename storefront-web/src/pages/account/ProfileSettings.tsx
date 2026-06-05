@@ -1,28 +1,56 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
+import { storeApi } from '@/api/store'
 import { ProfileEdit, ChangePasswordForm, NotificationPreferencesForm } from '@/kit/account/AccountBlocks'
 import { bridgeCustomer } from '@/kit/bridge'
 import type { AccountUser } from '@/kit/types'
 import { ChevronRight } from 'lucide-react'
+import { extractApiError } from '@/lib/errorMessages'
 
 export default function ProfileSettings() {
-  const { customer } = useAuthStore()
+  const { customer, setCustomer } = useAuthStore()
   const { storePath } = useVendor()
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    storeApi.getNotificationPreferences()
+      .then(setNotifPrefs)
+      .catch(() => {
+        if (customer?.notification_preferences) setNotifPrefs(customer.notification_preferences as Record<string, boolean>)
+      })
+  }, [customer?.id])
 
   if (!customer) return null
 
   const kitUser: AccountUser = bridgeCustomer(customer)
 
-  const handleSaveProfile = (_updated: AccountUser) => {
-    // TODO: wire to PUT /api/customers/me
-    toast.success('Profile updated')
+  const handleSaveProfile = async (updated: AccountUser) => {
+    try {
+      const saved = await storeApi.updateMe({
+        full_name: updated.name,
+        phone: updated.phone || undefined,
+        avatar_url: updated.avatarUrl || undefined,
+      })
+      setCustomer(saved)
+      toast.success('Profile updated')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not update profile'))
+    }
   }
 
-  const handleChangePassword = (_data: { current: string; next: string }) => {
-    // TODO: wire to POST /api/customers/me/change-password
-    toast.success('Password updated')
+  const handleChangePassword = async (data: { current: string; next: string }) => {
+    try {
+      await storeApi.changePassword({
+        current_password: data.current,
+        new_password: data.next,
+      })
+      toast.success('Password updated')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not change password'))
+    }
   }
 
   return (
@@ -38,7 +66,18 @@ export default function ProfileSettings() {
       <div className="space-y-6">
         <ProfileEdit user={kitUser} onSave={handleSaveProfile} />
         <ChangePasswordForm onSubmit={handleChangePassword} />
-        <NotificationPreferencesForm />
+        <NotificationPreferencesForm
+          value={notifPrefs}
+          onChange={async (prefs) => {
+            setNotifPrefs(prefs)
+            try {
+              await storeApi.updateNotificationPreferences(prefs)
+              toast.success('Notification preferences saved')
+            } catch (err) {
+              toast.error(extractApiError(err, 'Could not save preferences'))
+            }
+          }}
+        />
       </div>
     </div>
   )

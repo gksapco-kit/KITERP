@@ -11,7 +11,10 @@ from app.database import get_db
 from app.api.deps import get_store_vendor_id, get_current_active_customer
 from app.models.customer import Customer
 from app.models.order import Order
-from app.schemas.order import CheckoutRequest, OrderCancelRequest, ReturnExchangeRequest, QuoteRequest
+from app.schemas.order import (
+    CheckoutRequest, GuestCheckoutRequest,
+    OrderCancelRequest, ReturnExchangeRequest, QuoteRequest,
+)
 from app.services.order_service import OrderService
 from app.services.invoice_service import InvoiceService
 from app.repositories.order_repo import OrderRepository
@@ -84,6 +87,40 @@ def _order_to_dict(order: Order) -> dict:
             for h in getattr(order, "status_history", []) or []
         ],
     }
+
+
+@router.post("/guest-checkout", status_code=status.HTTP_201_CREATED)
+async def guest_checkout(
+    data: GuestCheckoutRequest,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Place an order without a logged-in account (guest checkout)."""
+    from app.repositories.customer_repo import CustomerRepository
+    from app.core.security import create_access_token, create_refresh_token
+
+    service = OrderService(db)
+    order = await service.guest_checkout(vendor_id, data)
+
+    repo = CustomerRepository(db)
+    customer = await repo.get_by_vendor_and_id(vendor_id, order.customer_id)
+    token_data = {
+        "sub": str(order.customer_id),
+        "vendor_id": str(vendor_id),
+        "role": "customer",
+        "email": customer.email if customer else data.customer.email,
+    }
+    payload = _order_to_dict(order)
+    payload["access_token"] = create_access_token(data=token_data)
+    payload["refresh_token"] = create_refresh_token(data=token_data)
+    if customer:
+        payload["customer"] = {
+            "id": str(customer.id),
+            "full_name": customer.full_name,
+            "email": customer.email,
+            "phone": customer.phone,
+        }
+    return JSONResponse(content=payload, status_code=201)
 
 
 @router.post("/checkout", status_code=status.HTTP_201_CREATED)
@@ -292,3 +329,36 @@ async def get_order_invoice(
         "is_gst": inv.is_gst,
         "created_at": inv.created_at.isoformat() if inv.created_at else None,
     })
+
+
+@router.post("/{order_id}/dispute", status_code=status.HTTP_201_CREATED)
+async def file_order_dispute(
+    order_id: UUID,
+    body: dict,
+    customer: Customer = Depends(get_current_active_customer),
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Customer files a dispute on an order (routed to platform admin)."""
+    from app.models.order_dispute import OrderDispute
+
+    repo = OrderRepository(db)
+    order = await repo.get_by_vendor_and_id(vendor_id, order_id)
+    if not order or order.customer_id != customer.id:
+        raise HTTPException(404, "Order not found")
+    reason = (body.get("reason") or "").strip()
+    if not reason:
+        raise HTTPException(400, "reason is required")
+    dispute = OrderDispute(
+        order_id=order.id,
+        vendor_id=vendor_id,
+        customer_id=customer.id,
+        dispute_type=body.get("dispute_type") or "general",
+        reason=reason,
+        amount=body.get("amount"),
+        status="open",
+    )
+    db.add(dispute)
+    await db.commit()
+    await db.refresh(dispute)
+    return {"ok": True, "dispute_id": str(dispute.id), "status": dispute.status}

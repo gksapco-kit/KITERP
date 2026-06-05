@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -24,6 +24,11 @@ import {
   getServiceDocTemplates,
   type BookingDocTypeId,
 } from '@/lib/bookingDocuments'
+import {
+  ClickableImageButton,
+  ImageLightboxSession,
+  urlsToLightboxItems,
+} from '@/components/common/ImageAttachmentLightbox'
 
 function downloadInvoicePdf(invoice: Record<string, unknown>, bookingNumber: string) {
   const fmt = (n: unknown) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
@@ -129,6 +134,9 @@ export default function BookingDetail() {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [showCompleteModal, setShowCompleteModal] = useState(false)
+  const [completionOtp, setCompletionOtp] = useState('')
+  const [otpSending, setOtpSending] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
 
   useEscapeToClose(() => setShowCancelModal(false), showCancelModal)
   useEscapeToClose(() => setShowCompleteModal(false), showCompleteModal)
@@ -142,7 +150,27 @@ export default function BookingDetail() {
   const [selectedStaff, setSelectedStaff] = useState('')
   const [assigningStaff, setAssigningStaff] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [attachmentLightboxIndex, setAttachmentLightboxIndex] = useState<number | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const attachments = useMemo(
+    () => ((booking as Record<string, unknown> | undefined)?.attachments as Record<string, unknown>[] | undefined) || [],
+    [booking],
+  )
+  const imageAttachments = useMemo(
+    () => attachments.filter((a) => (a.kind as string) === 'image'),
+    [attachments],
+  )
+  const attachmentLightboxItems = useMemo(
+    () => urlsToLightboxItems(
+      imageAttachments.map((a) => a.url as string),
+      {
+        idPrefix: 'booking-att',
+        altText: (i) => (imageAttachments[i]?.filename as string) ?? `Attachment ${i + 1}`,
+      },
+    ),
+    [imageAttachments],
+  )
 
   // Print documents — read enabled templates set on the Service page (read-only here)
   const serviceId = (booking as any)?.service_id as string | undefined
@@ -266,7 +294,6 @@ export default function BookingDetail() {
   const isCancelled = b.status === 'cancelled' || b.status === 'no_show'
   const isDone = b.status === 'completed'
   const followups: Record<string, unknown>[] = (b.followups as Record<string, unknown>[]) || []
-  const attachments: Record<string, unknown>[] = (b.attachments as Record<string, unknown>[]) || []
   const statusHistory: any[] = (b.status_history as any[]) || []
 
   // Init internal notes from booking
@@ -363,10 +390,39 @@ export default function BookingDetail() {
                     </Button>
                   )}
                   {b.status === 'in_progress' && (
-                    <Button size="sm" className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => setShowCompleteModal(true)} disabled={statusLoading}>
-                      <CheckCircle className="w-3.5 h-3.5" /> Complete
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={statusLoading || otpSending}
+                        onClick={async () => {
+                          setOtpSending(true)
+                          try {
+                            const res = await vendorApi.generateBookingOtp(booking.id)
+                            setOtpSent(true)
+                            if (res.dev_hint) {
+                              toast.success(`OTP sent (dev: ${res.dev_hint})`)
+                            } else if (res.sent) {
+                              toast.success('Completion OTP sent to customer')
+                            } else {
+                              toast.message('OTP generated — SMS could not be sent')
+                            }
+                          } catch {
+                            toast.error('Could not send completion OTP')
+                          } finally {
+                            setOtpSending(false)
+                          }
+                        }}
+                      >
+                        {otpSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Phone className="w-3.5 h-3.5" />}
+                        Send OTP
+                      </Button>
+                      <Button size="sm" className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => { setCompletionOtp(''); setShowCompleteModal(true) }} disabled={statusLoading}>
+                        <CheckCircle className="w-3.5 h-3.5" /> Complete
+                      </Button>
+                    </>
                   )}
                   {['pending', 'confirmed'].includes(b.status as string) && (
                     <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50 ml-auto"
@@ -479,9 +535,17 @@ export default function BookingDetail() {
                   {attachments.map((a) => (
                     <div key={a.id as string} className="relative group rounded-xl border overflow-hidden bg-gray-50">
                       {(a.kind as string) === 'image' ? (
-                        <a href={mediaUrl(a.url as string)} target="_blank" rel="noopener noreferrer">
-                          <img src={mediaUrl(a.url as string)} alt="" className="w-full h-28 object-cover" />
-                        </a>
+                        <ClickableImageButton
+                          src={mediaUrl(a.url as string)}
+                          alt={(a.filename as string) || 'Attachment'}
+                          title="View image"
+                          className="w-full"
+                          imgClassName="w-full h-28 object-cover"
+                          onClick={() => {
+                            const imgIdx = imageAttachments.findIndex((x) => x.id === a.id)
+                            if (imgIdx >= 0) setAttachmentLightboxIndex(imgIdx)
+                          }}
+                        />
                       ) : (a.kind as string) === 'video' ? (
                         <video src={mediaUrl(a.url as string)} className="w-full h-28 object-cover" controls muted />
                       ) : (
@@ -494,7 +558,7 @@ export default function BookingDetail() {
                       <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button type="button" aria-label="Close"
                           className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow"
-                          onClick={() => handleDeleteAttachment(a.id as string)}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteAttachment(a.id as string) }}
                         >
                 <X className="w-3 h-3" />
                         </button>
@@ -507,6 +571,11 @@ export default function BookingDetail() {
                   ))}
                 </div>
               )}
+              <ImageLightboxSession
+                items={attachmentLightboxItems}
+                openIndex={attachmentLightboxIndex}
+                onClose={() => setAttachmentLightboxIndex(null)}
+              />
             </CardContent>
           </Card>
 
@@ -911,7 +980,21 @@ export default function BookingDetail() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setShowCompleteModal(false)}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-1">Mark as Completed</h3>
-            <p className="text-sm text-gray-500 mb-4">Add optional notes about service delivery.</p>
+            <p className="text-sm text-gray-500 mb-4">
+              {otpSent ? 'Enter the OTP sent to the customer to verify completion.' : 'Add optional notes about service delivery.'}
+            </p>
+            {otpSent && (
+              <div className="space-y-1.5 mb-3">
+                <Label className="text-sm">Completion OTP</Label>
+                <Input
+                  value={completionOtp}
+                  onChange={(e) => setCompletionOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit code"
+                  inputMode="numeric"
+                  maxLength={6}
+                />
+              </div>
+            )}
             <Label className="text-sm">Delivery Notes (optional)</Label>
             <textarea
               className="w-full border rounded-lg px-3 py-2 text-sm resize-none mt-1"
@@ -922,11 +1005,19 @@ export default function BookingDetail() {
             />
             <div className="flex gap-3 mt-4">
               <Button variant="cancel" className="flex-1" onClick={() => setShowCompleteModal(false)}>Cancel</Button>
-              <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={statusLoading}
+              <Button
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                disabled={statusLoading || (otpSent && completionOtp.length < 6)}
                 onClick={() => {
-                  handleStatus('completed', { delivery_notes: deliveryNotes || undefined })
+                  handleStatus('completed', {
+                    delivery_notes: deliveryNotes || undefined,
+                    completion_otp: otpSent ? completionOtp : undefined,
+                  })
                   setShowCompleteModal(false)
-                }}>
+                  setCompletionOtp('')
+                  setOtpSent(false)
+                }}
+              >
                 {statusLoading && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
                 Complete Booking
               </Button>

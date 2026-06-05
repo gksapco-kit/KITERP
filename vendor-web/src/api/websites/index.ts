@@ -195,4 +195,26 @@ export const websiteApi = {
         `${base}/${siteId}/builder-previews`,
       )
       .then(r => r.data),
+
+  domainVerifyInit: (siteId: string, customDomain: string) =>
+    apiClient
+      .post<{
+        custom_domain: string
+        verification_token: string
+        dns_record_type: string
+        dns_record_name: string
+        dns_record_value: string
+        instructions: string
+      }>(`${base}/${siteId}/domains/verify-init`, { custom_domain: customDomain })
+      .then(r => r.data),
+
+  domainVerifyCheck: (siteId: string) =>
+    apiClient
+      .post<{
+        verified: boolean
+        custom_domain?: string
+        dns_record_name?: string
+        message?: string
+      }>(`${base}/${siteId}/domains/verify-check`)
+      .then(r => r.data),
 }

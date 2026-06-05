@@ -3,8 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Upload, X, Star, Loader2, Film, Box, Image as ImageIcon, GripVertical } from 'lucide-react'
 import { useImageSourcePicker } from './ImageSourcePicker'
 import {
-  CatalogMediaLightbox,
-  useCatalogMediaLightbox,
+  CatalogMediaLightboxHost,
   type LightboxMediaItem,
 } from './CatalogMediaLightbox'
 
@@ -299,34 +298,6 @@ function useThumbDragReorder(onReorder: (from: number, to: number) => void) {
   }, [])
 
   return { draggingIndex, dragOverIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd }
-}
-
-function CatalogMediaLightboxHost({
-  items,
-  children,
-  editable,
-  onSaveImage,
-}: {
-  items: LightboxMediaItem[]
-  children: (ctx: ReturnType<typeof useCatalogMediaLightbox> & { items: LightboxMediaItem[] }) => ReactNode
-  editable?: boolean
-  onSaveImage?: (index: number, file: File) => Promise<void>
-}) {
-  const lightbox = useCatalogMediaLightbox(items.length)
-  return (
-    <>
-      {children({ ...lightbox, items })}
-      <CatalogMediaLightbox
-        items={items}
-        index={lightbox.index}
-        onClose={lightbox.close}
-        onPrev={lightbox.goPrev}
-        onNext={lightbox.goNext}
-        editable={editable}
-        onSaveImage={onSaveImage}
-      />
-    </>
-  )
 }
 
 function CatalogMediaDropzone({

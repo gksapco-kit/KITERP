@@ -47,6 +47,8 @@ class Customer(Base):
     # Financial
     opening_balance = Column(Numeric(12, 2), default=0)
 
+    notification_preferences = Column(JSONB, default=dict)
+
     # Stats
     is_active = Column(Boolean, default=True)
     total_orders = Column(Integer, default=0)
@@ -59,6 +61,7 @@ class Customer(Base):
     # Relationships
     orders = relationship("Order", back_populates="customer", lazy="selectin")
     cart = relationship("Cart", back_populates="customer", uselist=False, lazy="selectin")
+    wishlist = relationship("Wishlist", back_populates="customer", uselist=False, lazy="selectin")
 
     __table_args__ = (
         Index(

@@ -169,6 +169,8 @@ export interface PhoneInputProps {
   dense?: boolean
   /** Softer valid-state styling (no loud green border / in-field counter). */
   subtleFeedback?: boolean
+  /** Narrow country-code trigger so the number field gets more width (forms, modals). */
+  compactCountry?: boolean
 }
 
 export function PhoneInput({
@@ -187,6 +189,7 @@ export function PhoneInput({
   comfortable = false,
   dense = false,
   subtleFeedback = false,
+  compactCountry = false,
 }: PhoneInputProps) {
   const defaultCountry =
     COUNTRIES.find(c => c.iso === defaultCountryIso) ??
@@ -347,32 +350,42 @@ export function PhoneInput({
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
           className={cn(
-            'flex items-center gap-1.5 rounded-l-md border border-r-0 bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0',
-            comfortable
-              ? (
-                  dense
-                    ? 'min-h-[calc(2.75rem*0.95*0.76)] gap-1.5 px-2.5 text-xs'
-                    : 'min-h-[calc(2.75rem*0.95)] gap-2 px-3 text-[0.95rem]'
-                )
-              : 'px-2.5 py-2 text-sm',
+            'flex items-center rounded-l-md border border-r-0 bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0',
+            compactCountry
+              ? 'w-[3.5rem] min-w-[3.5rem] justify-center gap-0 px-1 py-2'
+              : cn(
+                  'gap-1.5',
+                  comfortable
+                    ? (
+                        dense
+                          ? 'min-h-[calc(2.75rem*0.95*0.76)] gap-1.5 px-2.5 text-xs'
+                          : 'min-h-[calc(2.75rem*0.95)] gap-2 px-3 text-[0.95rem]'
+                      )
+                    : 'px-2.5 py-2 text-sm',
+                ),
             dropOpen ? 'border-primary ring-1 ring-ring z-10' : 'border-input',
             error && 'border-destructive',
             disabled && 'opacity-50 cursor-not-allowed',
           )}
         >
-          <span className={cn('leading-none', comfortable ? (dense ? 'text-sm' : 'text-base') : 'text-base')}>{country.flag}</span>
+          {!compactCountry && (
+            <span className={cn(
+              'leading-none',
+              comfortable ? (dense ? 'text-sm' : 'text-base') : 'text-base',
+            )}>{country.flag}</span>
+          )}
           <span
             className={cn(
-              'font-mono text-foreground',
-              comfortable ? (dense ? 'text-xs' : 'text-sm') : 'text-xs',
+              'font-mono text-foreground leading-none',
+              compactCountry ? 'text-[11px]' : comfortable ? (dense ? 'text-xs' : 'text-sm') : 'text-xs',
             )}
           >
             {country.dialCode}
           </span>
           <ChevronDown
             className={cn(
-              'text-muted-foreground transition-transform',
-              comfortable ? (dense ? 'w-3.5 h-3.5' : 'w-4 h-4') : 'w-3 h-3',
+              'text-muted-foreground transition-transform shrink-0',
+              compactCountry ? 'w-2 h-2' : comfortable ? (dense ? 'w-3.5 h-3.5' : 'w-4 h-4') : 'w-3 h-3',
               dropOpen && 'rotate-180',
             )}
           />

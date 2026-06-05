@@ -81,6 +81,7 @@ class InventoryService:
 
         if auto_commit:
             await self.db.commit()
+            await self._maybe_notify_low_stock(vendor_id, product_id, variant_id, entity)
         return movement
 
     async def record_movement_no_commit(
@@ -148,6 +149,31 @@ class InventoryService:
             await self._sync_parent_product_quantity(product_id)
 
         return movement
+
+    async def _maybe_notify_low_stock(
+        self,
+        vendor_id: UUID,
+        product_id: UUID,
+        variant_id: UUID | None,
+        entity,
+    ) -> None:
+        threshold = getattr(entity, "low_stock_threshold", None) or 5
+        qty = entity.quantity or 0
+        if qty > threshold:
+            return
+        name = getattr(entity, "name", None) or getattr(entity, "sku", None) or "Product"
+        try:
+            from app.services.notification_service import NotificationService
+
+            await NotificationService(self.db).notify_low_stock(
+                vendor_id=vendor_id,
+                product_name=str(name),
+                quantity=qty,
+                product_id=product_id,
+            )
+            await self.db.commit()
+        except Exception:
+            pass
 
     async def _sync_parent_product_quantity(self, product_id: UUID):
         """Sum variant quantities and update the parent product."""

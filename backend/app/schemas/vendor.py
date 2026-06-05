@@ -110,6 +110,7 @@ class VendorUpdate(BaseModel):
     logo_url: Optional[str] = None
     banner_url: Optional[str] = None
     business_hours: Optional[dict] = None
+    store_holidays: Optional[list] = None
     order_acceptance_enabled: Optional[bool] = None
     order_acceptance_hours: Optional[dict] = None
     social_links: Optional[dict] = None
@@ -167,6 +168,7 @@ class VendorResponse(BaseModel):
     logo_url: Optional[str] = None
     banner_url: Optional[str] = None
     business_hours: Optional[dict] = None
+    store_holidays: Optional[list] = None
     order_acceptance_enabled: Optional[bool] = True
     order_acceptance_hours: Optional[dict] = None
     social_links: Optional[dict] = None

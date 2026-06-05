@@ -1085,6 +1085,38 @@ export function useUploadInvoiceSignature() {
   })
 }
 
+export function useQuotationSettings() {
+  return useQuery({
+    queryKey: ['quotationSettings'],
+    queryFn: () => vendorApi.getQuotationSettings(),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useUpdateQuotationSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.updateQuotationSettings(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quotationSettings'] })
+      toast.success('Quotation templates saved!')
+    },
+    onError: apiError('Could not save quotation templates'),
+  })
+}
+
+export function useUploadQuotationSignature() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => vendorApi.uploadQuotationSignature(file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quotationSettings'] })
+      toast.success('Signature uploaded!')
+    },
+    onError: apiError('Could not upload signature — file may be too large or wrong format (use PNG/JPG)'),
+  })
+}
+
 // ── PO Template Settings ──────────────────────────────────────────────────────
 
 const PO_SETTINGS_KEY = 'po_template_settings'

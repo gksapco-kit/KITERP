@@ -14,7 +14,22 @@ import {
 } from 'lucide-react'
 import { generatePOHtml, PO_TEMPLATE_COLORS, DEFAULT_PO_SETTINGS } from '@/lib/poTemplates'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import type { POTemplateSettings } from '@/lib/poTemplates'
+
+function resolveOriginPath(url: string) {
+  if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url
+  return `${window.location.origin}${url}`
+}
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = ev => resolve(ev.target?.result as string)
+    reader.onerror = () => reject(new Error('read failed'))
+    reader.readAsDataURL(file)
+  })
+}
 
 // ── Template thumbnails ───────────────────────────────────────────────────────
 
@@ -378,6 +393,10 @@ export default function POTemplatesPage() {
     }
   }
 
+  const applyDrawnSignatureSave = async (file: File) => {
+    set('signature_url', await fileToDataUrl(file))
+  }
+
   if (isLoading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
   }
@@ -523,14 +542,20 @@ export default function POTemplatesPage() {
             <AccordionSection title="Company Logo" defaultOpen>
               <div className="flex items-center gap-4">
                 {logoUrl ? (
-                  <div className="relative">
-                    <img src={`${window.location.origin}${logoUrl}`} alt="Logo"
-                      className="h-14 max-w-[120px] object-contain border rounded-lg p-1" />
+                  <SingleImagePreview
+                    url={logoUrl}
+                    alt="Logo"
+                    resolveUrl={resolveOriginPath}
+                    className="rounded-lg"
+                    imgClassName="h-14 max-w-[120px] object-contain border rounded-lg p-1"
+                    editable
+                    onSave={uploadPoLogo}
+                  >
                     <button onClick={() => set('logo_url', '')}
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
+                      className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
                       <X className="w-2.5 h-2.5" />
                     </button>
-                  </div>
+                  </SingleImagePreview>
                 ) : (
                   <div className="h-14 w-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
                     <Building2 className="w-6 h-6 text-gray-300" />
@@ -563,14 +588,20 @@ export default function POTemplatesPage() {
               {sigMode === 'upload' ? (
                 <div className="flex items-center gap-4">
                   {settings.signature_url && !settings.signature_url.startsWith('data:') ? (
-                    <div className="relative">
-                      <img src={`${window.location.origin}${settings.signature_url}`} alt="Signature"
-                        className="h-14 max-w-[140px] object-contain border rounded-lg p-1 bg-white" />
+                    <SingleImagePreview
+                      url={settings.signature_url}
+                      alt="Signature"
+                      resolveUrl={resolveOriginPath}
+                      className="rounded-lg"
+                      imgClassName="h-14 max-w-[140px] object-contain border rounded-lg p-1 bg-white"
+                      editable
+                      onSave={applyPoSignatureUpload}
+                    >
                       <button onClick={() => set('signature_url', '')}
-                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
+                        className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
                         <X className="w-2.5 h-2.5" />
                       </button>
-                    </div>
+                    </SingleImagePreview>
                   ) : (
                     <div className="h-14 w-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1">
                       <Pen className="w-5 h-5 text-gray-300" />
@@ -594,14 +625,19 @@ export default function POTemplatesPage() {
               ) : (
                 <div className="space-y-2">
                   {settings.signature_url?.startsWith('data:') && (
-                    <div className="relative mb-2">
-                      <img src={settings.signature_url} alt="Drawn signature"
-                        className="h-16 border rounded-lg p-2 bg-white object-contain" />
+                    <SingleImagePreview
+                      url={settings.signature_url}
+                      alt="Drawn signature"
+                      className="mb-2 rounded-lg"
+                      imgClassName="h-16 border rounded-lg p-2 bg-white object-contain"
+                      editable
+                      onSave={applyDrawnSignatureSave}
+                    >
                       <button onClick={() => set('signature_url', '')}
-                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
+                        className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center">
                         <X className="w-2.5 h-2.5" />
                       </button>
-                    </div>
+                    </SingleImagePreview>
                   )}
                   <SignaturePad
                     onSave={dataUrl => set('signature_url', dataUrl)}

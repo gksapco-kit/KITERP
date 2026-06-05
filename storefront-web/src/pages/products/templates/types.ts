@@ -22,6 +22,13 @@ export interface ProductDetailTemplateProps {
   displayMedia: { id: string; url: string; alt_text?: string; is_primary: boolean; media_type?: 'image' | 'video' | 'model3d' }[]
   handleAddToCart: () => void
   handleBuyNow: () => void
+  handleSubscribe?: (config: {
+    interval: string; cycles: number; total: number
+    startDate: string; endDate: string
+    selectedDates?: string[]; weeklyDay?: number
+    recurrence?: { every: number; unit: string; weekdays?: number[] }
+  }) => void
+  subscribePending?: boolean
   isAuthenticated: boolean
   addToCartPending: boolean
   storePath: (p: string) => string

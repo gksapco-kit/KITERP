@@ -69,6 +69,8 @@ class Booking(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     confirmed_at = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
+    completion_otp = Column(String(10), nullable=True)
+    completion_otp_expires_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("ix_booking_vendor_status", "vendor_id", "status"),

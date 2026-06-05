@@ -1,15 +1,17 @@
 import { useState, useLayoutEffect, useRef, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   FileText, Stethoscope, ClipboardList, Wrench, Truck,
   FileCheck, BookOpen, Users, ChevronDown, ChevronUp,
   Palette, Building2, ToggleLeft, Check, Upload, X,
-  RotateCcw, ArrowLeft, Eye,
+  RotateCcw, ArrowLeft, Eye, ScrollText, ShoppingCart,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 
 // ─── Template Type Definitions ────────────────────────────────────────────────
 
@@ -38,11 +40,44 @@ const TEMPLATE_TYPES: DocTemplateType[] = [
   { id: 'sop',             label: 'SOP / Procedure',     desc: 'Standard Operating Procedure with steps & approvals',  icon: ClipboardList,  color: 'text-primary', bg: 'bg-accent', category: 'Operations' },
   { id: 'work_order',      label: 'Work Order',          desc: 'Job card for services, repairs & maintenance tasks',   icon: Wrench,         color: 'text-orange-600', bg: 'bg-orange-50', category: 'Operations' },
   { id: 'delivery_challan',label: 'Delivery Challan',    desc: 'Shipment document listing items being dispatched',     icon: Truck,          color: 'text-teal-600',   bg: 'bg-teal-50',   category: 'Logistics' },
-  { id: 'quotation',       label: 'Quotation / Estimate',desc: 'Price quote before a purchase order or invoice',       icon: FileText,       color: 'text-indigo-600', bg: 'bg-indigo-50', category: 'Sales' },
   { id: 'quality_report',  label: 'Quality Report',      desc: 'QC inspection checklist & test results document',      icon: FileCheck,      color: 'text-green-600',  bg: 'bg-green-50',  category: 'Operations' },
   { id: 'meeting_minutes', label: 'Meeting Minutes',     desc: 'Meeting summary with attendees & action items',        icon: BookOpen,       color: 'text-rose-600',   bg: 'bg-rose-50',   category: 'Admin' },
   { id: 'hr_letter',       label: 'HR Letter',           desc: 'Offer, appraisal, warning & experience letters',       icon: Users,          color: 'text-cyan-600',   bg: 'bg-cyan-50',   category: 'HR' },
 ]
+
+/** Billing & procurement templates — open the dedicated full template editors. */
+const LINKED_TEMPLATE_TYPES = [
+  {
+    id: 'invoice_templates',
+    label: 'Invoice Templates',
+    desc: 'GST invoices, receipts & customer billing — themes, branding & PDF layout',
+    icon: FileText,
+    color: 'text-blue-600',
+    bg: 'bg-blue-50',
+    category: 'Sales',
+    href: '/invoices/templates',
+  },
+  {
+    id: 'quotation_templates',
+    label: 'Quotation Templates',
+    desc: 'Sales estimates & price quotes — print/PDF layout for quotations',
+    icon: ScrollText,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50',
+    category: 'Sales',
+    href: '/quotations/templates',
+  },
+  {
+    id: 'po_templates',
+    label: 'Purchase Order Templates',
+    desc: 'Supplier purchase orders — themes, branding & print settings',
+    icon: ShoppingCart,
+    color: 'text-amber-600',
+    bg: 'bg-amber-50',
+    category: 'Purchasing',
+    href: '/purchase-orders/templates',
+  },
+] as const
 
 // ─── Per-template settings interfaces ────────────────────────────────────────
 
@@ -883,6 +918,7 @@ function HRLetterPanel({ s, set }: { s: HRLetterSettings; set: <K extends keyof 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DocumentTemplatesPage() {
+  const navigate = useNavigate()
   const [activeType, setActiveType] = useState<DocTemplateId | null>(null)
   const [settingsTab, setSettingsTab] = useState<'design' | 'branding' | 'content'>('design')
   const [allSettings, setAllSettings] = useState<Record<string, AnyDocSettings>>(loadSettings)
@@ -937,30 +973,60 @@ export default function DocumentTemplatesPage() {
     toast('Template reset to defaults')
   }
 
-  const applyDocLogoFile = useCallback((file: File) => {
-    const reader = new FileReader()
-    reader.onload = ev => set('logo_url', ev.target?.result as never)
-    reader.readAsDataURL(file)
+  const applyDocLogoFile = useCallback(async (file: File) => {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = ev => resolve(String(ev.target?.result ?? ''))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+    set('logo_url', dataUrl as never)
   }, [set])
 
   const s = activeType ? currentSettings() : null
 
   // ── Gallery view (no template selected) ──────────────────────────────────
   if (!activeType) {
-    const categories = [...new Set(TEMPLATE_TYPES.map(t => t.category))]
+    const categories = [...new Set([
+      ...LINKED_TEMPLATE_TYPES.map(t => t.category),
+      ...TEMPLATE_TYPES.map(t => t.category),
+    ])]
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <FileText className="w-6 h-6 text-indigo-600" /> Document Templates
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Configure And Preview Printable Templates For Your Business Documents. Each Template Is Fully Customisable.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Configure and preview printable templates for your business documents — including invoices, quotations,
+            purchase orders, prescriptions, SOPs, and more.
+          </p>
         </div>
 
         {categories.map(cat => (
           <div key={cat}>
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{cat}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {LINKED_TEMPLATE_TYPES.filter(t => t.category === cat).map(tmpl => {
+                const Icon = tmpl.icon
+                return (
+                  <button
+                    key={tmpl.id}
+                    type="button"
+                    onClick={() => navigate(tmpl.href)}
+                    className="group text-left bg-white border border-gray-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all relative"
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${tmpl.bg} flex items-center justify-center mb-3`}>
+                      <Icon className={`w-5 h-5 ${tmpl.color}`} />
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-sm mb-1">{tmpl.label}</h3>
+                    <p className="text-xs text-gray-500 leading-relaxed">{tmpl.desc}</p>
+                    <div className="mt-3 flex items-center gap-1 text-xs font-medium text-indigo-600 group-hover:gap-2 transition-all">
+                      <Eye className="w-3.5 h-3.5" /> Configure & Preview
+                    </div>
+                  </button>
+                )
+              })}
               {TEMPLATE_TYPES.filter(t => t.category === cat).map(tmpl => {
                 const Icon = tmpl.icon
                 const saved = !!allSettings[tmpl.id]
@@ -1126,10 +1192,18 @@ export default function DocumentTemplatesPage() {
                 />
                 {(s as BaseDocSettings)?.logo_url && (
                   <div className="mt-2 flex items-center gap-2">
-                    <img src={(s as BaseDocSettings).logo_url} alt="Logo" className="h-10 max-w-[100px] object-contain border rounded" />
-                    <button onClick={() => set('logo_url', undefined as never)} className="p-1 hover:bg-red-50 rounded">
-                      <X className="w-3.5 h-3.5 text-red-400" />
-                    </button>
+                    <SingleImagePreview
+                      url={(s as BaseDocSettings).logo_url!}
+                      alt="Logo"
+                      className="rounded"
+                      imgClassName="h-10 max-w-[100px] object-contain border rounded"
+                      editable
+                      onSave={applyDocLogoFile}
+                    >
+                      <button onClick={() => set('logo_url', undefined as never)} className="absolute -top-1 -right-1 z-10 p-1 hover:bg-red-50 rounded bg-white shadow-sm">
+                        <X className="w-3.5 h-3.5 text-red-400" />
+                      </button>
+                    </SingleImagePreview>
                   </div>
                 )}
               </div>

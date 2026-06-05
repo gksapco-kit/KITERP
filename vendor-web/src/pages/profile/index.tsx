@@ -12,6 +12,7 @@ import {
   useRequestEmailChange, useConfirmEmailChange,
   useSendPhoneOtp, useVerifyPhoneOtp,
 } from '@/hooks/useAuth'
+import { authApi } from '@/api/auth'
 import { useMyVendor, useVendorDocuments, useUploadVendorDocument, useSubmitVendorForReview } from '@/hooks/useVendor'
 import {
   User as UserIcon, Mail, Phone as PhoneIcon, Camera, Loader2, Save, ShieldCheck,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
+import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { toast } from 'sonner'
 import {
@@ -193,10 +195,14 @@ function ProfileHero() {
           <div className="relative shrink-0">
             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-info ring-4 ring-white shadow-lg flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
               {user?.avatar_url ? (
-                <img
-                  src={mediaUrl(user.avatar_url)}
-                  alt={user.full_name}
-                  className="w-full h-full object-cover"
+                <SingleImagePreview
+                  url={user.avatar_url}
+                  resolveUrl={mediaUrl}
+                  alt={user.full_name || 'Profile photo'}
+                  editable
+                  onSave={async (file) => { uploadAvatarFile(file) }}
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover"
                 />
               ) : (
                 <span>{initials}</span>
@@ -396,6 +402,118 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
   )
 }
 
+function TwoFactorPanel() {
+  const { user, setUser } = useAuthStore()
+  const [setupUri, setSetupUri] = useState<string | null>(null)
+  const [secret, setSecret] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const enabled = Boolean(user?.is_2fa_enabled)
+
+  const startSetup = async () => {
+    setBusy(true)
+    try {
+      const res = await authApi.setup2fa()
+      setSecret(res.secret)
+      setSetupUri(res.provisioning_uri)
+      toast.success('Scan the QR code or enter the secret in your authenticator app')
+    } catch {
+      toast.error('Could not start 2FA setup')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const confirmEnable = async () => {
+    if (code.length < 6) return
+    setBusy(true)
+    try {
+      await authApi.enable2fa(code)
+      if (user) setUser({ ...user, is_2fa_enabled: true })
+      setSetupUri(null)
+      setSecret(null)
+      setCode('')
+      toast.success('Two-factor authentication enabled')
+    } catch {
+      toast.error('Invalid code — try again')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const disable = async () => {
+    if (code.length < 6) {
+      toast.error('Enter your current authenticator code to disable 2FA')
+      return
+    }
+    setBusy(true)
+    try {
+      await authApi.disable2fa(code)
+      if (user) setUser({ ...user, is_2fa_enabled: false })
+      setCode('')
+      toast.success('Two-factor authentication disabled')
+    } catch {
+      toast.error('Invalid code')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="border-t pt-4 space-y-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
+          <ShieldCheck className="w-4 h-4 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-gray-700">Two-factor authentication</p>
+          <p className="text-xs text-gray-500">
+            {enabled ? 'Your account requires an authenticator code at sign-in.' : 'Protect your account with an authenticator app.'}
+          </p>
+        </div>
+        <span className={`text-xs font-medium px-2 py-1 rounded border shrink-0 ${enabled ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+          {enabled ? 'On' : 'Off'}
+        </span>
+      </div>
+      {!enabled && !setupUri && (
+        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={startSetup}>
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+          Set up authenticator
+        </Button>
+      )}
+      {setupUri && !enabled && (
+        <div className="rounded-lg border bg-gray-50 p-3 space-y-2 text-xs">
+          <p className="text-gray-600">Manual key: <code className="font-mono bg-white px-1 rounded">{secret}</code></p>
+          <Input
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="6-digit code"
+            className="h-9 font-mono tracking-widest"
+          />
+          <Button type="button" size="sm" disabled={busy || code.length < 6} onClick={confirmEnable}>
+            Confirm & enable
+          </Button>
+        </div>
+      )}
+      {enabled && (
+        <div className="flex flex-wrap gap-2 items-end">
+          <Input
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="Code to disable"
+            className="h-9 w-40 font-mono tracking-widest"
+          />
+          <Button type="button" size="sm" variant="outline" className="text-red-600" disabled={busy} onClick={disable}>
+            Disable 2FA
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SecuritySection({ open, toggle }: { open: boolean; toggle: () => void }) {
   const change = useChangePassword()
   const [currentPwd, setCurrentPwd] = useState('')
@@ -518,22 +636,7 @@ function SecuritySection({ open, toggle }: { open: boolean; toggle: () => void }
           </Button>
         </div>
 
-        <div className="border-t pt-4">
-          <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-700">Two-factor authentication</p>
-                <p className="text-xs text-gray-500">Add an extra layer of security to your account.</p>
-              </div>
-            </div>
-            <span className="text-xs font-medium uppercase tracking-wider px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-              Coming soon
-            </span>
-          </div>
-        </div>
+        <TwoFactorPanel />
       </form>
     </SectionWrapper>
   )

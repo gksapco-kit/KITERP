@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useProduct, useAddToCart, useRequestQuote } from '@/hooks/useStore'
+import { useProduct, useAddToCart, useRequestQuote, useCreateSubscription } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -18,6 +18,7 @@ export default function ProductDetail() {
   const navigate = useNavigate()
   const { isAuthenticated, customer } = useAuthStore()
   const requestQuote = useRequestQuote()
+  const createSubscription = useCreateSubscription()
   const [qty, setQty] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
@@ -112,6 +113,32 @@ export default function ProductDetail() {
     )
   }
 
+  const handleSubscribe = (config: {
+    interval: string; cycles: number; total: number
+    startDate: string; endDate: string
+    selectedDates?: string[]; weeklyDay?: number
+    recurrence?: { every: number; unit: string; weekdays?: number[] }
+  }) => {
+    if (!isAuthenticated) {
+      navigate(storePath('/login'), { state: { from: storePath(`/products/${product.slug}`) } })
+      return
+    }
+    const cartName = selectedVariant ? `${product.name} - ${selectedVariant.name}` : product.name
+    createSubscription.mutate(
+      {
+        item_type: 'product',
+        product_id: product.id,
+        variant_id: selectedVariant?.id,
+        item_name: cartName,
+        interval: config.interval || selectedVariant?.subscription_interval || product.subscription_interval || 'monthly',
+        price_per_cycle: displayPrice,
+        qty,
+        schedule_config: config,
+      },
+      { onSuccess: () => navigate(storePath('/account/subscriptions')) },
+    )
+  }
+
   const discount = displayCompare && displayCompare > displayPrice
     ? Math.round((1 - displayPrice / displayCompare) * 100)
     : 0
@@ -134,7 +161,9 @@ export default function ProductDetail() {
     displayOfferLabel, displayOnSale, discount, variantColors,
     selectedImage, setSelectedImage,
     displayMedia,
-    handleAddToCart, handleBuyNow, isAuthenticated,
+    handleAddToCart, handleBuyNow, handleSubscribe,
+    subscribePending: createSubscription.isPending,
+    isAuthenticated,
     addToCartPending: addToCart.isPending,
     storePath, warrantyDays, warrantyType, returnDays,
     returnPolicy, returnConditions, refundPolicy, isReturnable, specs,
