@@ -484,8 +484,13 @@ class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
 
+class ForgotPasswordPhoneRequest(BaseModel):
+    phone: str = Field(..., min_length=8, max_length=24)
+
+
 class ResetPasswordRequest(BaseModel):
-    email: EmailStr
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, max_length=24)
     code: str = Field(..., min_length=6, max_length=6)
     new_password: str = Field(..., min_length=8, max_length=128)
 
@@ -554,6 +559,56 @@ async def forgot_password(
     }
 
 
+@router.post("/forgot-password-phone")
+async def forgot_password_phone(
+    payload: ForgotPasswordPhoneRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a 6-digit password-reset code via SMS. Always returns 200 (no account enumeration)."""
+    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER, generate_otp_code
+    from app.services.sms_service import normalize_e164
+
+    phone = normalize_e164(payload.phone or "")
+    key = _vendor_signup_phone_key(phone)
+    if len(key) < 10:
+        return {"sent": True, "to": None, "dev_hint": None}
+
+    result = await db.execute(select(User).where(User.phone == phone))
+    user = result.scalar_one_or_none()
+    if not user:
+        return {"sent": True, "to": _mask_phone(phone), "dev_hint": None}
+
+    expires = datetime.now(timezone.utc) + timedelta(seconds=600)
+    otp_svc = PhoneOtpService()
+    dispatch = await otp_svc.send_and_store_code(phone, purpose="password reset")
+    if not dispatch.result.sent:
+        if otp_svc.is_configured:
+            raise HTTPException(
+                status_code=503,
+                detail=dispatch.result.user_message(
+                    fallback="Could not send SMS to this number. Check the number and try again.",
+                ),
+            )
+        if settings.DEBUG:
+            code = dispatch.result.stored_code or generate_otp_code()
+            user.verification_code = code
+            user.verification_code_expires_at = expires
+            db.add(user)
+            await db.commit()
+            logger.info("[forgot-password-phone:dev] phone_suffix=%s code=%s", phone[-4:], code)
+            return {"sent": True, "to": _mask_phone(phone), "dev_hint": code}
+        raise HTTPException(status_code=503, detail="SMS service is not configured. Contact support.")
+
+    if dispatch.verify_marker:
+        user.verification_code = TWILIO_VERIFY_MARKER
+    else:
+        user.verification_code = dispatch.stored_code
+    user.verification_code_expires_at = expires
+    db.add(user)
+    await db.commit()
+    return {"sent": True, "to": _mask_phone(phone), "expires_at": expires.isoformat()}
+
+
 @router.post("/reset-password")
 async def reset_password(
     payload: ResetPasswordRequest,
@@ -562,13 +617,35 @@ async def reset_password(
     """Validate reset code and set new password."""
     from datetime import datetime, timezone
     from app.core.security import get_password_hash
+    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER, is_twilio_verify_stored
+    from app.services.sms_service import normalize_e164
 
-    result = await db.execute(select(User).where(User.email == payload.email.lower()))
-    user = result.scalar_one_or_none()
-    if not user or not user.verification_code or user.verification_code != payload.code:
+    if not payload.email and not payload.phone:
+        raise HTTPException(status_code=422, detail="Email or phone is required")
+
+    user = None
+    if payload.email:
+        result = await db.execute(select(User).where(User.email == payload.email.lower()))
+        user = result.scalar_one_or_none()
+    elif payload.phone:
+        phone = normalize_e164(payload.phone)
+        result = await db.execute(select(User).where(User.phone == phone))
+        user = result.scalar_one_or_none()
+
+    if not user or not user.verification_code:
         raise HTTPException(status_code=400, detail="Invalid or expired reset code")
     if user.verification_code_expires_at and user.verification_code_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Reset code has expired — please request a new one")
+
+    code_ok = False
+    if is_twilio_verify_stored(user.verification_code) and user.phone:
+        check = await PhoneOtpService().verify_otp(user.phone, payload.code)
+        code_ok = check.approved
+    elif user.verification_code == payload.code:
+        code_ok = True
+
+    if not code_ok:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code")
 
     user.password_hash = get_password_hash(payload.new_password)
     user.verification_code = None
@@ -762,28 +839,40 @@ async def send_phone_otp(
 
     _check_cooldown(current_user.verification_code_expires_at)
 
-    code = _generate_code()
     expires = _expires_at()
-    current_user.verification_code = code
+    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER
+    from app.services.sms_service import normalize_e164
+
+    phone = normalize_e164(current_user.phone or "")
+    otp_svc = PhoneOtpService()
+    dispatch = await otp_svc.send_and_store_code(phone, purpose="phone verification")
+    code = dispatch.stored_code or _generate_code()
+    if dispatch.verify_marker:
+        current_user.verification_code = TWILIO_VERIFY_MARKER
+    else:
+        current_user.verification_code = dispatch.stored_code or code
     current_user.verification_code_expires_at = expires
     db.add(current_user)
     await db.commit()
 
-    from app.services.sms_service import SmsService
-    sms = SmsService()
-    sms_sent = await sms.send_otp(current_user.phone, code, purpose="phone verification")
-    if not sms_sent:
-        logger.info("[phone-otp:dev] user=%s phone=%s code=%s", current_user.id, current_user.phone, code)
+    extra = _otp_sms_extra_fields(
+        sms_sent=dispatch.result.sent,
+        sms_configured=otp_svc.is_configured,
+        code=code,
+        log_tag="phone-otp:dev",
+        phone=phone,
+        sms_error=dispatch.result.user_message(
+            fallback="Could not send SMS to this number. Check the number and try again.",
+        ),
+    )
 
-    resp: dict = {
+    return {
         "sent": True,
         "channel": "phone",
-        "to": _mask_phone(current_user.phone),
+        "to": _mask_phone(phone),
         "expires_at": expires.isoformat(),
+        **extra,
     }
-    if not sms_sent:
-        resp["dev_hint"] = code
-    return resp
 
 
 @router.post("/phone/verify-otp")
@@ -796,10 +885,20 @@ async def verify_phone_otp(
     if current_user.is_phone_verified:
         return await _build_me_payload(current_user, db)
 
-    if not current_user.verification_code or current_user.verification_code != payload.code:
-        raise HTTPException(status_code=400, detail="Invalid verification code")
+    from app.services.phone_otp_service import PhoneOtpService, is_twilio_verify_stored
+
     if current_user.verification_code_expires_at and current_user.verification_code_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Verification code has expired")
+
+    code_ok = False
+    if is_twilio_verify_stored(current_user.verification_code) and current_user.phone:
+        check = await PhoneOtpService().verify_otp(current_user.phone, payload.code)
+        code_ok = check.approved
+    elif current_user.verification_code and current_user.verification_code == payload.code:
+        code_ok = True
+
+    if not code_ok:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
 
     current_user.is_phone_verified = True
     current_user.verification_code = None
@@ -836,6 +935,39 @@ def _vendor_signup_phone_key(phone: str) -> str:
     return re.sub(r"\D", "", phone or "")
 
 
+def _require_valid_mobile(phone: str) -> str:
+    from app.services.sms_service import normalize_e164, is_valid_e164
+
+    normalized = normalize_e164(phone)
+    if not is_valid_e164(normalized):
+        raise HTTPException(
+            status_code=422,
+            detail="Enter a valid mobile number with country code (e.g. +919876543210)",
+        )
+    return normalized
+
+
+def _otp_sms_extra_fields(
+    *,
+    sms_sent: bool,
+    sms_configured: bool,
+    code: str,
+    log_tag: str,
+    phone: str,
+    sms_error: "str | None" = None,
+) -> dict:
+    """Build response extras after an OTP SMS attempt. Never leaks dev_hint when Twilio is configured."""
+    if sms_sent:
+        return {}
+    if sms_configured:
+        detail = sms_error or "Could not send SMS to this number. Check the number and try again."
+        raise HTTPException(status_code=503, detail=detail)
+    if settings.DEBUG:
+        logger.info("[%s] phone_suffix=%s code=%s", log_tag, phone[-4:], code)
+        return {"dev_hint": code}
+    raise HTTPException(status_code=503, detail="SMS service is not configured. Contact support.")
+
+
 @router.post("/vendor-signup/check-contact")
 async def vendor_signup_check_contact(body: VendorSignupContactCheck, db: AsyncSession = Depends(get_db)):
     """Return 400 if email or phone is already registered — call before sending OTP or creating account."""
@@ -860,31 +992,39 @@ async def vendor_signup_check_contact(body: VendorSignupContactCheck, db: AsyncS
 
 @router.post("/vendor-signup/send-phone-otp")
 async def vendor_signup_send_phone_otp(body: VendorSignupPhoneOtpSend, db: AsyncSession = Depends(get_db)):
-    """Send (dev-mode) OTP before vendor self-signup when using phone as contact."""
-    phone = (body.phone or "").strip()
+    """Send OTP via SMS before vendor self-signup when using phone as contact."""
+    phone = _require_valid_mobile(body.phone or "")
     key = _vendor_signup_phone_key(phone)
-    if len(key) < 10:
-        raise HTTPException(status_code=422, detail="Enter a valid phone number")
     repo = UserRepository(db)
     if await repo.phone_exists(phone):
         raise HTTPException(status_code=400, detail="Phone number already registered")
     code = f"{secrets.randbelow(900000) + 100000}"
     expires = datetime.now(timezone.utc) + timedelta(minutes=10)
-    _vendor_signup_phone_otp[key] = {"code": code, "expires_at": expires}
-    from app.services.sms_service import SmsService
-    sms = SmsService()
-    sms_sent = await sms.send_otp(phone, code, purpose="vendor signup")
-    if not sms_sent:
-        logger.info("[vendor-signup phone otp] key_suffix=%s code=%s", key[-4:], code)
-    resp: dict = {
+    from app.services.phone_otp_service import PhoneOtpService
+
+    otp_svc = PhoneOtpService()
+    otp_result = await otp_svc.send_signup_otp(phone, code=code)
+    extra = _otp_sms_extra_fields(
+        sms_sent=otp_result.sent,
+        sms_configured=otp_svc.is_configured,
+        code=code,
+        log_tag="vendor-signup phone otp",
+        phone=phone,
+        sms_error=otp_result.user_message(
+            fallback="Could not send SMS to this number. Check the number and try again.",
+        ),
+    )
+    if otp_result.via_verify:
+        _vendor_signup_phone_otp[key] = {"verify": True, "expires_at": expires}
+    else:
+        _vendor_signup_phone_otp[key] = {"code": code, "expires_at": expires}
+    return {
         "sent": True,
         "channel": "phone",
         "to": _mask_phone(phone),
         "expires_at": expires.isoformat(),
+        **extra,
     }
-    if not sms_sent:
-        resp["dev_hint"] = code
-    return resp
 
 
 @router.post("/vendor-signup", status_code=status.HTTP_201_CREATED)
@@ -910,12 +1050,20 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
             )
         key = _vendor_signup_phone_key(phone)
         entry = _vendor_signup_phone_otp.get(key)
-        if not entry or entry.get("code") != otp:
+        if not entry:
             raise HTTPException(status_code=400, detail="Invalid or expired phone OTP")
         exp = entry.get("expires_at")
         if exp and exp < datetime.now(timezone.utc):
             _vendor_signup_phone_otp.pop(key, None)
             raise HTTPException(status_code=400, detail="Phone OTP has expired — request a new code")
+        if entry.get("verify"):
+            from app.services.phone_otp_service import PhoneOtpService
+
+            check = await PhoneOtpService().verify_signup_otp(phone, otp)
+            if not check.approved:
+                raise HTTPException(status_code=400, detail="Invalid or expired phone OTP")
+        elif entry.get("code") != otp:
+            raise HTTPException(status_code=400, detail="Invalid or expired phone OTP")
         _vendor_signup_phone_otp.pop(key, None)
 
     auth_service = AuthService(db)

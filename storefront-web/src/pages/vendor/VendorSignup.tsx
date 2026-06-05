@@ -257,10 +257,9 @@ export default function VendorSignup() {
 
   const sendOtpToPhone = async (phone: string) => {
     const res = await axios.post(`${API_URL}/auth/vendor-signup/send-phone-otp`, { phone: phone.trim() })
-    const d = res.data as { to?: string; dev_hint?: string }
+    const d = res.data as { to?: string }
     setOtpSentTo(d.to || maskPhoneTail(phone))
-    toast.success(`OTP sent${d.to ? ` to ${d.to}` : ''}`)
-    if (d.dev_hint) toast.message(`Dev OTP: ${d.dev_hint}`, { duration: 12_000 })
+    toast.success(`Verification code sent${d.to ? ` to ${d.to}` : ''}`)
   }
 
   useEffect(() => {
@@ -277,10 +276,11 @@ export default function VendorSignup() {
         await sendOtpToPhone(pendingPhoneSignup.phone)
       } catch (err: unknown) {
         otpAutoSentRef.current = false
+        closeOtpModal()
         const msg =
           axios.isAxiosError(err) && typeof err.response?.data?.detail === 'string'
             ? err.response.data.detail
-            : 'Could not send OTP'
+            : 'Could not send verification code'
         toast.error(msg)
       } finally {
         setModalOtpSending(false)
@@ -347,16 +347,22 @@ export default function VendorSignup() {
 
   const onSubmit = async (data: FormData) => {
     const emailTrim = data.email.trim()
-    const digits = data.phone.replace(/\D/g, '')
-    const phoneOk = digits.length >= 10
+    const phoneTrim = data.phone.trim()
+    const digits = phoneTrim.replace(/\D/g, '')
+    const phoneOk = phoneTrim.startsWith('+') && digits.length >= 10 && digits.length <= 15
     const emailOk = emailTrim.length > 0 && z.string().email().safeParse(emailTrim).success
+
+    if (phoneTrim && !phoneOk) {
+      toast.error('Enter a valid mobile number with country code (e.g. +91XXXXXXXXXX)')
+      return
+    }
 
     setCheckingContact(true)
     setError('')
     try {
       await axios.post(`${API_URL}/auth/vendor-signup/check-contact`, {
         email: emailOk ? emailTrim : undefined,
-        phone: phoneOk ? data.phone.trim() : undefined,
+        phone: phoneOk ? phoneTrim : undefined,
       })
     } catch (err: unknown) {
       const msg =
@@ -375,7 +381,7 @@ export default function VendorSignup() {
         business_name: data.business_name,
         business_category: data.business_category,
         email: emailOk ? emailTrim : undefined,
-        phone: data.phone.trim(),
+        phone: phoneTrim,
         password: data.password,
       })
       setOtpModalOpen(true)

@@ -22,6 +22,7 @@ from app.schemas.vendor import (
 )
 from app.schemas.vendor_document import DocumentType, DocumentResponse
 from app.schemas.bank_account import BankAccountCreate, BankAccountResponse
+from app.config import settings
 from app.services.vendor_service import VendorService
 from app.services.file_service import FileService
 
@@ -353,20 +354,58 @@ async def send_domain_deactivation_otp(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate and store a 6-digit OTP to confirm external domain deactivation."""
-    code = ''.join(random.choices(string.digits, k=6))
+    """Send OTP via SMS (preferred) or email to confirm external domain deactivation."""
+    from app.config import settings
+    from app.services.phone_otp_service import PhoneOtpService, DOMAIN_OFF_VERIFY_MARKER, generate_otp_code
+    from app.services.sms_service import normalize_e164
+
+    code = generate_otp_code()
     expires = datetime.now(timezone.utc) + timedelta(minutes=10)
-    current_user.verification_code = f"domain-off:{code}"
     current_user.verification_code_expires_at = expires
+    extra: dict = {}
+    to = current_user.email or current_user.phone or "your registered contact"
+    sent = False
+
+    phone = normalize_e164(current_user.phone or "") if current_user.phone else ""
+    otp_svc = PhoneOtpService()
+    if phone and otp_svc.is_configured:
+        dispatch = await otp_svc.send_and_store_code(phone, purpose="domain deactivation")
+        if dispatch.result.sent:
+            current_user.verification_code = (
+                DOMAIN_OFF_VERIFY_MARKER if dispatch.verify_marker else f"domain-off:{dispatch.stored_code}"
+            )
+            to = phone
+            sent = True
+        elif not settings.DEBUG:
+            raise HTTPException(
+                status_code=503,
+                detail=dispatch.result.user_message(
+                    fallback="Could not send verification SMS. Check your phone number and try again.",
+                ),
+            )
+        else:
+            current_user.verification_code = f"domain-off:{code}"
+            extra["dev_hint"] = code
+    else:
+        current_user.verification_code = f"domain-off:{code}"
+        if current_user.email:
+            from app.services.email_service import send_email
+            subject = "Confirm external domain deactivation"
+            text = f"Your KITERP deactivation code is {code}. It expires in 10 minutes."
+            await send_email(to=current_user.email, subject=subject, html=f"<p>{text}</p>", text=text)
+            to = current_user.email
+            sent = bool((settings.SMTP_HOST or "").strip())
+        if not sent and settings.DEBUG:
+            extra["dev_hint"] = code
+
     db.add(current_user)
     await db.commit()
-    # In production: send via email/SMS. For now, return in response.
-    to = current_user.email or current_user.phone or 'your registered contact'
     return {
-        "sent": True,
+        "sent": sent or bool(extra.get("dev_hint")),
         "to": to,
         "expires_at": expires.isoformat(),
-        "dev_hint": code,   # remove in production
+        "channel": "phone" if sent and phone else "email",
+        **extra,
     }
 
 
@@ -378,8 +417,17 @@ async def verify_domain_deactivation_otp(
     db: AsyncSession = Depends(get_db),
 ):
     """Verify OTP and deactivate the external domain (set status to revoked, enabled to false)."""
+    from app.services.phone_otp_service import PhoneOtpService, DOMAIN_OFF_VERIFY_MARKER
+
     stored = current_user.verification_code or ''
-    if not stored.startswith('domain-off:') or stored != f"domain-off:{code}":
+    code_ok = False
+    if stored == DOMAIN_OFF_VERIFY_MARKER and current_user.phone:
+        check = await PhoneOtpService().verify_otp(current_user.phone, code)
+        code_ok = check.approved
+    elif stored.startswith("domain-off:") and stored == f"domain-off:{code}":
+        code_ok = True
+
+    if not code_ok:
         raise HTTPException(status_code=400, detail="Invalid verification code")
     if current_user.verification_code_expires_at and \
        current_user.verification_code_expires_at < datetime.now(timezone.utc):

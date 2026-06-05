@@ -191,6 +191,14 @@ export default function TeamPage() {
             channel,
             name: data.user?.full_name || inviteForm.full_name,
           })
+        } else if (data.user?.phone && inviteForm.phone) {
+          toast.success(`Verification code sent to ${data.user.phone}`)
+          setVerifyModal({
+            memberId: data.id,
+            channel: 'phone',
+            contact: data.user.phone,
+            name: data.user.full_name || inviteForm.full_name,
+          })
         } else {
           toast.success('Team member added!')
         }
@@ -200,11 +208,22 @@ export default function TeamPage() {
 
   const handleSendOtp = async (member: TeamMember) => {
     const res = await sendOtpMutation.mutateAsync(member.id)
+    const channel = res.channel as 'email' | 'phone'
+    if (res.sms_sent && !res.otp) {
+      toast.success(`Verification code sent to ${res.contact}`)
+      setVerifyModal({
+        memberId: member.id,
+        channel,
+        contact: res.contact,
+        name: member.user?.full_name || '',
+      })
+      return
+    }
     setOtpModal({
       memberId: member.id,
-      otp: res.otp,
+      otp: res.otp ?? '',
       contact: res.contact,
-      channel: res.channel as 'email' | 'phone',
+      channel,
       name: member.user?.full_name || '',
     })
   }

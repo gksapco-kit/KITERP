@@ -57,10 +57,11 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_SECRET: str = ""
     RAZORPAY_WEBHOOK_SECRET: str = ""
 
-    # Twilio SMS (phone OTP — leave blank for dev mode with dev_hint in API)
+    # Twilio — prefer Verify for OTP (works internationally); SMS fallback needs TWILIO_FROM_NUMBER
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""
+    TWILIO_VERIFY_SERVICE_SID: str = ""
 
     model_config = SettingsConfigDict(
         env_file=str(_BACKEND_ROOT / ".env"),

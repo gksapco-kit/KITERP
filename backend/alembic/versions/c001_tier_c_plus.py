@@ -21,7 +21,7 @@ def upgrade() -> None:
             "notification_preferences",
             JSONB,
             server_default=sa.text(
-                """'{"orderUpdates":true,"promotions":false,"newsletters":true,"bookingReminders":true,"smsEnabled":true}'::jsonb"""
+                """'{"orderUpdates"\:true,"promotions"\:false,"newsletters"\:true,"bookingReminders"\:true,"smsEnabled"\:true}'::jsonb"""
             ),
         ),
     )

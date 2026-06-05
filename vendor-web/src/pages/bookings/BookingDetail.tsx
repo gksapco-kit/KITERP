@@ -401,10 +401,10 @@ export default function BookingDetail() {
                           try {
                             const res = await vendorApi.generateBookingOtp(booking.id)
                             setOtpSent(true)
-                            if (res.dev_hint) {
-                              toast.success(`OTP sent (dev: ${res.dev_hint})`)
-                            } else if (res.sent) {
+                            if (res.sent) {
                               toast.success('Completion OTP sent to customer')
+                            } else if (res.dev_hint) {
+                              toast.message(`Dev OTP: ${res.dev_hint}`, { duration: 12_000 })
                             } else {
                               toast.message('OTP generated — SMS could not be sent')
                             }

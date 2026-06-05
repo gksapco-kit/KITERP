@@ -369,14 +369,15 @@ export default function Register() {
     onSuccess: (res, phone) => {
       const p = typeof phone === 'string' ? phone : ''
       setOtpSentTo(res.to || maskPhoneTail(p))
-      toast.success(`OTP sent${res.to ? ` to ${res.to}` : ''}`)
-      if (res.dev_hint) toast.message(`Dev OTP: ${res.dev_hint}`, { duration: 12_000 })
+      toast.success(`Verification code sent${res.to ? ` to ${res.to}` : ''}`)
     },
     onError: (err: unknown) => {
+      otpAutoSentRef.current = false
+      closeOtpModal()
       const msg =
         typeof (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail === 'string'
           ? (err as { response: { data: { detail: string } } }).response.data.detail
-          : 'Could not send OTP'
+          : 'Could not send verification code'
       toast.error(msg)
     },
   })
@@ -404,15 +405,21 @@ export default function Register() {
 
   const onSubmit = async (data: SignupForm) => {
     const emailTrim = data.email.trim()
-    const digits = data.phone.replace(/\D/g, '')
-    const phoneOk = digits.length >= 10
+    const phoneTrim = data.phone.trim()
+    const digits = phoneTrim.replace(/\D/g, '')
+    const phoneOk = phoneTrim.startsWith('+') && digits.length >= 10 && digits.length <= 15
     const emailOk = emailTrim.length > 0 && z.string().email().safeParse(emailTrim).success
+
+    if (phoneTrim && !phoneOk) {
+      toast.error('Enter a valid mobile number with country code (e.g. +91XXXXXXXXXX)')
+      return
+    }
 
     setCheckingContact(true)
     try {
       await authApi.vendorSignupCheckContact({
         email: emailOk ? emailTrim : undefined,
-        phone: phoneOk ? data.phone.trim() : undefined,
+        phone: phoneOk ? phoneTrim : undefined,
       })
     } catch (err: unknown) {
       const raw = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
@@ -434,7 +441,7 @@ export default function Register() {
         business_name: data.business_name,
         business_category: data.business_category,
         email: emailOk ? emailTrim : undefined,
-        phone: data.phone.trim(),
+        phone: phoneTrim,
         password: data.password,
       })
       setOtpModalOpen(true)

@@ -225,10 +225,18 @@ async def update_booking_status(
     elif new_status == "completed":
         otp_code = data.get("completion_otp") or data.get("otp")
         if booking.completion_otp:
-            if not otp_code or str(otp_code).strip() != str(booking.completion_otp):
-                raise HTTPException(400, "Invalid or missing completion OTP")
             if booking.completion_otp_expires_at and booking.completion_otp_expires_at < datetime.now(timezone.utc):
                 raise HTTPException(400, "Completion OTP has expired — send a new code")
+            from app.services.phone_otp_service import PhoneOtpService, is_twilio_verify_stored
+
+            otp_ok = False
+            if is_twilio_verify_stored(booking.completion_otp) and booking.customer_phone:
+                check = await PhoneOtpService().verify_otp(booking.customer_phone, str(otp_code or ""))
+                otp_ok = check.approved
+            elif otp_code and str(otp_code).strip() == str(booking.completion_otp):
+                otp_ok = True
+            if not otp_ok:
+                raise HTTPException(400, "Invalid or missing completion OTP")
         booking.completed_at = datetime.now(timezone.utc)
         booking.completion_otp = None
         booking.completion_otp_expires_at = None
@@ -272,30 +280,38 @@ async def send_completion_otp(
     db: AsyncSession = Depends(get_db),
 ):
     """Send OTP to customer for job completion verification."""
-    import secrets
     from datetime import timedelta
     from app.config import settings
+    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER, generate_otp_code
+    from app.services.sms_service import normalize_e164
 
     booking = await db.get(Booking, UUID(booking_id))
     if not booking or booking.vendor_id != vendor_id:
         raise HTTPException(404, "Booking not found")
-    otp = f"{secrets.randbelow(900000) + 100000:06d}"
-    booking.completion_otp = otp
+    if not booking.customer_phone:
+        raise HTTPException(400, "Customer phone number is required to send completion OTP")
+
+    phone = normalize_e164(booking.customer_phone)
     booking.completion_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-    sent = False
-    if booking.customer_phone:
-        try:
-            from app.services.sms_service import send_sms
-            await send_sms(
-                booking.customer_phone,
-                f"Your service completion code for booking {booking.booking_number} is {otp}.",
-            )
-            sent = True
-        except Exception:
-            pass
+    otp_svc = PhoneOtpService()
+    dispatch = await otp_svc.send_and_store_code(phone, purpose="booking completion")
+    otp = dispatch.stored_code or generate_otp_code()
+
+    if dispatch.result.sent:
+        booking.completion_otp = TWILIO_VERIFY_MARKER if dispatch.verify_marker else dispatch.stored_code
+    elif not otp_svc.is_configured and settings.DEBUG:
+        booking.completion_otp = otp
+    else:
+        raise HTTPException(
+            status_code=503,
+            detail=dispatch.result.user_message(
+                fallback="Could not send SMS to customer. Check the phone number and try again.",
+            ),
+        )
+
     await db.commit()
-    payload = {"sent": sent, "expires_in_minutes": 15}
-    if settings.DEBUG:
+    payload: dict = {"sent": dispatch.result.sent, "expires_in_minutes": 15}
+    if not dispatch.result.sent and settings.DEBUG:
         payload["dev_hint"] = otp
     return payload
 

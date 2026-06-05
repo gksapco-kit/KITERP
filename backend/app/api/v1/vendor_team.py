@@ -34,6 +34,34 @@ OTP_EXPIRY_MINUTES = 30
 def _generate_otp() -> str:
     return "".join(random.choices(string.digits, k=6))
 
+
+async def _send_phone_verification_otp(user: User, *, purpose: str) -> dict:
+    """Send OTP to user.phone via Twilio. Mutates user.verification_code on success."""
+    from app.config import settings
+    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER
+
+    if not user.phone:
+        raise HTTPException(status_code=400, detail="No phone number on file")
+
+    otp_svc = PhoneOtpService()
+    dispatch = await otp_svc.send_and_store_code(user.phone, purpose=purpose)
+    if dispatch.result.sent:
+        user.verification_code = TWILIO_VERIFY_MARKER if dispatch.verify_marker else dispatch.stored_code
+        return {"otp": None, "sms_sent": True}
+
+    if not otp_svc.is_configured and settings.DEBUG:
+        otp = _generate_otp()
+        user.verification_code = otp
+        return {"otp": otp, "sms_sent": False}
+
+    raise HTTPException(
+        status_code=503,
+        detail=dispatch.result.user_message(
+            fallback="Could not send SMS to this number. Check the number and try again.",
+        ),
+    )
+
+
 router = APIRouter()
 
 # Built-in roles that may be assigned when inviting/editing (excludes owner, platform_staff)
@@ -206,10 +234,14 @@ async def invite_team_member(
             return JSONResponse(status_code=201, content=result)
         # Reactivate and issue fresh OTP
         fresh_otp = _generate_otp()
-        user_on_vendor.verification_code = fresh_otp
         user_on_vendor.verification_code_expires_at = (
             datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
         )
+        if data.phone and user_on_vendor.phone:
+            sent = await _send_phone_verification_otp(user_on_vendor, purpose="team verification")
+            fresh_otp = sent.get("otp")
+        else:
+            user_on_vendor.verification_code = fresh_otp
         existing_vu.is_active = True
         existing_vu.role = data.role
         existing_vu.role_id = UUID(data.role_id) if data.role_id else None
@@ -236,6 +268,9 @@ async def invite_team_member(
     )
     db.add(user)
     await db.flush()
+    if data.phone:
+        sent = await _send_phone_verification_otp(user, purpose="team verification")
+        fresh_otp = sent.get("otp")
 
     # Create VendorUser
     now = datetime.now(timezone.utc)
@@ -404,16 +439,31 @@ async def send_verification_otp(
     if user.is_email_verified and user.is_phone_verified:
         return JSONResponse({"message": "Already fully verified", "otp": None})
 
+    channel = "phone" if user.phone and not user.is_phone_verified else "email"
+    contact = user.phone if channel == "phone" else user.email
+    user.verification_code_expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
+
+    if channel == "phone":
+        sent = await _send_phone_verification_otp(user, purpose="team verification")
+        await db.commit()
+        return JSONResponse({
+            "otp": sent.get("otp"),
+            "sms_sent": sent.get("sms_sent", False),
+            "expires_in_minutes": OTP_EXPIRY_MINUTES,
+            "contact": contact,
+            "channel": channel,
+        })
+
     otp = _generate_otp()
     user.verification_code = otp
-    user.verification_code_expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
     await db.commit()
 
     return JSONResponse({
         "otp": otp,
+        "sms_sent": False,
         "expires_in_minutes": OTP_EXPIRY_MINUTES,
-        "contact": user.phone if user.phone and not user.is_phone_verified else user.email,
-        "channel": "phone" if user.phone and not user.is_phone_verified else "email",
+        "contact": contact,
+        "channel": channel,
     })
 
 
@@ -440,12 +490,21 @@ async def verify_team_member_otp(
         raise HTTPException(status_code=404, detail="User account not found")
 
     now = datetime.now(timezone.utc)
-    if (
-        not user.verification_code
-        or user.verification_code != payload.otp
-        or not user.verification_code_expires_at
-        or user.verification_code_expires_at.replace(tzinfo=timezone.utc) < now
-    ):
+    if not user.verification_code or not user.verification_code_expires_at:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    if user.verification_code_expires_at.replace(tzinfo=timezone.utc) < now:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+    from app.services.phone_otp_service import PhoneOtpService, is_twilio_verify_stored
+
+    otp_ok = False
+    if payload.channel == "phone" and is_twilio_verify_stored(user.verification_code) and user.phone:
+        check = await PhoneOtpService().verify_otp(user.phone, payload.otp)
+        otp_ok = check.approved
+    elif user.verification_code == payload.otp:
+        otp_ok = True
+
+    if not otp_ok:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     if payload.channel == "email":
