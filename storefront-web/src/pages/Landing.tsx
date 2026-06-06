@@ -8,7 +8,7 @@ import { ValuePropSection } from '@/components/landing/ValuePropSection'
 import { CommunityMosaicSection } from '@/components/landing/CommunityMosaicSection'
 import { GrowthCtaSection } from '@/components/landing/GrowthCtaSection'
 import { LandingFooter } from '@/components/landing/LandingFooter'
-import '@/styles/odoo-landing.css'
+import '@/styles/kiterp-landing.css'
 
 type StoreDirectoryItem = { slug: string; display_name: string; business_name: string }
 
@@ -62,7 +62,7 @@ export default function Landing() {
   const visitStore = (storeSlug: string) => navigate(`/store/${storeSlug}`)
 
   return (
-    <div className="odoo-landing font-odoo-body min-h-screen bg-white">
+    <div className="kiterp-landing font-kiterp-body min-h-screen bg-white">
       <LandingHeader />
       <main>
         <LandingHero

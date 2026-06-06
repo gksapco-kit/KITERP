@@ -367,9 +367,11 @@ async def send_domain_deactivation_otp(
     sent = False
 
     phone = normalize_e164(current_user.phone or "") if current_user.phone else ""
-    otp_svc = PhoneOtpService()
-    if phone and otp_svc.is_configured:
-        dispatch = await otp_svc.send_and_store_code(phone, purpose="domain deactivation")
+    from app.services.phone_otp_service import OtpService
+
+    otp_svc = OtpService()
+    if phone and otp_svc.is_sms_configured:
+        dispatch = await otp_svc.send_and_store_code(phone, channel="sms", purpose="domain deactivation")
         if dispatch.result.sent:
             current_user.verification_code = (
                 DOMAIN_OFF_VERIFY_MARKER if dispatch.verify_marker else f"domain-off:{dispatch.stored_code}"
@@ -386,15 +388,34 @@ async def send_domain_deactivation_otp(
         else:
             current_user.verification_code = f"domain-off:{code}"
             extra["dev_hint"] = code
+    elif current_user.email and otp_svc.is_email_configured:
+        dispatch = await otp_svc.send_and_store_code(
+            current_user.email.lower(),
+            channel="email",
+            purpose="domain deactivation",
+        )
+        if dispatch.result.sent:
+            from app.services.phone_otp_service import TWILIO_VERIFY_EMAIL_MARKER
+
+            current_user.verification_code = (
+                f"domain-off:{TWILIO_VERIFY_EMAIL_MARKER}"
+                if dispatch.verify_marker
+                else f"domain-off:{dispatch.stored_code}"
+            )
+            to = current_user.email
+            sent = True
+        elif settings.DEBUG:
+            current_user.verification_code = f"domain-off:{code}"
+            extra["dev_hint"] = code
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail=dispatch.result.user_message(
+                    fallback="Could not send verification email. Try again.",
+                ),
+            )
     else:
         current_user.verification_code = f"domain-off:{code}"
-        if current_user.email:
-            from app.services.email_service import send_email
-            subject = "Confirm external domain deactivation"
-            text = f"Your KITERP deactivation code is {code}. It expires in 10 minutes."
-            await send_email(to=current_user.email, subject=subject, html=f"<p>{text}</p>", text=text)
-            to = current_user.email
-            sent = bool((settings.SMTP_HOST or "").strip())
         if not sent and settings.DEBUG:
             extra["dev_hint"] = code
 
@@ -417,12 +438,15 @@ async def verify_domain_deactivation_otp(
     db: AsyncSession = Depends(get_db),
 ):
     """Verify OTP and deactivate the external domain (set status to revoked, enabled to false)."""
-    from app.services.phone_otp_service import PhoneOtpService, DOMAIN_OFF_VERIFY_MARKER
+    from app.services.phone_otp_service import OtpService, DOMAIN_OFF_VERIFY_MARKER, TWILIO_VERIFY_EMAIL_MARKER
 
     stored = current_user.verification_code or ''
     code_ok = False
     if stored == DOMAIN_OFF_VERIFY_MARKER and current_user.phone:
-        check = await PhoneOtpService().verify_otp(current_user.phone, code)
+        check = await OtpService().verify_otp(current_user.phone, code, channel="sms")
+        code_ok = check.approved
+    elif stored == f"domain-off:{TWILIO_VERIFY_EMAIL_MARKER}" and current_user.email:
+        check = await OtpService().verify_otp(current_user.email, code, channel="email")
         code_ok = check.approved
     elif stored.startswith("domain-off:") and stored == f"domain-off:{code}":
         code_ok = True

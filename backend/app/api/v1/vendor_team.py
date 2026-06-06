@@ -38,26 +38,55 @@ def _generate_otp() -> str:
 async def _send_phone_verification_otp(user: User, *, purpose: str) -> dict:
     """Send OTP to user.phone via Twilio. Mutates user.verification_code on success."""
     from app.config import settings
-    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER
+    from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_MARKER
 
     if not user.phone:
         raise HTTPException(status_code=400, detail="No phone number on file")
 
-    otp_svc = PhoneOtpService()
-    dispatch = await otp_svc.send_and_store_code(user.phone, purpose=purpose)
+    otp_svc = OtpService()
+    dispatch = await otp_svc.send_and_store_code(user.phone, channel="sms", purpose=purpose)
     if dispatch.result.sent:
         user.verification_code = TWILIO_VERIFY_MARKER if dispatch.verify_marker else dispatch.stored_code
-        return {"otp": None, "sms_sent": True}
+        return {"otp": None, "sms_sent": True, "email_sent": False}
 
-    if not otp_svc.is_configured and settings.DEBUG:
+    if not otp_svc.is_sms_configured and settings.DEBUG:
         otp = _generate_otp()
         user.verification_code = otp
-        return {"otp": otp, "sms_sent": False}
+        return {"otp": otp, "sms_sent": False, "email_sent": False}
 
     raise HTTPException(
         status_code=503,
         detail=dispatch.result.user_message(
             fallback="Could not send SMS to this number. Check the number and try again.",
+        ),
+    )
+
+
+async def _send_email_verification_otp(user: User, *, purpose: str) -> dict:
+    """Send OTP to user.email via Twilio Verify or SMTP. Mutates user.verification_code on success."""
+    from app.config import settings
+    from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_EMAIL_MARKER
+
+    if not user.email:
+        raise HTTPException(status_code=400, detail="No email on file")
+
+    otp_svc = OtpService()
+    dispatch = await otp_svc.send_and_store_code(user.email, channel="email", purpose=purpose)
+    if dispatch.result.sent:
+        user.verification_code = (
+            TWILIO_VERIFY_EMAIL_MARKER if dispatch.verify_marker else dispatch.stored_code
+        )
+        return {"otp": None, "sms_sent": False, "email_sent": True}
+
+    if not otp_svc.is_email_configured and settings.DEBUG:
+        otp = _generate_otp()
+        user.verification_code = otp
+        return {"otp": otp, "sms_sent": False, "email_sent": False}
+
+    raise HTTPException(
+        status_code=503,
+        detail=dispatch.result.user_message(
+            fallback="Could not send verification email. Check the address and try again.",
         ),
     )
 
@@ -449,18 +478,18 @@ async def send_verification_otp(
         return JSONResponse({
             "otp": sent.get("otp"),
             "sms_sent": sent.get("sms_sent", False),
+            "email_sent": sent.get("email_sent", False),
             "expires_in_minutes": OTP_EXPIRY_MINUTES,
             "contact": contact,
             "channel": channel,
         })
 
-    otp = _generate_otp()
-    user.verification_code = otp
+    sent = await _send_email_verification_otp(user, purpose="team verification")
     await db.commit()
-
     return JSONResponse({
-        "otp": otp,
-        "sms_sent": False,
+        "otp": sent.get("otp"),
+        "sms_sent": sent.get("sms_sent", False),
+        "email_sent": sent.get("email_sent", False),
         "expires_in_minutes": OTP_EXPIRY_MINUTES,
         "contact": contact,
         "channel": channel,
@@ -495,11 +524,14 @@ async def verify_team_member_otp(
     if user.verification_code_expires_at.replace(tzinfo=timezone.utc) < now:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
-    from app.services.phone_otp_service import PhoneOtpService, is_twilio_verify_stored
+    from app.services.phone_otp_service import OtpService, is_twilio_verify_stored, is_twilio_email_verify_stored
 
     otp_ok = False
     if payload.channel == "phone" and is_twilio_verify_stored(user.verification_code) and user.phone:
-        check = await PhoneOtpService().verify_otp(user.phone, payload.otp)
+        check = await OtpService().verify_otp(user.phone, payload.otp, channel="sms")
+        otp_ok = check.approved
+    elif payload.channel == "email" and is_twilio_email_verify_stored(user.verification_code) and user.email:
+        check = await OtpService().verify_otp(user.email, payload.otp, channel="email")
         otp_ok = check.approved
     elif user.verification_code == payload.otp:
         otp_ok = True

@@ -29,16 +29,16 @@ export function LandingHero({
   }, [dirLoading, dirError, directory.length])
 
   return (
-    <section id="stores" className="relative odoo-curve-bg overflow-hidden pt-10 pb-16 sm:pt-16 sm:pb-24">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center odoo-reveal">
-        <h1 className="font-odoo-script text-[2.35rem] sm:text-5xl lg:text-[3.4rem] leading-[1.08] text-[#1e3d34]">
-          All your business on{' '}
-          <span className="odoo-highlight">one platform.</span>
+    <section id="stores" className="relative kiterp-curve-bg overflow-hidden pt-10 pb-16 sm:pt-16 sm:pb-24">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center kiterp-reveal">
+        <h1 className="font-kiterp-script text-[2.35rem] sm:text-5xl lg:text-[3.4rem] leading-[1.08] text-[#1e3d34]">
+          Open your store &amp; run your business on{' '}
+          <span className="kiterp-highlight">one platform.</span>
         </h1>
 
-        <p className="mt-5 font-odoo-script text-2xl sm:text-3xl text-[#1e3d34]/90">
-          Simple, efficient, yet{' '}
-          <span className="odoo-underline">
+        <p className="mt-5 font-kiterp-script text-2xl sm:text-3xl text-[#1e3d34]/90">
+          One login, every tool, yet{' '}
+          <span className="kiterp-underline">
             affordable!
             <svg viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden>
               <path d="M2 8 C 50 2, 100 12, 198 4" stroke="#64C3A0" strokeWidth="5" fill="none" strokeLinecap="round" />
@@ -47,12 +47,12 @@ export function LandingHero({
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-          <a href={VENDOR_SIGNUP_PATH} className="odoo-btn-primary px-7 py-3 text-base sm:text-lg">
+          <a href={VENDOR_SIGNUP_PATH} className="kiterp-btn-primary px-7 py-3 text-base sm:text-lg">
             Start now — It&apos;s free
           </a>
           <a
             href={`${vendorAppUrl}/login`}
-            className="odoo-btn-secondary px-7 py-3 text-base sm:text-lg"
+            className="kiterp-btn-secondary px-7 py-3 text-base sm:text-lg"
           >
             Meet an advisor
           </a>
@@ -60,9 +60,9 @@ export function LandingHero({
 
         <div className="mt-6 flex justify-center items-start gap-2 text-left max-w-xs mx-auto sm:max-w-none sm:justify-end sm:pr-8">
           <svg width="48" height="36" viewBox="0 0 48 36" className="shrink-0 mt-1 hidden sm:block" aria-hidden>
-            <path d="M4 32 C 18 8, 30 28, 44 4" className="odoo-scribble-arrow" />
+            <path d="M4 32 C 18 8, 30 28, 44 4" className="kiterp-scribble-arrow" />
           </svg>
-          <p className="odoo-hand-note text-[#3d9a7a]">
+          <p className="kiterp-hand-note text-[#3d9a7a]">
             ₹280 / month for ALL apps
           </p>
         </div>
@@ -89,7 +89,7 @@ export function LandingHero({
             <button
               type="submit"
               disabled={!slug.trim()}
-              className="odoo-btn-primary disabled:opacity-45 px-5 sm:px-7 rounded-none flex items-center gap-2"
+              className="kiterp-btn-primary disabled:opacity-45 px-5 sm:px-7 rounded-none flex items-center gap-2"
             >
               Visit <ArrowRight className="w-4 h-4" />
             </button>

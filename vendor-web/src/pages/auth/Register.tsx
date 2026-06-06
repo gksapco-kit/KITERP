@@ -17,7 +17,7 @@ import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import {
   Loader2, Eye, EyeOff, Check, ChevronDown, Pencil, Plus, X,
-  Rocket, Smartphone, LogIn,
+  Rocket, Smartphone, LogIn, Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
@@ -109,14 +109,16 @@ function loadSignupDraft(): Partial<SignupForm> {
   }
 }
 
-type PendingPhoneSignup = {
+type PendingSignup = {
   full_name: string
   business_name: string
   business_category?: string
   email?: string
-  phone: string
+  phone?: string
   password: string
 }
+
+type OtpChannel = 'phone' | 'email'
 
 // ── Simple password input (ref-forwarding for RHF) ─────────────────────────
 
@@ -305,20 +307,21 @@ export default function Register() {
   const otpAutoSentRef = useRef(false)
 
   const [otpModalOpen, setOtpModalOpen] = useState(false)
-  const [pendingPhoneSignup, setPendingPhoneSignup] = useState<PendingPhoneSignup | null>(null)
+  const [otpChannel, setOtpChannel] = useState<OtpChannel>('phone')
+  const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null)
   const [modalOtp, setModalOtp] = useState('')
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null)
   const [checkingContact, setCheckingContact] = useState(false)
 
   const closeOtpModal = useCallback(() => {
     setOtpModalOpen(false)
-    setPendingPhoneSignup(null)
+    setPendingSignup(null)
     setModalOtp('')
     setOtpSentTo(null)
     otpAutoSentRef.current = false
   }, [])
 
-  useEscapeToClose(closeOtpModal, otpModalOpen && !!pendingPhoneSignup)
+  useEscapeToClose(closeOtpModal, otpModalOpen && !!pendingSignup)
 
   const {
     register,
@@ -364,11 +367,17 @@ export default function Register() {
     restoredToastRef.current = true
   }, [initialDraft.email, initialDraft.full_name, initialDraft.phone])
 
-  const sendPhoneOtpMut = useMutation({
-    mutationFn: (phone: string) => authApi.vendorSignupSendPhoneOtp(phone.trim()),
-    onSuccess: (res, phone) => {
-      const p = typeof phone === 'string' ? phone : ''
-      setOtpSentTo(res.to || maskPhoneTail(p))
+  const sendOtpMut = useMutation({
+    mutationFn: async ({ channel, target }: { channel: OtpChannel; target: string }) => {
+      if (channel === 'phone') {
+        return authApi.vendorSignupSendPhoneOtp(target.trim())
+      }
+      return authApi.vendorSignupSendEmailOtp(target.trim())
+    },
+    onSuccess: (res, { channel, target }) => {
+      setOtpSentTo(
+        res.to || (channel === 'phone' ? maskPhoneTail(target) : target.replace(/(.{2}).+(@.+)/, '$1***$2')),
+      )
       toast.success(`Verification code sent${res.to ? ` to ${res.to}` : ''}`)
     },
     onError: (err: unknown) => {
@@ -387,12 +396,13 @@ export default function Register() {
       otpAutoSentRef.current = false
       return
     }
-    if (!pendingPhoneSignup?.phone || otpAutoSentRef.current) return
+    const target = otpChannel === 'phone' ? pendingSignup?.phone : pendingSignup?.email
+    if (!target || otpAutoSentRef.current) return
     otpAutoSentRef.current = true
     setModalOtp('')
-    sendPhoneOtpMut.mutate(pendingPhoneSignup.phone)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-send when modal or target phone changes
-  }, [otpModalOpen, pendingPhoneSignup?.phone])
+    sendOtpMut.mutate({ channel: otpChannel, target })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-send when modal or target changes
+  }, [otpModalOpen, otpChannel, pendingSignup?.phone, pendingSignup?.email])
 
   useEffect(() => {
     if (!signupMut.isSuccess) return
@@ -436,7 +446,8 @@ export default function Register() {
     }
 
     if (phoneOk) {
-      setPendingPhoneSignup({
+      setOtpChannel('phone')
+      setPendingSignup({
         full_name: data.full_name,
         business_name: data.business_name,
         business_category: data.business_category,
@@ -448,30 +459,36 @@ export default function Register() {
       return
     }
 
-    signupMut.mutate({
-      full_name: data.full_name,
-      business_name: data.business_name,
-      business_category: data.business_category,
-      email: emailOk ? emailTrim : undefined,
-      phone: undefined,
-      password: data.password,
-    })
+    if (emailOk) {
+      setOtpChannel('email')
+      setPendingSignup({
+        full_name: data.full_name,
+        business_name: data.business_name,
+        business_category: data.business_category,
+        email: emailTrim,
+        phone: undefined,
+        password: data.password,
+      })
+      setOtpModalOpen(true)
+      return
+    }
   }
 
-  const submitPhoneSignupWithOtp = () => {
+  const submitSignupWithOtp = () => {
     const otp = modalOtp.replace(/\D/g, '').slice(0, 6)
-    if (!pendingPhoneSignup || otp.length !== 6) {
+    if (!pendingSignup || otp.length !== 6) {
       toast.error('Enter the 6-digit code')
       return
     }
     signupMut.mutate({
-      full_name: pendingPhoneSignup.full_name,
-      business_name: pendingPhoneSignup.business_name,
-      business_category: pendingPhoneSignup.business_category,
-      email: pendingPhoneSignup.email,
-      phone: pendingPhoneSignup.phone,
-      phone_otp: otp,
-      password: pendingPhoneSignup.password,
+      full_name: pendingSignup.full_name,
+      business_name: pendingSignup.business_name,
+      business_category: pendingSignup.business_category,
+      email: pendingSignup.email,
+      phone: pendingSignup.phone,
+      phone_otp: otpChannel === 'phone' ? otp : undefined,
+      email_otp: otpChannel === 'email' ? otp : undefined,
+      password: pendingSignup.password,
     })
   }
 
@@ -627,7 +644,7 @@ export default function Register() {
               </div>
     </VendorSignupShell>
 
-      {otpModalOpen && pendingPhoneSignup ? (
+      {otpModalOpen && pendingSignup ? (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-[2px] overflow-y-auto"
           role="dialog"
@@ -652,18 +669,26 @@ export default function Register() {
 
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ring-4" style={{ backgroundColor: `${SIGNUP_BRAND}18`, boxShadow: `0 0 0 4px ${SIGNUP_BRAND}1a` }}>
-                <Smartphone className="w-7 h-7" style={{ color: SIGNUP_BRAND }} />
+                {otpChannel === 'phone' ? (
+                  <Smartphone className="w-7 h-7" style={{ color: SIGNUP_BRAND }} />
+                ) : (
+                  <Mail className="w-7 h-7" style={{ color: SIGNUP_BRAND }} />
+                )}
               </div>
               <h3 id="vendor-otp-title" className="text-xl font-bold text-slate-900 sm:text-2xl">
-                Verify your phone
+                {otpChannel === 'phone' ? 'Verify your phone' : 'Verify your email'}
               </h3>
               <p className="mt-2 text-sm leading-snug text-slate-600 sm:text-base">
                 Enter the 6-digit code we sent to{' '}
-                <span className="font-semibold text-slate-800">{otpSentTo ?? maskPhoneTail(pendingPhoneSignup.phone)}</span>
+                <span className="font-semibold text-slate-800">
+                  {otpSentTo ?? (otpChannel === 'phone' && pendingSignup.phone
+                    ? maskPhoneTail(pendingSignup.phone)
+                    : pendingSignup.email)}
+                </span>
               </p>
             </div>
 
-            {sendPhoneOtpMut.isPending ? (
+            {sendOtpMut.isPending ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-600">
                 <Loader2 className="w-5 h-5 animate-spin" style={{ color: SIGNUP_BRAND }} />
                 Sending code…
@@ -678,7 +703,7 @@ export default function Register() {
                   value={modalOtp}
                   onChange={(e) => setModalOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && modalOtp.replace(/\D/g, '').length === 6) submitPhoneSignupWithOtp()
+                    if (e.key === 'Enter' && modalOtp.replace(/\D/g, '').length === 6) submitSignupWithOtp()
                   }}
                   className="h-14 text-center text-2xl font-semibold tracking-[0.35em] font-mono border-slate-200 focus-visible:ring-[#64C3A0]"
                   autoFocus
@@ -690,7 +715,7 @@ export default function Register() {
                     className="w-full min-h-12 rounded-xl px-4 py-3 text-lg font-bold text-white sm:min-h-14 sm:text-xl"
                     style={{ backgroundColor: SIGNUP_BRAND }}
                     disabled={signupMut.isPending || modalOtp.replace(/\D/g, '').length !== 6}
-                    onClick={submitPhoneSignupWithOtp}
+                    onClick={submitSignupWithOtp}
                   >
                     {signupMut.isPending ? (
                       <>
@@ -708,8 +733,11 @@ export default function Register() {
                     type="button"
                     variant="outline"
                     className="min-h-11 w-full rounded-xl text-base font-semibold sm:min-h-12 sm:text-lg"
-                    disabled={sendPhoneOtpMut.isPending}
-                    onClick={() => pendingPhoneSignup && sendPhoneOtpMut.mutate(pendingPhoneSignup.phone)}
+                    disabled={sendOtpMut.isPending}
+                    onClick={() => {
+                      const target = otpChannel === 'phone' ? pendingSignup?.phone : pendingSignup?.email
+                      if (target) sendOtpMut.mutate({ channel: otpChannel, target })
+                    }}
                   >
                     Resend code
                   </Button>

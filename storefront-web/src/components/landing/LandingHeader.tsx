@@ -5,6 +5,8 @@ import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 const NAV = [
   { label: 'Stores', href: '#stores' },
   { label: 'Apps', href: '#apps' },
+  { label: 'Demo', href: '#demo' },
+  { label: 'Community', href: '#community' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'Help', href: '#help' },
 ]
@@ -35,7 +37,7 @@ export function LandingHeader() {
           </a>
           <a
             href={VENDOR_SIGNUP_PATH}
-            className="odoo-btn-primary text-sm px-4 py-2 sm:px-5 sm:py-2.5"
+            className="kiterp-btn-primary text-sm px-4 py-2 sm:px-5 sm:py-2.5"
           >
             Try it free
           </a>

@@ -9,15 +9,15 @@ export function ImagineToggle({ on, onToggle, label = 'Imagine without KITERP' }
     <button
       type="button"
       onClick={onToggle}
-      className="odoo-imagine-toggle group"
+      className="kiterp-imagine-toggle group"
       aria-pressed={on}
     >
-      <span className="odoo-toggle-wrap odoo-corner-highlight">
-        <span className="odoo-toggle-track" data-on={on ? 'true' : 'false'} aria-hidden>
-          <span className="odoo-toggle-thumb" />
+      <span className="kiterp-toggle-wrap kiterp-corner-highlight">
+        <span className="kiterp-toggle-track" data-on={on ? 'true' : 'false'} aria-hidden>
+          <span className="kiterp-toggle-thumb" />
         </span>
       </span>
-      <span className="odoo-imagine-toggle-label">{label}</span>
+      <span className="kiterp-imagine-toggle-label">{label}</span>
     </button>
   )
 }

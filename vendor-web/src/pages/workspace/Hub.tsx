@@ -24,7 +24,7 @@ export default function WorkspaceHubPage() {
       <div>
         <h1 className="text-xl font-bold text-foreground">Workspace Apps</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Shortcuts To Capabilities Across Finance, Sales, Marketing, Services, And HR — Without Duplicating Full Odoo-Style Standalone Apps.
+          Shortcuts To Capabilities Across Finance, Sales, Marketing, Services, And HR — Without Duplicating Full Standalone Apps.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

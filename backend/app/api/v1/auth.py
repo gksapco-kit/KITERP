@@ -48,6 +48,7 @@ router = APIRouter()
 _email_verification_codes: dict[str, dict] = {}
 # Pre-signup phone OTP (digits-only key → { code, expires_at }); cleared after successful vendor-signup.
 _vendor_signup_phone_otp: dict[str, dict] = {}
+_vendor_signup_email_otp: dict[str, dict] = {}
 
 
 class RefreshTokenRequest(BaseModel):
@@ -56,6 +57,10 @@ class RefreshTokenRequest(BaseModel):
 
 class VendorSignupPhoneOtpSend(BaseModel):
     phone: str = Field(..., min_length=8, max_length=24)
+
+
+class VendorSignupEmailOtpSend(BaseModel):
+    email: EmailStr
 
 
 class VendorSignupContactCheck(BaseModel):
@@ -72,6 +77,7 @@ class VendorSignupRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=100)
     business_category: Optional[str] = Field(None, max_length=50)
     phone_otp: Optional[str] = Field(None, min_length=6, max_length=6)
+    email_otp: Optional[str] = Field(None, min_length=6, max_length=6)
 
 
 class EmailVerifyRequest(BaseModel):
@@ -510,53 +516,39 @@ async def forgot_password(
     user = result.scalar_one_or_none()
 
     if not user:
-        # Return success-shaped response without a hint so we don't leak account existence.
-        return {"sent": True, "dev_hint": None}
+        return {"sent": True, "dev_hint": None, "to": _mask_email(payload.email.lower())}
 
-    code = f"{secrets.randbelow(900000) + 100000}"
     expires = datetime.now(timezone.utc) + timedelta(seconds=600)
-    user.verification_code = code
+    email = payload.email.lower()
+    from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_EMAIL_MARKER, generate_otp_code
+
+    otp_svc = OtpService()
+    dispatch = await otp_svc.send_and_store_code(email, channel="email", purpose="password reset")
+    if not dispatch.result.sent:
+        if otp_svc.is_email_configured:
+            raise HTTPException(
+                status_code=503,
+                detail=dispatch.result.user_message(
+                    fallback="Could not send verification email. Check the address and try again.",
+                ),
+            )
+        if settings.DEBUG:
+            code = generate_otp_code()
+            user.verification_code = code
+            user.verification_code_expires_at = expires
+            db.add(user)
+            await db.commit()
+            logger.info("[forgot-password-email:dev] email=%s code=%s", email, code)
+            return {"sent": True, "to": _mask_email(email), "dev_hint": code}
+        raise HTTPException(status_code=503, detail="Email service is not configured. Contact support.")
+
+    user.verification_code = (
+        TWILIO_VERIFY_EMAIL_MARKER if dispatch.verify_marker else dispatch.stored_code
+    )
     user.verification_code_expires_at = expires
     db.add(user)
     await db.commit()
-
-    from app.services.email_service import send_email
-    subject = f"Your KITERP password reset code is {code}"
-    html = f"""\
-<!doctype html>
-<html>
-  <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f7fb;padding:24px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-      style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #ececf5;">
-      <tr><td style="background:linear-gradient(135deg,#64C3A0 0%,#13624A 100%);padding:18px 24px;color:#fff;">
-        <h2 style="margin:0;font-size:17px;font-weight:600;">KITERP</h2>
-      </td></tr>
-      <tr><td style="padding:24px;">
-        <p style="margin:0 0 12px;font-size:14px;color:#4b5563;">
-          Use this code to reset your password. It expires in 10&nbsp;minutes.
-        </p>
-        <div style="margin:20px 0;padding:16px;text-align:center;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;">
-          <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:6px;color:#111827;">{code}</span>
-        </div>
-        <p style="margin:0;font-size:12px;color:#9ca3af;">If you didn't request a password reset, you can safely ignore this email.</p>
-      </td></tr>
-      <tr><td style="padding:14px 24px;background:#fafafa;border-top:1px solid #ececf5;">
-        <p style="margin:0;font-size:11px;color:#9ca3af;">© KITERP — Vendor Dashboard</p>
-      </td></tr>
-    </table>
-  </body>
-</html>"""
-    text = f"Use this code to reset your KITERP password: {code}\n\nThis code expires in 10 minutes."
-    await send_email(to=user.email, subject=subject, html=html, text=text)
-
-    logger.info("Password reset code for %s: %s", user.email, code)
-
-    from app.config import get_settings
-    dev = not bool((get_settings().SMTP_HOST or "").strip())
-    return {
-        "sent": True,
-        "dev_hint": code if dev else None,
-    }
+    return {"sent": True, "to": _mask_email(email), "expires_at": expires.isoformat()}
 
 
 @router.post("/forgot-password-phone")
@@ -565,7 +557,7 @@ async def forgot_password_phone(
     db: AsyncSession = Depends(get_db),
 ):
     """Request a 6-digit password-reset code via SMS. Always returns 200 (no account enumeration)."""
-    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER, generate_otp_code
+    from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_MARKER, generate_otp_code
     from app.services.sms_service import normalize_e164
 
     phone = normalize_e164(payload.phone or "")
@@ -579,10 +571,10 @@ async def forgot_password_phone(
         return {"sent": True, "to": _mask_phone(phone), "dev_hint": None}
 
     expires = datetime.now(timezone.utc) + timedelta(seconds=600)
-    otp_svc = PhoneOtpService()
-    dispatch = await otp_svc.send_and_store_code(phone, purpose="password reset")
+    otp_svc = OtpService()
+    dispatch = await otp_svc.send_and_store_code(phone, channel="sms", purpose="password reset")
     if not dispatch.result.sent:
-        if otp_svc.is_configured:
+        if otp_svc.is_sms_configured:
             raise HTTPException(
                 status_code=503,
                 detail=dispatch.result.user_message(
@@ -617,7 +609,11 @@ async def reset_password(
     """Validate reset code and set new password."""
     from datetime import datetime, timezone
     from app.core.security import get_password_hash
-    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER, is_twilio_verify_stored
+    from app.services.phone_otp_service import (
+        OtpService,
+        is_twilio_verify_stored,
+        is_twilio_email_verify_stored,
+    )
     from app.services.sms_service import normalize_e164
 
     if not payload.email and not payload.phone:
@@ -638,8 +634,11 @@ async def reset_password(
         raise HTTPException(status_code=400, detail="Reset code has expired — please request a new one")
 
     code_ok = False
-    if is_twilio_verify_stored(user.verification_code) and user.phone:
-        check = await PhoneOtpService().verify_otp(user.phone, payload.code)
+    if is_twilio_email_verify_stored(user.verification_code) and user.email:
+        check = await OtpService().verify_otp(user.email, payload.code, channel="email")
+        code_ok = check.approved
+    elif is_twilio_verify_stored(user.verification_code) and user.phone:
+        check = await OtpService().verify_otp(user.phone, payload.code, channel="sms")
         code_ok = check.approved
     elif user.verification_code == payload.code:
         code_ok = True
@@ -705,25 +704,38 @@ async def resend_email_verification(
 
     _check_cooldown(current_user.verification_code_expires_at)
 
-    code = _generate_code()
     expires = _expires_at()
-    current_user.verification_code = code
+    from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_EMAIL_MARKER
+
+    email = current_user.email.lower()
+    otp_svc = OtpService()
+    dispatch = await otp_svc.send_and_store_code(email, channel="email", purpose="email verification")
+    code = dispatch.stored_code or _generate_code()
+    current_user.verification_code = (
+        TWILIO_VERIFY_EMAIL_MARKER if dispatch.verify_marker else dispatch.stored_code or code
+    )
     current_user.verification_code_expires_at = expires
     db.add(current_user)
     await db.commit()
 
-    from app.services.email_service import send_verification_code_email
-    await send_verification_code_email(current_user.email, code, purpose="verify")
+    extra = _otp_email_extra_fields(
+        email_sent=dispatch.result.sent,
+        email_configured=otp_svc.is_email_configured,
+        code=code,
+        log_tag="email-verify:dev",
+        email=email,
+        email_error=dispatch.result.user_message(
+            fallback="Could not send verification email. Check the address and try again.",
+        ),
+    )
 
-    payload = {
+    return {
         "sent": True,
         "channel": "email",
-        "to": _mask_email(current_user.email),
+        "to": _mask_email(email),
         "expires_at": expires.isoformat(),
+        **extra,
     }
-    if _smtp_dev_mode():
-        payload["dev_hint"] = code
-    return payload
 
 
 @router.post("/email/verify")
@@ -736,10 +748,20 @@ async def verify_email_code(
     if current_user.is_email_verified:
         return await _build_me_payload(current_user, db)
 
-    if not current_user.verification_code or current_user.verification_code != payload.code:
-        raise HTTPException(status_code=400, detail="Invalid verification code")
+    from app.services.phone_otp_service import OtpService, is_twilio_email_verify_stored
+
     if current_user.verification_code_expires_at and current_user.verification_code_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Verification code has expired")
+
+    code_ok = False
+    if is_twilio_email_verify_stored(current_user.verification_code) and current_user.email:
+        check = await OtpService().verify_otp(current_user.email, payload.code, channel="email")
+        code_ok = check.approved
+    elif current_user.verification_code and current_user.verification_code == payload.code:
+        code_ok = True
+
+    if not code_ok:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
 
     current_user.is_email_verified = True
     current_user.verification_code = None
@@ -773,26 +795,38 @@ async def request_email_change(
 
     _check_cooldown(getattr(current_user, "email_change_expires_at", None))
 
-    code = _generate_code()
     expires = _expires_at()
+    from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_EMAIL_MARKER
+
+    otp_svc = OtpService()
+    dispatch = await otp_svc.send_and_store_code(new_email, channel="email", purpose="email change")
+    code = dispatch.stored_code or _generate_code()
     current_user.pending_email = new_email
-    current_user.email_change_code = code
+    current_user.email_change_code = (
+        TWILIO_VERIFY_EMAIL_MARKER if dispatch.verify_marker else dispatch.stored_code or code
+    )
     current_user.email_change_expires_at = expires
     db.add(current_user)
     await db.commit()
 
-    from app.services.email_service import send_verification_code_email
-    await send_verification_code_email(new_email, code, purpose="change")
+    extra = _otp_email_extra_fields(
+        email_sent=dispatch.result.sent,
+        email_configured=otp_svc.is_email_configured,
+        code=code,
+        log_tag="email-change:dev",
+        email=new_email,
+        email_error=dispatch.result.user_message(
+            fallback="Could not send verification email. Check the address and try again.",
+        ),
+    )
 
-    response = {
+    return {
         "sent": True,
         "channel": "email",
         "to": _mask_email(new_email),
         "expires_at": expires.isoformat(),
+        **extra,
     }
-    if _smtp_dev_mode():
-        response["dev_hint"] = code
-    return response
 
 
 @router.post("/email/confirm-change")
@@ -802,12 +836,22 @@ async def confirm_email_change(
     db: AsyncSession = Depends(get_db),
 ):
     """Confirm the email-change code and swap email = pending_email."""
+    from app.services.phone_otp_service import OtpService, is_twilio_email_verify_stored
+
     if not current_user.pending_email or not current_user.email_change_code:
         raise HTTPException(status_code=400, detail="No email change in progress")
-    if current_user.email_change_code != payload.code:
-        raise HTTPException(status_code=400, detail="Invalid verification code")
     if current_user.email_change_expires_at and current_user.email_change_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Verification code has expired")
+
+    code_ok = False
+    if is_twilio_email_verify_stored(current_user.email_change_code):
+        check = await OtpService().verify_otp(current_user.pending_email, payload.code, channel="email")
+        code_ok = check.approved
+    elif current_user.email_change_code == payload.code:
+        code_ok = True
+
+    if not code_ok:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
 
     # Re-check uniqueness in case another user grabbed the email in the interim.
     dup = await db.execute(select(User).where(User.email == current_user.pending_email, User.id != current_user.id))
@@ -840,12 +884,12 @@ async def send_phone_otp(
     _check_cooldown(current_user.verification_code_expires_at)
 
     expires = _expires_at()
-    from app.services.phone_otp_service import PhoneOtpService, TWILIO_VERIFY_MARKER
+    from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_MARKER
     from app.services.sms_service import normalize_e164
 
     phone = normalize_e164(current_user.phone or "")
-    otp_svc = PhoneOtpService()
-    dispatch = await otp_svc.send_and_store_code(phone, purpose="phone verification")
+    otp_svc = OtpService()
+    dispatch = await otp_svc.send_and_store_code(phone, channel="sms", purpose="phone verification")
     code = dispatch.stored_code or _generate_code()
     if dispatch.verify_marker:
         current_user.verification_code = TWILIO_VERIFY_MARKER
@@ -857,7 +901,7 @@ async def send_phone_otp(
 
     extra = _otp_sms_extra_fields(
         sms_sent=dispatch.result.sent,
-        sms_configured=otp_svc.is_configured,
+        sms_configured=otp_svc.is_sms_configured,
         code=code,
         log_tag="phone-otp:dev",
         phone=phone,
@@ -885,14 +929,14 @@ async def verify_phone_otp(
     if current_user.is_phone_verified:
         return await _build_me_payload(current_user, db)
 
-    from app.services.phone_otp_service import PhoneOtpService, is_twilio_verify_stored
+    from app.services.phone_otp_service import OtpService, is_twilio_verify_stored
 
     if current_user.verification_code_expires_at and current_user.verification_code_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Verification code has expired")
 
     code_ok = False
     if is_twilio_verify_stored(current_user.verification_code) and current_user.phone:
-        check = await PhoneOtpService().verify_otp(current_user.phone, payload.code)
+        check = await OtpService().verify_otp(current_user.phone, payload.code, channel="sms")
         code_ok = check.approved
     elif current_user.verification_code and current_user.verification_code == payload.code:
         code_ok = True
@@ -968,6 +1012,36 @@ def _otp_sms_extra_fields(
     raise HTTPException(status_code=503, detail="SMS service is not configured. Contact support.")
 
 
+def _otp_email_extra_fields(
+    *,
+    email_sent: bool,
+    email_configured: bool,
+    code: str,
+    log_tag: str,
+    email: str,
+    email_error: "str | None" = None,
+) -> dict:
+    """Build response extras after an OTP email attempt. Never leaks dev_hint when email is configured."""
+    if email_sent:
+        return {}
+    if email_configured:
+        detail = email_error or "Could not send verification email. Check the address and try again."
+        raise HTTPException(status_code=503, detail=detail)
+    if settings.DEBUG:
+        logger.info("[%s] email=%s code=%s", log_tag, email, code)
+        return {"dev_hint": code}
+    raise HTTPException(status_code=503, detail="Email service is not configured. Contact support.")
+
+
+def _require_valid_email(email: str) -> str:
+    from app.services.phone_otp_service import normalize_email, is_valid_email
+
+    normalized = normalize_email(email)
+    if not is_valid_email(normalized):
+        raise HTTPException(status_code=422, detail="Enter a valid email address")
+    return normalized
+
+
 @router.post("/vendor-signup/check-contact")
 async def vendor_signup_check_contact(body: VendorSignupContactCheck, db: AsyncSession = Depends(get_db)):
     """Return 400 if email or phone is already registered — call before sending OTP or creating account."""
@@ -1000,13 +1074,13 @@ async def vendor_signup_send_phone_otp(body: VendorSignupPhoneOtpSend, db: Async
         raise HTTPException(status_code=400, detail="Phone number already registered")
     code = f"{secrets.randbelow(900000) + 100000}"
     expires = datetime.now(timezone.utc) + timedelta(minutes=10)
-    from app.services.phone_otp_service import PhoneOtpService
+    from app.services.phone_otp_service import OtpService
 
-    otp_svc = PhoneOtpService()
+    otp_svc = OtpService()
     otp_result = await otp_svc.send_signup_otp(phone, code=code)
     extra = _otp_sms_extra_fields(
         sms_sent=otp_result.sent,
-        sms_configured=otp_svc.is_configured,
+        sms_configured=otp_svc.is_sms_configured,
         code=code,
         log_tag="vendor-signup phone otp",
         phone=phone,
@@ -1022,6 +1096,42 @@ async def vendor_signup_send_phone_otp(body: VendorSignupPhoneOtpSend, db: Async
         "sent": True,
         "channel": "phone",
         "to": _mask_phone(phone),
+        "expires_at": expires.isoformat(),
+        **extra,
+    }
+
+
+@router.post("/vendor-signup/send-email-otp")
+async def vendor_signup_send_email_otp(body: VendorSignupEmailOtpSend, db: AsyncSession = Depends(get_db)):
+    """Send OTP via email before vendor self-signup when using email as contact."""
+    email = _require_valid_email(str(body.email))
+    repo = UserRepository(db)
+    if await repo.email_exists(email):
+        raise HTTPException(status_code=400, detail="Email already registered")
+    code = f"{secrets.randbelow(900000) + 100000}"
+    expires = datetime.now(timezone.utc) + timedelta(minutes=10)
+    from app.services.phone_otp_service import OtpService
+
+    otp_svc = OtpService()
+    otp_result = await otp_svc.send_signup_email_otp(email, code=code)
+    extra = _otp_email_extra_fields(
+        email_sent=otp_result.sent,
+        email_configured=otp_svc.is_email_configured,
+        code=code,
+        log_tag="vendor-signup email otp",
+        email=email,
+        email_error=otp_result.user_message(
+            fallback="Could not send verification email. Check the address and try again.",
+        ),
+    )
+    if otp_result.via_verify and otp_result.sent:
+        _vendor_signup_email_otp[email] = {"verify": True, "expires_at": expires}
+    else:
+        _vendor_signup_email_otp[email] = {"code": code, "expires_at": expires}
+    return {
+        "sent": True,
+        "channel": "email",
+        "to": _mask_email(email),
         "expires_at": expires.isoformat(),
         **extra,
     }
@@ -1066,6 +1176,31 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
             raise HTTPException(status_code=400, detail="Invalid or expired phone OTP")
         _vendor_signup_phone_otp.pop(key, None)
 
+    if email and not phone:
+        otp = (data.email_otp or "").strip()
+        if len(otp) != 6 or not otp.isdigit():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Enter the 6-digit OTP sent to your email",
+            )
+        email_key = email.lower()
+        entry = _vendor_signup_email_otp.get(email_key)
+        if not entry:
+            raise HTTPException(status_code=400, detail="Invalid or expired email OTP")
+        exp = entry.get("expires_at")
+        if exp and exp < datetime.now(timezone.utc):
+            _vendor_signup_email_otp.pop(email_key, None)
+            raise HTTPException(status_code=400, detail="Email OTP has expired — request a new code")
+        if entry.get("verify"):
+            from app.services.phone_otp_service import OtpService
+
+            check = await OtpService().verify_signup_email_otp(email_key, otp)
+            if not check.approved:
+                raise HTTPException(status_code=400, detail="Invalid or expired email OTP")
+        elif entry.get("code") != otp:
+            raise HTTPException(status_code=400, detail="Invalid or expired email OTP")
+        _vendor_signup_email_otp.pop(email_key, None)
+
     auth_service = AuthService(db)
 
     user_create = UserCreate(
@@ -1077,6 +1212,10 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
     user = await auth_service.register(user_create)
     if phone:
         user.is_phone_verified = True
+        db.add(user)
+        await db.flush()
+    if email and not phone:
+        user.is_email_verified = True
         db.add(user)
         await db.flush()
 
@@ -1172,14 +1311,16 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
         )
 
     verification_hint: Optional[str] = None
-    if email:
+    if email and not phone:
+        pass  # email verified via signup OTP
+    elif email and phone and not user.is_email_verified:
         code = f"{secrets.randbelow(900000) + 100000}"
         _email_verification_codes[email.lower()] = {
             "code": code,
             "user_id": str(user.id),
         }
-        logger.info("EMAIL VERIFICATION CODE for %s: %s", email, code)
-        verification_hint = code
+        if settings.DEBUG:
+            verification_hint = code
 
     login_identifier = (email or phone or "").strip()
     tokens = await auth_service.login(login_identifier, data.password, vendor_id=vendor.id)
@@ -1204,8 +1345,18 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
 @router.post("/verify-email")
 async def verify_email(data: EmailVerifyRequest, db: AsyncSession = Depends(get_db)):
     """Verify email with the 6-digit code."""
-    entry = _email_verification_codes.get(data.email.lower())
-    if not entry or entry["code"] != data.code:
+    email = data.email.lower()
+    entry = _email_verification_codes.get(email)
+    code_ok = False
+    if entry:
+        if entry.get("verify"):
+            from app.services.phone_otp_service import OtpService
+
+            check = await OtpService().verify_otp(email, data.code, channel="email")
+            code_ok = check.approved
+        elif entry.get("code") == data.code:
+            code_ok = True
+    if not code_ok:
         raise HTTPException(status_code=400, detail="Invalid verification code")
 
     await db.execute(
@@ -1213,7 +1364,7 @@ async def verify_email(data: EmailVerifyRequest, db: AsyncSession = Depends(get_
     )
     await db.commit()
 
-    del _email_verification_codes[data.email.lower()]
+    _email_verification_codes.pop(email, None)
 
     return {"verified": True, "message": "Email verified successfully"}
 

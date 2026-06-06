@@ -7,28 +7,51 @@ type MosaicCell = {
   avatarIdx?: number
 }
 
-const GRID: MosaicCell[] = [
-  { kind: 'shape', shape: 'rounded', tone: 'gray' },
-  { kind: 'avatar', shape: 'circle', avatarIdx: 0 },
-  { kind: 'shape', shape: 'leaf-tl', tone: 'plum' },
-  { kind: 'avatar', shape: 'rounded', avatarIdx: 1 },
-  { kind: 'shape', shape: 'circle', tone: 'gray' },
-  { kind: 'avatar', shape: 'leaf-br', avatarIdx: 2 },
-  { kind: 'avatar', shape: 'rounded', avatarIdx: 3 },
-  { kind: 'shape', shape: 'leaf-tl', tone: 'gray' },
-  { kind: 'avatar', shape: 'circle', avatarIdx: 4 },
-  { kind: 'shape', shape: 'rounded', tone: 'plum' },
-  { kind: 'avatar', shape: 'leaf-br', avatarIdx: 5 },
-  { kind: 'shape', shape: 'circle', tone: 'gray' },
-  { kind: 'avatar', shape: 'rounded', avatarIdx: 6 },
-  { kind: 'shape', shape: 'leaf-tl', tone: 'plum' },
-  { kind: 'avatar', shape: 'circle', avatarIdx: 7 },
-  { kind: 'shape', shape: 'rounded', tone: 'gray' },
-]
+const SHAPES = ['rounded', 'circle', 'leaf-tl', 'leaf-br'] as const
+const TONES = ['gray', 'plum'] as const
+
+/** Deterministic mosaic of tiles, seeded so layouts differ. */
+function makeGrid(seed: number, count: number): MosaicCell[] {
+  const cells: MosaicCell[] = []
+  let avatar = seed * 7
+  for (let i = 0; i < count; i++) {
+    const n = i + seed * 13
+    const shape = SHAPES[n % SHAPES.length]
+    const isAvatar = (n * 5 + 3) % 9 < 5
+    if (isAvatar) {
+      cells.push({ kind: 'avatar', shape, avatarIdx: avatar % MOSAIC_AVATARS.length })
+      avatar++
+    } else {
+      cells.push({ kind: 'shape', shape, tone: TONES[(n + 1) % TONES.length] })
+    }
+  }
+  return cells
+}
+
+const HL_STEP = 0.12
+const DESKTOP_GRID = makeGrid(0, 33)
+const MOBILE_GRID = makeGrid(2, 18)
+const DESKTOP_CYCLE_S = DESKTOP_GRID.length * HL_STEP
+const MOBILE_CYCLE_S = MOBILE_GRID.length * HL_STEP
+const DESKTOP_CYCLE = `${DESKTOP_CYCLE_S.toFixed(2)}s`
+const MOBILE_CYCLE = `${MOBILE_CYCLE_S.toFixed(2)}s`
+
+/** Random (but stable) highlight delay per tile so they blink in no fixed order. */
+function makeDelays(count: number, cycleSeconds: number): number[] {
+  let s = count * 9301 + 49297
+  const rand = () => {
+    s = (s * 9301 + 49297) % 233280
+    return s / 233280
+  }
+  return Array.from({ length: count }, () => +(rand() * cycleSeconds).toFixed(2))
+}
+
+const DESKTOP_DELAYS = makeDelays(DESKTOP_GRID.length, DESKTOP_CYCLE_S)
+const MOBILE_DELAYS = makeDelays(MOBILE_GRID.length, MOBILE_CYCLE_S)
 
 function MosaicCellView({ cell }: { cell: MosaicCell }) {
   const shape = cell.shape ?? 'rounded'
-  const classes = ['odoo-mosaic-shape w-full h-full', shape, cell.tone].filter(Boolean).join(' ')
+  const classes = ['kiterp-mosaic-shape w-full h-full', shape, cell.tone].filter(Boolean).join(' ')
 
   if (cell.kind === 'shape') {
     return <div className={classes} />
@@ -36,53 +59,84 @@ function MosaicCellView({ cell }: { cell: MosaicCell }) {
 
   const av = MOSAIC_AVATARS[cell.avatarIdx ?? 0]
   return (
-    <div className={`${classes} flex items-center justify-center text-white font-bold text-lg`} style={{ background: av.bg }}>
+    <div
+      className={`${classes} flex items-center justify-center text-white font-bold text-sm sm:text-base`}
+      style={{ background: av.bg }}
+    >
       {av.initials}
+    </div>
+  )
+}
+
+function MosaicGrid({
+  cells,
+  cycle,
+  delays,
+  className,
+}: {
+  cells: MosaicCell[]
+  cycle: string
+  delays: number[]
+  className: string
+}) {
+  return (
+    <div className={className}>
+      {cells.map((cell, i) => (
+        <div
+          key={i}
+          className="kiterp-mosaic-cell aspect-square"
+          style={{
+            ['--mosaic-delay' as string]: `${i * 0.05}s`,
+            ['--mosaic-hl' as string]: `${delays[i]}s`,
+            ['--mosaic-cycle' as string]: cycle,
+          }}
+        >
+          <MosaicCellView cell={cell} />
+        </div>
+      ))}
     </div>
   )
 }
 
 export function CommunityMosaicSection() {
   return (
-    <section className="py-16 sm:py-20 bg-[#eef9f4] overflow-hidden">
+    <section id="community" className="relative py-16 sm:py-24 bg-[#eef9f4] overflow-hidden scroll-mt-24">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="relative flex flex-col lg:flex-row items-center gap-10 lg:gap-6">
-          {/* Left mosaic — hidden on small screens */}
-          <div className="hidden lg:grid grid-cols-4 gap-2 w-[280px] shrink-0 opacity-90 [mask-image:linear-gradient(to_right,transparent,black_30%)]">
-            {GRID.slice(0, 8).map((cell, i) => (
-              <div key={i} className="aspect-square w-16">
-                <MosaicCellView cell={cell} />
-              </div>
-            ))}
-          </div>
+        <div className="relative">
+          {/* Decorative hand-drawn arrows */}
+          <svg className="hidden sm:block absolute -top-6 left-2 w-16 h-16 opacity-50" viewBox="0 0 60 60" fill="none" aria-hidden>
+            <path className="kiterp-scribble-arrow" d="M50 6 C30 10 14 24 12 46" />
+            <path className="kiterp-scribble-arrow" d="M12 46 L6 34 M12 46 L24 42" />
+          </svg>
+          <svg className="hidden sm:block absolute -bottom-8 right-2 w-16 h-16 opacity-50" viewBox="0 0 60 60" fill="none" aria-hidden>
+            <path className="kiterp-scribble-arrow" d="M10 8 C30 16 44 28 48 52" />
+            <path className="kiterp-scribble-arrow" d="M48 52 L38 46 M48 52 L52 40" />
+          </svg>
 
-          <div className="relative z-10 flex-1 text-center max-w-xl mx-auto">
-            <div className="inline-block bg-white rounded-full px-8 sm:px-12 py-8 sm:py-10 shadow-xl shadow-[#64C3A0]/12 border border-[#64C3A0]/15">
-              <p className="font-odoo-script text-3xl sm:text-4xl text-[#1e3d34] leading-tight">
+          {/* Full-width mosaic with the center faded out for the headline */}
+          <MosaicGrid
+            cells={DESKTOP_GRID}
+            cycle={DESKTOP_CYCLE}
+            delays={DESKTOP_DELAYS}
+            className="hidden lg:grid grid-cols-11 gap-2.5 kiterp-mosaic-fullmask"
+          />
+          <MosaicGrid
+            cells={MOBILE_GRID}
+            cycle={MOBILE_CYCLE}
+            delays={MOBILE_DELAYS}
+            className="grid lg:hidden grid-cols-6 sm:grid-cols-8 gap-2 kiterp-mosaic-fullmask-sm"
+          />
+
+          {/* Centered headline floating over the mosaic */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
+            <div className="text-center">
+              <p className="font-kiterp-script text-3xl sm:text-5xl text-[#1e3d34] leading-tight drop-shadow-[0_2px_10px_rgba(238,249,244,0.9)]">
                 Join <span className="text-[#64C3A0]">happy</span> vendors
               </p>
-              <p className="mt-2 text-gray-600 text-sm sm:text-base">
+              <p className="mt-2 text-gray-700 text-sm sm:text-lg font-medium">
                 who grow their business with KITERP
               </p>
             </div>
-          </div>
-
-          {/* Right mosaic */}
-          <div className="hidden lg:grid grid-cols-4 gap-2 w-[280px] shrink-0 opacity-90 [mask-image:linear-gradient(to_left,transparent,black_30%)]">
-            {GRID.slice(8).map((cell, i) => (
-              <div key={i} className="aspect-square w-16">
-                <MosaicCellView cell={cell} />
-              </div>
-            ))}
-          </div>
-
-          {/* Mobile simplified mosaic ring */}
-          <div className="lg:hidden grid grid-cols-5 gap-1.5 max-w-sm mx-auto w-full opacity-80">
-            {GRID.slice(0, 10).map((cell, i) => (
-              <div key={i} className="aspect-square">
-                <MosaicCellView cell={cell} />
-              </div>
-            ))}
           </div>
         </div>
       </div>

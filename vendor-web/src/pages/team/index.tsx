@@ -209,7 +209,7 @@ export default function TeamPage() {
   const handleSendOtp = async (member: TeamMember) => {
     const res = await sendOtpMutation.mutateAsync(member.id)
     const channel = res.channel as 'email' | 'phone'
-    if (res.sms_sent && !res.otp) {
+    if ((res.sms_sent || res.email_sent) && !res.otp) {
       toast.success(`Verification code sent to ${res.contact}`)
       setVerifyModal({
         memberId: member.id,

@@ -19,7 +19,7 @@ function SparkleBurst() {
   return (
     <svg
       viewBox="0 0 100 100"
-      className="odoo-sparkle-burst w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6"
+      className="kiterp-sparkle-burst w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6"
       aria-hidden
     >
       {rays}
@@ -32,10 +32,10 @@ function SparkleBurst() {
 export function GrowthCtaSection() {
   return (
     <section id="pricing" className="py-20 sm:py-28 bg-white text-center">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 odoo-reveal">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 kiterp-reveal">
         <SparkleBurst />
 
-        <h2 className="font-odoo-script text-[2rem] sm:text-4xl lg:text-5xl leading-tight">
+        <h2 className="font-kiterp-script text-[2rem] sm:text-4xl lg:text-5xl leading-tight">
           <span className="text-[#1e3d34]">Unleash</span>
           <br />
           <span className="text-[#64C3A0]">your growth potential</span>
@@ -43,7 +43,7 @@ export function GrowthCtaSection() {
 
         <a
           href={VENDOR_SIGNUP_PATH}
-          className="odoo-btn-primary inline-block mt-8 px-8 py-3.5 text-base sm:text-lg"
+          className="kiterp-btn-primary inline-block mt-8 px-8 py-3.5 text-base sm:text-lg"
         >
           Start now — It&apos;s free
         </a>

@@ -294,12 +294,12 @@ async def send_completion_otp(
     phone = normalize_e164(booking.customer_phone)
     booking.completion_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
     otp_svc = PhoneOtpService()
-    dispatch = await otp_svc.send_and_store_code(phone, purpose="booking completion")
+    dispatch = await otp_svc.send_and_store_code(phone, channel="sms", purpose="booking completion")
     otp = dispatch.stored_code or generate_otp_code()
 
     if dispatch.result.sent:
         booking.completion_otp = TWILIO_VERIFY_MARKER if dispatch.verify_marker else dispatch.stored_code
-    elif not otp_svc.is_configured and settings.DEBUG:
+    elif not otp_svc.is_sms_configured and settings.DEBUG:
         booking.completion_otp = otp
     else:
         raise HTTPException(

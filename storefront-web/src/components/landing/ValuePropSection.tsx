@@ -1,4 +1,5 @@
 import { Zap, Sparkles, Shield, BadgeIndianRupee } from 'lucide-react'
+import { LandingDemoVideo } from './LandingDemoVideo'
 
 const PROPS = [
   {
@@ -29,14 +30,17 @@ const PROPS = [
 
 export function ValuePropSection() {
   return (
-    <section className="py-16 sm:py-24 bg-white">
+    <section className="py-16 sm:py-24 bg-white scroll-mt-24">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <h2 className="font-odoo-script text-3xl sm:text-4xl text-center text-[#1e3d34] mb-12 sm:mb-16">
+        <h2 className="font-kiterp-script text-3xl sm:text-4xl text-center text-[#1e3d34] mb-8 sm:mb-10">
           Level up your quality of work
         </h2>
-        <div className="grid sm:grid-cols-2 gap-8 lg:gap-12">
+
+        <LandingDemoVideo />
+
+        <div className="grid sm:grid-cols-2 gap-8 lg:gap-12 mt-14 sm:mt-16">
           {PROPS.map((item) => (
-            <article key={item.title} className="flex gap-5 odoo-reveal">
+            <article key={item.title} className="flex gap-5 kiterp-reveal">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
                 style={{ backgroundColor: `${item.accent}18` }}

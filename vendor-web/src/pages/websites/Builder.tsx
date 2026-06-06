@@ -1429,8 +1429,6 @@ function ContextMenu({ open, x, y, actions, onClose }: {
 }
 
 // ── Inline Editable Text ──────────────────────────────────────────────────────
-// Click any text element of a selected block to edit it in-place (Odoo-style).
-// Commits on blur / Enter (for headline-style single-line). Preserves styling.
 
 const InlineTextStyleContext = React.createContext<{
   styleForKey: (key: string, base?: React.CSSProperties) => React.CSSProperties

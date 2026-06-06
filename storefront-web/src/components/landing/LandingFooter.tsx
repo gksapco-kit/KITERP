@@ -35,7 +35,7 @@ export function LandingFooter() {
           <div>
             <p className="text-white text-sm font-semibold mb-3">Community</p>
             <ul className="space-y-2 text-sm">
-              <li><a href="https://www.odoo.com/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Design inspired by Odoo</a></li>
+              <li><a href="#community" className="hover:text-white transition-colors">Vendor community</a></li>
             </ul>
           </div>
         </div>

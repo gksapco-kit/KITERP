@@ -15,18 +15,18 @@ export function AppsGridSection() {
             return (
               <div
                 key={app.id}
-                className="odoo-app-tile relative flex flex-col items-center text-center group"
+                className="kiterp-app-tile relative flex flex-col items-center text-center group"
                 style={{ animationDelay: `${Math.min(i * 35, 700)}ms` }}
               >
                 {showCompetitors && app.competitor && (
                   <span
-                    className="absolute -top-2 left-1/2 -translate-x-1/2 odoo-hand-note text-sm whitespace-nowrap z-10 pointer-events-none"
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 kiterp-hand-note text-sm whitespace-nowrap z-10 pointer-events-none"
                     style={{ transform: 'translateX(-50%) rotate(-4deg)' }}
                   >
                     {app.competitor}
                   </span>
                 )}
-                <div className="odoo-app-icon w-full aspect-square max-w-[88px] mx-auto bg-white rounded-2xl shadow-sm border border-white flex items-center justify-center p-4">
+                <div className="kiterp-app-icon w-full aspect-square max-w-[88px] mx-auto bg-white rounded-2xl shadow-sm border border-white flex items-center justify-center p-4">
                   <Icon className="w-9 h-9 sm:w-10 sm:h-10" style={{ color: app.color }} strokeWidth={1.75} />
                 </div>
                 <p className="mt-2 text-[11px] sm:text-xs font-medium text-gray-600 leading-tight px-1">
@@ -63,7 +63,7 @@ export function AppsGridSection() {
             Each app simplifies a process and empowers more people.
             Imagine the impact when everyone gets the right tool for the job.
           </p>
-          <p className="mt-6 font-odoo-script text-2xl text-[#1e3d34]/80 italic">
+          <p className="mt-6 font-kiterp-script text-2xl text-[#1e3d34]/80 italic">
             If you simplify everything, you can do anything!
           </p>
         </div>

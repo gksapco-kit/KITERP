@@ -690,6 +690,7 @@ export const vendorApi = {
   sendTeamVerificationOtp: async (memberId: string): Promise<{
     otp: string | null
     sms_sent?: boolean
+    email_sent?: boolean
     expires_in_minutes: number
     contact: string
     channel: string

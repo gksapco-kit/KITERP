@@ -100,6 +100,11 @@ export const authApi = {
     return response.data
   },
 
+  vendorSignupSendEmailOtp: async (email: string): Promise<OtpSendResponse> => {
+    const response = await apiClient.post('/auth/vendor-signup/send-email-otp', { email: email.trim().toLowerCase() })
+    return response.data
+  },
+
   /** Call before OTP modal / signup — 400 if email or phone already exists on a user. */
   vendorSignupCheckContact: async (payload: { email?: string; phone?: string }): Promise<{ available: boolean }> => {
     const response = await apiClient.post('/auth/vendor-signup/check-contact', payload)
@@ -129,6 +134,7 @@ export interface VendorSignupPayload {
   email?: string
   phone?: string
   phone_otp?: string
+  email_otp?: string
   password: string
 }
 
