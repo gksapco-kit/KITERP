@@ -1,4 +1,7 @@
+import { useState, type CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
+import { resolveCategoryStockImageUrl } from '@/data/categoryStockImages'
+import { heroUsesBackgroundImage, resolveGradientCss } from '@/lib/heroLayoutUtils'
 
 type PreviewProps = {
   blockType: string
@@ -10,9 +13,17 @@ function Bar({ w, h = 'h-1.5', className }: { w: string; h?: string; className?:
   return <div className={cn(h, w, 'rounded', className ?? 'bg-gray-300')} />
 }
 
-function Img({ src, className }: { src?: string; className?: string }) {
-  if (!src) return <div className={cn('bg-gray-300 rounded', className)} />
-  return <img src={src} alt="" className={cn('object-cover rounded', className)} />
+function Img({ src, className, fallbackCategory = 'shop' }: { src?: string; className?: string; fallbackCategory?: string }) {
+  const [failed, setFailed] = useState(false)
+  const displaySrc = failed || !src ? resolveCategoryStockImageUrl(fallbackCategory, 1) : src
+  return (
+    <img
+      src={displaySrc}
+      alt=""
+      className={cn('object-cover rounded', className)}
+      onError={() => setFailed(true)}
+    />
+  )
 }
 
 function FooterPreview({ variantProps }: { variantProps: Record<string, unknown> }) {
@@ -81,10 +92,10 @@ function NavPreview({ variantProps }: { variantProps: Record<string, unknown> })
   const isCentered = style === 'centered' || style === 'dark_centered' || variantProps.nav_layout === 'centered'
   const isDark = style === 'dark' || style === 'brand' || style === 'dark_centered'
   const isTransparent = style === 'transparent' || style === 'transparent_cta'
-  const isGlass = style === 'glass' || variantProps.nav_glass
-  const isElevated = style === 'elevated' || variantProps.nav_elevated
-  const isCompact = style === 'compact' || variantProps.nav_compact
-  const isAccentBorder = style === 'accent_border' || variantProps.nav_accent_border
+  const isGlass = style === 'glass' || Boolean(variantProps.nav_glass)
+  const isElevated = style === 'elevated' || Boolean(variantProps.nav_elevated)
+  const isCompact = style === 'compact' || Boolean(variantProps.nav_compact)
+  const isAccentBorder = style === 'accent_border' || Boolean(variantProps.nav_accent_border)
   const isShop = style === 'shop'
   const shell = isDark
     ? 'bg-slate-900'
@@ -144,77 +155,219 @@ function NavPreview({ variantProps }: { variantProps: Record<string, unknown> })
   )
 }
 
-function HeroPreview({ blockType, variantProps, sampleUrls }: PreviewProps) {
-  const img = sampleUrls[0]
-  const isSplit = blockType === 'hero_split' || variantProps.layout === 'split'
-  const bgStyle = String(variantProps.bg_style ?? 'gradient')
-  const isMinimal = blockType === 'hero_minimal' || bgStyle === 'minimal'
-  const isDark = bgStyle === 'dark' || bgStyle === 'solid'
-
-  if (isSplit) {
-    return (
-      <div className="h-full flex bg-white">
-        <div className="flex-1 flex flex-col justify-center gap-1 px-2 py-2">
-          <Bar w="w-4/5" h="h-2.5" className="bg-slate-600" />
-          <Bar w="w-full" h="h-1" className="bg-slate-200" />
-          <Bar w="w-full" h="h-1" className="bg-slate-200" />
-          <div className="flex gap-1 mt-1">
-            <Bar w="w-8" h="h-2" className="bg-primary/60" />
-            <Bar w="w-8" h="h-2" className="bg-slate-200" />
-          </div>
-        </div>
-        <Img src={img} className="w-[45%] h-full rounded-none" />
-      </div>
-    )
-  }
-
-  if (isMinimal) {
-    return (
-      <div className="h-full flex flex-col justify-center gap-1.5 px-4 bg-white relative overflow-hidden">
-        {img && (
-          <>
-            <Img src={img} className="absolute inset-0 w-full h-full rounded-none object-cover opacity-25" />
-            <div className="absolute inset-0 bg-white/70" />
-          </>
-        )}
-        <div className="relative z-10 flex flex-col gap-1.5">
-          <Bar w="w-1/2" h="h-3" className="bg-slate-700" />
-          <Bar w="w-2/3" h="h-1" className="bg-slate-300" />
-          <Bar w="w-10" h="h-2" className="bg-primary/60 mt-1" />
-        </div>
-      </div>
-    )
-  }
-
-  const shell = img
-    ? 'relative'
-    : isDark
-      ? 'bg-slate-900'
-      : 'bg-gradient-to-br from-primary/25 via-violet-100 to-emerald-50'
-
+function heroPreviewBars(dark: boolean, opts?: { eyebrow?: boolean; dualCta?: boolean; squareCta?: boolean }) {
+  const head = dark ? 'bg-white/90' : 'bg-slate-700'
+  const sub = dark ? 'bg-white/55' : 'bg-slate-300'
+  const cta = opts?.squareCta ? (dark ? 'bg-white' : 'bg-slate-800') : 'bg-primary/70'
+  const cta2 = dark ? 'bg-white/25' : 'bg-slate-200'
   return (
-    <div className={cn('h-full flex flex-col items-center justify-center gap-1.5 p-3', shell)}>
-      {img && (
-        <>
-          <Img src={img} className="absolute inset-0 w-full h-full rounded-none object-cover" />
-          <div className={cn(
-            'absolute inset-0',
-            isDark ? 'bg-black/55'
-              : bgStyle === 'gradient' ? 'bg-gradient-to-br from-violet-900/50 via-primary/35 to-black/45'
-                : 'bg-black/40',
-          )} />
-        </>
-      )}
-      <div className="relative z-10 flex flex-col items-center gap-1 w-full">
-        <Bar w="w-2/3" h="h-2.5" className={img || isDark ? 'bg-white/90' : 'bg-slate-700'} />
-        <Bar w="w-1/2" h="h-1" className={img || isDark ? 'bg-white/60' : 'bg-slate-400'} />
-        <div className="flex gap-1 mt-1">
-          <Bar w="w-8" h="h-2" className="bg-primary/80" />
-          <Bar w="w-8" h="h-2" className={img || isDark ? 'bg-white/30' : 'bg-white/80'} />
-        </div>
+    <div className="flex flex-col gap-1 min-w-0">
+      {opts?.eyebrow && <Bar w="w-1/4" h="h-1" className={dark ? 'bg-white/50' : 'bg-slate-400'} />}
+      <Bar w="w-4/5" h="h-2.5" className={head} />
+      <Bar w="w-full" h="h-1" className={sub} />
+      <div className="flex gap-1 mt-0.5">
+        <Bar w="w-8" h="h-2" className={cta} />
+        {opts?.dualCta && <Bar w="w-8" h="h-2" className={cta2} />}
       </div>
     </div>
   )
+}
+
+function HeroSplitPreview({ variantProps, sampleUrls }: PreviewProps) {
+  const layout = String(variantProps.layout ?? 'split')
+  const bgStyle = String(variantProps.bg_style ?? 'minimal')
+  const img = sampleUrls[0]
+  const heroGrad = resolveGradientCss(variantProps.gradient_preset as string | undefined, '#64C3A0', '#13624A')
+
+  if (layout === 'stacked') {
+    return (
+      <div className="h-full flex flex-col bg-white overflow-hidden">
+        {img
+          ? <Img src={img} className="h-[52%] w-full rounded-none shrink-0" />
+          : <div className="h-[52%] bg-slate-200 shrink-0" />}
+        <div className="flex-1 flex flex-col justify-center gap-1 px-3 py-2">
+          {heroPreviewBars(false)}
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'overlap') {
+    return (
+      <div className="h-full relative overflow-hidden">
+        {img
+          ? <Img src={img} className="absolute inset-0 w-full h-full rounded-none" />
+          : <div className="absolute inset-0 bg-slate-300" />}
+        <div className="absolute inset-0 bg-black/35" />
+        <div className="absolute bottom-2 left-2 right-2 bg-white rounded shadow-md p-2">
+          {heroPreviewBars(false, { squareCta: true })}
+        </div>
+      </div>
+    )
+  }
+
+  const imageOnLeft = String(variantProps.image_position ?? 'right') === 'left'
+  const wideImage = String(variantProps.image_width ?? '') === '60'
+  const imageCls = cn('h-full rounded-none shrink-0 object-cover', wideImage ? 'w-[58%]' : 'w-[42%]')
+
+  let textStyle: CSSProperties = { backgroundColor: '#ffffff' }
+  let darkText = false
+  if (bgStyle === 'solid') {
+    textStyle = { backgroundColor: String(variantProps.bg_color || '#0f172a') }
+    darkText = true
+  } else if (bgStyle === 'gradient') {
+    textStyle = { background: heroGrad }
+    darkText = true
+  }
+
+  const textPanel = (
+    <div
+      className="flex-1 flex flex-col justify-center gap-1 px-2 py-2 min-w-0"
+      style={textStyle}
+    >
+      {heroPreviewBars(darkText, { squareCta: !!variantProps.cta_square })}
+    </div>
+  )
+  const imagePanel = img
+    ? <Img src={img} className={imageCls} />
+    : <div className={cn(imageCls, 'bg-slate-200')} />
+
+  return (
+    <div className="h-full flex bg-white overflow-hidden">
+      {imageOnLeft ? (
+        <>
+          {imagePanel}
+          {variantProps.show_divider && <div className="w-px bg-slate-300 shrink-0" />}
+          {textPanel}
+        </>
+      ) : (
+        <>
+          {textPanel}
+          {variantProps.show_divider && <div className="w-px bg-slate-300 shrink-0" />}
+          {imagePanel}
+        </>
+      )}
+    </div>
+  )
+}
+
+function HeroMinimalPreview({ variantProps, sampleUrls }: PreviewProps) {
+  const bgStyle = String(variantProps.bg_style ?? 'minimal')
+  const heroGrad = resolveGradientCss(variantProps.gradient_preset as string | undefined, '#a7f3d0', '#64C3A0')
+  const alignLeft = variantProps.align === 'left'
+  const compact = Number(variantProps.padding_top ?? 56) <= 36
+
+  let shell: CSSProperties = { backgroundColor: '#ffffff' }
+  let dark = false
+  if (bgStyle === 'solid') {
+    shell = { backgroundColor: String(variantProps.bg_color || '#111827') }
+    dark = true
+  } else if (bgStyle === 'light') {
+    shell = { backgroundColor: '#f1f5f9' }
+  } else if (bgStyle === 'gradient') {
+    shell = { background: heroGrad }
+    dark = true
+  } else if (variantProps.bg_color) {
+    shell = { backgroundColor: String(variantProps.bg_color) }
+  }
+
+  const content = heroPreviewBars(dark, {
+    eyebrow: !!variantProps.eyebrow_plain,
+    dualCta: !!variantProps.cta_secondary,
+    squareCta: !!variantProps.cta_square,
+  })
+
+  if (variantProps.show_image) {
+    const thumb = sampleUrls[0]
+    return (
+      <div className="h-full flex items-center gap-2 px-3" style={shell}>
+        {thumb
+          ? <Img src={thumb} className="w-[38%] h-[70%] rounded shrink-0" />
+          : <div className="w-[38%] h-[70%] bg-slate-200 rounded shrink-0" />}
+        <div className="flex-1 min-w-0">{content}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={cn(
+        'h-full flex flex-col justify-center px-4 overflow-hidden',
+        compact ? 'py-2 gap-1' : 'py-4 gap-1.5',
+        alignLeft ? 'items-start' : 'items-center',
+      )}
+      style={shell}
+    >
+      <div className={cn('w-full max-w-[85%]', alignLeft ? '' : 'mx-auto')}>{content}</div>
+    </div>
+  )
+}
+
+function HeroCenteredPreview({ variantProps, sampleUrls }: PreviewProps) {
+  const img = sampleUrls[0]
+  const bgStyle = String(variantProps.bg_style ?? 'gradient')
+  const useBgImage = heroUsesBackgroundImage('hero', variantProps) && !!img
+  const solidBg = String(variantProps.bg_color ?? '')
+  const heroGrad = resolveGradientCss(
+    variantProps.gradient_preset as string | undefined,
+    '#64C3A0',
+    '#13624A',
+  )
+  const isDark = useBgImage || bgStyle === 'gradient' || bgStyle === 'dark' || bgStyle === 'image' || bgStyle === 'solid'
+
+  if (bgStyle === 'minimal') {
+    return (
+      <div
+        className="h-full flex flex-col items-center justify-center gap-1.5 px-4"
+        style={{ backgroundColor: solidBg || '#ffffff' }}
+      >
+        {heroPreviewBars(false, { eyebrow: !!variantProps.eyebrow_plain, squareCta: !!variantProps.cta_square })}
+      </div>
+    )
+  }
+
+  const shellStyle: CSSProperties = useBgImage
+    ? { backgroundImage: `url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : bgStyle === 'gradient'
+      ? { background: heroGrad }
+      : bgStyle === 'solid'
+        ? { backgroundColor: solidBg || '#0f172a' }
+        : bgStyle === 'dark'
+          ? { backgroundColor: '#111827' }
+          : { background: 'linear-gradient(135deg,#e2e8f0,#f8fafc)' }
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-1.5 p-3 relative overflow-hidden" style={shellStyle}>
+      {useBgImage && bgStyle === 'gradient' && (
+        <div className="absolute inset-0" style={{ background: heroGrad, opacity: variantProps.overlay === false ? 0.55 : 0.82 }} />
+      )}
+      {useBgImage && bgStyle === 'image' && variantProps.overlay !== false && (
+        <div className="absolute inset-0 bg-black/45" />
+      )}
+      <div className="relative z-10 flex flex-col items-center gap-1 w-full max-w-[90%]">
+        {heroPreviewBars(isDark, { eyebrow: !!variantProps.eyebrow_plain, squareCta: !!variantProps.cta_square })}
+      </div>
+    </div>
+  )
+}
+
+function HeroPreview({ blockType, variantProps, sampleUrls }: PreviewProps) {
+  const layout = String(variantProps.layout ?? '')
+
+  if (
+    blockType === 'hero_split'
+    || layout === 'split'
+    || layout === 'stacked'
+    || layout === 'overlap'
+  ) {
+    return <HeroSplitPreview blockType={blockType} variantProps={variantProps} sampleUrls={sampleUrls} />
+  }
+
+  if (blockType === 'hero_minimal' || layout === 'minimal') {
+    return <HeroMinimalPreview blockType={blockType} variantProps={variantProps} sampleUrls={sampleUrls} />
+  }
+
+  return <HeroCenteredPreview blockType={blockType} variantProps={variantProps} sampleUrls={sampleUrls} />
 }
 
 function GridCardsPreview({ variantProps, sampleUrls, withImages = true }: {
@@ -493,22 +646,117 @@ function TeamPreview({ variantProps, sampleUrls }: { variantProps: Record<string
   )
 }
 
-function AlternatingPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
-  const pos = variantProps.image_position === 'right' ? 'right' : 'left'
+const ALT_PREVIEW_ICONS = ['🥗', '🌿', '✨', '🍃']
+
+function AlternatingMedia({
+  row,
+  variantProps,
+  sampleUrls,
+}: {
+  row: number
+  variantProps: Record<string, unknown>
+  sampleUrls: string[]
+}) {
+  const src = sampleUrls[row % sampleUrls.length]
+  const shape = String(variantProps.image_shape ?? 'rounded')
+  const useIcons = !!variantProps.use_icons
+  const compact = !!variantProps.compact
+  const full = variantProps.layout === 'full'
+
+  if (useIcons) {
+    return (
+      <div className={cn(
+        'shrink-0 flex items-center justify-center rounded-full bg-primary/15 text-sm animate-pulse',
+        compact ? 'w-7 h-7' : 'w-9 h-9',
+      )}>
+        {ALT_PREVIEW_ICONS[row % ALT_PREVIEW_ICONS.length]}
+      </div>
+    )
+  }
+
+  if (shape === 'circle') {
+    return (
+      <div className={cn('relative shrink-0', compact ? 'w-[28%]' : 'w-[32%]')}>
+        <div className="absolute inset-0 rounded-full bg-primary/25 blur-[2px] scale-110 animate-pulse" />
+        <Img src={src} className={cn('relative w-full aspect-square rounded-full object-cover ring-2 ring-white shadow-md', compact && 'ring-1')} />
+      </div>
+    )
+  }
+
+  if (shape === 'square') {
+    return (
+      <Img
+        src={src}
+        className={cn(
+          'shrink-0 object-cover shadow-sm',
+          full ? 'w-[48%] h-full rounded-none' : compact ? 'w-[30%] aspect-square rounded-sm' : 'w-[36%] aspect-square rounded-sm',
+        )}
+      />
+    )
+  }
+
   return (
-    <div className="h-full p-1.5 space-y-1">
-      {[0, 1].map(row => (
-        <div key={row} className={cn('flex gap-1 h-[46%]', row === 1 && pos === 'left' && 'flex-row-reverse', row === 1 && pos === 'right' && 'flex-row')}>
-          <Img src={sampleUrls[row]} className="w-2/5 h-full" />
-          <div className="flex-1 flex flex-col justify-center gap-0.5 px-1">
-            <Bar w="w-2/3" h="h-1" className="bg-slate-500" />
-            <Bar w="w-full" h="h-0.5" className="bg-slate-200" />
-            <Bar w="w-full" h="h-0.5" className="bg-slate-200" />
+    <Img
+      src={src}
+      className={cn(
+        'shrink-0 object-cover shadow-md',
+        full ? 'w-[48%] h-full rounded-none' : compact ? 'w-[32%] aspect-[4/3] rounded-lg' : 'w-[38%] aspect-[4/3] rounded-xl',
+      )}
+    />
+  )
+}
+
+function AlternatingPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
+  const imagePos = variantProps.image_position === 'right' ? 'right' : 'left'
+  const isDark = variantProps.bg_style === 'dark'
+  const isCard = variantProps.card_style === 'card'
+  const showNumbers = !!variantProps.show_numbers
+  const useIcons = !!variantProps.use_icons
+  const compact = !!variantProps.compact
+  const full = variantProps.layout === 'full'
+  const rowGap = compact ? 'gap-0.5' : 'gap-1'
+
+  const rowFlip = (row: number) => {
+    if (useIcons) return row % 2 === 1
+    if (imagePos === 'right') return row % 2 === 0
+    return row % 2 === 1
+  }
+
+  const shell = (
+    <div className={cn('h-full flex flex-col', rowGap, full ? 'p-0' : 'p-1.5', isDark && 'bg-slate-900')}>
+      {[0, 1].map(row => {
+        const reversed = rowFlip(row)
+        const rowBody = (
+          <div className={cn('flex items-center gap-1.5 flex-1 min-h-0', reversed && 'flex-row-reverse', full && 'px-0')}>
+            <AlternatingMedia row={row} variantProps={variantProps} sampleUrls={sampleUrls} />
+            <div className="flex-1 flex flex-col justify-center gap-0.5 min-w-0 px-0.5">
+              {showNumbers && (
+                <div className={cn(
+                  'w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold mb-0.5',
+                  isDark ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary',
+                )}>
+                  {row + 1}
+                </div>
+              )}
+              <Bar w="w-2/3" h="h-1" className={isDark ? 'bg-white/80' : 'bg-slate-600'} />
+              <Bar w="w-full" h="h-0.5" className={isDark ? 'bg-white/35' : 'bg-slate-200'} />
+              {!compact && <Bar w="w-4/5" h="h-0.5" className={isDark ? 'bg-white/25' : 'bg-slate-200'} />}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+        if (isCard) {
+          return (
+            <div key={row} className={cn('flex-1 min-h-0 rounded-lg border p-1', isDark ? 'border-white/15 bg-white/5' : 'border-slate-200 bg-white')}>
+              {rowBody}
+            </div>
+          )
+        }
+        return <div key={row} className="flex-1 min-h-0">{rowBody}</div>
+      })}
     </div>
   )
+
+  return shell
 }
 
 function GalleryPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {

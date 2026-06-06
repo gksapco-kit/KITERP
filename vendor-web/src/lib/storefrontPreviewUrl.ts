@@ -1,3 +1,8 @@
+import {
+  broadcastPreviewTabNavigate,
+  PREVIEW_NAV_MESSAGE_TYPE,
+} from '@/lib/draftPreviewSync'
+
 /** True when the dashboard is opened on a loopback host (vite dev, vite preview, etc.). */
 function isLoopbackDashboardHost(): boolean {
   if (typeof window === 'undefined') return false
@@ -65,15 +70,35 @@ export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
 /** Public draft preview on vendor-web (port 3001) — no storefront iframe. */
 export const DRAFT_BROWSER_PREVIEW_PATH = '/preview/draft'
 
-/** Origin for preview URLs — always vendor-web (port 3001 in local dev). */
+/** Query flag while the builder awaits the preview API (same-origin loading shell). */
+export const DRAFT_PREVIEW_PENDING_PARAM = 'pending'
+
+/**
+ * Origin for preview URLs — same host/port as the open vendor dashboard tab.
+ * Must match `window.location` (not normalized loopback) so named preview tabs reuse correctly.
+ */
 export function getVendorPreviewOrigin(): string {
-  if (shouldUseLocalStorefrontUrls()) {
-    return 'http://localhost:3001'
+  if (typeof window === 'undefined') return 'http://127.0.0.1:3001'
+  const { protocol, hostname, port } = window.location
+  const portSuffix = port ? `:${port}` : ''
+  return `${protocol}//${hostname}${portSuffix}`
+}
+
+/** Keep preview on the same loopback spelling as the builder (localhost vs 127.0.0.1). */
+function alignPreviewUrlWithCurrentHost(previewShellUrl: string): string {
+  if (typeof window === 'undefined') return previewShellUrl
+  try {
+    const url = new URL(previewShellUrl)
+    const current = window.location.hostname
+    const previewHost = url.hostname
+    const loopback = new Set(['localhost', '127.0.0.1', '[::1]'])
+    if (loopback.has(current) && loopback.has(previewHost) && current !== previewHost) {
+      url.hostname = current
+    }
+    return url.toString()
+  } catch {
+    return previewShellUrl
   }
-  if (typeof window === 'undefined') return 'http://localhost:3001'
-  const { protocol, port } = window.location
-  const host = window.location.hostname === '127.0.0.1' ? 'localhost' : window.location.hostname
-  return `${protocol}//${host}${port ? `:${port}` : ''}`
 }
 
 /** Draft preview URL on vendor-web only: /preview/draft?token=…&page=… */
@@ -119,37 +144,65 @@ const PREVIEW_WINDOW_NAME = 'kiterp-draft-preview'
 
 let previewWindowRef: Window | null = null
 
-/** Open preview in one browser tab; never navigate the builder tab away. */
-export function openDraftPreviewInBrowser(previewShellUrl: string): boolean {
+function buildVendorDraftPreviewPendingUrl(): string {
+  const url = new URL(DRAFT_BROWSER_PREVIEW_PATH, getVendorPreviewOrigin())
+  url.searchParams.set(DRAFT_PREVIEW_PENDING_PARAM, '1')
+  return alignPreviewUrlWithCurrentHost(url.toString())
+}
+
+/**
+ * Call synchronously from a click handler (before any `await`).
+ * Opens a same-origin loading shell the builder can target after the preview API returns.
+ */
+export function prepareDraftPreviewTab(): Window | null {
+  const pendingUrl = buildVendorDraftPreviewPendingUrl()
   try {
     if (previewWindowRef && !previewWindowRef.closed) {
-      previewWindowRef.location.href = previewShellUrl
-      previewWindowRef.focus()
-      return true
+      try {
+        previewWindowRef.location.href = pendingUrl
+        previewWindowRef.focus()
+        return previewWindowRef
+      } catch {
+        previewWindowRef = null
+      }
     }
-
-    // Named window (no noopener) so we get a Window reference and reuse the same tab.
-    const tab = window.open(previewShellUrl, PREVIEW_WINDOW_NAME)
+    const tab = window.open(pendingUrl, PREVIEW_WINDOW_NAME)
     if (tab) {
       previewWindowRef = tab
       tab.focus()
-      return true
     }
+    return tab
+  } catch {
+    return null
+  }
+}
 
-    // Pop-up blocked — single fallback only. Do not chain extra window.open calls:
-    // noopener makes window.open return null even when a tab opened, which caused 3 tabs.
-    const link = document.createElement('a')
-    link.href = previewShellUrl
-    link.target = PREVIEW_WINDOW_NAME
-    link.rel = 'noopener noreferrer'
-    link.style.display = 'none'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
+/** Navigate the prepared preview tab (safe to call after async work). */
+export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
+  const url = alignPreviewUrlWithCurrentHost(previewShellUrl)
+  try {
+    // Primary path after await: preview tab navigates itself (opener ref is often blocked).
+    broadcastPreviewTabNavigate(url)
+
+    if (previewWindowRef && !previewWindowRef.closed) {
+      try {
+        const targetOrigin = new URL(url).origin
+        previewWindowRef.postMessage({ type: PREVIEW_NAV_MESSAGE_TYPE, url }, targetOrigin)
+        previewWindowRef.location.href = url
+        previewWindowRef.focus()
+      } catch {
+        previewWindowRef = null
+      }
+    }
     return true
   } catch {
     return false
   }
+}
+
+/** Open preview in one browser tab (sync callers only — no preceding `await`). */
+export function openDraftPreviewInBrowser(previewShellUrl: string): boolean {
+  return navigateDraftPreviewTab(previewShellUrl)
 }
 
 /** Crisp labels on dense builder toolbars (avoids muddy 12px extrabold on Windows). */

@@ -1866,6 +1866,24 @@ def _footer_props_minimal() -> Dict[str, Any]:
     }
 
 
+# Healthy-living starter copy & imagery (generic wellness retail defaults).
+WELLNESS_MARQUEE_TEXT = (
+    "100% Plant-based,Wholesome,Naturally Grown,Nutritionally Balanced,"
+    "Deliciously Healthy,Minimally Processed"
+)
+WELLNESS_CATEGORY_TITLES = [
+    "Wholesome Snacks",
+    "Gourmet Groceries",
+    "Healthy Beverages",
+    "Breakfast Cereals",
+    "Nut Butters & Spreads",
+    "Pickles & Powders",
+    "Bars & Chikkis",
+    "Seeds & Nuts",
+    "Fruit Chews",
+]
+
+
 WEBSITE_TEMPLATES = {
     "portfolio": {
         "id": "portfolio", "name": "Creative Portfolio", "description": "Showcase your work beautifully",
@@ -2054,28 +2072,73 @@ WEBSITE_TEMPLATES = {
     },
     "storefront_grocery": {
         "id": "storefront_grocery",
-        "name": "Pantry",
-        "description": "Search-first grocery layout with dense category tiles, quick-add buttons, and a delivery slot banner for daily essentials.",
-        "thumbnail": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800",
+        "name": "Wellness Store",
+        "description": "Healthy living store — wholesome snacks, gourmet groceries, category highlights, and editorial product cards.",
+        "thumbnail": "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800",
         "category": "grocery",
         "tier": "full",
-        "tags": ["Grocery", "Daily Needs", "Convenience", "Delivery"],
-        "preview_palette": ["#274832", "#E44B25", "#F9F9F5", "#4A7A58", "#182E20"],
+        "tags": ["Wellness", "Healthy Food", "Grocery", "Meal Plans", "Organic"],
+        "preview_palette": ["#274832", "#E07A5F", "#F9F9F5", "#4A7A58", "#182E20"],
         "default_style": {
-            "primary_color": "#274832", "secondary_color": "#E44B25", "accent_color": "#E44B25",
+            "primary_color": "#274832", "secondary_color": "#4A7A58", "accent_color": "#E07A5F",
             "bg_color": "#F9F9F5", "surface_color": "#FFFFFF", "text_color": "#182E20",
             "font_heading": "DM Serif Display", "font_body": "Inter",
-            "border_radius": "none", "spacing": "compact", "animation": "subtle",
+            "border_radius": "rounded", "spacing": "comfortable", "animation": "subtle",
             "shadow_style": "soft", "button_style": "filled",
         },
         "pages": [
             {"title": "Home", "slug": "home", "page_type": "home", "is_homepage": True, "show_in_nav": True, "blocks": [
-                {"block_type": "nav", "props": {"brand": "Pantry", "show_cart": True, "show_search": True}},
-                {"block_type": "hero", "props": {"headline": "Fresh from the market, at your door.", "subtitle": "Order before 4pm for same-day delivery.", "bg_style": "image", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600", "overlay": True, "cta_primary": "Shop now", "cta_secondary": "View offers"}},
-                {"block_type": "search_bar", "props": {"placeholder": "Search for milk, bread, fruits\u2026", "show_filters": True}},
-                {"block_type": "category_cards", "props": {"title": "Shop by category", "columns": 6}},
-                {"block_type": "product_grid", "props": {"title": "Best sellers", "columns": 6, "show_badges": True}},
-                {"block_type": "coupon_banner", "props": {"title": "Weekend Bundle \u2014 Save 15% on fresh produce", "show_copy_button": False}},
+                {"block_type": "announcement_bar", "props": {"text": "Wholesome snacks and groceries — natural ingredients you can trust.", "color": "#274832"}},
+                {"block_type": "nav", "props": {"brand": "Wellness Store", "show_cart": True, "show_search": True, "cta_label": "Shop now"}},
+                {"block_type": "hero_split", "props": {
+                    "headline": "Discover wellness essentials",
+                    "headline_line2": "for everyday wellness",
+                    "subtitle": "Wholesome snacks, gourmet groceries, and pantry staples — plant-based and delicious.",
+                    "bg_style": "minimal",
+                    "layout": "split",
+                    "image_url": "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=1200&q=80",
+                    "cta_primary": "Shop bestsellers",
+                    "cta_secondary": "Browse categories",
+                }},
+                {"block_type": "marquee_strip", "props": {"text": WELLNESS_MARQUEE_TEXT}},
+                {"block_type": "category_cards", "props": {
+                    "title": "Shop by category",
+                    "eyebrow": "Explore",
+                    "layout": "wellness",
+                    "columns": 3,
+                    "categories": [
+                        {"title": "Wholesome Snacks", "image_url": "https://images.unsplash.com/photo-1606851090756-56d7fd5520ce?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Gourmet Groceries", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80"},
+                        {"title": "Healthy Beverages", "image_url": "https://images.unsplash.com/photo-1556679343-7190518ceeb4?auto=format&fit=crop&w=900&q=80"},
+                    ],
+                }},
+                {"block_type": "product_grid", "props": {"title": "Our bestsellers", "columns": 4, "show_badges": True, "layout": "editorial"}},
+                {"block_type": "features", "props": {
+                    "title": "Why choose us",
+                    "layout": "grid-4",
+                    "features": [
+                        {"icon": "Leaf", "title": "100% natural ingredients", "desc": "Plant-based, minimally processed — no refined sugar or artificial additives."},
+                        {"icon": "Heart", "title": "Ethical sourcing", "desc": "Partnering with small farmers who practice natural, sustainable growing."},
+                        {"icon": "Star", "title": "Health & taste", "desc": "Nutritionally balanced recipes that are as delicious as they are wholesome."},
+                        {"icon": "Shield", "title": "Transparent & trustworthy", "desc": "No hidden preservatives — what you see is what you get."},
+                    ],
+                }},
+                {"block_type": "timeline", "props": {
+                    "title": "Our story",
+                    "items": [
+                        {"year": "2010", "title": "Starting with workshops", "desc": "Spreading the joy of healthy living through workshops and consultations."},
+                        {"year": "2013", "title": "Expanded our range", "desc": "Growing our catalog of guilt-free snacks, groceries, and wholesome pantry staples."},
+                        {"year": "2017", "title": "Online store launch", "desc": "Wholesome snacks, gourmet groceries, and pantry staples online."},
+                        {"year": "Today", "title": "Growing community", "desc": "A trusted destination for everyday wellness."},
+                    ],
+                }},
+                {"block_type": "faq", "props": {
+                    "title": "Frequently asked questions",
+                    "faqs": [
+                        {"question": "Are your products organic?", "answer": "We source from trusted small farmers who practice natural growing, with no artificial preservatives."},
+                    ],
+                }},
+                {"block_type": "newsletter", "props": {"title": "Sign up to our newsletter", "subtitle": "Recipes, wellness tips, and new launches.", "cta_label": "Subscribe"}},
                 {"block_type": "footer", "props": _footer_props_standard()},
             ]},
             {"title": "Fruits & Veg", "slug": "fruits-veg", "page_type": "custom", "show_in_nav": True, "blocks": [
@@ -2360,6 +2423,17 @@ BLOCK_AUTO_SOURCE: dict[str, str] = {
 }
 
 
+def _wire_block_auto_source(block_type: str, props: Dict[str, Any]) -> Dict[str, Any]:
+    """Attach live ERP data_source to generated/template blocks (mirrors apply-template)."""
+    p = dict(props or {})
+    auto_source = BLOCK_AUTO_SOURCE.get(block_type)
+    if auto_source and "data_source" not in p:
+        p["data_source"] = {"type": auto_source, "auto": True}
+        if block_type in ("testimonials", "testimonials_grid", "product_reviews"):
+            p["testimonials"] = []
+    return p
+
+
 TEMPLATE_STYLE_FALLBACKS = {
     "portfolio": {
         "primary_color": "#111827", "secondary_color": "#374151", "accent_color": "#8B5CF6",
@@ -2428,6 +2502,9 @@ async def apply_template(
         if tid.startswith("storefront_"):
             merged["wb_catalog_template_id"] = tid
             merged.pop("wb_editorial_template_id", None)
+            if tid == "storefront_grocery":
+                merged["image_category_id"] = "wellness"
+                merged["business_type"] = merged.get("business_type") or "retail"
         elif tid in EDITORIAL_WEBSITE_TEMPLATE_IDS:
             merged["wb_editorial_template_id"] = tid
             merged.pop("wb_catalog_template_id", None)
@@ -2472,9 +2549,9 @@ async def apply_template(
                 # Auto-wire block to live vendor data so template content is
                 # immediately replaced by the vendor's real catalog / profile
                 # rather than showing static placeholder text.
-                auto_source = BLOCK_AUTO_SOURCE.get(b_type)
-                if auto_source and "data_source" not in props:
-                    props["data_source"] = {"type": auto_source, "auto": True}
+                props = _wire_block_auto_source(b_type, props)
+                if template_id == "storefront_grocery" and "_image_category_id" not in props:
+                    props["_image_category_id"] = "wellness"
 
                 block = WebsiteBlock(
                     id=uuid.uuid4(),
@@ -2494,6 +2571,16 @@ async def apply_template(
 # ── AI: One-Prompt Site Generator ─────────────────────────────────────────────
 
 CATEGORY_IMAGE_POOLS: Dict[str, List[str]] = {
+    "wellness": [
+        "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1464456391031-c8a9c116fe84?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1606851090756-56d7fd5520ce?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1498837167922-ddd27525cd3?auto=format&fit=crop&w=1600&q=80",
+    ],
     "shop": [
         "https://images.unsplash.com/photo-1495121605193-b116b5b9c5fe?auto=format&fit=crop&w=1600&q=80",
         "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=1600&q=80",
@@ -2573,6 +2660,7 @@ def _enrich_block_props_with_category(
     props: Dict[str, Any],
     images: List[str],
     cursor: List[int],
+    category_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Fill empty image fields on starter blocks from the selected business category pack."""
     props = copy.deepcopy(props or {})
@@ -2609,15 +2697,27 @@ def _enrich_block_props_with_category(
             if isinstance(feat, dict) and not feat.get("image_url"):
                 feat["image_url"] = next_img()
     elif block_type == "category_cards":
+        if category_id == "wellness":
+            props.setdefault("layout", "wellness")
         cats = props.get("categories") or []
         if not cats:
-            props["categories"] = [
-                {"title": "New arrivals", "image_url": next_img()},
-                {"title": "Best sellers", "image_url": next_img()},
-                {"title": "Featured", "image_url": next_img()},
-            ]
+            if category_id == "wellness":
+                props["categories"] = [
+                    {"title": title, "image_url": next_img()}
+                    for title in WELLNESS_CATEGORY_TITLES
+                ]
+            else:
+                props["categories"] = [
+                    {"title": "New arrivals", "image_url": next_img()},
+                    {"title": "Best sellers", "image_url": next_img()},
+                    {"title": "Featured", "image_url": next_img()},
+                ]
         else:
             for cat in cats:
+                if isinstance(cat, dict) and not cat.get("image_url"):
+                    cat["image_url"] = next_img()
+        if category_id == "wellness":
+            for cat in props.get("categories") or []:
                 if isinstance(cat, dict) and not cat.get("image_url"):
                     cat["image_url"] = next_img()
     elif block_type == "testimonials":
@@ -2638,8 +2738,9 @@ def _enrich_block_props_with_category(
 def _style_for_business_type(business_type: Optional[str]) -> Dict[str, Any]:
     presets: Dict[str, Dict[str, Any]] = {
         "retail": {
-            "primary_color": "#64C3A0", "secondary_color": "#2D6A4F", "accent_color": "#40916C",
-            "bg_color": "#ffffff", "surface_color": "#f8faf9", "text_color": "#1a1a2e",
+            "primary_color": "#274832", "secondary_color": "#4A7A58", "accent_color": "#E07A5F",
+            "bg_color": "#F9F9F5", "surface_color": "#FFFFFF", "text_color": "#182E20",
+            "font_heading": "DM Serif Display",
         },
         "services": {
             "primary_color": "#6366f1", "secondary_color": "#4338ca", "accent_color": "#818cf8",
@@ -2759,6 +2860,196 @@ def _enrich_blocks_with_modern_design(
     return out
 
 
+def _wellness_retail_home_blocks(
+    short_name: str,
+    category_id: str,
+    feats: set,
+    snap_props,
+    selling_mode: str = "products",
+) -> List[Dict[str, Any]]:
+    """Generic healthy retail homepage (announcement, marquee, categories, story)."""
+    show_meal_content = selling_mode in ("services", "both") and (not feats or "services_sections" in feats)
+    blocks: List[Dict[str, Any]] = [
+        {"block_type": "announcement_bar", "label": "Announcement", "props": snap_props("announcement_bar", {
+            "text": (
+                "Daily meals delivered to your doorstep — wholesome, plant-based, and delicious."
+                if show_meal_content
+                else f"Wholesome snacks and groceries from {short_name} — natural ingredients you can trust."
+            ),
+            "color": "#274832",
+            "show_close": True,
+        })},
+        {"block_type": "nav", "label": "Navigation", "props": snap_props("nav", {
+            "brand": short_name,
+            "show_cart": True,
+            "show_search": True,
+            "cta_label": "Shop now",
+        })},
+        {"block_type": "hero_split", "label": "Hero", "props": snap_props("hero_split", {
+            "headline": "Discover wellness essentials",
+            "headline_line2": "for everyday wellness",
+            "subtitle": (
+                f"Wholesome snacks, gourmet groceries, and pantry staples from {short_name} — "
+                "crafted with natural ingredients you can trust."
+            ),
+            "bg_style": "minimal",
+            "layout": "split",
+            "eyebrow": "Welcome",
+            "eyebrow_plain": True,
+            "cta_primary": "Shop bestsellers",
+            "cta_secondary": "Browse categories",
+        })},
+        {"block_type": "marquee_strip", "label": "Highlights", "props": {
+            "text": WELLNESS_MARQUEE_TEXT,
+        }},
+    ]
+
+    if not feats or "products_sections" in feats:
+        blocks.append({
+            "block_type": "category_cards",
+            "label": "Categories",
+            "props": snap_props("category_cards", {
+                "title": "Shop by category",
+                "eyebrow": "Explore",
+                "layout": "wellness",
+                "columns": 3,
+                "categories": [
+                    {"title": title, "image_url": ""}
+                    for title in WELLNESS_CATEGORY_TITLES
+                ],
+            }),
+        })
+        blocks.append({
+            "block_type": "product_grid",
+            "label": "Bestsellers",
+            "props": _wire_block_auto_source("product_grid", {
+                "title": "Our bestsellers",
+                "columns": 4,
+                "show_badges": True,
+                "layout": "editorial",
+                "featured_spotlight": True,
+            }),
+        })
+
+    if not feats or "reviews_trust" in feats:
+        if show_meal_content:
+            blocks.append({
+                "block_type": "features_alternating",
+                "label": "Service highlights",
+                "props": snap_props("features_alternating", {
+                    "title": "Flexible plans, delivered on your schedule",
+                    "layout": "stacked",
+                    "image_position": "right",
+                    "features": [
+                        {
+                            "title": "Customize your schedule",
+                            "desc": "Flexible meal plans that fit your routine — pause or skip anytime.",
+                            "image_url": "",
+                        },
+                        {
+                            "title": "Convenient doorstep delivery",
+                            "desc": "Fresh, plant-based meals prepared daily and delivered to your door.",
+                            "image_url": "",
+                        },
+                    ],
+                }),
+            })
+        else:
+            blocks.append({
+                "block_type": "features_alternating",
+                "label": "Why shop with us",
+                "props": snap_props("features_alternating", {
+                    "title": f"Wholesome products from {short_name}",
+                    "layout": "stacked",
+                    "image_position": "right",
+                    "features": [
+                        {
+                            "title": "Curated for wellness",
+                            "desc": "Wholesome snacks, gourmet groceries, and pantry staples chosen for quality.",
+                            "image_url": "",
+                        },
+                        {
+                            "title": "Delivered with care",
+                            "desc": "Fresh, minimally processed products packed and shipped to your door.",
+                            "image_url": "",
+                        },
+                    ],
+                }),
+            })
+        blocks.append({
+            "block_type": "features",
+            "label": "Why choose us",
+            "props": snap_props("features", {
+                "title": "Why choose us",
+                "layout": "grid-4",
+                "show_images": False,
+                "features": [
+                    {"icon": "Leaf", "title": "100% natural ingredients", "desc": "Plant-based, minimally processed — no refined sugar or artificial additives."},
+                    {"icon": "Heart", "title": "Ethical sourcing", "desc": "We partner with small farmers who practice natural, sustainable growing."},
+                    {"icon": "Star", "title": "Health & taste", "desc": "Nutritionally balanced recipes that are as delicious as they are wholesome."},
+                    {"icon": "Shield", "title": "Transparent & trustworthy", "desc": "No hidden preservatives — what you see is what you get."},
+                ],
+            }),
+        })
+        blocks.append({
+            "block_type": "timeline",
+            "label": "Our story",
+            "props": {
+                "title": "Our story",
+                "items": [
+                    {"year": "2010", "title": "Starting with workshops", "desc": "Spreading the joy of healthy living through intimate workshops and consultations."},
+                    *([{"year": "2013", "title": "Service plans", "desc": "Flexible delivery plans tailored to customer schedules."}] if show_meal_content else [{"year": "2013", "title": "Expanded our range", "desc": "Growing our catalog of wholesome snacks, groceries, and pantry staples."}]),
+                    {"year": "2017", "title": "Online store launch", "desc": "Wholesome snacks, gourmet groceries, and pantry staples online."},
+                    {"year": "Today", "title": "Growing community", "desc": f"A trusted destination for everyday wellness with {short_name}."},
+                ],
+            },
+        })
+        blocks.append({
+            "block_type": "testimonials",
+            "label": "Testimonials",
+            "props": _wire_block_auto_source("testimonials", snap_props("testimonials", {
+                "title": "Loved by our community",
+                "testimonials": [],
+            })),
+        })
+
+    blocks.append({
+        "block_type": "cta",
+        "label": "Gifting CTA",
+        "props": snap_props("cta", {
+            "headline": "Custom curated and handcrafted with love",
+            "subtitle": "Share the gift of deliciously healthy gourmet food.",
+            "cta_label": "Send a gift now",
+        }),
+    })
+
+    if not feats or "contact_form" in feats:
+        blocks.append({
+            "block_type": "faq",
+            "label": "FAQ",
+            "props": {
+                "title": "Frequently asked questions",
+                "faqs": [
+                    {"question": "Are your products organic?", "answer": "We source from trusted small farmers who practice natural growing. Our products use no artificial preservatives or additives."},
+                    *([{"question": "Do you offer delivery plans?", "answer": "Yes — flexible plans with scheduled doorstep delivery. Customize your schedule anytime."}] if show_meal_content else []),
+                    {"question": "Where do you deliver?", "answer": "We deliver across our service areas. Contact us for coverage in your city."},
+                ],
+            },
+        })
+        blocks.append({
+            "block_type": "newsletter",
+            "label": "Newsletter",
+            "props": {
+                "title": "Sign up to our newsletter",
+                "subtitle": "Recipes, wellness tips, and new product launches — straight to your inbox.",
+                "cta_label": "Subscribe",
+            },
+        })
+
+    blocks.append({"block_type": "footer", "label": "Footer", "props": _footer_props_standard()})
+    return blocks
+
+
 def _professional_home_blocks(
     short_name: str,
     niche: str,
@@ -2773,9 +3064,12 @@ def _professional_home_blocks(
     cursor = [0]
 
     def snap_props(block_type: str, props: Dict[str, Any]) -> Dict[str, Any]:
-        enriched = _enrich_block_props_with_category(block_type, props, imgs, cursor)
+        enriched = _enrich_block_props_with_category(block_type, props, imgs, cursor, category_id)
         enriched["_image_category_id"] = category_id
         return enriched
+
+    if business_type == "retail" and selling_mode in ("products", "both"):
+        return _wellness_retail_home_blocks(short_name, category_id, feats, snap_props, selling_mode)
 
     hero_props: Dict[str, Any] = {
         "headline": f"Build Something Amazing" if business_type in ("retail", "services") else f"Welcome to {short_name}",
@@ -2862,13 +3156,10 @@ def _professional_home_blocks(
                 {"icon": "Zap", "title": "Fast support", "desc": "Real people ready to help."},
             ],
         })})
-        blocks.append({"block_type": "testimonials", "label": "Testimonials", "props": snap_props("testimonials", {
+        blocks.append({"block_type": "testimonials", "label": "Testimonials", "props": _wire_block_auto_source("testimonials", snap_props("testimonials", {
             "title": "What customers say",
-            "testimonials": [
-                {"name": "Sarah M.", "role": "Customer", "quote": f"{short_name} exceeded my expectations — highly recommend.", "rating": 5},
-                {"name": "James L.", "role": "Customer", "quote": "Professional, fast, and exactly what I needed.", "rating": 5},
-            ],
-        })})
+            "testimonials": [],
+        }))})
     else:
         blocks.append({"block_type": "features", "label": "Features", "props": snap_props("features", {
             "title": "Why Choose Us",
@@ -3143,7 +3434,9 @@ async def apply_generated_site(
                 b.get("props", {}) or {},
                 category_imgs,
                 img_cursor,
+                category_id,
             )
+            props = _wire_block_auto_source(b_type, props)
             if category_id and "_image_category_id" not in props:
                 props["_image_category_id"] = category_id
             block = WebsiteBlock(

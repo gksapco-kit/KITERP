@@ -152,12 +152,25 @@ function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
 
 // ── Individual block renderer ──────────────────────────────────────────────
 
-export function SingleBlock({ block, site, style, branchCode }: Omit<BlockProps, 'liveData'>) {
+export function SingleBlock({
+  block,
+  site,
+  style,
+  branchCode,
+  pageBlocks,
+}: Omit<BlockProps, 'liveData'> & { pageBlocks?: PublicBlock[] }) {
   const { storePath } = useVendor()
   const liveItems = useLiveData(block, site, (block.props.show_count as number | undefined) || 12)
   const p = block.props as Record<string, unknown>
 
-  const commonProps = { site, style, props: p, liveItems: liveItems ?? [], branchCode }
+  const commonProps = {
+    site,
+    style,
+    props: p,
+    liveItems: liveItems ?? [],
+    branchCode,
+    pageBlocks: pageBlocks?.map(b => ({ block_type: b.block_type, props: b.props as Record<string, unknown> })),
+  }
 
   const inner = (() => {
     if (block.block_type.includes('.')) {
@@ -451,7 +464,14 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode }: Bloc
         `}</style>
       )}
       {visibleBlocks.map(block => (
-        <SingleBlock key={block.id} block={block} site={site} style={style} branchCode={branchCode} />
+        <SingleBlock
+          key={block.id}
+          block={block}
+          site={site}
+          style={style}
+          branchCode={branchCode}
+          pageBlocks={visibleBlocks}
+        />
       ))}
     </div>
   )

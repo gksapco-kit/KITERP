@@ -38,7 +38,7 @@ export const GENERIC_SPACING_PRESETS: SectionLayoutPreset[] = [
 
 export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
   hero: [
-    { label: 'Gradient Dark', desc: 'Violet/indigo gradient over image', props: { bg_style: 'gradient', gradient_preset: 'Violet → Indigo', overlay: true, layout: 'centered' } },
+    { label: 'Gradient Dark', desc: 'Violet/indigo gradient over image', props: { bg_style: 'gradient', gradient_preset: 'linear-gradient(135deg,#1e1b4b,#312e81,#6366f1)', overlay: true, layout: 'centered' } },
     { label: 'Image Full', desc: 'Full-bleed photo background', props: { bg_style: 'image', overlay: true, layout: 'centered' } },
     { label: 'Clean Light', desc: 'White minimal hero', props: { bg_style: 'minimal', overlay: false, layout: 'centered' } },
     { label: 'Dark Bold', desc: 'Dark dramatic hero', props: { bg_style: 'solid', bg_color: '#0f172a', overlay: true, layout: 'centered' } },
@@ -86,16 +86,16 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Dark Surface', desc: 'Features on dark background', props: { layout: 'grid-3', columns: 3, bg_style: 'dark' } },
   ],
   features_alternating: [
-    { label: 'Image Left', desc: 'Photo left, text right', props: { image_position: 'left', layout: 'stacked' } },
-    { label: 'Image Right', desc: 'Text left, photo right', props: { image_position: 'right', layout: 'stacked' } },
-    { label: 'Stacked Rows', desc: 'Full-width stacked rows', props: { layout: 'stacked' } },
-    { label: 'Wide Alternating', desc: 'Large images, bold titles', props: { image_position: 'left', layout: 'stacked', item_gap: 32 } },
-    { label: 'Compact Rows', desc: 'Smaller images, tighter gaps', props: { image_position: 'left', layout: 'stacked', item_gap: 16, compact: true } },
-    { label: 'Numbered Steps', desc: 'Step numbers beside each row', props: { layout: 'stacked', show_numbers: true } },
-    { label: 'Card Rows', desc: 'Each row in a bordered card', props: { layout: 'stacked', card_style: 'card' } },
-    { label: 'Full Bleed Images', desc: 'Edge-to-edge alternating photos', props: { layout: 'full', image_position: 'left' } },
-    { label: 'Icon Rows', desc: 'Icon instead of photo per row', props: { layout: 'stacked', use_icons: true } },
-    { label: 'Dark Alternating', desc: 'Alternating rows on dark bg', props: { layout: 'stacked', bg_style: 'dark' } },
+    { label: 'Image Left', desc: 'Square photo left, text right', props: { image_position: 'left', layout: 'stacked', image_shape: 'square' } },
+    { label: 'Image Right', desc: 'Square photo right, text left', props: { image_position: 'right', layout: 'stacked', image_shape: 'square' } },
+    { label: 'Circle Frames', desc: 'Circular photos with soft glow', props: { layout: 'stacked', image_shape: 'circle' } },
+    { label: 'Rounded Cards', desc: 'Rounded images in bordered cards', props: { layout: 'stacked', image_shape: 'rounded', card_style: 'card' } },
+    { label: 'Wide Alternating', desc: 'Large rounded images, bold titles', props: { image_position: 'left', layout: 'stacked', image_shape: 'rounded', item_gap: 32 } },
+    { label: 'Compact Circles', desc: 'Small circular crops, tight spacing', props: { layout: 'stacked', image_shape: 'circle', item_gap: 16, compact: true } },
+    { label: 'Numbered Steps', desc: 'Step numbers beside each row', props: { layout: 'stacked', show_numbers: true, image_shape: 'rounded' } },
+    { label: 'Full Bleed', desc: 'Edge-to-edge square photos', props: { layout: 'full', image_shape: 'square', image_position: 'left' } },
+    { label: 'Icon Rows', desc: 'Animated icon circles — no photos', props: { layout: 'stacked', use_icons: true } },
+    { label: 'Dark Alternating', desc: 'Dark surface + rounded images', props: { layout: 'stacked', bg_style: 'dark', image_shape: 'rounded' } },
   ],
   stats: [
     { label: '4 Stats Dark', desc: 'Dark background bar', props: { bg_style: 'dark', columns: 4 } },
@@ -269,6 +269,7 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Dark Shop Grid', desc: 'Products on dark surface', props: { columns: 4, bg_style: 'dark' } },
   ],
   category_cards: [
+    { label: 'Wellness Mosaic', desc: 'Animated mix of circles, squares & portraits', props: { layout: 'wellness', columns: 3 } },
     { label: 'Editorial 3-Col', desc: 'Shop-by-category editorial', props: { layout: 'editorial', columns: 3 } },
     { label: 'Square Grid', desc: 'Even category squares', props: { layout: 'grid', columns: 4 } },
     { label: 'Wide Banners', desc: 'Full-width category banners', props: { layout: 'banner', columns: 2 } },

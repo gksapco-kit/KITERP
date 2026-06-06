@@ -1,3 +1,5 @@
+import { resolveCategoryStockImageUrl } from '@/data/categoryStockImages'
+
 export interface BusinessImageCategory {
   id: string
   label: string
@@ -52,6 +54,12 @@ export const BUSINESS_IMAGE_CATEGORIES: BusinessImageCategory[] = [
     id: 'supermarket',
     label: 'Supermarket',
     description: 'Produce, aisles, bakery, deli, shoppers, and exteriors',
+    group: 'General Business',
+  },
+  {
+    id: 'wellness',
+    label: 'Wellness & Grocery',
+    description: 'Wholesome food, healthy snacks, organic groceries, and beverages',
     group: 'General Business',
   },
   // Retail & commerce pack
@@ -293,7 +301,13 @@ export const BUSINESS_IMAGE_CATEGORIES: BusinessImageCategory[] = [
   },
 ]
 
+/** Display URL for gallery / layout previews (remote stock when local pack absent). */
 function imageUrl(categoryId: string, index: number): string {
+  return resolveCategoryStockImageUrl(categoryId, index)
+}
+
+/** Local asset path when the business-images pack is installed under public/. */
+export function localBusinessImagePath(categoryId: string, index: number): string {
   const num = String(index).padStart(2, '0')
   return `/business-images/${categoryId}/${categoryId}-${num}.jpg`
 }

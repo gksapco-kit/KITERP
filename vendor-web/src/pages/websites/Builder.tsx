@@ -63,10 +63,12 @@ import {
 } from '@/lib/blockGalleryImages'
 import { BLOCK_QUICK_PRESETS, getSectionLayoutOptions } from '@/lib/sectionLayoutPresets'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
+import { heroShouldUseFullBleedImage, heroUsesBackgroundImage, heroUsesSideImage, resolveGradientCss } from '@/lib/heroLayoutUtils'
 import { resolveFooterTheme } from '@/lib/footerLayoutTheme'
 import {
   buildVendorDraftPreviewUrl,
-  openDraftPreviewInBrowser,
+  navigateDraftPreviewTab,
+  prepareDraftPreviewTab,
   BUILDER_CRISP_LABEL,
   getStorefrontAppOrigin,
   shouldUseLocalStorefrontUrls,
@@ -74,7 +76,26 @@ import {
 } from '@/lib/storefrontPreviewUrl'
 import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
+import {
+  sanitizeWellnessBodyCopy,
+  sanitizeWellnessCtaLabel,
+  sanitizeWellnessCategoryTitle,
+  isTemplateMealFeaturesBlock,
+  productFocusedFeatureContent,
+  isTemplateTimelineBlock,
+  genericTimelineContent,
+  resolveWellnessFeatureImage,
+} from '@/lib/wellnessTemplateCopy'
+import {
+  isWellnessRetailContext,
+  resolveWellnessSiteProducts,
+} from '@storefront/lib/wellnessProductFilter'
 import { pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
+import {
+  WELLNESS_CATEGORY_FALLBACK_IMAGES,
+  WELLNESS_DEFAULT_CATEGORY_TITLES,
+} from '@storefront/lib/wellnessCategoryStyle'
+import CategoryCardMosaic from '@storefront/components/builder/blocks/CategoryCardMosaic'
 
 // ── Block definitions catalog ─────────────────────────────────────────────────
 
@@ -100,11 +121,11 @@ const BLOCK_CATALOG: BlockDef[] = [
       { title: 'Legal', links: ['Terms', 'Privacy', 'Refund'] },
     ],
   } },
-  { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: '🎉 Free shipping on all orders over $50 — Limited time!', color: '#64C3A0', show_close: true } },
-  { type: 'marquee_strip', label: 'Marquee strip', icon: Type, desc: 'Scrolling one-line highlights (e.g. shipping, craft)', category: 'structure', defaultProps: { text: 'Made in Portugal,Hand-finished,Free returns,Since 2014' } },
+  { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: 'Daily meals delivered to your doorstep — wholesome, plant-based, and delicious.', color: '#274832', show_close: true } },
+  { type: 'marquee_strip', label: 'Marquee strip', icon: Type, desc: 'Scrolling one-line highlights (e.g. shipping, craft)', category: 'structure', defaultProps: { text: '100% Plant-based,Wholesome,Naturally Grown,Nutritionally Balanced,Deliciously Healthy,Minimally Processed' } },
   // Hero
   { type: 'hero', label: 'Hero — Centered', icon: Square, desc: 'Full-width hero with CTA buttons', category: 'hero', defaultProps: { headline: 'Build Something Amazing', subtitle: 'The all-in-one platform that helps you create, launch, and grow.', bg_style: 'gradient', cta_primary: 'Get Started Free', cta_secondary: 'Learn More', layout: 'centered' } },
-  { type: 'hero_split', label: 'Hero — Split', icon: Columns, desc: 'Left text, right image hero', category: 'hero', defaultProps: { headline: 'Transform Your Business', subtitle: 'Powerful tools designed to help you succeed.', bg_style: 'minimal', cta_primary: 'Start Today', layout: 'split' } },
+  { type: 'hero_split', label: 'Hero — Split', icon: Columns, desc: 'Left text, right image hero', category: 'hero', defaultProps: { headline: 'Discover wellness essentials', headline_line2: 'for everyday wellness', subtitle: 'Wholesome snacks, gourmet groceries, and pantry staples — crafted with natural ingredients.', bg_style: 'minimal', cta_primary: 'Shop bestsellers', cta_secondary: 'Browse categories', layout: 'split', eyebrow: 'Welcome', eyebrow_plain: true } },
   { type: 'hero_minimal', label: 'Hero — Minimal', icon: Type, desc: 'Clean, text-focused hero', category: 'hero', defaultProps: { headline: 'Simple. Powerful. Yours.', subtitle: 'Less complexity, more results.', bg_style: 'minimal', cta_primary: 'Get Started', layout: 'minimal' } },
   // Content
   { type: 'features', label: 'Features Grid', icon: Columns, desc: 'Feature cards in a grid', category: 'content', defaultProps: { title: 'Everything You Need', layout: 'grid-3', features: [{ icon: 'Zap', title: 'Lightning Fast', desc: 'Optimized for performance' }, { icon: 'Shield', title: 'Secure by Default', desc: 'Enterprise-grade security' }, { icon: 'Star', title: 'Award Winning', desc: 'Loved by thousands of users' }] } },
@@ -131,16 +152,15 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'social_links', label: 'Social Links', icon: Globe, desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: 'https://twitter.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' } } },
   { type: 'countdown', label: 'Countdown Timer', icon: Clock, desc: 'Countdown to a date/event', category: 'conversion', get defaultProps() { return { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } } },
   { type: 'product_grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true } },
-  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Editorial shop-by-category image cards (The edit)', category: 'ecommerce', defaultProps: {
-    title: 'The edit',
-    eyebrow: 'Shop by category',
-    layout: 'editorial',
+  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Animated wellness mosaic — circles, squares & portraits', category: 'ecommerce', defaultProps: {
+    title: 'Shop by category',
+    eyebrow: 'Explore',
+    layout: 'wellness',
     columns: 3,
-    categories: [
-      { title: 'Women', image_url: 'https://images.unsplash.com/photo-1495121605193-b116b5b9c5fe?auto=format&fit=crop&w=900&q=80' },
-      { title: 'Men', image_url: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=900&q=80' },
-      { title: 'Accessories', image_url: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=900&q=80' },
-    ],
+    categories: WELLNESS_DEFAULT_CATEGORY_TITLES.map((title, i) => ({
+      title,
+      image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
+    })),
   } },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
   { type: 'about_split', label: 'About Split', icon: Columns, desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About Us', subtitle: 'Our Story', description: 'We are a passionate team dedicated to creating exceptional experiences.' } },
@@ -173,11 +193,10 @@ const BLOCK_CATALOG: BlockDef[] = [
 ]
 
 
-const DEFAULT_EDITORIAL_CATEGORIES = [
-  { title: 'Women', image_url: 'https://images.unsplash.com/photo-1495121605193-b116b5b9c5fe?auto=format&fit=crop&w=900&q=80' },
-  { title: 'Men', image_url: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=900&q=80' },
-  { title: 'Accessories', image_url: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=900&q=80' },
-]
+const DEFAULT_EDITORIAL_CATEGORIES = WELLNESS_DEFAULT_CATEGORY_TITLES.map((title, i) => ({
+  title,
+  image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
+}))
 
 function categoryCardsFromProps(categories: unknown): { title: string; image_url?: string; subtitle?: string; count?: number }[] {
   const list = Array.isArray(categories) ? categories.filter(c => c && typeof c === 'object') : []
@@ -306,13 +325,13 @@ const BLOCK_CATEGORIES = [
 ]
 
 const DEFAULT_STYLE: StyleConfig = {
-  primary_color: '#64C3A0',
-  secondary_color: '#13624A',
-  accent_color: '#f59e0b',
-  bg_color: '#ffffff',
-  surface_color: '#f9fafb',
-  text_color: '#111827',
-  font_heading: 'Inter',
+  primary_color: '#274832',
+  secondary_color: '#4A7A58',
+  accent_color: '#E07A5F',
+  bg_color: '#F9F9F5',
+  surface_color: '#FFFFFF',
+  text_color: '#182E20',
+  font_heading: 'DM Serif Display',
   font_body: 'Inter',
   border_radius: 'rounded',
   spacing: 'comfortable',
@@ -1099,7 +1118,6 @@ function LinkEditorPopup({
                         <StoreIcon className="w-3 h-3 text-primary/70 shrink-0" />
                         {item?.title || code}
                         <button type="button" aria-label="Close"
-                          type="button"
                           onClick={() => toggleMultiStore(item || { id: code, title: code, subtitle: null, description: null, image_url: null, price: null, price_formatted: null, rating: null, url: null, meta: { code } })}
                           className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center text-primary/70 hover:bg-red-100 hover:text-red-600 transition-colors"
                         >
@@ -3341,6 +3359,242 @@ function applyStructureLayoutToAllPages(
   return next
 }
 
+// ── Canvas editable image (click → upload / library / URL on any section) ─────
+
+function CanvasEditableImage({
+  siteId,
+  src,
+  alt = '',
+  className,
+  imgClassName = 'w-full h-full object-cover',
+  style,
+  fill,
+  editable,
+  onReplace,
+  onFocus,
+  onOpenMediaLibrary,
+  onRequestText,
+}: {
+  siteId?: string
+  src: string | null
+  alt?: string
+  className?: string
+  imgClassName?: string
+  style?: React.CSSProperties
+  /** Transparent overlay for CSS background-image sections (hero, CTA). */
+  fill?: boolean
+  editable: boolean
+  onReplace: (url: string) => void
+  onFocus?: () => void
+  onOpenMediaLibrary?: () => void
+  onRequestText?: (opts: {
+    title: string
+    subtitle?: string
+    placeholder?: string
+    initialValue?: string
+    onSave: (v: string) => void
+  }) => void
+}) {
+  const uploadMedia = useUploadMedia(siteId || '')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) closeMenu()
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [menuOpen, closeMenu])
+
+  const handleUpload = useCallback(async (file: File) => {
+    if (!siteId) {
+      toast.error('Save the site first to upload images')
+      return
+    }
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please use an image file (JPG, PNG, WebP, …)')
+      return
+    }
+    setUploading(true)
+    try {
+      const saved = await uploadMedia.mutateAsync(file)
+      onReplace(saved.original_url)
+      toast.success('Image updated')
+      closeMenu()
+    } catch {
+      toast.error('Upload failed — try a smaller file')
+    } finally {
+      setUploading(false)
+    }
+  }, [siteId, onReplace, uploadMedia, closeMenu])
+
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file) await handleUpload(file)
+  }
+
+  const openOptionsMenu = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onFocus?.()
+    setMenuOpen(open => !open)
+  }
+
+  const chooseUpload = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!siteId) {
+      toast.error('Save the site first to upload images')
+      return
+    }
+    closeMenu()
+    fileRef.current?.click()
+  }
+
+  const chooseLibrary = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    closeMenu()
+    onOpenMediaLibrary?.()
+  }
+
+  const chooseUrl = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    closeMenu()
+    if (!onRequestText) return
+    onRequestText({
+      title: 'Replace image',
+      subtitle: 'Paste a direct image URL',
+      placeholder: 'https://…/image.jpg',
+      initialValue: src || '',
+      onSave: v => { if (v.trim()) onReplace(v.trim()) },
+    })
+  }
+
+  if (!editable) {
+    if (fill) return null
+    return (
+      <div className={cn('overflow-hidden bg-gray-100', className)} style={style}>
+        {src
+          ? <img src={mediaUrl(src)} className={imgClassName} alt={alt} />
+          : <div className="w-full h-full min-h-[80px] flex items-center justify-center"><ImageIcon className="w-6 h-6 text-gray-300" /></div>
+        }
+      </div>
+    )
+  }
+
+  const menuContent = menuOpen ? (
+    <div
+      className="fixed z-[9999] min-w-[180px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
+      style={{
+        left: menuRef.current
+          ? Math.min(menuRef.current.getBoundingClientRect().left, window.innerWidth - 200)
+          : 0,
+        top: menuRef.current
+          ? menuRef.current.getBoundingClientRect().top + menuRef.current.getBoundingClientRect().height / 2
+          : 0,
+        transform: 'translateY(-50%)',
+      }}
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+    >
+      <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">Replace image</p>
+      <button
+        type="button"
+        onClick={chooseUpload}
+        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-semibold text-gray-700 hover:bg-accent"
+      >
+        <Upload className="w-3.5 h-3.5 shrink-0 text-primary" />
+        Upload from device
+      </button>
+      {onOpenMediaLibrary && (
+        <button
+          type="button"
+          onClick={chooseLibrary}
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-semibold text-gray-700 hover:bg-accent"
+        >
+          <ImageIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+          Media library
+        </button>
+      )}
+      {onRequestText && (
+        <button
+          type="button"
+          onClick={chooseUrl}
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-semibold text-gray-700 hover:bg-accent"
+        >
+          <Link2 className="w-3.5 h-3.5 shrink-0 text-sky-600" />
+          Paste image URL
+        </button>
+      )}
+    </div>
+  ) : null
+
+  if (fill) {
+    return (
+      <div ref={menuRef} className={cn('absolute inset-0 z-[8]', className)} onClick={e => e.stopPropagation()}>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
+        <button
+          type="button"
+          onClick={openOptionsMenu}
+          disabled={uploading}
+          className="group/bg relative w-full h-full cursor-pointer"
+        >
+          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/bg:bg-black/25 transition-colors opacity-0 group-hover/bg:opacity-100">
+            <span className="text-white text-xs font-bold px-3 py-1.5 rounded-lg bg-black/55 flex items-center gap-1.5 shadow-lg">
+              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              {src ? 'Change background' : 'Add background image'}
+            </span>
+          </div>
+        </button>
+        {menuContent && createPortal(menuContent, document.body)}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={menuRef}
+      className={cn('relative group/gimg overflow-hidden', className)}
+      style={style}
+      onClick={e => e.stopPropagation()}
+    >
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
+      <button
+        type="button"
+        onClick={openOptionsMenu}
+        disabled={uploading}
+        className="relative w-full h-full min-h-[80px] block cursor-pointer text-left"
+      >
+        {src
+          ? <img src={mediaUrl(src)} className={cn(imgClassName, 'pointer-events-none')} alt={alt} />
+          : <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200/80 transition-colors min-h-[80px]">
+            {uploading
+              ? <Loader2 className="w-6 h-6 text-primary animate-spin" />
+              : <>
+                  <ImageIcon className="w-6 h-6 text-gray-400" />
+                  <span className="text-[10px] font-semibold text-gray-500 px-2 text-center">Click for upload options</span>
+                </>
+            }
+          </div>
+        }
+        {src && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-black/0 group-hover/gimg:bg-black/35 transition-colors opacity-0 group-hover/gimg:opacity-100">
+            <span className="text-white text-[10px] font-bold px-2 py-1 rounded bg-black/55 flex items-center gap-1">
+              <Upload className="w-3 h-3" /> Change image
+            </span>
+          </div>
+        )}
+      </button>
+      {menuContent && createPortal(menuContent, document.body)}
+    </div>
+  )
+}
+
 // ── Block canvas preview renderer ─────────────────────────────────────────────
 
 function BlockPreview({
@@ -3351,12 +3605,20 @@ function BlockPreview({
   onPropsUpdate, onEditLinkForOverlay, onOverlayContextMenu,
   onEditPropLink, onRequestText, onNavigatePage,
   activeTextField, onActiveTextFieldChange, sitePages,
+  pageBlocks, onCanvasImageFocus,
 }: {
   block: WebsiteBlock
   style: StyleConfig
   isSelected: boolean
   isEditing: boolean
   sitePages?: WebsitePage[]
+  pageBlocks?: WebsiteBlock[]
+  onCanvasImageFocus?: (target: {
+    propField?: string
+    arrayKey?: string
+    index?: number
+    itemField?: string
+  }) => void
   onOverlayUpdate?: (overlays: BlockOverlayItem[]) => void
   onOverlaySelectionChange?: (selectedId: string | null) => void
   onOpenAiImageTools?: () => void
@@ -3574,6 +3836,38 @@ function BlockPreview({
   const effectiveStyle: StyleConfig = style
   const ds = (p as any)?.data_source
   const dsType = normalizeSourceType(ds?.type)
+  const inferredDsType = dsType || (
+    {
+      product_grid: 'products',
+      menu_grid: 'products',
+      live_stock: 'products',
+      live_quote: 'products',
+      related_products: 'products',
+      product_detail: 'products',
+      cart_drawer: 'products',
+      category_cards: 'categories',
+      product_filters: 'categories',
+      services_cards: 'services',
+      services_list: 'services',
+      booking_widget: 'services',
+      booking_slot_picker: 'services',
+      testimonials: 'testimonials',
+      testimonials_grid: 'testimonials',
+      product_reviews: 'testimonials',
+      team_grid: 'team',
+      team_list: 'team',
+      stats: 'kpis',
+      contact_form: 'profile',
+      map_embed: 'profile',
+      about_split: 'profile',
+      social_links: 'profile',
+      footer: 'pages',
+      nav: 'pages',
+      gallery_masonry: 'media',
+      portfolio_grid: 'media',
+      trust_logos: 'customers',
+    } as Record<string, LiveResource>
+  )[block.block_type] || null
   /** In the builder canvas, hide pulsing "Live · …" badges — editor hints, not part of the published page. */
   const suppressLiveBadges = sitePages != null
 
@@ -3588,21 +3882,21 @@ function BlockPreview({
 
   // Unified live-data loader: binds any block to /live/{resource}
   useEffect(() => {
-    if (!siteId || !dsType || dsType === 'external_api') return
+    if (!siteId || !inferredDsType || inferredDsType === 'external_api') return
     let cancelled = false
     setLiveLoading(true)
-    websiteApi.getLive(siteId, dsType as LiveResource, { limit: ds?.limit || 12 })
+    websiteApi.getLive(siteId, inferredDsType as LiveResource, { limit: ds?.limit || 12 })
       .then(r => {
         if (cancelled) return
         const items = r.items || []
         const filtered = ds?.selected_ids?.length
           ? items.filter(x => ds.selected_ids.includes(x.id))
           : items
-        if (dsType === 'profile') {
+        if (inferredDsType === 'profile') {
           setLiveProfile(filtered[0] || items[0] || null)
-        } else if (dsType === 'pages') {
+        } else if (inferredDsType === 'pages') {
           setLivePages(filtered)
-        } else if (dsType === 'kpis') {
+        } else if (inferredDsType === 'kpis') {
           setLiveKpis(filtered)
         } else {
           setLiveItems(filtered)
@@ -3611,17 +3905,17 @@ function BlockPreview({
       .catch(() => {})
       .finally(() => { if (!cancelled) setLiveLoading(false) })
     return () => { cancelled = true }
-  }, [siteId, dsType, ds?.limit, JSON.stringify(ds?.selected_ids)])
+  }, [siteId, inferredDsType, ds?.limit, JSON.stringify(ds?.selected_ids)])
 
   // Back-compat aliases used by existing block renderers below
-  const liveProducts = dsType === 'products' ? liveItems : []
-  const liveServices = dsType === 'services' ? liveItems : []
-  const liveTestimonials = dsType === 'testimonials' ? liveItems : []
-  const liveTeam = dsType === 'team' ? liveItems : []
-  const liveCategories = dsType === 'categories' ? liveItems : []
-  const liveMedia = dsType === 'media' ? liveItems : []
-  const liveCustomers = dsType === 'customers' ? liveItems : []
-  const liveBookings = dsType === 'bookings' ? liveItems : []
+  const liveProducts = inferredDsType === 'products' ? liveItems : []
+  const liveServices = inferredDsType === 'services' ? liveItems : []
+  const liveTestimonials = inferredDsType === 'testimonials' ? liveItems : []
+  const liveTeam = inferredDsType === 'team' ? liveItems : []
+  const liveCategories = inferredDsType === 'categories' ? liveItems : []
+  const liveMedia = inferredDsType === 'media' ? liveItems : []
+  const liveCustomers = inferredDsType === 'customers' ? liveItems : []
+  const liveBookings = inferredDsType === 'bookings' ? liveItems : []
 
   const { primary_color, accent_color, bg_color, text_color, font_heading, font_body, border_radius } = effectiveStyle
   const radiusMap = { sharp: '0px', rounded: '12px', pill: '999px' }
@@ -3675,6 +3969,40 @@ function BlockPreview({
       </div>
     )
   }
+
+  type CanvasImageFocus =
+    | { propField: string }
+    | { arrayKey: string; index: number; itemField: string }
+
+  const focusCanvasImage = (target: CanvasImageFocus) => onCanvasImageFocus?.(target)
+
+  const canvasImg = (
+    src: string | null | undefined,
+    onReplace: (url: string) => void,
+    focus: CanvasImageFocus,
+    opts?: {
+      className?: string
+      imgClassName?: string
+      alt?: string
+      style?: React.CSSProperties
+      fill?: boolean
+    },
+  ) => (
+    <CanvasEditableImage
+      siteId={siteId}
+      src={src || null}
+      editable={canEdit}
+      onReplace={onReplace}
+      onFocus={() => focusCanvasImage(focus)}
+      onOpenMediaLibrary={onOpenMediaLibrary}
+      onRequestText={onRequestText}
+      className={opts?.className}
+      imgClassName={opts?.imgClassName}
+      alt={opts?.alt}
+      style={opts?.style}
+      fill={opts?.fill}
+    />
+  )
 
   const renderBlock = () => {
     if (block.block_type.includes('.')) {
@@ -3799,7 +4127,7 @@ function BlockPreview({
                           } catch { toast.error('Upload failed') }
                         }} />
                       </label>
-                      <button type="button" aria-label="Close" title="Remove logo" type="button" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-xs font-bold text-red-600 hover:bg-white">
+                      <button type="button" aria-label="Close" title="Remove logo" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-xs font-bold text-red-600 hover:bg-white">
               <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -3971,17 +4299,24 @@ function BlockPreview({
       case 'hero':
       case 'hero_split':
       case 'hero_minimal': {
-        const isSplit = p.layout === 'split' || block.block_type === 'hero_split'
+        const heroProps = p as Record<string, unknown>
+        const isSplit = heroUsesSideImage(block.block_type, heroProps)
         const isMinimal = block.block_type === 'hero_minimal' || p.bg_style === 'minimal'
-        const heroGrad = gradientPreset || ((p as any).gradient_from && (p as any).gradient_to
+        const heroGrad = resolveGradientCss(
+          gradientPreset,
+          primary_color,
+          String(effectiveStyle.secondary_color || primary_color),
+        ) || ((p as any).gradient_from && (p as any).gradient_to
           ? `linear-gradient(${(p as any).gradient_dir || '135deg'}, ${(p as any).gradient_from}, ${(p as any).gradient_to})`
           : `linear-gradient(135deg, ${primary_color}, ${effectiveStyle.secondary_color})`)
-        const heroImageUrl = (p.bg_image_url || ((p as any).bg_style === 'image' ? (p as any).image_url : undefined)) as string | undefined
-        const sideImageUrl = ((p as any).image_url || p.bg_image_url) as string | undefined
+        const wantsBgImage = heroUsesBackgroundImage(block.block_type, heroProps)
+        const heroImageUrl = (wantsBgImage
+          ? (p.bg_image_url || ((p as any).bg_style === 'image' ? (p as any).image_url : undefined))
+          : undefined) as string | undefined
+        const sideImageUrl = (isSplit ? ((p as any).image_url || p.bg_image_url) : undefined) as string | undefined
         const hasSideImage = isSplit && !!sideImageUrl
         const hasBgImg = !!heroImageUrl
-        const useFullBleedImageBg = hasBgImg && !hasSideImage
-        const heroUsesImageBg = useFullBleedImageBg && hasBgImg
+        const heroUsesImageBg = heroShouldUseFullBleedImage(block.block_type, heroProps, hasBgImg)
         const heroBg = heroUsesImageBg
           ? undefined
           : hasSideImage ? (effectiveStyle.surface_color || bg_color || '#ffffff')
@@ -3989,18 +4324,26 @@ function BlockPreview({
           : p.bg_style === 'dark' ? '#111827'
           : p.bg_style === 'solid' ? ((p as any).bg_color || '#0f172a')
           : p.bg_style === 'image' ? undefined
-          : isMinimal ? bg_color
+          : isMinimal ? ((p as any).bg_color || bg_color)
           : `linear-gradient(135deg, ${bg_color}, ${effectiveStyle.surface_color})`
         const heroBgImage = heroUsesImageBg ? `url(${mediaUrl(heroImageUrl as string)})` : undefined
-        const isDark = heroUsesImageBg || p.bg_style === 'gradient' || p.bg_style === 'dark' || p.bg_style === 'image' || p.bg_style === 'solid'
+        const isDark = heroUsesImageBg
+          || p.bg_style === 'gradient'
+          || p.bg_style === 'dark'
+          || p.bg_style === 'image'
+          || (p.bg_style === 'solid' && !isMinimal)
         const heroText = isDark ? '#fff' : text_color
         const heroSubText = isDark ? 'rgba(255,255,255,0.82)' : `${text_color}cc`
         const headlineLine2 = (p as any).headline_line2 as string | undefined
+        const displayCopy = (value: string | undefined | null) =>
+          isEditing ? (value || '') : sanitizeWellnessBodyCopy(value || '')
+        const displayCta = (value: string | undefined | null) =>
+          isEditing ? (value || '') : sanitizeWellnessCtaLabel(value || '')
         const eyebrowPlain = !!(p as any).eyebrow_plain
         const squareCta = !!(p as any).cta_square || (effectiveStyle.border_radius as string) === 'none'
         const ctaRadius = squareCta ? 0 : r
         const ctaPadClass = squareCta ? 'px-7 h-12' : 'px-6 py-3'
-        const splitSideBySide = isSplit && hasSideImage && !useFullBleedImageBg
+        const splitSideBySide = isSplit && hasSideImage && !heroUsesImageBg
 
         return (
           <div
@@ -4026,10 +4369,16 @@ function BlockPreview({
           >
             {/* Overlay for image heroes */}
             {heroUsesImageBg && p.bg_style === 'gradient' && (
-              <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: 0.82 }} />
+              <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: (p as any).overlay === false ? 0.55 : 0.82 }} />
             )}
-            {heroUsesImageBg && p.bg_style !== 'gradient' && (p as any).overlay !== false && (
+            {heroUsesImageBg && p.bg_style === 'image' && (p as any).overlay !== false && (
               <div className="absolute inset-0 bg-black/45 z-0" />
+            )}
+            {canEdit && (wantsBgImage || p.bg_style === 'image') && canvasImg(
+              heroImageUrl || null,
+              url => commitProp('bg_image_url', url),
+              { propField: 'bg_image_url' },
+              { fill: true },
             )}
             <div
               className={cn(
@@ -4046,13 +4395,13 @@ function BlockPreview({
               {(p.eyebrow || isEditing) && (
                 eyebrowPlain ? (
                   <InlineEditableText
-                    value={p.eyebrow || ''}
+                    value={displayCopy(p.eyebrow)}
                     placeholder="AUTUMN / WINTER"
                     editable={isEditing}
                     as="div"
                     className="text-xs uppercase tracking-[0.3em] opacity-70 mb-2"
                     style={{ color: heroText }}
-                    onCommit={v => commitProp('eyebrow', v)}
+                    onCommit={v => commitProp('eyebrow', sanitizeWellnessBodyCopy(v))}
                   />
                 ) : (
                   <InlineEditableText
@@ -4077,45 +4426,45 @@ function BlockPreview({
                   style={{ fontFamily: font_heading, color: heroText }}
                 >
                   <InlineEditableText
-                    value={p.headline || ''}
+                    value={displayCopy(p.headline)}
                     placeholder="Quiet luxury,"
                     editable={isEditing}
                     as="span"
                     className="block font-semibold"
-                    onCommit={v => commitProp('headline', v)}
+                    onCommit={v => commitProp('headline', sanitizeWellnessBodyCopy(v))}
                   />
                   <br />
                   <em className="font-normal" style={{ fontStyle: 'italic', color: isDark ? 'rgba(255,255,255,0.95)' : accent_color }}>
                     <InlineEditableText
-                      value={headlineLine2 || ''}
+                      value={displayCopy(headlineLine2)}
                       placeholder="built to last."
                       editable={isEditing}
                       as="span"
-                      onCommit={v => commitProp('headline_line2' as any, v)}
+                      onCommit={v => commitProp('headline_line2' as any, sanitizeWellnessBodyCopy(v))}
                     />
                   </em>
                 </h1>
               ) : (
                 <InlineEditableText
-                  value={p.headline || ''}
+                  value={displayCopy(p.headline)}
                   placeholder="Your Compelling Headline Here"
                   editable={isEditing}
                   as="h1"
                   style={{ fontFamily: font_heading, color: heroText }}
                   className="text-3xl font-extrabold leading-tight"
-                  onCommit={v => commitProp('headline', v)}
+                  onCommit={v => commitProp('headline', sanitizeWellnessTemplateCopy(v))}
                 />
               )}
               {(p.subtitle || isEditing) && p.subtitle !== p.headline && (
                 <InlineEditableText
-                  value={p.subtitle || ''}
+                  value={displayCopy(p.subtitle)}
                   placeholder="Add a punchy subtitle that sells the value"
                   editable={isEditing}
                   multiline
                   as="p"
                   className={cn('text-base leading-relaxed max-w-lg text-pretty', isSplit && !isDark && 'opacity-80')}
                   style={{ color: heroSubText, margin: isSplit ? undefined : '0 auto' }}
-                  onCommit={v => commitProp('subtitle', v)}
+                  onCommit={v => commitProp('subtitle', sanitizeWellnessBodyCopy(v))}
                 />
               )}
               <div className={cn('flex gap-3 flex-wrap pt-1 items-start', !isSplit && 'justify-center')}>
@@ -4178,11 +4527,11 @@ function BlockPreview({
                       }}
                     >
                       <InlineEditableText
-                        value={p.cta_secondary || ''}
+                        value={displayCta(p.cta_secondary)}
                         placeholder="Secondary CTA"
                         editable={isEditing}
                         as="span"
-                        onCommit={v => commitProp('cta_secondary', v)}
+                        onCommit={v => commitProp('cta_secondary', sanitizeWellnessCtaLabel(v))}
                       />
                     </button>
                     {isEditing && onEditPropLink && (
@@ -4210,31 +4559,32 @@ function BlockPreview({
                 className={cn('relative z-10 w-full', splitSideBySide ? 'md:w-1/2 min-h-[420px] md:min-h-[640px]' : 'flex-1 md:w-auto')}
                 style={{ zIndex: 1, ...(splitSideBySide ? { backgroundColor: effectiveStyle.surface_color || '#f3f4f6' } : {}) }}
               >
-                {(p.image_url || p.bg_image_url) ? (
-                  <img
-                    src={mediaUrl((p.image_url || p.bg_image_url) as string)}
-                    className={cn(
-                      'w-full object-cover',
-                      splitSideBySide
-                        ? 'absolute inset-0 h-full min-h-[420px] md:min-h-[640px]'
-                        : cn('shadow-2xl', hasSideImage && !useFullBleedImageBg ? 'rounded-none md:min-h-[420px] min-h-[260px]' : 'rounded-2xl'),
-                    )}
-                    style={splitSideBySide ? undefined : (hasSideImage && !useFullBleedImageBg ? { maxHeight: '640px' } : { maxHeight: '340px', minHeight: '220px' })}
-                    alt=""
-                    onError={e => {
-                      const el = e.target as HTMLImageElement
-                      el.style.display = 'none'
-                      const ph = el.nextElementSibling as HTMLElement | null
-                      if (ph) ph.style.display = 'flex'
-                    }}
-                  />
+                {(p.image_url || p.bg_image_url || canEdit) ? (
+                  canvasImg(
+                    ((p.image_url || p.bg_image_url) as string) || null,
+                    url => commitProp('image_url', url),
+                    { propField: 'image_url' },
+                    {
+                      className: cn(
+                        'w-full',
+                        splitSideBySide
+                          ? 'absolute inset-0 h-full min-h-[420px] md:min-h-[640px]'
+                          : cn('shadow-2xl', hasSideImage && !heroUsesImageBg ? 'rounded-none md:min-h-[420px] min-h-[260px]' : 'rounded-2xl'),
+                      ),
+                      imgClassName: cn(
+                        'w-full object-cover',
+                        splitSideBySide ? 'absolute inset-0 h-full' : '',
+                      ),
+                      style: splitSideBySide ? undefined : (hasSideImage && !heroUsesImageBg ? { maxHeight: '640px' } : { maxHeight: '340px', minHeight: '220px' }),
+                    },
+                  )
                 ) : null}
                 <div
                   style={{
                     borderRadius: splitSideBySide ? 0 : '16px',
                     background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)',
                     border: isDark ? '2px dashed rgba(255,255,255,0.3)' : '2px dashed rgba(0,0,0,0.12)',
-                    display: (p.image_url || p.bg_image_url) ? 'none' : 'flex',
+                    display: (p.image_url || p.bg_image_url) ? 'none' : (canEdit ? 'none' : 'flex'),
                   }}
                   className={cn(
                     'items-center justify-center flex-col gap-2',
@@ -4259,11 +4609,15 @@ function BlockPreview({
         const isAlternating = block.block_type === 'features_alternating' || featLayout === 'stacked'
         const isList = featLayout === 'list'
         const imagePos = (p as any).image_position === 'right' ? 'right' : 'left'
-        const feats = (p.features as any[] || [
-          { title: 'Feature One', desc: 'Description of this amazing feature.' },
-          { title: 'Feature Two', desc: 'Another key benefit of your product.' },
-          { title: 'Feature Three', desc: 'Why customers love working with you.' },
-        ]).slice(0, 9)
+        const useMealReplacement = isAlternating && !isEditing && isTemplateMealFeaturesBlock(p as Record<string, unknown>)
+        const mealReplacement = useMealReplacement ? productFocusedFeatureContent((sitePages as any)?.site?.name || 'our store') : null
+        const feats = (useMealReplacement && mealReplacement
+          ? mealReplacement.features
+          : (p.features as any[] || [
+            { title: 'Feature One', desc: 'Description of this amazing feature.' },
+            { title: 'Feature Two', desc: 'Another key benefit of your product.' },
+            { title: 'Feature Three', desc: 'Why customers love working with you.' },
+          ])).slice(0, 9)
         const icons = ['⚡', '🎯', '🚀', '💡', '🛡️', '🌟']
         const featureCard = (f: any, i: number, listMode = false) => (
           <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius, borderTop: listMode ? undefined : `3px solid ${primary_color}` }} className={cn('p-5 space-y-2.5 shadow-sm relative group/item', listMode && 'flex gap-4 items-start border border-gray-100')}>
@@ -4271,8 +4625,16 @@ function BlockPreview({
               { label: 'Change icon', icon: <Sparkles className="w-3 h-3" />, onClick: () => { if (!onRequestText) return; onRequestText({ title: 'Set feature icon', subtitle: 'Paste an emoji', placeholder: '⚡', initialValue: f.icon || '', onSave: v => editItem('features', i, 'icon', v) }) } },
               { label: 'Set image URL', icon: <ImageIcon className="w-3 h-3" />, onClick: () => { if (!onRequestText) return; onRequestText({ title: 'Feature image', placeholder: 'https://…', initialValue: f.image_url || '', onSave: v => editItem('features', i, 'image_url', v || null) }) } },
             ])}
-            {f.image_url
-              ? <img src={mediaUrl(f.image_url)} className={cn('object-cover rounded-lg mb-2', listMode ? 'w-24 h-24 shrink-0 mb-0' : 'w-full h-28')} alt="" />
+            {f.image_url || canEdit
+              ? canvasImg(
+                  f.image_url || null,
+                  url => editItem('features', i, 'image_url', url),
+                  { arrayKey: 'features', index: i, itemField: 'image_url' },
+                  {
+                    className: cn('mb-2', listMode ? 'w-24 h-24 shrink-0 mb-0' : 'w-full h-28'),
+                    imgClassName: cn('object-cover rounded-lg w-full h-full', listMode ? 'w-24 h-24' : 'h-28'),
+                  },
+                )
               : <div className={cn('text-2xl mb-1', listMode && 'shrink-0')}>{f.icon || icons[i % icons.length]}</div>}
             <div className={listMode ? 'flex-1 min-w-0' : undefined}>
               <InlineEditableText value={f.title || ''} placeholder={`Feature ${i + 1}`} editable={canEdit} as="h3"
@@ -4284,42 +4646,107 @@ function BlockPreview({
             </div>
           </div>
         )
+        const altBgDark = isAlternating && (p as any).bg_style === 'dark'
+        const altHeaderColor = altBgDark ? '#f8fafc' : text_color
         return (
-          <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
+          <div className="py-14 px-8" style={{ backgroundColor: altBgDark ? '#0f172a' : bg_color }}>
             {(p.eyebrow || canEdit) && (
               <div className="text-center mb-3">
                 {IET('eyebrow', 'span', 'text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full', { backgroundColor: `${accent_color}22`, color: accent_color }, 'Eyebrow label')}
               </div>
             )}
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-3', { fontFamily: font_heading, color: text_color }, 'Section Title')}
-            {(p.description || canEdit) && IET('description', 'p', 'text-center mb-10 max-w-xl mx-auto text-sm', { color: `${text_color}99` }, 'Add a description…', true)}
-            {isAlternating ? (
-              <div className="space-y-10 max-w-5xl mx-auto">
+            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl sm:text-3xl font-bold text-center mb-3', { fontFamily: font_heading, color: altHeaderColor }, useMealReplacement && mealReplacement ? mealReplacement.title : 'Section Title')}
+            {(p.description || canEdit) && IET('description', 'p', 'text-center mb-10 max-w-xl mx-auto text-sm', { color: altBgDark ? 'rgba(248,250,252,0.7)' : `${text_color}99` }, 'Add a description…', true)}
+            {isAlternating ? (() => {
+              const altShape = String((p as any).image_shape ?? 'rounded')
+              const altUseIcons = !!(p as any).use_icons
+              const altShowNumbers = !!(p as any).show_numbers
+              const altIsCard = (p as any).card_style === 'card'
+              const altIsDark = (p as any).bg_style === 'dark'
+              const altIsFull = featLayout === 'full'
+              const altIsCompact = !!(p as any).compact
+              const altSectionText = altIsDark ? '#f8fafc' : text_color
+              const altSectionSub = altIsDark ? 'rgba(248,250,252,0.75)' : `${text_color}99`
+              const altRowGap = altIsCompact ? 'space-y-8 sm:space-y-10' : 'space-y-14 sm:space-y-20'
+              const altIcons = ['🥗', '🌿', '✨', '🍃', '🛡️', '🌟']
+              const altImgClass = altUseIcons
+                ? ''
+                : altShape === 'circle'
+                  ? cn(
+                      'object-cover rounded-full shadow-lg ring-4 ring-white/70 mx-auto lg:mx-0',
+                      altIsCompact ? 'w-40 h-40 sm:w-48 sm:h-48' : 'w-full max-w-xs sm:max-w-sm aspect-square',
+                    )
+                  : altShape === 'square'
+                    ? cn(
+                        'object-cover shadow-md w-full mx-auto lg:mx-0',
+                        altIsFull ? 'rounded-none aspect-[16/10] max-w-none' : altIsCompact ? 'aspect-square max-h-44 rounded-md' : 'aspect-square max-w-md rounded-lg',
+                      )
+                    : cn(
+                        'object-cover shadow-[0_20px_50px_-20px_rgba(39,72,50,0.25)] w-full mx-auto lg:max-w-none',
+                        altIsFull ? 'rounded-none aspect-[16/10]' : altIsCompact ? 'aspect-[4/3] max-h-48 rounded-xl' : 'aspect-[4/3] rounded-2xl',
+                      )
+              return (
+              <div className={cn(altRowGap, altIsFull ? 'max-w-none -mx-8' : 'max-w-5xl mx-auto')}>
                 {feats.map((f: any, i: number) => {
-                  const flip = imagePos === 'right' ? i % 2 === 0 : i % 2 === 1
-                  return (
-                    <div key={i} className={cn('flex gap-8 items-center', flip && 'flex-row-reverse')}>
-                      <div className="flex-1 min-w-0">
-                        {f.image_url ? (
-                          <img src={mediaUrl(f.image_url)} className="w-full h-56 sm:h-64 object-cover rounded-xl shadow-sm" alt={f.title || ''} />
+                  const flip = altUseIcons
+                    ? i % 2 === 1
+                    : imagePos === 'right' ? i % 2 === 0 : i % 2 === 1
+                  const featImg = resolveWellnessFeatureImage(f, i)
+                  const featTitle = isEditing ? (f.title || '') : sanitizeWellnessBodyCopy(f.title || '')
+                  const featDesc = isEditing ? (f.desc || '') : sanitizeWellnessBodyCopy(f.desc || '')
+                  const row = (
+                    <div className={cn('flex flex-col gap-6 items-center lg:items-stretch', altIsCompact ? 'lg:gap-8' : 'lg:gap-12', flip ? 'lg:flex-row-reverse' : 'lg:flex-row')}>
+                      <div className={cn('w-full lg:flex-1 min-w-0 relative', altShape === 'circle' && 'flex justify-center lg:justify-start')}>
+                        {altShape === 'circle' && !altUseIcons && (
+                          <div className="absolute inset-4 rounded-full bg-primary/20 blur-2xl animate-pulse pointer-events-none" />
+                        )}
+                        {altUseIcons ? (
+                          <div className={cn(
+                            'rounded-full flex items-center justify-center text-3xl sm:text-4xl bg-primary/10 animate-pulse mx-auto lg:mx-0',
+                            altIsCompact ? 'w-20 h-20' : 'w-24 h-24 sm:w-28 sm:h-28',
+                          )}>
+                            {f.icon || altIcons[i % altIcons.length]}
+                          </div>
                         ) : (
-                          <div style={{ borderRadius: cardRadius, backgroundColor: effectiveStyle.surface_color }} className="w-full h-56 flex items-center justify-center text-4xl">{f.icon || icons[i % icons.length]}</div>
+                          canvasImg(
+                            featImg || null,
+                            url => editItem('features', i, 'image_url', url),
+                            { arrayKey: 'features', index: i, itemField: 'image_url' },
+                            { className: altImgClass, imgClassName: altImgClass, alt: featTitle || '' },
+                          )
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 space-y-3 relative group/item">
+                      <div className="w-full lg:flex-1 min-w-0 space-y-3 relative group/item text-center lg:text-left">
                         {!canEdit ? null : ItemActions('features', i, 'feature')}
-                        <InlineEditableText value={f.title || ''} placeholder={`Feature ${i + 1}`} editable={canEdit} as="h3"
-                          className="font-bold text-lg" style={{ fontFamily: font_heading, color: text_color }}
+                        {altShowNumbers && (
+                          <span className={cn(
+                            'inline-flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold mb-1',
+                            altIsDark ? 'bg-white/15 text-white' : 'bg-primary/15 text-primary',
+                          )}>
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                        )}
+                        <InlineEditableText value={featTitle} placeholder={`Feature ${i + 1}`} editable={canEdit} as="h3"
+                          className="font-bold text-xl sm:text-2xl" style={{ fontFamily: font_heading, color: altSectionText }}
                           onCommit={v => editItem('features', i, 'title', v)} />
-                        <InlineEditableText value={f.desc || ''} placeholder="Describe this feature here." editable={canEdit} multiline as="p"
-                          className="text-sm leading-relaxed" style={{ color: `${text_color}99` }}
+                        <InlineEditableText value={featDesc} placeholder="Describe this feature here." editable={canEdit} multiline as="p"
+                          className="text-sm sm:text-base leading-relaxed" style={{ color: altSectionSub }}
                           onCommit={v => editItem('features', i, 'desc', v)} />
                       </div>
                     </div>
                   )
+                  if (altIsCard) {
+                    return (
+                      <div key={i} className={cn('rounded-2xl border p-5 sm:p-6', altIsDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white shadow-sm')}>
+                        {row}
+                      </div>
+                    )
+                  }
+                  return row
                 })}
               </div>
-            ) : isList ? (
+              )
+            })() : isList ? (
               <div className="space-y-3 max-w-3xl mx-auto">{feats.map((f, i) => featureCard(f, i, true))}</div>
             ) : (
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: `${featGap}px` }}>
@@ -4408,15 +4835,24 @@ function BlockPreview({
 
       case 'testimonials':
       case 'testimonials_grid': {
-        const isLive = dsType === 'testimonials' && liveTestimonials.length > 0
+        const TEMPLATE_TESTI_NAMES = new Set(['Priya S.', 'Arjun M.', 'Sarah M.', 'James L.', 'Sarah J.', 'Mike R.', 'Sarah Johnson', 'Michael Chen'])
+        const isTemplateTesti = (t: any) => {
+          const name = String(t?.name || '').trim()
+          if (TEMPLATE_TESTI_NAMES.has(name)) return true
+          const quote = String(t?.quote || '').toLowerCase()
+          const role = String(t?.role || '').toLowerCase()
+          return role === 'subscriber' && quote.includes('meal subscription')
+        }
+        const liveBound = inferredDsType === 'testimonials' || !!(ds as any)?.auto
         const testiLayout = String((p as any).layout ?? 'grid')
         const testiCols = Number((p as any).columns) || (testiLayout === 'centered' ? 1 : 3)
         const isCentered = testiLayout === 'centered'
         const isMasonry = testiLayout === 'masonry'
         const testiGridClass = testiCols === 2 ? 'grid grid-cols-1 sm:grid-cols-2 gap-6' : testiCols === 1 ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
         const propTestis: any[] = Array.isArray(p.testimonials) ? (p.testimonials as any[]) : []
-        const hasPropAvatars = propTestis.some(t => !!t?.avatar_url)
-        const useLiveTestis = isLive && !hasPropAvatars
+        const manualTestis = propTestis.filter(t => !isTemplateTesti(t))
+        const hasManualTestis = manualTestis.length > 0
+        const useLiveTestis = liveTestimonials.length > 0 && (liveBound || propTestis.some(isTemplateTesti) || !hasManualTestis)
         const testis: any[] = useLiveTestis
           ? liveTestimonials.map(t => ({
               name: t.title,
@@ -4427,10 +4863,10 @@ function BlockPreview({
               avatar_url: t.image_url,
               _live: true,
             }))
-          : propTestis.length > 0 ? propTestis : [
+          : hasManualTestis ? manualTestis : (liveBound || propTestis.some(isTemplateTesti)) ? [] : canEdit ? [
               { quote: 'This product has completely transformed how we work. Highly recommended!', name: 'Sarah J.', role: 'CEO', rating: 5 },
               { quote: 'Incredible quality and amazing support team. Worth every penny.', name: 'Mike R.', role: 'Designer', rating: 5 },
-            ]
+            ] : []
         return (
           <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'What Our Customers Say')}
@@ -4462,14 +4898,20 @@ function BlockPreview({
                     style={{}}
                     onCommit={v => editItem('testimonials', i, 'quote', v)} />
                   <div className="flex items-center gap-3">
-                    {t.avatar_url
-                      ? <img src={mediaUrl(t.avatar_url)} alt={t.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                      : (
+                    {(t.avatar_url || (canEdit && !t._live)) ? (
+                      <div className="w-10 h-10 shrink-0 relative rounded-full overflow-hidden">
+                        {canvasImg(
+                          t.avatar_url || null,
+                          url => editItem('testimonials', i, 'avatar_url', url),
+                          { arrayKey: 'testimonials', index: i, itemField: 'avatar_url' },
+                          { className: 'w-10 h-10', imgClassName: 'w-10 h-10 rounded-full object-cover', alt: t.name },
+                        )}
+                      </div>
+                    ) : (
                         <div style={{ backgroundColor: primary_color, borderRadius: '50%' }} className="w-10 h-10 flex items-center justify-center text-white font-bold text-sm shrink-0">
                           {(t.name || '?')[0].toUpperCase()}
                         </div>
-                      )
-                    }
+                      )}
                     <div>
                       <InlineEditableText value={t.name || ''} placeholder="Customer Name" editable={canEdit && !t._live} as="div"
                         className="font-semibold text-gray-900 text-sm"
@@ -4489,7 +4931,7 @@ function BlockPreview({
                 {AddItemBtn('testimonials', { quote: 'Great experience!', name: 'New Customer', role: 'Title', rating: 5 }, 'Add testimonial')}
               </div>
             )}
-            {dsType === 'testimonials' && !useLiveTestis && !hasPropAvatars && (
+            {(liveBound || dsType === 'testimonials' || propTestis.some(isTemplateTesti)) && !useLiveTestis && testis.length === 0 && (
               <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
                 <Database className="w-3 h-3" /> No reviews yet — ask customers to leave one to see them here live.
               </p>
@@ -4650,9 +5092,16 @@ function BlockPreview({
         return (
           <section className="py-16 px-4 sm:px-6 lg:px-8">
             <div
-              className="max-w-4xl mx-auto text-center rounded-3xl p-12"
+              className="max-w-4xl mx-auto text-center rounded-3xl p-12 relative overflow-hidden"
               style={ctaShellStyle}
             >
+              {canEdit && canvasImg(
+                ctaBgImage || null,
+                url => commitProp('bg_image_url', url),
+                { propField: 'bg_image_url' },
+                { fill: true },
+              )}
+              <div className="relative z-10">
               <InlineEditableText
                 value={p.headline || ''}
                 placeholder="Ready to Get Started?"
@@ -4708,6 +5157,7 @@ function BlockPreview({
                 )}
               </div>
               {p.show_credit_card_note && <p className={cn('text-xs mt-3', ctaTextLight ? 'text-white/60' : 'text-gray-500')}>No credit card required</p>}
+              </div>
             </div>
           </section>
         )
@@ -4760,19 +5210,22 @@ function BlockPreview({
                       overflow: 'hidden',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
-                    className="shadow-sm"
+                    className="shadow-sm relative"
                   >
-                    {m.avatar_url
-                      ? <img src={mediaUrl(m.avatar_url)} className="w-full h-full object-cover" alt={m.name}
-                          onError={e => {
-                            const el = e.target as HTMLImageElement
-                            el.style.display = 'none'
-                            const fb = el.nextElementSibling as HTMLElement | null
-                            if (fb) fb.style.display = 'flex'
-                          }}
-                        />
-                      : null
-                    }
+                    {(m.avatar_url || canEdit) && (
+                      <CanvasEditableImage
+                        siteId={siteId}
+                        src={m.avatar_url || null}
+                        editable={canEdit && !useLiveTeam}
+                        onReplace={url => editItem('members', i, 'avatar_url', url)}
+                        onFocus={() => focusCanvasImage({ arrayKey: 'members', index: i, itemField: 'avatar_url' })}
+                        onOpenMediaLibrary={onOpenMediaLibrary}
+                        onRequestText={onRequestText}
+                        className="absolute inset-0"
+                        imgClassName="w-full h-full object-cover"
+                        alt={m.name}
+                      />
+                    )}
                     <div style={{ color: '#fff', fontWeight: 700, fontSize: avatarSize * 0.35, display: m.avatar_url ? 'none' : 'flex' }}>
                       {(m.name || '?')[0].toUpperCase()}
                     </div>
@@ -5036,10 +5489,18 @@ function BlockPreview({
             )}>
               {logos.slice(0, 8).map((l: any, i: number) => (
                 <div key={i} className="flex items-center gap-2">
-                  {l.image_url
-                    ? <img src={mediaUrl(l.image_url)} className={cn('h-10 w-auto object-contain transition-all', logoGrayscale ? 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100' : 'opacity-90 hover:opacity-100')} alt={l.name || ''} />
-                    : <span className="text-gray-400 font-bold text-sm opacity-60">{l.name}</span>
-                  }
+                  {(l.image_url || (canEdit && !useLiveLogos)) ? (
+                    canvasImg(
+                      l.image_url || null,
+                      url => editItem('logos', i, 'image_url', url),
+                      { arrayKey: 'logos', index: i, itemField: 'image_url' },
+                      {
+                        className: 'h-10 min-w-[40px]',
+                        imgClassName: cn('h-10 w-auto max-w-[120px] object-contain transition-all', logoGrayscale ? 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100' : 'opacity-90 hover:opacity-100'),
+                        alt: l.name || '',
+                      },
+                    )
+                  ) : <span className="text-gray-400 font-bold text-sm opacity-60">{l.name}</span>}
                 </div>
               ))}
             </div>
@@ -5309,17 +5770,21 @@ function BlockPreview({
 
       case 'timeline': {
         const tlLayout = String((p as any).layout ?? 'vertical')
-        const tlItems: any[] = (p as any).items || []
+        const useTlReplacement = !isEditing && isTemplateTimelineBlock(p as Record<string, unknown>)
+        const tlReplacement = useTlReplacement ? genericTimelineContent('our store') : null
+        const tlItems: any[] = useTlReplacement && tlReplacement
+          ? tlReplacement.items
+          : ((p as any).items || [])
         const tlItemBody = (item: any, i: number, compact = false) => (
           <>
             {ItemActions('items', i, 'milestone')}
-            <InlineEditableText value={item.year || ''} placeholder="Year" editable={canEdit} as="div"
+            <InlineEditableText value={isEditing ? (item.year || '') : sanitizeWellnessBodyCopy(item.year || '')} placeholder="Year" editable={canEdit} as="div"
               className="text-xs text-gray-400 mb-1" style={{}}
               onCommit={v => editItem('items', i, 'year', v)} />
-            <InlineEditableText value={item.title || ''} placeholder={`Milestone ${i + 1}`} editable={canEdit} as="div"
+            <InlineEditableText value={isEditing ? (item.title || '') : sanitizeWellnessBodyCopy(item.title || '')} placeholder={`Milestone ${i + 1}`} editable={canEdit} as="div"
               className={cn('font-semibold', compact ? 'text-sm' : 'text-sm')} style={{}}
               onCommit={v => editItem('items', i, 'title', v)} />
-            <InlineEditableText value={item.desc || ''} placeholder="Description…" editable={canEdit} multiline as="div"
+            <InlineEditableText value={isEditing ? (item.desc || '') : sanitizeWellnessBodyCopy(item.desc || '')} placeholder="Description…" editable={canEdit} multiline as="div"
               className="text-xs text-gray-500" style={{}}
               onCommit={v => editItem('items', i, 'desc', v)} />
           </>
@@ -5365,7 +5830,7 @@ function BlockPreview({
         }
         return (
           <div className="py-16 px-8 max-w-2xl mx-auto">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, 'Our Journey')}
+              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, useTlReplacement && tlReplacement ? tlReplacement.title : 'Our Journey')}
             <div className="space-y-6 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200">
               {tlItems.map((item: any, i: number) => (
                 <div key={i} className="pl-10 relative group/item">
@@ -5408,9 +5873,16 @@ function BlockPreview({
       case 'image_block': {
         const ibLayout = String((p as any).layout ?? 'centered')
         const imgSrc = p.image_url as string | undefined
-        const imgEl = imgSrc
-          ? <img src={mediaUrl(imgSrc)} className={cn('w-full object-cover', ibLayout === 'full' ? 'max-h-[480px]' : 'max-h-96')} style={{ borderRadius: ibLayout === 'full' ? 0 : cardRadius }} alt="" />
-          : <div style={{ borderRadius: ibLayout === 'full' ? 0 : cardRadius, backgroundColor: effectiveStyle.surface_color }} className={cn('w-full flex items-center justify-center text-gray-400', ibLayout === 'full' ? 'h-64' : 'h-48')}><ImageIcon className="w-10 h-10" /></div>
+        const imgEl = canvasImg(
+          imgSrc || null,
+          url => commitProp('image_url', url),
+          { propField: 'image_url' },
+          {
+            className: cn('w-full', ibLayout === 'full' ? 'max-h-[480px]' : 'max-h-96'),
+            imgClassName: cn('w-full object-cover', ibLayout === 'full' ? 'max-h-[480px]' : 'max-h-96'),
+            style: { borderRadius: ibLayout === 'full' ? 0 : cardRadius },
+          },
+        )
         if (ibLayout === 'full') {
           return <div className="py-0 px-0">{imgEl}</div>
         }
@@ -5445,7 +5917,13 @@ function BlockPreview({
         if (isOverlay && img) {
           return (
             <div className="relative min-h-[420px] flex items-end py-16 px-8 overflow-hidden">
-              <img src={mediaUrl(img)} className="absolute inset-0 w-full h-full object-cover" alt={title} />
+              {img && <img src={mediaUrl(img)} className="absolute inset-0 w-full h-full object-cover pointer-events-none" alt={title} />}
+              {canvasImg(
+                img || null,
+                url => commitProp('image_url', url),
+                { propField: 'image_url' },
+                { fill: true },
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               <div className="relative z-10 max-w-3xl text-white">
                 {IET('title', 'h2', 'text-3xl sm:text-4xl font-bold mb-4', { fontFamily: font_heading, color: '#fff' }, title)}
@@ -5474,11 +5952,13 @@ function BlockPreview({
         }
         return (
           <div className={cn('py-16 px-8 flex gap-12 items-center max-w-5xl mx-auto', (p as any).image_position === 'right' && 'flex-row-reverse')}>
-            <div style={{ borderRadius: cardRadius, backgroundColor: effectiveStyle.surface_color }} className="flex-1 h-64 flex items-center justify-center text-gray-300 overflow-hidden">
-              {img
-                ? <img src={mediaUrl(img)} className="w-full h-full object-cover" alt={title} />
-                : <ImageIcon className="w-12 h-12" />
-              }
+            <div style={{ borderRadius: cardRadius, backgroundColor: effectiveStyle.surface_color }} className="flex-1 h-64 overflow-hidden">
+              {canvasImg(
+                img || null,
+                url => commitProp('image_url', url),
+                { propField: 'image_url' },
+                { className: 'w-full h-64', imgClassName: 'w-full h-full object-cover', alt: title },
+              )}
             </div>
             <div className="flex-1 space-y-4">
               {(p.eyebrow || canEdit) && IET('eyebrow', 'div', 'text-xs font-medium uppercase tracking-wide', { color: primary_color }, 'Our Story')}
@@ -5498,8 +5978,28 @@ function BlockPreview({
         const cols = p.columns || 4
         const pgCardStyle = String((p as any).card_style ?? 'card')
         const pgImgH = pgCardStyle === 'large' ? 'h-48' : 'h-36'
-        const isLive = dsType === 'products'
+        const isLiveBound = inferredDsType === 'products'
+        const isLive = isLiveBound && liveProducts.length > 0
         const editorialPg = (p as any).layout === 'editorial'
+        const normalizeBuilderProduct = (item: LiveItem): LiveItem => {
+          const meta = (item.meta || {}) as Record<string, unknown>
+          const rawImg = item.image_url || (item as any).image || (meta.image_url as string)
+          const currency = String(meta.currency || 'INR')
+          let priceLabel = item.price_formatted
+          if (priceLabel?.startsWith('INR ')) {
+            const num = Number(priceLabel.replace('INR ', '').replace(/,/g, ''))
+            priceLabel = Number.isNaN(num) ? priceLabel : `₹${num.toLocaleString('en-IN')}`
+          } else if (!priceLabel && item.price != null) {
+            priceLabel = currency === 'INR' ? `₹${Number(item.price).toLocaleString('en-IN')}` : `${currency} ${item.price}`
+          }
+          return {
+            ...item,
+            image_url: rawImg ? mediaUrl(rawImg) : null,
+            subtitle: item.subtitle || (meta.brand as string) || null,
+            description: item.description || (meta.short_description as string) || null,
+            price_formatted: priceLabel,
+          }
+        }
         const fallback: LiveItem[] = Array.from({ length: cols }).map((_, i) => ({
           id: `ph-${i}`,
           title: `Product ${i + 1}`,
@@ -5512,10 +6012,19 @@ function BlockPreview({
           url: null,
           meta: { is_featured: false },
         }))
-        const displayProducts =
-          isLive && liveProducts.length > 0
-            ? liveProducts
-            : (isTemplateBlock && !editorialPg ? [] : fallback)
+        const wellnessPg = isWellnessRetailContext(
+          p as Record<string, unknown>,
+          effectiveStyle as Record<string, unknown>,
+          pageBlocks?.map(b => ({ block_type: b.block_type, props: b.props as Record<string, unknown> })),
+        )
+        const normalizedLive = liveProducts.map(normalizeBuilderProduct)
+        const displayProducts = wellnessPg
+          ? resolveWellnessSiteProducts(normalizedLive, 12)
+          : isLive
+            ? normalizedLive
+            : isLiveBound
+              ? []
+              : (isTemplateBlock && !editorialPg ? [] : fallback)
         if (editorialPg) {
           const gridCls = cols === 2 ? 'sm:grid-cols-2' : cols === 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4'
           const useSpotlight = (p as any).featured_spotlight !== false && displayProducts.length >= 1
@@ -5527,10 +6036,12 @@ function BlockPreview({
                 {(p.title || canEdit) && IET('title', 'h2', 'text-3xl sm:text-4xl', { fontFamily: font_heading, color: text_color }, 'New arrivals')}
                 <span className="text-sm underline opacity-80" style={{ color: text_color }}>View all</span>
               </div>
-              {!suppressLiveBadges && isLive && liveProducts.length > 0 && (
+              {!suppressLiveBadges && isLiveBound && (
                 <div className="flex items-center gap-1.5 mb-6">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-emerald-600 font-semibold">Live · your product catalog</span>
+                  <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
+                  <span className={`text-xs font-semibold ${isLive ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {isLive ? 'Live · your product catalog' : 'No products in catalog yet — add products to replace placeholders'}
+                  </span>
                 </div>
               )}
               {featuredOne && (
@@ -5546,12 +6057,14 @@ function BlockPreview({
                     </div>
                     <div>
                       <span className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
-                        Featured{(featuredOne as any).brand != null && String((featuredOne as any).brand).trim() !== '' ? ` · ${(featuredOne as any).brand}` : ''}
+                        {(featuredOne.meta as any)?.is_category_showcase
+                          ? 'Category highlight'
+                          : `Featured${(featuredOne as any).brand != null && String((featuredOne as any).brand).trim() !== '' ? ` · ${(featuredOne as any).brand}` : ''}`}
                       </span>
                       <h3 className="text-3xl sm:text-4xl lg:text-5xl mt-3 mb-4 text-balance" style={{ fontFamily: font_heading, color: text_color }}>
                         {featuredOne.title || 'Featured'}
                       </h3>
-                      {featuredOne.meta?.rating != null && (
+                      {featuredOne.meta?.rating != null && !(featuredOne.meta as any)?.is_category_showcase && (
                         <div className="flex items-center gap-2 mb-6 text-sm opacity-80" style={{ color: text_color }}>
                           <Star className="h-4 w-4 fill-current shrink-0" />
                           <span>{String(featuredOne.meta.rating)}</span>
@@ -5560,16 +6073,18 @@ function BlockPreview({
                       <p className="text-base opacity-80 mb-8 max-w-lg leading-relaxed" style={{ color: text_color }}>
                         {(featuredOne as any).description || featuredOne.subtitle || 'Highlight a hero SKU — connect live catalog data to replace this placeholder.'}
                       </p>
-                      <div className="text-2xl mb-8" style={{ fontFamily: font_heading, color: text_color }}>
-                        {featuredOne.price_formatted || (featuredOne.price != null ? `₹${featuredOne.price}` : '—')}
-                      </div>
+                      {!(featuredOne.meta as any)?.is_category_showcase && (
+                        <div className="text-2xl mb-8" style={{ fontFamily: font_heading, color: text_color }}>
+                          {featuredOne.price_formatted || (featuredOne.price != null ? `₹${featuredOne.price}` : '—')}
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-3">
                         <button
                           type="button"
                           style={{ backgroundColor: primary_color, color: '#fff' }}
                           className="h-12 px-8 text-xs font-bold uppercase tracking-[0.2em] rounded-none"
                         >
-                          Add to cart
+                          {(featuredOne.meta as any)?.is_category_showcase ? 'Shop category' : 'Add to cart'}
                         </button>
                         <button
                           type="button"
@@ -5697,7 +6212,16 @@ function BlockPreview({
               {feats.slice(0, 9).map((f: any, i: number) => (
                 <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('space-y-3 relative group/item', isCompactSvc ? 'p-4' : 'p-6', isList && 'flex gap-4 items-start')}>
                   {!useLiveServices && ItemActions('features', i, 'service')}
-                  {f.image_url && <img src={mediaUrl(f.image_url)} className={cn('object-cover rounded-lg', isList ? 'w-24 h-24 shrink-0' : 'w-full h-28')} alt={f.title} />}
+                  {(f.image_url || canEdit) && canvasImg(
+                    f.image_url || null,
+                    url => editItem('features', i, 'image_url', url),
+                    { arrayKey: 'features', index: i, itemField: 'image_url' },
+                    {
+                      className: cn(isList ? 'w-24 h-24 shrink-0' : 'w-full h-28'),
+                      imgClassName: cn('object-cover rounded-lg w-full h-full', isList ? 'w-24 h-24' : 'h-28'),
+                      alt: f.title,
+                    },
+                  )}
                   {!f.image_url && <div style={{ color: primary_color }} className={cn('text-2xl', isList && 'shrink-0')}>⚡</div>}
                   <div className={isList ? 'flex-1 min-w-0' : undefined}>
                     <InlineEditableText value={f.title || ''} placeholder={`Service ${i + 1}`} editable={canEdit && !useLiveServices} as="h3"
@@ -6036,17 +6560,32 @@ function BlockPreview({
               ? propImages.map(img => ({ src: img.src ?? null, alt: img.alt || '' }))
               : Array.from({ length: 8 }).map(() => ({ src: null as string | null, alt: '' }))
         const cellRadius = shapeRadius
+        const replaceGalleryImage = (index: number, url: string) => {
+          if (!onPropsUpdate) return
+          let arr: { src?: string | null; alt?: string }[] = Array.isArray((p as any).images)
+            ? [...(p as any).images]
+            : []
+          if (!arr.some(item => !!item?.src)) {
+            arr = images.map(d => ({ src: d.src, alt: d.alt || '' }))
+          }
+          while (arr.length <= index) arr.push({ src: null, alt: '' })
+          arr[index] = { ...arr[index], src: url }
+          onPropsUpdate({ ...block.props, images: arr } as BlockProps)
+        }
         const renderCell = (img: { src: string | null; alt: string }, i: number, className?: string) => (
-          <div
+          <CanvasEditableImage
             key={i}
-            className={cn('overflow-hidden bg-gray-100', shapeClass, className)}
+            siteId={siteId}
+            src={img.src}
+            alt={img.alt || ''}
+            className={cn(shapeClass, className)}
             style={{ borderRadius: imageShape === 'circle' ? '50%' : cellRadius }}
-          >
-            {img.src
-              ? <img src={mediaUrl(img.src)} className="w-full h-full object-cover" alt={img.alt || ''} />
-              : <div className="w-full h-full min-h-[80px] flex items-center justify-center"><ImageIcon className="w-6 h-6 text-gray-300" /></div>
-            }
-          </div>
+            editable={canEdit}
+            onReplace={url => replaceGalleryImage(i, url)}
+            onFocus={() => focusCanvasImage({ arrayKey: 'images', index: i, itemField: 'src' })}
+            onOpenMediaLibrary={onOpenMediaLibrary}
+            onRequestText={onRequestText}
+          />
         )
 
         return (
@@ -6111,12 +6650,19 @@ function BlockPreview({
           <div
             key={i}
             style={{ borderRadius: cellRadius, backgroundColor: effectiveStyle.surface_color }}
-            className={cn('overflow-hidden relative group', imageShape === 'circle' && 'aspect-square max-w-[200px] mx-auto', className)}
+            className={cn('overflow-visible relative group', imageShape === 'circle' && 'aspect-square max-w-[200px] mx-auto', className)}
           >
-            {it.image_url
-              ? <img src={mediaUrl(it.image_url)} className="w-full h-full object-cover" alt={it.title} />
-              : <div className="w-full h-full min-h-[120px] flex items-center justify-center"><Camera className="w-8 h-8 text-gray-300" /></div>
-            }
+            {canvasImg(
+              it.image_url,
+              url => editItem('projects', i, 'image_url', url),
+              { arrayKey: 'projects', index: i, itemField: 'image_url' },
+              {
+                className: cn('w-full h-full min-h-[120px]', imageShape === 'circle' && 'rounded-full'),
+                imgClassName: 'w-full h-full object-cover',
+                alt: it.title,
+                style: { borderRadius: cellRadius },
+              },
+            )}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end p-3">
               <div className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">{it.title}</div>
             </div>
@@ -6162,26 +6708,75 @@ function BlockPreview({
       }
 
       case 'category_cards': {
-        const isLive = dsType === 'categories' && liveCategories.length > 0
+        const isLive = inferredDsType === 'categories' && liveCategories.length > 0
         const editorial = (p as any).layout === 'editorial'
+          && (p as any)._image_category_id !== 'wellness'
         const propCats = categoryCardsFromProps((p as any).categories)
         const propImageByTitle = new Map(
           propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
         )
         const cats: any[] = isLive
-          ? liveCategories.map(c => ({
+          ? liveCategories.map((c, i) => ({
             title: c.title,
             subtitle: c.subtitle,
             count: (c.meta as any)?.count,
             image_url:
               (c.meta as any)?.image_url
               || (c as any).image_url
-              || propImageByTitle.get(String(c.title || '').toLowerCase()),
+              || propImageByTitle.get(String(c.title || '').toLowerCase())
+              || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
           }))
-          : propCats
+          : propCats.map((c, i) => ({
+            ...c,
+            title: sanitizeWellnessCategoryTitle(c.title),
+            image_url: c.image_url || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
+          }))
         const cols = (p as any).columns || 3
         const catLayout = String((p as any).layout ?? 'grid')
         const isBanner = catLayout === 'banner'
+        const isWellness = catLayout === 'wellness'
+          || ((p as any)._image_category_id === 'wellness' && catLayout !== 'banner' && catLayout !== 'strip')
+        if (isWellness) {
+          const eyebrow = (p as any).eyebrow as string | undefined
+          return (
+            <div className="py-16 sm:py-24 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: bg_color }}>
+              <div className="flex items-end justify-between mb-12 sm:mb-16 gap-4 flex-wrap">
+                <div>
+                  {(eyebrow || canEdit) && (
+                    <div className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
+                      <InlineEditableText
+                        value={eyebrow || ''}
+                        placeholder="Explore"
+                        editable={canEdit}
+                        as="span"
+                        onCommit={v => commitProp('eyebrow' as any, v)}
+                      />
+                    </div>
+                  )}
+                  {(p.title || canEdit) && IET('title', 'h2', 'text-3xl sm:text-4xl md:text-5xl mt-2', { fontFamily: font_heading, color: text_color }, 'Shop by category')}
+                </div>
+                <span className="text-sm underline opacity-80 cursor-default" style={{ color: text_color }}>View all</span>
+              </div>
+              {!suppressLiveBadges && isLive && (
+                <div className="flex items-center gap-1.5 mb-6">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs text-emerald-600 font-semibold">Live · your catalog categories</span>
+                </div>
+              )}
+              <CategoryCardMosaic
+                categories={cats}
+                style={effectiveStyle}
+                propImageByTitle={propImageByTitle}
+                maxItems={12}
+                renderTitle={(catTitle) => (
+                  <h3 className="text-base sm:text-lg font-medium" style={{ fontFamily: font_heading, color: text_color }}>
+                    {catTitle}
+                  </h3>
+                )}
+              />
+            </div>
+          )
+        }
         if (editorial) {
           const eyebrow = (p as any).eyebrow as string | undefined
           return (
@@ -6875,10 +7470,13 @@ function InlineMediaPicker({
 }) {
   const { data: mediaList = [] } = useMedia(siteId)
   const uploadMedia = useUploadMedia(siteId)
-  const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<'library' | 'url'>('library')
+  const [panel, setPanel] = useState<'none' | 'library' | 'url'>('none')
   const [urlInput, setUrlInput] = useState(value || '')
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setUrlInput(value || '')
+  }, [value])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -6886,124 +7484,115 @@ function InlineMediaPicker({
     try {
       const saved = await uploadMedia.mutateAsync(file)
       onChange(saved.original_url)
-      setOpen(false)
-      toast.success('Uploaded!')
+      setPanel('none')
+      toast.success('Image uploaded!')
     } catch { toast.error('Upload failed') }
     e.target.value = ''
   }
 
+  const actionBtn = 'flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-lg border text-[10px] font-bold transition-colors'
+
   return (
-    <div className="relative">
-      <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">{label}</label>
+    <div className="space-y-2">
+      {label ? (
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block">{label}</label>
+      ) : null}
+
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
 
       {value ? (
-        <div className="space-y-1.5">
-          <SingleImagePreview
-            url={value}
-            alt={label}
-            resolveUrl={mediaUrl}
-            className="w-full h-24 rounded-xl overflow-hidden border-2 border-primary/40 group"
-            imgClassName="w-full h-full object-cover"
-            editable
-            onSave={async (file) => {
-              const saved = await uploadMedia.mutateAsync(file)
-              onChange(saved.original_url)
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => onChange('')}
-              className="absolute top-1 right-1 z-10 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-            >✕</button>
-          </SingleImagePreview>
-          <button
-            type="button"
-            onClick={() => setOpen(o => !o)}
-            className="w-full rounded-lg border border-dashed border-gray-200 py-1.5 text-xs font-bold text-primary hover:border-primary/40 hover:bg-accent transition-colors"
-          >
-            Change Image
-          </button>
+        <div className="relative rounded-xl overflow-hidden border-2 border-primary/30 h-28 bg-gray-100">
+          <img src={mediaUrl(value)} className="w-full h-full object-cover" alt="" />
         </div>
       ) : (
-        <div
-          onClick={() => setOpen(o => !o)}
-          className="relative w-full h-24 rounded-xl overflow-hidden border-2 border-dashed border-gray-200 hover:border-primary/40 cursor-pointer transition-all"
-        >
-          <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-400">
-            <ImageIcon className="w-6 h-6 opacity-40" />
-            <span className="text-xs">Click to add image</span>
-          </div>
+        <div className="rounded-xl border-2 border-dashed border-gray-200 h-28 flex flex-col items-center justify-center gap-1 text-gray-400 bg-gray-50">
+          <ImageIcon className="w-6 h-6 opacity-40" />
+          <span className="text-xs">No image selected</span>
         </div>
       )}
 
-      {/* Dropdown picker */}
-      {open && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-100">
-            {(['library', 'url'] as const).map(t => (
-              <button key={t}
-                onClick={() => setTab(t)}
-                className={cn('flex-1 py-2 text-xs font-bold transition-colors',
-                  tab === t ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-500 hover:text-gray-700')}
-              >
-                {t === 'library' ? 'Media Library' : 'Paste URL'}
-              </button>
-            ))}
-            <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="px-2 text-gray-400 hover:text-gray-700">
-                <X className="w-3 h-3" /></button>
-          </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploadMedia.isPending}
+          className={cn(actionBtn, 'border-primary/30 text-primary bg-accent/40 hover:bg-accent')}
+        >
+          {uploadMedia.isPending
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <Upload className="w-4 h-4" />}
+          Upload
+        </button>
+        <button
+          type="button"
+          onClick={() => setPanel(p => p === 'library' ? 'none' : 'library')}
+          className={cn(actionBtn, panel === 'library' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50')}
+        >
+          <ImageIcon className="w-4 h-4" />
+          Library
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setUrlInput(value || '')
+            setPanel(p => p === 'url' ? 'none' : 'url')
+          }}
+          className={cn(actionBtn, panel === 'url' ? 'border-sky-400 bg-sky-50 text-sky-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50')}
+        >
+          <Link2 className="w-4 h-4" />
+          URL
+        </button>
+      </div>
 
-          {tab === 'library' ? (
-            <div className="p-2 space-y-2">
-              {/* Upload button */}
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-              <button
-                onClick={() => fileRef.current?.click()}
-                disabled={uploadMedia.isPending}
-                className="w-full py-1.5 border border-dashed border-primary/40 rounded-lg text-xs text-primary font-bold hover:bg-accent flex items-center justify-center gap-1"
-              >
-                {uploadMedia.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                Upload New
-              </button>
-              {/* Library grid */}
-              {mediaList.length === 0 ? (
-                <div className="py-4 text-center text-xs text-gray-400">No media yet. Upload an image.</div>
-              ) : (
-                <div className="grid grid-cols-4 gap-1 max-h-40 overflow-y-auto">
-                  {mediaList.map(m => {
-                    const src = mediaUrl(m.original_url)
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => { onChange(m.original_url); setOpen(false) }}
-                        className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-all"
-                      >
-                        <img src={src} className="w-full h-full object-cover" alt={m.filename}
-                          onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3' }} />
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+      {panel === 'library' && (
+        <div className="rounded-xl border border-gray-200 bg-white p-2 space-y-2">
+          {mediaList.length === 0 ? (
+            <p className="py-3 text-center text-xs text-gray-400">No media yet — use Upload above first.</p>
           ) : (
-            <div className="p-2 space-y-2">
-              <input
-                type="text"
-                value={urlInput}
-                onChange={e => setUrlInput(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <button
-                onClick={() => { if (urlInput) { onChange(urlInput); setOpen(false) } }}
-                className="w-full py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90"
-              >
-                Use This URL
-              </button>
+            <div className="grid grid-cols-4 gap-1.5 max-h-44 overflow-y-auto">
+              {mediaList.map(m => {
+                const src = mediaUrl(m.original_url)
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => { onChange(m.original_url); setPanel('none'); toast.success('Image selected') }}
+                    className={cn(
+                      'aspect-square rounded-lg overflow-hidden border-2 transition-all',
+                      value === m.original_url ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-primary',
+                    )}
+                  >
+                    <img src={src} className="w-full h-full object-cover" alt={m.filename}
+                      onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3' }} />
+                  </button>
+                )
+              })}
             </div>
           )}
+        </div>
+      )}
+
+      {panel === 'url' && (
+        <div className="rounded-xl border border-gray-200 bg-white p-2 space-y-2">
+          <input
+            type="text"
+            value={urlInput}
+            onChange={e => setUrlInput(e.target.value)}
+            placeholder="https://example.com/image.jpg"
+            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!urlInput.trim()) return
+              onChange(urlInput.trim())
+              setPanel('none')
+              toast.success('Image URL applied')
+            }}
+            className="w-full py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90"
+          >
+            Use This URL
+          </button>
         </div>
       )}
     </div>
@@ -7591,6 +8180,7 @@ function BlockImagePickerField({
   hint,
   currentUrl,
   onUpdate,
+  siteId,
 }: {
   blockId: string
   label: string
@@ -7598,9 +8188,38 @@ function BlockImagePickerField({
   hint?: string
   currentUrl?: string
   onUpdate: (props: Partial<BlockProps>) => void
+  siteId?: string
 }) {
-  const resolved = currentUrl ? mediaUrl(currentUrl) : ''
   const [imgOk, setImgOk] = useState(true)
+
+  if (siteId) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-gray-600 flex-1">{label}</label>
+          {currentUrl && (
+            <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
+          )}
+        </div>
+        <InlineMediaPicker
+          siteId={siteId}
+          value={currentUrl || ''}
+          onChange={url => onUpdate({ [fieldKey]: url })}
+          label=""
+        />
+        <input
+          key={`${blockId}-${fieldKey}`}
+          defaultValue={currentUrl || ''}
+          onBlur={e => onUpdate({ [fieldKey]: e.target.value })}
+          placeholder="Or paste image URL…"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+        />
+        {hint && <p className="text-xs text-gray-400">{hint}</p>}
+      </div>
+    )
+  }
+
+  const resolved = currentUrl ? mediaUrl(currentUrl) : ''
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5">
@@ -7656,7 +8275,7 @@ function BlockImagePickerField({
         ) : (
           <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-gray-400 w-full">
             <ImageIcon className="w-7 h-7 opacity-30" />
-            <span className="text-xs text-center">No image set<br />Upload in Media tab → Use in Block</span>
+            <span className="text-xs text-center">No image set<br />Paste a URL below</span>
           </div>
         )}
       </div>
@@ -7664,7 +8283,7 @@ function BlockImagePickerField({
         key={`${blockId}-${fieldKey}`}
         defaultValue={currentUrl || ''}
         onBlur={e => { onUpdate({ [fieldKey]: e.target.value }); setImgOk(true) }}
-        placeholder="Paste URL or use Media tab →"
+        placeholder="Paste image URL…"
         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono"
       />
       {hint && <p className="text-xs text-gray-400">{hint}</p>}
@@ -7913,6 +8532,7 @@ function PropsEditor({
       label={label}
       fieldKey={fieldKey}
       hint={hint}
+      siteId={siteId}
       currentUrl={(p as any)[fieldKey] as string | undefined}
       onUpdate={onUpdate}
     />
@@ -10405,7 +11025,13 @@ export default function WebsiteBuilder() {
   const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
   const [sectionSearch, setSectionSearch] = useState('')
   const [sectionCategory, setSectionCategory] = useState('all')
-  const [sectionLayoutPicker, setSectionLayoutPicker] = useState<{ def: BlockDef; insertAtIdx: number; targetBlockId?: string } | null>(null)
+  const [sectionLayoutPicker, setSectionLayoutPicker] = useState<{
+    def: BlockDef
+    insertAtIdx: number
+    targetBlockId?: string
+    /** When set, the new section replaces this block at the same position (not append). */
+    replaceBlockId?: string
+  } | null>(null)
   const [expandedSectionPages, setExpandedSectionPages] = useState<Set<string>>(() => new Set())
   const [sidebarDraggedPageId, setSidebarDraggedPageId] = useState<string | null>(null)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
@@ -10440,6 +11066,14 @@ export default function WebsiteBuilder() {
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
   /** Selected in-canvas image overlay (for AI / Media apply). */
   const [overlayImageTarget, setOverlayImageTarget] = useState<{ blockId: string; overlayId: string } | null>(null)
+  /** Selected canvas image slot (for Media panel apply). */
+  const [canvasImageTarget, setCanvasImageTarget] = useState<{
+    blockId: string
+    propField?: string
+    arrayKey?: string
+    index?: number
+    itemField?: string
+  } | null>(null)
   const overlayImageUploadRef = useRef<HTMLInputElement>(null)
 
   // ── Link editor (opened from CTA buttons / overlay buttons) ────────────────
@@ -11144,9 +11778,14 @@ export default function WebsiteBuilder() {
   const onOverlayLayerPicked = useCallback((overlayId: string | null) => {
     if (!selectedBlockId) {
       setOverlayImageTarget(null)
+      setCanvasImageTarget(null)
       return
     }
     setOverlayImageTarget(overlayId ? { blockId: selectedBlockId, overlayId } : null)
+  }, [selectedBlockId])
+
+  useEffect(() => {
+    setCanvasImageTarget(null)
   }, [selectedBlockId])
 
   const openMediaFromCanvas = useCallback(() => {
@@ -11393,11 +12032,22 @@ export default function WebsiteBuilder() {
     insertAtIdx = -1,
     propsOverride?: Partial<BlockProps>,
     imageCategoryId?: string,
+    replaceBlockId?: string,
   ) => {
     if (!activePageId) return
     const blocksMap = localBlocksRef.current
     const pages = localPagesRef.current
-    const currentBlocks = (blocksMap[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    let currentBlocks = (blocksMap[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    let effectiveInsertIdx = insertAtIdx
+    let replacedBlockId: string | undefined
+    if (replaceBlockId) {
+      const replaceIdx = currentBlocks.findIndex(b => b.id === replaceBlockId)
+      if (replaceIdx >= 0) {
+        replacedBlockId = replaceBlockId
+        effectiveInsertIdx = replaceIdx
+        currentBlocks = currentBlocks.filter(b => b.id !== replaceBlockId)
+      }
+    }
     const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
 
     if (isStructure) {
@@ -11438,7 +12088,7 @@ export default function WebsiteBuilder() {
     }
 
     const tempId = `temp-${Date.now()}`
-    const insertAt = getPreferredBlockInsertIndex(def.type, currentBlocks, insertAtIdx)
+    const insertAt = getPreferredBlockInsertIndex(def.type, currentBlocks, effectiveInsertIdx)
     const sort_order = insertAt
 
     // Auto-bind drag-dropped blocks to live KITERP data so they "just work".
@@ -11477,7 +12127,7 @@ export default function WebsiteBuilder() {
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     }
 
-    let pageBlocks = insertBlockAtIndex(currentBlocks, tempBlock, def.type, insertAtIdx)
+    let pageBlocks = insertBlockAtIndex(currentBlocks, tempBlock, def.type, effectiveInsertIdx)
     let next = { ...blocksMap, [activePageId]: pageBlocks }
     if (isStructure) {
       next = applyStructureLayoutToAllPages(
@@ -11529,10 +12179,19 @@ export default function WebsiteBuilder() {
       })
       setSelectedBlockId(saved.id)
       scrollCanvasToBlock(saved.id)
+      if (replacedBlockId && !replacedBlockId.startsWith('temp-')) {
+        try {
+          await websiteApi.deleteBlock(siteId!, activePageId, replacedBlockId)
+        } catch {
+          toast.error('New section saved — could not remove the old section; delete it manually.')
+        }
+      }
       toast.success(
-        isStructure && pages.length > 1
-          ? `${def.label} added — synced to all pages`
-          : `${def.label} added`,
+        replacedBlockId
+          ? `${def.label} replaced selected section`
+          : isStructure && pages.length > 1
+            ? `${def.label} added — synced to all pages`
+            : `${def.label} added`,
       )
     } catch {
       // Roll back
@@ -11547,14 +12206,39 @@ export default function WebsiteBuilder() {
 
   const openSectionLayoutPicker = useCallback((def: BlockDef, insertAtIdx = -1, targetBlockId?: string) => {
     let resolvedTargetId = targetBlockId
-    if (!resolvedTargetId && activePageId && selectedBlockId) {
-      const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
-      if (selected?.block_type === def.type) resolvedTargetId = selectedBlockId
+    let resolvedInsertIdx = insertAtIdx
+    let replaceBlockId: string | undefined
+
+    if (activePageId && selectedBlockId) {
+      const pageBlocks = (localBlocksRef.current[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+      const selectedIdx = pageBlocks.findIndex(b => b.id === selectedBlockId)
+      const selected = selectedIdx >= 0 ? pageBlocks[selectedIdx] : undefined
+
+      if (selected) {
+        if (!resolvedTargetId && selected.block_type === def.type) {
+          resolvedTargetId = selectedBlockId
+        } else if (
+          insertAtIdx < 0
+          && !resolvedTargetId
+          && selected.block_type !== def.type
+          && !GLOBAL_STRUCTURE_BLOCK_TYPES.has(selected.block_type)
+          && !GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
+        ) {
+          resolvedInsertIdx = selectedIdx
+          replaceBlockId = selectedBlockId
+        }
+      }
     }
+
     if (!resolvedTargetId && GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)) {
       resolvedTargetId = findStructureBlockInMap(localBlocksRef.current, localPagesRef.current, def.type)?.block.id
     }
-    setSectionLayoutPicker({ def, insertAtIdx, targetBlockId: resolvedTargetId })
+    setSectionLayoutPicker({
+      def,
+      insertAtIdx: resolvedInsertIdx,
+      targetBlockId: resolvedTargetId,
+      replaceBlockId,
+    })
   }, [activePageId, selectedBlockId])
 
   const shouldOpenLayoutPickerForBlock = useCallback((def: BlockDef) =>
@@ -11595,11 +12279,11 @@ export default function WebsiteBuilder() {
     imageCategoryId: string,
   ) => {
     if (!sectionLayoutPicker) return
-    const { def, insertAtIdx, targetBlockId } = sectionLayoutPicker
+    const { def, insertAtIdx, targetBlockId, replaceBlockId } = sectionLayoutPicker
     setSectionLayoutPicker(null)
 
     if (Object.keys(propsOverride).length === 0) {
-      await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId)
+      await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId)
       return
     }
 
@@ -11621,12 +12305,21 @@ export default function WebsiteBuilder() {
       if (applied) return
     }
 
+    // Re-use the selected block on this page when changing layout (avoid duplicate "added" blocks).
+    if (!applyTargetId && activePageId && selectedBlockId) {
+      const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
+      if (selected?.block_type === def.type) {
+        const applied = await applyLayoutToBlock(selected.id, def, propsOverride, imageCategoryId)
+        if (applied) return
+      }
+    }
+
     if (isStructure) {
       await handleAddBlock(def, -1, propsOverride, imageCategoryId)
       return
     }
 
-    await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId)
+    await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId)
   }, [sectionLayoutPicker, handleAddBlock, applyLayoutToBlock, activePageId, selectedBlockId])
 
   // Preview-only update — instant canvas update, no API call (used while typing)
@@ -11731,16 +12424,59 @@ export default function WebsiteBuilder() {
       }
     }
 
-    // 2) Array-item blocks (testimonials, team, features, gallery, etc.)
+    // 2) Canvas image target (clicked image on preview)
+    if (canvasImageTarget && canvasImageTarget.blockId === selectedBlock.id) {
+      if (canvasImageTarget.propField) {
+        handleUpdateBlockProps(selectedBlock.id, { [canvasImageTarget.propField]: url } as any)
+        toast.success('Image updated')
+        return
+      }
+      if (
+        canvasImageTarget.arrayKey != null
+        && canvasImageTarget.itemField
+        && canvasImageTarget.index != null
+      ) {
+        const arr = [...(((selectedBlock.props as any)[canvasImageTarget.arrayKey] as any[]) || [])]
+        while (arr.length <= canvasImageTarget.index) {
+          arr.push({ [canvasImageTarget.itemField]: null })
+        }
+        const updated = arr.map((item, idx) =>
+          idx === canvasImageTarget.index
+            ? { ...item, [canvasImageTarget.itemField!]: url }
+            : item)
+        handleUpdateBlockProps(selectedBlock.id, { [canvasImageTarget.arrayKey]: updated } as any)
+        toast.success('Image updated')
+        return
+      }
+    }
+
+    // 3) Array-item blocks (testimonials, team, features, gallery, etc.)
     const arrayCfg = BLOCK_ARRAY_IMAGE[selectedBlock.block_type]
     if (arrayCfg) {
-      const arr: any[] = ((selectedBlock.props as any)[arrayCfg.arrayKey] as any[] | undefined) || []
+      const targetIdx = (
+        canvasImageTarget
+        && canvasImageTarget.blockId === selectedBlock.id
+        && canvasImageTarget.arrayKey === arrayCfg.arrayKey
+        && canvasImageTarget.index != null
+      )
+        ? canvasImageTarget.index
+        : 0
+      let arr: any[] = ((selectedBlock.props as any)[arrayCfg.arrayKey] as any[] | undefined) || []
       if (arr.length > 0) {
-        // Apply to first item; user can reorder/select in Props panel
+        while (arr.length <= targetIdx) {
+          const filler: Record<string, any> = { [arrayCfg.itemField]: null }
+          if (arrayCfg.defaultTitle) filler.title = arrayCfg.defaultTitle
+          if (arrayCfg.itemField === 'avatar_url') filler.name = arrayCfg.defaultTitle || 'Person'
+          arr.push(filler)
+        }
         const updated = arr.map((item, idx) =>
-          idx === 0 ? { ...item, [arrayCfg.itemField]: url } : item)
+          idx === targetIdx ? { ...item, [arrayCfg.itemField]: url } : item)
         handleUpdateBlockProps(selectedBlock.id, { [arrayCfg.arrayKey]: updated } as any)
-        toast.success(`Image applied to first item. Use Properties → Items to update others.`)
+        toast.success(
+          targetIdx > 0 || canvasImageTarget
+            ? `Image applied to slot ${targetIdx + 1}`
+            : `Image applied to first item. Click an image on the canvas to target another slot.`,
+        )
       } else {
         // No items yet — create one with the image
         const newItem: Record<string, any> = { [arrayCfg.itemField]: url }
@@ -11753,14 +12489,14 @@ export default function WebsiteBuilder() {
       return
     }
 
-    // 3) Simple top-level field
+    // 4) Simple top-level field
     const field = BLOCK_IMAGE_FIELD[selectedBlock.block_type]
       ?? (selectedBlock.block_type.includes('hero') || selectedBlock.block_type.includes('banner')
           ? 'bg_image_url'
           : 'image_url')
     handleUpdateBlockProps(selectedBlock.id, { [field]: url } as any)
     toast.success('Image applied to block!')
-  }, [selectedBlock, activePageId, overlayImageTarget, handleUpdateBlockProps])
+  }, [selectedBlock, activePageId, overlayImageTarget, canvasImageTarget, handleUpdateBlockProps])
 
   const uploadImageFileToSelection = useCallback(async (file: File) => {
     if (!siteId) return
@@ -13174,6 +13910,7 @@ export default function WebsiteBuilder() {
       toast.error('Could not resolve your vendor store slug. Open the dashboard home once, then try again.')
       return
     }
+    const previewTab = prepareDraftPreviewTab()
     setOpeningBrowserPreview(true)
     try {
       const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle)
@@ -13183,9 +13920,10 @@ export default function WebsiteBuilder() {
       })
       rememberDraftPreviewSession(siteId, preview_token)
       const url = buildVendorDraftPreviewUrl(preview_token, activePage?.slug)
-      const opened = openDraftPreviewInBrowser(url)
-      if (!opened) {
-        toast.error('Pop-up blocked — allow pop-ups for this site, then try Preview in Browser again.')
+      if (!navigateDraftPreviewTab(url)) {
+        toast.error('Could not open preview — try Preview in Browser again.')
+      } else if (!previewTab) {
+        toast.error('If preview stays blank, allow pop-ups for this site and try again.')
       }
     } catch (err) {
       console.error('[BrowserPreview] failed:', err)
@@ -13543,7 +14281,7 @@ export default function WebsiteBuilder() {
             type="button"
             disabled={openingBrowserPreview}
             onClick={() => void handleOpenBrowserPreview()}
-            title="Preview your draft in the browser (localhost:3001, vendor-web only)"
+            title="Preview your draft in the browser (same host as this tab, vendor-web only)"
             className={cn(
               STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS,
               openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-accent/95',
@@ -13867,7 +14605,7 @@ export default function WebsiteBuilder() {
                         <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">
                           Add Section{sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}
                         </p>
-                        <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">Click a section to pick a layout — changes apply instantly on the canvas. Right-click a block or use the layout icon to switch styles.</p>
+                        <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">Click a section to pick a layout. With a block selected on the canvas, the new section replaces it in the same place. Use the layout icon on a block to switch styles only.</p>
                         <div className="space-y-0.5">
                           {filteredCatalogBlocks.map(def => (
                             <button
@@ -14702,6 +15440,7 @@ export default function WebsiteBuilder() {
                           isSelected={selectedBlockId === block.id}
                           isEditing={selectedBlockId === block.id}
                           sitePages={sortedSitePages}
+                          pageBlocks={activeBlocks}
                           onOverlayUpdate={selectedBlockId === block.id
                             ? (overlays) => handleUpdateBlockProps(block.id, { overlays } as any)
                             : undefined}
@@ -14738,6 +15477,9 @@ export default function WebsiteBuilder() {
                           }}
                           activeTextField={activeTextTarget?.blockId === block.id ? activeTextTarget.fieldKey : null}
                           onActiveTextFieldChange={(fieldKey) => setActiveTextTarget(fieldKey ? { blockId: block.id, fieldKey } : null)}
+                          onCanvasImageFocus={block.id === selectedBlockId
+                            ? (target) => setCanvasImageTarget({ blockId: block.id, ...target })
+                            : undefined}
                         />
                       </div>
 

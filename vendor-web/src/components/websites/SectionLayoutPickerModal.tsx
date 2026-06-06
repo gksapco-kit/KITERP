@@ -29,12 +29,14 @@ function LayoutOptionCard({
   def,
   option,
   categoryId,
+  optionIndex,
   isActive,
   onSelect,
 }: {
   def: SectionBlockDef
   option: SectionLayoutOption
   categoryId: string
+  optionIndex: number
   isActive?: boolean
   onSelect: () => void
 }) {
@@ -44,10 +46,13 @@ function LayoutOptionCard({
   )
   const usesImages = blockSupportsGalleryCategory(def.type)
   const isCommerceBlock = def.type.includes('.')
-  const sampleUrls = useMemo(
-    () => (usesImages ? pickGalleryImageUrls(categoryId, 8) : []),
-    [usesImages, categoryId],
-  )
+  const sampleUrls = useMemo(() => {
+    if (!usesImages) return []
+    const pool = pickGalleryImageUrls(categoryId, 10)
+    if (pool.length === 0) return []
+    const start = optionIndex % pool.length
+    return Array.from({ length: 8 }, (_, i) => pool[(start + i) % pool.length] ?? pool[0])
+  }, [usesImages, categoryId, optionIndex])
 
   return (
     <button
@@ -285,12 +290,13 @@ export function SectionLayoutPickerModal({
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 pb-4 sm:pb-5 overscroll-contain">
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                  {options.map(opt => (
+                  {options.map((opt, idx) => (
                     <LayoutOptionCard
                       key={opt.id}
                       def={def}
                       option={opt}
                       categoryId={imageCategoryId}
+                      optionIndex={idx}
                       isActive={activeOptionId === opt.id}
                       onSelect={() => onSelect(opt.props as Partial<BlockProps>, imageCategoryId)}
                     />

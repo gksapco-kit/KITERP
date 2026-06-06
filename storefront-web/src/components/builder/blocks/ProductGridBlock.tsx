@@ -5,6 +5,18 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useAuthStore } from '@/stores/authStore'
 import { useAddToCart } from '@/hooks/useStore'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import CategoryCardsWellness from '@/components/builder/blocks/CategoryCardsWellness'
+import {
+  WELLNESS_CATEGORY_FALLBACK_IMAGES,
+  WELLNESS_DEFAULT_CATEGORY_TITLES,
+} from '@/lib/wellnessCategoryStyle'
+import { sanitizeWellnessCategoryTitle } from '@/lib/wellnessTemplateCopy'
+import { normalizeLiveProducts } from '@/lib/liveProductUtils'
+import {
+  isWellnessRetailContext,
+  resolveWellnessSiteProducts,
+} from '@/lib/wellnessProductFilter'
+import { imgUrl } from '@/lib/utils'
 
 interface Props {
   site: PublicSite
@@ -13,15 +25,16 @@ interface Props {
   liveItems: LiveItem[]
   branchCode?: string | null
   blockType?: string
+  /** Other blocks on the same page — used to detect wellness category layout. */
+  pageBlocks?: { block_type?: string; props?: Record<string, unknown> }[]
 }
 
 function mediaUrl(url: string | null | undefined) {
-  if (!url) return ''
-  if (url.startsWith('http') || url.startsWith('//') || url.startsWith('data:')) return url
-  return url
+  return imgUrl(url)
 }
 
-export default function ProductGridBlock({ site, style, props, liveItems, blockType = 'product_grid' }: Props) {
+export default function ProductGridBlock({ site, style, props, liveItems, blockType = 'product_grid', pageBlocks }: Props) {
+  const siteStyle = { ...(site.style_config || {}), ...style } as Record<string, unknown>
   const { storePath } = useVendor()
   const { isAuthenticated } = useAuthStore()
   const addToCart = useAddToCart()
@@ -55,14 +68,56 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
   }
 
-  const editorialFallback = Array.from({ length: columns }).map((_, i) => ({
-    id: `ph-${i}`,
-    title: `Product ${i + 1}`,
-    subtitle: 'Subtitle',
-    price_formatted: '₹999',
-    image_url: null as string | null,
-    meta: {} as Record<string, unknown>,
-  })) as LiveItem[]
+  const normalized = normalizeLiveProducts(liveItems)
+  const wellnessSite = isWellnessRetailContext(props, siteStyle, pageBlocks)
+  const catalogProducts = wellnessSite
+    ? resolveWellnessSiteProducts(normalized, Number(props.show_count) || 12)
+    : normalized
+
+  /** ── Wellness / Vibrant Living category cards (circular images on organic blobs) ── */
+  if (
+    blockType === 'category_cards'
+    && (props.layout === 'wellness'
+      || (props._image_category_id === 'wellness' && props.layout !== 'banner' && props.layout !== 'strip'))
+  ) {
+    const eyebrow = (props.eyebrow as string) || ''
+    const propCats = (() => {
+      const raw = props.categories as { title?: string; image_url?: string }[] | undefined
+      const list = Array.isArray(raw) ? raw.filter(c => c && typeof c === 'object') : []
+      const defaults = WELLNESS_DEFAULT_CATEGORY_TITLES.map((title, i) => ({
+        title,
+        image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
+      }))
+      return (list.length > 0 ? list : defaults).map((c, i) => ({
+        title: sanitizeWellnessCategoryTitle(c.title || `Category ${i + 1}`),
+        image_url: c.image_url || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
+      }))
+    })()
+    const propImageByTitle = new Map(
+      propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
+    )
+    const cats = liveItems.length > 0
+      ? liveItems.map((c, i) => ({
+          title: c.title,
+          image_url:
+            c.image_url
+            || (c.meta as any)?.image_url
+            || propImageByTitle.get(String(c.title || '').toLowerCase())
+            || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
+        }))
+      : propCats
+
+    return (
+      <CategoryCardsWellness
+        title={title}
+        eyebrow={eyebrow}
+        style={style}
+        categories={cats}
+        propImageByTitle={propImageByTitle}
+        storePath={storePath}
+      />
+    )
+  }
 
   /** ── Editorial category cards (matches vendor builder / Fashion browser) ── */
   if (blockType === 'category_cards' && props.layout === 'editorial') {
@@ -130,7 +185,15 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
 
   /** ── Editorial product grid + optional featured row (vendor / Atelier) ── */
   if (blockType === 'product_grid' && props.layout === 'editorial') {
-    const rawItems = liveItems.length > 0 ? liveItems : (props.layout === 'editorial' ? editorialFallback : [])
+    const rawItems = catalogProducts
+    if (rawItems.length === 0 && !wellnessSite) {
+      return (
+        <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: style.surface_color || style.bg_color }}>
+          <h2 className="text-3xl sm:text-4xl mb-4" style={{ fontFamily: style.font_heading, color: textColor }}>{title}</h2>
+          <p className="text-sm opacity-70" style={{ color: textColor }}>No products in your catalog yet. Add products in KITERP to show them here.</p>
+        </section>
+      )
+    }
     const useSpotlight = props.featured_spotlight !== false && rawItems.length >= 1
     const featuredOne = useSpotlight ? rawItems[0] : null
     const gridList = useSpotlight ? rawItems.slice(1) : rawItems
@@ -159,7 +222,9 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 </div>
                 <div>
                   <span className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: textColor }}>
-                    Featured{(featuredOne.meta as any)?.brand != null && String((featuredOne.meta as any).brand).trim() !== '' ? ` · ${(featuredOne.meta as any).brand}` : ''}
+                    {(featuredOne.meta as Record<string, unknown>)?.is_category_showcase
+                      ? 'Category highlight'
+                      : `Featured${(featuredOne.meta as any)?.brand != null && String((featuredOne.meta as any).brand).trim() !== '' ? ` · ${(featuredOne.meta as any).brand}` : ''}`}
                   </span>
                   <h3 className="text-3xl sm:text-4xl lg:text-5xl mt-3 mb-4 text-balance" style={{ fontFamily: style.font_heading, color: textColor }}>
                     {featuredOne.title}
@@ -167,18 +232,30 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                   <p className="text-base opacity-80 mb-8 max-w-lg leading-relaxed" style={{ color: textColor }}>
                     {(featuredOne as any).description || featuredOne.subtitle || ' '}
                   </p>
-                  <div className="text-2xl mb-8" style={{ fontFamily: style.font_heading, color: textColor }}>
-                    {featuredOne.price_formatted || '—'}
-                  </div>
+                  {!(featuredOne.meta as Record<string, unknown>)?.is_category_showcase && (
+                    <div className="text-2xl mb-8" style={{ fontFamily: style.font_heading, color: textColor }}>
+                      {featuredOne.price_formatted || '—'}
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      style={{ backgroundColor: style.primary_color, color: '#fff' }}
-                      className="h-12 px-8 text-xs font-bold uppercase tracking-[0.2em] rounded-none"
-                      onClick={e => handleAddToCart(e, featuredOne)}
-                    >
-                      Add to cart
-                    </button>
+                    {(featuredOne.meta as Record<string, unknown>)?.is_category_showcase ? (
+                      <Link
+                        to={storePath('/products')}
+                        style={{ backgroundColor: style.primary_color, color: '#fff' }}
+                        className="h-12 px-8 text-xs font-bold uppercase tracking-[0.2em] rounded-none inline-flex items-center"
+                      >
+                        Shop category
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        style={{ backgroundColor: style.primary_color, color: '#fff' }}
+                        className="h-12 px-8 text-xs font-bold uppercase tracking-[0.2em] rounded-none"
+                        onClick={e => handleAddToCart(e, featuredOne)}
+                      >
+                        Add to cart
+                      </button>
+                    )}
                     <button
                       type="button"
                       style={{ border: `1px solid ${textColor}99`, color: textColor }}
@@ -196,7 +273,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           <div className={`grid gap-x-6 gap-y-12 ${gridCls}`}>
             {gridList.map(item => {
               const outOfStock = item.meta?.stock_status === 'out_of_stock'
-              const isPh = String(item.id || '').startsWith('ph-')
+              const isPh = String(item.id || '').startsWith('ph-') || String(item.id || '').startsWith('wl-showcase-')
+              const isShowcase = !!(item.meta as Record<string, unknown>)?.is_category_showcase
               return (
                 <div key={item.id || item.title} className="group">
                   <Link to={item.url ? storePath(item.url) : storePath('/products')} className="block">
@@ -247,8 +325,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   }
 
   /** ── Default product / menu grid (original business front behavior) ── */
-  const items = liveItems.length > 0
-    ? liveItems
+  const items = catalogProducts.length > 0
+    ? catalogProducts
     : (props.items as LiveItem[] | undefined) || []
 
   return (

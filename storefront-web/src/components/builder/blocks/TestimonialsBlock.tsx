@@ -1,5 +1,6 @@
 import { Quote, Star } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { isLiveTestimonialsBound, isTemplateTestimonial } from '@/lib/testimonialPlaceholders'
 
 interface Props {
   site: PublicSite
@@ -11,21 +12,32 @@ interface Props {
 
 export default function TestimonialsBlock({ style, props, liveItems }: Props) {
   const title = (props.title as string) || 'What Our Customers Say'
+  const liveBound = isLiveTestimonialsBound(props)
+  const staticTestis = (props.testimonials as Array<{
+    name: string
+    role?: string
+    company?: string
+    quote: string
+    rating?: number
+  }> | undefined) || []
+  const manualTestis = staticTestis.filter(t => !isTemplateTestimonial(t))
 
   const items = liveItems.length > 0
     ? liveItems
-    : ((props.testimonials as Array<{ name: string; role?: string; company?: string; quote: string; rating?: number }> | undefined) || []).map(t => ({
-        id: t.name,
-        title: t.name,
-        subtitle: [t.role, t.company].filter(Boolean).join(', ') || null,
-        description: t.quote,
-        image_url: null,
-        price: null,
-        price_formatted: null,
-        rating: t.rating ?? 5,
-        url: null,
-        meta: {},
-      } as LiveItem))
+    : liveBound || staticTestis.some(isTemplateTestimonial)
+      ? []
+      : manualTestis.map(t => ({
+          id: t.name,
+          title: t.name,
+          subtitle: [t.role, t.company].filter(Boolean).join(', ') || null,
+          description: t.quote,
+          image_url: null,
+          price: null,
+          price_formatted: null,
+          rating: t.rating ?? 5,
+          url: null,
+          meta: {},
+        } as LiveItem))
 
   if (items.length === 0) return null
 

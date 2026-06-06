@@ -2,6 +2,12 @@ import {
   BUSINESS_IMAGE_CATEGORIES,
   imagesForCategory,
 } from '@/data/businessImagePack'
+import {
+  normalizeGalleryCategoryId,
+  resolveCategoryStockImageUrl,
+  stockPoolForCategory,
+} from '@/data/categoryStockImages'
+import { heroUsesBackgroundImage, heroUsesSideImage } from '@/lib/heroLayoutUtils'
 
 const BLOCK_CATEGORY_IMAGE_FALLBACK: Record<string, string> = {
   hero: 'shop',
@@ -82,18 +88,26 @@ export function inferImageCategoryFromSite(site?: { name?: string | null; descri
 
 export function suggestImageCategoryForBlock(
   blockCatalogCategory: string,
-  site?: { name?: string | null; description?: string | null },
+  site?: { name?: string | null; description?: string | null; style_config?: Record<string, unknown> | null },
 ): string {
+  const styleCat = (site?.style_config as { image_category_id?: string } | undefined)?.image_category_id
+  if (styleCat) return normalizeGalleryCategoryId(styleCat)
   const fromSite = inferImageCategoryFromSite(site)
   if (fromSite !== 'shop') return fromSite
   return BLOCK_CATEGORY_IMAGE_FALLBACK[blockCatalogCategory] ?? 'shop'
 }
 
 export function pickGalleryImageUrls(categoryId: string, count: number, startIndex = 0): string[] {
-  const pool = imagesForCategory(categoryId)
-  const fallback = pool.length > 0 ? pool : imagesForCategory('shop')
-  if (fallback.length === 0) return []
-  return Array.from({ length: count }, (_, i) => fallback[(startIndex + i) % fallback.length]?.url ?? '')
+  const normalized = normalizeGalleryCategoryId(categoryId)
+  const catalog = imagesForCategory(normalized)
+  const stock = stockPoolForCategory(normalized)
+  if (catalog.length > 0) {
+    return Array.from({ length: count }, (_, i) => catalog[(startIndex + i) % catalog.length]?.url ?? '')
+  }
+  if (stock.length > 0) {
+    return Array.from({ length: count }, (_, i) => stock[(startIndex + i) % stock.length] ?? '')
+  }
+  return Array.from({ length: count }, (_, i) => resolveCategoryStockImageUrl('shop', (startIndex + i) % 4 + 1))
 }
 
 export function blockSupportsGalleryCategory(blockType: string): boolean {
@@ -129,12 +143,17 @@ export function applyCategoryImagesToBlockProps(
   const shouldFill = (field: string) => forceRefresh || !next[field]
 
   if (blockType.includes('hero')) {
-    if (shouldFill('bg_image_url')) next.bg_image_url = nextUrl()
-    if (blockType === 'hero_split' || next.layout === 'split') {
-      if (shouldFill('image_url')) next.image_url = nextUrl()
+    const needsBg = heroUsesBackgroundImage(blockType, next)
+    const needsSide = heroUsesSideImage(blockType, next)
+    if (needsBg) {
+      if (shouldFill('bg_image_url')) next.bg_image_url = nextUrl()
+    } else if (forceRefresh) {
+      delete next.bg_image_url
     }
-    if (next.bg_style === 'image' && shouldFill('bg_image_url')) {
-      next.bg_image_url = nextUrl()
+    if (needsSide) {
+      if (shouldFill('image_url')) next.image_url = nextUrl()
+    } else if (forceRefresh) {
+      delete next.image_url
     }
   }
 

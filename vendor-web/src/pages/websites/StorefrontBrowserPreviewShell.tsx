@@ -4,7 +4,17 @@ import { AlertTriangle, Loader2, X } from 'lucide-react'
 import { DraftPreviewRenderer } from '@/components/websites/DraftPreviewRenderer'
 import { fetchPublicPreviewByToken } from '@/lib/publicSitePreview'
 import { rememberDraftPreviewToken } from '@/lib/draftPreviewNavigation'
-import { subscribeDraftPreviewUpdates, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
+import {
+  subscribeDraftPreviewUpdates,
+  rememberDraftPreviewSession,
+  subscribePreviewTabNavigate,
+  consumePendingPreviewTabNavigate,
+  peekPendingPreviewTabNavigate,
+  clearPendingPreviewTabNavigate,
+  PREVIEW_NAV_MESSAGE_TYPE,
+  type PreviewTabPostMessage,
+} from '@/lib/draftPreviewSync'
+import { DRAFT_BROWSER_PREVIEW_PATH, DRAFT_PREVIEW_PENDING_PARAM } from '@/lib/storefrontPreviewUrl'
 import { getStorefrontAppOrigin, getVendorPreviewOrigin } from '@/lib/storefrontPreviewUrl'
 import { isSameLoopbackOrigin } from '@/lib/loopbackHost'
 import { cn } from '@/lib/utils'
@@ -15,6 +25,19 @@ function isAllowedTemplateTarget(raw: string): boolean {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
     if (!isSameLoopbackOrigin(url.origin, getStorefrontAppOrigin())) return false
     return url.pathname.startsWith('/template-browser/')
+  } catch {
+    return false
+  }
+}
+
+function isAllowedPreviewNavigateUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw)
+    if (!isSameLoopbackOrigin(url.origin, window.location.origin) && url.origin !== window.location.origin) {
+      return false
+    }
+    const path = url.pathname.replace(/\/+$/, '') || '/'
+    return path === DRAFT_BROWSER_PREVIEW_PATH && Boolean(url.searchParams.get('token')?.trim())
   } catch {
     return false
   }
@@ -36,6 +59,7 @@ export default function StorefrontBrowserPreviewShell() {
     || (legacyTarget ? parseTokenFromLegacyTarget(legacyTarget) : null)
     || '').trim()
   const pageSlug = searchParams.get('page')?.trim() || null
+  const pending = searchParams.get(DRAFT_PREVIEW_PENDING_PARAM) === '1'
   const templateTarget = legacyTarget && isAllowedTemplateTarget(legacyTarget) ? legacyTarget : null
 
   const [site, setSite] = useState<Awaited<ReturnType<typeof fetchPublicPreviewByToken>> | null>(null)
@@ -69,6 +93,51 @@ export default function StorefrontBrowserPreviewShell() {
   }, [token])
 
   useEffect(() => {
+    const goToPreview = (navUrl: string) => {
+      if (!isAllowedPreviewNavigateUrl(navUrl)) return
+      clearPendingPreviewTabNavigate()
+      window.location.replace(navUrl)
+    }
+
+    const onWindowMessage = (ev: MessageEvent<PreviewTabPostMessage>) => {
+      if (ev.data?.type !== PREVIEW_NAV_MESSAGE_TYPE) return
+      if (typeof ev.data.url !== 'string') return
+      goToPreview(ev.data.url)
+    }
+    window.addEventListener('message', onWindowMessage)
+
+    const unsubscribeChannel = subscribePreviewTabNavigate(goToPreview)
+
+    if (pending && !token) {
+      const immediate = peekPendingPreviewTabNavigate()
+      if (immediate) {
+        goToPreview(immediate)
+        return () => {
+          window.removeEventListener('message', onWindowMessage)
+          unsubscribeChannel()
+        }
+      }
+      const pollId = window.setInterval(() => {
+        const nav = peekPendingPreviewTabNavigate()
+        if (nav) goToPreview(nav)
+      }, 200)
+      return () => {
+        window.clearInterval(pollId)
+        window.removeEventListener('message', onWindowMessage)
+        unsubscribeChannel()
+      }
+    }
+
+    const pendingNavigate = consumePendingPreviewTabNavigate()
+    if (pendingNavigate) goToPreview(pendingNavigate)
+
+    return () => {
+      window.removeEventListener('message', onWindowMessage)
+      unsubscribeChannel()
+    }
+  }, [pending, token])
+
+  useEffect(() => {
     if (!token) {
       setLoading(false)
       setError(templateTarget ? null : 'Missing preview token')
@@ -95,6 +164,18 @@ export default function StorefrontBrowserPreviewShell() {
   )
 
   const previewOrigin = getVendorPreviewOrigin()
+
+  if (pending && !token && !templateTarget) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-6">
+        <Loader2 className="h-10 w-10 animate-spin text-emerald-400 mb-4" />
+        <h1 className="text-lg font-semibold mb-2">Preparing draft preview…</h1>
+        <p className="text-sm text-gray-400 text-center max-w-md">
+          This tab will load your site as soon as the builder finishes saving the preview snapshot.
+        </p>
+      </div>
+    )
+  }
 
   if (!token && !templateTarget) {
     return (

@@ -1,0 +1,246 @@
+/* Platform landing — KITERP brand palette (#64C3A0) with Odoo-style layout */
+
+.font-odoo-script {
+  font-family: 'Caveat', 'Segoe Script', cursive;
+  font-weight: 600;
+}
+
+.font-odoo-body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.odoo-landing {
+  --kiterp-primary: #64c3a0;
+  --kiterp-primary-dark: #52b38f;
+  --kiterp-primary-deeper: #3d9a7a;
+  --kiterp-ink: #1e3d34;
+  --kiterp-highlight: #ffc954;
+  --kiterp-mint: #b8e8d6;
+  --kiterp-mint-bg: #eef9f4;
+  --kiterp-mint-soft: #d4f0e8;
+  color: var(--kiterp-ink);
+}
+
+.odoo-highlight {
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+}
+
+.odoo-highlight::after {
+  content: '';
+  position: absolute;
+  left: -0.08em;
+  right: -0.08em;
+  bottom: 0.08em;
+  height: 0.42em;
+  background: var(--kiterp-highlight);
+  opacity: 0.92;
+  border-radius: 2px;
+  transform: rotate(-1.2deg);
+  z-index: -1;
+}
+
+.odoo-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.odoo-underline svg {
+  position: absolute;
+  left: -4%;
+  bottom: -0.35em;
+  width: 108%;
+  height: 0.45em;
+  pointer-events: none;
+}
+
+.odoo-btn-primary {
+  background: var(--kiterp-primary);
+  color: #fff;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.odoo-btn-primary:hover {
+  background: var(--kiterp-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(100, 195, 160, 0.35);
+}
+
+.odoo-btn-secondary {
+  background: var(--kiterp-mint-soft);
+  color: var(--kiterp-primary-deeper);
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.odoo-btn-secondary:hover {
+  background: var(--kiterp-mint);
+}
+
+@keyframes odoo-sparkle-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.04) rotate(2deg); }
+}
+
+@keyframes odoo-float-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes odoo-app-pop {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.odoo-sparkle-burst {
+  animation: odoo-sparkle-pulse 3s ease-in-out infinite;
+}
+
+.odoo-reveal {
+  animation: odoo-float-up 0.75s ease-out both;
+}
+
+.odoo-app-tile {
+  animation: odoo-app-pop 0.5s ease-out both;
+}
+
+.odoo-app-tile:hover .odoo-app-icon {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 28px rgba(100, 195, 160, 0.22);
+}
+
+.odoo-app-icon {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.odoo-hand-note {
+  font-family: 'Caveat', cursive;
+  color: var(--kiterp-primary-deeper);
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+/* Odoo-style toggle — matches x_wd_corner_highlight_04 + form-switch */
+.odoo-imagine-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.odoo-imagine-toggle-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--kiterp-primary-deeper);
+  transition: color 0.2s ease;
+}
+
+.odoo-imagine-toggle:hover .odoo-imagine-toggle-label {
+  color: #3d9a7a;
+}
+
+.odoo-toggle-wrap {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Odoo corner_4.svg sparkle — same position as x_wd_corner_highlight_04 */
+.odoo-corner-highlight::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  left: -30px;
+  width: 60px;
+  height: 60px;
+  background-image: url('/landing/corner-sparkle.svg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+}
+
+.odoo-toggle-track {
+  display: inline-block;
+  width: 3rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: #d4ddd8;
+  position: relative;
+  transition: background 0.25s ease;
+}
+
+.odoo-toggle-track[data-on='true'] {
+  background: var(--kiterp-primary-deeper);
+}
+
+.odoo-toggle-thumb {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateY(-50%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(30, 61, 52, 0.2);
+}
+
+.odoo-toggle-track[data-on='true'] .odoo-toggle-thumb {
+  transform: translate(1.5rem, -50%);
+}
+
+@media (max-width: 575.98px) {
+  .odoo-corner-highlight::after {
+    display: none;
+  }
+}
+
+.odoo-mosaic-shape {
+  overflow: hidden;
+  background: var(--kiterp-mint-soft);
+}
+
+.odoo-mosaic-shape.leaf-tl {
+  border-radius: 0 50% 50% 50%;
+}
+
+.odoo-mosaic-shape.leaf-br {
+  border-radius: 50% 0 50% 50%;
+}
+
+.odoo-mosaic-shape.circle {
+  border-radius: 50%;
+}
+
+.odoo-mosaic-shape.rounded {
+  border-radius: 1.25rem;
+}
+
+.odoo-mosaic-shape.plum {
+  background: var(--kiterp-primary);
+}
+
+.odoo-mosaic-shape.gray {
+  background: #c5e8d8;
+}
+
+.odoo-curve-bg {
+  background: radial-gradient(ellipse 120% 80% at 50% 100%, var(--kiterp-mint-bg) 0%, #fff 55%);
+}
+
+.odoo-scribble-arrow {
+  stroke: var(--kiterp-primary-deeper);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+}

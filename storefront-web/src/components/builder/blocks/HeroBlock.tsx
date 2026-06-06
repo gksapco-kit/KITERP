@@ -3,6 +3,13 @@ import { ArrowRight } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { imgUrl } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { sanitizeWellnessBodyCopy, sanitizeWellnessCtaLabel } from '@/lib/wellnessTemplateCopy'
+import {
+  heroShouldUseFullBleedImage,
+  heroUsesBackgroundImage,
+  heroUsesSideImage,
+  resolveGradientCss,
+} from '@/lib/heroLayoutUtils'
 
 interface Props {
   site: PublicSite
@@ -24,41 +31,46 @@ function borderRadiusPx(style: StyleConfig): number {
 export default function HeroBlock({ site, style, props, blockType }: Props) {
   const { storePath } = useVendor()
 
-  const headline = (props.headline as string) || site.name || 'Welcome'
-  const headlineLine2 = (props.headline_line2 as string) || ''
-  const eyebrow = (props.eyebrow as string) || ''
+  const headline = sanitizeWellnessBodyCopy((props.headline as string) || site.name || 'Welcome')
+  const headlineLine2 = sanitizeWellnessBodyCopy((props.headline_line2 as string) || '')
+  const eyebrow = sanitizeWellnessBodyCopy((props.eyebrow as string) || '')
   const eyebrowPlain = props.eyebrow_plain === true
-  const subtitle = (props.subtitle as string) || site.description || ''
-  const ctaPrimary = (props.cta_primary as string) || 'Get Started'
-  const ctaSecondary = (props.cta_secondary as string | null) || null
+  const subtitle = sanitizeWellnessBodyCopy((props.subtitle as string) || site.description || '')
+  const ctaPrimary = sanitizeWellnessBodyCopy((props.cta_primary as string) || 'Get Started')
+  const ctaSecondaryRaw = (props.cta_secondary as string | null) || null
+  const ctaSecondary = ctaSecondaryRaw ? sanitizeWellnessCtaLabel(ctaSecondaryRaw) : null
   const ctaUrl = (props.cta_primary_url as string) || (props.cta_url as string) || '/products'
   const ctaSecUrl = (props.cta_secondary_url as string) || '/about'
   const bgStyle = (props.bg_style as string) || 'gradient'
   const layout = (props.layout as string) || 'centered'
 
-  const isSplit = blockType === 'hero_split' || layout === 'split'
+  const isSplit = heroUsesSideImage(blockType, props)
   const isMinimal = blockType === 'hero_minimal' || bgStyle === 'minimal'
 
   const gradientFrom = props.gradient_from as string | undefined
   const gradientTo = props.gradient_to as string | undefined
   const gradientDir = (props.gradient_dir as string) || '135deg'
+  const gradientPreset = props.gradient_preset as string | undefined
   const heroGrad =
     gradientFrom && gradientTo
       ? `linear-gradient(${gradientDir}, ${gradientFrom}, ${gradientTo})`
-      : `linear-gradient(135deg, ${style.primary_color}, ${style.secondary_color})`
+      : resolveGradientCss(gradientPreset, style.primary_color, style.secondary_color || style.primary_color)
 
-  const heroImageRaw =
-    (props.bg_image_url as string | undefined) ||
-    (bgStyle === 'image' ? (props.image_url as string | undefined) : undefined)
-  const sideImageRaw = (props.image_url as string | undefined) || (props.bg_image_url as string | undefined)
+  const wantsBgImage = heroUsesBackgroundImage(blockType, props)
+  const heroImageRaw = wantsBgImage
+    ? ((props.bg_image_url as string | undefined)
+      || (bgStyle === 'image' ? (props.image_url as string | undefined) : undefined))
+    : undefined
+  const sideImageRaw = isSplit
+    ? ((props.image_url as string | undefined) || (props.bg_image_url as string | undefined))
+    : undefined
   const heroImageUrl = heroImageRaw ? imgUrl(heroImageRaw) : undefined
   const sideImageUrl = sideImageRaw ? imgUrl(sideImageRaw) : undefined
 
   const hasSideImage = isSplit && !!sideImageUrl
   const hasBgImg = !!heroImageUrl
-  const useFullBleedImageBg = hasBgImg && !hasSideImage
-  const heroUsesImageBg = useFullBleedImageBg && hasBgImg
-  const splitSideBySide = isSplit && hasSideImage && !useFullBleedImageBg
+  const heroUsesImageBg = heroShouldUseFullBleedImage(blockType, props, hasBgImg)
+  const splitSideBySide = isSplit && hasSideImage && !heroUsesImageBg
 
   const heroBg = heroUsesImageBg
     ? undefined
@@ -73,7 +85,7 @@ export default function HeroBlock({ site, style, props, blockType }: Props) {
             : bgStyle === 'image'
               ? undefined
               : isMinimal
-                ? style.bg_color
+                ? ((props.bg_color as string) || style.bg_color)
                 : `linear-gradient(135deg, ${style.bg_color}, ${style.surface_color})`
 
   const heroBgImage = heroUsesImageBg ? `url(${heroImageUrl})` : undefined
@@ -82,7 +94,7 @@ export default function HeroBlock({ site, style, props, blockType }: Props) {
     bgStyle === 'gradient' ||
     bgStyle === 'dark' ||
     bgStyle === 'image' ||
-    bgStyle === 'solid'
+    (bgStyle === 'solid' && !isMinimal)
   const heroText = isDark && !splitSideBySide ? '#fff' : style.text_color
   const heroSubText = isDark && !splitSideBySide ? 'rgba(255,255,255,0.82)' : `${style.text_color}cc`
 
@@ -262,9 +274,9 @@ export default function HeroBlock({ site, style, props, blockType }: Props) {
       }
     >
       {heroUsesImageBg && bgStyle === 'gradient' && (
-        <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: 0.82 }} />
+        <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: props.overlay === false ? 0.55 : 0.82 }} />
       )}
-      {heroUsesImageBg && bgStyle !== 'gradient' && props.overlay !== false && (
+      {heroUsesImageBg && bgStyle === 'image' && props.overlay !== false && (
         <div className="absolute inset-0 bg-black/45 z-0" />
       )}
 

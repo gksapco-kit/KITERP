@@ -2,7 +2,7 @@ import type { StyleConfig } from '@/types/websites'
 
 /** Maps guided-setup business type → gallery image pack used for starter layouts. */
 export const BUSINESS_TYPE_IMAGE_CATEGORY: Record<string, string> = {
-  retail: 'store',
+  retail: 'wellness',
   services: 'shop',
   restaurant: 'catering-service',
   fashion: 'shop',
@@ -93,12 +93,13 @@ const BASE_STYLE_DEFAULTS: Partial<StyleConfig> = {
 export const BUSINESS_STYLE_PRESETS: Record<string, Partial<StyleConfig>> = {
   retail: {
     ...BASE_STYLE_DEFAULTS,
-    primary_color: '#64C3A0',
-    secondary_color: '#2D6A4F',
-    accent_color: '#40916C',
-    bg_color: '#ffffff',
-    surface_color: '#f8faf9',
-    text_color: '#1a1a2e',
+    primary_color: '#274832',
+    secondary_color: '#4A7A58',
+    accent_color: '#E07A5F',
+    bg_color: '#F9F9F5',
+    surface_color: '#FFFFFF',
+    text_color: '#182E20',
+    font_heading: 'DM Serif Display',
   },
   services: {
     ...BASE_STYLE_DEFAULTS,

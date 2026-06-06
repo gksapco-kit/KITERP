@@ -107,7 +107,7 @@ export function mergeLayoutBlockProps(
     'variant', 'padding_top', 'padding_bottom', 'align', 'show_calendar', 'grayscale',
     'aspect_ratio', 'show_caption', 'show_newsletter', 'cta_square', 'eyebrow_plain',
     'item_gap', 'max_width', 'show_images', 'bg_color', 'show_annual_toggle', 'card_style',
-    'image_shape', 'footer_bg', 'footer_heading', 'footer_muted', 'footer_border',
+    'image_shape', 'use_icons', 'show_numbers', 'item_gap', 'footer_bg', 'footer_heading', 'footer_muted', 'footer_border',
     'color', 'show_close',
   ] as const
   for (const key of LAYOUT_SHELL_PROP_KEYS) {

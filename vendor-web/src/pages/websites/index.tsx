@@ -44,13 +44,13 @@ import { format } from 'date-fns'
 const BUSINESS_PRESETS = [
   {
     id: 'retail',
-    label: 'Retail Store',
-    icon: '🛍️',
-    desc: 'Products, offers, reviews, cart, checkout',
-    niche: 'retail ecommerce',
-    defaultName: 'My Retail Store',
+    label: 'Healthy Retail',
+    icon: '🥗',
+    desc: 'Snacks, groceries, beverages, wellness',
+    niche: 'healthy food and wellness retail',
+    defaultName: 'My Wellness Store',
     sells: 'products',
-    prompt: 'Create a polished online retail store with product showcase, offer banner, featured categories, customer reviews, payment methods, FAQ, contact details, cart and checkout sections.',
+    prompt: 'Create a healthy retail website with announcement bar, plant-based marquee highlights, split hero, shop-by-category cards, bestsellers grid, product highlights, why-choose-us features, our story timeline, testimonials, gifting CTA, FAQ, and newsletter.',
   },
   {
     id: 'services',
