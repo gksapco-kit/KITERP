@@ -1,36 +1,128 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useTickets, useSaveTicket } from '@/hooks/useCrm'
+import { useHREmployees, useMyMembership } from '@/hooks/useVendor'
+import { useAuthStore } from '@/stores/authStore'
+import type { EmployeeProfile } from '@/types'
 import { Plus, Loader2, LifeBuoy, AlertTriangle, Eye } from 'lucide-react'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { useCrmExtras, CrmScheduleRow } from './crmExtras'
+import {
+  inputCls, empDisplayName, findMyEmployee,
+  CrmPeopleRow, MonitorSection, validateCrmPeopleRow,
+} from './crmFormShared'
 import { formatDateTime } from '@/lib/utils'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 const STATUSES = ['open', 'pending', 'on_hold', 'resolved', 'closed']
+const SOURCES = ['web', 'email', 'chat', 'phone', 'api', 'manual']
+
+const TICKET_TYPES = [
+  { id: 'incident', label: 'Incident' },
+  { id: 'service_request', label: 'Service request' },
+  { id: 'question', label: 'Question' },
+  { id: 'bug', label: 'Bug' },
+  { id: 'billing', label: 'Billing' },
+  { id: 'technical_support', label: 'Technical support' },
+  { id: 'followup', label: 'Follow-up' },
+  { id: 'other', label: 'Other' },
+]
 
 function TicketForm({ onClose }: { onClose: () => void }) {
   const save = useSaveTicket()
+  const extras = useCrmExtras()
+  const { data: empData } = useHREmployees({ limit: 200 })
+  const { data: membership } = useMyMembership()
+  const employees: EmployeeProfile[] = empData?.items ?? []
+  const user = useAuthStore(st => st.user)
+  const meName = user?.full_name || user?.email || 'Me'
+  const monitorDefaultSet = useRef(false)
+
+  const myEmployee = useMemo(
+    () => findMyEmployee(employees, user, membership?.user_id),
+    [employees, user, membership?.user_id],
+  )
+
   const [form, setForm] = useState({
-    subject: '', description: '', priority: 'normal', source: 'web',
+    type: 'incident', type_other: '',
+    subject: '', description: '',
+    priority: 'normal', status: 'open', source: 'web',
+    due_at: '', reminder_at: '', duration_minutes: '',
+    participant_type: '', participant_value: '', participant_external: '',
+    responsible: meName, notes: '',
+    monitor_manager_id: '', monitor_additional: '',
   })
+
+  useEffect(() => {
+    if (monitorDefaultSet.current || !myEmployee?.manager_id) return
+    setForm(p => (p.monitor_manager_id ? p : { ...p, monitor_manager_id: myEmployee.manager_id! }))
+    monitorDefaultSet.current = true
+  }, [myEmployee?.manager_id])
+
+  const set = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) =>
+    setForm(p => ({ ...p, [key]: val }))
+
+  const buildPayload = () => {
+    let contact_id: string | undefined
+    let account_id: string | undefined
+    let assigned_to: string | undefined
+    let description = form.description.trim()
+
+    if (form.participant_type === 'customer' && form.participant_value) {
+      const [kind, id] = form.participant_value.split(':')
+      if (kind === 'account') account_id = id
+      else if (kind === 'contact') contact_id = id
+    } else if (form.participant_type === 'internal' && form.participant_value) {
+      assigned_to = form.participant_value
+    } else if (form.participant_type === 'external' && form.participant_external.trim()) {
+      const tag = `[External: ${form.participant_external.trim()}]`
+      description = description ? `${tag}\n${description}` : tag
+    }
+
+    const custom_fields = extras.serialize({
+      ticket_type: form.type,
+      type_label: form.type === 'other' ? form.type_other.trim() : undefined,
+      responsible_name: form.responsible.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+      monitor_manager_id: form.monitor_manager_id || undefined,
+      monitor_additional: form.monitor_additional.trim() || undefined,
+      due_at: form.due_at || undefined,
+      reminder_at: form.reminder_at || undefined,
+      duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : undefined,
+    })
+    const hasCustom = Object.keys(custom_fields).length > 0
+
+    return {
+      subject: form.subject.trim(),
+      description: description || undefined,
+      priority: form.priority,
+      status: form.status,
+      source: form.source,
+      contact_id,
+      account_id,
+      assigned_to,
+      custom_fields: hasCustom ? custom_fields : undefined,
+    }
+  }
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.subject.trim()) return
+    if (form.type === 'other' && !form.type_other.trim()) return
+    const peopleErr = validateCrmPeopleRow(form)
+    if (peopleErr) {
+      toast.error(peopleErr)
+      return
+    }
+
     save.mutate(
-      {
-        data: {
-          subject: form.subject,
-          description: form.description || undefined,
-          priority: form.priority,
-          source: form.source,
-        },
-      },
+      { data: buildPayload() },
       {
         onSuccess: () => {
           toast.success('Ticket created')
@@ -40,33 +132,101 @@ function TicketForm({ onClose }: { onClose: () => void }) {
       },
     )
   }
+
   return (
-    <CrmModal title="New ticket" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
-        <Field label="Subject" required>
-          <Input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} />
-        </Field>
-        <Field label="Description">
-          <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
+    <CrmModal title="New ticket" onClose={onClose} maxW="max-w-5xl">
+      <form onSubmit={submit} className="space-y-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <Field label="Type" required>
+            <select
+              value={form.type}
+              onChange={e => setForm(p => ({ ...p, type: e.target.value, type_other: e.target.value === 'other' ? p.type_other : '' }))}
+              className={inputCls}
+            >
+              {TICKET_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </Field>
           <Field label="Priority">
-            <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+            <select value={form.priority} onChange={e => set('priority', e.target.value)} className={inputCls}>
               {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </Field>
-          <Field label="Source">
-            <select value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-              {['web', 'email', 'chat', 'phone', 'api'].map(s => <option key={s} value={s}>{s}</option>)}
+          <Field label="Status">
+            <select value={form.status} onChange={e => set('status', e.target.value)} className={inputCls}>
+              {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
             </select>
           </Field>
         </div>
-        <div className="flex gap-3 pt-2">
+
+        {form.type === 'other' && (
+          <Field label="Specify type" required>
+            <Input
+              value={form.type_other}
+              onChange={e => set('type_other', e.target.value)}
+              placeholder="Enter ticket type…"
+            />
+          </Field>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <Field label="Subject" required>
+            <Input value={form.subject} onChange={e => set('subject', e.target.value)} placeholder="Brief summary" className="h-9" />
+          </Field>
+          <Field label="Source">
+            <select value={form.source} onChange={e => set('source', e.target.value)} className={inputCls}>
+              {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </Field>
+        </div>
+
+        <Field label="Description">
+          <textarea value={form.description} onChange={e => set('description', e.target.value)}
+            placeholder="Issue details or customer request…"
+            className="flex min-h-[56px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        </Field>
+
+        <CrmPeopleRow
+          participantType={form.participant_type}
+          participantValue={form.participant_value}
+          participantExternal={form.participant_external}
+          onParticipantTypeChange={v => setForm(p => ({ ...p, participant_type: v, participant_value: '', participant_external: '' }))}
+          onParticipantValue={v => set('participant_value', v)}
+          onParticipantExternal={v => set('participant_external', v)}
+          responsible={form.responsible}
+          onResponsible={v => set('responsible', v)}
+          meName={meName}
+          employees={employees}
+        />
+
+        <MonitorSection
+          managerId={form.monitor_manager_id}
+          additional={form.monitor_additional}
+          employees={employees}
+          onManager={id => set('monitor_manager_id', id)}
+          onAdditional={v => set('monitor_additional', v)}
+        />
+
+        <CrmScheduleRow
+          dueAt={form.due_at}
+          onDueAt={v => set('due_at', v)}
+          reminderAt={form.reminder_at}
+          onReminderAt={v => set('reminder_at', v)}
+          duration={form.duration_minutes}
+          onDuration={v => set('duration_minutes', v)}
+        />
+
+        <Field label="Notes">
+          <Input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Internal notes…" className="h-9" />
+        </Field>
+
+        {extras.actionToolbar}
+        {extras.documentsSection}
+        {extras.photosSection}
+        {extras.sections}
+
+        <div className="flex gap-3 pt-2 sticky bottom-0 bg-white border-t -mx-6 px-6 py-3 mt-2">
           <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending}>
+          <Button type="submit" className="flex-1" disabled={save.isPending || (form.type === 'other' && !form.type_other.trim())}>
             {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
             Create
           </Button>

@@ -33,6 +33,7 @@ async def a_lead(db_session, test_vendor: Vendor) -> CrmLead:
     lead = CrmLead(
         id=uuid.uuid4(),
         vendor_id=test_vendor.id,
+        number="LED-000001",
         first_name="Jane",
         last_name="Prospect",
         company="Acme Corp",
@@ -126,8 +127,34 @@ async def test_lead_not_visible_to_other_vendor(db_session, test_vendor, a_lead)
 
 
 @pytest.mark.asyncio
+async def test_entity_numbers_are_separate_per_tracker(db_session, test_vendor):
+    """Each CRM entity type gets its own vendor-scoped sequence."""
+    account_svc = AccountService(db_session)
+    lead_svc = LeadService(db_session)
+
+    from types import SimpleNamespace
+
+    a1 = await account_svc.create(
+        test_vendor.id,
+        SimpleNamespace(model_dump=lambda **_: {"name": "Co A"}),
+    )
+    a2 = await account_svc.create(
+        test_vendor.id,
+        SimpleNamespace(model_dump=lambda **_: {"name": "Co B"}),
+    )
+    assert a1.number == "ACC-000001"
+    assert a2.number == "ACC-000002"
+
+    l1 = await lead_svc.create(
+        test_vendor.id,
+        SimpleNamespace(model_dump=lambda **_: {"first_name": "Ann", "company": "X"}),
+    )
+    assert l1.number == "LED-000001"
+
+
+@pytest.mark.asyncio
 async def test_account_not_visible_to_other_vendor(db_session, test_vendor):
-    account = CrmAccount(id=uuid.uuid4(), vendor_id=test_vendor.id, name="Private Co")
+    account = CrmAccount(id=uuid.uuid4(), vendor_id=test_vendor.id, number="ACC-000001", name="Private Co")
     db_session.add(account)
     await db_session.commit()
 

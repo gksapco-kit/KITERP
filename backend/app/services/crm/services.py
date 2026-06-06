@@ -36,6 +36,7 @@ from app.repositories.crm.repos import (
     TicketCommentRepo, TicketRepo, WorkflowRepo, WorkflowRunRepo,
 )
 from app.services.crm.audit_service import AuditService
+from app.services.crm.numbering import next_crm_number
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,8 @@ class AccountService:
 
     async def create(self, vendor_id: UUID, data, *, actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> CrmAccount:
-        obj = CrmAccount(vendor_id=vendor_id, **data.model_dump(exclude_unset=True))
+        number = await next_crm_number(self.db, vendor_id, CrmAccount, "ACC")
+        obj = CrmAccount(vendor_id=vendor_id, number=number, **data.model_dump(exclude_unset=True))
         self.db.add(obj)
         await self.db.commit()
         await self.db.refresh(obj)
@@ -125,6 +127,7 @@ class ContactService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repo = ContactRepo(db)
+        self.account_repo = AccountRepo(db)
         self.audit = AuditService(db)
 
     async def list(self, vendor_id: UUID, **kwargs):
@@ -136,10 +139,61 @@ class ContactService:
             raise HTTPException(status_code=404, detail="Contact not found")
         return obj
 
+    async def _sync_company_account(self, vendor_id: UUID, contact: CrmContact) -> None:
+        if contact.record_type != "company":
+            return
+        payload = {
+            "name": contact.first_name,
+            "industry": contact.industry,
+            "region": contact.region,
+            "website": contact.website,
+            "phone": contact.phone,
+            "email": contact.email,
+            "annual_revenue": contact.annual_revenue,
+            "employee_count": contact.employee_count,
+            "tags": contact.tags,
+            "notes": contact.notes,
+            "owner_id": contact.owner_id,
+            "is_active": contact.is_active,
+        }
+        if contact.linked_account_id:
+            acc = await self.account_repo.get(vendor_id, contact.linked_account_id)
+            if acc:
+                _apply_updates(acc, payload)
+                if contact.number and not acc.number:
+                    acc.number = contact.number
+        else:
+            number = contact.number or await next_crm_number(self.db, vendor_id, CrmAccount, "ACC")
+            acc = CrmAccount(vendor_id=vendor_id, number=number, **payload)
+            self.db.add(acc)
+            await self.db.flush()
+            contact.linked_account_id = acc.id
+            if not contact.number:
+                contact.number = number
+
+    async def _link_person_to_company(self, vendor_id: UUID, contact: CrmContact) -> None:
+        if contact.record_type != "person" or not contact.parent_contact_id:
+            return
+        parent = await self.repo.get(vendor_id, contact.parent_contact_id)
+        if not parent or parent.record_type != "company":
+            return
+        if parent.linked_account_id:
+            contact.account_id = parent.linked_account_id
+
     async def create(self, vendor_id: UUID, data, *, actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> CrmContact:
-        obj = CrmContact(vendor_id=vendor_id, **data.model_dump(exclude_unset=True))
+        payload = data.model_dump(exclude_unset=True)
+        record_type = payload.get("record_type") or "person"
+        payload["record_type"] = record_type
+        if record_type == "company" and not payload.get("number"):
+            payload["number"] = await next_crm_number(self.db, vendor_id, CrmContact, "ACC")
+        obj = CrmContact(vendor_id=vendor_id, **payload)
         self.db.add(obj)
+        await self.db.flush()
+        if record_type == "company":
+            await self._sync_company_account(vendor_id, obj)
+        else:
+            await self._link_person_to_company(vendor_id, obj)
         await self.db.commit()
         await self.db.refresh(obj)
         await self.audit.log(
@@ -154,6 +208,10 @@ class ContactService:
                      request: Optional[Request] = None) -> CrmContact:
         obj = await self.get(vendor_id, contact_id)
         before = _apply_updates(obj, data.model_dump(exclude_unset=True))
+        if obj.record_type == "company":
+            await self._sync_company_account(vendor_id, obj)
+        else:
+            await self._link_person_to_company(vendor_id, obj)
         await self.db.commit()
         await self.db.refresh(obj)
         await self.audit.log(
@@ -194,7 +252,8 @@ class LeadService:
 
     async def create(self, vendor_id: UUID, data, *, actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> CrmLead:
-        obj = CrmLead(vendor_id=vendor_id, **data.model_dump(exclude_unset=True))
+        number = await next_crm_number(self.db, vendor_id, CrmLead, "LED")
+        obj = CrmLead(vendor_id=vendor_id, number=number, **data.model_dump(exclude_unset=True))
         self.db.add(obj)
         await self.db.commit()
         await self.db.refresh(obj)
@@ -275,8 +334,12 @@ class LeadService:
         if payload.account_id:
             account = await AccountRepo(self.db).get(vendor_id, payload.account_id)
         elif lead.company:
-            account = CrmAccount(vendor_id=vendor_id, name=lead.company,
-                                 owner_id=lead.assigned_to)
+            account = CrmAccount(
+                vendor_id=vendor_id,
+                number=await next_crm_number(self.db, vendor_id, CrmAccount, "ACC"),
+                name=lead.company,
+                owner_id=lead.assigned_to,
+            )
             self.db.add(account)
             await self.db.flush()
 
@@ -311,6 +374,7 @@ class LeadService:
                 raise HTTPException(status_code=400, detail="No pipeline stage available")
             deal = CrmDeal(
                 vendor_id=vendor_id,
+                number=await next_crm_number(self.db, vendor_id, CrmDeal, "DEAL"),
                 pipeline_id=pipeline_id,
                 stage_id=stage_id,
                 title=payload.deal_title or (lead.company or f"{lead.first_name or 'Lead'} opportunity"),
@@ -516,7 +580,8 @@ class DealService:
 
     async def create(self, vendor_id: UUID, data, *, actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> CrmDeal:
-        obj = CrmDeal(vendor_id=vendor_id, **data.model_dump(exclude_unset=True))
+        number = await next_crm_number(self.db, vendor_id, CrmDeal, "DEAL")
+        obj = CrmDeal(vendor_id=vendor_id, number=number, **data.model_dump(exclude_unset=True))
         self.db.add(obj)
         await self.db.commit()
         await self.db.refresh(obj)
@@ -615,7 +680,8 @@ class ActivityService:
         payload = data.model_dump(exclude_unset=True)
         if "owner_id" not in payload or payload["owner_id"] is None:
             payload["owner_id"] = actor_id
-        obj = CrmActivity(vendor_id=vendor_id, **payload)
+        number = await next_crm_number(self.db, vendor_id, CrmActivity, "TSK")
+        obj = CrmActivity(vendor_id=vendor_id, number=number, **payload)
         self.db.add(obj)
         await self.db.commit()
         await self.db.refresh(obj)
@@ -1454,13 +1520,69 @@ class IntakeTokenService:
 
 # ── Reports ──────────────────────────────────────────────────────────────────
 
+_CRM_RANGE_DAYS = {
+    "30d": 30,
+    "3m": 92,
+    "6m": 183,
+    "1y": 365,
+    "2y": 730,
+    "5y": 1825,
+    "10y": 3650,
+}
+
+
 class ReportService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def overview(self, vendor_id: UUID) -> dict:
+    async def _bucket_series(
+        self,
+        vendor_id: UUID,
+        *,
+        days: int,
+        buckets: int = 14,
+        count_model=None,
+        sum_model=None,
+        sum_col=None,
+        extra=None,
+    ) -> list[float]:
+        from datetime import timedelta
         from sqlalchemy import func as sa_func
-        # Counts
+
+        extra = list(extra or [])
+        model = sum_model or count_model
+        if model is None:
+            return [0.0] * buckets
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(days=days)
+        step = max(days / buckets, 1)
+        out: list[float] = []
+        for i in range(buckets):
+            b_start = start + timedelta(days=i * step)
+            b_end = start + timedelta(days=(i + 1) * step)
+            window = [
+                model.vendor_id == vendor_id,
+                model.created_at >= b_start,
+                model.created_at < b_end,
+                *extra,
+            ]
+            if sum_col is not None:
+                row = await self.db.execute(
+                    select(sa_func.coalesce(sa_func.sum(sum_col), 0)).where(*window)
+                )
+                out.append(float(row.scalar_one() or 0))
+            else:
+                row = await self.db.execute(
+                    select(sa_func.coalesce(sa_func.count(), 0)).select_from(model).where(*window)
+                )
+                out.append(float(row.scalar_one() or 0))
+        return out
+
+    async def overview(self, vendor_id: UUID, range_key: str = "30d") -> dict:
+        from sqlalchemy import func as sa_func
+
+        days = _CRM_RANGE_DAYS.get(range_key, 30)
+
         async def _count(model, *extra):
             row = await self.db.execute(
                 select(sa_func.count()).select_from(model).where(
@@ -1469,30 +1591,112 @@ class ReportService:
             )
             return int(row.scalar_one() or 0)
 
-        contacts = await _count(CrmContact)
+        try:
+            persons = await _count(CrmContact, CrmContact.record_type != "company")
+        except Exception:
+            persons = await _count(CrmContact)
+
+        try:
+            companies = await _count(CrmContact, CrmContact.record_type == "company")
+        except Exception:
+            companies = await _count(CrmAccount)
+
+        total_leads = await _count(CrmLead)
         leads_open = await _count(CrmLead, CrmLead.status != "converted")
         deals_open = await _count(CrmDeal, CrmDeal.status == "open")
         deals_won = await _count(CrmDeal, CrmDeal.status == "won")
-        tickets_open = await _count(CrmTicket, CrmTicket.status.in_(("open", "pending", "on_hold")))
+        tickets_open = await _count(
+            CrmTicket, CrmTicket.status.in_(("open", "pending", "on_hold")),
+        )
+        tickets_overdue = await _count(CrmTicket, CrmTicket.sla_breached.is_(True))
+        pending_tasks = await _count(
+            CrmActivity,
+            CrmActivity.status.in_(("open", "in_progress", "pending")),
+        )
         active_workflows = await _count(CrmWorkflow, CrmWorkflow.status == "active")
         active_campaigns = await _count(CrmCampaign, CrmCampaign.status == "active")
 
-        # Pipeline forecast
         forecast = await DealService(self.db).forecast(vendor_id)
-        # Won amount
+        pipeline_value = float(forecast.get("total") or forecast.get("pipeline_total") or 0)
+        weighted_value = float(forecast.get("weighted") or forecast.get("weighted_total") or 0)
+
         row = await self.db.execute(
             select(sa_func.coalesce(sa_func.sum(CrmDeal.amount), 0)).where(
                 CrmDeal.vendor_id == vendor_id, CrmDeal.status == "won",
             )
         )
         won_total = float(row.scalar_one() or 0)
+        conversion_rate = (deals_won / total_leads * 100) if total_leads else 0.0
+
+        person_extra = [CrmContact.record_type != "company"]
+        company_extra = [CrmContact.record_type == "company"]
+        try:
+            person_trend = await self._bucket_series(
+                vendor_id, days=days, count_model=CrmContact, extra=person_extra,
+            )
+            company_trend = await self._bucket_series(
+                vendor_id, days=days, count_model=CrmContact, extra=company_extra,
+            )
+        except Exception:
+            person_trend = await self._bucket_series(
+                vendor_id, days=days, count_model=CrmContact,
+            )
+            company_trend = await self._bucket_series(
+                vendor_id, days=days, count_model=CrmAccount,
+            )
+
+        contacts_companies_trend = [
+            person_trend[i] + company_trend[i] for i in range(len(person_trend))
+        ]
+
+        trends = {
+            "contacts_companies": contacts_companies_trend,
+            "leads": await self._bucket_series(
+                vendor_id, days=days, count_model=CrmLead,
+            ),
+            "conversion": await self._bucket_series(
+                vendor_id, days=days, count_model=CrmDeal,
+                extra=[CrmDeal.status == "won"],
+            ),
+            "pipeline": await self._bucket_series(
+                vendor_id, days=days, sum_model=CrmDeal, sum_col=CrmDeal.amount,
+            ),
+            "deals": await self._bucket_series(
+                vendor_id, days=days, count_model=CrmDeal,
+                extra=[CrmDeal.status == "open"],
+            ),
+            "tickets": await self._bucket_series(
+                vendor_id, days=days, count_model=CrmTicket,
+                extra=[CrmTicket.status.in_(("open", "pending", "on_hold"))],
+            ),
+            "tasks": await self._bucket_series(
+                vendor_id, days=days, count_model=CrmActivity,
+            ),
+        }
+
         return {
-            "contacts": contacts, "leads_open": leads_open,
-            "deals_open": deals_open, "deals_won": deals_won,
-            "tickets_open": tickets_open, "won_total": won_total,
+            "contacts": persons + companies,
+            "total_contacts": persons,
+            "total_companies": companies,
+            "total_leads": total_leads,
+            "leads_open": leads_open,
+            "open_leads": leads_open,
+            "deals_open": deals_open,
+            "open_deals": deals_open,
+            "deals_won": deals_won,
+            "tickets_open": tickets_open,
+            "open_tickets": tickets_open,
+            "overdue_tickets": tickets_overdue,
+            "pending_activities": pending_tasks,
+            "won_total": won_total,
+            "conversion_rate": round(conversion_rate, 1),
+            "pipeline_value": pipeline_value,
+            "weighted_value": weighted_value,
             "active_campaigns": active_campaigns,
             "active_workflows": active_workflows,
             "pipeline_forecast": forecast,
+            "range": range_key,
+            "trends": trends,
         }
 
     async def sales_performance(self, vendor_id: UUID) -> dict:

@@ -193,7 +193,10 @@ export default function LeadsPage() {
               ) : data.items.map(l => (
                 <tr key={l.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
-                    <p className="text-sm font-medium">{[l.first_name, l.last_name].filter(Boolean).join(' ') || '—'}</p>
+                    <p className="text-sm font-medium">
+                      {l.number && <span className="font-mono text-xs text-gray-400 mr-1.5">{l.number}</span>}
+                      {[l.first_name, l.last_name].filter(Boolean).join(' ') || '—'}
+                    </p>
                     <p className="text-xs text-gray-500">{l.email || l.phone || '—'}</p>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{l.company || '—'}</td>

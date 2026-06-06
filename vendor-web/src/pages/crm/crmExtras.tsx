@@ -21,7 +21,8 @@ import {
 } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
 import { crmApi } from '@/api/crm'
-import { formatDateTime } from '@/lib/utils'
+import { formatDateTime, cn } from '@/lib/utils'
+import { Field } from './_shared'
 import { MediaUploadPickerModal, galleryImageToFile } from '@/components/common/MediaUploadPickerModal'
 
 // Common dialing codes; default to India (+91) given the primary market.
@@ -76,6 +77,9 @@ export function amountInWords(num: number): string {
 // Keys managed by dedicated UI — kept out of the free-form "custom fields" list.
 export const RESERVED_CUSTOM_KEYS = [
   'company', 'location', 'photos', 'reminders', 'schedules', 'documents',
+  'checklist', 'responsible_name', 'notes', 'owner_name', 'type_label',
+  'monitor_manager_id', 'monitor_additional',
+  'ticket_type', 'due_at', 'reminder_at', 'duration_minutes',
 ]
 
 /** Split a stored "+91 98765 43210" into a country code + the remaining number. */
@@ -96,6 +100,324 @@ export function asArray(v: unknown): Record<string, unknown>[] {
   return Array.isArray(v) ? (v.filter(x => x && typeof x === 'object') as Record<string, unknown>[]) : []
 }
 export const str = (v: unknown) => (v == null ? '' : String(v))
+
+const crmSectionLabelCls = 'text-xs font-medium text-gray-500 flex items-center gap-1'
+const crmSectionIconCls = 'w-3 h-3'
+const crmIconActionCls =
+  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition-colors disabled:opacity-50 disabled:pointer-events-none'
+
+function CrmIconAction({
+  title, onClick, disabled, children, active,
+}: {
+  title: string
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+  active?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(crmIconActionCls, active && 'border-primary/40 bg-primary/5 text-primary')}
+    >
+      {children}
+    </button>
+  )
+}
+
+const crmPresetBtnBase =
+  'text-[10px] leading-tight px-2 py-0.5 rounded-full border transition-colors'
+
+type CrmUrgencyTone = 'green' | 'golden' | 'pink'
+
+/** Calendar days from today to *value* (negative = overdue). */
+export function crmCalendarDaysUntil(value?: string): number | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const startOfTarget = new Date(d)
+  startOfTarget.setHours(0, 0, 0, 0)
+  return Math.round((startOfTarget.getTime() - startOfToday.getTime()) / 86_400_000)
+}
+
+/** Pink = due soon/overdue, golden = within a week, green = further out. */
+export function crmUrgencyTone(days: number): CrmUrgencyTone {
+  if (days <= 1) return 'pink'
+  if (days <= 7) return 'golden'
+  return 'green'
+}
+
+function urgencyMetaCls(tone: CrmUrgencyTone): string {
+  const map: Record<CrmUrgencyTone, string> = {
+    green: 'rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[10px] leading-tight text-emerald-800',
+    golden: 'rounded-md bg-amber-50 border border-amber-200 px-2 py-1 text-[10px] leading-tight text-amber-900',
+    pink: 'rounded-md bg-pink-50 border border-pink-200 px-2 py-1 text-[10px] leading-tight text-pink-800',
+  }
+  return map[tone]
+}
+
+function urgencyMetaTextCls(tone: CrmUrgencyTone): { day: string; sep: string; remain: string } {
+  const map: Record<CrmUrgencyTone, { day: string; sep: string; remain: string }> = {
+    green: { day: 'font-medium text-emerald-900', sep: 'text-emerald-500', remain: 'text-emerald-700' },
+    golden: { day: 'font-medium text-amber-950', sep: 'text-amber-600', remain: 'text-amber-800' },
+    pink: { day: 'font-medium text-pink-900', sep: 'text-pink-500', remain: 'text-pink-700' },
+  }
+  return map[tone]
+}
+
+function urgencyPresetCls(tone: CrmUrgencyTone): string {
+  const map: Record<CrmUrgencyTone, string> = {
+    green: `${crmPresetBtnBase} bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100`,
+    golden: `${crmPresetBtnBase} bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100`,
+    pink: `${crmPresetBtnBase} bg-pink-50 text-pink-800 border-pink-200 hover:bg-pink-100`,
+  }
+  return map[tone]
+}
+
+function urgencyInputCls(tone: CrmUrgencyTone): string {
+  const map: Record<CrmUrgencyTone, string> = {
+    green: 'h-8 text-xs border-emerald-200 bg-emerald-50/40 focus-visible:ring-emerald-300 focus-visible:border-emerald-300',
+    golden: 'h-8 text-xs border-amber-200 bg-amber-50/40 focus-visible:ring-amber-300 focus-visible:border-amber-300',
+    pink: 'h-8 text-xs border-pink-200 bg-pink-50/50 focus-visible:ring-pink-300 focus-visible:border-pink-300',
+  }
+  return map[tone]
+}
+
+const crmPresetBtnCls =
+  `${crmPresetBtnBase} bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-200`
+
+/** Format a Date for `<input type="datetime-local" />` in local time. */
+export function toDatetimeLocalValue(d: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function parseDatetimeLocal(value?: string): Date {
+  if (value) {
+    const d = new Date(value)
+    if (!Number.isNaN(d.getTime())) return d
+  }
+  return new Date()
+}
+
+function addDays(d: Date, n: number): Date {
+  const x = new Date(d)
+  x.setDate(x.getDate() + n)
+  return x
+}
+
+function addMonths(d: Date, n: number): Date {
+  const x = new Date(d)
+  x.setMonth(x.getMonth() + n)
+  return x
+}
+
+function nextWeekday(from: Date, weekday: number): Date {
+  const d = new Date(from)
+  let diff = (weekday - d.getDay() + 7) % 7
+  if (diff === 0) diff = 7
+  d.setDate(d.getDate() + diff)
+  return d
+}
+
+/** Weekday + calendar date, e.g. "Monday, 24 Jun" */
+export function formatCrmDayLabel(value?: string): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })
+}
+
+/** Human-readable days until/since a datetime */
+export function crmDaysRemainingLabel(value?: string): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const startOfTarget = new Date(d)
+  startOfTarget.setHours(0, 0, 0, 0)
+  const days = Math.round((startOfTarget.getTime() - startOfToday.getTime()) / 86_400_000)
+  if (days === 0) return 'Today'
+  if (days === 1) return '1 day left'
+  if (days === -1) return '1 day ago'
+  if (days > 0) return `${days} days left`
+  return `${Math.abs(days)} days ago`
+}
+
+function DateTimeMeta({ value, scheduleAccent = false }: { value: string; scheduleAccent?: boolean }) {
+  if (!value) return null
+  const day = formatCrmDayLabel(value)
+  const remain = crmDaysRemainingLabel(value)
+  if (!day && !remain) return null
+
+  if (scheduleAccent) {
+    const days = crmCalendarDaysUntil(value)
+    const tone = days != null ? crmUrgencyTone(days) : 'pink'
+    const text = urgencyMetaTextCls(tone)
+    return (
+      <p className={urgencyMetaCls(tone)}>
+        <span className={text.day}>{day}</span>
+        {remain && <span className={text.sep}> · </span>}
+        {remain && <span className={text.remain}>{remain}</span>}
+      </p>
+    )
+  }
+
+  return (
+    <p className="text-[10px] leading-tight text-gray-500 px-0.5">
+      <span className="font-medium text-gray-600">{day}</span>
+      {remain && <span className="text-gray-400"> · </span>}
+      {remain && <span>{remain}</span>}
+    </p>
+  )
+}
+
+export const CRM_DATETIME_PRESETS: { label: string; apply: (base: Date) => Date }[] = [
+  { label: 'Now', apply: () => new Date() },
+  { label: 'Tomorrow', apply: d => addDays(d, 1) },
+  { label: '+1d', apply: d => addDays(d, 1) },
+  { label: '+2d', apply: d => addDays(d, 2) },
+  { label: '+3d', apply: d => addDays(d, 3) },
+  { label: 'Mon', apply: d => nextWeekday(d, 1) },
+  { label: 'Tue', apply: d => nextWeekday(d, 2) },
+  { label: 'Wed', apply: d => nextWeekday(d, 3) },
+  { label: 'Thu', apply: d => nextWeekday(d, 4) },
+  { label: 'Fri', apply: d => nextWeekday(d, 5) },
+  { label: 'Week', apply: d => addDays(d, 7) },
+  { label: 'Month', apply: d => addMonths(d, 1) },
+  { label: 'Quarter', apply: d => addMonths(d, 3) },
+  { label: 'Half year', apply: d => addMonths(d, 6) },
+  { label: 'Year', apply: d => addMonths(d, 12) },
+]
+
+function DateTimePresets({
+  value, onChange, scheduleAccent = false,
+}: {
+  value: string
+  onChange: (v: string) => void
+  scheduleAccent?: boolean
+}) {
+  const base = parseDatetimeLocal(value)
+  return (
+    <div className="flex flex-wrap gap-1">
+      {CRM_DATETIME_PRESETS.map(p => {
+        const target = toDatetimeLocalValue(p.apply(base))
+        const days = crmCalendarDaysUntil(target)
+        const tone = scheduleAccent && days != null ? crmUrgencyTone(days) : null
+        return (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => onChange(target)}
+            className={tone ? urgencyPresetCls(tone) : crmPresetBtnCls}
+          >
+            {p.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+export function CrmDateTimeField({
+  value, onChange, className, inputClassName, scheduleAccent = false, showPresets = true,
+}: {
+  value: string
+  onChange: (v: string) => void
+  className?: string
+  inputClassName?: string
+  scheduleAccent?: boolean
+  showPresets?: boolean
+}) {
+  const display = value || toDatetimeLocalValue()
+  const days = scheduleAccent && value ? crmCalendarDaysUntil(value) : null
+  const inputTone = days != null ? crmUrgencyTone(days) : 'pink'
+
+  return (
+    <div className={cn('space-y-1 min-w-0', className)}>
+      <Input
+        type="datetime-local"
+        value={display}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => { if (!value) onChange(toDatetimeLocalValue()) }}
+        className={cn(
+          scheduleAccent ? urgencyInputCls(inputTone) : 'h-8 text-xs',
+          inputClassName,
+        )}
+      />
+      <DateTimeMeta value={value} scheduleAccent={scheduleAccent} />
+      {showPresets && (
+        <DateTimePresets value={value} onChange={onChange} scheduleAccent={scheduleAccent} />
+      )}
+    </div>
+  )
+}
+
+/** Narrow duration input with due-day context */
+export function CrmDurationField({
+  value, onChange, dueAt, scheduleAccent = false,
+}: {
+  value: string
+  onChange: (v: string) => void
+  dueAt?: string
+  scheduleAccent?: boolean
+}) {
+  const days = scheduleAccent && dueAt ? crmCalendarDaysUntil(dueAt) : null
+  const inputTone = days != null ? crmUrgencyTone(days) : 'pink'
+
+  return (
+    <div className="space-y-1 min-w-0 w-full">
+      <Input
+        type="number"
+        min={0}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="min"
+        className={cn('w-full px-2', scheduleAccent ? urgencyInputCls(inputTone) : 'h-9 text-sm')}
+      />
+      {dueAt && scheduleAccent && <DateTimeMeta value={dueAt} scheduleAccent />}
+      {dueAt && !scheduleAccent && (
+        <div className="text-[10px] leading-tight text-gray-500">
+          <p className="font-medium text-gray-600 truncate">{formatCrmDayLabel(dueAt).split(',')[0]}</p>
+          <p className="truncate">{crmDaysRemainingLabel(dueAt)}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Due | Reminder | Duration — three equal columns */
+export function CrmScheduleRow({
+  dueAt, onDueAt, reminderAt, onReminderAt, duration, onDuration,
+}: {
+  dueAt: string
+  onDueAt: (v: string) => void
+  reminderAt: string
+  onReminderAt: (v: string) => void
+  duration: string
+  onDuration: (v: string) => void
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-start">
+      <Field label="Due at">
+        <CrmDateTimeField value={dueAt} onChange={onDueAt} scheduleAccent />
+      </Field>
+      <Field label="Reminder at">
+        <CrmDateTimeField value={reminderAt} onChange={onReminderAt} scheduleAccent />
+      </Field>
+      <Field label="Duration">
+        <CrmDurationField value={duration} onChange={onDuration} dueAt={dueAt} scheduleAccent />
+      </Field>
+    </div>
+  )
+}
 
 type CustomField = { id: number; key: string; value: string }
 type Photo = { id: number; url: string; caption: string; is_primary: boolean }
@@ -206,12 +528,12 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
   }
   const removeDoc = (id: number) => setDocuments(prev => prev.filter(d => d.id !== id))
 
-  const addReminder = () => setReminders(prev => [...prev, { id: nextId(), at: '', note: '' }])
+  const addReminder = () => setReminders(prev => [...prev, { id: nextId(), at: toDatetimeLocalValue(), note: '' }])
   const updateReminder = (id: number, patch: Partial<Reminder>) =>
     setReminders(prev => prev.map(r => (r.id === id ? { ...r, ...patch } : r)))
   const removeReminder = (id: number) => setReminders(prev => prev.filter(r => r.id !== id))
 
-  const addSchedule = () => setSchedules(prev => [...prev, { id: nextId(), at: '', title: '', note: '' }])
+  const addSchedule = () => setSchedules(prev => [...prev, { id: nextId(), at: toDatetimeLocalValue(), title: '', note: '' }])
   const updateSchedule = (id: number, patch: Partial<Schedule>) =>
     setSchedules(prev => prev.map(s => (s.id === id ? { ...s, ...patch } : s)))
   const removeSchedule = (id: number) => setSchedules(prev => prev.filter(s => s.id !== id))
@@ -243,58 +565,97 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
     return out
   }
 
-  const photosSection: ReactNode = (
+  const actionToolbar: ReactNode = (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-gray-50/80 px-3 py-2">
+      <span className="text-[11px] font-medium text-gray-500 mr-0.5">Add</span>
+      <CrmIconAction title="Attach documents" disabled={uploadingDoc} active={documents.length > 0} onClick={() => docInputRef.current?.click()}>
+        {uploadingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+      </CrmIconAction>
+      <CrmIconAction title="Add photos" disabled={uploadingPhoto} active={photos.length > 0} onClick={() => setPickerOpen(true)}>
+        {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+      </CrmIconAction>
+      <CrmIconAction title="Add custom field" active={customFields.length > 0} onClick={addField}>
+        <Plus className="w-4 h-4" />
+      </CrmIconAction>
+      <CrmIconAction title="Add reminder" active={reminders.length > 0} onClick={addReminder}>
+        <Bell className="w-4 h-4" />
+      </CrmIconAction>
+      <CrmIconAction title="Add schedule" active={schedules.length > 0} onClick={addSchedule}>
+        <CalendarClock className="w-4 h-4" />
+      </CrmIconAction>
+    </div>
+  )
+
+  const documentsSection: ReactNode = documents.length > 0 ? (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><ImagePlus className="w-3.5 h-3.5" /> Photos</p>
-        {uploadingPhoto && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-      </div>
-      {photos.length > 0 && (
-        <div className="flex flex-wrap gap-3">
-          {photos.map((p, idx) => (
-            <div key={p.id} className="w-24">
-              <div className="group relative h-24 w-24 overflow-hidden rounded-lg border bg-gray-50">
-                <img src={p.url} alt={p.caption || 'photo'} className="h-full w-full object-cover" />
-                {p.is_primary && (
-                  <span className="absolute top-0.5 left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-yellow-900 shadow-sm" aria-label="Primary photo">
-                    <Star className="h-2.5 w-2.5 fill-current" />
-                  </span>
-                )}
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-black/55 px-1 py-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button type="button" title="Set as primary" aria-label="Set as primary"
-                    onClick={() => setPrimaryPhoto(p.id)}
-                    className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-40" disabled={p.is_primary}>
-                    <Star className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" title="Move left" aria-label="Move left"
-                    onClick={() => movePhoto(p.id, -1)}
-                    className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-40" disabled={idx === 0}>
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" title="Move right" aria-label="Move right"
-                    onClick={() => movePhoto(p.id, 1)}
-                    className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-40" disabled={idx === photos.length - 1}>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" title="Remove" aria-label="Remove photo"
-                    onClick={() => removePhoto(p.id)}
-                    className="rounded p-0.5 text-white hover:bg-white/20">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+      <p className={crmSectionLabelCls}><Paperclip className={crmSectionIconCls} /> Documents</p>
+      <ul className="space-y-1.5">
+        {documents.map(d => (
+          <li key={d.id} className="flex items-center gap-2 rounded-lg border px-2 py-1.5">
+            <FileText className="w-3 h-3 text-gray-400 shrink-0" />
+            <a href={d.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate text-xs text-blue-600 hover:underline">
+              {d.filename}
+            </a>
+            <button type="button" aria-label="Remove document" onClick={() => removeDoc(d.id)}
+              className="text-gray-400 hover:text-red-500">
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <input ref={docInputRef} type="file" multiple className="hidden"
+        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+        onChange={(e) => onPickDocs(e.target.files)} />
+    </div>
+  ) : (
+    <input ref={docInputRef} type="file" multiple className="hidden"
+      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+      onChange={(e) => onPickDocs(e.target.files)} />
+  )
+
+  const photosSection: ReactNode = photos.length > 0 ? (
+    <div className="space-y-2">
+      <p className={crmSectionLabelCls}><ImagePlus className={crmSectionIconCls} /> Photos</p>
+      <div className="flex flex-wrap gap-3">
+        {photos.map((p, idx) => (
+          <div key={p.id} className="w-24">
+            <div className="group relative h-24 w-24 overflow-hidden rounded-lg border bg-gray-50">
+              <img src={p.url} alt={p.caption || 'photo'} className="h-full w-full object-cover" />
+              {p.is_primary && (
+                <span className="absolute top-0.5 left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-yellow-900 shadow-sm" aria-label="Primary photo">
+                  <Star className="h-2.5 w-2.5 fill-current" />
+                </span>
+              )}
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-black/55 px-1 py-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <button type="button" title="Set as primary" aria-label="Set as primary"
+                  onClick={() => setPrimaryPhoto(p.id)}
+                  className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-40" disabled={p.is_primary}>
+                  <Star className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" title="Move left" aria-label="Move left"
+                  onClick={() => movePhoto(p.id, -1)}
+                  className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-40" disabled={idx === 0}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" title="Move right" aria-label="Move right"
+                  onClick={() => movePhoto(p.id, 1)}
+                  className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-40" disabled={idx === photos.length - 1}>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" title="Remove" aria-label="Remove photo"
+                  onClick={() => removePhoto(p.id)}
+                  className="rounded p-0.5 text-white hover:bg-white/20">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <Input value={p.caption} onChange={(e) => updatePhoto(p.id, e.target.value)}
-                placeholder="Caption" className="mt-1 h-7 px-2 text-[11px]" />
             </div>
-          ))}
-        </div>
-      )}
+            <Input value={p.caption} onChange={(e) => updatePhoto(p.id, e.target.value)}
+              placeholder="Caption" className="mt-1 h-7 px-2 text-[11px]" />
+          </div>
+        ))}
+      </div>
       <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden"
         onChange={(e) => onPickPhotos(e.target.files)} />
-      <Button type="button" variant="outline" size="sm" className="w-full" disabled={uploadingPhoto}
-        onClick={() => setPickerOpen(true)}>
-        <ImagePlus className="w-4 h-4 mr-2" /> Add photos
-      </Button>
       <MediaUploadPickerModal
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
@@ -306,106 +667,96 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
         onChooseExternalUrl={(url) => addPhotoFromUrl(url)}
       />
     </div>
-  )
-
-  const documentsSection: ReactNode = (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Documents</p>
-        {uploadingDoc && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-      </div>
-      {documents.length > 0 && (
-        <ul className="space-y-1.5">
-          {documents.map(d => (
-            <li key={d.id} className="flex items-center gap-2 rounded-lg border px-3 py-2">
-              <FileText className="w-4 h-4 text-gray-400 shrink-0" />
-              <a href={d.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate text-sm text-blue-600 hover:underline">
-                {d.filename}
-              </a>
-              <button type="button" aria-label="Remove document" onClick={() => removeDoc(d.id)}
-                className="text-gray-400 hover:text-red-500">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <input ref={docInputRef} type="file" multiple className="hidden"
-        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-        onChange={(e) => onPickDocs(e.target.files)} />
-      <Button type="button" variant="outline" size="sm" className="w-full" disabled={uploadingDoc}
-        onClick={() => docInputRef.current?.click()}>
-        <Paperclip className="w-4 h-4 mr-2" /> Attach document(s)
-      </Button>
-    </div>
+  ) : (
+    <>
+      <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden"
+        onChange={(e) => onPickPhotos(e.target.files)} />
+      <MediaUploadPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title="Add photos"
+        galleryMultiSelect
+        onChooseLocal={() => photoInputRef.current?.click()}
+        onChooseGalleryUrl={(url) => addPhotoFromUrl(url)}
+        onChooseGalleryUrls={async (urls) => { for (const u of urls) await addPhotoFromUrl(u) }}
+        onChooseExternalUrl={(url) => addPhotoFromUrl(url)}
+      />
+    </>
   )
 
   const sections: ReactNode = (
     <>
-      {/* ── Custom fields ── */}
       {customFields.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-gray-500">Custom fields</p>
+          <p className={crmSectionLabelCls}>Custom fields</p>
           {customFields.map(f => (
             <div key={f.id} className="flex gap-2">
-              <Input value={f.key} onChange={(e) => updateField(f.id, { key: e.target.value })} placeholder="Field name" className="flex-1" />
-              <Input value={f.value} onChange={(e) => updateField(f.id, { value: e.target.value })} placeholder="Value" className="flex-1" />
-              <Button type="button" variant="cancel" size="icon" aria-label="Remove field" onClick={() => removeField(f.id)}>
-                <Trash2 className="w-4 h-4" />
+              <Input value={f.key} onChange={(e) => updateField(f.id, { key: e.target.value })} placeholder="Field name" className="flex-1 h-8 text-xs" />
+              <Input value={f.value} onChange={(e) => updateField(f.id, { value: e.target.value })} placeholder="Value" className="flex-1 h-8 text-xs" />
+              <Button type="button" variant="cancel" size="icon" className="h-8 w-8 shrink-0" aria-label="Remove field" onClick={() => removeField(f.id)}>
+                <Trash2 className="w-3 h-3" />
               </Button>
             </div>
           ))}
         </div>
       )}
-      <Button type="button" variant="outline" size="sm" onClick={addField} className="w-full">
-        <Plus className="w-4 h-4 mr-2" /> Add field
-      </Button>
 
-      {/* ── Reminders ── */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><Bell className="w-3.5 h-3.5" /> Reminders</p>
-        {reminders.map(r => (
-          <div key={r.id} className="flex gap-2">
-            <Input type="datetime-local" value={r.at} onChange={(e) => updateReminder(r.id, { at: e.target.value })} className="w-[190px] shrink-0" />
-            <Input value={r.note} onChange={(e) => updateReminder(r.id, { note: e.target.value })} placeholder="Remind me to…" className="flex-1" />
-            <Button type="button" variant="cancel" size="icon" aria-label="Remove reminder" onClick={() => removeReminder(r.id)}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        ))}
-        <Button type="button" variant="outline" size="sm" className="w-full" onClick={addReminder}>
-          <Bell className="w-4 h-4 mr-2" /> Add reminder
-        </Button>
-      </div>
-
-      {/* ── Schedules ── */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><CalendarClock className="w-3.5 h-3.5" /> Schedules</p>
-        {schedules.map(s => (
-          <div key={s.id} className="space-y-2 rounded-lg border p-2">
-            <div className="flex gap-2">
-              <Input type="datetime-local" value={s.at} onChange={(e) => updateSchedule(s.id, { at: e.target.value })} className="w-[190px] shrink-0" />
-              <Input value={s.title} onChange={(e) => updateSchedule(s.id, { title: e.target.value })} placeholder="Meeting, call, demo…" className="flex-1" />
-              <Button type="button" variant="cancel" size="icon" aria-label="Remove schedule" onClick={() => removeSchedule(s.id)}>
-                <Trash2 className="w-4 h-4" />
+      {reminders.length > 0 && (
+        <div className="space-y-2">
+          <p className={crmSectionLabelCls}><Bell className={crmSectionIconCls} /> Reminders</p>
+          {reminders.map(r => (
+            <div key={r.id} className="flex gap-2 items-start">
+              <CrmDateTimeField
+                value={r.at}
+                onChange={v => updateReminder(r.id, { at: v })}
+                className="w-full max-w-[240px] shrink-0"
+              />
+              <Input value={r.note} onChange={(e) => updateReminder(r.id, { note: e.target.value })} placeholder="Remind me to…" className="flex-1 h-8 text-xs min-w-0" />
+              <Button type="button" variant="cancel" size="icon" className="h-8 w-8 shrink-0" aria-label="Remove reminder" onClick={() => removeReminder(r.id)}>
+                <Trash2 className="w-3 h-3" />
               </Button>
             </div>
-            <Input value={s.note} onChange={(e) => updateSchedule(s.id, { note: e.target.value })} placeholder="Notes (optional)" className="text-xs" />
-          </div>
-        ))}
-        <Button type="button" variant="outline" size="sm" className="w-full" onClick={addSchedule}>
-          <CalendarClock className="w-4 h-4 mr-2" /> Add schedule
-        </Button>
-      </div>
+          ))}
+        </div>
+      )}
+
+      {schedules.length > 0 && (
+        <div className="space-y-2">
+          <p className={crmSectionLabelCls}><CalendarClock className={crmSectionIconCls} /> Schedules</p>
+          {schedules.map(s => (
+            <div key={s.id} className="space-y-2 rounded-lg border p-2">
+              <div className="flex gap-2 items-start">
+                <CrmDateTimeField
+                  value={s.at}
+                  onChange={v => updateSchedule(s.id, { at: v })}
+                  className="w-full max-w-[240px] shrink-0"
+                />
+                <Input value={s.title} onChange={(e) => updateSchedule(s.id, { title: e.target.value })} placeholder="Meeting, call, demo…" className="flex-1 h-8 text-xs min-w-0" />
+                <Button type="button" variant="cancel" size="icon" className="h-8 w-8 shrink-0" aria-label="Remove schedule" onClick={() => removeSchedule(s.id)}>
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+              <Input value={s.note} onChange={(e) => updateSchedule(s.id, { note: e.target.value })} placeholder="Notes (optional)" className="h-8 text-xs" />
+            </div>
+          ))}
+        </div>
+      )}
     </>
   )
 
-  return { sections, documentsSection, photosSection, serialize }
+  return { actionToolbar, sections, documentsSection, photosSection, serialize }
 }
 
 export function CrmExtrasView({ cf }: { cf?: Record<string, unknown> | null }) {
   const data = (cf || {}) as Record<string, unknown>
   const extra = Object.entries(data).filter(([k]) => !RESERVED_CUSTOM_KEYS.includes(k))
+  const notes = str(data.notes)
+  const responsible = str(data.responsible_name)
+  const dueAt = str(data.due_at)
+  const reminderAt = str(data.reminder_at)
+  const duration = data.duration_minutes
+  const ticketType = str(data.ticket_type)
+  const typeLabel = str(data.type_label)
   const photos = asArray(data.photos)
     .map(p => ({ url: str(p.url), caption: str(p.caption), is_primary: !!p.is_primary }))
     .filter(p => p.url)
@@ -415,6 +766,57 @@ export function CrmExtrasView({ cf }: { cf?: Record<string, unknown> | null }) {
 
   return (
     <>
+      {(ticketType || typeLabel || responsible || dueAt || reminderAt || duration != null || notes) && (
+        <dl className="rounded-lg border px-4">
+          {(ticketType || typeLabel) && (
+            <div className="grid grid-cols-3 gap-3 py-2 border-b">
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Type</dt>
+              <dd className="col-span-2 text-sm text-gray-800">{typeLabel || ticketType.replace(/_/g, ' ')}</dd>
+            </div>
+          )}
+          {responsible && (
+            <div className="grid grid-cols-3 gap-3 py-2 border-b">
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Responsible</dt>
+              <dd className="col-span-2 text-sm text-gray-800">{responsible}</dd>
+            </div>
+          )}
+          {dueAt && (
+            <div className="grid grid-cols-3 gap-3 py-2 border-b">
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Due</dt>
+              <dd className="col-span-2 text-sm text-gray-800">
+                {formatDateTime(dueAt)}
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  {formatCrmDayLabel(dueAt)} · {crmDaysRemainingLabel(dueAt)}
+                </span>
+              </dd>
+            </div>
+          )}
+          {reminderAt && (
+            <div className="grid grid-cols-3 gap-3 py-2 border-b">
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Reminder</dt>
+              <dd className="col-span-2 text-sm text-gray-800">
+                {formatDateTime(reminderAt)}
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  {formatCrmDayLabel(reminderAt)} · {crmDaysRemainingLabel(reminderAt)}
+                </span>
+              </dd>
+            </div>
+          )}
+          {duration != null && duration !== '' && (
+            <div className="grid grid-cols-3 gap-3 py-2 border-b">
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Duration</dt>
+              <dd className="col-span-2 text-sm text-gray-800">{String(duration)} min</dd>
+            </div>
+          )}
+          {notes && (
+            <div className="grid grid-cols-3 gap-3 py-2">
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Notes</dt>
+              <dd className="col-span-2 text-sm text-gray-800 whitespace-pre-wrap">{notes}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+
       {extra.length > 0 && (
         <dl className="rounded-lg border px-4">
           {extra.map(([k, v]) => (

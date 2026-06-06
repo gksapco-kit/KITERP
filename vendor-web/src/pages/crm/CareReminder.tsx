@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,17 +6,23 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { useCustomers } from '@/hooks/useVendor'
+import { vendorApi } from '@/api/vendor'
+import { extractApiError } from '@/lib/errorMessages'
+import type { Customer as ApiCustomer } from '@/types'
 import {
   Heart, Plus, Search, Mail, MessageCircle, Phone,
   Clock, CheckCircle2, Bell, ArrowRight, Repeat,
   X, Calendar, User, ChevronDown, ChevronUp,
   Send, RotateCcw, Inbox, Sparkles, Pencil,
-  AlarmClock, Eye, Trash2, PhoneIncoming, Filter,
+  AlarmClock, Eye, Trash2, PhoneIncoming, Filter, Users,
 } from 'lucide-react'
+
+const ALL_CUSTOMERS_ID = '__all__'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Channel = 'email' | 'whatsapp' | 'sms'
+type Channel = 'email' | 'whatsapp' | 'sms' | 'notification'
 type RStatus = 'scheduled' | 'sent' | 'responded' | 'cancelled' | 'failed'
 type Frequency = 'once' | 'daily' | 'weekly' | 'monthly'
 
@@ -82,6 +88,12 @@ const MESSAGE_TEMPLATES: Record<Channel, { label: string; body: string }[]> = {
     { label: 'Payment reminder',      body: 'Hi {name}, friendly reminder about your pending balance. Contact us to settle or discuss payment options.' },
     { label: 'Thank you',             body: 'Thank you {name} for your continued trust! We appreciate your business. — Your Team' },
   ],
+  notification: [
+    { label: 'Medicine reminder',     body: 'Hi {name}, this is a reminder to take your medicine today at noon (12 PM). Tap below if you need us to call you back.' },
+    { label: 'Appointment reminder',  body: 'Hi {name}, your appointment is scheduled for {date}. Open the app for details or request a callback.' },
+    { label: 'Service due',           body: 'Hi {name}, your service renewal is due soon. Check the app for options or tap to request a call-back.' },
+    { label: 'Follow-up check-in',    body: 'Hi {name}, we wanted to check in and see how things are going. Let us know if you need any help.' },
+  ],
 }
 
 const STORAGE_KEY = 'crm_care_reminders_v1'
@@ -103,9 +115,10 @@ function saveActions(list: ActionItem[]) {
 // ─── Channel Config ───────────────────────────────────────────────────────────
 
 const CHANNEL_META: Record<Channel, { label: string; icon: React.ElementType; color: string; bg: string; border: string }> = {
-  email:     { label: 'Email',     icon: Mail,           color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200' },
-  whatsapp:  { label: 'WhatsApp',  icon: MessageCircle,  color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-200' },
-  sms:       { label: 'SMS',       icon: Phone,          color: 'text-primary', bg: 'bg-accent', border: 'border-primary/30' },
+  email:        { label: 'Email',        icon: Mail,           color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200' },
+  whatsapp:     { label: 'WhatsApp',     icon: MessageCircle,  color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-200' },
+  sms:          { label: 'SMS',          icon: Phone,          color: 'text-primary',    bg: 'bg-accent',    border: 'border-primary/30' },
+  notification: { label: 'Notification', icon: Bell,           color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
 }
 
 const STATUS_META: Record<RStatus, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'soft'; icon: React.ElementType }> = {
@@ -131,13 +144,62 @@ function avatarColor(str: string) {
   return colors[h]
 }
 
+function customerAvatar(name: string) {
+  return name.split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+}
+
+function apiCustomerToPicker(c: ApiCustomer): Customer {
+  return {
+    id: c.id,
+    name: c.full_name,
+    email: c.email,
+    phone: c.phone,
+    avatar: customerAvatar(c.full_name || '?'),
+  }
+}
+
+function isRealCustomerId(id: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+}
+
+function isAllCustomersSelection(customer: Customer | null | undefined) {
+  return customer?.id === ALL_CUSTOMERS_ID
+}
+
+function personalizeMessage(template: string, customer: Customer, scheduledAt: string) {
+  const name = customer.name.split(' ')[0] || 'there'
+  return template.replace(/\{name\}/g, name).replace(/\{date\}/g, fmtDt(scheduledAt))
+}
+
+function expandRecipients(data: Omit<Reminder, 'id' | 'created_at' | 'status' | 'action_items'>, allCustomers: Customer[]) {
+  if (!isAllCustomersSelection(data.customer)) return [data.customer]
+  const pool = data.channel === 'notification'
+    ? allCustomers.filter(c => isRealCustomerId(c.id))
+    : allCustomers
+  return pool
+}
+
+async function dispatchCustomerNotification(r: Reminder) {
+  if (!isRealCustomerId(r.customer.id)) {
+    throw new Error('Select a registered customer to send in-app notifications')
+  }
+  await vendorApi.sendCustomerNotification({
+    customer_id: r.customer.id,
+    title: r.subject.trim() || `Reminder for ${r.customer.name.split(' ')[0]}`,
+    message: r.message,
+    include_reach_back: r.include_reach_back,
+    reference_id: r.id,
+  })
+}
+
 // ─── Compose Modal ─────────────────────────────────────────────────────────────
 
 function ComposeModal({
- onClose, onSave, editing }: {
+ onClose, onSave, editing, customers }: {
   onClose: () => void
   onSave: (r: Omit<Reminder, 'id' | 'created_at' | 'status' | 'action_items'>) => void
   editing?: Reminder | null
+  customers: Customer[]
 }) {
   const [step, setStep] = useState<'customer' | 'compose' | 'schedule'>(editing ? 'compose' : 'customer')
   const [customerSearch, setCustomerSearch] = useState('')
@@ -151,21 +213,47 @@ function ComposeModal({
   const [showTemplates, setShowTemplates] = useState(false)
 
   const filteredCustomers = useMemo(() =>
-    SAMPLE_CUSTOMERS.filter(c =>
+    customers.filter(c =>
       c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
       (c.email || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
       (c.phone || '').includes(customerSearch)
-    ), [customerSearch])
+    ), [customers, customerSearch])
+
+  const allCustomersOption = useMemo((): Customer => ({
+    id: ALL_CUSTOMERS_ID,
+    name: 'All customers',
+    email: `Broadcast to ${customers.length} customer${customers.length === 1 ? '' : 's'}`,
+    avatar: 'ALL',
+  }), [customers.length])
+
+  const notificationRecipients = useMemo(() => {
+    if (!selectedCustomer) return []
+    if (isAllCustomersSelection(selectedCustomer)) {
+      return customers.filter(c => isRealCustomerId(c.id))
+    }
+    return [selectedCustomer]
+  }, [selectedCustomer, customers])
+
+  const notificationBlocked = channel === 'notification' && (
+    !notificationRecipients.length ||
+    notificationRecipients.some(c => !isRealCustomerId(c.id))
+  )
 
   const applyTemplate = (body: string) => {
-    const name = selectedCustomer?.name.split(' ')[0] || 'there'
+    const name = isAllCustomersSelection(selectedCustomer)
+      ? '{name}'
+      : (selectedCustomer?.name.split(' ')[0] || 'there')
     setMessage(body.replace(/\{name\}/g, name).replace(/\{date\}/g, fmtDt(scheduledAt)))
     setShowTemplates(false)
   }
 
   const canNext = () => {
     if (step === 'customer') return !!selectedCustomer
-    if (step === 'compose') return message.trim().length > 0
+    if (step === 'compose') {
+      if (notificationBlocked) return false
+      if (channel === 'notification' && !subject.trim()) return false
+      return message.trim().length > 0
+    }
     return !!scheduledAt
   }
 
@@ -217,6 +305,24 @@ function ComposeModal({
                   value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} />
               </div>
               <div className="space-y-2 max-h-72 overflow-y-auto">
+                {!editing && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCustomer(allCustomersOption)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${isAllCustomersSelection(selectedCustomer) ? 'border-primary/60 bg-primary/10' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center bg-primary text-white shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900">All customers</p>
+                      <p className="text-xs text-gray-500">Send the same reminder to every customer ({customers.length})</p>
+                    </div>
+                    {isAllCustomersSelection(selectedCustomer) && (
+                      <CheckCircle2 className="w-4 h-4 text-primary ml-auto shrink-0" />
+                    )}
+                  </button>
+                )}
                 {filteredCustomers.map(c => (
                   <button key={c.id} onClick={() => setSelectedCustomer(c)}
                     className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selectedCustomer?.id === c.id ? 'border-primary/60 bg-primary/10' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
@@ -240,18 +346,37 @@ function ComposeModal({
             <div className="space-y-4">
               {/* Customer pill */}
               <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${avatarColor(selectedCustomer.avatar)}`}>{selectedCustomer.avatar}</div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{selectedCustomer.name}</p>
-                  <p className="text-xs text-gray-500">{selectedCustomer.email} {selectedCustomer.phone ? `· ${selectedCustomer.phone}` : ''}</p>
-                </div>
+                {isAllCustomersSelection(selectedCustomer) ? (
+                  <>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary text-white shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">All customers</p>
+                      <p className="text-xs text-gray-500">
+                        {notificationRecipients.length || customers.length} recipient{(notificationRecipients.length || customers.length) === 1 ? '' : 's'}
+                        {channel === 'notification' && notificationRecipients.length < customers.length
+                          ? ` · ${customers.length - notificationRecipients.length} skipped (no app account)`
+                          : ''}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${avatarColor(selectedCustomer.avatar)}`}>{selectedCustomer.avatar}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold">{selectedCustomer.name}</p>
+                      <p className="text-xs text-gray-500">{selectedCustomer.email} {selectedCustomer.phone ? `· ${selectedCustomer.phone}` : ''}</p>
+                    </div>
+                  </>
+                )}
                 <button onClick={() => setStep('customer')} className="text-xs text-blue-600 hover:underline shrink-0">Change</button>
               </div>
 
               {/* Channel selector */}
               <div>
                 <Label className="text-xs text-gray-500 mb-1.5 block">Delivery Channel</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {(Object.entries(CHANNEL_META) as [Channel, typeof CHANNEL_META[Channel]][]).map(([key, meta]) => {
                     const Icon = meta.icon
                     return (
@@ -263,15 +388,29 @@ function ComposeModal({
                     )
                   })}
                 </div>
+                {channel === 'notification' && (
+                  <p className="text-xs text-violet-600 mt-2 flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5 shrink-0" />
+                    Delivers an in-app notification to the customer&apos;s storefront / mobile app when sent.
+                  </p>
+                )}
               </div>
 
-              {/* Subject (email only) */}
-              {channel === 'email' && (
+              {/* Subject (email) or title (notification) */}
+              {(channel === 'email' || channel === 'notification') && (
                 <div>
-                  <Label className="text-xs text-gray-500">Email Subject</Label>
-                  <Input className="mt-1" placeholder="e.g. Following up on your recent visit"
+                  <Label className="text-xs text-gray-500">{channel === 'email' ? 'Email Subject' : 'Notification Title'}</Label>
+                  <Input className="mt-1" placeholder={channel === 'email' ? 'e.g. Following up on your recent visit' : 'e.g. Medicine reminder'}
                     value={subject} onChange={e => setSubject(e.target.value)} />
                 </div>
+              )}
+
+              {notificationBlocked && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  {isAllCustomersSelection(selectedCustomer)
+                    ? 'No registered customers with app accounts found. In-app notifications require customers from your customer list.'
+                    : 'In-app notifications require a registered customer from your customer list (with a storefront account).'}
+                </p>
               )}
 
               {/* Message */}
@@ -298,7 +437,7 @@ function ComposeModal({
                 )}
                 <textarea
                   className="w-full text-sm border border-input rounded-xl px-3 py-2.5 min-h-[120px] resize-y focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder={`Type your ${CHANNEL_META[channel].label} message… Use {name} for customer name.`}
+                  placeholder={`Type your ${CHANNEL_META[channel].label} message… Use {name} for customer name${isAllCustomersSelection(selectedCustomer) ? ' (personalised per customer)' : ''}.`}
                   value={message} onChange={e => setMessage(e.target.value)} />
                 <p className="text-right text-xs text-gray-400 mt-0.5">{message.length} chars</p>
               </div>
@@ -337,7 +476,11 @@ function ComposeModal({
               <div className={`flex items-center gap-3 p-3 rounded-xl border ${chMeta.border} ${chMeta.bg}`}>
                 <ChIcon className={`w-5 h-5 ${chMeta.color} shrink-0`} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{selectedCustomer?.name}</p>
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {isAllCustomersSelection(selectedCustomer)
+                      ? `All customers (${notificationRecipients.length || customers.length})`
+                      : selectedCustomer?.name}
+                  </p>
                   <p className={`text-xs ${chMeta.color} font-medium`}>{chMeta.label} · {message.slice(0, 60)}{message.length > 60 ? '…' : ''}</p>
                 </div>
               </div>
@@ -421,8 +564,10 @@ function ComposeModal({
 
 // ─── Reminder Card ─────────────────────────────────────────────────────────────
 
-function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDelete, onToggleAction }: {
+function ReminderCard({ r, expanded, onToggleView, onMarkSent, onCancel, onMarkResponded, onEdit, onDelete, onToggleAction }: {
   r: Reminder
+  expanded: boolean
+  onToggleView: () => void
   onMarkSent: () => void
   onCancel: () => void
   onMarkResponded: () => void
@@ -430,7 +575,6 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
   onDelete: () => void
   onToggleAction: (actionId: string) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
   const chMeta = CHANNEL_META[r.channel]
   const sMeta = STATUS_META[r.status]
   const ChIcon = chMeta.icon
@@ -439,7 +583,14 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
 
   return (
     <div className={`bg-white border rounded-2xl overflow-hidden transition-shadow hover:shadow-md ${r.status === 'cancelled' ? 'opacity-60' : ''}`}>
-      <div className="p-4 flex items-start gap-3">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggleView}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleView() } }}
+        className={`p-4 flex items-start gap-3 cursor-pointer ${expanded ? 'bg-gray-50/80' : 'hover:bg-gray-50/50'}`}
+        aria-expanded={expanded}
+      >
         {/* Avatar */}
         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${avatarColor(r.customer.avatar)}`}>
           {r.customer.avatar}
@@ -474,17 +625,15 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => setExpanded(!expanded)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400" title="Expand">
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
+        {/* Expand indicator */}
+        <div className="flex items-center gap-1 shrink-0 text-gray-400">
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
       </div>
 
-      {/* Expanded panel */}
+      {/* View mode panel */}
       {expanded && (
-        <div className="border-t bg-gray-50 px-4 py-4 space-y-4">
+        <div className="border-t bg-gray-50 px-4 py-4 space-y-4" onClick={e => e.stopPropagation()}>
           {/* Full message preview */}
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Message</p>
@@ -532,7 +681,8 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
             {r.status === 'scheduled' && (
               <>
                 <Button size="sm" variant="outline" onClick={onMarkSent} className="gap-1.5 text-xs">
-                  <Send className="w-3.5 h-3.5" /> Mark as Sent
+                  <Send className="w-3.5 h-3.5" />
+                  {r.channel === 'notification' ? 'Send notification' : 'Mark as Sent'}
                 </Button>
                 <Button size="sm" variant="outline" onClick={onEdit} className="gap-1.5 text-xs">
                   <Pencil className="w-3.5 h-3.5" /> Edit
@@ -565,6 +715,12 @@ function ReminderCard({ r, onMarkSent, onCancel, onMarkResponded, onEdit, onDele
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CareReminderPage() {
+  const { data: customersData } = useCustomers({ size: 100 })
+  const customers = useMemo(() => {
+    const items = customersData?.items?.map(apiCustomerToPicker) ?? []
+    return items.length ? items : SAMPLE_CUSTOMERS
+  }, [customersData?.items])
+
   const [reminders, setReminders] = useState<Reminder[]>(loadReminders)
   const [actions, setActions] = useState<ActionItem[]>(loadActions)
   const [showCompose, setShowCompose] = useState(false)
@@ -572,33 +728,93 @@ export default function CareReminderPage() {
   const [filterStatus, setFilterStatus] = useState<RStatus | 'all'>('all')
   const [filterChannel, setFilterChannel] = useState<Channel | 'all'>('all')
   const [search, setSearch] = useState('')
+  const [viewingId, setViewingId] = useState<string | null>(null)
 
   const persist = (list: Reminder[]) => { setReminders(list); saveReminders(list) }
   const persistActions = (list: ActionItem[]) => { setActions(list); saveActions(list) }
 
-  const handleSave = (data: Omit<Reminder, 'id' | 'created_at' | 'status' | 'action_items'>) => {
+  const sendNotificationReminder = useCallback(async (r: Reminder) => {
+    await dispatchCustomerNotification(r)
+  }, [])
+
+  const handleSave = async (data: Omit<Reminder, 'id' | 'created_at' | 'status' | 'action_items'>) => {
     if (editing) {
       const updated = reminders.map(r => r.id === editing.id ? { ...r, ...data } : r)
       persist(updated)
       toast.success('Reminder updated!')
-    } else {
+      setShowCompose(false)
+      setEditing(null)
+      return
+    }
+
+    const recipients = expandRecipients(data, customers)
+    if (isAllCustomersSelection(data.customer) && !recipients.length) {
+      toast.error('No customers available to send to')
+      return
+    }
+
+    const isDueNow = data.channel === 'notification' && new Date(data.scheduled_at) <= new Date()
+    const baseTs = Date.now()
+    const created: Reminder[] = []
+
+    for (let i = 0; i < recipients.length; i++) {
+      const customer = recipients[i]
       const newR: Reminder = {
         ...data,
-        id: `r${Date.now()}`,
+        customer,
+        message: personalizeMessage(data.message, customer, data.scheduled_at),
+        id: `r${baseTs}-${i}-${customer.id.slice(0, 8)}`,
         created_at: new Date().toISOString(),
         status: 'scheduled',
         action_items: [],
       }
-      persist([newR, ...reminders])
-      toast.success('Reminder scheduled!')
+      if (isDueNow && data.channel === 'notification') {
+        try {
+          await sendNotificationReminder(newR)
+          newR.status = 'sent'
+        } catch {
+          // leave scheduled so user can retry via Send notification
+        }
+      }
+      created.push(newR)
     }
+
+    persist([...created, ...reminders])
+
+    if (isAllCustomersSelection(data.customer)) {
+      const sentCount = created.filter(r => r.status === 'sent').length
+      if (isDueNow && data.channel === 'notification') {
+        toast.success(`Notification sent to ${sentCount} of ${recipients.length} customers`)
+      } else if (data.channel === 'notification') {
+        toast.success(`Notification scheduled for ${recipients.length} customers`)
+      } else {
+        toast.success(`Reminder scheduled for ${recipients.length} customers`)
+      }
+    } else {
+      const newR = created[0]
+      if (isDueNow && data.channel === 'notification' && newR?.status === 'sent') {
+        toast.success('Notification sent to customer app')
+      } else {
+        toast.success(data.channel === 'notification' ? 'Notification scheduled' : 'Reminder scheduled!')
+      }
+    }
+
     setShowCompose(false)
     setEditing(null)
   }
 
-  const markSent = (id: string) => {
-    persist(reminders.map(r => r.id === id ? { ...r, status: 'sent' } : r))
-    toast.success('Marked as sent')
+  const markSent = async (id: string) => {
+    const r = reminders.find(x => x.id === id)
+    if (!r) return
+    try {
+      if (r.channel === 'notification') {
+        await sendNotificationReminder(r)
+      }
+      persist(reminders.map(x => x.id === id ? { ...x, status: 'sent' } : x))
+      toast.success(r.channel === 'notification' ? 'Notification sent to customer app' : 'Marked as sent')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not send notification'))
+    }
   }
 
   const cancelReminder = (id: string) => {
@@ -639,6 +855,33 @@ export default function CareReminderPage() {
     } : r))
   }
 
+  // Auto-send due in-app notification reminders
+  useEffect(() => {
+    const tick = async () => {
+      const due = reminders.filter(r =>
+        r.channel === 'notification' &&
+        r.status === 'scheduled' &&
+        new Date(r.scheduled_at) <= new Date()
+      )
+      if (!due.length) return
+      let next = [...reminders]
+      for (const r of due) {
+        try {
+          await dispatchCustomerNotification(r)
+          next = next.map(x => x.id === r.id ? { ...x, status: 'sent' as RStatus } : x)
+        } catch {
+          // keep scheduled; user can retry manually
+        }
+      }
+      if (due.some(r => next.find(x => x.id === r.id)?.status === 'sent')) {
+        persist(next)
+      }
+    }
+    tick()
+    const timer = setInterval(tick, 60_000)
+    return () => clearInterval(timer)
+  }, [reminders])
+
   const filtered = useMemo(() => reminders.filter(r => {
     if (filterStatus !== 'all' && r.status !== filterStatus) return false
     if (filterChannel !== 'all' && r.channel !== filterChannel) return false
@@ -662,7 +905,7 @@ export default function CareReminderPage() {
             <Heart className="w-5 h-5 text-primary" />
             <h1 className="text-2xl font-bold text-gray-900">Care & Reminders</h1>
           </div>
-          <p className="text-sm text-gray-500">Schedule personalised messages for customers via Email, WhatsApp or SMS. Enable reach-back to auto-create CRM follow-up actions.</p>
+          <p className="text-sm text-gray-500">Schedule personalised messages via Email, WhatsApp, SMS, or in-app Notification. Enable reach-back to auto-create CRM follow-up actions.</p>
         </div>
         <Button onClick={() => { setEditing(null); setShowCompose(true) }} className="bg-primary hover:bg-primary/90 gap-2">
           <Plus className="w-4 h-4" /> New Reminder
@@ -711,7 +954,7 @@ export default function CareReminderPage() {
             ))}
           </div>
           <div className="flex items-center gap-1.5">
-            {(['all', 'email', 'whatsapp', 'sms'] as const).map(ch => {
+            {(['all', 'email', 'whatsapp', 'sms', 'notification'] as const).map(ch => {
               if (ch === 'all') return (
                 <button key="all" onClick={() => setFilterChannel('all')}
                   className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-colors ${filterChannel === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
@@ -746,11 +989,13 @@ export default function CareReminderPage() {
           </div>
         ) : filtered.map(r => (
           <ReminderCard key={r.id} r={r}
+            expanded={viewingId === r.id}
+            onToggleView={() => setViewingId(viewingId === r.id ? null : r.id)}
             onMarkSent={() => markSent(r.id)}
-            onCancel={() => cancelReminder(r.id)}
+            onCancel={() => { cancelReminder(r.id); setViewingId(null) }}
             onMarkResponded={() => markResponded(r.id)}
             onEdit={() => { setEditing(r); setShowCompose(true) }}
-            onDelete={() => deleteReminder(r.id)}
+            onDelete={() => { deleteReminder(r.id); setViewingId(null) }}
             onToggleAction={actionId => toggleAction(r.id, actionId)}
           />
         ))}
@@ -791,6 +1036,7 @@ export default function CareReminderPage() {
       {/* Compose/Edit Modal */}
       {showCompose && (
         <ComposeModal
+          customers={customers}
           onClose={() => { setShowCompose(false); setEditing(null) }}
           onSave={handleSave}
           editing={editing}

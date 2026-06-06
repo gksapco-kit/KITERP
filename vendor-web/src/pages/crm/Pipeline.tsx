@@ -11,7 +11,7 @@ import { crmApi } from '@/api/crm'
 import type { EmployeeProfile } from '@/types'
 import { Plus, Loader2, GitBranch, TrendingUp, Paperclip, Trash2, FileText, User } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
-import { CURRENCIES, currencySymbol, amountInWords } from './crmExtras'
+import { CURRENCIES, currencySymbol, amountInWords, CrmDateTimeField } from './crmExtras'
 import { DealDetail } from './DealDetail'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
@@ -119,10 +119,14 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
             {pipeline?.stages?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Expected close"><Input type="date" value={form.expected_close_date} onChange={e => setForm(p => ({ ...p, expected_close_date: e.target.value }))} /></Field>
-          <Field label="Source"><Input value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} /></Field>
-        </div>
+        <Field label="Expected close">
+          <CrmDateTimeField
+            value={form.expected_close_date}
+            onChange={v => setForm(p => ({ ...p, expected_close_date: v }))}
+            scheduleAccent
+          />
+        </Field>
+        <Field label="Source"><Input value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} /></Field>
         <Field label="Deal owner">
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -202,7 +206,10 @@ function DealCard({ deal, onDragStart, onOpen }: { deal: Deal; onDragStart: (e: 
       onClick={onOpen}
       className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md cursor-pointer max-h-[90vh] overflow-y-auto"
     >
-      <p className="text-sm font-medium text-gray-900 line-clamp-2">{deal.title}</p>
+      <p className="text-sm font-medium text-gray-900 line-clamp-2">
+        {deal.number && <span className="font-mono text-xs text-gray-400 mr-1">{deal.number}</span>}
+        {deal.title}
+      </p>
       <p className="text-base font-semibold text-blue-600 mt-1">{formatCurrency(deal.amount, deal.currency)}</p>
       <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
         <span>{deal.expected_close_date ? formatDate(deal.expected_close_date) : '—'}</span>

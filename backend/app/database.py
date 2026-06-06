@@ -504,6 +504,7 @@ async def ensure_crm_tables() -> None:
             location VARCHAR(255),
             meeting_url VARCHAR(500),
             outcome VARCHAR(255),
+            custom_fields JSONB DEFAULT '{}'::jsonb,
             created_at TIMESTAMPTZ DEFAULT now(),
             updated_at TIMESTAMPTZ DEFAULT now()
         );""",
@@ -872,6 +873,70 @@ async def ensure_crm_tables() -> None:
     async with engine.begin() as conn:
         for s in stmts:
             await conn.execute(text(s))
+        await conn.execute(text(
+            "ALTER TABLE crm_activity ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;"
+        ))
+        for col_sql in (
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS record_type VARCHAR(10) DEFAULT 'person';",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS salutation VARCHAR(20);",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS parent_contact_id UUID REFERENCES crm_contact(id) ON DELETE SET NULL;",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS linked_account_id UUID REFERENCES crm_account(id) ON DELETE SET NULL;",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS number VARCHAR(40);",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS industry VARCHAR(100);",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS region VARCHAR(100);",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS website VARCHAR(500);",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS annual_revenue NUMERIC(14,2);",
+            "ALTER TABLE crm_contact ADD COLUMN IF NOT EXISTS employee_count INTEGER;",
+            "UPDATE crm_contact SET record_type = 'person' WHERE record_type IS NULL;",
+            "CREATE INDEX IF NOT EXISTS ix_crm_contact_parent ON crm_contact(parent_contact_id);",
+            "CREATE INDEX IF NOT EXISTS ix_crm_contact_record_type ON crm_contact(vendor_id, record_type);",
+        ):
+            await conn.execute(text(col_sql))
+        await conn.execute(text("""
+            INSERT INTO crm_contact (
+                vendor_id, first_name, record_type, industry, region, website, phone, email,
+                annual_revenue, employee_count, tags, custom_fields, notes, owner_id, is_active,
+                linked_account_id, number, lifecycle_stage, created_at, updated_at
+            )
+            SELECT
+                a.vendor_id, a.name, 'company', a.industry, a.region, a.website, a.phone, a.email,
+                a.annual_revenue, a.employee_count, a.tags, a.custom_fields, a.notes, a.owner_id, a.is_active,
+                a.id, a.number, 'customer', a.created_at, a.updated_at
+            FROM crm_account a
+            WHERE NOT EXISTS (SELECT 1 FROM crm_contact c WHERE c.linked_account_id = a.id);
+        """))
+        await conn.execute(text("""
+            UPDATE crm_contact p
+            SET parent_contact_id = co.id
+            FROM crm_contact co
+            WHERE p.account_id IS NOT NULL
+              AND co.linked_account_id = p.account_id
+              AND co.record_type = 'company'
+              AND p.record_type = 'person'
+              AND p.parent_contact_id IS NULL;
+        """))
+        for table, prefix in (
+            ("crm_account", "ACC"),
+            ("crm_lead", "LED"),
+            ("crm_deal", "DEAL"),
+            ("crm_activity", "TSK"),
+        ):
+            await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS number VARCHAR(40);"))
+            await conn.execute(text(f"""
+                WITH numbered AS (
+                    SELECT id,
+                        ROW_NUMBER() OVER (PARTITION BY vendor_id ORDER BY created_at, id) AS rn
+                    FROM {table}
+                    WHERE number IS NULL
+                )
+                UPDATE {table} t
+                SET number = '{prefix}-' || LPAD(numbered.rn::text, 6, '0')
+                FROM numbered
+                WHERE t.id = numbered.id;
+            """))
+            await conn.execute(text(
+                f"CREATE UNIQUE INDEX IF NOT EXISTS ix_{table}_number ON {table}(vendor_id, number);"
+            ))
 
 
 async def ensure_pos_transaction_accounting_columns() -> None:

@@ -8,37 +8,67 @@ import { crmApi, type EmailTemplate } from '@/api/crm'
 import { Plus, Loader2, Mail, Edit3, Trash2 } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
+import { EmailBodyEditor } from './crmMarketingForms'
 
 function TemplateForm({ tpl, onClose }: { tpl?: EmailTemplate; onClose: () => void }) {
+  const qc = useQueryClient()
   const save = useSaveTemplate()
   const [form, setForm] = useState({
     name: tpl?.name || '',
     subject: tpl?.subject || '',
-    body_html: tpl?.body_html || '<p>Hello {{contact.first_name}},</p>\n<p></p>\n<p>Best,<br/>{{user.name}}</p>',
+    body_html: tpl?.body_html || '<p>Hello {{contact.first_name}},</p>\n<p></p>\n<p>Best regards,<br/>{{user.name}}</p>',
     body_text: tpl?.body_text || '',
+    is_active: tpl?.is_active !== false,
   })
-  const submit = (e: React.FormEvent) => {
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim() || !form.subject.trim()) return
-    save.mutate(
-      { id: tpl?.id, data: { name: form.name, subject: form.subject, body_html: form.body_html, body_text: form.body_text || undefined } },
-      { onSuccess: onClose },
-    )
+    if (!form.name.trim() || !form.subject.trim()) {
+      toast.error('Name and subject are required')
+      return
+    }
+    try {
+      await save.mutateAsync({
+        id: tpl?.id,
+        data: {
+          name: form.name.trim(),
+          subject: form.subject.trim(),
+          body_html: form.body_html,
+          body_text: form.body_text || undefined,
+          is_active: form.is_active,
+        },
+      })
+      await qc.invalidateQueries({ queryKey: ['crm', 'templates'] })
+      toast.success(tpl ? 'Template updated' : 'Template saved')
+      onClose()
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not save template'))
+    }
   }
+
   return (
     <CrmModal title={tpl ? 'Edit template' : 'New email template'} onClose={onClose} maxW="max-w-2xl">
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Template name" required><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></Field>
-        <Field label="Subject" required><Input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} /></Field>
-        <Field label="HTML body">
-          <textarea value={form.body_html} onChange={e => setForm(p => ({ ...p, body_html: e.target.value }))}
-            className="flex min-h-[260px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono" />
-          <p className="text-xs text-gray-500 mt-1">Merge tags: <code>{'{{contact.first_name}}'}</code>, <code>{'{{user.name}}'}</code></p>
+        <Field label="Template name" required>
+          <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Welcome email" />
         </Field>
-        <Field label="Plain text (optional)">
-          <textarea value={form.body_text} onChange={e => setForm(p => ({ ...p, body_text: e.target.value }))}
-            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        <Field label="Subject line" required>
+          <Input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} placeholder="e.g. Welcome to {{vendor.name}}" />
         </Field>
+        <Field label="Email body">
+          <EmailBodyEditor
+            value={form.body_html}
+            onChange={v => setForm(p => ({ ...p, body_html: v }))}
+            plainText={form.body_text}
+            onPlainTextChange={v => setForm(p => ({ ...p, body_text: v }))}
+          />
+        </Field>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.is_active} onChange={e => setForm(p => ({ ...p, is_active: e.target.checked }))} />
+          Active — available for campaigns and workflows
+        </label>
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button type="submit" className="flex-1" disabled={save.isPending}>
@@ -80,7 +110,7 @@ export default function TemplatesPage() {
       ) : !data?.length ? (
         <Card><CardContent className="p-12 text-center">
           <Mail className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500 mb-3">No email templates yet</p>
+          <p className="text-sm text-gray-500 mb-3">Create reusable emails with merge tags — click to insert fields.</p>
           <Button variant="outline" size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" /> Create one</Button>
         </CardContent></Card>
       ) : (

@@ -589,10 +589,9 @@ const allSections: NavSection[] = [
     items: [
       { to: '/crm', icon: LayoutDashboard, label: 'CRM Dashboard', requiresPermission: 'crm.view' },
       { to: '/crm/contacts', icon: Contact2, label: 'Contacts', requiresPermission: 'crm.view' },
-      { to: '/crm/accounts', icon: Building2, label: 'Accounts', requiresPermission: 'crm.view' },
       { to: '/crm/leads', icon: Target, label: 'Leads', requiresPermission: 'crm.view' },
       { to: '/crm/pipeline', icon: GitBranch, label: 'Pipeline', requiresPermission: 'crm.view' },
-      { to: '/crm/activities', icon: Activity, label: 'Activities & Tasks', requiresPermission: 'crm.view' },
+      { to: '/crm/activities', icon: Activity, label: 'Tasks', requiresPermission: 'crm.view' },
       { to: '/crm/tickets', icon: LifeBuoy, label: 'Tickets', requiresPermission: 'crm.view' },
       { to: '/crm/kb', icon: BookOpen, label: 'Knowledge Base', requiresPermission: 'crm.view' },
       { to: '/crm/segments', icon: UsersRound, label: 'Segments', requiresPermission: 'crm.view' },
@@ -955,10 +954,9 @@ const pageTitles: Record<string, string> = {
 
   '/crm': 'CRM Dashboard',
   '/crm/contacts': 'Contacts',
-  '/crm/accounts': 'Accounts',
   '/crm/leads': 'Leads',
   '/crm/pipeline': 'Sales Pipeline',
-  '/crm/activities': 'Activities & Tasks',
+  '/crm/activities': 'Tasks',
   '/crm/inbox': 'Inbox',
   '/crm/tickets': 'Support Tickets',
   '/crm/kb': 'Knowledge Base',

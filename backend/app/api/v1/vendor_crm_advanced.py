@@ -47,10 +47,11 @@ def _paginated(items, total, page, size):
 
 @router.get("/reports/overview")
 async def report_overview(
-    vu: VendorUser = Depends(require_permission("crm.reports.view")),
+    range: str = Query("30d", pattern="^(30d|3m|6m|1y|2y|5y|10y)$"),
+    vu: VendorUser = Depends(require_permission("crm.view")),
     db: AsyncSession = Depends(get_db),
 ):
-    return await ReportService(db).overview(vu.vendor_id)
+    return await ReportService(db).overview(vu.vendor_id, range_key=range)
 
 
 @router.get("/reports/sales-performance")

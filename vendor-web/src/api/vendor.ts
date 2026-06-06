@@ -1416,6 +1416,17 @@ export const vendorApi = {
     return response.data
   },
 
+  sendCustomerNotification: async (data: {
+    customer_id: string
+    title: string
+    message: string
+    include_reach_back?: boolean
+    reference_id?: string
+  }) => {
+    const response = await apiClient.post('/vendors/me/notifications/customer', data)
+    return response.data as { ok: boolean; notification_id: string }
+  },
+
   // ── Merchandising ────────────────────────────────────────────────
   listBundles: async (): Promise<{ items: Bundle[]; total: number }> => {
     const response = await apiClient.get('/vendors/me/merchandising/bundles')

@@ -987,7 +987,7 @@ export interface EmployeeProfile {
   manager?: Pick<EmployeeProfile, 'id' | 'full_name' | 'employee_code' | 'employee_code_custom' | 'vendor_user'> | null
   vendor_user?: {
     id: string
-    user?: { full_name: string; email: string; phone?: string; avatar_url?: string }
+    user?: { id?: string; full_name: string; email: string; phone?: string; avatar_url?: string }
   } | null
 }
 

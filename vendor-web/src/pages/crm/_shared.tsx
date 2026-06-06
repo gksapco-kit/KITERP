@@ -9,12 +9,15 @@ import { Loader2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export function CrmModal({
   title, onClose, children, maxW = 'max-w-lg', headerActions,
-}: { title: string; onClose: () => void; children: ReactNode; maxW?: string; headerActions?: ReactNode }) {
+}: { title: ReactNode; onClose: () => void; children: ReactNode; maxW?: string; headerActions?: ReactNode }) {
   useEscapeToClose(onClose)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxW} max-h-[90vh] overflow-y-auto`}>
+      <div
+        className={`bg-white rounded-2xl shadow-2xl w-full ${maxW} max-h-[90vh] overflow-y-auto`}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold truncate">{title}</h2>
           <div className="flex items-center gap-2 shrink-0">

@@ -59,8 +59,10 @@ async def _run(workflow_id: UUID, entity_type: str, entity_id: UUID, context: di
                         to_phone=params.get("to_phone"),
                     )
                 elif action == "create_activity":
+                    from app.services.crm.numbering import next_crm_number
                     db.add(CrmActivity(
                         vendor_id=wf.vendor_id,
+                        number=await next_crm_number(db, wf.vendor_id, CrmActivity, "TSK"),
                         owner_id=UUID(params["owner_id"]) if params.get("owner_id") else None,
                         type=params.get("type", "task"),
                         subject=params.get("subject", "Workflow task"),

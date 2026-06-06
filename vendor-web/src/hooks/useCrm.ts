@@ -272,8 +272,8 @@ export const useUpsertIntegration = () => {
 }
 
 // Reports
-export const useCrmOverview = () =>
-  useQuery({ queryKey: KEY('overview'), queryFn: () => crmApi.reportOverview() })
+export const useCrmOverview = (range = '30d') =>
+  useQuery({ queryKey: KEY('overview', range), queryFn: () => crmApi.reportOverview({ range }) })
 
 export const useSalesReport = () =>
   useQuery({ queryKey: KEY('report-sales'), queryFn: () => crmApi.reportSales() })

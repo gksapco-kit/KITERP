@@ -663,6 +663,113 @@ async def test_report_ticket_performance(db_session, vid, actor):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# RECENT FEATURES (contact merge, custom fields, care notifications)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_contact_company_syncs_linked_account(db_session, vid, actor):
+    svc = ContactService(db_session)
+    co = await svc.create(
+        vid,
+        ContactCreate(
+            first_name="Hyderabad Corp",
+            record_type="company",
+            industry="IT",
+            region="Hyderabad",
+        ),
+        actor_id=actor,
+    )
+    assert co.record_type == "company"
+    assert co.linked_account_id is not None
+    acc = await AccountService(db_session).get(vid, co.linked_account_id)
+    assert acc.name == "Hyderabad Corp"
+    assert acc.industry == "IT"
+
+
+@pytest.mark.asyncio
+async def test_activity_custom_fields_persist(db_session, vid, actor):
+    svc = ActivityService(db_session)
+    act = await svc.create(
+        vid,
+        ActivityCreate(
+            subject="Follow up call",
+            type="task",
+            custom_fields={"priority": "high", "ref": "TSK-001"},
+        ),
+        actor_id=actor,
+    )
+    fetched = await svc.get(vid, act.id)
+    assert fetched.custom_fields.get("priority") == "high"
+    assert fetched.custom_fields.get("ref") == "TSK-001"
+
+
+@pytest.mark.asyncio
+async def test_report_overview_range_includes_trends(db_session, vid):
+    report = await ReportService(db_session).overview(vid, range_key="3m")
+    assert "trends" in report
+    assert "contacts_companies" in report["trends"]
+    assert "total_contacts" in report
+    assert "pipeline_value" in report
+
+
+@pytest.mark.asyncio
+async def test_segment_create_update_delete(db_session, vid):
+    svc = SegmentService(db_session)
+    seg = await svc.create(
+        vid,
+        SegmentCreate(
+            name="Hyderabad",
+            description="Hyderabad Based Customers",
+            filter_dsl={"all": [
+                {"field": "phone", "op": "eq", "value": "+91"},
+                {"field": "lifecycle_stage", "op": "eq", "value": "customer"},
+            ]},
+        ),
+    )
+    assert seg.id and seg.name == "Hyderabad"
+    upd = await svc.update(vid, seg.id, SegmentCreate(name="Hyderabad Updated"))
+    assert upd.name == "Hyderabad Updated"
+    await svc.delete(vid, seg.id)
+    items = await svc.list(vid)
+    assert not any(s.id == seg.id for s in items)
+
+
+@pytest.mark.asyncio
+async def test_customer_care_notification_in_app(db_session, vid):
+    from app.models.customer import Customer
+    from app.services.notification_service import NotificationService
+
+    cust = Customer(
+        id=uuid.uuid4(),
+        vendor_id=vid,
+        full_name="Priya Nair",
+        email="priya@nair.com",
+        phone="+919876500004",
+        password_hash="test-hash",
+    )
+    db_session.add(cust)
+    await db_session.flush()
+
+    svc = NotificationService(db_session)
+    notif = await svc.notify_care_reminder(
+        vendor_id=vid,
+        customer_id=cust.id,
+        title="Medicine reminder",
+        message="Take your medicine today at noon",
+        include_reach_back=True,
+        reference_id="r-test-001",
+    )
+    await db_session.commit()
+
+    assert notif.type == "care_reminder"
+    assert notif.channel == "in_app"
+    items = await svc.get_customer_notifications(vid, cust.id)
+    assert len(items) >= 1
+    assert items[0].title == "Medicine reminder"
+    assert items[0].data.get("include_reach_back") is True
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # TENANT ISOLATION (negative paths)
 # ══════════════════════════════════════════════════════════════════════════════
 

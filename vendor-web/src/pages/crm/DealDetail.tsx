@@ -85,7 +85,12 @@ export function DealDetail({ dealId, onClose }: { dealId: string; onClose: () =>
 
   return (
     <CrmModal
-      title={deal.title}
+      title={
+        <span>
+          {deal.number && <span className="font-mono text-xs text-gray-400 mr-2">{deal.number}</span>}
+          {deal.title}
+        </span>
+      }
       onClose={onClose}
       maxW="max-w-4xl"
       headerActions={

@@ -59,7 +59,8 @@ async def create_segment(
     vu: VendorUser = Depends(require_permission("crm.segments.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    return await SegmentService(db).create(vu.vendor_id, data)
+    obj = await SegmentService(db).create(vu.vendor_id, data)
+    return SegmentResponse.model_validate(obj)
 
 
 @router.get("/segments/{segment_id}", response_model=SegmentResponse)
@@ -77,7 +78,8 @@ async def update_segment(
     vu: VendorUser = Depends(require_permission("crm.segments.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    return await SegmentService(db).update(vu.vendor_id, segment_id, data)
+    obj = await SegmentService(db).update(vu.vendor_id, segment_id, data)
+    return SegmentResponse.model_validate(obj)
 
 
 @router.delete("/segments/{segment_id}", status_code=status.HTTP_204_NO_CONTENT)

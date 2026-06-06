@@ -5,61 +5,96 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useSegments, useSaveSegment } from '@/hooks/useCrm'
 import { crmApi, type Segment } from '@/api/crm'
-import { Plus, Loader2, UsersRound, Edit3, RefreshCw, Trash2 } from 'lucide-react'
+import { Plus, Loader2, UsersRound, Edit3, RefreshCw, Trash2, Eye } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
 import { formatDateTime } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
+import {
+  SegmentFilterBuilder, parseSegmentFilter, serializeSegmentFilter, type SegmentFilter,
+} from './crmMarketingForms'
+import { contactDisplayName } from './crmContactsShared'
 
 function SegmentForm({ seg, onClose }: { seg?: Segment; onClose: () => void }) {
+  const qc = useQueryClient()
   const save = useSaveSegment()
+  const [filter, setFilter] = useState<SegmentFilter>(() => parseSegmentFilter(seg?.filter_dsl))
+  const [preview, setPreview] = useState<{ id: string; name: string }[]>([])
+  const [previewing, setPreviewing] = useState(false)
   const [form, setForm] = useState({
     name: seg?.name || '',
     description: seg?.description || '',
-    filter_dsl: seg?.filter_dsl ? JSON.stringify(seg.filter_dsl, null, 2) : '{\n  "all": []\n}',
   })
-  const [error, setError] = useState('')
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    if (!form.name.trim()) return
-    let parsed: Record<string, unknown> = {}
+  const runPreview = async () => {
+    if (!seg?.id) return
+    setPreviewing(true)
     try {
-      parsed = JSON.parse(form.filter_dsl || '{}')
-    } catch {
-      setError('Filter must be valid JSON')
+      const rows = await crmApi.previewSegment(seg.id, 8) as { id: string; first_name: string; last_name?: string; record_type?: string }[]
+      setPreview(rows.map(r => ({ id: r.id, name: contactDisplayName(r) })))
+    } finally {
+      setPreviewing(false)
+    }
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.name.trim()) {
+      toast.error('Segment name is required')
       return
     }
-    save.mutate(
-      {
+    try {
+      await save.mutateAsync({
         id: seg?.id,
         data: {
-          name: form.name,
-          description: form.description || undefined,
-          filter_dsl: parsed,
+          name: form.name.trim(),
+          description: form.description.trim() || undefined,
+          filter_dsl: serializeSegmentFilter(filter),
+          is_active: true,
         },
-      },
-      { onSuccess: onClose },
-    )
+      })
+      await qc.invalidateQueries({ queryKey: ['crm', 'segments'] })
+      toast.success(seg ? 'Segment updated' : 'Segment saved')
+      onClose()
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not save segment'))
+    }
   }
+
   return (
-    <CrmModal title={seg ? 'Edit segment' : 'New segment'} onClose={onClose} maxW="max-w-2xl">
+    <CrmModal title={seg ? 'Edit segment' : 'New segment'} onClose={onClose} maxW="max-w-3xl">
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Name" required><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></Field>
-        <Field label="Description"><Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></Field>
-        <Field label="Filter rules (JSON)">
-          <textarea value={form.filter_dsl} onChange={e => setForm(p => ({ ...p, filter_dsl: e.target.value }))}
-            className="flex min-h-[200px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono" />
-          <p className="text-xs text-gray-500 mt-1">
-            e.g. <code>{`{ "all": [{"field":"lifecycle_stage","op":"eq","value":"customer"}] }`}</code>
-          </p>
+        <Field label="Name" required>
+          <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Active customers" />
         </Field>
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        <Field label="Description">
+          <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Who belongs in this group?" />
+        </Field>
+        <Field label="Conditions">
+          <SegmentFilterBuilder value={filter} onChange={setFilter} />
+        </Field>
+        {seg?.id && (
+          <div className="rounded-lg border p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-gray-600">Preview matches</p>
+              <Button type="button" variant="outline" size="sm" onClick={runPreview} disabled={previewing}>
+                {previewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5 mr-1" />}
+                Preview
+              </Button>
+            </div>
+            {preview.length > 0 && (
+              <ul className="text-xs text-gray-600 space-y-1">
+                {preview.map(p => <li key={p.id}>{p.name}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button type="submit" className="flex-1" disabled={save.isPending}>
             {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Save
+            Save segment
           </Button>
         </div>
       </form>
@@ -69,7 +104,7 @@ function SegmentForm({ seg, onClose }: { seg?: Segment; onClose: () => void }) {
 
 export default function SegmentsPage() {
   const qc = useQueryClient()
-  const { data, isLoading } = useSegments()
+  const { data, isLoading, isError, refetch } = useSegments()
   const [edit, setEdit] = useState<Segment | null>(null)
   const [showCreate, setShowCreate] = useState(false)
 
@@ -97,10 +132,15 @@ export default function SegmentsPage() {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+      ) : isError ? (
+        <Card><CardContent className="p-12 text-center">
+          <p className="text-sm text-red-600 mb-3">Could not load segments.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Try again</Button>
+        </CardContent></Card>
       ) : !data?.length ? (
         <Card><CardContent className="p-12 text-center">
           <UsersRound className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500 mb-3">No segments yet</p>
+          <p className="text-sm text-gray-500 mb-3">Build audience groups with simple conditions — no JSON required.</p>
           <Button variant="outline" size="sm" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" /> Create one</Button>
         </CardContent></Card>
       ) : (
@@ -113,16 +153,16 @@ export default function SegmentsPage() {
                     <h3 className="text-sm font-semibold text-gray-900 truncate">{s.name}</h3>
                     {s.description && <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{s.description}</p>}
                   </div>
-                  <Badge variant="soft">{s.contact_count}</Badge>
+                  <Badge variant="soft">{s.contact_count} contacts</Badge>
                 </div>
                 <p className="text-xs text-gray-400">
                   {s.last_computed_at ? `Updated ${formatDateTime(s.last_computed_at)}` : 'Not computed'}
                 </p>
                 <div className="flex gap-1 mt-3 pt-3 border-t">
-                  <Button variant="ghost" size="sm" onClick={() => setEdit(s)}>
+                  <Button variant="ghost" size="sm" onClick={() => setEdit(s)} title="Edit">
                     <Edit3 className="w-4 h-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => refresh(s.id)} title="Refresh">
+                  <Button variant="ghost" size="sm" onClick={() => refresh(s.id)} title="Refresh count">
                     <RefreshCw className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => remove(s.id)} title="Delete">
