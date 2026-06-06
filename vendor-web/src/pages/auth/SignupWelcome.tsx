@@ -1,9 +1,10 @@
-import { useEffect, useMemo, Fragment } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Store, ArrowRight, Mail, Check } from 'lucide-react'
+import { Store, ArrowRight, Mail, Check, Sparkles } from 'lucide-react'
 import { COMPANY_TYPES } from '@/data/companyTypes'
 import { cn } from '@/lib/utils'
+import { SIGNUP_BRAND } from '@/components/auth/signupTheme'
 
 export type SignupWelcomeState = {
   fullName?: string
@@ -11,11 +12,8 @@ export type SignupWelcomeState = {
   businessName?: string
   vendorSlug?: string
   verificationHint?: string
-  /** Number of launch checklist steps already finished (1–4). Defaults to 1 (account) after signup. */
   launchStepsComplete?: number
-  /** Billing / subscription label shown on the roadmap card (e.g. Starter). */
   planName?: string
-  /** From vendor profile when known — picks catalog "Next" link (`/products` vs `/services`). */
   offeringType?: 'products' | 'services' | 'both'
 }
 
@@ -30,34 +28,42 @@ const LAUNCH_STEPS: LaunchStep[] = [
   {
     id: 'account',
     label: 'Account',
-    description: 'Vendor login, business profile, and verification on KITERP.',
+    description: 'Login, profile, and verification.',
     nextHref: '/storefront-builder',
   },
   {
     id: 'business front',
-    label: 'Business Front',
-    description: 'Template, branding, and pages for your public store URL.',
+    label: 'Business front',
+    description: 'Branding and your public store URL.',
     nextHref: '/storefront-builder',
   },
   {
     id: 'catalog',
     label: 'Catalog',
-    description: 'Products, services, and categories so checkout and POS can sell.',
+    description: 'Products and categories for checkout.',
     nextHref: '/products',
   },
   {
     id: 'go-live',
     label: 'Go live',
-    description: 'Notifications, locations, and sharing your live store with customers.',
+    description: 'Share your store with customers.',
     nextHref: '/',
   },
 ]
 
 const TOTAL_STEPS = LAUNCH_STEPS.length
 
+const PARTICLE_COLORS = [
+  'bg-emerald-400',
+  'bg-teal-300',
+  'bg-sky-400',
+  'bg-violet-400',
+  'bg-amber-300',
+  'bg-white/90',
+]
+
 function catalogHref(offering?: SignupWelcomeState['offeringType']): string {
   if (offering === 'services') return '/services'
-  if (offering === 'products' || offering === 'both' || !offering) return '/products'
   return '/products'
 }
 
@@ -72,7 +78,7 @@ function stripEmoji(s: string): string {
 
 function displayBusinessCategory(raw?: string): string {
   const t = raw?.trim()
-  if (!t) return 'business'
+  if (!t) return 'Business'
   const preset = COMPANY_TYPES.find((c) => c.value === t)
   if (preset) return stripEmoji(preset.label)
   return t
@@ -91,76 +97,157 @@ function clampComplete(n: unknown): number {
 }
 
 function topStatusBadge(complete: number): string {
-  if (complete >= 4) return 'STORE LIVE'
-  if (complete >= 3) return 'CATALOG READY'
-  if (complete >= 2) return 'BUSINESS FRONT READY'
-  return 'ACCOUNT READY'
-}
-
-function segmentTone(segmentIndex: number, complete: number): 'done' | 'active' | 'pending' {
-  if (segmentIndex < complete - 1) return 'done'
-  if (segmentIndex === complete - 1) return 'active'
-  return 'pending'
+  if (complete >= 4) return 'Store live'
+  if (complete >= 3) return 'Catalog ready'
+  if (complete >= 2) return 'Business front ready'
+  return 'Account ready'
 }
 
 function nextHrefForActiveStep(complete: number, steps: LaunchStep[]): string {
   if (complete < 1 || complete > TOTAL_STEPS) return '/'
-  const activeIndex = complete
-  return steps[activeIndex]?.nextHref ?? '/'
+  return steps[complete]?.nextHref ?? '/'
 }
 
 function tourHref(offering?: SignupWelcomeState['offeringType']): string {
   return catalogHref(offering)
 }
 
-function TopConfetti() {
-  const pieces = useMemo(
-    () =>
-      Array.from({ length: 28 }, (_, i) => ({
-        id: i,
-        left: `${(i * 17 + (i % 7) * 13) % 100}%`,
-        top: `${4 + (i * 11) % 28}%`,
-        delay: (i % 12) * 80,
-        duration: 2.8 + (i % 5) * 0.35,
-        w: i % 3 === 0 ? 6 : 5,
-        h: i % 2 === 0 ? 8 : 7,
-        rotate: (i * 41) % 180,
-        color: ['bg-sky-500', 'bg-amber-400', 'bg-emerald-500', 'bg-rose-500', 'bg-primary', 'bg-primary'][i % 6],
-      })),
-    [],
-  )
+type BlastParticle = {
+  id: number
+  dx: string
+  dy: string
+  rot: string
+  delay: string
+  size: number
+  color: string
+  shape: 'dot' | 'confetti'
+  slow: boolean
+}
+
+function buildBlastParticles(count: number, minDist: number, spread: number, slow = false): BlastParticle[] {
+  return Array.from({ length: count }, (_, i) => {
+    const angle = (i / count) * Math.PI * 2 + (i % 5) * 0.09
+    const dist = minDist + (i % 13) * spread + (i % 9) * (spread * 0.45)
+    return {
+      id: i + (slow ? 1000 : 0),
+      dx: `${Math.cos(angle) * dist}vmin`,
+      dy: `${Math.sin(angle) * dist}vmin`,
+      rot: `${(i * 41 + (slow ? 90 : 0)) % 360}deg`,
+      delay: `${(i % 12) * 12 + (slow ? 90 : 0)}ms`,
+      size: i % 5 === 0 ? 10 : i % 3 === 0 ? 7 : 5,
+      color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+      shape: i % 4 === 0 ? 'confetti' : 'dot',
+      slow,
+    }
+  })
+}
+
+function FullPageBlastOverlay() {
+  const fastParticles = useMemo(() => buildBlastParticles(48, 14, 3.2), [])
+  const slowParticles = useMemo(() => buildBlastParticles(32, 22, 4.1, true), [])
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-90" aria-hidden>
-      {pieces.map((p) => (
-        <span
-          key={p.id}
-          className={cn('absolute rounded-[1px] shadow-sm animate-pulse', p.color)}
-          style={{
-            left: p.left,
-            top: p.top,
-            width: p.w,
-            height: p.h,
-            transform: `rotate(${p.rotate}deg)`,
-            animationDelay: `${p.delay}ms`,
-            animationDuration: `${p.duration}s`,
-          }}
-        />
-      ))}
+    <div
+      className="signup-blast-overlay-out pointer-events-none fixed inset-0 z-[200] overflow-hidden"
+      aria-hidden
+    >
+      <div className="signup-screen-flash absolute inset-0 bg-gradient-to-br from-emerald-100 via-white to-teal-50" />
+
+      <div className="absolute left-1/2 top-1/2 h-0 w-0">
+        <span className="signup-blast-core absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-300/80 shadow-[0_0_120px_40px_rgba(100,195,160,0.75)]" />
+        <span className="signup-blast-ring absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-emerald-200/90 bg-emerald-400/25 shadow-[0_0_80px_rgba(100,195,160,0.6)]" />
+        <span className="signup-blast-ring absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/70 bg-white/30 [animation-delay:60ms]" />
+        <span className="signup-blast-ring absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300/50 [animation-delay:140ms]" />
+
+        {[...fastParticles, ...slowParticles].map((p) => (
+          <span
+            key={p.id}
+            className={cn(
+              'absolute left-1/2 top-1/2 shadow-sm',
+              p.slow ? 'signup-celebrate-particle-slow' : 'signup-celebrate-particle',
+              p.shape === 'confetti' ? 'rounded-sm' : 'rounded-full',
+              p.color,
+            )}
+            style={{
+              width: p.size,
+              height: p.shape === 'confetti' ? p.size * 1.6 : p.size,
+              animationDelay: p.delay,
+              ...({
+                '--dx': p.dx,
+                '--dy': p.dy,
+                '--rot': p.rot,
+              } as CSSProperties),
+            }}
+          />
+        ))}
+      </div>
     </div>
   )
 }
 
-/** Compact email verification — top-right header (fits one viewport, no page scroll). */
+function MeshBackground() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(100,195,160,0.22),transparent_55%)]" />
+      <div className="signup-welcome-orb absolute -left-16 top-20 h-56 w-56 rounded-full bg-emerald-500/20 blur-[80px]" />
+      <div className="signup-welcome-orb absolute -right-10 bottom-10 h-64 w-64 rounded-full bg-violet-500/15 blur-[90px] [animation-delay:2s]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_75%)]" />
+    </div>
+  )
+}
+
 function HeaderEmailVerify({ hint }: { hint: string }) {
   return (
     <div className="flex max-w-[58%] flex-col items-end gap-0.5 text-right sm:max-w-[50%]">
       <div className="flex items-center gap-1.5">
-        <Mail className="h-3.5 w-3.5 shrink-0 text-blue-600 sm:h-4 sm:w-4" aria-hidden />
-        <p className="text-xs font-medium leading-tight text-blue-900 sm:text-xs">Verify your email</p>
+        <Mail className="h-3.5 w-3.5 shrink-0 text-emerald-300/90" aria-hidden />
+        <p className="text-xs font-medium text-white/80">Verify email</p>
       </div>
-      <p className="hidden text-xs leading-snug text-blue-800/85 sm:block">Dev / inbox code:</p>
-      <p className="font-mono text-sm font-bold leading-none tracking-widest text-blue-950 sm:text-base">{hint}</p>
+      <p className="font-mono text-sm font-semibold tracking-widest text-white">{hint}</p>
+    </div>
+  )
+}
+
+function StepPill({
+  step,
+  index,
+  complete,
+}: {
+  step: LaunchStep
+  index: number
+  complete: number
+}) {
+  const done = index < complete
+  const current = index === complete && complete < TOTAL_STEPS
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-all',
+        current && 'bg-white/10 ring-1 ring-emerald-400/40',
+        !done && !current && 'opacity-45',
+      )}
+    >
+      <div
+        className={cn(
+          'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
+          done && 'bg-emerald-400 text-slate-900',
+          current && 'border border-emerald-300 bg-emerald-400/20 text-emerald-100',
+          !done && !current && 'border border-white/15 bg-white/5 text-white/40',
+        )}
+      >
+        {done ? <Check className="h-3 w-3" strokeWidth={3} /> : index + 1}
+      </div>
+      <div className="min-w-0 text-left">
+        <p className={cn('truncate text-xs font-semibold', current ? 'text-white' : 'text-white/75')}>
+          {step.label}
+        </p>
+      </div>
+      {current && (
+        <span className="ml-auto shrink-0 rounded-md bg-emerald-400/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-200">
+          Next
+        </span>
+      )}
     </div>
   )
 }
@@ -169,6 +256,8 @@ export default function SignupWelcome() {
   const navigate = useNavigate()
   const location = useLocation()
   const state = (location.state || {}) as SignupWelcomeState
+  const [showBlast, setShowBlast] = useState(true)
+  const [showModal, setShowModal] = useState(false)
 
   const steps = useMemo(() => stepsWithCatalogHref(state.offeringType), [state.offeringType])
 
@@ -178,9 +267,24 @@ export default function SignupWelcome() {
     }
   }, [state?.businessName, state?.vendorSlug, navigate])
 
+  useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reducedMotion) {
+      setShowBlast(false)
+      setShowModal(true)
+      return
+    }
+    const revealTimer = window.setTimeout(() => setShowModal(true), 920)
+    const blastTimer = window.setTimeout(() => setShowBlast(false), 1280)
+    return () => {
+      window.clearTimeout(revealTimer)
+      window.clearTimeout(blastTimer)
+    }
+  }, [])
+
   if (!state?.businessName && !state?.vendorSlug) {
     return (
-      <div className="flex h-[100dvh] items-center justify-center bg-slate-50 text-sm text-slate-500">
+      <div className="flex h-[100dvh] items-center justify-center bg-slate-950 text-sm text-slate-400">
         Redirecting…
       </div>
     )
@@ -194,34 +298,26 @@ export default function SignupWelcome() {
   const planLabel = (state.planName || 'Starter').trim() || 'Starter'
   const badge = topStatusBadge(complete)
   const nextHref = nextHrefForActiveStep(complete, steps)
+  const progressPct = Math.round((complete / TOTAL_STEPS) * 100)
+  const activeStep = steps[complete]
+  const catalogLinkLabel =
+    state.offeringType === 'services'
+      ? 'Open services catalog'
+      : 'Take a 60-second catalog tour'
 
   return (
-    <div
-      className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#f0f4f4] text-slate-800"
-      style={{
-        backgroundImage: `
-          linear-gradient(to right, rgb(148 163 184 / 0.12) 1px, transparent 1px),
-          linear-gradient(to bottom, rgb(148 163 184 / 0.12) 1px, transparent 1px)
-        `,
-        backgroundSize: '44px 44px',
-      }}
-    >
-      <div
-        className="pointer-events-none absolute -top-20 left-1/2 h-[14rem] w-[min(90vw,36rem)] -translate-x-1/2 rounded-full bg-emerald-400/20 blur-[80px]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute bottom-0 left-0 h-[12rem] w-[min(70vw,24rem)] rounded-full bg-sky-400/15 blur-[70px]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-12 top-1/4 h-[12rem] w-[16rem] rounded-full bg-amber-300/18 blur-[72px]"
-        aria-hidden
-      />
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-slate-950 text-white">
+      <MeshBackground />
 
-      {/* App bar — KIT ERP left; verify email top-right when present */}
-      <header className="relative z-20 flex h-11 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/90 px-3 backdrop-blur-md sm:h-12 sm:px-5">
-        <span className="text-sm font-bold tracking-tight text-slate-900 sm:text-[15px]">KIT ERP</span>
+      {showBlast && <FullPageBlastOverlay />}
+
+      <header
+        className={cn(
+          'relative z-40 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-slate-950/60 px-4 backdrop-blur-xl transition-opacity duration-300 sm:px-6',
+          !showModal && 'opacity-0',
+        )}
+      >
+        <span className="text-sm font-semibold tracking-tight text-white">KITERP</span>
         {state.verificationHint ? (
           <HeaderEmailVerify hint={state.verificationHint} />
         ) : (
@@ -229,157 +325,122 @@ export default function SignupWelcome() {
         )}
       </header>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
-        <TopConfetti />
-
-        <div className="signup-welcome-pop relative z-10 mx-auto flex w-full max-w-lg min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-3 py-2 text-center sm:px-5">
-          <div className="inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full border border-white/90 bg-white/95 px-2.5 py-0.5 text-xs font-medium uppercase tracking-[0.12em] text-slate-700 shadow-sm sm:px-3 sm:text-xs">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            </span>
-            <span className="truncate">{badge}</span>
-          </div>
-
-          <h1
-            className="mt-1.5 max-w-[22ch] shrink-0 font-serif text-xl font-semibold leading-tight tracking-tight text-slate-900 sm:mt-2 sm:text-[1.65rem]"
-            style={{ fontFamily: "'Fraunces', ui-serif, Georgia, serif" }}
-          >
-            Welcome,{' '}
-            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 bg-clip-text text-transparent">
-              {displayGreet}
-            </span>
-            .
-          </h1>
-
-          <p className="mt-1 max-w-md shrink-0 px-1 text-[13px] leading-snug text-slate-600 sm:text-sm">
-            Your {categoryLabel.toLowerCase()}{' '}
-            <span className="font-bold text-slate-900">{businessDisplay}</span> is live and ready for its first
-            customer.
-          </p>
-
-          <div className="mt-2 flex w-full max-w-md shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_40px_-20px_rgba(15,23,42,0.3)] sm:mt-3 sm:rounded-2xl sm:p-4">
-            <div className="flex shrink-0 items-start justify-between gap-2">
-              <div className="flex min-w-0 items-start gap-2 text-left">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500 shadow-sm sm:h-10 sm:w-10 sm:rounded-xl">
-                  <Store className="h-4 w-4 text-white sm:h-[1.15rem] sm:w-[1.15rem]" strokeWidth={2} aria-hidden />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="truncate text-sm font-bold text-slate-900 sm:text-base">{businessDisplay}</span>
-                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200/80 sm:text-xs">
-                      <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3" strokeWidth={3} aria-hidden />
-                      LIVE
-                    </span>
+      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4 sm:p-6">
+        {showModal && (
+        <div
+          className="signup-welcome-modal relative z-20 w-full max-w-md"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="signup-welcome-title"
+        >
+          <div className="overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-[0_24px_80px_-12px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+            <div className="signup-stagger-1 border-b border-white/10 bg-gradient-to-r from-emerald-500/20 via-transparent to-violet-500/15 px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-lg shadow-emerald-500/25"
+                    style={{ backgroundColor: SIGNUP_BRAND }}
+                  >
+                    <Store className="h-5 w-5 text-white" strokeWidth={2} aria-hidden />
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-500 sm:text-[12px]">
-                    {categoryLabel} · Owned by {displayGreet === 'there' ? 'you' : displayGreet}
-                  </p>
+                  <div className="min-w-0 text-left">
+                    <p className="truncate text-base font-bold text-white">{businessDisplay}</p>
+                    <p className="text-xs text-white/55">
+                      {categoryLabel}
+                      {displayGreet !== 'there' ? ` · ${displayGreet}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-right">
+                  <p className="text-[9px] font-medium uppercase tracking-wider text-white/40">Plan</p>
+                  <p className="text-xs font-bold text-white">{planLabel}</p>
                 </div>
               </div>
-              <div className="shrink-0 text-right">
-                <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Plan</p>
-                <p className="text-xs font-bold text-slate-900 sm:text-sm">{planLabel}</p>
-              </div>
             </div>
 
-            <div className="mt-2 flex shrink-0 items-center justify-between border-t border-slate-100 pt-2 sm:mt-3 sm:pt-2.5">
-              <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                Launch roadmap
+            <div className="signup-stagger-2 px-5 pt-5 text-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
+                <Sparkles className="h-3 w-3" aria-hidden />
+                {badge}
               </span>
-              <span className="text-xs font-bold uppercase tracking-[0.12em] text-amber-800/90">
-                {complete} of {TOTAL_STEPS} complete
-              </span>
+
+              <h1
+                id="signup-welcome-title"
+                className="mt-3 bg-gradient-to-br from-white via-white to-emerald-200 bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-[1.65rem]"
+              >
+                Welcome{displayGreet !== 'there' ? `, ${displayGreet}` : ''}
+              </h1>
+
+              <p className="mt-2 text-sm leading-relaxed text-white/60">
+                Your workspace is ready. Finish setup to launch{' '}
+                <span className="font-medium text-white/90">{businessDisplay}</span>.
+              </p>
             </div>
 
-            <div className="mt-1.5 sm:mt-2">
-              <div className="flex items-start justify-center">
-                {steps.map((step, i) => {
-                  const done = i < complete
-                  const current = i === complete && complete < TOTAL_STEPS
-                  const doneEmerald = done && i !== 1
-                  const doneAmber = done && i === 1
-
-                  return (
-                    <Fragment key={step.id}>
-                      {i > 0 && (
-                        <div
-                          className={cn(
-                            'mt-[0.9rem] h-0.5 min-w-0 flex-1 sm:mt-[1.15rem]',
-                            segmentTone(i - 1, complete) === 'done' && 'bg-emerald-500',
-                            segmentTone(i - 1, complete) === 'active' && 'bg-amber-500',
-                            segmentTone(i - 1, complete) === 'pending' && 'bg-slate-200',
-                          )}
-                          aria-hidden
-                        />
-                      )}
-                      <div className="flex w-[4.1rem] shrink-0 flex-col items-center sm:w-[4.85rem]">
-                        <div
-                          className={cn(
-                            'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold sm:h-9 sm:w-9 sm:text-xs',
-                            doneEmerald &&
-                              'bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/25',
-                            doneAmber &&
-                              'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm ring-2 ring-amber-400/35',
-                            current &&
-                              'border-2 border-red-500/90 bg-white text-red-600 shadow-[0_0_0_3px_rgba(248,113,113,0.2)]',
-                            !done && !current && 'border border-slate-200 bg-slate-50 text-slate-400',
-                          )}
-                        >
-                          {done ? <Check className="h-3 w-3 sm:h-4 sm:w-4" strokeWidth={2.5} /> : i + 1}
-                        </div>
-                        <span
-                          className={cn(
-                            'mt-1 text-center text-[8px] font-semibold uppercase leading-tight tracking-tight sm:text-xs',
-                            done && i === 1 && 'text-amber-900',
-                            done && i !== 1 && 'text-emerald-800',
-                            current && 'text-red-700',
-                            !done && !current && 'text-slate-400',
-                          )}
-                        >
-                          {step.label}
-                        </span>
-                        <p
-                          className={cn(
-                            'mt-0.5 line-clamp-3 max-w-full px-0.5 text-center text-[6.5px] font-normal normal-case leading-[1.25] text-slate-500 sm:text-[7.5px]',
-                            current && 'text-slate-600',
-                          )}
-                        >
-                          {step.description}
-                        </p>
-                        {current && (
-                          <Link
-                            to={nextHref}
-                            className="mt-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow-sm transition-colors hover:bg-amber-600 sm:mt-1 sm:px-2 sm:text-xs"
-                          >
-                            Next
-                          </Link>
-                        )}
-                      </div>
-                    </Fragment>
-                  )
-                })}
+            <div className="signup-stagger-3 px-5 py-4">
+              <div className="mb-2 flex items-center justify-between text-[11px] font-medium text-white/50">
+                <span>Launch roadmap</span>
+                <span className="tabular-nums text-white/80">
+                  {complete}/{TOTAL_STEPS} · {progressPct}%
+                </span>
               </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="signup-welcome-shimmer h-full rounded-full transition-all duration-700"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+
+              <div className="mt-3 grid gap-1">
+                {steps.map((step, i) => (
+                  <StepPill key={step.id} step={step} index={i} complete={complete} />
+                ))}
+              </div>
+
+              {activeStep && complete < TOTAL_STEPS && (
+                <p className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-left text-xs leading-relaxed text-white/55">
+                  <span className="font-semibold text-emerald-200">Up next:</span>{' '}
+                  {activeStep.description}
+                </p>
+              )}
+            </div>
+
+            <div className="signup-stagger-4 space-y-2.5 border-t border-white/10 bg-black/20 px-5 py-4">
+              <Button
+                type="button"
+                size="lg"
+                className="h-11 w-full rounded-xl border-0 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/20"
+                style={{ backgroundColor: SIGNUP_BRAND }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#52b893' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND }}
+                onClick={() => navigate('/', { replace: true })}
+              >
+                Continue to dashboard
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              {complete < TOTAL_STEPS ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-9 w-full rounded-xl text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white"
+                  onClick={() => navigate(nextHref, { replace: true })}
+                >
+                  Continue setup — {activeStep?.label}
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <Link
+                  to={tourHref(state.offeringType)}
+                  className="block text-center text-xs font-medium text-white/50 transition-colors hover:text-white/80"
+                >
+                  {catalogLinkLabel}
+                </Link>
+              )}
             </div>
           </div>
-
-          <Button
-            type="button"
-            size="lg"
-            className="mt-2 h-10 w-full max-w-xs shrink-0 rounded-full bg-slate-900 px-6 text-sm font-semibold text-white shadow-md shadow-slate-900/15 hover:bg-slate-800 sm:mt-3 sm:h-11 sm:max-w-sm sm:text-[15px]"
-            onClick={() => navigate('/', { replace: true })}
-          >
-            Continue to dashboard
-            <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-          </Button>
-
-          <Link
-            to={tourHref(state.offeringType)}
-            className="mt-1 shrink-0 text-xs font-medium text-slate-500 transition-colors hover:text-slate-800 sm:mt-1.5 sm:text-[13px]"
-          >
-            {state.offeringType === 'services' ? 'Open services catalog' : 'Take a 60-second catalog tour'}
-          </Link>
         </div>
+        )}
       </div>
     </div>
   )

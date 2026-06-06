@@ -45,8 +45,9 @@ class OtpSendResult:
             )
         if self.twilio_code == 60223:
             return (
-                "Twilio Verify email is not configured. In Twilio Console → Verify → Email Integration, "
-                "connect SendGrid with a template containing {{twilio_code}}."
+                "Twilio Verify email channel is disabled. In Twilio Console → Verify → Services → "
+                "open your Verify Service (VA...) → Email tab → select your SendGrid integration (kiterp), "
+                "then Save. The integration alone is not enough — it must be linked to the service."
             )
         if self.twilio_message and settings.DEBUG:
             return f"{fallback} (Twilio: {self.twilio_message})"
@@ -116,9 +117,7 @@ class OtpService:
 
     @property
     def is_email_configured(self) -> bool:
-        if self.uses_verify:
-            return True
-        return bool((settings.SMTP_HOST or "").strip())
+        return self.uses_verify or self.uses_smtp_email
 
     @property
     def is_configured(self) -> bool:
@@ -134,6 +133,21 @@ class OtpService:
         except Exception:
             return None, resp.text[:200]
 
+    @property
+    def uses_smtp_email(self) -> bool:
+        return bool((settings.SMTP_HOST or "").strip())
+
+    def _email_purpose_key(self, purpose: str) -> str:
+        if "reset" in purpose.lower() or "password" in purpose.lower():
+            return "verify"
+        return "verify" if "verify" in purpose.lower() else "change"
+
+    async def _send_email_smtp(self, to: str, code: str, *, purpose: str) -> OtpSendResult:
+        from app.services.email_service import send_verification_code_email
+
+        sent = await send_verification_code_email(to, code, purpose=self._email_purpose_key(purpose))
+        return OtpSendResult(sent=sent, channel="email", via_verify=False)
+
     async def send_otp(
         self,
         to: str,
@@ -147,14 +161,21 @@ class OtpService:
             if not is_valid_email(to):
                 return OtpSendResult(sent=False, channel="email", twilio_message="Invalid email address")
             if self.uses_verify:
-                return await self._send_via_verify(to, channel="email")
-            from app.services.email_service import send_verification_code_email
-
-            purpose_key = "verify" if "verify" in purpose.lower() else "change"
-            if "reset" in purpose.lower() or "password" in purpose.lower():
-                purpose_key = "verify"
-            sent = await send_verification_code_email(to, code, purpose=purpose_key)
-            return OtpSendResult(sent=sent, channel="email", via_verify=False)
+                verify_result = await self._send_via_verify(to, channel="email")
+                if verify_result.sent:
+                    return verify_result
+                # Verify email not linked (60223) — fall back to SMTP when configured.
+                if self.uses_smtp_email:
+                    log.warning(
+                        "Twilio Verify email failed (code=%s); falling back to SMTP for %s",
+                        verify_result.twilio_code,
+                        re.sub(r"(^.).+(@.+$)", r"\1***\2", to),
+                    )
+                    smtp_result = await self._send_email_smtp(to, code, purpose=purpose)
+                    if smtp_result.sent:
+                        return smtp_result
+                return verify_result
+            return await self._send_email_smtp(to, code, purpose=purpose)
 
         to = normalize_e164(to)
         if not is_valid_e164(to):

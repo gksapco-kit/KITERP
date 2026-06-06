@@ -892,6 +892,10 @@ async def ensure_crm_tables() -> None:
             "CREATE INDEX IF NOT EXISTS ix_crm_contact_record_type ON crm_contact(vendor_id, record_type);",
         ):
             await conn.execute(text(col_sql))
+        # Account → contact migration reads a.number; ensure column exists first.
+        await conn.execute(text(
+            "ALTER TABLE crm_account ADD COLUMN IF NOT EXISTS number VARCHAR(40);"
+        ))
         await conn.execute(text("""
             INSERT INTO crm_contact (
                 vendor_id, first_name, record_type, industry, region, website, phone, email,

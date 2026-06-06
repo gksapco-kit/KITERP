@@ -787,18 +787,33 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Vendor signup welcome — confetti burst */
+/* Vendor signup welcome — full-page blast */
 @keyframes signup-celebrate-particle {
   0% {
     opacity: 0;
-    transform: translate(-50%, 0) scale(0.35) rotate(0deg);
+    transform: translate(-50%, -50%) scale(0) rotate(0deg);
   }
-  14% {
+  6% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.35) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.5) rotate(var(--rot));
+  }
+}
+
+@keyframes signup-celebrate-particle-slow {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  12% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, 0) translate(var(--dx), var(--dy)) scale(0.65) rotate(var(--rot));
+    transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.35) rotate(var(--rot));
   }
 }
 
@@ -818,11 +833,158 @@
 }
 
 .signup-celebrate-particle {
-  animation: signup-celebrate-particle 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: signup-celebrate-particle 1.05s cubic-bezier(0.12, 0.9, 0.22, 1) forwards;
+}
+
+.signup-celebrate-particle-slow {
+  animation: signup-celebrate-particle-slow 1.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.signup-screen-flash {
+  animation: signup-screen-flash 0.65s ease-out forwards;
+}
+
+.signup-blast-core {
+  animation: signup-blast-core 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.signup-blast-overlay-out {
+  animation: signup-blast-overlay-out 0.45s ease-out 0.75s forwards;
 }
 
 .signup-welcome-pop {
   animation: signup-welcome-pop 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Signup welcome — full-screen blast + modal reveal */
+@keyframes signup-screen-flash {
+  0% { opacity: 0; }
+  6% { opacity: 0.92; }
+  18% { opacity: 0.45; }
+  100% { opacity: 0; }
+}
+
+@keyframes signup-blast-ring {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(0.05);
+    border-width: 4px;
+  }
+  40% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(12);
+    border-width: 1px;
+  }
+}
+
+@keyframes signup-blast-core {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.5);
+  }
+}
+
+@keyframes signup-blast-overlay-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes signup-modal-rise {
+  0% {
+    opacity: 0;
+    transform: scale(0.72) translateY(40px);
+    filter: blur(12px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.04) translateY(-6px);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes signup-shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes signup-orb-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(12px, -18px) scale(1.06); }
+}
+
+@keyframes signup-stagger-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.signup-blast-ring {
+  animation: signup-blast-ring 1s cubic-bezier(0.12, 0.85, 0.22, 1) forwards;
+}
+
+.signup-welcome-modal {
+  animation: signup-modal-rise 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.signup-welcome-shimmer {
+  background: linear-gradient(
+    90deg,
+    #64C3A0 0%,
+    #7dd3b5 25%,
+    #a7f3d0 50%,
+    #7dd3b5 75%,
+    #64C3A0 100%
+  );
+  background-size: 200% auto;
+  animation: signup-shimmer 2.8s linear infinite;
+}
+
+.signup-welcome-orb {
+  animation: signup-orb-float 8s ease-in-out infinite;
+}
+
+.signup-stagger-1 { animation: signup-stagger-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both; }
+.signup-stagger-2 { animation: signup-stagger-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both; }
+.signup-stagger-3 { animation: signup-stagger-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.48s both; }
+.signup-stagger-4 { animation: signup-stagger-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.58s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .signup-blast-ring,
+  .signup-blast-core,
+  .signup-screen-flash,
+  .signup-blast-overlay-out,
+  .signup-welcome-modal,
+  .signup-celebrate-particle,
+  .signup-celebrate-particle-slow,
+  .signup-welcome-orb,
+  .signup-welcome-shimmer,
+  .signup-stagger-1,
+  .signup-stagger-2,
+  .signup-stagger-3,
+  .signup-stagger-4 {
+    animation: none !important;
+  }
 }
 
 @keyframes zoom-in-95 {
