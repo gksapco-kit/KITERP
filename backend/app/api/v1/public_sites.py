@@ -764,10 +764,12 @@ async def submit_contact_public(
     lead_id_str: Optional[str] = None
     try:
         from app.models.crm import CrmLead
+        from app.services.crm.numbering import next_crm_number
         raw_name = (body.get("name") or "Website Visitor").strip()
         first, _, last = raw_name.partition(" ")
         lead = CrmLead(
             vendor_id=site.vendor_id,
+            number=await next_crm_number(db, site.vendor_id, CrmLead, "LED"),
             first_name=(first or "Website")[:120],
             last_name=(last or "Visitor")[:120],
             email=(body.get("email") or None),

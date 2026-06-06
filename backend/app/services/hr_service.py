@@ -302,7 +302,6 @@ class HRService:
         total_ded = sum(float(v) for v in deductions.values() if isinstance(v, (int, float, str)) and str(v).replace('.', '').isdigit())
         net = gross - total_ded
         data["gross_monthly"] = round(gross, 2)
-        data["total_deductions"] = round(total_ded, 2)
         data["net_monthly"] = round(net, 2)
         data["ctc_monthly"] = round(gross, 2)
         data["ctc_annual"] = round(gross * 12, 2)

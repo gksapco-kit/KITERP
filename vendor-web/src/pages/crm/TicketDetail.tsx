@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { useTicket, useTicketComments, useAddTicketComment, useSaveTicket } from '@/hooks/useCrm'
 import { ArrowLeft, Loader2, Lock, Send, AlertTriangle } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
+import { CrmExtrasView } from './crmExtras'
 
 const STATUSES = ['open', 'pending', 'on_hold', 'resolved', 'closed']
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
@@ -62,6 +63,8 @@ export default function TicketDetailPage() {
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{ticket.description}</p>
         </CardContent></Card>
       )}
+
+      <CrmExtrasView cf={ticket.custom_fields} />
 
       <Card>
         <CardContent className="p-0">

@@ -108,13 +108,15 @@ async def list_contacts(
     page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
     q: Optional[str] = None, account_id: Optional[UUID] = None,
     owner_id: Optional[UUID] = None, stage: Optional[str] = None,
-    tag: Optional[str] = None,
+    tag: Optional[str] = None, record_type: Optional[str] = None,
+    parent_contact_id: Optional[UUID] = None,
     vu: VendorUser = Depends(require_permission("crm.view")),
     db: AsyncSession = Depends(get_db),
 ):
     items, total = await ContactService(db).list(
         vu.vendor_id, page=page, size=size, q=q, account_id=account_id,
-        owner_id=owner_id, stage=stage, tag=tag,
+        owner_id=owner_id, stage=stage, tag=tag, record_type=record_type,
+        parent_contact_id=parent_contact_id,
     )
     items = [ContactResponse.model_validate(c).model_dump() for c in items]
     return _paginated(items, total, page, size)

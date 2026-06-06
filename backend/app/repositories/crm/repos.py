@@ -80,6 +80,7 @@ class AccountRepo(_VendorScopedRepo):
                 CrmAccount.name.ilike(like),
                 CrmAccount.email.ilike(like),
                 CrmAccount.phone.ilike(like),
+                CrmAccount.number.ilike(like),
             ))
         if industry:
             where.append(CrmAccount.industry == industry)
@@ -100,7 +101,9 @@ class ContactRepo(_VendorScopedRepo):
 
     async def search(self, vendor_id: UUID, *, page=1, size=20, q: Optional[str] = None,
                      account_id: Optional[UUID] = None, owner_id: Optional[UUID] = None,
-                     stage: Optional[str] = None, tag: Optional[str] = None):
+                     stage: Optional[str] = None, tag: Optional[str] = None,
+                     record_type: Optional[str] = None,
+                     parent_contact_id: Optional[UUID] = None):
         where = []
         if q:
             like = f"%{q}%"
@@ -110,6 +113,8 @@ class ContactRepo(_VendorScopedRepo):
                 CrmContact.email.ilike(like),
                 CrmContact.phone.ilike(like),
                 CrmContact.mobile.ilike(like),
+                CrmContact.industry.ilike(like),
+                CrmContact.region.ilike(like),
             ))
         if account_id:
             where.append(CrmContact.account_id == account_id)
@@ -119,6 +124,10 @@ class ContactRepo(_VendorScopedRepo):
             where.append(CrmContact.lifecycle_stage == stage)
         if tag:
             where.append(CrmContact.tags.contains([tag]))
+        if record_type:
+            where.append(CrmContact.record_type == record_type)
+        if parent_contact_id:
+            where.append(CrmContact.parent_contact_id == parent_contact_id)
         return await self.list(
             vendor_id, page=page, size=size,
             where=and_(*where) if where else None,
@@ -151,6 +160,7 @@ class LeadRepo(_VendorScopedRepo):
                 CrmLead.company.ilike(like),
                 CrmLead.email.ilike(like),
                 CrmLead.phone.ilike(like),
+                CrmLead.number.ilike(like),
             ))
         if status:
             where.append(CrmLead.status == status)
@@ -215,6 +225,7 @@ class DealRepo(_VendorScopedRepo):
             where.append(or_(
                 CrmDeal.title.ilike(like),
                 CrmDeal.description.ilike(like),
+                CrmDeal.number.ilike(like),
             ))
         if pipeline_id:
             where.append(CrmDeal.pipeline_id == pipeline_id)
@@ -358,11 +369,8 @@ class TicketRepo(_VendorScopedRepo):
         )
 
     async def next_ticket_number(self, vendor_id: UUID) -> str:
-        row = await self.db.execute(
-            select(func.count()).select_from(CrmTicket).where(CrmTicket.vendor_id == vendor_id)
-        )
-        n = (row.scalar_one() or 0) + 1
-        return f"TCK-{n:06d}"
+        from app.services.crm.numbering import next_crm_number
+        return await next_crm_number(self.db, vendor_id, CrmTicket, "TCK")
 
 
 class TicketCommentRepo(_VendorScopedRepo):

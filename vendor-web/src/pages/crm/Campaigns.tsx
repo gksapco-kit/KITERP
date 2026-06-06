@@ -4,77 +4,140 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useCampaigns, useSaveCampaign, useEmailTemplates, useSegments } from '@/hooks/useCrm'
-import { crmApi } from '@/api/crm'
-import { Plus, Loader2, Megaphone, Play, Pause, Send, MousePointerClick, AlertCircle } from 'lucide-react'
+import { crmApi, type Campaign, type CampaignStep } from '@/api/crm'
+import { Plus, Loader2, Megaphone, Play, Pause, Send, MousePointerClick, AlertCircle, Edit3 } from 'lucide-react'
 import { CrmModal, Field, Pager, LoadingRow, EmptyRow } from './_shared'
 import { formatDateTime } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
+import { inputCls } from './crmContactsShared'
+import { CampaignStepsBuilder, type CampaignDripStep } from './crmMarketingForms'
+import { CrmDateTimeField } from './crmExtras'
 
-function CampaignForm({ onClose }: { onClose: () => void }) {
+function stepsToDrip(steps?: CampaignStep[]): CampaignDripStep[] {
+  if (!steps?.length) return []
+  return steps.map(s => ({
+    delay_minutes: s.delay_minutes ?? 0,
+    channel: s.channel || 'email',
+    template_id: s.template_id || '',
+  }))
+}
+
+function CampaignForm({ campaign, onClose }: { campaign?: Campaign; onClose: () => void }) {
+  const qc = useQueryClient()
   const save = useSaveCampaign()
   const { data: templates } = useEmailTemplates()
   const { data: segments } = useSegments()
+  const tplList = (templates ?? []).map(t => ({ id: t.id, name: t.name }))
+
   const [form, setForm] = useState({
-    name: '', type: 'broadcast', channel: 'email',
-    template_id: '', segment_id: '', scheduled_at: '',
+    name: campaign?.name || '',
+    type: campaign?.type || 'broadcast',
+    channel: campaign?.channel || 'email',
+    template_id: campaign?.template_id || '',
+    segment_id: campaign?.segment_id || '',
+    scheduled_at: campaign?.scheduled_at?.slice(0, 16) || '',
+    dripSteps: stepsToDrip(campaign?.steps),
   })
-  const submit = (e: React.FormEvent) => {
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim()) return
-    save.mutate(
-      {
+    if (!form.name.trim()) {
+      toast.error('Campaign name is required')
+      return
+    }
+    const steps = form.type === 'drip'
+      ? form.dripSteps
+          .filter(s => s.template_id)
+          .map((s, i) => ({
+            sort_order: i,
+            delay_minutes: s.delay_minutes,
+            channel: s.channel,
+            template_id: s.template_id,
+          }))
+      : undefined
+
+    try {
+      await save.mutateAsync({
+        id: campaign?.id,
         data: {
-          name: form.name, type: form.type, channel: form.channel,
+          name: form.name.trim(),
+          type: form.type,
+          channel: form.channel,
           template_id: form.template_id || undefined,
           segment_id: form.segment_id || undefined,
           scheduled_at: form.scheduled_at || undefined,
+          steps,
         },
-      },
-      { onSuccess: onClose },
-    )
+      })
+      await qc.invalidateQueries({ queryKey: ['crm', 'campaigns'] })
+      toast.success(campaign ? 'Campaign updated' : 'Campaign saved')
+      onClose()
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not save campaign'))
+    }
   }
+
   return (
-    <CrmModal title="New campaign" onClose={onClose}>
+    <CrmModal title={campaign ? 'Edit campaign' : 'New campaign'} onClose={onClose} maxW="max-w-2xl">
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Name" required><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></Field>
+        <Field label="Campaign name" required>
+          <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. June newsletter" />
+        </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Type">
-            <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+            <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className={inputCls}>
               <option value="broadcast">Broadcast (one-shot)</option>
               <option value="drip">Drip sequence</option>
               <option value="trigger">Trigger-based</option>
             </select>
           </Field>
           <Field label="Channel">
-            <select value={form.channel} onChange={e => setForm(p => ({ ...p, channel: e.target.value }))}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+            <select value={form.channel} onChange={e => setForm(p => ({ ...p, channel: e.target.value }))} className={inputCls}>
               <option value="email">Email</option>
               <option value="sms">SMS</option>
               <option value="whatsapp">WhatsApp</option>
             </select>
           </Field>
         </div>
-        <Field label="Template">
-          <select value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value }))}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-            <option value="">— Select —</option>
-            {templates?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </Field>
-        <Field label="Segment">
-          <select value={form.segment_id} onChange={e => setForm(p => ({ ...p, segment_id: e.target.value }))}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+        {form.type !== 'drip' && (
+          <Field label="Email template">
+            <select value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value }))} className={inputCls}>
+              <option value="">— Select template —</option>
+              {tplList.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </Field>
+        )}
+        {form.type === 'drip' && (
+          <Field label="Sequence">
+            <CampaignStepsBuilder
+              steps={form.dripSteps}
+              onChange={dripSteps => setForm(p => ({ ...p, dripSteps }))}
+              templates={tplList}
+            />
+          </Field>
+        )}
+        <Field label="Audience segment">
+          <select value={form.segment_id} onChange={e => setForm(p => ({ ...p, segment_id: e.target.value }))} className={inputCls}>
             <option value="">— All contacts —</option>
-            {segments?.map(s => <option key={s.id} value={s.id}>{s.name} ({s.contact_count})</option>)}
+            {(segments ?? []).map(s => (
+              <option key={s.id} value={s.id}>{s.name} ({s.contact_count})</option>
+            ))}
           </select>
         </Field>
-        <Field label="Scheduled at (optional)"><Input type="datetime-local" value={form.scheduled_at} onChange={e => setForm(p => ({ ...p, scheduled_at: e.target.value }))} /></Field>
+        <Field label="Schedule send (optional)">
+          <CrmDateTimeField
+            value={form.scheduled_at}
+            onChange={v => setForm(p => ({ ...p, scheduled_at: v }))}
+            showPresets={false}
+          />
+        </Field>
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button type="submit" className="flex-1" disabled={save.isPending}>
             {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Create
+            {campaign ? 'Save changes' : 'Create campaign'}
           </Button>
         </div>
       </form>
@@ -86,6 +149,7 @@ export default function CampaignsPage() {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
   const [showCreate, setShowCreate] = useState(false)
+  const [edit, setEdit] = useState<Campaign | null>(null)
   const { data, isLoading } = useCampaigns({ page, size: 20 })
 
   const start = async (id: string) => {
@@ -133,7 +197,7 @@ export default function CampaignsPage() {
                 <tr key={c.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <p className="text-sm font-medium">{c.name}</p>
-                    <p className="text-xs text-gray-500">{c.type}</p>
+                    <p className="text-xs text-gray-500 capitalize">{c.type}{c.steps?.length ? ` · ${c.steps.length} steps` : ''}</p>
                   </td>
                   <td className="px-6 py-4 hidden md:table-cell">
                     <Badge variant="soft">{c.channel}</Badge>
@@ -150,11 +214,16 @@ export default function CampaignsPage() {
                   </td>
                   <td className="px-6 py-4 text-xs text-gray-500 hidden xl:table-cell">{c.started_at ? formatDateTime(c.started_at) : '—'}</td>
                   <td className="px-6 py-4 text-right">
-                    {c.status === 'running' ? (
-                      <Button variant="ghost" size="sm" onClick={() => pause(c.id)}><Pause className="w-4 h-4" /></Button>
-                    ) : (
-                      <Button variant="ghost" size="sm" onClick={() => start(c.id)}><Play className="w-4 h-4 text-emerald-600" /></Button>
-                    )}
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => setEdit(c)} title="Edit">
+                        <Edit3 className="w-4 h-4" />
+                      </Button>
+                      {c.status === 'running' ? (
+                        <Button variant="ghost" size="sm" onClick={() => pause(c.id)}><Pause className="w-4 h-4" /></Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => start(c.id)}><Play className="w-4 h-4 text-emerald-600" /></Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -165,6 +234,7 @@ export default function CampaignsPage() {
       </Card>
 
       {showCreate && <CampaignForm onClose={() => setShowCreate(false)} />}
+      {edit && <CampaignForm campaign={edit} onClose={() => setEdit(null)} />}
     </div>
   )
 }

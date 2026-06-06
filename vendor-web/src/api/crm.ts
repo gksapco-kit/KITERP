@@ -13,6 +13,7 @@ export type Paginated<T> = {
 export type Account = {
   id: string
   vendor_id: string
+  number: string
   name: string
   industry?: string | null
   region?: string | null
@@ -34,13 +35,23 @@ export type Account = {
 export type Contact = {
   id: string
   vendor_id: string
+  record_type?: 'person' | 'company' | string | null
+  salutation?: string | null
   first_name: string
   last_name?: string | null
   title?: string | null
   email?: string | null
   phone?: string | null
   mobile?: string | null
+  industry?: string | null
+  region?: string | null
+  website?: string | null
+  annual_revenue?: number | null
+  employee_count?: number | null
   account_id?: string | null
+  parent_contact_id?: string | null
+  linked_account_id?: string | null
+  number?: string | null
   owner_id?: string | null
   lifecycle_stage?: string | null
   lead_source?: string | null
@@ -59,6 +70,7 @@ export type Contact = {
 export type Lead = {
   id: string
   vendor_id: string
+  number: string
   first_name?: string | null
   last_name?: string | null
   company?: string | null
@@ -106,6 +118,7 @@ export type Pipeline = {
 export type Deal = {
   id: string
   vendor_id: string
+  number: string
   title: string
   description?: string | null
   pipeline_id: string
@@ -132,6 +145,7 @@ export type Deal = {
 export type Activity = {
   id: string
   vendor_id: string
+  number: string
   type: string
   subject: string
   description?: string | null
@@ -146,6 +160,7 @@ export type Activity = {
   meeting_url?: string | null
   outcome?: string | null
   owner_id?: string | null
+  custom_fields?: Record<string, unknown> | null
   completed_at?: string | null
   created_at: string
   updated_at: string
@@ -183,6 +198,7 @@ export type Ticket = {
   closed_at?: string | null
   sla_breached: boolean
   tags?: string[] | null
+  custom_fields?: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }
@@ -581,7 +597,8 @@ export const crmApi = {
   deleteIntegration: (id: string) => apiClient.delete(`${BASE}/integrations/${id}`),
 
   // Reports
-  reportOverview: () => apiClient.get(`${BASE}/reports/overview`).then(r => r.data),
+  reportOverview: (params: { range?: string } = {}) =>
+    apiClient.get(`${BASE}/reports/overview`, { params }).then(r => r.data),
   reportSales: () => apiClient.get(`${BASE}/reports/sales-performance`).then(r => r.data),
   reportCampaigns: () => apiClient.get(`${BASE}/reports/campaigns`).then(r => r.data),
   reportTickets: () => apiClient.get(`${BASE}/reports/tickets`).then(r => r.data),

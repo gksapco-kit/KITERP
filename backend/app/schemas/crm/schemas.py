@@ -73,6 +73,7 @@ class AccountResponse(AccountBase):
     model_config = ORM
     id: UUID
     vendor_id: UUID
+    number: str
     created_at: datetime
     updated_at: datetime
 
@@ -82,10 +83,17 @@ class AccountResponse(AccountBase):
 class ContactBase(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=120)
     last_name: Optional[str] = None
+    salutation: Optional[str] = None
+    record_type: Optional[str] = "person"
     title: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     mobile: Optional[str] = None
+    industry: Optional[str] = None
+    region: Optional[str] = None
+    website: Optional[str] = None
+    annual_revenue: Optional[Decimal] = None
+    employee_count: Optional[int] = None
     address: Optional[dict] = None
     tags: Optional[list[str]] = None
     custom_fields: Optional[dict] = None
@@ -95,6 +103,7 @@ class ContactBase(BaseModel):
     do_not_email: Optional[bool] = False
     do_not_call: Optional[bool] = False
     account_id: Optional[UUID] = None
+    parent_contact_id: Optional[UUID] = None
     customer_id: Optional[UUID] = None
     owner_id: Optional[UUID] = None
     is_active: Optional[bool] = True
@@ -107,10 +116,17 @@ class ContactCreate(ContactBase):
 class ContactUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    salutation: Optional[str] = None
+    record_type: Optional[str] = None
     title: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     mobile: Optional[str] = None
+    industry: Optional[str] = None
+    region: Optional[str] = None
+    website: Optional[str] = None
+    annual_revenue: Optional[Decimal] = None
+    employee_count: Optional[int] = None
     address: Optional[dict] = None
     tags: Optional[list[str]] = None
     custom_fields: Optional[dict] = None
@@ -120,6 +136,7 @@ class ContactUpdate(BaseModel):
     do_not_email: Optional[bool] = None
     do_not_call: Optional[bool] = None
     account_id: Optional[UUID] = None
+    parent_contact_id: Optional[UUID] = None
     customer_id: Optional[UUID] = None
     owner_id: Optional[UUID] = None
     is_active: Optional[bool] = None
@@ -129,6 +146,8 @@ class ContactResponse(ContactBase):
     model_config = ORM
     id: UUID
     vendor_id: UUID
+    number: Optional[str] = None
+    linked_account_id: Optional[UUID] = None
     last_activity_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
@@ -193,6 +212,7 @@ class LeadResponse(LeadBase):
     model_config = ORM
     id: UUID
     vendor_id: UUID
+    number: str
     converted_at: Optional[datetime] = None
     converted_contact_id: Optional[UUID] = None
     converted_account_id: Optional[UUID] = None
@@ -291,6 +311,7 @@ class DealResponse(DealBase):
     model_config = ORM
     id: UUID
     vendor_id: UUID
+    number: str
     sort_order: int
     closed_at: Optional[datetime] = None
     lost_reason: Optional[str] = None
@@ -307,7 +328,10 @@ class DealMoveRequest(BaseModel):
 # ── Activities ───────────────────────────────────────────────────────────────
 
 class ActivityBase(BaseModel):
-    type: str = Field(..., pattern="^(task|call|meeting|note|email)$")
+    type: str = Field(
+        ...,
+        pattern="^(task|call|meeting|note|email|reminder|schedule|followup|ticket_followup|technical_support|support|other)$",
+    )
     subject: str
     description: Optional[str] = None
     related_type: Optional[str] = None
@@ -321,6 +345,7 @@ class ActivityBase(BaseModel):
     meeting_url: Optional[str] = None
     outcome: Optional[str] = None
     owner_id: Optional[UUID] = None
+    custom_fields: Optional[dict] = None
 
 
 class ActivityCreate(ActivityBase):
@@ -343,12 +368,14 @@ class ActivityUpdate(BaseModel):
     meeting_url: Optional[str] = None
     outcome: Optional[str] = None
     owner_id: Optional[UUID] = None
+    custom_fields: Optional[dict] = None
 
 
 class ActivityResponse(ActivityBase):
     model_config = ORM
     id: UUID
     vendor_id: UUID
+    number: str
     completed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

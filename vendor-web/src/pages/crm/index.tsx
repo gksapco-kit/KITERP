@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -7,59 +8,26 @@ import {
   Activity, Target, LifeBuoy, Users, TrendingUp, CheckCircle2,
   Clock, AlertTriangle, ArrowRight, Loader2,
 } from 'lucide-react'
+import { CrmStatTile, CrmRangePicker, type CrmTrendRange } from './crmDashboardTiles'
 
 type Overview = {
   total_contacts?: number
-  total_accounts?: number
+  total_companies?: number
   total_leads?: number
   open_leads?: number
-  total_deals?: number
   open_deals?: number
   pipeline_value?: number
   weighted_value?: number
   open_tickets?: number
   overdue_tickets?: number
   pending_activities?: number
-  campaigns_active?: number
   conversion_rate?: number
-}
-
-function StatCard({
-  label, value, hint, icon: Icon, accent = 'blue', to,
-}: {
-  label: string
-  value: string | number
-  hint?: string
-  icon: React.ComponentType<{ className?: string }>
-  accent?: 'blue' | 'green' | 'amber' | 'rose' | 'violet'
-  to?: string
-}) {
-  const tones: Record<string, string> = {
-    blue:   'bg-blue-50 text-blue-600',
-    green:  'bg-emerald-50 text-emerald-600',
-    amber:  'bg-amber-50 text-amber-600',
-    rose:   'bg-rose-50 text-rose-600',
-    violet: 'bg-accent text-primary',
-  }
-  const inner = (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {hint && <p className="text-xs text-gray-500 mt-0.5 truncate">{hint}</p>}
-        </div>
-        <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${tones[accent]}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-  return to ? <Link to={to} className="block">{inner}</Link> : inner
+  trends?: Record<string, number[]>
 }
 
 export default function CrmDashboard() {
-  const { data: overview, isLoading } = useCrmOverview() as { data?: Overview; isLoading: boolean }
+  const [range, setRange] = useState<CrmTrendRange>('30d')
+  const { data: overview, isLoading } = useCrmOverview(range) as { data?: Overview; isLoading: boolean }
   const { data: leads } = useLeads({ size: 5, page: 1 })
   const { data: deals } = useDeals({ size: 5, page: 1, status: 'open' })
   const { data: tickets } = useTickets({ size: 5, page: 1, status: 'open' })
@@ -74,10 +42,11 @@ export default function CrmDashboard() {
   }
 
   const o = overview || {}
+  const t = o.trends || {}
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
           <h1 className="text-2xl font-bold text-gray-900">Customer Overview</h1>
@@ -89,15 +58,67 @@ export default function CrmDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <StatCard label="Contacts" value={o.total_contacts ?? 0} icon={Users} accent="blue" to="/crm/contacts" />
-        <StatCard label="Accounts" value={o.total_accounts ?? 0} icon={Users} accent="violet" to="/crm/accounts" />
-        <StatCard label="Open leads" value={o.open_leads ?? 0} hint={`${o.total_leads ?? 0} total`} icon={Target} accent="amber" to="/crm/leads" />
-        <StatCard label="Conversion" value={`${(o.conversion_rate ?? 0).toFixed?.(1) ?? 0}%`} icon={TrendingUp} accent="green" />
-        <StatCard label="Pipeline value" value={formatCurrency(o.pipeline_value ?? 0)} hint={`Weighted ${formatCurrency(o.weighted_value ?? 0)}`} icon={TrendingUp} accent="green" to="/crm/pipeline" />
-        <StatCard label="Active deals" value={o.open_deals ?? 0} icon={Target} accent="blue" to="/crm/pipeline" />
-        <StatCard label="Open tickets" value={o.open_tickets ?? 0} hint={`${o.overdue_tickets ?? 0} overdue`} icon={LifeBuoy} accent="rose" to="/crm/tickets" />
-        <StatCard label="Pending tasks" value={o.pending_activities ?? 0} icon={Activity} accent="amber" to="/crm/activities" />
+      <CrmRangePicker value={range} onChange={setRange} />
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <CrmStatTile
+          label="Contacts / Companies"
+          value={`${o.total_contacts ?? 0} / ${o.total_companies ?? 0}`}
+          icon={Users}
+          accent="blue"
+          to="/crm/contacts"
+          spark={t.contacts_companies}
+        />
+        <CrmStatTile
+          label="Open leads"
+          value={o.open_leads ?? 0}
+          hint={`${o.total_leads ?? 0} total`}
+          icon={Target}
+          accent="amber"
+          to="/crm/leads"
+          spark={t.leads}
+        />
+        <CrmStatTile
+          label="Conversion"
+          value={`${(o.conversion_rate ?? 0).toFixed?.(1) ?? 0}%`}
+          icon={TrendingUp}
+          accent="green"
+          spark={t.conversion}
+        />
+        <CrmStatTile
+          label="Pipeline value"
+          value={formatCurrency(o.pipeline_value ?? 0)}
+          hint={`Weighted ${formatCurrency(o.weighted_value ?? 0)}`}
+          icon={TrendingUp}
+          accent="green"
+          to="/crm/pipeline"
+          spark={t.pipeline}
+        />
+        <CrmStatTile
+          label="Active deals"
+          value={o.open_deals ?? 0}
+          icon={Target}
+          accent="blue"
+          to="/crm/pipeline"
+          spark={t.deals}
+        />
+        <CrmStatTile
+          label="Open tickets"
+          value={o.open_tickets ?? 0}
+          hint={`${o.overdue_tickets ?? 0} overdue`}
+          icon={LifeBuoy}
+          accent="rose"
+          to="/crm/tickets"
+          spark={t.tickets}
+        />
+        <CrmStatTile
+          label="Pending tasks"
+          value={o.pending_activities ?? 0}
+          icon={Activity}
+          accent="amber"
+          to="/crm/activities"
+          spark={t.tasks}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -159,15 +180,15 @@ export default function CrmDashboard() {
               </Link>
             </div>
             <div className="divide-y">
-              {tickets?.items?.length ? tickets.items.map(t => (
-                <Link to={`/crm/tickets/${t.id}`} key={t.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+              {tickets?.items?.length ? tickets.items.map(tk => (
+                <Link to={`/crm/tickets/${tk.id}`} key={tk.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate"><span className="font-mono text-xs text-gray-400 mr-1">{t.number}</span>{t.subject}</p>
-                    <p className="text-xs text-gray-500">Updated {formatDateTime(t.updated_at)}</p>
+                    <p className="text-sm font-medium truncate"><span className="font-mono text-xs text-gray-400 mr-1">{tk.number}</span>{tk.subject}</p>
+                    <p className="text-xs text-gray-500">Updated {formatDateTime(tk.updated_at)}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {t.sla_breached && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                    <Badge variant={t.priority === 'urgent' ? 'destructive' : t.priority === 'high' ? 'warning' : 'secondary'}>{t.priority}</Badge>
+                    {tk.sla_breached && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                    <Badge variant={tk.priority === 'urgent' ? 'destructive' : tk.priority === 'high' ? 'warning' : 'secondary'}>{tk.priority}</Badge>
                   </div>
                 </Link>
               )) : <p className="px-5 py-6 text-sm text-gray-400">No open tickets.</p>}
@@ -187,7 +208,10 @@ export default function CrmDashboard() {
               {activities?.items?.length ? activities.items.map(a => (
                 <div key={a.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{a.subject}</p>
+                    <p className="text-sm font-medium truncate">
+                      {a.number && <span className="font-mono text-xs text-gray-400 mr-1">{a.number}</span>}
+                      {a.subject}
+                    </p>
                     <p className="text-xs text-gray-500 truncate">
                       {a.type} {a.due_at ? `• due ${formatDateTime(a.due_at)}` : ''}
                     </p>

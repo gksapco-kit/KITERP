@@ -98,6 +98,36 @@ class NotificationService:
         except Exception as e:
             log.warning("Failed to save order-status notification: %s", e)
 
+    async def notify_care_reminder(
+        self,
+        vendor_id: UUID,
+        customer_id: UUID,
+        title: str,
+        message: str,
+        *,
+        include_reach_back: bool = False,
+        reference_id: Optional[Union[str, UUID]] = None,
+    ) -> Notification:
+        """Push an in-app notification to the customer's storefront / mobile app."""
+        payload = {
+            "include_reach_back": include_reach_back,
+            "source": "care_reminder",
+        }
+        notif = Notification(
+            vendor_id=vendor_id,
+            customer_id=customer_id,
+            title=title[:255],
+            message=message,
+            type="care_reminder",
+            channel="in_app",
+            reference_id=_coerce_reference_uuid(reference_id),
+            reference_type="care_reminder",
+            data=payload,
+        )
+        self.db.add(notif)
+        await self.db.flush()
+        return notif
+
     async def notify_marketplace_lead(
         self,
         vendor_id: UUID,

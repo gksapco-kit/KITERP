@@ -29,6 +29,7 @@ class CrmAccount(Base):
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("crm_account.id", ondelete="SET NULL"), nullable=True)
 
+    number = Column(String(40), nullable=False)
     name = Column(String(255), nullable=False)
     industry = Column(String(100))
     region = Column(String(100))
@@ -51,11 +52,15 @@ class CrmAccount(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     children = relationship("CrmAccount", remote_side=[id])
-    contacts = relationship("CrmContact", back_populates="account", cascade="all, delete-orphan")
+    contacts = relationship(
+        "CrmContact", back_populates="account", cascade="all, delete-orphan",
+        foreign_keys="CrmContact.account_id",
+    )
 
     __table_args__ = (
         Index("ix_crm_account_vendor_name", "vendor_id", "name"),
         Index("ix_crm_account_owner", "owner_id"),
+        Index("ix_crm_account_number", "vendor_id", "number", unique=True),
     )
 
 
@@ -70,12 +75,24 @@ class CrmContact(Base):
     customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id", ondelete="SET NULL"), nullable=True)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
 
+    record_type = Column(String(10), default="person", nullable=False)  # person | company
+    salutation = Column(String(20))
+    parent_contact_id = Column(UUID(as_uuid=True), ForeignKey("crm_contact.id", ondelete="SET NULL"), nullable=True)
+    linked_account_id = Column(UUID(as_uuid=True), ForeignKey("crm_account.id", ondelete="SET NULL"), nullable=True)
+    number = Column(String(40))
+
     first_name = Column(String(120), nullable=False)
     last_name = Column(String(120))
     title = Column(String(120))
     email = Column(String(255))
     phone = Column(String(50))
     mobile = Column(String(50))
+
+    industry = Column(String(100))
+    region = Column(String(100))
+    website = Column(String(500))
+    annual_revenue = Column(Numeric(14, 2))
+    employee_count = Column(Integer)
 
     address = Column(JSONB, default=dict)
     tags = Column(JSONB, default=list)
@@ -93,13 +110,16 @@ class CrmContact(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    account = relationship("CrmAccount", back_populates="contacts")
+    account = relationship("CrmAccount", back_populates="contacts", foreign_keys=[account_id])
+    parent = relationship("CrmContact", remote_side=[id], foreign_keys=[parent_contact_id])
 
     __table_args__ = (
         Index("ix_crm_contact_vendor_email", "vendor_id", "email"),
         Index("ix_crm_contact_vendor_phone", "vendor_id", "phone"),
         Index("ix_crm_contact_account", "account_id"),
         Index("ix_crm_contact_owner", "owner_id"),
+        Index("ix_crm_contact_parent", "parent_contact_id"),
+        Index("ix_crm_contact_record_type", "vendor_id", "record_type"),
     )
 
 
@@ -111,6 +131,7 @@ class CrmLead(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
 
+    number = Column(String(40), nullable=False)
     first_name = Column(String(120))
     last_name = Column(String(120))
     company = Column(String(255))
@@ -143,6 +164,7 @@ class CrmLead(Base):
         Index("ix_crm_lead_vendor_status", "vendor_id", "status"),
         Index("ix_crm_lead_assigned", "assigned_to"),
         Index("ix_crm_lead_email", "vendor_id", "email"),
+        Index("ix_crm_lead_number", "vendor_id", "number", unique=True),
     )
 
 
@@ -192,6 +214,7 @@ class CrmDeal(Base):
     pipeline_id = Column(UUID(as_uuid=True), ForeignKey("crm_pipeline.id", ondelete="RESTRICT"), nullable=False, index=True)
     stage_id = Column(UUID(as_uuid=True), ForeignKey("crm_stage.id", ondelete="RESTRICT"), nullable=False, index=True)
 
+    number = Column(String(40), nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text)
     account_id = Column(UUID(as_uuid=True), ForeignKey("crm_account.id", ondelete="SET NULL"), nullable=True)
@@ -220,6 +243,7 @@ class CrmDeal(Base):
         Index("ix_crm_deal_vendor_stage", "vendor_id", "stage_id"),
         Index("ix_crm_deal_owner", "owner_id"),
         Index("ix_crm_deal_status", "vendor_id", "status"),
+        Index("ix_crm_deal_number", "vendor_id", "number", unique=True),
     )
 
 
@@ -232,6 +256,7 @@ class CrmActivity(Base):
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
 
+    number = Column(String(40), nullable=False)
     type = Column(String(20), nullable=False)  # task/call/meeting/note/email
     subject = Column(String(255), nullable=False)
     description = Column(Text)
@@ -250,6 +275,7 @@ class CrmActivity(Base):
     location = Column(String(255))
     meeting_url = Column(String(500))
     outcome = Column(String(255))
+    custom_fields = Column(JSONB, default=dict)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -258,6 +284,7 @@ class CrmActivity(Base):
         Index("ix_crm_activity_vendor_owner", "vendor_id", "owner_id"),
         Index("ix_crm_activity_related", "related_type", "related_id"),
         Index("ix_crm_activity_due", "vendor_id", "due_at"),
+        Index("ix_crm_activity_number", "vendor_id", "number", unique=True),
     )
 
 

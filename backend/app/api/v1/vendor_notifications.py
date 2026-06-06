@@ -43,6 +43,14 @@ class ActiveSlot(BaseModel):
     end: str = "17:00"
 
 
+class CustomerNotificationSend(BaseModel):
+    customer_id: UUID
+    title: str = Field(..., min_length=1, max_length=255)
+    message: str = Field(..., min_length=1)
+    include_reach_back: bool = False
+    reference_id: Optional[str] = None
+
+
 class NotificationPreferences(BaseModel):
     # Master switch
     notifications_enabled: bool = True
@@ -295,3 +303,29 @@ async def send_test_notification(
     )
     await db.commit()
     return {"status": "ok", "message": "Test notification sent"}
+
+
+@router.post("/customer")
+async def send_customer_notification(
+    data: CustomerNotificationSend,
+    vendor_id: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deliver an in-app notification to a customer's storefront / mobile app."""
+    from app.repositories.customer_repo import CustomerRepository
+
+    customer = await CustomerRepository(db).get_by_vendor_and_id(vendor_id, data.customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    svc = NotificationService(db)
+    notif = await svc.notify_care_reminder(
+        vendor_id=vendor_id,
+        customer_id=data.customer_id,
+        title=data.title,
+        message=data.message,
+        include_reach_back=data.include_reach_back,
+        reference_id=data.reference_id,
+    )
+    await db.commit()
+    return {"ok": True, "notification_id": str(notif.id)}
