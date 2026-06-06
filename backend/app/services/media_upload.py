@@ -141,6 +141,39 @@ async def save_hr_document(file: UploadFile, emp_id: str) -> dict:
     }
 
 
+ALLOWED_DOC_TYPES_CRM = ALLOWED_IMAGE_TYPES | {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain",
+    "text/csv",
+}
+MAX_DOC_SIZE_CRM = 15 * 1024 * 1024
+
+
+async def save_crm_document(file: UploadFile, vendor_id: UUID) -> dict:
+    """Persist a CRM attachment (image / PDF / Word / Excel / CSV / text)."""
+    ct = file.content_type or ""
+    if ct not in ALLOWED_DOC_TYPES_CRM:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Allowed: images, PDF, Word, Excel, CSV or text files.",
+        )
+    contents = await file.read()
+    if len(contents) > MAX_DOC_SIZE_CRM:
+        raise HTTPException(status_code=413, detail="File too large (max 15 MB).")
+    url = await get_file_service().upload_file(file, f"crm/{vendor_id}", content=contents)
+    return {
+        "url": url,
+        "filename": file.filename or "document",
+        "content_type": ct,
+        "size": len(contents),
+        "is_image": ct in ALLOWED_IMAGE_TYPES,
+    }
+
+
 async def save_expense_receipt(file: UploadFile, vendor_id: UUID) -> dict:
     """Persist HR expense receipt — images/PDF, no hard size cap beyond reasonable limit."""
     allowed = ALLOWED_IMAGE_TYPES | {"application/pdf"}

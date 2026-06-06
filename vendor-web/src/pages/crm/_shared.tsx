@@ -1,5 +1,6 @@
 import { type ReactNode, type FormEvent } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { onModalBackdropClick } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -7,16 +8,21 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Loader2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export function CrmModal({
-  title, onClose, children, maxW = 'max-w-lg',
-}: { title: string; onClose: () => void; children: ReactNode; maxW?: string }) {
+  title, onClose, children, maxW = 'max-w-lg', headerActions,
+}: { title: string; onClose: () => void; children: ReactNode; maxW?: string; headerActions?: ReactNode }) {
+  useEscapeToClose(onClose)
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
       <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxW} max-h-[90vh] overflow-y-auto`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10" onClick={e => e.stopPropagation()}>
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b sticky top-0 bg-white z-10">
+          <h2 className="text-lg font-semibold truncate">{title}</h2>
+          <div className="flex items-center gap-2 shrink-0">
+            {headerActions}
+            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
         </div>
         <div className="p-6">{children}</div>
       </div>

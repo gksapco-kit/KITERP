@@ -24,6 +24,8 @@ export type Account = {
   parent_id?: string | null
   owner_id?: string | null
   tags?: string[] | null
+  notes?: string | null
+  custom_fields?: Record<string, unknown> | null
   is_active?: boolean
   created_at: string
   updated_at: string
@@ -43,6 +45,9 @@ export type Contact = {
   lifecycle_stage?: string | null
   lead_source?: string | null
   tags?: string[] | null
+  notes?: string | null
+  address?: Record<string, unknown> | null
+  custom_fields?: Record<string, unknown> | null
   do_not_email?: boolean
   do_not_call?: boolean
   is_active?: boolean
@@ -119,6 +124,7 @@ export type Deal = {
   lost_reason?: string | null
   won_reason?: string | null
   tags?: string[] | null
+  custom_fields?: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }
@@ -390,7 +396,25 @@ export type JourneyEvent = {
 
 // ── API helpers ─────────────────────────────────────────────────────────────
 
+export type CrmDocument = {
+  url: string
+  filename: string
+  content_type?: string
+  size?: number
+  is_image?: boolean
+}
+
 export const crmApi = {
+  // Attachments (contact / account documents)
+  uploadDocument: async (file: File): Promise<CrmDocument> => {
+    const form = new FormData()
+    form.append('file', file)
+    const r = await apiClient.post<CrmDocument>('/uploads/crm/document', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return r.data
+  },
+
   // Accounts
   listAccounts: (params: Record<string, unknown> = {}) =>
     apiClient.get<Paginated<Account>>(`${BASE}/accounts`, { params }).then(r => r.data),

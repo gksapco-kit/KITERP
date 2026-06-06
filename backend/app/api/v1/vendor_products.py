@@ -1,6 +1,8 @@
 # app/api/v1/vendor_products.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
@@ -408,7 +410,10 @@ async def create_product(
     except json.JSONDecodeError:
         raise HTTPException(400, "Invalid JSON in product_data")
 
-    data = ProductCreate(**raw)
+    try:
+        data = ProductCreate(**raw)
+    except ValidationError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, jsonable_encoder(e.errors()))
     repo = ProductRepository(db)
 
     slug = data.slug or slugify(data.name, lowercase=True)

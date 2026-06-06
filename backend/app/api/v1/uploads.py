@@ -21,6 +21,7 @@ from app.repositories.service_repo import ServiceRepository
 from app.services.media_upload import (
     save_media_file,
     save_hr_document,
+    save_crm_document,
     delete_stored_file,
     detect_media_type,
     ALLOWED_IMAGE_TYPES,
@@ -85,6 +86,17 @@ async def upload_vendor_banner(
     vendor.banner_url = url
     await db.commit()
     return JSONResponse(content={"banner_url": url})
+
+
+@router.post("/crm/document")
+async def upload_crm_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a CRM attachment (contact/account documents) and return its URL + metadata."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    return JSONResponse(content=await save_crm_document(file, vendor_id))
 
 
 @router.post("/vendor/branding-asset")

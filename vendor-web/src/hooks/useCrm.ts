@@ -72,6 +72,9 @@ export const usePipelines = () =>
 export const useDeals = (params: Record<string, unknown> = {}) =>
   useQuery({ queryKey: KEY('deals', params), queryFn: () => crmApi.listDeals(params) })
 
+export const useDeal = (id?: string) =>
+  useQuery({ queryKey: KEY('deal', id), queryFn: () => crmApi.getDeal(id!), enabled: !!id })
+
 export const useKanban = (params: { pipeline_id?: string; status?: string } = {}) =>
   useQuery({ queryKey: KEY('kanban', params), queryFn: () => crmApi.kanban(params) })
 
@@ -86,6 +89,8 @@ export const useSaveDeal = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
       qc.invalidateQueries({ queryKey: ['crm', 'kanban'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'deal'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'forecast'] })
     },
   })
 }
@@ -98,6 +103,9 @@ export const useMoveDeal = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'kanban'] })
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'deal'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'audit'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'forecast'] })
     },
   })
 }
@@ -123,6 +131,32 @@ export const useCompleteActivity = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'activities'] }),
   })
 }
+
+// Communications
+export const useCommunications = (params: Record<string, unknown> = {}) =>
+  useQuery({ queryKey: KEY('communications', params), queryFn: () => crmApi.listCommunications(params) })
+
+export const useLogCommunication = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown> & { channel: string }) => crmApi.logCommunication(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'communications'] }),
+  })
+}
+
+// AI insights
+export const useAiInsights = (entityType?: string, entityId?: string, kind?: string) =>
+  useQuery({
+    queryKey: KEY('ai-insights', entityType, entityId, kind),
+    queryFn: () => crmApi.listInsights(entityType!, entityId!, kind),
+    enabled: !!entityType && !!entityId,
+  })
+
+export const useAiSummarise = () =>
+  useMutation({
+    mutationFn: ({ entityType, entityId }: { entityType: string; entityId: string }) =>
+      crmApi.aiSummarise(entityType, entityId),
+  })
 
 // Tickets
 export const useTickets = (params: Record<string, unknown> = {}) =>

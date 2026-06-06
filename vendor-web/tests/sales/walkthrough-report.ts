@@ -61,19 +61,31 @@ export function createWalkthroughReport(scenarioId: string, reportTitle: string,
 
 export async function exportReportPdf(htmlPath: string, pdfPath: string) {
   if (!fs.existsSync(htmlPath)) return;
-  const browser = await chromium.launch();
+  // Best-effort, time-bounded: the PDF is a convenience artifact (the HTML
+  // report is always written). Never let it exceed the afterAll hook budget
+  // or throw — that would mask otherwise-passing test results.
+  const work = (async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      const fileUrl = `file:///${htmlPath.replace(/\\/g, '/')}`;
+      await page.goto(fileUrl, { waitUntil: 'load', timeout: 15000 });
+      await page.pdf({
+        path: pdfPath,
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '16mm', bottom: '16mm', left: '12mm', right: '12mm' },
+      });
+    } finally {
+      await browser.close();
+    }
+  })();
+
+  const guard = new Promise<void>((resolve) => setTimeout(resolve, 20000));
   try {
-    const page = await browser.newPage();
-    const fileUrl = `file:///${htmlPath.replace(/\\/g, '/')}`;
-    await page.goto(fileUrl, { waitUntil: 'networkidle', timeout: 60000 });
-    await page.pdf({
-      path: pdfPath,
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '16mm', bottom: '16mm', left: '12mm', right: '12mm' },
-    });
-  } finally {
-    await browser.close();
+    await Promise.race([work, guard]);
+  } catch (err) {
+    console.warn(`[walkthrough-report] PDF export skipped: ${(err as Error).message}`);
   }
 }
 

@@ -1364,11 +1364,14 @@ class AuditQueryService:
         self.repo = AuditLogRepo(db)
 
     async def list(self, vendor_id: UUID, *, page=1, size=50,
-                   entity: Optional[str] = None, actor_id: Optional[UUID] = None):
+                   entity: Optional[str] = None, actor_id: Optional[UUID] = None,
+                   entity_id: Optional[UUID] = None):
         from sqlalchemy import and_ as sa_and
         where = []
         if entity:
             where.append(CrmAuditLog.entity == entity)
+        if entity_id:
+            where.append(CrmAuditLog.entity_id == entity_id)
         if actor_id:
             where.append(CrmAuditLog.actor_id == actor_id)
         return await self.repo.list(

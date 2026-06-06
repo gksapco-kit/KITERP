@@ -123,11 +123,13 @@ async def ai_next_best(
 async def list_audit(
     page: int = Query(1, ge=1), size: int = Query(50, ge=1, le=200),
     entity: Optional[str] = None, actor_id: Optional[UUID] = None,
+    entity_id: Optional[UUID] = None,
     vu: VendorUser = Depends(require_permission("crm.audit.view")),
     db: AsyncSession = Depends(get_db),
 ):
     items, total = await AuditQueryService(db).list(
         vu.vendor_id, page=page, size=size, entity=entity, actor_id=actor_id,
+        entity_id=entity_id,
     )
     items = [AuditLogResponse.model_validate(a).model_dump() for a in items]
     return _paginated(items, total, page, size)

@@ -1,31 +1,69 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useKanban, useMoveDeal, usePipelines, useSaveDeal, useForecast } from '@/hooks/useCrm'
+import { useHREmployees } from '@/hooks/useVendor'
+import { useAuthStore } from '@/stores/authStore'
 import type { Deal, Stage } from '@/api/crm'
-import { Plus, Loader2, GitBranch, TrendingUp } from 'lucide-react'
+import { crmApi } from '@/api/crm'
+import type { EmployeeProfile } from '@/types'
+import { Plus, Loader2, GitBranch, TrendingUp, Paperclip, Trash2, FileText, User } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
+import { CURRENCIES, currencySymbol, amountInWords } from './crmExtras'
+import { DealDetail } from './DealDetail'
 import { formatCurrency, formatDate } from '@/lib/utils'
+
+type CustomRow = { id: number; key: string; value: string }
 
 function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageId?: string; onClose: () => void }) {
   const save = useSaveDeal()
   const { data: pipelines } = usePipelines()
   const pipeline = pipelines?.find(p => p.id === pipelineId)
+  const { data: empData } = useHREmployees({ limit: 200 })
+  const employees: EmployeeProfile[] = empData?.items ?? []
+  const empName = (e: EmployeeProfile) => e.vendor_user?.user?.full_name ?? e.employee_code
+  const user = useAuthStore(st => st.user)
+  const meName = user?.full_name || user?.email || 'Me'
+
   const [form, setForm] = useState({
     title: '', amount: '', currency: 'INR', stage_id: stageId || pipeline?.stages?.[0]?.id || '',
-    expected_close_date: '', description: '', source: '',
+    expected_close_date: '', description: '', source: '', owner: meName,
   })
+  const [docs, setDocs] = useState<{ url: string; filename: string }[]>([])
+  const [custom, setCustom] = useState<CustomRow[]>([])
+  const [seq, setSeq] = useState(0)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (!form.stage_id && pipeline?.stages?.length) {
       setForm(p => ({ ...p, stage_id: stageId || pipeline.stages[0].id }))
     }
   }, [pipeline, stageId, form.stage_id])
 
+  const onDocs = async (files: FileList | null) => {
+    if (!files?.length) return
+    setUploading(true)
+    try {
+      for (const f of Array.from(files)) {
+        const d = await crmApi.uploadDocument(f)
+        setDocs(prev => [...prev, { url: d.url, filename: d.filename }])
+      }
+    } finally { setUploading(false); if (fileRef.current) fileRef.current.value = '' }
+  }
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.title.trim() || !form.stage_id) return
+    const customFields: Record<string, unknown> = {}
+    if (form.owner.trim()) customFields.owner_name = form.owner.trim()
+    if (docs.length) customFields.documents = docs
+    for (const r of custom) {
+      const k = r.key.trim()
+      if (k) customFields[k] = r.value.trim()
+    }
     save.mutate(
       {
         data: {
@@ -37,6 +75,7 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
           expected_close_date: form.expected_close_date || undefined,
           description: form.description || undefined,
           source: form.source || undefined,
+          custom_fields: Object.keys(customFields).length ? customFields : undefined,
         },
       },
       { onSuccess: onClose },
@@ -44,14 +83,35 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
   }
 
   return (
-    <CrmModal title="Add deal" onClose={onClose}>
+    <CrmModal title="Add deal" onClose={onClose} maxW="max-w-2xl">
       <form onSubmit={submit} className="space-y-3">
         <Field label="Title" required>
           <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Amount"><Input type="number" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} /></Field>
-          <Field label="Currency"><Input value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))} /></Field>
+        <div>
+          <div className="flex gap-3 items-start">
+            <div className="flex-1">
+              <Field label="Amount">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">{currencySymbol(form.currency)}</span>
+                  <Input type="number" min="0" className="pl-7" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
+                </div>
+              </Field>
+            </div>
+            <div className="w-36 shrink-0">
+              <Field label="Currency">
+                <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
+                </select>
+              </Field>
+            </div>
+          </div>
+          {form.amount && Number(form.amount) > 0 && (
+            <p className="mt-1 text-xs text-gray-500">
+              {formatCurrency(Number(form.amount), form.currency)} — {amountInWords(Number(form.amount))} {form.currency}
+            </p>
+          )}
         </div>
         <Field label="Stage">
           <select value={form.stage_id} onChange={e => setForm(p => ({ ...p, stage_id: e.target.value }))}
@@ -63,10 +123,65 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
           <Field label="Expected close"><Input type="date" value={form.expected_close_date} onChange={e => setForm(p => ({ ...p, expected_close_date: e.target.value }))} /></Field>
           <Field label="Source"><Input value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} /></Field>
         </div>
+        <Field label="Deal owner">
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <select value={form.owner} onChange={e => setForm(p => ({ ...p, owner: e.target.value }))}
+              className="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm">
+              <option value={meName}>{meName} (me)</option>
+              {employees.filter(e => empName(e) !== meName).map(e => (
+                <option key={e.id} value={empName(e)}>{empName(e)}</option>
+              ))}
+            </select>
+          </div>
+        </Field>
         <Field label="Description">
           <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
             className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
         </Field>
+
+        {/* Attachments */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Attachments</p>
+            {uploading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+          </div>
+          {docs.length > 0 && (
+            <ul className="space-y-1.5">
+              {docs.map((d, i) => (
+                <li key={i} className="flex items-center gap-2 rounded-lg border px-3 py-2">
+                  <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                  <a href={d.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate text-sm text-blue-600 hover:underline">{d.filename}</a>
+                  <button type="button" onClick={() => setDocs(prev => prev.filter((_, n) => n !== i))} className="text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <input ref={fileRef} type="file" multiple className="hidden"
+            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" onChange={e => onDocs(e.target.files)} />
+          <Button type="button" variant="outline" size="sm" className="w-full" disabled={uploading} onClick={() => fileRef.current?.click()}>
+            <Paperclip className="w-4 h-4 mr-2" /> Attach document(s)
+          </Button>
+        </div>
+
+        {/* Add more details (custom fields) */}
+        {custom.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-500">More details</p>
+            {custom.map(r => (
+              <div key={r.id} className="flex gap-2">
+                <Input value={r.key} onChange={e => setCustom(prev => prev.map(x => x.id === r.id ? { ...x, key: e.target.value } : x))} placeholder="Field name" className="flex-1" />
+                <Input value={r.value} onChange={e => setCustom(prev => prev.map(x => x.id === r.id ? { ...x, value: e.target.value } : x))} placeholder="Value" className="flex-1" />
+                <Button type="button" variant="cancel" size="icon" aria-label="Remove" onClick={() => setCustom(prev => prev.filter(x => x.id !== r.id))}><Trash2 className="w-4 h-4" /></Button>
+              </div>
+            ))}
+          </div>
+        )}
+        <Button type="button" variant="outline" size="sm" className="w-full"
+          onClick={() => { setCustom(prev => [...prev, { id: seq, key: '', value: '' }]); setSeq(s => s + 1) }}>
+          <Plus className="w-4 h-4 mr-2" /> Add field
+        </Button>
+
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button type="submit" className="flex-1" disabled={save.isPending}>
@@ -79,12 +194,13 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
   )
 }
 
-function DealCard({ deal, onDragStart }: { deal: Deal; onDragStart: (e: React.DragEvent) => void }) {
+function DealCard({ deal, onDragStart, onOpen }: { deal: Deal; onDragStart: (e: React.DragEvent) => void; onOpen: () => void }) {
   return (
     <div
       draggable
       onDragStart={onDragStart}
-      className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing max-h-[90vh] overflow-y-auto"
+      onClick={onOpen}
+      className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md cursor-pointer max-h-[90vh] overflow-y-auto"
     >
       <p className="text-sm font-medium text-gray-900 line-clamp-2">{deal.title}</p>
       <p className="text-base font-semibold text-blue-600 mt-1">{formatCurrency(deal.amount, deal.currency)}</p>
@@ -100,6 +216,7 @@ export default function PipelinePage() {
   const { data: pipelines } = usePipelines()
   const [pipelineId, setPipelineId] = useState<string>('')
   const [showCreate, setShowCreate] = useState<{ stageId?: string } | null>(null)
+  const [openDealId, setOpenDealId] = useState<string | null>(null)
   const move = useMoveDeal()
 
   useEffect(() => {
@@ -191,7 +308,7 @@ export default function PipelinePage() {
               </div>
               <div className="p-2 space-y-2 overflow-y-auto flex-1">
                 {col.deals.length ? col.deals.map(d => (
-                  <DealCard key={d.id} deal={d} onDragStart={onDragStart(d)} />
+                  <DealCard key={d.id} deal={d} onDragStart={onDragStart(d)} onOpen={() => setOpenDealId(d.id)} />
                 )) : (
                   <p className="text-xs text-gray-400 text-center py-6">Drop deals here</p>
                 )}
@@ -206,6 +323,10 @@ export default function PipelinePage() {
 
       {showCreate && pipelineId && (
         <DealForm pipelineId={pipelineId} stageId={showCreate.stageId} onClose={() => setShowCreate(null)} />
+      )}
+
+      {openDealId && (
+        <DealDetail dealId={openDealId} onClose={() => setOpenDealId(null)} />
       )}
     </div>
   )
