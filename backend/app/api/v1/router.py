@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     auth, vendors, vendor_relationship_manager, vendor_products, vendor_services, vendor_categories,
     vendor_orders, vendor_customers, vendor_reviews,
-    vendor_team, vendor_roles, vendor_inventory, vendor_procurement,
+    vendor_team, vendor_roles, vendor_inventory, vendor_storage_locations, vendor_procurement,
     vendor_pos, vendor_invoices, vendor_invoice_templates, vendor_coupons,
     vendor_reports, vendor_template,
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
@@ -50,6 +50,7 @@ api_router.include_router(vendor_reviews.router, prefix="/vendors/me/reviews", t
 api_router.include_router(vendor_team.router, prefix="/vendors/me/team", tags=["Vendor Team"])
 api_router.include_router(vendor_roles.router, prefix="/vendors/me/roles", tags=["Vendor Roles"])
 api_router.include_router(vendor_inventory.router, prefix="/vendors/me/inventory", tags=["Vendor Inventory"])
+api_router.include_router(vendor_storage_locations.router, prefix="/vendors/me/storage-locations", tags=["Storage Locations"])
 api_router.include_router(vendor_procurement.router, prefix="/vendors/me", tags=["Vendor Procurement"])
 api_router.include_router(vendor_pos.router, prefix="/vendors/me/pos", tags=["Vendor POS"])
 api_router.include_router(vendor_restaurant.router, prefix="/vendors/me/restaurant", tags=["Restaurant"])

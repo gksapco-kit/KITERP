@@ -40,15 +40,13 @@ export interface MediaStudioPanelProps {
   applyToImageLayer?: boolean
   onApplyUrl: (url: string) => void
   /**
-   * When there is no selected block (e.g. business front builder), show this
-   * instead of the generic 'Apply to Block" hint.
+   * When there is no selected block, show this instead of the generic 'Apply to Block" hint.
    */
   applyTargetDescription?: string | null
 }
 
 /**
- * Uploads, media library, and AI image adjustments — shared by the full
- * website Builder and the Business Front Builder.
+ * Uploads, media library, and AI image adjustments — shared by the Website Builder.
  */
 export function MediaStudioPanel({
   siteId,

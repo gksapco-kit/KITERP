@@ -25,6 +25,7 @@ from app.schemas.vendor_product import (
 from app.services.vendor_service import VendorService
 from app.repositories.product_repo import ProductRepository
 from app.services.media_upload import save_media_file, detect_media_type
+from app.services.catalog_store_scope import sync_product_stores
 
 from datetime import date as date_type, datetime
 
@@ -140,6 +141,8 @@ def _product_to_dict(p) -> dict:
         "is_best_seller": p.is_best_seller or False,
         "allow_quote_request": p.allow_quote_request or False,
         "quote_form_config": p.quote_form_config or [],
+        "store_scope": p.store_scope or "all",
+        "store_ids": [str(a.store_id) for a in (getattr(p, "store_assignments", None) or [])],
         # SEO
         "meta_title": p.meta_title,
         "meta_description": p.meta_description,
@@ -363,12 +366,19 @@ async def list_products(
     status: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    store_id: Optional[str] = Query(None, description="Filter by business unit availability"),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """List all products for current vendor."""
     repo = ProductRepository(db)
     skip = (page - 1) * size
+    sid = None
+    if store_id:
+        try:
+            sid = UUID(store_id)
+        except ValueError:
+            raise HTTPException(400, "Invalid store_id")
     
     items, total = await repo.list_by_vendor(
         vendor_id=vendor_id,
@@ -377,6 +387,7 @@ async def list_products(
         status=status,
         category=category,
         search=search,
+        store_id=sid,
     )
     
     return JSONResponse(content={
@@ -420,7 +431,10 @@ async def create_product(
     if await repo.slug_exists(vendor_id, slug):
         slug = f"{slug}-{str(uuid_mod.uuid4())[:8]}"
 
-    fields = data.model_dump(exclude={"slug", "variants"})
+    fields = data.model_dump(exclude={"slug", "variants", "store_ids"})
+    store_scope = fields.pop("store_scope", "all") or "all"
+    store_ids = data.store_ids or []
+    fields["store_scope"] = store_scope
     fields["slug"] = slug
     fields["vendor_id"] = vendor_id
     fields["created_by"] = current_user.id
@@ -468,6 +482,7 @@ async def create_product(
             media_type=media,
         ))
 
+    await sync_product_stores(db, vendor_id, product.id, store_scope, store_ids)
     await db.commit()
 
     product = await repo.get_by_vendor_and_id(vendor_id, product.id)
@@ -514,6 +529,7 @@ async def update_product(
     update_data = data.model_dump(exclude_unset=True)
     variants_replaced = "variants" in update_data
     variants_payload = update_data.pop("variants", None)
+    store_ids_payload = update_data.pop("store_ids", None)
     _coerce_date_fields(update_data)
 
     # Build change diff for audit history
@@ -521,7 +537,7 @@ async def update_product(
     skip_diff = {
         "variants", "updated_by", "version_number", "change_history",
         "quote_form_config", "media", "images", "created_by", "created_at", "updated_at",
-        "slug",
+        "slug", "store_ids",
     }
 
     def _norm(val):
@@ -610,6 +626,13 @@ async def update_product(
                     setattr(ev, col.name, getattr(new_v, col.name))
             else:
                 db.add(_build_variant(product.id, vc))
+
+    if store_ids_payload is not None or "store_scope" in update_data:
+        scope = product.store_scope or "all"
+        ids = store_ids_payload if store_ids_payload is not None else [
+            str(a.store_id) for a in (getattr(product, "store_assignments", None) or [])
+        ]
+        await sync_product_stores(db, vendor_id, product.id, scope, ids)
 
     await db.commit()
     product = await repo.get_by_vendor_and_id(vendor_id, product_id)

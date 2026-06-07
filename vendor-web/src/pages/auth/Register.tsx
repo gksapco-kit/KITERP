@@ -16,12 +16,17 @@ import { HelpAccordion } from '@/components/auth/HelpAccordion'
 import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import {
+<<<<<<< Updated upstream
   Loader2, Eye, EyeOff, Check, ChevronDown, Pencil, Plus, X,
   Rocket, Smartphone, LogIn, Mail,
+=======
+  Loader2, Eye, EyeOff, X,
+  Rocket, Smartphone, LogIn,
+>>>>>>> Stashed changes
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
-import { COMPANY_TYPES, COMPANY_TYPE_GROUPS } from '@/data/companyTypes'
+import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
 import { VENDOR_REGISTER_DRAFT_KEY, clearVendorRegisterDraft } from '@/lib/vendorRegisterDraft'
 
 const DRAFT_VERSION = 1
@@ -153,143 +158,6 @@ const PwField = forwardRef<
   )
 })
 PwField.displayName = 'PwField'
-
-// ── Business-type dropdown ─────────────────────────────────────────────────
-
-function TypeDropdown({
-  value,
-  onChange,
-  error,
-}: {
-  value: string
-  onChange: (v: string) => void
-  error?: string
-}) {
-  const [open, setOpen] = useState(false)
-  const [customInput, setCustomInput] = useState('')
-  const [showCustom, setShowCustom] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const select = (v: string) => { onChange(v); setShowCustom(false); setOpen(false) }
-  const addCustom = () => {
-    const v = customInput.trim()
-    if (!v) return
-    onChange(v)
-    setShowCustom(false)
-    setOpen(false)
-  }
-
-  const preset = COMPANY_TYPES.find((t) => t.value === value)
-  const Icon = preset?.icon
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          'flex h-9 min-h-9 w-full items-center gap-2 rounded-lg border bg-white px-3 text-sm transition-all',
-          open ? 'ring-1' : 'border-gray-200 hover:border-gray-300',
-          error ? 'border-red-400' : '',
-        )}
-        style={open ? { borderColor: SIGNUP_BRAND, boxShadow: `0 0 0 1px ${SIGNUP_BRAND}40` } : undefined}
-      >
-        {Icon ? (
-          <>
-            <span className="w-5 h-5 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${SIGNUP_BRAND}22` }}>
-              <Icon className="w-3 h-3" style={{ color: SIGNUP_BRAND }} />
-            </span>
-            <span className="flex-1 text-left font-medium text-gray-800">{preset!.label}</span>
-          </>
-        ) : value ? (
-          <>
-            <span className="w-5 h-5 rounded bg-gray-100 flex items-center justify-center shrink-0">
-              <Pencil className="w-3 h-3 text-gray-500" />
-            </span>
-            <span className="flex-1 text-left font-medium text-gray-800">
-              {value} <span className="text-xs text-gray-400">(custom)</span>
-            </span>
-          </>
-        ) : (
-            <span className="flex-1 text-left text-gray-400 text-sm sm:text-base">Select category…</span>
-        )}
-        <ChevronDown className={cn('w-4 h-4 text-gray-400 shrink-0 transition-transform', open && 'rotate-180')} />
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto">
-          {COMPANY_TYPE_GROUPS.map((group) => (
-            <div key={group}>
-              <p className="px-4 pt-2 pb-0.5 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 sticky top-0">
-                {group}
-              </p>
-              {COMPANY_TYPES.filter((t) => t.group === group).map(({ value: v, label, icon: ItemIcon }) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => select(v)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-4 py-1.5 text-left transition-colors',
-                    value === v && '',
-                  )}
-                  style={value === v ? { backgroundColor: `${SIGNUP_BRAND}15` } : undefined}
-                  onMouseEnter={(e) => { if (value !== v) e.currentTarget.style.backgroundColor = `${SIGNUP_BRAND}0d` }}
-                  onMouseLeave={(e) => { if (value !== v) e.currentTarget.style.backgroundColor = '' }}
-                >
-                  <span className={cn(
-                    'w-6 h-6 rounded-lg flex items-center justify-center shrink-0',
-                    value === v ? 'bg-[#64C3A0]' : 'bg-gray-100',
-                  )}>
-                    <ItemIcon className={cn('w-3 h-3', value === v ? 'text-white' : 'text-gray-500')} />
-                  </span>
-                  <span className={cn('flex-1 text-sm', value === v ? 'font-semibold' : 'text-gray-700')} style={value === v ? { color: SIGNUP_BRAND_HOVER } : undefined}>
-                    {label}
-                  </span>
-                  {value === v && <Check className="w-3 h-3 shrink-0" style={{ color: SIGNUP_BRAND }} />}
-                </button>
-              ))}
-            </div>
-          ))}
-          <div className="border-t border-gray-100">
-            {!showCustom ? (
-              <button
-                type="button"
-                onClick={() => { setShowCustom(true); setCustomInput('') }}
-                className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-50 transition-colors"
-              >
-                <span className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                  <Plus className="w-3.5 h-3.5 text-gray-500" />
-                </span>
-                <span className="text-sm text-gray-500 font-medium">+ Add custom type…</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-2">
-                <Input
-                  autoFocus
-                  value={customInput}
-                  onChange={(e) => setCustomInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
-                  placeholder="e.g. Co-working, Lab, Studio…"
-                  className="flex-1 h-8 text-sm"
-                />
-                <Button type="button" size="sm" className="h-8 px-3 shrink-0" onClick={addCustom}>Add</Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-    </div>
-  )
-}
 
 // ── Main page (standalone layout — not wrapped in AuthLayout) ──────────────
 
@@ -518,9 +386,11 @@ export default function Register() {
                         control={control}
                         name="business_category"
                         render={({ field }) => (
-                          <TypeDropdown
+                          <CompanyTypeDropdown
+                            tone="signup"
                             value={field.value ?? ''}
                             onChange={field.onChange}
+                            placeholder="Select category…"
                             error={errors.business_category?.message ? formatFormFieldError(errors.business_category.message, 'Business category') : undefined}
                           />
                         )}

@@ -134,6 +134,8 @@ export interface StoreInventoryItem {
   id: string
   product_id: string
   variant_id?: string
+  storage_location_id?: string | null
+  storage_location_name?: string | null
   quantity: number
   low_stock_threshold: number
   product_name: string
@@ -193,6 +195,26 @@ export const vendorApi = {
 
   deleteCategory: async (id: string): Promise<void> => {
     await apiClient.delete(`/vendors/me/categories/${id}`)
+  },
+
+  // ── Storage Locations ───────────────────────────────────────
+  listStorageLocations: async (params: { store_id: string; tree?: boolean; is_active?: boolean }): Promise<{ locations: import('@/types').StorageLocation[] }> => {
+    const response = await apiClient.get('/vendors/me/storage-locations', { params })
+    return response.data
+  },
+
+  createStorageLocation: async (data: Record<string, unknown>): Promise<import('@/types').StorageLocation> => {
+    const response = await apiClient.post('/vendors/me/storage-locations', data)
+    return response.data
+  },
+
+  updateStorageLocation: async (id: string, data: Record<string, unknown>): Promise<import('@/types').StorageLocation> => {
+    const response = await apiClient.put(`/vendors/me/storage-locations/${id}`, data)
+    return response.data
+  },
+
+  deleteStorageLocation: async (id: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/storage-locations/${id}`)
   },
 
   // ── Products ──────────────────────────────────────────────
@@ -1163,19 +1185,6 @@ export const vendorApi = {
     return response.data
   },
 
-  // ── Business Front Builder ────────────────────────────────────────
-  getStorefrontBuilderConfig: async (): Promise<Record<string, unknown> | null> => {
-    try {
-      const response = await apiClient.get('/vendors/me/template')
-      return (response.data?.builder_config as Record<string, unknown>) ?? null
-    } catch {
-      return null
-    }
-  },
-  updateStorefrontBuilderConfig: async (config: Record<string, unknown>): Promise<void> => {
-    await apiClient.put('/vendors/me/template', { builder_config: config })
-  },
-
   // ── Suppliers ──────────────────────────────────────────────────
   listSuppliers: async (params?: Record<string, unknown>): Promise<{ items: Supplier[]; total: number }> => {
     const response = await apiClient.get('/vendors/me/suppliers', { params })
@@ -1268,8 +1277,8 @@ export const vendorApi = {
     return response.data
   },
 
-  inventoryLowStock: async () => {
-    const response = await apiClient.get('/vendors/me/inventory/low-stock')
+  inventoryLowStock: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/low-stock', { params })
     return response.data
   },
 

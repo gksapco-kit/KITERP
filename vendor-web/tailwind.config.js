@@ -4,7 +4,6 @@ export default {
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
-    '../storefront-web/src/home-sections/**/*.{js,ts,jsx,tsx}',
     '../storefront-web/src/components/builder/**/*.{js,ts,jsx,tsx}',
     '../storefront-web/src/lib/**/*.{js,ts,jsx,tsx}',
   ],

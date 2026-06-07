@@ -8,10 +8,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useCategoryTree, useCreateCategory, useProductMerchandising, useSyncProductMerchandising, useBundles, usePriceRules, useCreatePriceRule, useUpdatePriceRule, useDeletePriceRule } from '@/hooks/useVendor'
+import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useCategoryTree, useCreateCategory, useProductMerchandising, useSyncProductMerchandising, useBundles, usePriceRules, useCreatePriceRule, useUpdatePriceRule, useDeletePriceRule, useStores } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
-import type { ProductPriceRule, PriceRuleType } from '@/types'
+import type { Product, ProductPriceRule, PriceRuleType } from '@/types'
 import {
   ProductImageUpload,
   StagedMediaUpload,
@@ -36,9 +36,11 @@ import {
   Layers, Link2, Plus, Trash2, Copy, ShoppingBag, Pencil, Clock,
   FileDown, Film, Box, Star, Calculator, DollarSign, MapPin,
   Calendar, Hash, Radio, Users, Globe, Tag, MessageSquare, ToggleRight,
-  Factory,
+  Factory, Store,
 } from 'lucide-react'
 import { BOMEditor } from '@/components/mrp/BOMEditor'
+import { CategoryHierarchyPicker } from '@/components/common/CategoryHierarchyPicker'
+import { collectCustomFieldsFromSelection, filterCategoryTree } from '@/lib/categoryHierarchy'
 import {
   FormPageWithNav,
   FormSectionNav,
@@ -54,6 +56,8 @@ import {
   formTextareaClass,
   useFormActiveSection,
 } from '@/components/common/FormSectionNav'
+import { CatalogEditStickyBar } from '@/components/common/CatalogEditStickyBar'
+import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -880,29 +884,36 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
   const isSubscription = pType === 'subscription' || product.is_subscription
   const productAddons = normalizeCatalogAddons((product as { addons?: unknown }).addons)
   const changeHistory: any[] = product.change_history || []
-  const [activeViewSection, setActiveViewSection] = useState<string | null>(null)
-  const sectionCls = (key: string) =>
-    cn(formDisplayCompact.scrollMarginView, formSectionSurfaceClass(activeViewSection === key))
+  const [activeViewTab, setActiveViewTab] = useState('basic')
+  const { data: storesData } = useStores()
+  const businessUnits = storesData?.stores ?? []
+  const showTab = (key: string) => activeViewTab === key
 
   const viewSections: FormSectionDef[] = useMemo(() => [
-    { key: 'basic',            label: 'Product Information', icon: Package, hint: 'Core identity — name, type, category, and descriptions.' },
-    { key: 'media',            label: 'Product Media',       icon: Eye,         visible: images.length > 0, hint: 'Images, video, and 3D assets shown on the business front.' },
-    { key: 'pricing',          label: 'Pricing',             icon: IndianRupee, visible: !hasVariants || hasBasePricing, hint: 'Base price, compare-at, cost, and sale settings.' },
-    { key: 'variants',         label: isBundleView ? 'Bundle Items' : isSubscription ? 'Subscription Plans' : 'Variants & Options', icon: Layers, visible: hasVariants || isBundleView, hint: 'SKUs, stock, and per-variant pricing.' },
-    { key: 'returns',          label: 'Return & Warranty',   icon: RotateCcw,   visible: !isDigital && !!(product.return_days || product.warranty_period_days || product.warranty_type || product.refund_policy || product.return_policy || product.return_conditions || product.is_returnable === false), hint: 'Return window, warranty, and refund rules.' },
-    { key: 'shipping',         label: 'Shipping & Tax',      icon: Truck,       visible: pType !== 'digital', hint: 'Weight, dimensions, shipping class, and delivery.' },
-    { key: 'storefrontOptions',label: 'Business Front',      icon: Globe, hint: 'Quote requests and customer-facing options.' },
-    { key: 'visibility',       label: 'Visibility',          icon: Eye, hint: 'Status, featured flags, and catalog visibility.' },
-    { key: 'addons',           label: 'Add-ons',             icon: Link2, hint: 'Linked products or services sold with this item.' },
-    { key: 'merch',            label: 'Merchandising',       icon: Tag,         visible: merchMappings.length > 0, hint: 'Cross-sell and upsell relationships.' },
-    { key: 'seo',              label: 'SEO & Metadata',      icon: Search, hint: 'Search titles, descriptions, and social preview.' },
-    { key: 'advanced',         label: 'Advanced',            icon: Settings, hint: 'Custom attributes, specifications, and JSON fields.' },
-    { key: 'digital',          label: 'Digital Product',     icon: Download,    visible: isDigital, hint: 'Download limits, expiry, and file delivery.' },
-    { key: 'reports',          label: 'Reports',             icon: BarChart3, hint: 'Views, purchases, and version summary.' },
-    { key: 'pricing-rules',    label: 'Advanced Pricing',    icon: DollarSign,  visible: priceRules.length > 0, hint: 'Party, location, quantity, and channel price rules.' },
-    { key: 'modifiers',        label: 'Modifiers & Add-ons', icon: Plus,        hint: 'Custom options shown when adding this product to POS (e.g. spice level, extras).' },
-    { key: 'history',          label: 'Change History',      icon: Clock, hint: 'Who changed what and when — open the full report to export.' },
-  ], [images.length, hasVariants, hasBasePricing, isBundleView, isSubscription, isDigital, pType, product, merchMappings.length, priceRules.length])
+    { key: 'basic',             label: 'Basic',             icon: Package, hint: 'Name, type, category, descriptions, and media.' },
+    { key: 'variants',          label: isBundleView ? 'Bundle' : isSubscription ? 'Price & Plans' : 'Price & Variants', icon: Layers, visible: !isBundleView, hint: 'Pricing, stock, SKUs, and per-variant settings.' },
+    { key: 'bundle',            label: 'Bundle Items',      icon: ShoppingBag, visible: isBundleView, hint: 'Products included in this bundle.' },
+    { key: 'visibility',        label: 'Visibility',        icon: Eye, hint: 'Status, featured flags, and catalog visibility.' },
+    { key: 'returns',           label: 'Returns',           icon: RotateCcw, visible: !isDigital && !!(product.return_days || product.warranty_period_days || product.warranty_type || product.refund_policy || product.return_policy || product.return_conditions || product.is_returnable === false), hint: 'Return window, warranty, and refund rules.' },
+    { key: 'shipping',          label: 'Shipping',          icon: Truck, visible: pType !== 'digital', hint: 'Weight, dimensions, shipping class, and delivery.' },
+    { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Quote requests and customer-facing options.' },
+    { key: 'addons',            label: 'Add-ons',           icon: Link2, hint: 'Linked products or services sold with this item.' },
+    { key: 'merch',             label: 'Merchandising',     icon: Tag, visible: merchMappings.length > 0, hint: 'Cross-sell and upsell relationships.' },
+    { key: 'seo',               label: 'SEO',               icon: Search, hint: 'Search titles, descriptions, and social preview.' },
+    { key: 'advanced',          label: 'Advanced',          icon: Settings, hint: 'Custom attributes, specifications, and JSON fields.' },
+    { key: 'digital',           label: 'Digital',           icon: Download, visible: isDigital, hint: 'Download limits, expiry, and file delivery.' },
+    { key: 'reports',           label: 'Reports',           icon: BarChart3, hint: 'Views, purchases, and version summary.' },
+    { key: 'pricing-rules',     label: 'Pricing Rules',     icon: DollarSign, visible: priceRules.length > 0, hint: 'Party, location, quantity, and channel price rules.' },
+    { key: 'modifiers',         label: 'Modifiers',         icon: Plus, hint: 'Custom options shown when adding this product to POS.' },
+    { key: 'history',           label: 'History',           icon: Clock, hint: 'Who changed what and when — open the full report to export.' },
+  ], [isBundleView, isSubscription, isDigital, pType, product, merchMappings.length, priceRules.length])
+
+  useEffect(() => {
+    const visible = viewSections.filter((s) => s.visible !== false)
+    if (!visible.some((s) => s.key === activeViewTab)) {
+      setActiveViewTab(visible[0]?.key ?? 'basic')
+    }
+  }, [viewSections, activeViewTab])
 
   const viewCompleted = useMemo<Set<string>>(() => {
     const s = new Set<string>()
@@ -922,42 +933,34 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
   }, [product, images, hasVariants, productAddons.length, merchMappings.length, priceRules.length, changeHistory.length])
 
   return (
-    <FormPageWithNav
-      activeSectionKey={activeViewSection}
-      nav={(
-        <FormSectionNav
-          sections={viewSections}
-          openSections={{}}
-          visitedSections={new Set(viewSections.filter(s => s.visible !== false).map(s => s.key))}
-          completedSections={viewCompleted}
-          hasErrorSections={new Set()}
-          scrollOffset={80}
-          stickyTopClass="top-14"
-          onActiveSectionChange={setActiveViewSection}
-          onNavigate={(key) => {
-            setActiveViewSection(key)
-            document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }}
-        />
-      )}
-    >
-    <div className={formDisplayCompact.pageGap}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={onBack}><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
-          <h1 className="truncate text-lg font-bold sm:text-xl">{product.name}</h1>
-          <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium ${
-            product.status === 'active' ? 'bg-green-100 text-green-700' :
-            product.status === 'archived' ? 'bg-red-50 text-red-600' :
-            'bg-gray-100 text-gray-700'
-          }`}>{product.status}</span>
+    <FormPageWithNav activeSectionKey={activeViewTab} nav={null}>
+    <div className={formEditLayout.formStack}>
+      <div className={formEditLayout.stickyBar}>
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={onBack}><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
+            <h1 className="truncate text-base font-bold sm:text-xl">{product.name}</h1>
+            <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium ${
+              product.status === 'active' ? 'bg-green-100 text-green-700' :
+              product.status === 'archived' ? 'bg-red-50 text-red-600' :
+              'bg-gray-100 text-gray-700'
+            }`}>{product.status}</span>
+          </div>
+          <Button onClick={onEdit} size="sm" className="h-8 gap-1.5 shrink-0"><Pencil className="w-3.5 h-3.5" />Edit Product</Button>
         </div>
-        <Button onClick={onEdit} size="sm" className="h-8 gap-1.5 shrink-0"><Pencil className="w-3.5 h-3.5" />Edit Product</Button>
       </div>
 
-      {/* Media */}
-      {images.length > 0 && (
-        <Card id="form-section-media" className={sectionCls('media')}>
+      <FormSectionTabs
+        sections={viewSections}
+        activeKey={activeViewTab}
+        onChange={setActiveViewTab}
+        completedSections={viewCompleted}
+        hasErrorSections={new Set()}
+      />
+
+      <div className={formDisplayCompact.pageGap}>
+      {showTab('basic') && images.length > 0 && (
+        <Card>
           <CardContent className="p-4">
             <div className="flex gap-3 overflow-x-auto">
               {images.map((img: any) => {
@@ -989,8 +992,8 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Basic Info */}
-      <Card id="form-section-basic" className={sectionCls('basic')}>
+      {showTab('basic') && (
+      <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className={formDisplayCompact.sectionHeader}>
             <Package className={formDisplayCompact.sectionHeaderIcon} />
@@ -1021,10 +1024,13 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           )}
         </CardContent>
       </Card>
+      )}
 
+      {(showTab('variants') || showTab('bundle')) && (
+      <>
       {/* Pricing — hide when variants carry all pricing and base is zero */}
       {(!hasVariants || hasBasePricing) && (
-        <Card id="form-section-pricing" className={sectionCls('pricing')}>
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <IndianRupee className={formDisplayCompact.sectionHeaderIcon} />
@@ -1102,7 +1108,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
 
       {/* Variants */}
       {product.variants?.length > 0 && (
-        <Card id="form-section-variants" className={sectionCls('variants')}>
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="w-4 h-4 text-gray-500" />
@@ -1223,10 +1229,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           </CardContent>
         </Card>
       )}
+      </>
+      )}
 
-      {/* Return & Warranty — only if any relevant data is set */}
-      {(product.return_days || product.warranty_period_days || product.warranty_type || product.refund_policy || product.return_policy || product.return_conditions || product.is_returnable === false) && (
-        <Card id="form-section-returns" className={sectionCls('returns')}>
+      {showTab('returns') && (product.return_days || product.warranty_period_days || product.warranty_type || product.refund_policy || product.return_policy || product.return_conditions || product.is_returnable === false) && (
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <RotateCcw className={formDisplayCompact.sectionHeaderIcon} />
@@ -1249,8 +1256,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Lifecycle — only if any date is set */}
-      {(product.manufacture_date || product.expiration_date || product.best_before_date) && (
+      {showTab('advanced') && (product.manufacture_date || product.expiration_date || product.best_before_date) && (
         <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
@@ -1266,9 +1272,8 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Shipping */}
-      {pType !== 'digital' && (
-        <Card id="form-section-shipping" className={sectionCls('shipping')}>
+      {showTab('shipping') && pType !== 'digital' && (
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <Truck className={formDisplayCompact.sectionHeaderIcon} />
@@ -1291,8 +1296,29 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Visibility */}
-      <Card id="form-section-visibility" className={sectionCls('visibility')}>
+      {showTab('visibility') && (
+      <>
+      <Card>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className={formDisplayCompact.sectionHeader}>
+            <Store className={formDisplayCompact.sectionHeaderIcon} />
+            <span className={formDisplayCompact.sectionHeaderTitle}>Business Unit Availability</span>
+          </div>
+          <DisplayField
+            label="Availability"
+            value={
+              (product as Product).store_scope === 'selected'
+                ? ((product as Product).store_ids?.length
+                  ? (product as Product).store_ids!
+                      .map(id => businessUnits.find(s => s.id === id)?.name || id)
+                      .join(', ')
+                  : 'None selected')
+                : 'All business units'
+            }
+          />
+        </CardContent>
+      </Card>
+      <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className={formDisplayCompact.sectionHeader}>
             <Eye className={formDisplayCompact.sectionHeaderIcon} />
@@ -1307,9 +1333,11 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
 
-      {/* SEO & Metadata */}
-      <Card id="form-section-seo" className={sectionCls('seo')}>
+      {showTab('seo') && (
+      <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className={formDisplayCompact.sectionHeader}>
             <Search className={formDisplayCompact.sectionHeaderIcon} />
@@ -1338,9 +1366,10 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           </div>
         </CardContent>
       </Card>
+      )}
 
-      {/* Advanced — Attributes, Specifications, Custom Fields */}
-      <Card id="form-section-advanced" className={sectionCls('advanced')}>
+      {showTab('advanced') && (
+      <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className={formDisplayCompact.sectionHeader}>
             <Settings className={formDisplayCompact.sectionHeaderIcon} />
@@ -1357,10 +1386,10 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           } />
         </CardContent>
       </Card>
+      )}
 
-      {/* Digital Product */}
-      {isDigital && (
-        <Card id="form-section-digital" className={sectionCls('digital')}>
+      {showTab('digital') && isDigital && (
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <Download className={formDisplayCompact.sectionHeaderIcon} />
@@ -1378,8 +1407,7 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Subscription Plans */}
-      {isSubscription && product.variants && product.variants.length > 0 && (
+      {showTab('variants') && isSubscription && product.variants && product.variants.length > 0 && (
         <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
@@ -1426,8 +1454,8 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Reports */}
-      <Card id="form-section-reports" className={sectionCls('reports')}>
+      {showTab('reports') && (
+      <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className={formDisplayCompact.sectionHeader}>
             <BarChart3 className={formDisplayCompact.sectionHeaderIcon} />
@@ -1449,9 +1477,10 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           </div>
         </CardContent>
       </Card>
+      )}
 
-      {/* Business Front Options */}
-      <Card id="form-section-storefrontOptions" className={sectionCls('storefrontOptions')}>
+      {showTab('storefrontOptions') && (
+      <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className={formDisplayCompact.sectionHeader}>
             <ToggleRight className={formDisplayCompact.sectionHeaderIcon} />
@@ -1508,10 +1537,10 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           )}
         </CardContent>
       </Card>
+      )}
 
-      {/* Merchandising */}
-      {(merchMappings.length > 0) && (
-        <Card id="form-section-merch" className={sectionCls('merch')}>
+      {showTab('merch') && merchMappings.length > 0 && (
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <Link2 className={formDisplayCompact.sectionHeaderIcon} />
@@ -1551,9 +1580,8 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Advanced Pricing */}
-      {priceRules.length > 0 && (
-        <Card id="form-section-pricing-rules" className={sectionCls('pricing-rules')}>
+      {showTab('pricing-rules') && priceRules.length > 0 && (
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <DollarSign className={formDisplayCompact.sectionHeaderIcon} />
@@ -1610,9 +1638,8 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Add-ons */}
-      {productAddons.length > 0 && (
-        <Card id="form-section-addons" className={sectionCls('addons')}>
+      {showTab('addons') && productAddons.length > 0 && (
+        <Card>
           <CardContent className={formDisplayCompact.cardBodyTight}>
             <div className="flex items-center gap-3 mb-1">
               <Link2 className={formDisplayCompact.sectionHeaderIcon} />
@@ -1641,8 +1668,8 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
         </Card>
       )}
 
-      {/* Modifiers & Add-ons */}
-      <Card id="form-section-modifiers" className={sectionCls('modifiers')}>
+      {showTab('modifiers') && (
+      <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className="flex items-center gap-3 mb-4">
             <Plus className="w-5 h-5 text-gray-500 shrink-0" />
@@ -1656,9 +1683,10 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           {product.id && <ProductModifiers productId={product.id} />}
         </CardContent>
       </Card>
+      )}
 
-      {/* Change History */}
-      <Card id="form-section-history" className={sectionCls('history')}>
+      {showTab('history') && (
+      <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1731,7 +1759,9 @@ function ProductDisplay({ product, onEdit, onBack, priceRules = [], merchMapping
           )}
         </CardContent>
       </Card>
+      )}
 
+    </div>
     </div>
     </FormPageWithNav>
   )
@@ -2048,12 +2078,14 @@ export default function ProductForm() {
   const { data: product, isLoading } = useProduct(id || '')
   const createProduct = useCreateProduct()
   const updateProduct = useUpdateProduct()
+  const deleteProduct = useDeleteProduct()
   const { data: categoryData } = useCategoryTree()
   const createCategory = useCreateCategory()
   const { data: allProductsData } = useProducts({ size: 500 })
   const allProducts = (allProductsData?.items || []) as Array<{ id: string; name: string; category?: string; sku?: string }>
-  const productCategories = (categoryData?.categories || []).filter(
-    c => c.applies_to === 'product' || c.applies_to === 'both'
+  const productCategories = useMemo(
+    () => filterCategoryTree(categoryData?.categories || [], 'product'),
+    [categoryData?.categories],
   )
 
   // Price rules
@@ -2336,6 +2368,11 @@ export default function ProductForm() {
 
   // Bundle item IDs (stored as related_product_ids on save)
   const [bundleItemIds, setBundleItemIds] = useState<string[]>([])
+  const [bundleItemSearch, setBundleItemSearch] = useState('')
+  const [catalogStoreScope, setCatalogStoreScope] = useState<StoreScope>('all')
+  const [catalogStoreIds, setCatalogStoreIds] = useState<string[]>([])
+  const { data: storesData } = useStores()
+  const businessUnits = storesData?.stores ?? []
 
   // Add-ons (linked services / products that can be sold alongside)
   type AddonItem = CatalogAddon
@@ -2501,6 +2538,10 @@ export default function ProductForm() {
   useEffect(() => {
     if (product?.product_type === 'bundle') {
       setBundleItemIds((product as any).related_product_ids || [])
+    }
+    if (product) {
+      setCatalogStoreScope(product.store_scope === 'selected' ? 'selected' : 'all')
+      setCatalogStoreIds(product.store_ids || [])
     }
   }, [product])
 
@@ -2703,6 +2744,14 @@ export default function ProductForm() {
       if (raw.product_type === 'bundle') data.related_product_ids = bundleItemIds
 
       data.addons = serializeCatalogAddons(productAddons)
+
+      if (catalogStoreScope === 'selected' && catalogStoreIds.length === 0) {
+        toast.error('Select at least one business unit, or choose All business units.')
+        openAndScrollTo('visibility')
+        return
+      }
+      data.store_scope = catalogStoreScope
+      data.store_ids = catalogStoreScope === 'selected' ? catalogStoreIds : []
 
       // Include quote form config; explicitly clear when disabled
       if (raw.allow_quote_request) {
@@ -3056,10 +3105,10 @@ export default function ProductForm() {
     { key: 'basic',            label: 'Basic',             icon: Package, hint: 'Name, type, category, descriptions, and media.' },
     { key: 'variants',         label: isBundleType ? 'Bundle' : isSubscriptionType ? 'Price & Plans' : 'Price & Variants', icon: Layers, visible: !isBundleType, hint: 'SKUs, pricing, options, stock, and per-variant settings.' },
     { key: 'bundle',           label: 'Bundle Items',      icon: Layers, visible: isBundleType, hint: 'Products included in this bundle.' },
+    { key: 'visibility',       label: 'Visibility',        icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
     { key: 'returns',          label: 'Returns',           icon: RotateCcw, visible: !isDigitalType && !isBundleType, hint: 'Return window, warranty, and refund policy.' },
     { key: 'shipping',         label: 'Shipping',          icon: Truck, visible: !isDigitalType, hint: 'Weight, dimensions, shipping, and tax settings.' },
     { key: 'storefrontOptions',label: 'Business Front',    icon: Globe, hint: 'Quote requests and storefront display options.' },
-    { key: 'visibility',       label: 'Visibility',        icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
     { key: 'addons',           label: 'Add-ons',           icon: Link2, hint: 'Optional linked products or services.' },
     { key: 'merch',            label: 'Merchandising',     icon: Tag, hint: 'Cross-sell and upsell on the business front.' },
     { key: 'seo',              label: 'SEO',               icon: Search, hint: 'Meta title, description, and search preview.' },
@@ -3115,49 +3164,38 @@ export default function ProductForm() {
 
   const isSaving = createProduct.isPending || updateProduct.isPending
 
+  const handleDeleteProduct = () => {
+    if (!id) return
+    deleteProduct.mutate(id, { onSuccess: () => navigate('/products') })
+  }
+
   return (
     <FormPageWithNav
       activeSectionKey={activeTab}
       nav={null}
     >
-      {/* Sticky top bar */}
-      <div className={formEditLayout.stickyBar}>
-        <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/products')}><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
-            <h1 className="text-base font-bold sm:text-xl">{isEdit ? 'Edit Product' : 'New Product'}</h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Controller name="status" control={control} render={({ field }) => (
-              <select
-                value={field.value}
-                onChange={field.onChange}
-                className={`h-9 rounded-md border px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  field.value === 'active' ? 'border-green-300 bg-green-50 text-green-700' :
-                  field.value === 'archived' ? 'border-red-300 bg-red-50 text-red-600' :
-                  'border-gray-300 bg-gray-50 text-gray-700'
-                }`}
-              >
-                <option value="active">Active</option>
-                <option value="draft">Draft</option>
-                <option value="archived">Archived</option>
-              </select>
-            )} />
-            <Controller name="is_visible" control={control} render={({ field }) => (
+      <CatalogEditStickyBar
+        onBack={() => navigate('/products')}
+        title={isEdit ? 'Edit Product' : 'New Product'}
+        status={formValues.status ?? 'draft'}
+        onStatusChange={(value) => setValue('status', value as 'active' | 'draft' | 'archived')}
+        visibleControl={(
+          <Controller
+            name="is_visible"
+            control={control}
+            render={({ field }) => (
               <Toggle label="Visible" checked={field.value} onChange={field.onChange} />
-            )} />
-            <Button
-              type="button"
-              onClick={handleSubmit(onSubmit, onFormInvalid)}
-              disabled={isSaving}
-              size="sm"
-            >
-              {isSaving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
-              {isEdit ? 'Save Product' : 'Create Product'}
-            </Button>
-          </div>
-        </div>
-      </div>
+            )}
+          />
+        )}
+        onSave={handleSubmit(onSubmit, onFormInvalid)}
+        saveLabel={isEdit ? 'Save Product' : 'Create Product'}
+        isSaving={isSaving}
+        isEdit={isEdit}
+        onDelete={handleDeleteProduct}
+        isDeleting={deleteProduct.isPending}
+        deleteConfirmMessage="Delete this product?"
+      />
 
       <FormSectionTabs
         sections={productSections}
@@ -3214,7 +3252,7 @@ export default function ProductForm() {
               </FormField>
             </div>
             <div className={cn(formEditLayout.fieldGrid, 'items-start')}>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 sm:col-span-2">
                 <div className="flex items-center justify-between gap-2">
                   <Label>Category</Label>
                   <Button
@@ -3256,34 +3294,28 @@ export default function ProductForm() {
                     </Button>
                   </div>
                 )}
-                <select {...register('category')} className={selectCls}
-                  onChange={e => { register('category').onChange(e); setValue('subcategory', '') }}
-                >
-                  <option value="">Select category</option>
-                  {productCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
+                <CategoryHierarchyPicker
+                  tree={productCategories}
+                  category={watchedCategory || ''}
+                  subcategory={watchedSubcategory || ''}
+                  onChange={(cat, sub) => {
+                    setValue('category', cat)
+                    setValue('subcategory', sub)
+                  }}
+                />
+                {(watchedCategory || watchedSubcategory) && (
+                  <p className="text-xs text-gray-500">
+                    Selected: {[watchedCategory, watchedSubcategory].filter(Boolean).join(' › ')}
+                  </p>
+                )}
               </div>
-              <FormField label="Subcategory">
-                {(() => {
-                  const selectedCat = productCategories.find(c => c.name === watchedCategory)
-                  const subs = (selectedCat?.children || []).filter(s => s.applies_to === 'product' || s.applies_to === 'both')
-                  return subs.length > 0 ? (
-                    <select {...register('subcategory')} className={selectCls}>
-                      <option value="">Select subcategory</option>
-                      {subs.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                    </select>
-                  ) : (
-                    <Input {...register('subcategory')} placeholder="e.g. Smartphones" />
-                  )
-                })()}
-              </FormField>
             </div>
             {(() => {
-              const selectedCat = productCategories.find(c => c.name === watchedCategory)
-              const selectedSub = (selectedCat?.children || []).find(s => s.name === watchedSubcategory)
-              const catFields = selectedCat?.custom_fields || []
-              const subFields = selectedSub?.custom_fields || []
-              const allFields = [...catFields, ...subFields]
+              const allFields = collectCustomFieldsFromSelection(
+                productCategories,
+                watchedCategory || '',
+                watchedSubcategory,
+              )
               if (allFields.length === 0) return null
               return (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-2 space-y-1.5">
@@ -4007,26 +4039,55 @@ export default function ProductForm() {
           <Section title="Bundle Items" icon={ShoppingBag} open={activeTab === 'bundle'} onToggle={() => toggle('bundle')} sectionId="bundle">
             <div className={formEditLayout.sectionBody}>
               <p className="text-sm text-gray-500">Select products to include in this bundle. Customers will receive all selected items as a set.</p>
-              {allProducts.filter(p => !id || p.id !== id).length === 0 ? (
-                <p className="text-sm text-gray-400 italic">No other products found. Create products first, then add them here.</p>
-              ) : (
-                <div className="space-y-2 max-h-80 overflow-y-auto border rounded-lg p-3 bg-gray-50">
-                  {allProducts.filter(p => !id || p.id !== id).map(p => {
-                    const checked = bundleItemIds.includes(p.id)
-                    return (
-                      <label key={p.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-transparent hover:bg-gray-100'}`}>
-                        <input type="checkbox" checked={checked} onChange={e => setBundleItemIds(prev => e.target.checked ? [...prev, p.id] : prev.filter(x => x !== p.id))} className="rounded" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{p.name}</p>
-                          {p.sku && <p className="text-xs text-gray-400">SKU: {p.sku}</p>}
-                          {p.category && <p className="text-xs text-gray-400">{p.category}</p>}
-                        </div>
-                        {checked && <span className="text-xs text-indigo-600 font-medium shrink-0">In bundle</span>}
-                      </label>
+              {(() => {
+                const eligible = allProducts.filter(p => !id || p.id !== id)
+                const q = bundleItemSearch.trim().toLowerCase()
+                const filtered = q
+                  ? eligible.filter(p =>
+                      p.name?.toLowerCase().includes(q) ||
+                      p.sku?.toLowerCase().includes(q) ||
+                      p.category?.toLowerCase().includes(q)
                     )
-                  })}
-                </div>
-              )}
+                  : eligible
+                if (eligible.length === 0) {
+                  return <p className="text-sm text-gray-400 italic">No other products found. Create products first, then add them here.</p>
+                }
+                return (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by name, SKU, or category…"
+                        value={bundleItemSearch}
+                        onChange={e => setBundleItemSearch(e.target.value)}
+                        autoComplete="off"
+                        className="w-full h-9 pl-9 pr-3 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      />
+                    </div>
+                    {filtered.length === 0 ? (
+                      <p className="text-sm text-gray-400 italic">No products match your search.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-80 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                        {filtered.map(p => {
+                          const checked = bundleItemIds.includes(p.id)
+                          return (
+                            <label key={p.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-transparent hover:bg-gray-100'}`}>
+                              <input type="checkbox" checked={checked} onChange={e => setBundleItemIds(prev => e.target.checked ? [...prev, p.id] : prev.filter(x => x !== p.id))} className="rounded" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{p.name}</p>
+                                {p.sku && <p className="text-xs text-gray-400">SKU: {p.sku}</p>}
+                                {p.category && <p className="text-xs text-gray-400">{p.category}</p>}
+                              </div>
+                              {checked && <span className="text-xs text-indigo-600 font-medium shrink-0">In bundle</span>}
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
               {bundleItemIds.length > 0 && (
                 <p className="text-xs text-indigo-600 font-medium">{bundleItemIds.length} item{bundleItemIds.length !== 1 ? 's' : ''} selected</p>
               )}
@@ -4552,7 +4613,21 @@ export default function ProductForm() {
           </div>
         </Section>
 
-        {/* 8. Visibility & Marketing — status + business front visibility live in sticky header */}
+        {/* 8. Business unit availability */}
+        <Section title="Business Unit Availability" icon={Store} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility-bu">
+          <div className={formEditLayout.sectionBody}>
+            <BusinessUnitScopePicker
+              stores={businessUnits}
+              scope={catalogStoreScope}
+              selectedIds={catalogStoreIds}
+              onScopeChange={setCatalogStoreScope}
+              onSelectedChange={setCatalogStoreIds}
+              hideHeader
+            />
+          </div>
+        </Section>
+
+        {/* 8b. Visibility & Marketing — status + business front visibility live in sticky header */}
         <Section title="Visibility & Marketing" icon={Eye} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility">
           <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">

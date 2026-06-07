@@ -126,7 +126,7 @@ export default function FeaturesBlock({ site, style, props, blockType }: Props) 
             )
             if (isCard) {
               return (
-                <div key={i} className={`rounded-2xl border p-5 sm:p-6 mx-6 lg:mx-0 ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white shadow-sm'}`}>
+                <div key={i} className={`builder-tile-card rounded-2xl border p-5 sm:p-6 mx-6 lg:mx-0 ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white shadow-sm'}`}>
                   {row}
                 </div>
               )
@@ -148,7 +148,7 @@ export default function FeaturesBlock({ site, style, props, blockType }: Props) 
       {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
       <div className={`grid ${colClass} gap-6`}>
         {features.map((feature, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow max-h-[90vh] overflow-y-auto">
+          <div key={i} className="builder-tile-card bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow max-h-[90vh] overflow-y-auto">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-2xl" style={{ backgroundColor: `${style.primary_color}15` }}>
               {feature.icon === 'Zap' ? '⚡' : feature.icon === 'Shield' ? '🛡️' : feature.icon === 'Star' ? '⭐' : feature.icon === 'Clock' ? '⏱️' : '✨'}
             </div>

@@ -12,11 +12,14 @@ export interface BusinessImage {
   id: string
   categoryId: string
   filename: string
+  /** Primary src — local generated pack under public/business-images. */
   url: string
+  /** Remote stock fallback used if the local image is missing. */
+  fallbackUrl: string
   label: string
 }
 
-const IMAGE_COUNT = 10
+const IMAGE_COUNT = 15
 
 export const BUSINESS_IMAGE_CATEGORIES: BusinessImageCategory[] = [
   // General business pack
@@ -299,6 +302,250 @@ export const BUSINESS_IMAGE_CATEGORIES: BusinessImageCategory[] = [
     description: 'Counseling, therapy sessions, wellness spaces, and group support',
     group: 'Healthcare',
   },
+  // Professional services pack
+  {
+    id: 'auditor',
+    label: 'Auditor',
+    description: 'Audit firms, financial review, compliance, and assurance',
+    group: 'Professional Services',
+  },
+  {
+    id: 'business-consultant',
+    label: 'Business Consultant',
+    description: 'Strategy meetings, advisory, planning, and consulting',
+    group: 'Professional Services',
+  },
+  {
+    id: 'chartered-accountant',
+    label: 'Chartered Accountant',
+    description: 'Accounting firms, tax filing, ledgers, and financial advisory',
+    group: 'Professional Services',
+  },
+  {
+    id: 'corporate-services',
+    label: 'Corporate Services',
+    description: 'Company registration, compliance, and corporate advisory',
+    group: 'Professional Services',
+  },
+  {
+    id: 'hr-consultancy',
+    label: 'HR Consultancy',
+    description: 'Talent management, HR advisory, and workforce planning',
+    group: 'Professional Services',
+  },
+  {
+    id: 'legal-consultant',
+    label: 'Legal Consultant',
+    description: 'Law offices, legal advice, contracts, and consultations',
+    group: 'Professional Services',
+  },
+  {
+    id: 'market-research-agency',
+    label: 'Market Research Agency',
+    description: 'Surveys, data insights, analytics, and consumer research',
+    group: 'Professional Services',
+  },
+  {
+    id: 'recruitment-agency',
+    label: 'Recruitment Agency',
+    description: 'Hiring, interviews, staffing, and talent acquisition',
+    group: 'Professional Services',
+  },
+  {
+    id: 'tax-consultant',
+    label: 'Tax Consultant',
+    description: 'Tax planning, filing, advisory, and compliance services',
+    group: 'Professional Services',
+  },
+  {
+    id: 'translation-services',
+    label: 'Translation Services',
+    description: 'Language translation, localization, and interpretation',
+    group: 'Professional Services',
+  },
+  // Technology & IT pack
+  {
+    id: 'ai-machine-learning-company',
+    label: 'AI & Machine Learning',
+    description: 'AI research, data science, ML models, and innovation labs',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'bpo-call-center',
+    label: 'BPO & Call Center',
+    description: 'Customer support desks, headsets, and contact center floors',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'cloud-services-provider',
+    label: 'Cloud Services',
+    description: 'Data centers, cloud infrastructure, and managed hosting',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'cybersecurity-firm',
+    label: 'Cybersecurity Firm',
+    description: 'Security operations, threat monitoring, and data protection',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'data-analytics-company',
+    label: 'Data Analytics',
+    description: 'Dashboards, big data, visualization, and business intelligence',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'it-support-services',
+    label: 'IT Support Services',
+    description: 'Help desks, network support, and managed IT services',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'mobile-app-development',
+    label: 'Mobile App Development',
+    description: 'App design, prototyping, coding, and mobile UX',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'saas-provider',
+    label: 'SaaS Provider',
+    description: 'Cloud software, subscriptions, dashboards, and platforms',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'software-company',
+    label: 'Software Company',
+    description: 'Development teams, coding, agile workflows, and tech offices',
+    group: 'Technology & IT',
+  },
+  {
+    id: 'web-development-company',
+    label: 'Web Development Company',
+    description: 'Web design, front-end coding, and digital agency studios',
+    group: 'Technology & IT',
+  },
+  // Manufacturing & industrial pack
+  {
+    id: 'chemical-manufacturing',
+    label: 'Chemical Manufacturing',
+    description: 'Processing plants, reactors, lab testing, and production lines',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'electronics-manufacturing',
+    label: 'Electronics Manufacturing',
+    description: 'PCB assembly, circuit production, and electronics fabrication',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'engineering-works',
+    label: 'Engineering Works',
+    description: 'Fabrication, machining, welding, and industrial workshops',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'food-processing-unit',
+    label: 'Food Processing Unit',
+    description: 'Food production lines, packaging, and processing facilities',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'industrial-equipment-manufacturer',
+    label: 'Industrial Equipment',
+    description: 'Heavy machinery, assembly lines, and industrial production',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'packaging-unit',
+    label: 'Packaging Unit',
+    description: 'Packaging lines, cartons, labeling, and fulfillment',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'pharmaceutical-manufacturing',
+    label: 'Pharmaceutical Manufacturing',
+    description: 'Drug production, clean rooms, labs, and quality control',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'plastic-manufacturing',
+    label: 'Plastic Manufacturing',
+    description: 'Molding, extrusion, and plastic product fabrication',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'printing-press',
+    label: 'Printing Press',
+    description: 'Offset printing, presses, bindery, and print production',
+    group: 'Manufacturing & Industrial',
+  },
+  {
+    id: 'textile-manufacturing',
+    label: 'Textile Manufacturing',
+    description: 'Looms, fabric production, dyeing, and garment factories',
+    group: 'Manufacturing & Industrial',
+  },
+  // Logistics & transport pack
+  {
+    id: 'bus-operator',
+    label: 'Bus Operator',
+    description: 'Bus fleets, terminals, passengers, and transit operations',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'cargo-service',
+    label: 'Cargo Service',
+    description: 'Freight handling, warehouses, and cargo logistics',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'courier-service',
+    label: 'Courier Service',
+    description: 'Parcel delivery, dispatch, and last-mile logistics',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'fleet-management',
+    label: 'Fleet Management',
+    description: 'Vehicle tracking, fleet operations, and logistics control',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'freight-forwarder',
+    label: 'Freight Forwarder',
+    description: 'Shipping coordination, customs, and global freight',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'packers-movers',
+    label: 'Packers & Movers',
+    description: 'Relocation, packing, moving trucks, and household shifting',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'shipping-agency',
+    label: 'Shipping Agency',
+    description: 'Ports, containers, vessels, and maritime logistics',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'taxi-service',
+    label: 'Taxi Service',
+    description: 'Cabs, ride hailing, drivers, and city transport',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'transport-company',
+    label: 'Transport Company',
+    description: 'Trucks, logistics fleets, and goods transportation',
+    group: 'Logistics & Transport',
+  },
+  {
+    id: 'trucking-service',
+    label: 'Trucking Service',
+    description: 'Long-haul trucks, freight, and road transport',
+    group: 'Logistics & Transport',
+  },
 ]
 
 /** Display URL for gallery / layout previews (remote stock when local pack absent). */
@@ -320,7 +567,8 @@ export const BUSINESS_IMAGES: BusinessImage[] = BUSINESS_IMAGE_CATEGORIES.flatMa
       id: `${cat.id}-${padded}`,
       categoryId: cat.id,
       filename: `${cat.id}-${padded}.jpg`,
-      url: imageUrl(cat.id, num),
+      url: localBusinessImagePath(cat.id, num),
+      fallbackUrl: imageUrl(cat.id, num),
       label: `${cat.label} ${num}`,
     }
   }),

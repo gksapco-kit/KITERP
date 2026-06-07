@@ -8,6 +8,7 @@ import math
 from app.models.inventory import InventoryMovement
 from app.models.vendor_product import Product, ProductVariant
 from app.models.store import Store, StoreInventory
+from app.services.catalog_store_scope import product_available_at_store
 
 
 class InventoryService:
@@ -285,6 +286,7 @@ class InventoryService:
         self, vendor_id: UUID, product_id: UUID | None = None,
         movement_type: str | None = None,
         store_id: UUID | None = None,
+        storage_location_id: UUID | None = None,
         page: int = 1, size: int = 20,
     ) -> tuple[list[InventoryMovement], int]:
         conditions = [InventoryMovement.vendor_id == vendor_id]
@@ -294,6 +296,8 @@ class InventoryService:
             conditions.append(InventoryMovement.movement_type == movement_type)
         if store_id:
             conditions.append(InventoryMovement.store_id == store_id)
+        if storage_location_id:
+            conditions.append(InventoryMovement.storage_location_id == storage_location_id)
 
         count_stmt = select(func.count()).select_from(InventoryMovement).where(and_(*conditions))
         total = (await self.db.execute(count_stmt)).scalar() or 0
@@ -309,7 +313,7 @@ class InventoryService:
         items = list(result.scalars().all())
         return items, total
 
-    async def get_stock_summary(self, vendor_id: UUID) -> list[dict]:
+    async def get_stock_summary(self, vendor_id: UUID, store_id: UUID | None = None) -> list[dict]:
         """Get stock summary for all products of a vendor, including variant and per-store breakdown."""
         # Load stores for this vendor
         stores_stmt = select(Store).where(Store.vendor_id == vendor_id, Store.is_active == True).order_by(Store.name)
@@ -339,6 +343,8 @@ class InventoryService:
             .options(selectinload(Product.variants))
             .order_by(Product.name)
         )
+        if store_id:
+            stmt = stmt.where(product_available_at_store(store_id))
         result = await self.db.execute(stmt)
         products = list(result.scalars().all())
 
@@ -441,7 +447,7 @@ class InventoryService:
 
         return summaries
 
-    async def get_low_stock_alerts(self, vendor_id: UUID) -> list[dict]:
+    async def get_low_stock_alerts(self, vendor_id: UUID, store_id: UUID | None = None) -> list[dict]:
         stmt = (
             select(Product)
             .where(
@@ -452,6 +458,8 @@ class InventoryService:
             )
             .order_by(Product.quantity.asc())
         )
+        if store_id:
+            stmt = stmt.where(product_available_at_store(store_id))
         result = await self.db.execute(stmt)
         products = list(result.scalars().all())
 

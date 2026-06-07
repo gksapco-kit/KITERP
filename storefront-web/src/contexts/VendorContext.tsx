@@ -27,7 +27,7 @@ export interface VendorData {
   description?: string
   logo_url?: string
   banner_url?: string
-  theme_config: Record<string, unknown> & { builder_config?: Record<string, unknown> }
+  theme_config: Record<string, unknown>
   primary_email: string
   primary_phone: string
   support_email?: string

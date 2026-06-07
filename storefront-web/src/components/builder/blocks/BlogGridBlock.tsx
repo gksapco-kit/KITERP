@@ -68,7 +68,7 @@ export default function BlogGridBlock({ site, style, props }: Props) {
         {posts.map(p => (
           <article
             key={p.id}
-            className="group rounded-2xl border border-gray-200 hover:border-gray-300 overflow-hidden bg-white transition-shadow hover:shadow-md"
+            className="group builder-tile-card rounded-2xl border border-gray-200 hover:border-gray-300 overflow-hidden bg-white transition-shadow hover:shadow-md"
           >
             <a href={p.url} className="flex flex-col h-full">
               <div className="aspect-[16/9] overflow-hidden bg-gray-100">

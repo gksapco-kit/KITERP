@@ -32,7 +32,7 @@ export const vendorKeys = {
   defaultRoles: () => [...vendorKeys.all, 'default-roles'] as const,
   inventorySummary: (params?: Record<string, unknown>) => [...vendorKeys.all, 'inventory-summary', params] as const,
   inventoryHistory: (params?: Record<string, unknown>) => [...vendorKeys.all, 'inventory-history', params] as const,
-  inventoryLowStock: () => [...vendorKeys.all, 'inventory-low-stock'] as const,
+  inventoryLowStock: (params?: Record<string, unknown>) => [...vendorKeys.all, 'inventory-low-stock', params] as const,
   suppliers: (params?: Record<string, unknown>) => [...vendorKeys.all, 'suppliers', params] as const,
   supplier: (id: string) => [...vendorKeys.all, 'supplier', id] as const,
   purchaseOrders: (params?: Record<string, unknown>) => [...vendorKeys.all, 'purchase-orders', params] as const,
@@ -196,6 +196,52 @@ export function useDeleteCategory() {
     mutationFn: (id: string) => vendorApi.deleteCategory(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'categories'] }); toast.success('Category deleted') },
     onError: apiError('Could not delete category — it may have products linked to it'),
+  })
+}
+
+export function useStorageLocationTree(storeId: string | null) {
+  return useQuery({
+    queryKey: [...vendorKeys.all, 'storage-locations', 'tree', storeId],
+    queryFn: () => vendorApi.listStorageLocations({ store_id: storeId!, tree: true }),
+    enabled: !!storeId,
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useCreateStorageLocation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createStorageLocation(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'storage-locations'] })
+      toast.success('Storage location created!')
+    },
+    onError: apiError('Could not create storage location'),
+  })
+}
+
+export function useUpdateStorageLocation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      vendorApi.updateStorageLocation(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'storage-locations'] })
+      toast.success('Storage location updated!')
+    },
+    onError: apiError('Could not update storage location'),
+  })
+}
+
+export function useDeleteStorageLocation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteStorageLocation(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'storage-locations'] })
+      toast.success('Storage location deleted')
+    },
+    onError: apiError('Could not delete storage location'),
   })
 }
 
@@ -806,10 +852,10 @@ export function useInventoryHistory(params?: Record<string, unknown>) {
   })
 }
 
-export function useInventoryLowStock() {
+export function useInventoryLowStock(params?: Record<string, unknown>) {
   return useQuery({
-    queryKey: vendorKeys.inventoryLowStock(),
-    queryFn: () => vendorApi.inventoryLowStock(),
+    queryKey: vendorKeys.inventoryLowStock(params),
+    queryFn: () => vendorApi.inventoryLowStock(params),
     staleTime: 60 * 1000,
   })
 }

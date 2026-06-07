@@ -17,10 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@kiterp/home-sections": ["../storefront-web/src/home-sections"],
-      "@kiterp/home-sections/*": ["../storefront-web/src/home-sections/*"],
-      "@kiterp/storefront-theme-colors": ["../storefront-web/src/lib/themeColors.ts"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],

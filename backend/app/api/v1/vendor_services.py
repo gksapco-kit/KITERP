@@ -18,6 +18,7 @@ from app.schemas.vendor_service import (
 )
 from app.services.vendor_service import VendorService
 from app.repositories.service_repo import ServiceRepository
+from app.services.catalog_store_scope import sync_service_stores
 
 from datetime import date as date_type, datetime
 
@@ -185,6 +186,8 @@ def _service_to_dict(s) -> dict:
         "is_on_sale": s.is_on_sale or False,
         "allow_quote_request": s.allow_quote_request or False,
         "quote_form_config": s.quote_form_config or [],
+        "store_scope": s.store_scope or "all",
+        "store_ids": [str(a.store_id) for a in (getattr(s, "store_assignments", None) or [])],
         # Media
         "image_url": s.image_url,
         "gallery": s.gallery or [],
@@ -290,11 +293,18 @@ async def list_services(
     status: Optional[str] = None,
     category: Optional[str] = None,
     search: Optional[str] = None,
+    store_id: Optional[str] = Query(None, description="Filter by business unit availability"),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     repo = ServiceRepository(db)
     skip = (page - 1) * size
+    sid = None
+    if store_id:
+        try:
+            sid = UUID(store_id)
+        except ValueError:
+            raise HTTPException(400, "Invalid store_id")
 
     items, total = await repo.list_by_vendor(
         vendor_id=vendor_id,
@@ -303,6 +313,7 @@ async def list_services(
         status=status,
         category=category,
         search=search,
+        store_id=sid,
     )
 
     return JSONResponse(content={
@@ -327,9 +338,12 @@ async def create_service(
     if await repo.slug_exists(vendor_id, slug):
         slug = f"{slug}-{str(uuid_mod.uuid4())[:8]}"
 
-    fields = data.model_dump(exclude={"slug", "availability", "plans"})
+    fields = data.model_dump(exclude={"slug", "availability", "plans", "store_ids"})
     availability_data = data.availability or []
     plans_data = data.plans or []
+    store_scope = fields.pop("store_scope", "all") or "all"
+    store_ids = data.store_ids or []
+    fields["store_scope"] = store_scope
 
     # Convert enum values to strings for SQLAlchemy
     for key in ("price_type",):
@@ -371,6 +385,7 @@ async def create_service(
     for plan in _build_plans(svc.id, plans_data):
         db.add(plan)
 
+    await sync_service_stores(db, vendor_id, svc.id, store_scope, store_ids)
     await db.commit()
 
     svc = await repo.get_by_vendor_and_id(vendor_id, svc.id)
@@ -415,6 +430,7 @@ async def update_service(
     update_data = data.model_dump(exclude_unset=True)
     availability_data = update_data.pop("availability", None)
     plans_data = update_data.pop("plans", None)
+    store_ids_payload = update_data.pop("store_ids", None)
     _coerce_date_fields(update_data)
 
     # Build change diff for audit history
@@ -422,7 +438,7 @@ async def update_service(
     skip_diff = {
         "availability", "plans", "updated_by", "version_number", "change_history",
         "quote_form_config", "media", "images", "created_by", "created_at", "updated_at",
-        "slug",
+        "slug", "store_ids",
     }
 
     def _norm(val):
@@ -509,6 +525,13 @@ async def update_service(
     svc.updated_by = current_user.id
     if changes:
         svc.version_number = (svc.version_number or 1) + 1
+
+    if store_ids_payload is not None or "store_scope" in update_data:
+        scope = svc.store_scope or "all"
+        ids = store_ids_payload if store_ids_payload is not None else [
+            str(a.store_id) for a in (getattr(svc, "store_assignments", None) or [])
+        ]
+        await sync_service_stores(db, vendor_id, svc.id, scope, ids)
 
     await db.commit()
     svc = await repo.get_by_vendor_and_id(vendor_id, service_id)

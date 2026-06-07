@@ -183,7 +183,6 @@ class TemplateConfigUpdate(BaseModel):
     footer_style: Optional[str] = None
     sections: Optional[Dict[str, bool]] = None
     custom_announcement: Optional[str] = None
-    builder_config: Optional[Dict[str, Any]] = None
 
 
 async def _get_vendor(user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)) -> Vendor:
@@ -203,91 +202,27 @@ async def get_template_config(vendor: Vendor = Depends(_get_vendor)):
     return JSONResponse(content=merged)
 
 
-def _apply_builder_config(current: dict, bc: dict) -> None:
-    """Translate the Business Front Builder"s rich config into the flat theme_config fields
-    that ThemeContext and the business front consume, and store the raw builder_config for
-    round-trip reload in the builder UI."""
-    current["builder_config"] = bc
-
-    if bc.get("template_id"):
-        current["template"] = bc["template_id"]
-
-    if bc.get("product_detail_template"):
-        current["product_detail_template"] = bc["product_detail_template"]
-
-    style: dict = bc.get("style") or {}
-    if style:
-        colors = dict(current.get("colors") or {})
-        if style.get("primary_color"):
-            colors["primary"] = style["primary_color"]
-        if style.get("secondary_color"):
-            colors["secondary"] = style["secondary_color"]
-        if style.get("accent_color"):
-            colors["accent"] = style["accent_color"]
-        if style.get("bg_color"):
-            colors["background"] = style["bg_color"]
-        current["colors"] = colors
-        if style.get("font_heading"):
-            current["font"] = style["font_heading"]
-        if style.get("checkout_layout"):
-            current["checkout_layout"] = style["checkout_layout"]
-
-    sections_list: list = bc.get("sections") or []
-    if sections_list:
-        # Builder id → ThemeContext/Home.tsx section key
-        SECTION_ID_MAP = {"cta_banner": "cta"}
-
-        sections_map: dict = {}
-        for sec in sections_list:
-            sec_id: str = sec.get("id", "")
-            visible: bool = bool(sec.get("visible", True))
-            props: dict = sec.get("props") or {}
-            # Map builder section ids to business front section keys
-            mapped_id = SECTION_ID_MAP.get(sec_id, sec_id)
-            sections_map[mapped_id] = visible
-
-            if sec_id == "hero":
-                if props.get("headline"):
-                    current["hero_title"] = props["headline"]
-                if props.get("subtitle"):
-                    current["hero_subtitle"] = props["subtitle"]
-                if props.get("bg_style"):
-                    current["hero_style"] = props["bg_style"]
-
-            if sec_id == "announcement_bar":
-                current["custom_announcement"] = props.get("announcement_text", "") if visible else ""
-
-        current["sections"] = sections_map
-
-
 @router.put("")
 async def update_template_config(data: TemplateConfigUpdate, vendor: Vendor = Depends(_get_vendor), db: AsyncSession = Depends(get_db)):
     current = dict(vendor.theme_config or {})
 
     updates = data.model_dump(exclude_unset=True)
 
-    # Handle full builder_config payload first (Business Front Builder saves this shape)
-    if "builder_config" in updates and updates["builder_config"]:
-        _apply_builder_config(current, updates["builder_config"])
-
-    # Handle legacy / direct flat-field updates
-    flat_updates = {k: v for k, v in updates.items() if k != "builder_config"}
-
-    if "template" in flat_updates and flat_updates["template"] in TEMPLATE_PRESETS:
-        preset = TEMPLATE_PRESETS[flat_updates["template"]]
-        current["template"] = flat_updates["template"]
-        if "colors" not in flat_updates:
+    if "template" in updates and updates["template"] in TEMPLATE_PRESETS:
+        preset = TEMPLATE_PRESETS[updates["template"]]
+        current["template"] = updates["template"]
+        if "colors" not in updates:
             current["colors"] = preset["colors"]
-        if "font" not in flat_updates:
+        if "font" not in updates:
             current["font"] = preset["font"]
-        if "sections" not in flat_updates:
+        if "sections" not in updates:
             current["sections"] = preset["sections"]
-        if "hero_style" not in flat_updates:
+        if "hero_style" not in updates:
             current["hero_style"] = preset["hero_style"]
-        if "product_layout" not in flat_updates:
+        if "product_layout" not in updates:
             current["product_layout"] = preset["product_layout"]
 
-    for key, val in flat_updates.items():
+    for key, val in updates.items():
         if val is not None:
             if key in ("colors", "sections") and isinstance(val, dict):
                 existing = current.get(key, {})

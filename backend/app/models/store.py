@@ -52,14 +52,57 @@ class StoreInventory(Base):
 
     quantity = Column(Integer, default=0)
     low_stock_threshold = Column(Integer, default=5)
+    storage_location_id = Column(UUID(as_uuid=True), ForeignKey("storage_location.id", ondelete="SET NULL"), nullable=True)
 
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     store = relationship("Store", back_populates="inventory")
     product = relationship("Product")
+    storage_location = relationship("StorageLocation", lazy="noload")
 
     __table_args__ = (
         Index("idx_store_inv_store", "store_id"),
         Index("idx_store_inv_product", "store_id", "product_id"),
+        Index("idx_store_inv_location", "store_id", "storage_location_id"),
+    )
+
+
+class ProductStore(Base):
+    """Catalog availability: which business units sell this product."""
+    __tablename__ = "product_store"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="CASCADE"), nullable=False)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    product = relationship("Product", back_populates="store_assignments")
+    store = relationship("Store")
+
+    __table_args__ = (
+        Index("idx_product_store_product", "product_id"),
+        Index("idx_product_store_store", "store_id"),
+        Index("uq_product_store", "product_id", "store_id", unique=True),
+    )
+
+
+class ServiceStore(Base):
+    """Catalog availability: which business units offer this service."""
+    __tablename__ = "service_store"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    service_id = Column(UUID(as_uuid=True), ForeignKey("service.id", ondelete="CASCADE"), nullable=False)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    service = relationship("Service", back_populates="store_assignments")
+    store = relationship("Store")
+
+    __table_args__ = (
+        Index("idx_service_store_service", "service_id"),
+        Index("idx_service_store_store", "store_id"),
+        Index("uq_service_store", "service_id", "store_id", unique=True),
     )

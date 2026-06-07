@@ -19,6 +19,7 @@ import { DEFAULT_STYLE } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
 import SectionShapeDivider from './SectionShapeDivider'
+import { buildBlockColorStyleCss, type BlockColorProps, type ThemeColors } from '@/lib/blockColorOverrides'
 
 // Lazy-import the heavy block families to keep initial bundle small
 const NavBlock = lazy(() => import('./blocks/NavBlock'))
@@ -313,6 +314,14 @@ export function SingleBlock({
   if (hasShape) wrapperStyle.position = 'relative'
 
   const sfBid = `sf${block.id.replace(/-/g, '')}`
+  const blockColorProps = p as BlockColorProps
+  const blockThemeColors: ThemeColors = {
+    primary_color: style.primary_color || '#6366f1',
+    text_color: style.text_color || '#111827',
+    surface_color: style.surface_color || style.bg_color || '#f9fafb',
+    bg_color: style.bg_color || '#ffffff',
+  }
+  const blockColorCss = buildBlockColorStyleCss('data-sf-bid', sfBid, blockColorProps, blockThemeColors)
   const blockLink = typeof p.block_link_url === 'string' ? p.block_link_url.trim() : ''
   const blockLinkNewTab = Boolean(p.block_link_new_tab)
   const resolvedBlockLink = blockLink
@@ -355,7 +364,7 @@ export function SingleBlock({
       {topShape && topShape !== 'none' && (
         <SectionShapeDivider shape={topShape} fillColor={shapeColor} position="top" />
       )}
-      {(fontSizePx || textScaleEm) && (
+      {(fontSizePx || textScaleEm || blockColorCss) && (
         <style>{`
           [data-sf-bid="${sfBid}"] h1,
           [data-sf-bid="${sfBid}"] h2,
@@ -367,6 +376,7 @@ export function SingleBlock({
             ${fontSizePx ? `font-size: ${fontSizePx}px !important;` : ''}
             ${textScaleEm ? `font-size: ${textScaleEm}em !important;` : ''}
           }
+          ${blockColorCss}
         `}</style>
       )}
       {inner}

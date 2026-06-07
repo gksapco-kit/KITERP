@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
@@ -28,15 +28,19 @@ import {
   LayoutGrid,
   Palette,
   Waves,
+  Store,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSiteList, useCreateSite, useDeleteSite, usePublishSite, useUnpublishSite, useUpdateSite } from '@/hooks/useWebsites'
+import { useStores } from '@/hooks/useVendor'
 import { websiteApi } from '@/api/websites'
 import type { SiteListItem } from '@/types/websites'
 import { cn } from '@/lib/utils'
 import { extractApiError } from '@/lib/errorMessages'
-import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getDefaultSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, DESIGN_QUALITY_FEATURES, type SetupFeatureId, type SetupFeatureOption } from '@/lib/businessSitePresets'
+import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getDefaultSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, DESIGN_QUALITY_FEATURES, type SetupFeatureId, type SetupFeatureOption, resolveWebsiteSetupFromBusinessSettings } from '@/lib/businessSitePresets'
+import { companyTypeLabel } from '@/data/companyTypes'
+import { useVendorStore } from '@/stores/vendorStore'
 import { shouldUseLocalStorefrontUrls } from '@/lib/storefrontPreviewUrl'
 import { CustomDomainVerifyPanel } from '@/components/websites/CustomDomainVerifyPanel'
 import { format } from 'date-fns'
@@ -129,6 +133,37 @@ const SELLING_MODES = [
   { id: 'services', label: 'Services', desc: 'Service cards, bookings, quote requests' },
   { id: 'both', label: 'Both', desc: 'Products and services on the same website' },
 ]
+
+type WebsiteStoreScope = 'all' | 'store' | 'external'
+
+const WEBSITE_STORE_SCOPE_OPTIONS: {
+  id: WebsiteStoreScope
+  label: string
+  desc: string
+  icon: LucideIcon
+}[] = [
+  {
+    id: 'all',
+    label: 'All stores',
+    desc: 'One website for every business unit — shared catalog and branding',
+    icon: Globe,
+  },
+  {
+    id: 'store',
+    label: 'Specific store',
+    desc: 'Website scoped to a single business unit / outlet',
+    icon: Store,
+  },
+  {
+    id: 'external',
+    label: 'External use',
+    desc: 'Marketing or portfolio site on your own domain — not tied to a store',
+    icon: Globe2,
+  },
+]
+
+const WEBSITE_STORE_SCOPE_OPTIONS_MULTI = WEBSITE_STORE_SCOPE_OPTIONS.filter(o => o.id !== 'external')
+const EXTERNAL_SCOPE_OPTION = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === 'external')!
 
 const STATUS_CONFIG = {
   draft:     { label: 'Draft',     icon: AlertCircle,  color: 'text-amber-600 bg-amber-50 border-amber-200' },
@@ -346,8 +381,18 @@ function CreateSiteModal({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const createSite = useCreateSite()
+  const { data: storesData } = useStores()
+  const vendor = useVendorStore(s => s.vendor)
+  const stores = storesData?.stores ?? []
+  const storeCount = stores.length
+  const singleStore = storeCount === 1 ? stores[0] : null
+
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
+  const [websiteStoreScope, setWebsiteStoreScope] = useState<WebsiteStoreScope>(
+    storeCount <= 1 ? 'store' : 'store',
+  )
+  const [websiteStoreId, setWebsiteStoreId] = useState('')
   const [businessType, setBusinessType] = useState(BUSINESS_PRESETS[0].id)
   const [sellingMode, setSellingMode] = useState(BUSINESS_PRESETS[0].sells)
   const [selectedFeatures, setSelectedFeatures] = useState<SetupFeatureId[]>(() =>
@@ -355,12 +400,52 @@ function CreateSiteModal({
   )
   const [generating, setGenerating] = useState(false)
 
-  const selectedBusiness = BUSINESS_PRESETS.find(t => t.id === businessType) || BUSINESS_PRESETS[0]
-  const availableFeatures = getAvailableSetupFeatures(businessType, sellingMode)
+  const isExternalScope = websiteStoreScope === 'external'
+  const showStoreScopePicker = storeCount > 1
+  const activeStoreForSettings = websiteStoreScope === 'store' && websiteStoreId
+    ? stores.find(s => s.id === websiteStoreId)
+    : singleStore ?? stores.find(s => s.is_default) ?? stores[0]
+
+  const settingsSetup = resolveWebsiteSetupFromBusinessSettings(vendor, activeStoreForSettings)
+  const effectiveBusinessType = isExternalScope ? businessType : settingsSetup.businessTypeId
+  const effectiveSellingMode = isExternalScope ? sellingMode : settingsSetup.sellingMode
+
+  const selectedBusiness = BUSINESS_PRESETS.find(t => t.id === effectiveBusinessType) || BUSINESS_PRESETS[0]
+  const availableFeatures = getAvailableSetupFeatures(effectiveBusinessType, effectiveSellingMode)
+  const settingsBusinessLabel = companyTypeLabel(
+    (activeStoreForSettings?.settings as Record<string, unknown> | undefined)?.company_type as string
+      || vendor?.business_type,
+  )
+  const settingsSellingLabel = SELLING_MODES.find(s => s.id === settingsSetup.sellingMode)?.label ?? 'Both'
 
   useEffect(() => {
-    setSelectedFeatures(getDefaultSetupFeatures(businessType, sellingMode))
-  }, [businessType, sellingMode])
+    if (storeCount <= 1) {
+      setWebsiteStoreScope('store')
+      if (singleStore) setWebsiteStoreId(singleStore.id)
+      return
+    }
+    setWebsiteStoreScope(prev => (prev === 'store' || prev === 'all' || prev === 'external' ? prev : 'store'))
+  }, [storeCount, singleStore?.id])
+
+  useEffect(() => {
+    if (websiteStoreScope !== 'store') {
+      setWebsiteStoreId('')
+      return
+    }
+    if (!websiteStoreId && stores.length > 0) {
+      setWebsiteStoreId(stores.find(s => s.is_default)?.id ?? stores[0].id)
+    }
+  }, [websiteStoreScope, stores, websiteStoreId])
+
+  useEffect(() => {
+    if (isExternalScope) return
+    setBusinessType(settingsSetup.businessTypeId)
+    setSellingMode(settingsSetup.sellingMode)
+  }, [isExternalScope, settingsSetup.businessTypeId, settingsSetup.sellingMode])
+
+  useEffect(() => {
+    setSelectedFeatures(getDefaultSetupFeatures(effectiveBusinessType, effectiveSellingMode))
+  }, [effectiveBusinessType, effectiveSellingMode])
 
   const toggleFeature = (id: SetupFeatureId, locked?: boolean) => {
     if (locked) return
@@ -370,11 +455,17 @@ function CreateSiteModal({
   }
 
   const handleGuidedCreate = async () => {
+    if (websiteStoreScope === 'store' && !websiteStoreId) {
+      toast.error('Select a business unit for this website.')
+      return
+    }
     const siteName = name.trim() || selectedBusiness.defaultName
-    const siteDesc = desc.trim() || `${selectedBusiness.label} website for ${sellingMode === 'both' ? 'products and services' : sellingMode}.`
-    const imageCategoryId = imageCategoryForBusinessType(businessType)
-    const stylePreset = stylePresetForBusinessType(businessType)
-    const pages = buildPagesFromSetupFeatures(selectedFeatures, businessType)
+    const siteDesc = desc.trim() || `${selectedBusiness.label} website for ${effectiveSellingMode === 'both' ? 'products and services' : effectiveSellingMode}.`
+    const imageCategoryId = imageCategoryForBusinessType(effectiveBusinessType)
+    const stylePreset = stylePresetForBusinessType(effectiveBusinessType)
+    const pages = buildPagesFromSetupFeatures(selectedFeatures, effectiveBusinessType)
+    const selectedStore = stores.find(s => s.id === websiteStoreId)
+    const resolvedScope = storeCount <= 1 ? 'store' : websiteStoreScope
     try {
       const site = await createSite.mutateAsync({
         name: siteName,
@@ -382,8 +473,13 @@ function CreateSiteModal({
         style_config: {
           ...stylePreset,
           image_category_id: imageCategoryId,
-          business_type: businessType,
-          selling_mode: sellingMode,
+          business_type: effectiveBusinessType,
+          selling_mode: effectiveSellingMode,
+          website_store_scope: resolvedScope,
+          website_store_id: resolvedScope === 'store' ? (websiteStoreId || singleStore?.id) : null,
+          website_store_name: resolvedScope === 'store'
+            ? (selectedStore?.name || singleStore?.name)
+            : null,
         },
       } as any)
       toast.success('Website created. Building your pages…')
@@ -392,14 +488,14 @@ function CreateSiteModal({
       setGenerating(true)
 
       try {
-        const selling = SELLING_MODES.find(s => s.id === sellingMode)
+        const selling = SELLING_MODES.find(s => s.id === effectiveSellingMode)
         const gen = await websiteApi.aiGenerateSite(site.id, {
           business_description: buildGenerateSitePrompt(
-            businessType,
+            effectiveBusinessType,
             selectedBusiness.label,
             siteName,
-            sellingMode,
-            selling?.desc || sellingMode,
+            effectiveSellingMode,
+            selling?.desc || effectiveSellingMode,
             selectedBusiness.prompt,
             selectedFeatures,
             desc,
@@ -410,9 +506,9 @@ function CreateSiteModal({
           include_pricing: selectedFeatures.includes('pricing_page'),
           include_blog: selectedFeatures.includes('blog_page'),
           image_category: imageCategoryId,
-          selling_mode: sellingMode,
+          selling_mode: effectiveSellingMode,
           site_name: siteName,
-          business_type: businessType,
+          business_type: effectiveBusinessType,
           setup_features: selectedFeatures,
         })
         await websiteApi.aiApplyGeneratedSite(site.id, gen)
@@ -443,7 +539,11 @@ function CreateSiteModal({
         <div className="bg-gradient-to-r from-primary to-info px-6 py-5 text-white flex items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold">Create Website</h2>
-            <p className="text-primary-foreground/85 text-sm mt-1">Pick your business type and name — we generate a modern website with photos, layouts, and pages in seconds.</p>
+            <p className="text-primary-foreground/85 text-sm mt-1">
+              {isExternalScope
+                ? 'External marketing site — pick business type and what you sell.'
+                : 'Store website — business type and catalog come from Business Settings.'}
+            </p>
           </div>
           <button
             type="button"
@@ -456,9 +556,93 @@ function CreateSiteModal({
         </div>
 
         <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
+            {storeCount === 1 && singleStore && (
+              <div className="rounded-xl border border-primary/20 bg-accent/40 px-4 py-3 text-sm text-gray-700">
+                <p className="font-medium text-gray-900">Website for your business unit</p>
+                <p className="mt-1 text-xs text-gray-600">
+                  <Store className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+                  {singleStore.name}
+                  {' · '}
+                  Business type and what you sell are taken from{' '}
+                  <Link to="/settings" className="text-primary underline underline-offset-2" onClick={onClose}>Business Settings</Link>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setWebsiteStoreScope('external')}
+                  className="mt-2 text-xs font-medium text-primary hover:underline"
+                >
+                  Need an external marketing site instead?
+                </button>
+              </div>
+            )}
+
+            {showStoreScopePicker && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">For which store are you creating the website?</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {WEBSITE_STORE_SCOPE_OPTIONS_MULTI.map(opt => {
+                  const Icon = opt.icon
+                  const selected = websiteStoreScope === opt.id
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setWebsiteStoreScope(opt.id)}
+                      className={cn(
+                        'p-3 rounded-xl border-2 text-left transition-all',
+                        selected ? 'border-primary bg-accent' : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50',
+                      )}
+                    >
+                      <Icon className={cn('w-5 h-5 mb-2', selected ? 'text-primary' : 'text-gray-400')} />
+                      <div className="text-xs font-medium text-gray-800">{opt.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5 leading-tight">{opt.desc}</div>
+                    </button>
+                  )
+                })}
+              </div>
+              {websiteStoreScope === 'store' && (
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Business unit</label>
+                  <select
+                    value={websiteStoreId}
+                    onChange={e => setWebsiteStoreId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {stores.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}{s.code ? ` (${s.code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {!isExternalScope && (
+                <p className="mt-3 text-xs text-gray-500 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
+                  Business type (<strong>{settingsBusinessLabel}</strong>) and what you sell (
+                  <strong>{settingsSellingLabel}</strong>) come from{' '}
+                  <Link to="/settings" className="text-primary underline underline-offset-2" onClick={onClose}>Business Settings</Link>
+                  {websiteStoreScope === 'store' && activeStoreForSettings ? ` for ${activeStoreForSettings.name}` : ''}.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => setWebsiteStoreScope('external')}
+                className={cn(
+                  'mt-3 w-full p-3 rounded-xl border-2 text-left transition-all',
+                  isExternalScope ? 'border-indigo-400 bg-indigo-50' : 'border-dashed border-gray-200 hover:border-indigo-300 hover:bg-gray-50',
+                )}
+              >
+                <Globe2 className={cn('w-5 h-5 mb-2', isExternalScope ? 'text-indigo-600' : 'text-gray-400')} />
+                <div className="text-xs font-medium text-gray-800">{EXTERNAL_SCOPE_OPTION.label}</div>
+                <div className="text-xs text-gray-500 mt-0.5 leading-tight">{EXTERNAL_SCOPE_OPTION.desc}</div>
+              </button>
+            </div>
+            )}
+
+            {isExternalScope && (
             <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">1. Choose your business type</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Choose your business type</label>
                 <div className="grid grid-cols-2 gap-2">
                   {BUSINESS_PRESETS.map(t => (
                     <button key={t.id} type="button" onClick={() => { setBusinessType(t.id); setSellingMode(t.sells) }}
@@ -473,7 +657,7 @@ function CreateSiteModal({
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">2. What do you sell?</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">What do you sell?</label>
                   <div className="space-y-2">
                     {SELLING_MODES.map(s => (
                       <button key={s.id} type="button" onClick={() => setSellingMode(s.id)}
@@ -487,9 +671,10 @@ function CreateSiteModal({
                 </div>
               </div>
             </div>
+            )}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">3. Site name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Site name</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder={selectedBusiness.defaultName}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 onKeyDown={e => e.key === 'Enter' && !isLoading && handleGuidedCreate()} />
@@ -505,15 +690,15 @@ function CreateSiteModal({
               features={availableFeatures}
               selected={selectedFeatures}
               businessType={selectedBusiness.label}
-              sellingMode={sellingMode}
+              sellingMode={effectiveSellingMode}
               disabled={isLoading}
               onToggle={toggleFeature}
-              onSelectRecommended={() => setSelectedFeatures(getDefaultSetupFeatures(businessType, sellingMode))}
+              onSelectRecommended={() => setSelectedFeatures(getDefaultSetupFeatures(effectiveBusinessType, effectiveSellingMode))}
             />
             <DesignQualityPicker />
             <div className="flex items-center justify-end gap-3">
               <Button variant="cancel" onClick={onClose} disabled={isLoading}>Cancel</Button>
-              <Button onClick={handleGuidedCreate} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
+              <Button onClick={handleGuidedCreate} disabled={isLoading || (websiteStoreScope === 'store' && storeCount > 1 && !websiteStoreId)} className="bg-primary hover:bg-primary/90 text-white">
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
                 {generating ? 'Generating website…' : 'Build My Website'}
               </Button>

@@ -3,32 +3,62 @@
  * Used when the local `/business-images/` pack is not installed.
  */
 
+/** Matches businessImagePack IMAGE_COUNT — each gallery category shows this many slots. */
+export const GALLERY_SLOT_COUNT = 10
+
+const UNSPLASH = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=900&q=80`
+
 const SHOP_DEFAULT = [
-  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1495121605193-b116b5b9c5fe?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=900&q=80',
+  UNSPLASH('1441986300917-64674bd600d8'),
+  UNSPLASH('1495121605193-b116b5b9c5fe'),
+  UNSPLASH('1516257984-b1b4d707412e'),
+  UNSPLASH('1591561954557-26941169b49e'),
+  UNSPLASH('1556742049-0cfed4f6a45d'),
+  UNSPLASH('1486406146926-c627a92ad1ab'),
+  UNSPLASH('1556761175-5973dc0f32e8'),
+  UNSPLASH('1560472354-b33ff0c44a43'),
+  UNSPLASH('1558618666-fcd25c85cd64'),
+  UNSPLASH('1523275335684-37898b6baf30'),
 ]
 
 const GROUP_STOCK_POOLS: Record<string, string[]> = {
   'General Business': SHOP_DEFAULT,
   'Retail & Commerce': [
-    'https://images.unsplash.com/photo-1555529665-1569b70306e2?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=900&q=80',
-    ...SHOP_DEFAULT,
+    UNSPLASH('1555529665-1569b70306e2'),
+    UNSPLASH('1607082348824-0a96f2a4b9da'),
+    UNSPLASH('1472851294608-062f824d29cc'),
+    UNSPLASH('1563013544-824ae1b704d3'),
+    UNSPLASH('1445205170230-053b73816039'),
+    UNSPLASH('1528698821843-031c577a4edc'),
+    UNSPLASH('1441986300917-64674bd600d8'),
+    UNSPLASH('1495121605193-b116b5b9c5fe'),
+    UNSPLASH('1516257984-b1b4d707412e'),
+    UNSPLASH('1591561954557-26941169b49e'),
   ],
   'Food & Hospitality': [
-    'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80',
+    UNSPLASH('1414235077428-338989a2e8c0'),
+    UNSPLASH('1504674900247-0877df9cc836'),
+    UNSPLASH('1559339352-11d035aa65de'),
+    UNSPLASH('1542838132-92c53300491e'),
+    UNSPLASH('1517248135467-6f788ed42308'),
+    UNSPLASH('1555396273-367ea4eb4db5'),
+    UNSPLASH('1565299624946-b28f40a0ae38'),
+    UNSPLASH('1574480664578-86d9f2d6cbb1'),
+    UNSPLASH('1555939594-58d7cb561ad1'),
+    UNSPLASH('1467003902550-3e4e0ea0a237'),
   ],
   Healthcare: [
-    'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1631217868264-e5b1a5fe279c?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1519494021062-207bded1ffb1?auto=format&fit=crop&w=900&q=80',
+    UNSPLASH('1576091160399-112ba8d25d1d'),
+    UNSPLASH('1631217868264-e5b1a5fe279c'),
+    UNSPLASH('1582750433449-648ed127bb54'),
+    UNSPLASH('1519494021062-207bded1ffb1'),
+    UNSPLASH('1579684385137-1ef15d508118'),
+    UNSPLASH('1584985827496-379b322b0f27'),
+    UNSPLASH('1559757175-0eb830ac8b84'),
+    UNSPLASH('1576091160550-2173dba999ef'),
+    UNSPLASH('1584515930351-d80f7278bccb'),
+    UNSPLASH('1530497618107-15613de89435'),
   ],
 }
 
@@ -106,9 +136,21 @@ const CATEGORY_STOCK_POOLS: Record<string, string[]> = {
     'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=900&q=80',
   ],
   'bar-pub': [
-    'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=900&q=80',
+    UNSPLASH('1514933651103-005eec06c04b'),
+    UNSPLASH('1572116469696-31de0f17cc34'),
+    UNSPLASH('1551218808-94e220e084d2'),
+  ],
+  'sweet-shop': [
+    UNSPLASH('1574480664578-86d9f2d6cbb1'),
+    UNSPLASH('1488477181946-6428a0291776'),
+    UNSPLASH('1551024506-0bccd828db5a'),
+    UNSPLASH('1514517521187-7ca8d4870688'),
+    UNSPLASH('1606313564200-e75d5e30476f'),
+    UNSPLASH('1587241321441-47ecc4d73603'),
+    UNSPLASH('1499636138093-9ef5a46055a6'),
+    UNSPLASH('1558961363-f1879f7d98a8'),
+    UNSPLASH('1563805042-7684c019a132'),
+    UNSPLASH('1563729787504-dd933a2e2cb1'),
   ],
   'veterinary-clinic': [
     'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=900&q=80',
@@ -128,6 +170,23 @@ const CATEGORY_STOCK_POOLS: Record<string, string[]> = {
 export function normalizeGalleryCategoryId(categoryId: string): string {
   const key = (categoryId || 'shop').trim().toLowerCase()
   return CATEGORY_ID_ALIASES[key] || key
+}
+
+function uniqueUrls(urls: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const url of urls) {
+    if (seen.has(url)) continue
+    seen.add(url)
+    out.push(url)
+  }
+  return out
+}
+
+/** Merge pools and keep the first N unique URLs (no cycling duplicates). */
+function expandPoolToGallerySize(base: string[], ...extraPools: string[][]): string[] {
+  const merged = uniqueUrls([...base, ...extraPools.flat()])
+  return merged.slice(0, GALLERY_SLOT_COUNT)
 }
 
 function inferGroupPool(categoryId: string): string[] | undefined {
@@ -159,13 +218,16 @@ function inferGroupPool(categoryId: string): string[] | undefined {
 export function stockPoolForCategory(categoryId: string): string[] {
   const normalized = normalizeGalleryCategoryId(categoryId)
   const specific = CATEGORY_STOCK_POOLS[normalized]
-  if (specific?.length) return specific
-  return inferGroupPool(normalized) ?? SHOP_DEFAULT
+  const group = inferGroupPool(normalized) ?? SHOP_DEFAULT
+  const base = specific?.length ? specific : group
+  const allCategoryPools = Object.values(CATEGORY_STOCK_POOLS)
+  const allGroupPools = Object.values(GROUP_STOCK_POOLS)
+  return expandPoolToGallerySize(base, group, allGroupPools, allCategoryPools, SHOP_DEFAULT)
 }
 
 /** 1-based index — matches businessImagePack numbering. */
 export function resolveCategoryStockImageUrl(categoryId: string, index: number): string {
   const pool = stockPoolForCategory(categoryId)
   const i = Math.max(1, index) - 1
-  return pool[i % pool.length] ?? SHOP_DEFAULT[0]
+  return pool[i] ?? pool[pool.length - 1] ?? SHOP_DEFAULT[0]
 }

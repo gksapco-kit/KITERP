@@ -99,3 +99,10 @@ export const COMPANY_TYPES: CompanyTypeOption[] = [
 ]
 
 export const COMPANY_TYPE_GROUPS = Array.from(new Set(COMPANY_TYPES.map((t) => t.group)))
+
+/** Display label for vendor `business_type` / signup `business_category`. */
+export function companyTypeLabel(value: string | undefined | null): string {
+  const key = (value || '').trim()
+  if (!key) return '—'
+  return COMPANY_TYPES.find((t) => t.value === key)?.label ?? key
+}

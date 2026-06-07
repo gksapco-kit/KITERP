@@ -6,6 +6,7 @@ from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 
 from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
+from app.services.catalog_store_scope import service_available_at_store
 from app.repositories.base import BaseRepository
 
 
@@ -19,7 +20,7 @@ class ServiceRepository(BaseRepository[Service]):
         """Get service by ID with relationships."""
         result = await self.db.execute(
             select(Service)
-            .options(selectinload(Service.availability), selectinload(Service.plans))
+            .options(selectinload(Service.availability), selectinload(Service.plans), selectinload(Service.store_assignments))
             .where(Service.id == id)
         )
         return result.scalar_one_or_none()
@@ -32,7 +33,7 @@ class ServiceRepository(BaseRepository[Service]):
         """Get service by vendor ID and service ID."""
         result = await self.db.execute(
             select(Service)
-            .options(selectinload(Service.availability), selectinload(Service.plans))
+            .options(selectinload(Service.availability), selectinload(Service.plans), selectinload(Service.store_assignments))
             .where(
                 and_(
                     Service.vendor_id == vendor_id,
@@ -50,7 +51,7 @@ class ServiceRepository(BaseRepository[Service]):
         """Find service by vendor ID and slug."""
         result = await self.db.execute(
             select(Service)
-            .options(selectinload(Service.availability), selectinload(Service.plans))
+            .options(selectinload(Service.availability), selectinload(Service.plans), selectinload(Service.store_assignments))
             .where(
                 and_(
                     Service.vendor_id == vendor_id,
@@ -88,12 +89,18 @@ class ServiceRepository(BaseRepository[Service]):
         category: Optional[str] = None,
         search: Optional[str] = None,
         visible_only: bool = False,
+        store_id: Optional[UUID] = None,
     ) -> tuple[List[Service], int]:
         """List services for a vendor with filters."""
         query = select(Service).where(Service.vendor_id == vendor_id)
         count_query = select(func.count()).select_from(Service).where(
             Service.vendor_id == vendor_id
         )
+
+        if store_id:
+            store_filter = service_available_at_store(store_id)
+            query = query.where(store_filter)
+            count_query = count_query.where(store_filter)
 
         if visible_only:
             # Treat NULL as visible (column added later; legacy rows have no value set)
@@ -124,7 +131,7 @@ class ServiceRepository(BaseRepository[Service]):
         # Get items with relationships
         query = (
             query
-            .options(selectinload(Service.availability), selectinload(Service.plans))
+            .options(selectinload(Service.availability), selectinload(Service.plans), selectinload(Service.store_assignments))
             .order_by(Service.created_at.desc())
             .offset(skip)
             .limit(limit)

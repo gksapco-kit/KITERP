@@ -346,7 +346,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             return (
               <div
                 key={item.id}
-                className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col"
+                className="builder-tile-card group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col"
               >
                 <Link
                   to={item.url ? storePath(item.url) : storePath('/products')}

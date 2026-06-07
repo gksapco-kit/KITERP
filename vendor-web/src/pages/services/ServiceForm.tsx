@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useService, useCreateService, useUpdateService, useCategoryTree } from '@/hooks/useVendor'
+import { useService, useCreateService, useUpdateService, useDeleteService, useCategoryTree, useStores } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
 import {
@@ -20,13 +20,15 @@ import {
   adjustPrimaryIndexOnRemove,
   findFirstImageIndex,
 } from '@/components/common/ImageUpload'
+import { CategoryHierarchyPicker } from '@/components/common/CategoryHierarchyPicker'
+import { filterCategoryTree } from '@/lib/categoryHierarchy'
 import {
-  ArrowLeft, Loader2, Upload, X, ChevronDown, ChevronUp,
+  ArrowLeft, Loader2,
   Briefcase, IndianRupee, Receipt, Settings, CalendarClock,
   Clock, Eye, Search, Puzzle, BarChart3, Edit2, History,
   Calendar, MapPin, Star, Globe, Tag, Repeat, Plus, Trash2,
   GripVertical, Film, Box, Image as ImageIcon, Copy, MessageSquare, ToggleRight, Info, Layers, Pencil, FileDown,
-  Printer,
+  Printer, Store,
 } from 'lucide-react'
 import {
   BOOKING_DOC_TYPES, getServiceDocTemplates, setServiceDocTemplates,
@@ -35,7 +37,6 @@ import {
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import {
   FormPageWithNav,
-  FormSectionNav,
   FormSectionTabs,
   FormField,
   handleFormInvalid,
@@ -46,6 +47,8 @@ import {
   formTextareaClass,
   useFormActiveSection,
 } from '@/components/common/FormSectionNav'
+import { CatalogEditStickyBar } from '@/components/common/CatalogEditStickyBar'
+import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -548,9 +551,11 @@ export default function ServiceForm() {
   const { data: service, isLoading } = useService(id || '')
   const createService = useCreateService()
   const updateService = useUpdateService()
+  const deleteService = useDeleteService()
   const { data: categoryData } = useCategoryTree()
-  const serviceCategories = (categoryData?.categories || []).filter(
-    (c: any) => c.applies_to === 'service' || c.applies_to === 'both'
+  const serviceCategories = useMemo(
+    () => filterCategoryTree(categoryData?.categories || [], 'service'),
+    [categoryData?.categories],
   )
 
   const [viewMode, setViewMode] = useState(searchParams.get('mode') === 'view')
@@ -564,7 +569,11 @@ export default function ServiceForm() {
     setVisitedSections(p => new Set(p).add(key))
   }
   const openAndScrollTo = toggle
-  const [activeViewSection, setActiveViewSection] = useState<string | null>(null)
+  const [activeViewTab, setActiveViewTab] = useState('basic')
+  const [catalogStoreScope, setCatalogStoreScope] = useState<StoreScope>('all')
+  const [catalogStoreIds, setCatalogStoreIds] = useState<string[]>([])
+  const { data: storesData } = useStores()
+  const businessUnits = storesData?.stores ?? []
   const [availability, setAvailability] = useState<AvailSlot[]>(DEFAULT_AVAILABILITY)
   const [plans, setPlans] = useState<PlanDraft[]>(() => (isEdit ? [] : [newPlan(0)]))
 
@@ -670,6 +679,7 @@ export default function ServiceForm() {
 
   const watchedPriceType    = watch('price_type')
   const watchedCategory     = watch('category')
+  const watchedSubcategory  = watch('subcategory')
   const watchedCurrency     = watch('currency')
   const watchedDiscountPct  = watch('discount_percentage')
   const watchedDiscountAmt  = watch('discount_amount')
@@ -872,6 +882,9 @@ export default function ServiceForm() {
       const customFields = savedConfig.filter(f => !DEFAULT_QUOTE_FIELDS.some(d => d.key === f.key))
       setQuoteFields([...merged, ...customFields.map(f => ({ ...f, options: f.options || [] }))])
     }
+
+    setCatalogStoreScope(service.store_scope === 'selected' ? 'selected' : 'all')
+    setCatalogStoreIds(service.store_ids || [])
   }, [service, reset])
 
   useEffect(() => {
@@ -996,6 +1009,14 @@ export default function ServiceForm() {
         day_of_week, start_time, end_time, is_available: true,
       }))
 
+      if (catalogStoreScope === 'selected' && catalogStoreIds.length === 0) {
+        toast.error('Select at least one business unit, or choose All business units.')
+        openAndScrollTo('visibility')
+        return
+      }
+      data.store_scope = catalogStoreScope
+      data.store_ids = catalogStoreScope === 'selected' ? catalogStoreIds : []
+
       for (const k of Object.keys(data)) {
         if (data[k] === '' || data[k] === undefined) delete data[k]
       }
@@ -1108,8 +1129,8 @@ export default function ServiceForm() {
   const serviceSections: FormSectionDef[] = useMemo(() => [
     { key: 'basic',             label: 'Basic',             icon: Briefcase, hint: 'Name, type, duration, descriptions, and media.' },
     { key: 'subscription',      label: 'Plans',             icon: Repeat, hint: 'Plan tiers, billing cycle, and trial setup.' },
-    { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
     { key: 'visibility',        label: 'Visibility',        icon: Eye, hint: 'Status, visibility, and featured flags.' },
+    { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
     { key: 'seo',               label: 'SEO',               icon: Search, hint: 'Search and social preview metadata.' },
     { key: 'advanced',          label: 'Advanced',          icon: Settings, hint: 'Extra fields and structured data.' },
     { key: 'addons',            label: 'Add-ons',           icon: Puzzle, hint: 'Linked products or services at booking.' },
@@ -1123,6 +1144,41 @@ export default function ServiceForm() {
       setActiveTab(visible[0]?.key ?? 'basic')
     }
   }, [serviceSections, activeTab])
+
+  const serviceViewSections = useMemo((): FormSectionDef[] => {
+    if (!service) return []
+    const svcAddons = normalizeCatalogAddons(service.addons)
+    let svcPackages: unknown[] = []
+    try {
+      const sp = (service as { service_packages?: unknown }).service_packages
+      svcPackages = typeof sp === 'string' ? JSON.parse(sp) : (sp || [])
+      if (!Array.isArray(svcPackages)) svcPackages = []
+    } catch { svcPackages = [] }
+    const svcPrintDocs = getServiceDocTemplates(service.id as string)
+    const hasAdvanced = !!(service.whats_included?.length || service.whats_not_included?.length || service.service_areas?.length || service.prerequisites)
+    const hasSeo = !!(service.meta_title || service.meta_description || service.meta_keywords)
+    const hasPlans = (service as { is_subscription?: boolean; plans?: unknown[] }).is_subscription && ((service as { plans?: unknown[] }).plans?.length ?? 0) > 0
+    return [
+      { key: 'basic',             label: 'Basic',             icon: Briefcase, hint: 'Name, type, duration, descriptions, and media.' },
+      { key: 'subscription',      label: 'Plans',             icon: Repeat, visible: hasPlans, hint: 'Plan tiers, billing cycle, and trial setup.' },
+      { key: 'visibility',        label: 'Visibility',        icon: Eye, hint: 'Status, visibility, and featured flags.' },
+      { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
+      { key: 'seo',               label: 'SEO',               icon: Search, visible: hasSeo, hint: 'Search and social preview metadata.' },
+      { key: 'advanced',          label: 'Advanced',          icon: Settings, visible: hasAdvanced, hint: 'Extra fields and structured data.' },
+      { key: 'addons',            label: 'Add-ons',           icon: Puzzle, visible: svcAddons.length > 0 || svcPackages.length > 0, hint: 'Linked products or services at booking.' },
+      { key: 'printDocs',         label: 'Print Docs',        icon: Printer, visible: svcPrintDocs.length > 0, hint: 'Templates printed with bookings.' },
+      { key: 'stats',             label: 'Statistics',        icon: BarChart3, hint: 'Booking and performance summary.' },
+      { key: 'history',           label: 'History',           icon: History, hint: 'Who changed what and when — export via full report.' },
+    ]
+  }, [service])
+
+  useEffect(() => {
+    if (!viewMode || !service) return
+    const visible = serviceViewSections.filter(s => s.visible !== false)
+    if (!visible.some(s => s.key === activeViewTab)) {
+      setActiveViewTab(visible[0]?.key ?? 'basic')
+    }
+  }, [viewMode, service, serviceViewSections, activeViewTab])
 
   const serviceCompletedSections = useMemo<Set<string>>(() => {
     const s = new Set<string>()
@@ -1155,91 +1211,56 @@ export default function ServiceForm() {
     const svcAddons = normalizeCatalogAddons(service.addons)
     const svcPackages: any[] = (service as any).service_packages || []
     const svcPrintDocs: string[] = getServiceDocTemplates(service.id as string)
-    const hasMedia = (service as any).media?.length > 0 || !!service.image_url || (service.gallery?.length ?? 0) > 0
-    const sectionCls = (key: string) =>
-      cn(formDisplayCompact.scrollMarginView, formSectionSurfaceClass(activeViewSection === key))
-    const viewNavSections: FormSectionDef[] = [
-      { key: 'basic',             label: 'Basic Information',   icon: Briefcase, hint: 'Name, type, pricing model, and descriptions.' },
-      { key: 'media',             label: 'Service Media',       icon: Eye,         visible: hasMedia, hint: 'Gallery and hero media for the business front.' },
-      { key: 'subscription',      label: 'Plans',               icon: Repeat, hint: 'Subscription or plan tiers and billing.' },
-      { key: 'storefrontOptions', label: 'Business Front',      icon: Globe, hint: 'Booking, quotes, and customer-facing options.' },
-      { key: 'visibility',        label: 'Visibility',          icon: Eye, hint: 'Catalog visibility and marketing flags.' },
-      { key: 'seo',               label: 'SEO & Metadata',      icon: Search, hint: 'Search and social preview metadata.' },
-      { key: 'advanced',          label: 'Advanced',            icon: Settings, hint: 'Extra fields and structured data.' },
-      { key: 'addons',            label: 'Add-ons',             icon: Puzzle, hint: 'Linked products or services at booking.' },
-      { key: 'history',           label: 'Change History',      icon: History, hint: 'Who changed what and when — export via full report.' },
-      { key: 'printDocs',         label: 'Print Documents',     icon: Printer,     visible: svcPrintDocs.length > 0, hint: 'Documents printed with bookings.' },
-    ]
-    const viewNavCompleted = new Set<string>(
-      viewNavSections.filter(s => s.visible !== false).map(s => s.key),
-    )
+    const showTab = (key: string) => activeViewTab === key
+    const viewNavCompleted = new Set<string>()
+    if (service.name) viewNavCompleted.add('basic')
+    if ((service as any).is_subscription && (service as any).plans?.length) viewNavCompleted.add('subscription')
+    viewNavCompleted.add('storefrontOptions')
+    viewNavCompleted.add('visibility')
+    if (service.meta_title || service.meta_description) viewNavCompleted.add('seo')
+    if (svcAddons.length > 0) viewNavCompleted.add('addons')
     if (history.length > 0) viewNavCompleted.add('history')
+    viewNavCompleted.add('stats')
 
     return (
-      <FormPageWithNav
-        activeSectionKey={activeViewSection}
-        nav={(
-          <FormSectionNav
-            sections={viewNavSections}
-            openSections={{}}
-            visitedSections={new Set(viewNavSections.filter(s => s.visible !== false).map(s => s.key))}
-            completedSections={viewNavCompleted}
-            hasErrorSections={new Set()}
-            scrollOffset={80}
-            stickyTopClass="top-14"
-            onActiveSectionChange={setActiveViewSection}
-            onNavigate={(key) => {
-              setActiveViewSection(key)
-              document.getElementById(`form-section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }}
-          />
-        )}
-      >
-      <div className={formDisplayCompact.pageGap}>
-        {/* View header */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/services')}>
-            <ArrowLeft className="w-4 h-4 mr-1" />Services
-          </Button>
-          <h1 className="flex-1 text-xl font-bold truncate text-gray-900">{service.name}</h1>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-              service.status === 'active' ? 'bg-green-100 text-green-700' :
-              service.status === 'archived' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'
-            }`}>{service.status}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/12 text-primary font-medium">{typeLbl}</span>
-            {!service.is_visible && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Hidden</span>}
+      <FormPageWithNav activeSectionKey={activeViewTab} nav={null}>
+      <div className={formEditLayout.formStack}>
+        <div className={formEditLayout.stickyBar}>
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => navigate('/services')}>
+                <ArrowLeft className="w-4 h-4 mr-1" />Back
+              </Button>
+              <h1 className="truncate text-base font-bold sm:text-xl">{service.name}</h1>
+              <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium ${
+                service.status === 'active' ? 'bg-green-100 text-green-700' :
+                service.status === 'archived' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'
+              }`}>{service.status}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/12 text-primary font-medium">{typeLbl}</span>
+              {!service.is_visible && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Hidden</span>}
+            </div>
+            <Button onClick={() => setViewMode(false)} size="sm" className="h-8 gap-1.5 shrink-0">
+              <Edit2 className="w-3.5 h-3.5" />Edit Service
+            </Button>
           </div>
-          <Button size="sm" onClick={() => setViewMode(false)}>
-            <Edit2 className="w-3.5 h-3.5 mr-1.5" />Edit
-          </Button>
         </div>
 
-        {/* Hero metrics */}
-        <Card id="form-section-basic" className={sectionCls('basic')}>
-          <CardContent className={formDisplayCompact.cardBody}>
-            <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-              <div className="rounded-lg border p-2 text-center sm:p-2.5">
-                <p className="text-xl font-bold text-blue-700">{priceDisplay}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{uomLbl}</p>
-              </div>
-              <div className="text-center rounded-lg border p-3">
-                <p className="text-xl font-bold">{service.duration_minutes ?? '—'}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{uomLbl}</p>
-              </div>
-              <div className="text-center rounded-lg border p-3">
-                <p className="text-xl font-bold">{service.view_count ?? 0}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Views</p>
-              </div>
-              <div className="text-center rounded-lg border p-3">
-                <p className="text-xl font-bold">{service.booking_count ?? 0}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Bookings</p>
-              </div>
-            </div>
+        <FormSectionTabs
+          sections={serviceViewSections}
+          activeKey={activeViewTab}
+          onChange={setActiveViewTab}
+          completedSections={viewNavCompleted}
+          hasErrorSections={new Set()}
+        />
 
-            {/* Media strip */}
+      <div className={formDisplayCompact.pageGap}>
+
+        {showTab('basic') && (
+        <>
+        <Card>
+          <CardContent className={formDisplayCompact.cardBody}>
             {((service as any).media?.length > 0 || service.image_url || service.gallery?.length > 0) && (
-              <div id="form-section-media" className={cn(sectionCls('media'), 'mb-2 flex gap-2 overflow-x-auto sm:gap-3')}>
+              <div className="mb-3 flex gap-2 overflow-x-auto sm:gap-3">
                 {((service as any).media?.length > 0
                   ? (service as any).media.sort((a: any, b: any) => a.position - b.position)
                   : [
@@ -1290,7 +1311,6 @@ export default function ServiceForm() {
           </CardContent>
         </Card>
 
-        {/* Pricing */}
         {(service.price || service.price_min || service.discount_percentage || service.discount_amount) && (
           <Card>
             <CardContent className="p-5">
@@ -1308,9 +1328,11 @@ export default function ServiceForm() {
             </CardContent>
           </Card>
         )}
+        </>
+        )}
 
-        {/* Business Front Options */}
-        <Card id="form-section-storefrontOptions" className={sectionCls('storefrontOptions')}>
+        {showTab('storefrontOptions') && (
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" />Business Front Options</p>
             <div className="divide-y rounded-lg border">
@@ -1358,10 +1380,9 @@ export default function ServiceForm() {
             )}
           </CardContent>
         </Card>
+        )}
 
-        <span id="form-section-subscription" className={formDisplayCompact.scrollMarginView} />
-        {/* Subscription Plans — with per-plan feature details */}
-        {(service as any).is_subscription && (service as any).plans?.length > 0 && (
+        {showTab('subscription') && (service as any).is_subscription && (service as any).plans?.length > 0 && (
           <Card>
             <CardContent className="p-5">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Repeat className="w-3.5 h-3.5" />Subscription Plans</p>
@@ -1471,11 +1492,8 @@ export default function ServiceForm() {
           </Card>
         )}
 
-        {/* Booking, Tax, Availability, and Lifecycle details are shown per-plan above */}
-
-        {/* Advanced details */}
-        {(service.whats_included?.length || service.whats_not_included?.length || service.service_areas?.length || service.prerequisites) && (
-          <Card id="form-section-advanced" className={sectionCls('advanced')}>
+        {showTab('advanced') && (service.whats_included?.length || service.whats_not_included?.length || service.service_areas?.length || service.prerequisites) && (
+          <Card>
             <CardContent className={formDisplayCompact.cardBody}>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" />Details</p>
               {service.prerequisites && <div className="mb-3"><p className="text-xs font-medium text-gray-400 uppercase mb-1">Prerequisites</p><p className="text-sm text-gray-700">{service.prerequisites}</p></div>}
@@ -1501,8 +1519,8 @@ export default function ServiceForm() {
           </Card>
         )}
 
-        {(service.meta_title || service.meta_description || service.meta_keywords) && (
-          <Card id="form-section-seo" className={sectionCls('seo')}>
+        {showTab('seo') && (service.meta_title || service.meta_description || service.meta_keywords) && (
+          <Card>
             <CardContent className={formDisplayCompact.cardBody}>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Search className="w-3.5 h-3.5" />SEO & Metadata</p>
               <div className="space-y-2">
@@ -1525,8 +1543,8 @@ export default function ServiceForm() {
           </Card>
         )}
 
-        {((svcAddons.length > 0) || (service as any).service_packages) && (
-          <Card id="form-section-addons" className={sectionCls('addons')}>
+        {showTab('addons') && ((svcAddons.length > 0) || (service as any).service_packages) && (
+          <Card>
             <CardContent className={formDisplayCompact.cardBody}>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" />Add-ons & Packages</p>
               {svcAddons.length > 0 && (
@@ -1577,8 +1595,21 @@ export default function ServiceForm() {
           </Card>
         )}
 
-        {/* Visibility badges */}
-        <Card id="form-section-visibility" className={sectionCls('visibility')}>
+        {showTab('visibility') && (
+        <>
+        <Card>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Store className="w-3.5 h-3.5" />Business Unit Availability</p>
+            <p className="text-sm text-gray-600">
+              {(service.store_scope === 'selected'
+                ? (service.store_ids?.length
+                  ? service.store_ids.map(id => businessUnits.find(s => s.id === id)?.name || id).join(', ')
+                  : 'None selected')
+                : 'All business units')}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" />Visibility & Marketing</p>
             <div className="flex gap-2 flex-wrap">
@@ -1590,9 +1621,37 @@ export default function ServiceForm() {
             </div>
           </CardContent>
         </Card>
+        </>
+        )}
 
-        {/* History */}
-        <Card id="form-section-history" className={sectionCls('history')}>
+        {showTab('stats') && (
+        <Card>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><BarChart3 className="w-3.5 h-3.5" />Statistics</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+              <div className="rounded-lg border p-2 text-center sm:p-2.5">
+                <p className="text-xl font-bold text-blue-700">{priceDisplay}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{uomLbl}</p>
+              </div>
+              <div className="text-center rounded-lg border p-2 sm:p-2.5">
+                <p className="text-xl font-bold">{service.duration_minutes ?? '—'}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Duration (min)</p>
+              </div>
+              <div className="text-center rounded-lg border p-2 sm:p-2.5">
+                <p className="text-xl font-bold">{service.view_count ?? 0}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Views</p>
+              </div>
+              <div className="text-center rounded-lg border p-2 sm:p-2.5">
+                <p className="text-xl font-bold">{service.booking_count ?? 0}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Bookings</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        )}
+
+        {showTab('history') && (
+        <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
               <div className="flex items-start gap-2">
@@ -1644,10 +1703,10 @@ export default function ServiceForm() {
             )}
           </CardContent>
         </Card>
+        )}
 
-        {/* Print Documents */}
-        {svcPrintDocs.length > 0 && (
-          <Card id="form-section-printDocs" className={sectionCls('printDocs')}>
+        {showTab('printDocs') && svcPrintDocs.length > 0 && (
+          <Card>
             <CardContent className={cn(formDisplayCompact.cardBodyTight, 'space-y-1.5')}>
               <div className="flex items-center gap-2 mb-1">
                 <Printer className="w-4 h-4 text-gray-500" />
@@ -1668,51 +1727,43 @@ export default function ServiceForm() {
         )}
 
       </div>
+      </div>
       </FormPageWithNav>
     )
   }
 
   // ── Edit / Create Mode ────────────────────────────────────────────
 
+  const handleDeleteService = () => {
+    if (!id) return
+    deleteService.mutate(id, { onSuccess: () => navigate('/services') })
+  }
+
   return (
     <FormPageWithNav activeSectionKey={activeTab} nav={null}>
-      {/* Sticky header */}
-      <div className={formEditLayout.stickyBar}>
-        <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="sm" onClick={() => isEdit ? setViewMode(true) : navigate('/services')}>
-              <ArrowLeft className="w-4 h-4 mr-1" />{isEdit ? 'View' : 'Back'}
-            </Button>
-            <h1 className="text-base font-bold sm:text-xl">
-              {isEdit ? (service?.name || 'Edit Service') : 'New Service'}
-            </h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Controller name="status" control={control} render={({ field }) => (
-              <select
-                value={field.value}
-                onChange={field.onChange}
-                className={`h-9 rounded-md border px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring ${
-                  field.value === 'active'   ? 'border-green-300 bg-green-50 text-green-700' :
-                  field.value === 'archived' ? 'border-red-300 bg-red-50 text-red-600' :
-                  'border-gray-300 bg-gray-50 text-gray-700'
-                }`}
-              >
-                <option value="active">Active</option>
-                <option value="draft">Draft</option>
-                <option value="archived">Archived</option>
-              </select>
-            )} />
-            <Controller name="is_visible" control={control} render={({ field }) => (
+      <CatalogEditStickyBar
+        backLabel={isEdit ? 'View' : 'Back'}
+        onBack={() => (isEdit ? setViewMode(true) : navigate('/services'))}
+        title={isEdit ? (service?.name || 'Edit Service') : 'New Service'}
+        status={formValues.status ?? 'draft'}
+        onStatusChange={(value) => setValue('status', value as 'active' | 'draft' | 'archived')}
+        visibleControl={(
+          <Controller
+            name="is_visible"
+            control={control}
+            render={({ field }) => (
               <Toggle label="Visible" checked={field.value} onChange={field.onChange} />
-            )} />
-            <Button type="button" disabled={isSaving} onClick={handleSubmit(onSubmit, onFormInvalid)}>
-              {isSaving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
-              {isEdit ? 'Save Service' : 'Create Service'}
-            </Button>
-          </div>
-        </div>
-      </div>
+            )}
+          />
+        )}
+        onSave={handleSubmit(onSubmit, onFormInvalid)}
+        saveLabel={isEdit ? 'Save Service' : 'Create Service'}
+        isSaving={isSaving || deleteService.isPending}
+        isEdit={isEdit}
+        onDelete={handleDeleteService}
+        isDeleting={deleteService.isPending}
+        deleteConfirmMessage="Delete this service?"
+      />
 
       <FormSectionTabs
         sections={serviceSections}
@@ -1732,29 +1783,23 @@ export default function ServiceForm() {
               <FormField label="Service Name" name="name" required>
                 <Input {...register('name')} placeholder="e.g. AC Repair & Service" />
               </FormField>
-              <FormField label="Category">
-                <select {...register('category')} className={selectCls}
-                  onChange={e => { register('category').onChange(e); setValue('subcategory', '') }}>
-                  <option value="">Select…</option>
-                  {serviceCategories.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-              </FormField>
-              {watchedCategory ? (
-                <FormField label="Subcategory">
-                  {(() => {
-                    const selectedCat = serviceCategories.find((c: any) => c.name === watchedCategory)
-                    const subs = (selectedCat?.children || []).filter((s: any) => s.applies_to === 'service' || s.applies_to === 'both')
-                    return subs.length > 0 ? (
-                      <select {...register('subcategory')} className={selectCls}>
-                        <option value="">Select…</option>
-                        {subs.map((s: any) => <option key={s.id} value={s.name}>{s.name}</option>)}
-                      </select>
-                    ) : (
-                      <Input {...register('subcategory')} placeholder="e.g. Repair, Installation" />
-                    )
-                  })()}
-                </FormField>
-              ) : null}
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label>Category</Label>
+                <CategoryHierarchyPicker
+                  tree={serviceCategories}
+                  category={watchedCategory || ''}
+                  subcategory={watchedSubcategory || ''}
+                  onChange={(cat, sub) => {
+                    setValue('category', cat)
+                    setValue('subcategory', sub)
+                  }}
+                />
+                {(watchedCategory || watchedSubcategory) && (
+                  <p className="text-xs text-gray-500">
+                    Selected: {[watchedCategory, watchedSubcategory].filter(Boolean).join(' › ')}
+                  </p>
+                )}
+              </div>
               <FormField label="Tags (comma separated)">
                 <Input {...register('tags')} placeholder="repair, home-service, ac" />
               </FormField>
@@ -1917,9 +1962,23 @@ export default function ServiceForm() {
         )}
         {/* Pricing, Tax, Booking, Availability, and Lifecycle are now inside each plan card */}
 
-        {/* 8. Visibility & Marketing */}
+        {/* 8. Business unit availability */}
+        <Section title="Business Unit Availability" icon={Store} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility-bu">
+          <div className={formEditLayout.sectionBody}>
+            <BusinessUnitScopePicker
+              stores={businessUnits}
+              scope={catalogStoreScope}
+              selectedIds={catalogStoreIds}
+              onScopeChange={setCatalogStoreScope}
+              onSelectedChange={setCatalogStoreIds}
+              hideHeader
+            />
+          </div>
+        </Section>
+
+        {/* 8b. Visibility & Marketing */}
         <Section title="Visibility & Marketing" icon={Eye} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility">
-          <div className="pt-2">
+          <div className={formEditLayout.sectionBody}>
             <p className="mb-2 rounded bg-blue-50 px-3 py-1.5 text-xs text-gray-400">Status and visibility are controlled from the top sticky bar.</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
               <Controller name="is_featured" control={control} render={({ field }) => (

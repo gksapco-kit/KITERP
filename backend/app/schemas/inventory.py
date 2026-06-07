@@ -42,6 +42,7 @@ class StockInOutCreate(BaseModel):
     reason: Optional[str] = None
     # Store context
     store_id: Optional[str] = None
+    storage_location_id: Optional[str] = None
     # Receiving metadata
     supplier_id: Optional[str] = None
     purchase_order_id: Optional[str] = None
@@ -60,6 +61,8 @@ class BulkStockUpdate(BaseModel):
     variant_id: Optional[str] = None
     new_quantity: int = Field(..., ge=0)
     reason: Optional[str] = "Bulk stock update"
+    store_id: Optional[str] = None
+    storage_location_id: Optional[str] = None
 
 
 class InventoryMovementResponse(BaseModel):

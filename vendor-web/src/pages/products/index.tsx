@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useProducts, useDeleteProduct, useCategories } from '@/hooks/useVendor'
+import { useProducts, useDeleteProduct, useCategoryTree } from '@/hooks/useVendor'
+import { flattenCategoryTree, filterCategoryTree } from '@/lib/categoryHierarchy'
 import { formatCurrency, formatDate, mediaUrl } from '@/lib/utils'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -36,15 +37,18 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
   const [confirmDelete, setConfirmDelete] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const [pos, setPos] = useState({ top: 0, right: 0, openUp: false })
 
   // Position menu anchored to the trigger button via portal
   useEffect(() => {
     if (!open || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
+    const menuHeight = 320
+    const openUp = window.innerHeight - rect.bottom < menuHeight && rect.top > menuHeight
     setPos({
-      top: rect.bottom + window.scrollY + 4,
+      top: openUp ? rect.top + window.scrollY - 4 : rect.bottom + window.scrollY + 4,
       right: window.innerWidth - rect.right,
+      openUp,
     })
   }, [open])
 
@@ -65,8 +69,8 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
   const menu = open ? createPortal(
     <div
       ref={menuRef}
-      style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999 }}
-      className="w-44 bg-white rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 max-h-[90vh] overflow-y-auto"
+      style={{ position: 'absolute', top: pos.top, right: pos.right, zIndex: 9999, transform: pos.openUp ? 'translateY(-100%)' : undefined }}
+      className="w-44 bg-white rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 max-h-[min(90vh,24rem)] overflow-y-auto"
     >
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
         onClick={() => { shareProduct(product, 'copy'); setOpen(false) }}>
@@ -136,15 +140,21 @@ export default function Products() {
   const [scanLoading, setScanLoading] = useState(false)
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const { data: categoryData } = useCategories({ applies_to: 'product', is_active: true })
-  const productCategories = categoryData?.categories || []
+  const { data: categoryData } = useCategoryTree()
+  const productCategories = useMemo(
+    () => flattenCategoryTree(filterCategoryTree(categoryData?.categories || [], 'product')),
+    [categoryData?.categories],
+  )
+
+  const categoryRoot = category.includes('::') ? category.split('::')[0] : category
+  const categorySub = category.includes('::') ? category.split('::').slice(1).join('::') : ''
 
   const { data, isLoading } = useProducts({
     page,
     size: pageSize,
     search: search || undefined,
     status: status || undefined,
-    category: category || undefined,
+    category: categoryRoot || undefined,
   })
   const deleteProduct = useDeleteProduct()
 
@@ -173,8 +183,11 @@ export default function Products() {
 
   const displayProducts = useMemo(() => {
     if (!data?.items?.length) return []
+    const items = categorySub
+      ? (data.items as Product[]).filter(p => (p.subcategory || '') === categorySub)
+      : (data.items as Product[])
     return processRows(
-      data.items as Product[],
+      items,
       '',
       () => [],
       sortKey,
@@ -188,7 +201,7 @@ export default function Products() {
         status: (p) => p.status,
       },
     )
-  }, [data?.items, sortKey, sortDir])
+  }, [data?.items, sortKey, sortDir, categorySub])
 
   return (
     <div className="space-y-5">
@@ -240,7 +253,11 @@ export default function Products() {
                 <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1) }}
                   className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-shadow">
                   <option value="">All Categories</option>
-                  {productCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {productCategories.map(c => (
+                    <option key={c.id} value={c.subcategory ? `${c.category}::${c.subcategory}` : c.category}>
+                      {c.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               {activeFilterCount > 0 && (

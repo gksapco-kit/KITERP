@@ -215,6 +215,44 @@ export default function TableOrderPage() {
   const categories = data?.menu ?? []
   const currentCat = activeCategory ?? categories[0]?.category ?? null
 
+  function renderMenuItems(items: PublicMenuItem[]) {
+    return items.filter(p => p.is_available).map(p => {
+      const cartItem = cart.find(i => i.product_id === p.id && !(i.modifiers?.length))
+      const qtyInCart = cart.filter(i => i.product_id === p.id).reduce((s, i) => s + i.qty, 0)
+      return (
+        <div key={p.id} className="flex items-center gap-3 bg-white px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-900 text-sm">{p.name}</p>
+            {p.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{p.description}</p>}
+            <p className="text-sm font-bold text-amber-700 mt-1">
+              {formatCurrency(p.price)}
+              {(p.modifier_groups?.length ?? 0) > 0 && (
+                <span className="text-xs font-normal text-gray-400 ml-1">· options</span>
+              )}
+            </p>
+          </div>
+          {qtyInCart > 0 && !cartItem ? (
+            <span className="text-xs font-semibold text-amber-700 shrink-0">{qtyInCart} in cart</span>
+          ) : cartItem ? (
+            <div className="flex items-center gap-2 shrink-0">
+              <button type="button" onClick={() => changeQty(cartKey(cartItem), -1)} className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                <Minus className="w-4 h-4 text-amber-700" />
+              </button>
+              <span className="w-5 text-center font-bold text-sm">{cartItem.qty}</span>
+              <button type="button" onClick={() => changeQty(cartKey(cartItem), 1)} className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
+                <Plus className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => handleProductTap(p)} className="shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center hover:bg-amber-600">
+              <Plus className="w-4 h-4 text-white" />
+            </button>
+          )}
+        </div>
+      )
+    })
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -290,43 +328,15 @@ export default function TableOrderPage() {
               {categories.length > 1 && (
                 <h2 className="px-4 pt-5 pb-2 text-xs font-bold uppercase tracking-widest text-amber-700">{cat.category}</h2>
               )}
-              <div className="divide-y">
-                {cat.items.filter(p => p.is_available).map(p => {
-                  const cartItem = cart.find(i => i.product_id === p.id && !(i.modifiers?.length))
-                  const qtyInCart = cart.filter(i => i.product_id === p.id).reduce((s, i) => s + i.qty, 0)
-                  return (
-                    <div key={p.id} className="flex items-center gap-3 bg-white px-4 py-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 text-sm">{p.name}</p>
-                        {p.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{p.description}</p>}
-                        <p className="text-sm font-bold text-amber-700 mt-1">
-                          {formatCurrency(p.price)}
-                          {(p.modifier_groups?.length ?? 0) > 0 && (
-                            <span className="text-xs font-normal text-gray-400 ml-1">· options</span>
-                          )}
-                        </p>
-                      </div>
-                      {qtyInCart > 0 && !cartItem ? (
-                        <span className="text-xs font-semibold text-amber-700 shrink-0">{qtyInCart} in cart</span>
-                      ) : cartItem ? (
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => changeQty(cartKey(cartItem), -1)} className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                            <Minus className="w-4 h-4 text-amber-700" />
-                          </button>
-                          <span className="w-5 text-center font-bold text-sm">{cartItem.qty}</span>
-                          <button type="button" onClick={() => changeQty(cartKey(cartItem), 1)} className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
-                            <Plus className="w-4 h-4 text-white" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button type="button" onClick={() => handleProductTap(p)} className="shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center hover:bg-amber-600">
-                          <Plus className="w-4 h-4 text-white" />
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+              {(cat.subcategories || []).map(sub => (
+                <div key={`${cat.category}-${sub.name}`}>
+                  <h3 className="px-4 pt-4 pb-1 text-sm font-semibold text-gray-800">{sub.name}</h3>
+                  <div className="divide-y">{renderMenuItems(sub.items)}</div>
+                </div>
+              ))}
+              {cat.items.length > 0 && (
+                <div className="divide-y">{renderMenuItems(cat.items)}</div>
+              )}
             </div>
           ))}
       </div>

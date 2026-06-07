@@ -14,13 +14,6 @@ import {
   Plus, Store,
   Edit2, Trash2, Star, StarOff, X, Loader2,
   ChevronRight, ArrowLeftRight, Copy, ExternalLink, Check, ShieldCheck,
-  Building2, Heart, Briefcase, Dumbbell, ShoppingBag, Hotel, UtensilsCrossed,
-  BedDouble, Tag, ChevronDown, Pencil,
-  ShoppingCart, Gem, Sparkles, Monitor, Shirt, Wrench,
-  Coffee, Cookie, Zap, ChefHat, Code2, Warehouse, Factory, Truck,
-  Stethoscope, Smile, PawPrint, Pill, FlaskConical, Scissors, Leaf,
-  Camera, CalendarDays, GraduationCap, BookOpen, Landmark, Calculator,
-  Scale, Car, Home, Plane, Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -35,6 +28,8 @@ import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDet
 import { StoresListToolbar } from '@/components/business-units/StoresListToolbar'
 import { BusinessUnitVisualHero } from '@/components/business-units/BusinessUnitVisualHero'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
+import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
+import { COMPANY_TYPES } from '@/data/companyTypes'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
 
@@ -70,73 +65,6 @@ const EMPTY_FORM: StoreFormData = {
   company_type: '',
 }
 
-// ── Company Type Options ────────────────────────────────────────────────────
-
-interface CompanyTypeOption {
-  value: string
-  label: string
-  icon: React.ElementType
-  group: string
-}
-
-const COMPANY_TYPES: CompanyTypeOption[] = [
-  // Retail
-  { group: 'Retail',        value: 'Shop',                    label: 'Shop',                       icon: ShoppingBag },
-  { group: 'Retail',        value: 'Store',                   label: 'Store',                      icon: Store },
-  { group: 'Retail',        value: 'Supermarket',             label: 'Supermarket',                icon: ShoppingCart },
-  { group: 'Retail',        value: 'Jewelry Store',           label: 'Jewelry Store 💍',            icon: Gem },
-  { group: 'Retail',        value: 'Beauty & Cosmetics Store',label: 'Beauty & Cosmetics 💄',       icon: Sparkles },
-  { group: 'Retail',        value: 'Electronics Store',       label: 'Electronics Store',          icon: Monitor },
-  { group: 'Retail',        value: 'Clothing Store',          label: 'Clothing / Apparel Store',   icon: Shirt },
-  { group: 'Retail',        value: 'Hardware Store',          label: 'Hardware Store',             icon: Wrench },
-  // Food & Hospitality
-  { group: 'Food & Hospitality', value: 'Restaurant',         label: 'Restaurant',                 icon: UtensilsCrossed },
-  { group: 'Food & Hospitality', value: 'Café',               label: 'Café / Coffee Shop',         icon: Coffee },
-  { group: 'Food & Hospitality', value: 'Bakery',             label: 'Bakery',                     icon: Cookie },
-  { group: 'Food & Hospitality', value: 'Fast Food Outlet',   label: 'Fast Food Outlet',           icon: Zap },
-  { group: 'Food & Hospitality', value: 'Cloud Kitchen',      label: 'Cloud Kitchen',              icon: ChefHat },
-  { group: 'Food & Hospitality', value: 'Hotel',              label: 'Hotel',                      icon: Hotel },
-  { group: 'Food & Hospitality', value: 'Guest House',        label: 'Guest House / Inn',          icon: BedDouble },
-  // Business & Office
-  { group: 'Business & Office',  value: 'Office',             label: 'Office',                     icon: Building2 },
-  { group: 'Business & Office',  value: 'Company',            label: 'Company',                    icon: Briefcase },
-  { group: 'Business & Office',  value: 'Business Area',      label: 'Business Area',              icon: Tag },
-  { group: 'Business & Office',  value: 'IT / Software Company', label: 'IT / Software Company',  icon: Code2 },
-  { group: 'Business & Office',  value: 'Consulting Firm',    label: 'Consulting Firm',            icon: Users },
-  // Industrial & Logistics
-  { group: 'Industrial & Logistics', value: 'Warehouse',      label: 'Warehouse',                  icon: Warehouse },
-  { group: 'Industrial & Logistics', value: 'Factory',        label: 'Factory / Manufacturing',    icon: Factory },
-  { group: 'Industrial & Logistics', value: 'Logistics',      label: 'Logistics / Delivery Service',icon: Truck },
-  // Healthcare
-  { group: 'Healthcare',    value: 'Hospital',                label: 'Hospital',                   icon: Heart },
-  { group: 'Healthcare',    value: 'Clinic',                  label: 'Clinic',                     icon: Stethoscope },
-  { group: 'Healthcare',    value: 'Dental Clinic',           label: 'Dental Clinic',              icon: Smile },
-  { group: 'Healthcare',    value: 'Veterinary Clinic',       label: 'Veterinary Clinic 🐾',       icon: PawPrint },
-  { group: 'Healthcare',    value: 'Pharmacy',                label: 'Pharmacy',                   icon: Pill },
-  { group: 'Healthcare',    value: 'Diagnostic Lab',          label: 'Diagnostic Lab',             icon: FlaskConical },
-  // Wellness & Lifestyle
-  { group: 'Wellness & Lifestyle', value: 'Gym',              label: 'Gym / Fitness Center',       icon: Dumbbell },
-  { group: 'Wellness & Lifestyle', value: 'Salon',            label: 'Salon / Beauty Parlor',      icon: Scissors },
-  { group: 'Wellness & Lifestyle', value: 'Spa',              label: 'Spa / Wellness Center',      icon: Leaf },
-  { group: 'Wellness & Lifestyle', value: 'Photography Studio', label: 'Photography Studio',       icon: Camera },
-  { group: 'Wellness & Lifestyle', value: 'Event Management', label: 'Event Management',           icon: CalendarDays },
-  // Education
-  { group: 'Education',     value: 'School',                  label: 'School',                     icon: GraduationCap },
-  { group: 'Education',     value: 'College / Institute',     label: 'College / Institute',        icon: BookOpen },
-  { group: 'Education',     value: 'Coaching Center',         label: 'Coaching / Training Center', icon: BookOpen },
-  // Finance & Legal
-  { group: 'Finance & Legal', value: 'Bank',                  label: 'Bank / Financial Service',   icon: Landmark },
-  { group: 'Finance & Legal', value: 'Accounting Firm',       label: 'Accounting / CA Firm',       icon: Calculator },
-  { group: 'Finance & Legal', value: 'Law Firm',              label: 'Law Firm',                   icon: Scale },
-  // Automotive & Property
-  { group: 'Automotive & Property', value: 'Automotive Service', label: 'Automotive Service / Garage', icon: Wrench },
-  { group: 'Automotive & Property', value: 'Car Showroom',    label: 'Car Showroom',               icon: Car },
-  { group: 'Automotive & Property', value: 'Real Estate',     label: 'Real Estate / Property Office', icon: Home },
-  { group: 'Automotive & Property', value: 'Travel Agency',   label: 'Travel Agency',              icon: Plane },
-]
-
-const COMPANY_TYPE_GROUPS = Array.from(new Set(COMPANY_TYPES.map(t => t.group)))
-
 // ── StoreModal ─────────────────────────────────────────────────────────────
 
 function nextAutoCode(existing: StoreRecord[]): string {
@@ -165,7 +93,6 @@ function StoreModal({
   useEscapeToClose(onClose)
 
   const existingType = (store?.settings as Record<string, string> | undefined)?.company_type ?? ''
-  const isPreset = COMPANY_TYPES.some(t => t.value === existingType)
 
   const autoCode = store ? (store.code ?? '') : nextAutoCode(existingStores)
   const [codeEditable, setCodeEditable] = useState(false)
@@ -182,25 +109,11 @@ function StoreModal({
     : { ...EMPTY_FORM, code: autoCode }
   )
 
-  const [customTypeInput, setCustomTypeInput] = useState(isPreset || !existingType ? '' : existingType)
-  const [showCustomInput, setShowCustomInput] = useState(!!existingType && !isPreset)
-  const [typeDropOpen, setTypeDropOpen] = useState(false)
-  const typeDropRef = useRef<HTMLDivElement>(null)
   const lastSuggestedLocationNameRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!store) lastSuggestedLocationNameRef.current = null
   }, [store])
-
-  useEffect(() => {
-    function handleOutside(e: MouseEvent) {
-      if (typeDropRef.current && !typeDropRef.current.contains(e.target as Node)) {
-        setTypeDropOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
 
   const set = (k: keyof StoreFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -218,25 +131,6 @@ function StoreModal({
       if (syncName) lastSuggestedLocationNameRef.current = suggested
       return { ...f, company_type: value, name: nextName }
     })
-    setShowCustomInput(false)
-    setTypeDropOpen(false)
-  }
-
-  const addCustomType = () => {
-    const val = customTypeInput.trim()
-    if (!val) return
-    setForm(f => {
-      if (store) return { ...f, company_type: val }
-      const trimmed = f.name.trim()
-      const prev = lastSuggestedLocationNameRef.current
-      const syncName =
-        trimmed === '' || (prev !== null && trimmed === prev.trim())
-      const nextName = syncName ? val : f.name
-      if (syncName) lastSuggestedLocationNameRef.current = val
-      return { ...f, company_type: val, name: nextName }
-    })
-    setShowCustomInput(false)
-    setTypeDropOpen(false)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -268,116 +162,12 @@ function StoreModal({
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
 
-          {/* Business Type / Category */}
-          <div ref={typeDropRef} className="relative">
-            <Label className="mb-1 block">Business Type / Category</Label>
-
-            {/* Trigger button */}
-            <button
-              type="button"
-              onClick={() => { setTypeDropOpen(v => !v); setShowCustomInput(false) }}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-md border text-sm text-left transition-all',
-                typeDropOpen ? 'border-primary ring-2 ring-primary/25' : 'border-input hover:border-gray-400'
-              )}
-            >
-              {(() => {
-                const preset = COMPANY_TYPES.find(t => t.value === form.company_type)
-                const Icon = preset?.icon
-                return Icon ? (
-                  <>
-                    <span className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                      <Icon className="w-3.5 h-3.5 text-primary" />
-                    </span>
-                    <span className="flex-1 font-medium text-gray-800">{preset.label}</span>
-                  </>
-                ) : form.company_type ? (
-                  <>
-                    <span className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center shrink-0">
-                      <Pencil className="w-3.5 h-3.5 text-gray-500" />
-                    </span>
-                    <span className="flex-1 font-medium text-gray-800">{form.company_type} <span className="text-xs text-gray-400 font-normal">(custom)</span></span>
-                  </>
-                ) : (
-                  <span className="flex-1 text-gray-400">Select business type…</span>
-                )
-              })()}
-              <ChevronDown className={cn('w-4 h-4 text-gray-400 shrink-0 transition-transform', typeDropOpen && 'rotate-180')} />
-            </button>
-
-            {/* Dropdown panel */}
-            {typeDropOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
-                {COMPANY_TYPE_GROUPS.map(group => (
-                  <div key={group}>
-                    <p className="px-4 pt-2.5 pb-1 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 sticky top-0">
-                      {group}
-                    </p>
-                    {COMPANY_TYPES.filter(t => t.group === group).map(({ value, label, icon: Icon }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => selectType(value)}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-accent transition-colors',
-                          form.company_type === value && 'bg-accent'
-                        )}
-                      >
-                        <span className={cn(
-                          'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
-                          form.company_type === value ? 'bg-primary' : 'bg-gray-100'
-                        )}>
-                          <Icon className={cn('w-3.5 h-3.5', form.company_type === value ? 'text-white' : 'text-gray-500')} />
-                        </span>
-                        <span className={cn('flex-1 text-sm', form.company_type === value ? 'font-semibold text-primary' : 'text-gray-700')}>
-                          {label}
-                        </span>
-                        {form.company_type === value && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-
-                {/* Divider + custom entry */}
-                <div className="border-t border-gray-100">
-                  {!showCustomInput ? (
-                    <button
-                      type="button"
-                      onClick={() => { setShowCustomInput(true); setCustomTypeInput('') }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
-                    >
-                      <span className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                        <Plus className="w-4 h-4 text-gray-500" />
-                      </span>
-                      <span className="text-sm text-gray-500 font-medium">+ Add custom type…</span>
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2 px-3 py-2.5">
-                      <Input
-                        autoFocus
-                        value={customTypeInput}
-                        onChange={e => setCustomTypeInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomType() } }}
-                        placeholder="e.g. Co-working, Lab, Studio…"
-                        className="flex-1 h-8 text-sm"
-                      />
-                      <Button type="button" size="sm" className="h-8 px-3 shrink-0" onClick={addCustomType}>
-                        Add
-                      </Button>
-                      <button
-                        type="button"
-                        aria-label="Close"
-                        onClick={() => { setShowCustomInput(false); setCustomTypeInput('') }}
-                        className="p-1 rounded hover:bg-gray-100 shrink-0"
-                      >
-                <X className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <CompanyTypeDropdown
+            label="Business Type / Category"
+            value={form.company_type}
+            onChange={selectType}
+            placeholder="Select business type…"
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">

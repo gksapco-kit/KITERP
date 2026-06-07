@@ -77,6 +77,10 @@ function ImageCard({
           src={image.url}
           alt={image.label}
           loading="lazy"
+          onError={(e) => {
+            const el = e.currentTarget
+            if (image.fallbackUrl && el.src !== image.fallbackUrl) el.src = image.fallbackUrl
+          }}
           className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
         />
       </div>
@@ -163,7 +167,15 @@ function PreviewModal({
           </div>
         </div>
         <div className="overflow-auto bg-muted/30 p-2 sm:p-4">
-          <img src={image.url} alt={image.label} className="mx-auto max-h-[70vh] w-full rounded-lg object-contain" />
+          <img
+            src={image.url}
+            alt={image.label}
+            onError={(e) => {
+              const el = e.currentTarget
+              if (image.fallbackUrl && el.src !== image.fallbackUrl) el.src = image.fallbackUrl
+            }}
+            className="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
+          />
         </div>
         <div className="flex items-center gap-3 border-t px-4 py-2.5">
           <div className="flex shrink-0 items-center gap-2">

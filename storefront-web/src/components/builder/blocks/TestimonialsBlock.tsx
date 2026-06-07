@@ -46,7 +46,7 @@ export default function TestimonialsBlock({ style, props, liveItems }: Props) {
       {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map(item => (
-          <div key={item.id} className="bg-white rounded-2xl border border-gray-100 p-6 relative">
+          <div key={item.id} className="builder-tile-card bg-white rounded-2xl border border-gray-100 p-6 relative">
             <Quote className="w-8 h-8 opacity-10 absolute top-4 right-4" style={{ color: style.primary_color }} />
             {item.rating != null && (
               <div className="flex gap-0.5 mb-3">

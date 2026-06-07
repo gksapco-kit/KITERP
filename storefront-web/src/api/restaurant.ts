@@ -36,9 +36,15 @@ export interface PublicMenuItem {
   modifier_groups?: PublicModifierGroup[]
 }
 
+export interface PublicMenuSubcategory {
+  name: string
+  items: PublicMenuItem[]
+}
+
 export interface PublicMenuCategory {
   category: string
   items: PublicMenuItem[]
+  subcategories?: PublicMenuSubcategory[]
 }
 
 export interface PublicTableInfo {

@@ -323,6 +323,8 @@ class ServiceCreate(BaseModel):
     is_visible: bool = True
     is_popular: bool = False
     is_new_service: bool = False
+    store_scope: Optional[str] = "all"
+    store_ids: List[str] = []
 
     # Media
     image_url: Optional[str] = None
@@ -420,6 +422,8 @@ class ServiceUpdate(BaseModel):
     is_visible: Optional[bool] = None
     is_popular: Optional[bool] = None
     is_new_service: Optional[bool] = None
+    store_scope: Optional[str] = None
+    store_ids: Optional[List[str]] = None
 
     # Media
     image_url: Optional[str] = None
@@ -518,6 +522,8 @@ class ServiceResponse(BaseModel):
     is_visible: bool = True
     is_popular: bool = False
     is_new_service: bool = False
+    store_scope: str = "all"
+    store_ids: List[str] = []
 
     # Media
     image_url: Optional[str] = None

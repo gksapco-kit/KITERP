@@ -126,6 +126,10 @@ export interface BlockProps {
   text_transform?: 'uppercase' | 'lowercase' | 'capitalize' | null
   text_color_override?: string | null
   bg_color_override?: string | null
+  tile_bg?: string | null
+  tile_accent?: string | null
+  tile_text?: string | null
+  tile_border?: string | null
   badge?: string
   badge_color?: string
   alignment?: 'left' | 'center' | 'right'

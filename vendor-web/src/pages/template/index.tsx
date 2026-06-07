@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,6 +7,9 @@ import { Label } from '@/components/ui/label'
 import { vendorApi } from '@/api/vendor'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVendorStore } from '@/stores/vendorStore'
+import { useSiteList } from '@/hooks/useWebsites'
+import { resolveBusinessFrontActiveTemplate } from '@/lib/businessFrontActiveTemplate'
+import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { toast } from 'sonner'
 import {
   Loader2, Palette, Layout, Type, Eye, Check, Sparkles,
@@ -85,6 +89,7 @@ const SECTION_LABELS: Record<string, { label: string; description: string }> = {
 export default function TemplatePage() {
   const qc = useQueryClient()
   const vendor = useVendorStore((s) => s.vendor)
+  const { data: sites = [] } = useSiteList()
   const [activeTab, setActiveTab] = useState<'template' | 'colors' | 'layout' | 'sections' | 'content'>('template')
 
   const { data: config, isLoading } = useQuery<ThemeConfig>({
@@ -125,6 +130,8 @@ export default function TemplatePage() {
   if (isLoading || !draft) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
 
   const presets = presetsData?.presets || []
+  const activeFront = resolveBusinessFrontActiveTemplate(draft.template, presets, sites)
+  const storeUrl = vendor?.slug ? getCustomerStorefrontBaseUrl(vendor.slug) : null
   const updateDraft = (updates: Partial<ThemeConfig>) => setDraft({ ...draft, ...updates })
   const updateColor = (key: string, value: string) => setDraft({ ...draft, colors: { ...draft.colors, [key]: value } })
   const toggleSection = (key: string) => setDraft({ ...draft, sections: { ...draft.sections, [key]: !draft.sections[key] } })
@@ -142,12 +149,37 @@ export default function TemplatePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Store Template</h1>
-          <p className="text-sm text-gray-500 mt-1">Customize Your Business Front Appearance</p>
+          <p className="text-sm text-gray-500 mt-1">Customize your business front appearance</p>
+          <p className="text-sm mt-2">
+            <span className="font-medium text-gray-800">Live on store: </span>
+            <span className="text-primary font-semibold">{activeFront.name}</span>
+            {activeFront.kind === 'legacy_preset' && (
+              <span className="text-gray-500"> (default layout — no published Website Builder site)</span>
+            )}
+            {activeFront.kind === 'website_builder' && (
+              <span className="text-gray-500"> (Website Builder — unpublish to use presets below)</span>
+            )}
+          </p>
         </div>
-        <Button onClick={() => saveMutation.mutate(draft)} disabled={saveMutation.isPending} className="gap-2">
-          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Save Changes
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/websites/templates">All templates</Link>
+          </Button>
+          {storeUrl && (
+            <Button variant="outline" asChild>
+              <a href={storeUrl} target="_blank" rel="noopener noreferrer">View live store</a>
+            </Button>
+          )}
+          <Button onClick={() => saveMutation.mutate(draft)} disabled={saveMutation.isPending} className="gap-2">
+            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Changes
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+        <p className="font-semibold text-gray-900">What customers see today</p>
+        <p className="text-gray-600 mt-1">{activeFront.description}</p>
       </div>
 
       {/* Tabs */}
@@ -255,18 +287,32 @@ export default function TemplatePage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" /> Store Theme Presets
+                    <Sparkles className="w-4 h-4" /> Store theme presets
                   </CardTitle>
+                  <p className="text-xs text-gray-500 font-normal mt-1">
+                    Quick apply — same presets as on{' '}
+                    <Link to="/websites/templates" className="text-primary font-medium hover:underline">Website Templates</Link>.
+                    The checked preset matches your saved theme when no Website Builder site is published.
+                  </p>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {presets.map((preset) => (
+                  {presets.map((preset) => {
+                    const isSaved = draft.template === preset.id
+                    const isLive =
+                      activeFront.kind === 'legacy_preset' && activeFront.id === preset.id
+                    return (
                     <button key={preset.id} onClick={() => applyPreset.mutate(preset.id)}
-                      className={`w-full text-left rounded-xl border-2 p-4 transition-all ${draft.template === preset.id ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
+                      className={`w-full text-left rounded-xl border-2 p-4 transition-all ${isSaved ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                          <h3 className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
                             {preset.name}
-                            {draft.template === preset.id && <Check className="w-4 h-4 text-blue-600" />}
+                            {isSaved && <Check className="w-4 h-4 text-blue-600" />}
+                            {isLive && (
+                              <span className="text-[10px] uppercase font-bold bg-primary text-white px-2 py-0.5 rounded-full">
+                                Live on store
+                              </span>
+                            )}
                           </h3>
                           <p className="text-xs text-gray-500 mt-0.5">{preset.description}</p>
                         </div>
@@ -277,7 +323,8 @@ export default function TemplatePage() {
                         </div>
                       </div>
                     </button>
-                  ))}
+                    )
+                  })}
                 </CardContent>
               </Card>
             </div>

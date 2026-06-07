@@ -31,7 +31,7 @@ import {
   useSite,
   useUpdateSite,
   useWebsiteTemplates,
-  useAIGenerateText, useAIGenerateTheme, useMedia, useUploadMedia, useSaveExternalUrl,
+  useAIGenerateTheme, useMedia, useUploadMedia, useSaveExternalUrl,
   useAIGenerateSEO, useAISuggestBlocks,
   useRedirects, useCreateRedirect, useDeleteRedirect,
   useEnableHeadless, useDisableHeadless,
@@ -61,6 +61,14 @@ import {
   finalizeCategoryLayoutProps,
   suggestImageCategoryForBlock,
 } from '@/lib/blockGalleryImages'
+import {
+  buildBlockColorStyleCss,
+  hasTileColorOverrides,
+  TILE_COLOR_BLOCK_TYPES,
+  tileColorSwatch,
+  type BlockColorProps,
+  type ThemeColors,
+} from '@/lib/blockColorOverrides'
 import { BLOCK_QUICK_PRESETS, getSectionLayoutOptions } from '@/lib/sectionLayoutPresets'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
 import { heroShouldUseFullBleedImage, heroUsesBackgroundImage, heroUsesSideImage, resolveGradientCss } from '@/lib/heroLayoutUtils'
@@ -3357,21 +3365,15 @@ function applyStructureLayoutToAllPages(
   return next
 }
 
-// ── Canvas editable image (click → upload / library / URL on any section) ─────
+// ── Canvas image display (upload via properties panel only) ───────────────────
 
 function CanvasEditableImage({
-  siteId,
   src,
   alt = '',
   className,
   imgClassName = 'w-full h-full object-cover',
   style,
   fill,
-  editable,
-  onReplace,
-  onFocus,
-  onOpenMediaLibrary,
-  onRequestText,
 }: {
   siteId?: string
   src: string | null
@@ -3379,216 +3381,27 @@ function CanvasEditableImage({
   className?: string
   imgClassName?: string
   style?: React.CSSProperties
-  /** Transparent overlay for CSS background-image sections (hero, CTA). */
+  /** Background layers are edited in the props panel — no canvas overlay. */
   fill?: boolean
   editable: boolean
   onReplace: (url: string) => void
   onFocus?: () => void
-  onOpenMediaLibrary?: () => void
-  onRequestText?: (opts: {
-    title: string
-    subtitle?: string
-    placeholder?: string
-    initialValue?: string
-    onSave: (v: string) => void
-  }) => void
 }) {
-  const uploadMedia = useUploadMedia(siteId || '')
-  const fileRef = useRef<HTMLInputElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [uploading, setUploading] = useState(false)
-
-  const closeMenu = useCallback(() => setMenuOpen(false), [])
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const onDoc = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) closeMenu()
-    }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
-  }, [menuOpen, closeMenu])
-
-  const handleUpload = useCallback(async (file: File) => {
-    if (!siteId) {
-      toast.error('Save the site first to upload images')
-      return
-    }
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please use an image file (JPG, PNG, WebP, …)')
-      return
-    }
-    setUploading(true)
-    try {
-      const saved = await uploadMedia.mutateAsync(file)
-      onReplace(saved.original_url)
-      toast.success('Image updated')
-      closeMenu()
-    } catch {
-      toast.error('Upload failed — try a smaller file')
-    } finally {
-      setUploading(false)
-    }
-  }, [siteId, onReplace, uploadMedia, closeMenu])
-
-  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (file) await handleUpload(file)
-  }
-
-  const openOptionsMenu = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    onFocus?.()
-    setMenuOpen(open => !open)
-  }
-
-  const chooseUpload = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!siteId) {
-      toast.error('Save the site first to upload images')
-      return
-    }
-    closeMenu()
-    fileRef.current?.click()
-  }
-
-  const chooseLibrary = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    closeMenu()
-    onOpenMediaLibrary?.()
-  }
-
-  const chooseUrl = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    closeMenu()
-    if (!onRequestText) return
-    onRequestText({
-      title: 'Replace image',
-      subtitle: 'Paste a direct image URL',
-      placeholder: 'https://…/image.jpg',
-      initialValue: src || '',
-      onSave: v => { if (v.trim()) onReplace(v.trim()) },
-    })
-  }
-
-  if (!editable) {
-    if (fill) return null
-    return (
-      <div className={cn('overflow-hidden bg-gray-100', className)} style={style}>
-        {src
-          ? <img src={mediaUrl(src)} className={imgClassName} alt={alt} />
-          : <div className="w-full h-full min-h-[80px] flex items-center justify-center"><ImageIcon className="w-6 h-6 text-gray-300" /></div>
-        }
-      </div>
-    )
-  }
-
-  const menuContent = menuOpen ? (
-    <div
-      className="fixed z-[9999] min-w-[180px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl"
-      style={{
-        left: menuRef.current
-          ? Math.min(menuRef.current.getBoundingClientRect().left, window.innerWidth - 200)
-          : 0,
-        top: menuRef.current
-          ? menuRef.current.getBoundingClientRect().top + menuRef.current.getBoundingClientRect().height / 2
-          : 0,
-        transform: 'translateY(-50%)',
-      }}
-      onClick={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}
-    >
-      <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">Replace image</p>
-      <button
-        type="button"
-        onClick={chooseUpload}
-        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-semibold text-gray-700 hover:bg-accent"
-      >
-        <Upload className="w-3.5 h-3.5 shrink-0 text-primary" />
-        Upload from device
-      </button>
-      {onOpenMediaLibrary && (
-        <button
-          type="button"
-          onClick={chooseLibrary}
-          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-semibold text-gray-700 hover:bg-accent"
-        >
-          <ImageIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-          Media library
-        </button>
-      )}
-      {onRequestText && (
-        <button
-          type="button"
-          onClick={chooseUrl}
-          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-semibold text-gray-700 hover:bg-accent"
-        >
-          <Link2 className="w-3.5 h-3.5 shrink-0 text-sky-600" />
-          Paste image URL
-        </button>
-      )}
-    </div>
-  ) : null
-
-  if (fill) {
-    return (
-      <div ref={menuRef} className={cn('absolute inset-0 z-[8]', className)} onClick={e => e.stopPropagation()}>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
-        <button
-          type="button"
-          onClick={openOptionsMenu}
-          disabled={uploading}
-          className="group/bg relative w-full h-full cursor-pointer"
-        >
-          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/bg:bg-black/25 transition-colors opacity-0 group-hover/bg:opacity-100">
-            <span className="text-white text-xs font-bold px-3 py-1.5 rounded-lg bg-black/55 flex items-center gap-1.5 shadow-lg">
-              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              {src ? 'Change background' : 'Add background image'}
-            </span>
-          </div>
-        </button>
-        {menuContent && createPortal(menuContent, document.body)}
-      </div>
-    )
-  }
+  if (fill) return null
 
   return (
     <div
-      ref={menuRef}
-      className={cn('relative group/gimg overflow-hidden', className)}
+      className={cn('overflow-hidden bg-gray-100', className)}
       style={style}
       onClick={e => e.stopPropagation()}
     >
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
-      <button
-        type="button"
-        onClick={openOptionsMenu}
-        disabled={uploading}
-        className="relative w-full h-full min-h-[80px] block cursor-pointer text-left"
-      >
-        {src
-          ? <img src={mediaUrl(src)} className={cn(imgClassName, 'pointer-events-none')} alt={alt} />
-          : <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200/80 transition-colors min-h-[80px]">
-            {uploading
-              ? <Loader2 className="w-6 h-6 text-primary animate-spin" />
-              : <>
-                  <ImageIcon className="w-6 h-6 text-gray-400" />
-                  <span className="text-[10px] font-semibold text-gray-500 px-2 text-center">Click for upload options</span>
-                </>
-            }
-          </div>
-        }
-        {src && (
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-black/0 group-hover/gimg:bg-black/35 transition-colors opacity-0 group-hover/gimg:opacity-100">
-            <span className="text-white text-[10px] font-bold px-2 py-1 rounded bg-black/55 flex items-center gap-1">
-              <Upload className="w-3 h-3" /> Change image
-            </span>
+      {src
+        ? <img src={mediaUrl(src)} className={imgClassName} alt={alt} />
+        : (
+          <div className="w-full h-full min-h-[80px] flex items-center justify-center">
+            <ImageIcon className="w-6 h-6 text-gray-300" />
           </div>
         )}
-      </button>
-      {menuContent && createPortal(menuContent, document.body)}
     </div>
   )
 }
@@ -3954,10 +3767,10 @@ function BlockPreview({
     paddingBottom: pbot ? pbot + 'px' : undefined,
     boxShadow: blockShadow && blockShadow !== 'none' ? blockShadow : undefined,
     minHeight: minHeight ? `${minHeight}px` : undefined,
-    '--tile-bg': (p as any).tile_bg || 'transparent',
+    '--tile-bg': (p as any).tile_bg || effectiveStyle.surface_color || bg_color || '#ffffff',
     '--tile-accent': (p as any).tile_accent || primary_color,
     '--tile-text': (p as any).tile_text || text_color,
-    '--tile-border': (p as any).tile_border || 'transparent',
+    '--tile-border': (p as any).tile_border || `${primary_color}33`,
   } as React.CSSProperties
 
   if (!block.visible) {
@@ -3992,8 +3805,6 @@ function BlockPreview({
       editable={canEdit}
       onReplace={onReplace}
       onFocus={() => focusCanvasImage(focus)}
-      onOpenMediaLibrary={onOpenMediaLibrary}
-      onRequestText={onRequestText}
       className={opts?.className}
       imgClassName={opts?.imgClassName}
       alt={opts?.alt}
@@ -4618,7 +4429,7 @@ function BlockPreview({
           ])).slice(0, 9)
         const icons = ['⚡', '🎯', '🚀', '💡', '🛡️', '🌟']
         const featureCard = (f: any, i: number, listMode = false) => (
-          <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius, borderTop: listMode ? undefined : `3px solid ${primary_color}` }} className={cn('p-5 space-y-2.5 shadow-sm relative group/item', listMode && 'flex gap-4 items-start border border-gray-100')}>
+          <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius, borderTop: listMode ? undefined : `3px solid ${primary_color}` }} className={cn('builder-tile-card p-5 space-y-2.5 shadow-sm relative group/item', !listMode && 'builder-tile-top-accent', listMode && 'flex gap-4 items-start border border-gray-100')}>
             {ItemMenu('features', i, feats.length, [
               { label: 'Change icon', icon: <Sparkles className="w-3 h-3" />, onClick: () => { if (!onRequestText) return; onRequestText({ title: 'Set feature icon', subtitle: 'Paste an emoji', placeholder: '⚡', initialValue: f.icon || '', onSave: v => editItem('features', i, 'icon', v) }) } },
               { label: 'Set image URL', icon: <ImageIcon className="w-3 h-3" />, onClick: () => { if (!onRequestText) return; onRequestText({ title: 'Feature image', placeholder: 'https://…', initialValue: f.image_url || '', onSave: v => editItem('features', i, 'image_url', v || null) }) } },
@@ -4735,7 +4546,7 @@ function BlockPreview({
                   )
                   if (altIsCard) {
                     return (
-                      <div key={i} className={cn('rounded-2xl border p-5 sm:p-6', altIsDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white shadow-sm')}>
+                      <div key={i} className={cn('builder-tile-card rounded-2xl border p-5 sm:p-6', altIsDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white shadow-sm')}>
                         {row}
                       </div>
                     )
@@ -4806,7 +4617,7 @@ function BlockPreview({
             {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold mb-10 text-center', { fontFamily: font_heading, color: statsBgStyle === 'dark' ? '#f8fafc' : '#111827' }, 'By the Numbers')}
             <div className={cn('grid gap-8 text-center', gridCols)}>
               {statsItems.slice(0, statsCols).map((s: any, i: number) => (
-                <div key={i} className={cn('p-6 rounded-2xl border relative group/item', statsBgStyle === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-gray-100')}>
+                <div key={i} className={cn('builder-tile-card p-6 rounded-2xl border relative group/item', statsBgStyle === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-gray-100')}>
                   {!isLive && ItemActions('stats', i, 'stat')}
                   <InlineEditableText value={s.value || ''} placeholder="99%" editable={canEdit && !isLive} as="div"
                     className="text-4xl font-bold mb-2" style={{ fontFamily: font_heading, color: primary_color }}
@@ -4878,7 +4689,7 @@ function BlockPreview({
               isCentered ? 'max-w-2xl mx-auto text-center' : isMasonry ? cn('columns-1 gap-6 space-y-6', testiCols >= 2 && 'sm:columns-2') : testiGridClass,
             )}>
               {testis.slice(0, 6).map((t: any, i: number) => (
-                <div key={i} className={cn('bg-white rounded-2xl border border-gray-100 p-6 relative group/item', isMasonry && 'break-inside-avoid mb-6', isCentered && i > 0 && 'hidden')}>
+                <div key={i} className={cn('builder-tile-card bg-white rounded-2xl border border-gray-100 p-6 relative group/item', isMasonry && 'break-inside-avoid mb-6', isCentered && i > 0 && 'hidden')}>
                   {!t._live && ItemActions('testimonials', i, 'testimonial')}
                   <Quote className="w-8 h-8 opacity-10 absolute top-4 right-4" style={{ color: primary_color }} />
                   {!!t.rating && (
@@ -4959,7 +4770,7 @@ function BlockPreview({
                 <div
                   key={i}
                   style={{ borderRadius: cardRadius, borderColor: plan.highlighted ? primary_color : '#e5e7eb', backgroundColor: plan.highlighted ? primary_color : bg_color, color: plan.highlighted ? '#fff' : text_color }}
-                  className={cn('border-2 p-6 space-y-4 relative group/item flex flex-col', plan.highlighted && 'shadow-xl md:scale-105')}
+                  className={cn('builder-tile-card border-2 p-6 space-y-4 relative group/item flex flex-col', plan.highlighted && 'shadow-xl md:scale-105')}
                 >
                   {ItemActions('plans', i, 'plan')}
                   <InlineEditableText value={plan.name || ''} placeholder="Plan Name" editable={canEdit} as="div"
@@ -5039,7 +4850,7 @@ function BlockPreview({
             <div className={cn(isTwoCol ? 'grid md:grid-cols-2 gap-3' : isCompact ? 'space-y-2' : 'space-y-3')}>
               {(p.faqs as any[] || []).map((faq: any, i: number) => (
                 isList ? (
-                  <div key={i} className={cn('bg-white rounded-2xl border border-gray-100 relative group/item', isCompact ? 'px-4 py-3' : 'px-6 py-4')}>
+                  <div key={i} className={cn('builder-tile-card bg-white rounded-2xl border border-gray-100 relative group/item', isCompact ? 'px-4 py-3' : 'px-6 py-4')}>
                     {ItemActions('faqs', i, 'question')}
                     <InlineEditableText value={faq.question || ''} placeholder={`Question ${i + 1}`} editable={canEdit} as="div"
                       className="font-semibold text-gray-900 text-sm mb-2" style={{}}
@@ -5049,7 +4860,7 @@ function BlockPreview({
                       onCommit={v => editItem('faqs', i, 'answer', v)} />
                   </div>
                 ) : (
-                <details key={i} className={cn('group bg-white rounded-2xl border border-gray-100 overflow-hidden relative group/item', isCompact && 'text-sm')}>
+                <details key={i} className={cn('builder-tile-card group bg-white rounded-2xl border border-gray-100 overflow-hidden relative group/item', isCompact && 'text-sm')}>
                   {ItemActions('faqs', i, 'question')}
                   <summary className={cn('list-none cursor-pointer w-full flex items-center justify-between gap-3 text-left [&::-webkit-details-marker]:hidden', isCompact ? 'px-4 py-3' : 'px-6 py-4')}>
                     <InlineEditableText value={faq.question || ''} placeholder={`Question ${i + 1}`} editable={canEdit} as="span"
@@ -5217,8 +5028,6 @@ function BlockPreview({
                         editable={canEdit && !useLiveTeam}
                         onReplace={url => editItem('members', i, 'avatar_url', url)}
                         onFocus={() => focusCanvasImage({ arrayKey: 'members', index: i, itemField: 'avatar_url' })}
-                        onOpenMediaLibrary={onOpenMediaLibrary}
-                        onRequestText={onRequestText}
                         className="absolute inset-0"
                         imgClassName="w-full h-full object-cover"
                         alt={m.name}
@@ -6143,7 +5952,7 @@ function BlockPreview({
             )}
             <div className={cn('grid gap-4 max-w-5xl mx-auto', cols === 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4')}>
               {displayProducts.map((prod: any, i: number) => (
-                <div key={prod?.id || i} style={{ borderRadius: cardRadius, backgroundColor: bg_color }} className="overflow-hidden shadow-sm">
+                <div key={prod?.id || i} style={{ borderRadius: cardRadius, backgroundColor: bg_color }} className="builder-tile-card overflow-hidden shadow-sm">
                   <div className={cn('bg-gray-100 relative overflow-hidden flex items-center justify-center', pgImgH)}>
                     {prod?.image_url
                       ? <img src={mediaUrl(prod.image_url)} className="w-full h-full object-cover" alt={prod.title} />
@@ -6208,7 +6017,7 @@ function BlockPreview({
             )}
             <div className={cn(isList ? 'space-y-4 max-w-3xl mx-auto' : cn('grid gap-6', cols === 2 ? 'grid-cols-2' : cols === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'))}>
               {feats.slice(0, 9).map((f: any, i: number) => (
-                <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('space-y-3 relative group/item', isCompactSvc ? 'p-4' : 'p-6', isList && 'flex gap-4 items-start')}>
+                <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('builder-tile-card space-y-3 relative group/item', isCompactSvc ? 'p-4' : 'p-6', isList && 'flex gap-4 items-start')}>
                   {!useLiveServices && ItemActions('features', i, 'service')}
                   {(f.image_url || canEdit) && canvasImg(
                     f.image_url || null,
@@ -6505,7 +6314,7 @@ function BlockPreview({
                   <h3 className="font-bold text-sm uppercase tracking-wide mb-3" style={{ color: primary_color }}>{g.category}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     {g.items.slice(0, 8).map((it, ii) => (
-                      <div key={ii} style={{ backgroundColor: bg_color, borderRadius: cardRadius }} className="p-4 flex items-center gap-3 shadow-sm">
+                      <div key={ii} style={{ backgroundColor: bg_color, borderRadius: cardRadius }} className="builder-tile-card p-4 flex items-center gap-3 shadow-sm">
                         {it.image_url
                           ? <img src={mediaUrl(it.image_url)} alt={it.title} className="w-14 h-14 rounded object-cover shrink-0" />
                           : <div style={{ backgroundColor: `${primary_color}15`, borderRadius: cardRadius }} className="w-14 h-14 shrink-0 flex items-center justify-center"><Package className="w-5 h-5" style={{ color: primary_color }} /></div>
@@ -6581,8 +6390,6 @@ function BlockPreview({
             editable={canEdit}
             onReplace={url => replaceGalleryImage(i, url)}
             onFocus={() => focusCanvasImage({ arrayKey: 'images', index: i, itemField: 'src' })}
-            onOpenMediaLibrary={onOpenMediaLibrary}
-            onRequestText={onRequestText}
           />
         )
 
@@ -6862,7 +6669,7 @@ function BlockPreview({
         const isLargeBlog = blogCardStyle === 'large'
         const isCompactBlog = blogCardStyle === 'compact'
         const postCard = (post: any, i: number) => (
-          <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('overflow-hidden shadow-sm', isList && 'flex gap-4 items-stretch')}>
+          <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('builder-tile-card overflow-hidden shadow-sm', isList && 'flex gap-4 items-stretch')}>
             <div className={cn('bg-gray-100 flex items-center justify-center shrink-0', isList ? 'w-32 h-28' : isLargeBlog ? 'h-48' : isCompactBlog ? 'h-24' : 'h-32')}>
               {post.image_url
                 ? <img src={mediaUrl(post.image_url)} className="w-full h-full object-cover" alt={post.title} />
@@ -7257,6 +7064,16 @@ function BlockPreview({
     || '#ffffff'
   const needsRelative = hasShape || overlays.length > 0 || isEditing
   const bid = `b${block.id.replace(/-/g, '')}`
+  const blockColorProps = p as BlockColorProps
+  const blockThemeColors: ThemeColors = {
+    primary_color,
+    text_color,
+    surface_color: effectiveStyle.surface_color || bg_color,
+    bg_color,
+  }
+  const blockColorCss = buildBlockColorStyleCss('data-bid', bid, blockColorProps, blockThemeColors, {
+    bgOverrideAppliesToContent: true,
+  })
   const fieldStyleCss = Object.entries(fieldStyles).map(([key, fs]) => {
     const selectorKey = key.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
     return `
@@ -7280,7 +7097,7 @@ function BlockPreview({
         className="w-full"
       >
         {/* Inject CSS overrides so text color, px/em size, and case work despite Tailwind specificity */}
-        {(textColorOverride || fontSizePx || textScale || textTransformCss || fieldStyleCss) && (
+        {(textColorOverride || fontSizePx || textScale || textTransformCss || fieldStyleCss || blockColorCss) && (
           <style>{`
             [data-bid="${bid}"] {
               ${textTransformCss ? `text-transform: ${textTransformCss} !important;` : ''}
@@ -7292,18 +7109,15 @@ function BlockPreview({
             [data-bid="${bid}"] p,
             [data-bid="${bid}"] li,
             [data-bid="${bid}"] blockquote {
-              ${textColorOverride ? `color: ${textColorOverride} !important;` : ''}
               ${fontSizePx ? `font-size: ${fontSizePx}px !important;` : textScale ? `font-size: ${textScale}em !important;` : ''}
             }
-            [data-bid="${bid}"] span.block-text {
-              ${textColorOverride ? `color: ${textColorOverride} !important;` : ''}
-            }
-            ${overrideBg ? `
+            ${overrideBg && !blockColorProps.bg_color_override ? `
               [data-bid="${bid}"] .builder-block-content > * {
                 background-color: ${overrideBg} !important;
                 background-image: none !important;
               }
             ` : ''}
+            ${blockColorCss}
             ${fieldStyleCss}
           `}</style>
         )}
@@ -7871,17 +7685,52 @@ function SubItemEditor({
 
 // ── Props Editor ──────────────────────────────────────────────────────────────
 
-const FIELD_CONTEXTS: Record<string, string> = {
-  headline:     'a short, punchy, benefit-driven headline (max 8 words)',
-  subtitle:     'a 1-2 sentence compelling subtitle that expands the headline',
-  title:        'a clear, engaging section title',
-  description:  'a 2-3 sentence descriptive paragraph that persuades the reader',
-  eyebrow:      'a short eyebrow label (2-4 words in uppercase)',
-  cta_primary:  'a strong action-oriented primary CTA button label (2-4 words)',
-  cta_secondary:'a softer secondary CTA label (2-4 words)',
-  cta_label:    'a compelling CTA button label (2-4 words)',
-  brand:        'a memorable brand name',
-  text:         'an engaging short text for this section',
+function PropsCollapsible({
+  title,
+  preview,
+  accent,
+  children,
+}: {
+  title: string
+  preview?: string
+  accent?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <details className="group rounded-lg border border-gray-100 overflow-hidden">
+      <summary
+        className={cn(
+          'list-none cursor-pointer flex items-center justify-between gap-2 px-2.5 py-2 transition-colors [&::-webkit-details-marker]:hidden',
+          accent ? 'bg-primary/10 hover:bg-primary/15' : 'hover:bg-gray-50',
+        )}
+      >
+        <div className="min-w-0 flex-1 flex items-baseline gap-2">
+          <span
+            className={cn(
+              'text-xs shrink-0',
+              accent ? 'font-bold uppercase text-primary' : 'font-medium text-gray-700',
+            )}
+          >
+            {title}
+          </span>
+          {preview && (
+            <span className={cn('text-xs truncate', accent ? 'text-primary/70' : 'text-gray-400')}>
+              {preview}
+            </span>
+          )}
+        </div>
+        <ChevronDown
+          className={cn(
+            'w-3.5 h-3.5 shrink-0 transition-transform group-open:rotate-180',
+            accent ? 'text-primary' : 'text-gray-400',
+          )}
+        />
+      </summary>
+      <div className="px-2.5 pb-2.5 pt-2 border-t border-gray-100 space-y-2">
+        {children}
+      </div>
+    </details>
+  )
 }
 
 // ── Stable InputRow component (outside PropsEditor to avoid remount on re-render) ──
@@ -7893,19 +7742,14 @@ interface InputRowProps {
   multiline?: boolean
   placeholder?: string
   linkTarget?: string
-  queued: number
-  hasHistory: boolean
-  isGenerating: boolean
   onCommit: (val: string) => void
   onPreview: (val: string) => void
-  onAI: () => void
-  onUndo: () => void
   onLink?: (anchor: { x: number; y: number }) => void
 }
 
 function PropsInputRow({
   blockId, fieldKey, label, serverValue, multiline, placeholder,
-  linkTarget, queued, hasHistory, isGenerating, onCommit, onPreview, onAI, onUndo, onLink,
+  linkTarget, onCommit, onPreview, onLink,
 }: InputRowProps) {
   const [localVal, setLocalVal] = useState(serverValue)
   const isEditingRef = useRef(false)
@@ -7934,21 +7778,12 @@ function PropsInputRow({
   }
 
   const inputClass = "w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-white text-gray-800 placeholder-gray-400 leading-relaxed"
+  const preview = localVal.trim() || placeholder || 'Empty'
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5">
-        <label className="text-xs font-medium text-gray-700 flex-1 select-none">{label}</label>
-        {hasHistory && (
-          <button
-            onMouseDown={e => { e.preventDefault(); onUndo() }}
-            className="p-0.5 text-gray-400 hover:text-amber-500 transition-colors"
-            title="Undo AI change"
-          >
-            <Undo2 className="w-3 h-3" />
-          </button>
-        )}
-        {onLink && (
+    <PropsCollapsible title={label} preview={preview}>
+      {onLink && (
+        <div className="flex items-center gap-1.5 justify-end">
           <button
             onMouseDown={e => {
               e.preventDefault()
@@ -7966,22 +7801,8 @@ function PropsInputRow({
             <Link2 className="w-3 h-3" />
             {linkTarget ? 'Linked' : 'Link'}
           </button>
-        )}
-        <button
-          onMouseDown={e => { e.preventDefault(); onAI() }}
-          disabled={isGenerating}
-          className={cn(
-            'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold transition-all',
-            queued > 0
-              ? 'bg-primary text-white shadow-sm'
-              : 'text-primary hover:bg-accent border border-primary/30'
-          )}
-          title={queued > 0 ? `Apply next suggestion (${queued} more queued)` : 'Generate with AI'}
-        >
-          {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-          {queued > 0 ? `Next (${queued})` : 'AI'}
-        </button>
-      </div>
+        </div>
+      )}
 
       {multiline ? (
         <textarea
@@ -8004,7 +7825,7 @@ function PropsInputRow({
           className={inputClass}
         />
       )}
-    </div>
+    </PropsCollapsible>
   )
 }
 
@@ -8047,9 +7868,11 @@ function BlockBreakpointStyles({
   ]
 
   return (
-    <div className="space-y-2 pt-1 border-t border-gray-100">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-gray-600">Block Styles</label>
+    <PropsCollapsible
+      title="Block Styles"
+      preview={Object.keys(styleOverrides).length ? `${Object.keys(styleOverrides).length} breakpoint(s)` : 'Default'}
+    >
+      <div className="flex items-center justify-end">
         <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs">
           {(['desktop', 'tablet', 'mobile'] as Breakpoint[]).map(b => (
             <button
@@ -8099,7 +7922,7 @@ function BlockBreakpointStyles({
           className="text-xs text-red-400 hover:text-red-600"
         >✕ Reset {bp} styles</button>
       )}
-    </div>
+    </PropsCollapsible>
   )
 }
 
@@ -8193,24 +8016,19 @@ function BlockImagePickerField({
   if (siteId) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-1.5">
-          <label className="text-xs font-medium text-gray-600 flex-1">{label}</label>
-          {currentUrl && (
-            <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
-          )}
-        </div>
+        {(label || currentUrl) && (
+          <div className="flex items-center gap-1.5">
+            {label ? <label className="text-xs font-medium text-gray-600 flex-1">{label}</label> : <div className="flex-1" />}
+            {currentUrl && (
+              <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
+            )}
+          </div>
+        )}
         <InlineMediaPicker
           siteId={siteId}
           value={currentUrl || ''}
           onChange={url => onUpdate({ [fieldKey]: url })}
           label=""
-        />
-        <input
-          key={`${blockId}-${fieldKey}`}
-          defaultValue={currentUrl || ''}
-          onBlur={e => onUpdate({ [fieldKey]: e.target.value })}
-          placeholder="Or paste image URL…"
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono"
         />
         {hint && <p className="text-xs text-gray-400">{hint}</p>}
       </div>
@@ -8220,12 +8038,14 @@ function BlockImagePickerField({
   const resolved = currentUrl ? mediaUrl(currentUrl) : ''
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-1.5">
-        <label className="text-xs font-medium text-gray-600 flex-1">{label}</label>
-        {currentUrl && (
-          <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
-        )}
-      </div>
+      {(label || currentUrl) && (
+        <div className="flex items-center gap-1.5">
+          {label ? <label className="text-xs font-medium text-gray-600 flex-1">{label}</label> : <div className="flex-1" />}
+          {currentUrl && (
+            <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
+          )}
+        </div>
+      )}
       <div
         className={cn(
           'relative rounded-xl overflow-hidden border-2 transition-all',
@@ -8291,7 +8111,7 @@ function BlockImagePickerField({
 
 
 function PropsEditor({
-  block, onUpdate, onPreview, siteId, pages, onAddPage, onEditPropLink,
+  block, onUpdate, onPreview, siteId, pages, onAddPage, onEditPropLink, themeColors,
 }: {
   block: WebsiteBlock
   onUpdate: (props: Partial<BlockProps>) => void
@@ -8300,14 +8120,16 @@ function PropsEditor({
   pages?: WebsitePage[]
   onAddPage?: () => void
   onEditPropLink?: (propKey: string, anchor: { x: number; y: number }) => void
+  themeColors: ThemeColors
 }) {
   const p = block.props
-  const aiText = useAIGenerateText(siteId)
-
-  // Per-field AI state
-  const [fieldSuggestions, setFieldSuggestions] = useState<Record<string, string[]>>({})
-  const [fieldHistory, setFieldHistory] = useState<Record<string, string>>({})
-  const [fieldLoading, setFieldLoading] = useState<Record<string, boolean>>({})
+  const showTileColors = TILE_COLOR_BLOCK_TYPES.has(block.block_type)
+  const tileSwatchDefaults = {
+    tile_bg: themeColors.surface_color || themeColors.bg_color || '#ffffff',
+    tile_accent: themeColors.primary_color,
+    tile_text: themeColors.text_color,
+    tile_border: `${themeColors.primary_color}33`,
+  }
 
   // Spacing sliders — read from block.props (where onUpdate writes)
   const [paddingTop, setPaddingTop] = useState<number>((p as any).padding_top ?? 0)
@@ -8319,88 +8141,10 @@ function PropsEditor({
     setPaddingBottom((p as any).padding_bottom ?? 0)
   }, [block.id, (p as any).padding_top, (p as any).padding_bottom])
 
-  // Smart Design state
-  const [smartLoading, setSmartLoading] = useState(false)
-
   const itemSchema = ITEM_SCHEMAS[block.block_type]
   const [subColumns, setSubColumns] = useState<number>((p as any).columns ?? itemSchema?.fields.length ?? 3)
   const [subGap, setSubGap] = useState<number>((p as any).item_gap ?? 24)
   const [subItemSize, setSubItemSize] = useState<number>((p as any).item_size ?? 160)
-
-  // ── Per-field AI handler ────────────────────────────────────────────────
-  const handleFieldAI = useCallback(async (fieldKey: string) => {
-    const existing = fieldSuggestions[fieldKey] || []
-    const currentVal = (p as any)[fieldKey] || ''
-
-    // If we already have queued suggestions, apply the next one
-    if (existing.length > 0) {
-      const [next, ...rest] = existing
-      setFieldHistory(h => ({ ...h, [fieldKey]: currentVal }))
-      onUpdate({ [fieldKey]: next })
-      setFieldSuggestions(s => ({ ...s, [fieldKey]: rest }))
-      if (rest.length === 0) toast.success('Showing last suggestion. Click AI again to generate more.')
-      return
-    }
-
-    // Generate a fresh batch
-    setFieldLoading(l => ({ ...l, [fieldKey]: true }))
-    try {
-      const context = FIELD_CONTEXTS[fieldKey] || `the "${fieldKey}" text`
-      const blockDesc = block.label || block.block_type.replace(/_/g, ' ')
-      const prompt = `For a "${blockDesc}" website section, generate ${context}. The current value is: "${currentVal || 'empty'}". Return ONLY the text, nothing else.`
-      const res = await aiText.mutateAsync({ prompt, field: fieldKey })
-      // Queue: show first immediately, keep rest
-      const alts = [res.result, ...(res.alternatives || [])].filter(Boolean)
-      if (alts.length > 0) {
-        setFieldHistory(h => ({ ...h, [fieldKey]: currentVal }))
-        onUpdate({ [fieldKey]: alts[0] })
-        setFieldSuggestions(s => ({ ...s, [fieldKey]: alts.slice(1) }))
-        if (alts.length > 1) toast.success(`Applied! ${alts.length - 1} more suggestion${alts.length > 2 ? 's' : ''} queued — click AI again`)
-        else toast.success('AI text applied!')
-      }
-    } catch { toast.error('AI suggestion failed') }
-    setFieldLoading(l => ({ ...l, [fieldKey]: false }))
-  }, [p, block, fieldSuggestions, aiText, onUpdate])
-
-  const handleFieldUndo = useCallback((fieldKey: string) => {
-    const prev = fieldHistory[fieldKey]
-    if (prev !== undefined) {
-      onUpdate({ [fieldKey]: prev })
-      setFieldHistory(h => { const n = { ...h }; delete n[fieldKey]; return n })
-      toast.success('Reverted to previous value')
-    }
-  }, [fieldHistory, onUpdate])
-
-  // ── Smart Design AI ─────────────────────────────────────────────────────
-  const handleSmartDesign = useCallback(async () => {
-    setSmartLoading(true)
-    try {
-      const blockType = block.block_type
-      const designs: Record<string, any>[] = [
-        // Gradient hero
-        { bg_style: 'gradient', gradient_preset: GRADIENT_PRESETS[Math.floor(Math.random() * 6)].value },
-        // Dark with glow
-        { bg_style: 'dark', block_shadow: SHADOW_PRESETS[4].value },
-        // Colorful split
-        { bg_style: 'split', bg_color: '#f3fbf7', block_shadow: SHADOW_PRESETS[1].value },
-      ]
-      const picked = designs[Math.floor(Math.random() * designs.length)]
-      // Also generate fresh headline/title
-      const textFields = ['headline', 'title', 'subtitle'].filter(k => (p as any)[k] !== undefined)
-      const updates: any = { ...picked }
-      if (textFields.length > 0) {
-        const res = await aiText.mutateAsync({
-          prompt: `For a "${block.block_type}" website section, write an engaging ${textFields[0]}. Be creative, concise, and compelling.`,
-          field: textFields[0],
-        })
-        updates[textFields[0]] = res.result
-        if (textFields[1] && res.alternatives?.[0]) updates[textFields[1]] = res.alternatives[0]
-      }
-      onUpdate(updates)
-      toast.success('✨ Smart Design applied!')
-    } catch { toast.error('Smart Design failed') }
-    setSmartLoading(false)
-  }, [block, p, aiText, onUpdate])
 
   // ── InputRow — render helper that inlines PropsInputRow ───────────────
   // CRITICAL: this is NOT a React component. Declaring a component inside
@@ -8426,20 +8170,15 @@ function PropsEditor({
             ? opts.fieldKey
             : `${opts.fieldKey}_url`
       ] ?? '')}
-      queued={(fieldSuggestions[opts.fieldKey] || []).length}
-      hasHistory={fieldHistory[opts.fieldKey] !== undefined}
-      isGenerating={!!fieldLoading[opts.fieldKey]}
       onCommit={val => onUpdate({ [opts.fieldKey]: val })}
       onPreview={val => onPreview({ [opts.fieldKey]: val })}
-      onAI={() => handleFieldAI(opts.fieldKey)}
-      onUndo={() => handleFieldUndo(opts.fieldKey)}
       onLink={onEditPropLink ? anchor => onEditPropLink(opts.fieldKey, anchor) : undefined}
     />
   )
 
   // ── Fields ──────────────────────────────────────────────────────────────
   const commonFields = (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {p.headline    !== undefined && inputRow({ label: 'Headline',      fieldKey: 'headline',      placeholder: 'Your compelling headline…' })}
       {p.subtitle    !== undefined && inputRow({ label: 'Subtitle',      fieldKey: 'subtitle',      multiline: true, placeholder: 'Expand your headline here…' })}
       {p.title       !== undefined && inputRow({ label: 'Title',         fieldKey: 'title',         placeholder: 'Section title…' })}
@@ -8458,9 +8197,7 @@ function PropsEditor({
   )
 
   const bgStyleField = p.bg_style !== undefined && (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-gray-600">Background Style</label>
-      <div className="grid grid-cols-5 gap-1">
+    <div className="grid grid-cols-5 gap-1">
         {['gradient','minimal','image','dark','split'].map(s => (
           <button
             key={s}
@@ -8473,14 +8210,12 @@ function PropsEditor({
             {s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
-      </div>
     </div>
   )
 
   // Gradient presets (shown when bg_style=gradient)
   const gradientField = p.bg_style === 'gradient' && (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-gray-600">Gradient Preset</label>
       <div className="grid grid-cols-4 gap-1.5">
         {GRADIENT_PRESETS.map(g => (
           <button
@@ -8525,40 +8260,45 @@ function PropsEditor({
   )
 
   const imagePicker = (label: string, fieldKey: string, hint?: string) => (
-    <BlockImagePickerField
-      blockId={block.id}
-      label={label}
-      fieldKey={fieldKey}
-      hint={hint}
-      siteId={siteId}
-      currentUrl={(p as any)[fieldKey] as string | undefined}
-      onUpdate={onUpdate}
-    />
+    <PropsCollapsible
+      title={label}
+      preview={(p as any)[fieldKey] ? 'Image set' : undefined}
+    >
+      <BlockImagePickerField
+        blockId={block.id}
+        label=""
+        fieldKey={fieldKey}
+        hint={hint}
+        siteId={siteId}
+        currentUrl={(p as any)[fieldKey] as string | undefined}
+        onUpdate={onUpdate}
+      />
+    </PropsCollapsible>
   )
 
-  // Always show bg image for any hero block, AND always show image_url for split heroes
+  // One image control per section — match canvas wiring (heroLayoutUtils).
+  const blockProps = p as Record<string, unknown>
   const isHeroBlock = ['hero', 'hero_split', 'hero_minimal'].includes(block.block_type)
-  const isSplitHero = block.block_type === 'hero_split' || p.layout === 'split'
+  const usesSideImage = isHeroBlock && heroUsesSideImage(block.block_type, blockProps)
+  const usesBgImage = isHeroBlock && heroUsesBackgroundImage(block.block_type, blockProps)
 
-  const bgImageField = (p.bg_style === 'image' || isHeroBlock) && imagePicker(
-    isSplitHero ? 'Background Image (full bg)' : 'Background Image',
+  const heroImageField = isHeroBlock && (usesSideImage || usesBgImage) && imagePicker(
+    usesSideImage ? 'Hero Image' : 'Background Image',
+    usesSideImage ? 'image_url' : 'bg_image_url',
+    usesSideImage
+      ? 'Shown beside the headline in split layouts.'
+      : 'Full-bleed photo behind the hero text.',
+  )
+
+  const bgImageField = !isHeroBlock && p.bg_style === 'image' && imagePicker(
+    'Background Image',
     'bg_image_url',
-    isSplitHero ? 'For full-bleed background. Use "Image URL" below for the right panel.' : undefined,
   )
 
-  // For split heroes, always show a dedicated right-panel image picker
-  const splitImageField = isSplitHero && imagePicker(
-    'Right Panel Image ★',
-    'image_url',
-    'This image appears on the right side of the split hero.',
-  )
-
-  const imageUrlField = !isSplitHero && p.image_url !== undefined && imagePicker('Image', 'image_url')
+  const imageUrlField = !isHeroBlock && p.image_url !== undefined && imagePicker('Image', 'image_url')
 
   const layoutField = p.layout !== undefined && (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-gray-600">Layout</label>
-      <div className="grid grid-cols-3 gap-1">
+    <div className="grid grid-cols-3 gap-1">
         {['centered','split','minimal','left','right','full'].map(l => (
           <button key={l}
             onClick={() => onUpdate({ layout: l })}
@@ -8566,30 +8306,17 @@ function PropsEditor({
               p.layout === l ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40')}
           >{l.charAt(0).toUpperCase() + l.slice(1)}</button>
         ))}
-      </div>
     </div>
   )
 
   return (
-    <div className="space-y-4 p-4">
-      {/* Header + Smart Design */}
-      <div className="flex items-center gap-2">
-        <div className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-bold uppercase flex-1">{block.label || block.block_type}</div>
-        <button
-          onClick={handleSmartDesign}
-          disabled={smartLoading}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-primary to-info text-white text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-          title="AI: Generate smart design for this block"
+    <div className="space-y-2 p-4">
+      {BLOCK_QUICK_PRESETS[block.block_type] ? (
+        <PropsCollapsible
+          accent
+          title={block.label || block.block_type}
+          preview={`${BLOCK_QUICK_PRESETS[block.block_type].length} presets`}
         >
-          {smartLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-          Smart Design
-        </button>
-      </div>
-
-      {/* Quick Block Presets */}
-      {BLOCK_QUICK_PRESETS[block.block_type] && (
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-wide text-gray-400">Quick Presets</label>
           <div className="grid grid-cols-2 gap-1.5">
             {BLOCK_QUICK_PRESETS[block.block_type].map((preset, i) => (
               <button
@@ -8602,23 +8329,19 @@ function PropsEditor({
               </button>
             ))}
           </div>
-        </div>
+        </PropsCollapsible>
+      ) : (
+        <div className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-bold uppercase w-fit">{block.label || block.block_type}</div>
       )}
 
-      {/* Whole-block click target */}
       {onEditPropLink && (
-        <div className="rounded-xl border border-primary/20 bg-accent/80 p-3 space-y-2">
-          <div className="flex items-start gap-2">
-            <div className="w-7 h-7 rounded-lg bg-white border border-primary/20 flex items-center justify-center text-primary shrink-0">
-              <Link2 className="w-3.5 h-3.5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-gray-800">Block link</div>
-              <p className="text-xs text-gray-500 leading-snug">
-                Make this whole block clickable. Buttons and form fields inside the block still keep their own clicks.
-              </p>
-            </div>
-          </div>
+        <PropsCollapsible
+          title="Block link"
+          preview={(p as any).block_link_url ? String((p as any).block_link_url) : 'Not linked'}
+        >
+          <p className="text-xs text-gray-500 leading-snug">
+            Make this whole block clickable. Buttons and form fields inside the block still keep their own clicks.
+          </p>
           <button
             type="button"
             onClick={e => {
@@ -8636,14 +8359,19 @@ function PropsEditor({
             <Link2 className="w-3.5 h-3.5" />
             {(p as any).block_link_url ? `Linked: ${(p as any).block_link_url}` : 'Insert block link'}
           </button>
-        </div>
+        </PropsCollapsible>
       )}
 
-      {/* ── Nav block — Logo ── */}
       {block.block_type === 'nav' && (
-        <div className="space-y-2 pb-2 border-b border-gray-100">
-          <label className="text-xs font-medium text-gray-600">Brand Logo</label>
-          {imagePicker('Logo Image', 'brand_logo')}
+        <PropsCollapsible title="Brand Logo" preview={p.brand_logo ? 'Logo set' : 'Text only'}>
+          <BlockImagePickerField
+            blockId={block.id}
+            label=""
+            fieldKey="brand_logo"
+            siteId={siteId}
+            currentUrl={p.brand_logo as string | undefined}
+            onUpdate={onUpdate}
+          />
           {p.brand_logo && (
             <button
               type="button"
@@ -8656,23 +8384,19 @@ function PropsEditor({
           {!p.brand_logo && (
             <p className="text-xs text-gray-400">Upload a logo to replace the brand name text. SVG or PNG with transparent background works best.</p>
           )}
-        </div>
+        </PropsCollapsible>
       )}
 
-      {/* ── Nav block — synced pages ── */}
       {block.block_type === 'nav' && pages && pages.length > 0 && (
-        <div className="space-y-2 pb-1 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 flex-1">Navigation links</label>
-            {onAddPage && (
-              <button
-                onClick={onAddPage}
-                className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
-              >
-                <Plus className="w-3 h-3" /> New Page
-              </button>
-            )}
-          </div>
+        <PropsCollapsible title="Navigation links" preview={`${pages.length} page${pages.length === 1 ? '' : 's'}`}>
+          {onAddPage && (
+            <button
+              onClick={onAddPage}
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
+            >
+              <Plus className="w-3 h-3" /> New Page
+            </button>
+          )}
           <div className="space-y-1">
             {[...pages]
               .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -8689,26 +8413,24 @@ function PropsEditor({
               ))}
           </div>
           <p className="text-xs text-gray-400">Navigation stays in sync with your site pages automatically.</p>
-        </div>
+        </PropsCollapsible>
       )}
 
-      {/* Show "New Page" button for nav blocks even when no pages yet */}
       {block.block_type === 'nav' && (!pages || pages.length === 0) && onAddPage && (
-        <div className="pb-2 border-b border-gray-100">
+        <PropsCollapsible title="Navigation links" preview="No pages yet">
           <button
             onClick={onAddPage}
             className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-primary/30 rounded-xl text-xs text-primary font-semibold hover:border-primary/60 hover:bg-accent transition-colors"
           >
             <Plus className="w-4 h-4" /> Add your first page
           </button>
-        </div>
+        </PropsCollapsible>
       )}
 
       {commonFields}
 
-      {/* Sub-item editor for list blocks */}
       {itemSchema && (
-        <div className="pt-1 border-t border-gray-100">
+        <PropsCollapsible title={itemSchema.itemLabel || 'Items'} preview={`${((p as any)[itemSchema.arrayKey] || []).length} item(s)`}>
           <SubItemEditor
             schema={itemSchema}
             items={(p as any)[itemSchema.arrayKey] || []}
@@ -8722,19 +8444,32 @@ function PropsEditor({
             onGapChange={n => { setSubGap(n); onUpdate({ item_gap: n } as any) }}
             onItemSizeChange={n => { setSubItemSize(n); onUpdate({ item_size: n } as any) }}
           />
-        </div>
+        </PropsCollapsible>
       )}
 
-      {bgStyleField}
-      {gradientField}
-      {splitImageField}
+      {bgStyleField && (
+        <PropsCollapsible title="Background Style" preview={String(p.bg_style || '')}>
+          {bgStyleField}
+        </PropsCollapsible>
+      )}
+      {gradientField && (
+        <PropsCollapsible title="Gradient Preset" preview={(p as any).gradient_preset ? 'Custom' : 'Default'}>
+          {gradientField}
+        </PropsCollapsible>
+      )}
+      {heroImageField}
       {bgImageField}
       {imageUrlField}
-      {layoutField}
+      {layoutField && (
+        <PropsCollapsible title="Layout" preview={String(p.layout || '')}>
+          {layoutField}
+        </PropsCollapsible>
+      )}
 
-      {/* Shadow / decoration */}
-      <div className="space-y-1.5 pt-1 border-t border-gray-100">
-        <label className="text-xs font-medium text-gray-600">Block Shadow</label>
+      <PropsCollapsible
+        title="Block Shadow"
+        preview={SHADOW_PRESETS.find(sh => sh.value === (p as any).block_shadow)?.label || 'None'}
+      >
         <div className="grid grid-cols-4 gap-1">
           {SHADOW_PRESETS.map(sh => (
             <button
@@ -8751,11 +8486,9 @@ function PropsEditor({
             </button>
           ))}
         </div>
-      </div>
+      </PropsCollapsible>
 
-      {/* Section Spacing */}
-      <div className="space-y-3 pt-1 border-t border-gray-100">
-        <label className="text-xs font-medium text-gray-600">Section Spacing</label>
+      <PropsCollapsible title="Section Spacing" preview={`↑${paddingTop}px ↓${paddingBottom}px`}>
         {([
           { label: 'Padding Top', key: 'padding_top', val: paddingTop, set: setPaddingTop },
           { label: 'Padding Bottom', key: 'padding_bottom', val: paddingBottom, set: setPaddingBottom },
@@ -8789,7 +8522,6 @@ function PropsEditor({
                 }}
                 className="w-full accent-primary h-2 rounded-full cursor-pointer"
               />
-              {/* Tick marks at key positions */}
               <div className="flex justify-between mt-0.5 px-0.5">
                 {[0, 80, 160, 240, 320].map(v => (
                   <span key={v} className="text-[8px] text-gray-300 font-mono">{v}</span>
@@ -8798,15 +8530,15 @@ function PropsEditor({
             </div>
           </div>
         ))}
-      </div>
+      </PropsCollapsible>
 
-      {/* Origins / Section Shape Dividers */}
-      <div className="space-y-3 pt-1 border-t border-gray-100">
-        <label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-          <svg viewBox="0 0 20 10" className="w-4 h-4 fill-current text-primary/80"><path d="M0,10 C5,0 10,10 15,3 C17,1 18,5 20,4 L20,10 Z"/></svg>
-          Origins (Section Shapes)
-        </label>
-        <div className="space-y-2.5">
+      <PropsCollapsible
+        title="Origins (Section Shapes)"
+        preview={[
+          (p as any).top_shape && (p as any).top_shape !== 'none' ? `Top: ${(p as any).top_shape}` : null,
+          (p as any).bottom_shape && (p as any).bottom_shape !== 'none' ? `Bottom: ${(p as any).bottom_shape}` : null,
+        ].filter(Boolean).join(' · ') || 'None'}
+      >
           <div>
             <div className="text-xs font-medium text-gray-500 mb-1.5">Top Edge Shape</div>
             <div className="grid grid-cols-3 gap-1">
@@ -8848,14 +8580,16 @@ function PropsEditor({
               </div>
             </div>
           )}
-        </div>
-      </div>
+      </PropsCollapsible>
 
-      {/* Composition — Tile highlights, font scale, color overrides */}
-      <div className="space-y-3 pt-1 border-t border-gray-100">
-        <label className="text-xs font-medium text-gray-600">Composition</label>
-
-
+      <PropsCollapsible
+        title="Composition"
+        preview={
+          typeof (p as any).font_size_px === 'number' && (p as any).font_size_px > 0
+            ? `${Math.round((p as any).font_size_px)}px`
+            : 'Auto'
+        }
+      >
         {/* Font size px: step + preset (same as canvas bar) */}
         <div className="space-y-1.5">
           <div className="text-xs font-medium text-gray-500">Font size (px)</div>
@@ -8936,74 +8670,52 @@ function PropsEditor({
           </div>
           <p className="text-xs text-gray-400">Default clears CSS case. Sentence / toggle rewrite stored text (skips URLs and nav links).</p>
         </div>
+      </PropsCollapsible>
 
-        {/* Text color override */}
-        <div className="flex items-center gap-2">
-          <input type="color"
-            value={(p as any).text_color_override || '#111827'}
-            onChange={e => onUpdate({ text_color_override: e.target.value } as any)}
-            className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
-          />
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-gray-700">Section Text Color</div>
-            <div className="text-xs text-gray-400">Override theme for this block</div>
-          </div>
-          {(p as any).text_color_override && (
-            <button onClick={() => onUpdate({ text_color_override: null } as any)} className="text-xs text-red-400 hover:text-red-600 shrink-0">✕ Clear</button>
-          )}
-        </div>
-
-        {/* Background color override */}
-        <div className="flex items-center gap-2">
-          <input type="color"
-            value={(p as any).bg_color_override || '#ffffff'}
-            onChange={e => onUpdate({ bg_color_override: e.target.value } as any)}
-            className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
-          />
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-gray-700">Block Background</div>
-            <div className="text-xs text-gray-400">Override background color</div>
-          </div>
-          {(p as any).bg_color_override && (
-            <button onClick={() => onUpdate({ bg_color_override: null } as any)} className="text-xs text-red-400 hover:text-red-600 shrink-0">✕ Clear</button>
-          )}
-        </div>
-
-        {/* Tile / card colors */}
-        <div>
-          <div className="text-xs font-medium text-gray-500 mb-1.5">Tile / Card Highlights</div>
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              { key: 'tile_bg',     label: 'Tile BG',    hint: 'Card background' },
-              { key: 'tile_accent', label: 'Accent',     hint: 'Highlight color'  },
-              { key: 'tile_text',   label: 'Tile Text',  hint: 'Text in cards'    },
-              { key: 'tile_border', label: 'Border',     hint: 'Card border'      },
-            ] as const).map(({ key, label, hint }) => (
-              <div key={key} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
-                <input type="color"
-                  value={(p as any)[key] || '#ffffff'}
-                  onChange={e => onUpdate({ [key]: e.target.value } as any)}
-                  className="w-7 h-7 rounded border border-gray-200 cursor-pointer p-0.5 shrink-0"
-                />
-                <div>
-                  <div className="text-xs font-medium text-gray-700">{label}</div>
-                  <div className="text-xs text-gray-400">{hint}</div>
-                </div>
+      {showTileColors && (
+      <PropsCollapsible
+        title="Card colors"
+        preview={hasTileColorOverrides(p as BlockColorProps) ? 'Custom' : 'Theme default'}
+      >
+        <p className="text-xs text-gray-500 mb-2">Override card/tile colors inside this section. Section text and background use the toolbar above the canvas.</p>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            { key: 'tile_bg' as const, label: 'Card background', hint: 'Tile / card fill' },
+            { key: 'tile_accent' as const, label: 'Accent', hint: 'Highlights & top bar' },
+            { key: 'tile_text' as const, label: 'Card text', hint: 'Titles & body in cards' },
+            { key: 'tile_border' as const, label: 'Border', hint: 'Card outline' },
+          ]).map(({ key, label, hint }) => (
+            <div key={key} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
+              <input type="color"
+                value={tileColorSwatch((p as any)[key], tileSwatchDefaults[key])}
+                onChange={e => onUpdate({ [key]: e.target.value } as any)}
+                className="w-7 h-7 rounded border border-gray-200 cursor-pointer p-0.5 shrink-0"
+              />
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-gray-700">{label}</div>
+                <div className="text-xs text-gray-400 truncate">{hint}</div>
               </div>
-            ))}
-          </div>
-          {((p as any).tile_bg || (p as any).tile_accent || (p as any).tile_text || (p as any).tile_border) && (
-            <button
-              onClick={() => onUpdate({ tile_bg: null, tile_accent: null, tile_text: null, tile_border: null } as any)}
-              className="mt-1.5 text-xs text-red-400 hover:text-red-600"
-            >✕ Clear all tile colors</button>
-          )}
+              {(p as any)[key] && (
+                <button
+                  type="button"
+                  onClick={() => onUpdate({ [key]: null } as any)}
+                  className="text-[10px] text-red-400 hover:text-red-600 shrink-0"
+                >✕</button>
+              )}
+            </div>
+          ))}
         </div>
-      </div>
+        {hasTileColorOverrides(p as BlockColorProps) && (
+          <button
+            type="button"
+            onClick={() => onUpdate({ tile_bg: null, tile_accent: null, tile_text: null, tile_border: null } as any)}
+            className="mt-2 text-xs text-red-400 hover:text-red-600"
+          >Clear all card colors</button>
+        )}
+      </PropsCollapsible>
+      )}
 
-      {/* Visibility */}
-      <div className="space-y-2 pt-1 border-t border-gray-100">
-        <label className="text-xs font-medium text-gray-600">Visibility</label>
+      <PropsCollapsible title="Visibility" preview={(block as any).visible === false ? 'Hidden' : 'Visible'}>
         {[
           { key: 'visible', label: 'Visible' },
           { key: 'visible_on_mobile', label: 'Show on Mobile' },
@@ -9021,22 +8733,18 @@ function PropsEditor({
           </label>
         ))}
 
-        {/* P3.2 Branch-scoped visibility */}
         <BranchVisibilitySelector
           visibleBranches={(block as any).visible_branches ?? null}
           onChange={branches => onUpdate({ visible_branches: branches } as any)}
         />
-      </div>
+      </PropsCollapsible>
 
-      {/* P3.4 Per-breakpoint style overrides */}
       <BlockBreakpointStyles
         styleOverrides={(block.style_overrides || {}) as any}
         onChange={overrides => onUpdate({ style_overrides: overrides } as any)}
       />
 
-      {/* Animation */}
-      <div className="space-y-2 pt-1 border-t border-gray-100">
-        <label className="text-xs font-medium text-gray-600">Scroll Animation</label>
+      <PropsCollapsible title="Scroll Animation" preview={block.animation || 'None'}>
         <div className="grid grid-cols-4 gap-1">
           {[
             { id: 'none', label: '⊘ None' },
@@ -9066,7 +8774,7 @@ function PropsEditor({
             </div>
           </div>
         )}
-      </div>
+      </PropsCollapsible>
     </div>
   )
 }
@@ -15610,6 +15318,12 @@ export default function WebsiteBuilder() {
                       pages={localPages}
                       onAddPage={handleAddPage}
                       onEditPropLink={(propKey, anchor) => openLinkEditorForProp(selectedBlock.id, propKey, anchor)}
+                      themeColors={{
+                        primary_color: canvasStyle.primary_color || '#64C3A0',
+                        text_color: canvasStyle.text_color || '#111827',
+                        surface_color: canvasStyle.surface_color || '#f9fafb',
+                        bg_color: canvasStyle.bg_color || '#ffffff',
+                      }}
                     />
                   ) : (
                     <div className="p-4 space-y-4">

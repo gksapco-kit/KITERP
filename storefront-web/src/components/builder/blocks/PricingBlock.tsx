@@ -12,7 +12,7 @@ export default function PricingBlock({ style, props }: Props) {
       {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
       <div className={`grid grid-cols-1 ${plans.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-6 max-w-4xl mx-auto`}>
         {plans.map((plan, i) => (
-          <div key={i} className={`rounded-2xl p-8 flex flex-col ${plan.highlighted ? 'text-white shadow-xl scale-105' : 'bg-white border border-gray-100'}`} style={plan.highlighted ? { backgroundColor: style.primary_color } : {}}>
+          <div key={i} className={`builder-tile-card rounded-2xl p-8 flex flex-col ${plan.highlighted ? 'text-white shadow-xl scale-105' : 'bg-white border border-gray-100'}`} style={plan.highlighted ? { backgroundColor: style.primary_color } : {}}>
             <h3 className={`font-bold text-lg mb-2 ${plan.highlighted ? 'text-white' : 'text-gray-900'}`}>{plan.name}</h3>
             <div className={`text-4xl font-bold mb-1 ${plan.highlighted ? 'text-white' : 'text-gray-900'}`}>
               {typeof plan.price === 'number' ? `$${plan.price}` : plan.price}

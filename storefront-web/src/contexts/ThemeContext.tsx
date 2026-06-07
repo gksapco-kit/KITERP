@@ -3,8 +3,6 @@ import { useLocation } from 'react-router-dom'
 import { useVendor } from './VendorContext'
 import {
   hexToHslChannels,
-  mergeColorsFromBuilderConfig,
-  mergeFontsFromBuilderConfig,
   primaryForegroundHslForHex,
 } from '@/lib/themeColors'
 
@@ -67,26 +65,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const theme: ThemeConfig = useMemo(() => {
     const raw = (themeConfig && typeof themeConfig === 'object' ? themeConfig : {}) as Record<string, unknown>
-    const builderConfig = raw.builder_config
-    const fromBuilderColors = mergeColorsFromBuilderConfig(builderConfig)
-    const fromBuilderFonts = mergeFontsFromBuilderConfig(builderConfig)
     const base = {
       ...DEFAULT_THEME,
       ...raw,
       colors: {
         ...DEFAULT_THEME.colors,
         ...(raw.colors as Record<string, string> | undefined),
-        ...fromBuilderColors,
       },
       sections: { ...DEFAULT_THEME.sections, ...(raw.sections as Record<string, boolean> | undefined) },
     }
     return {
       ...base,
-      font: fromBuilderFonts.font ?? (raw as { font?: string }).font ?? DEFAULT_THEME.font,
+      font: (raw as { font?: string }).font ?? DEFAULT_THEME.font,
       font_body:
-        fromBuilderFonts.font_body ??
         (raw as { font_body?: string }).font_body ??
-        fromBuilderFonts.font ??
         (raw as { font?: string }).font ??
         DEFAULT_THEME.font_body,
     }

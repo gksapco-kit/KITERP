@@ -36,7 +36,8 @@ from app.models.platform_staff_audit import PlatformStaffAuditLog
 from app.models.vendor_platform_audit import VendorPlatformAuditLog
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.production import ProductionOrder
-from app.models.store import Store, StoreInventory
+from app.models.store import Store, StoreInventory, ProductStore, ServiceStore
+from app.models.storage_location import StorageLocation
 from app.models.hr import (
     Department, Designation, EmployeeProfile, EmployeeDocument,
     AttendanceRecord, LeavePolicy, LeaveBalance, LeaveRequest, Holiday,
@@ -177,6 +178,7 @@ __all__ = [
     "StockReservation",
     "Store",
     "StoreInventory",
+    "StorageLocation",
     # HR
     "Department",
     "Designation",

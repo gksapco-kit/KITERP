@@ -100,9 +100,19 @@ async def _load_modifier_groups_by_product(db: AsyncSession, vendor_id, product_
 async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = Depends(get_db)):
     vendor = await _resolve_vendor(vendor_slug, db)
     svc = RestaurantService(db)
-    table = await svc.get_table_by_qr_token(qr_token)
-    if not table or table.vendor_id != vendor.id:
-        raise HTTPException(404, "Table not found or QR code invalid")
+
+    preview_mode = qr_token == "preview"
+    if preview_mode:
+        table_id = "preview"
+        table_label = "Preview"
+        table_capacity = 2
+    else:
+        table_row = await svc.get_table_by_qr_token(qr_token)
+        if not table_row or table_row.vendor_id != vendor.id:
+            raise HTTPException(404, "Table not found or QR code invalid")
+        table_id = str(table_row.id)
+        table_label = table_row.label
+        table_capacity = table_row.capacity
 
     products = await load_dine_in_products(
         db, vendor.id, vendor.settings or {}, limit=200,
@@ -114,9 +124,24 @@ async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = De
     menu: dict = {}
     for p in products:
         cat = p.category or "Menu"
-        menu.setdefault(cat, []).append(
+        sub = (p.subcategory or "").strip()
+        menu.setdefault(cat, {}).setdefault(sub, []).append(
             _product_dict(p, mod_map.get(str(p.id), [])),
         )
+
+    menu_sections = []
+    for cat, subs in menu.items():
+        direct_items = subs.get("", [])
+        subcategories = [
+            {"name": sub_name, "items": sub_items}
+            for sub_name, sub_items in subs.items()
+            if sub_name and sub_items
+        ]
+        menu_sections.append({
+            "category": cat,
+            "items": direct_items,
+            "subcategories": subcategories,
+        })
 
     return JSONResponse(content={
         "vendor": {
@@ -125,12 +150,12 @@ async def get_table_by_qr(vendor_slug: str, qr_token: str, db: AsyncSession = De
             "slug": vendor.slug,
         },
         "table": {
-            "id": str(table.id),
-            "label": table.label,
-            "capacity": table.capacity,
+            "id": table_id,
+            "label": table_label,
+            "capacity": table_capacity,
             "zone_name": None,  # we don't load zone here for simplicity
         },
-        "menu": [{"category": cat, "items": items} for cat, items in menu.items()],
+        "menu": menu_sections,
     })
 
 

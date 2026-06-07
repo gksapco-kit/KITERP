@@ -8,23 +8,12 @@ import {
   useCategoryTree, useCreateCategory, useUpdateCategory, useDeleteCategory,
   useCategoryCatalogues,
 } from '@/hooks/useVendor'
-import { Loader2, Plus, Pencil, Trash2, X, ChevronRight, ChevronDown, FolderTree, Package, Wrench, Eye, GripVertical, Copy, Share2, Mail, MessageCircle } from 'lucide-react'
-import { ResizableTable } from '@/components/table/ResizableTable'
+import { Loader2, Plus, Pencil, Trash2, X, ChevronRight, ChevronDown, FolderTree, Package, Wrench, Eye, Copy, Folder, FolderOpen, File } from 'lucide-react'
 import { toast } from 'sonner'
-
-function shareCategory(cat: { name: string; description?: string; applies_to?: string }, action: 'copy' | 'whatsapp' | 'email' | 'native') {
-  const text = `Browse our ${cat.name} category${cat.description ? ` - ${cat.description}` : ''}`
-  if (action === 'copy') { navigator.clipboard.writeText(text); toast.success('Category info copied!') }
-  else if (action === 'whatsapp') window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-  else if (action === 'email') window.open(`mailto:?subject=${encodeURIComponent(`Category: ${cat.name}`)}&body=${encodeURIComponent(text)}`, '_blank')
-  else if (navigator.share) navigator.share({ title: cat.name, text }).catch(() => {})
-  else { navigator.clipboard.writeText(text); toast.success('Category info copied!') }
-}
-import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import type { VendorCategory, CustomField } from '@/types'
 import { useNavigate } from 'react-router-dom'
-import { formatCurrency, mediaUrl } from '@/lib/utils'
+import { formatCurrency, mediaUrl, cn } from '@/lib/utils'
 
 const APPLIES_OPTIONS = [
   { value: 'both', label: 'Product & Service' },
@@ -42,6 +31,15 @@ const FIELD_TYPES = [
 
 const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring'
 
+function shareCategory(cat: { name: string; description?: string; applies_to?: string }, action: 'copy' | 'whatsapp' | 'email' | 'native') {
+  const text = `Browse our ${cat.name} category${cat.description ? ` - ${cat.description}` : ''}`
+  if (action === 'copy') { navigator.clipboard.writeText(text); toast.success('Category info copied!') }
+  else if (action === 'whatsapp') window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  else if (action === 'email') window.open(`mailto:?subject=${encodeURIComponent(`Category: ${cat.name}`)}&body=${encodeURIComponent(text)}`, '_blank')
+  else if (navigator.share) navigator.share({ title: cat.name, text }).catch(() => {})
+  else { navigator.clipboard.writeText(text); toast.success('Category info copied!') }
+}
+
 function appliesBadge(v: string) {
   const map: Record<string, { bg: string; text: string; label: string }> = {
     both: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Product & Service' },
@@ -52,73 +50,312 @@ function appliesBadge(v: string) {
   return <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${s.bg} ${s.text}`}>{s.label}</span>
 }
 
-// ── Category Tree Row ────────────────────────────────────────────
-function CategoryRow({ cat, level, onEdit, onAddSub, onDelete, onViewCatalogue }: {
-  cat: VendorCategory; level: number
-  onEdit: (c: VendorCategory) => void
+function findInTree(cats: VendorCategory[], id: string): VendorCategory | null {
+  for (const c of cats) {
+    if (c.id === id) return c
+    if (c.children?.length) {
+      const found = findInTree(c.children, id)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+function countDescendants(cat: VendorCategory): number {
+  return (cat.children || []).reduce((n, c) => n + 1 + countDescendants(c), 0)
+}
+
+// ── Nested bullet-tree node (vertical grouping, not table rows) ──
+function CategoryTreeBranch({
+  cat,
+  depth,
+  selectedId,
+  onSelect,
+  onAddSub,
+}: {
+  cat: VendorCategory
+  depth: number
+  selectedId: string | null
+  onSelect: (c: VendorCategory) => void
   onAddSub: (parentId: string) => void
-  onDelete: (id: string) => void
-  onViewCatalogue: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(true)
-  const hasChildren = cat.children && cat.children.length > 0
-  const indent = level * 28
+  const children = cat.children || []
+  const hasChildren = children.length > 0
+  const isSelected = selectedId === cat.id
+  const isRoot = depth === 0
 
   return (
-    <>
-      <tr className="hover:bg-gray-50 group">
-        <td className="px-4 py-3" style={{ paddingLeft: `${16 + indent}px` }}>
-          <div className="flex items-center gap-2">
-            {hasChildren ? (
-              <button onClick={() => setExpanded(!expanded)} className="p-0.5 rounded hover:bg-gray-200 text-gray-400">
-                {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </button>
-            ) : (
-              <span className="w-5" />
-            )}
-            <FolderTree className={`w-4 h-4 shrink-0 ${level === 0 ? 'text-blue-500' : 'text-gray-400'}`} />
-            <div>
-              <p className="text-sm font-medium">{cat.name}</p>
-              {cat.description && <p className="text-xs text-gray-500">{cat.description}</p>}
-            </div>
-          </div>
-        </td>
-        <td className="px-4 py-3">{appliesBadge(cat.applies_to)}</td>
-        <td className="px-4 py-3">
-          {cat.custom_fields?.length > 0 && (
-            <span className="text-xs text-gray-500">{cat.custom_fields.length} field{cat.custom_fields.length > 1 ? 's' : ''}</span>
+    <li className={cn(!isRoot && 'mt-1')}>
+      <div className="flex items-center gap-1.5 min-h-[2rem]">
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className="p-0.5 rounded hover:bg-gray-200 text-gray-500 shrink-0"
+          aria-label={expanded ? 'Collapse group' : 'Expand group'}
+        >
+          {expanded
+            ? <ChevronDown className="w-4 h-4" />
+            : <ChevronRight className="w-4 h-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelect(cat)}
+          className={cn(
+            'flex items-center gap-2 flex-1 text-left px-2 py-1.5 rounded-md transition-colors min-w-0',
+            isSelected
+              ? 'bg-blue-100 text-blue-900 ring-1 ring-blue-200'
+              : 'hover:bg-gray-100 text-gray-800',
           )}
-        </td>
-        <td className="px-4 py-3">
+        >
+          {hasChildren
+            ? (expanded ? <FolderOpen className="w-4 h-4 shrink-0 text-amber-500" /> : <Folder className="w-4 h-4 shrink-0 text-amber-500" />)
+            : <File className="w-4 h-4 shrink-0 text-gray-400" />}
+          <span className={cn('truncate', isRoot ? 'font-semibold' : 'font-medium text-sm')}>{cat.name}</span>
+          {hasChildren && (
+            <span className="text-[0.625rem] text-gray-400 shrink-0">({children.length})</span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          title="Add subcategory"
+          onClick={() => onAddSub(cat.id)}
+          className="p-1 rounded hover:bg-green-50 text-green-600 shrink-0 opacity-60 hover:opacity-100"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {expanded && (
+        <ul
+          className={cn(
+            'mt-1 space-y-0.5',
+            depth === 0
+              ? 'ml-3 pl-4 border-l-2 border-blue-200 list-disc marker:text-blue-400'
+              : 'ml-6 pl-3 border-l border-gray-200 list-disc marker:text-gray-400',
+          )}
+        >
+          {hasChildren ? (
+            children.map(child => (
+              <CategoryTreeBranch
+                key={child.id}
+                cat={child}
+                depth={depth + 1}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                onAddSub={onAddSub}
+              />
+            ))
+          ) : (
+            <li className="list-none -ml-4 pl-2">
+              <button
+                type="button"
+                onClick={() => onAddSub(cat.id)}
+                className="text-xs text-gray-400 hover:text-green-600 italic py-1"
+              >
+                + Add subcategory under {cat.name}
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+function CategoryTreeExplorer({
+  categories,
+  selectedId,
+  onSelect,
+  onAddSub,
+  onAddRoot,
+  sortKey,
+  sortDir,
+  onSortKeyChange,
+  onSortDirChange,
+}: {
+  categories: VendorCategory[]
+  selectedId: string | null
+  onSelect: (c: VendorCategory) => void
+  onAddSub: (parentId: string) => void
+  onAddRoot: () => void
+  sortKey: string
+  sortDir: SortDir
+  onSortKeyChange: (v: string) => void
+  onSortDirChange: (v: SortDir) => void
+}) {
+  return (
+    <div className="rounded-xl border bg-slate-50/80 p-4 min-h-[420px]">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <FolderTree className="w-4 h-4 text-blue-600" />
+          <span className="text-sm font-semibold text-gray-800">Category tree</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={sortKey}
+            onChange={e => onSortKeyChange(e.target.value)}
+            className="h-7 rounded border border-gray-200 bg-white px-2 text-xs"
+          >
+            <option value="name">Name</option>
+            <option value="applies_to">Applies To</option>
+            <option value="status">Status</option>
+          </select>
+          <select
+            value={sortDir}
+            onChange={e => onSortDirChange(e.target.value as SortDir)}
+            className="h-7 rounded border border-gray-200 bg-white px-2 text-xs"
+          >
+            <option value="asc">A → Z</option>
+            <option value="desc">Z → A</option>
+          </select>
+          <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onAddRoot}>
+            <Plus className="w-3 h-3" /> Root
+          </Button>
+        </div>
+      </div>
+
+      {categories.length === 0 ? (
+        <div className="py-12 text-center">
+          <FolderTree className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No categories yet.</p>
+          <Button type="button" size="sm" className="mt-3 gap-1" onClick={onAddRoot}>
+            <Plus className="w-3.5 h-3.5" /> Add root category
+          </Button>
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {categories.map(root => (
+            <li
+              key={root.id}
+              className="rounded-lg border border-gray-200 bg-white shadow-sm px-3 py-2"
+            >
+              <CategoryTreeBranch
+                cat={root}
+                depth={0}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                onAddSub={onAddSub}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function CategoryDetailPanel({
+  cat,
+  onEdit,
+  onDelete,
+  onViewCatalogue,
+  onAddSub,
+}: {
+  cat: VendorCategory | null
+  onEdit: (c: VendorCategory) => void
+  onDelete: (id: string) => void
+  onViewCatalogue: (id: string) => void
+  onAddSub: (parentId: string) => void
+}) {
+  if (!cat) {
+    return (
+      <div className="rounded-xl border border-dashed bg-white p-8 flex flex-col items-center justify-center min-h-[420px] text-center">
+        <FolderTree className="w-12 h-12 text-gray-200 mb-3" />
+        <p className="text-sm font-medium text-gray-600">Select a category in the tree</p>
+        <p className="text-xs text-gray-400 mt-1 max-w-xs">
+          Click any folder in the tree on the left. Use the + button on a category to add subcategories beneath it.
+        </p>
+      </div>
+    )
+  }
+
+  const childCount = cat.children?.length ?? 0
+  const descCount = countDescendants(cat)
+
+  return (
+    <div className="rounded-xl border bg-white p-5 min-h-[420px] flex flex-col">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
+            {cat.parent_id ? 'Subcategory' : 'Root category'}
+          </p>
+          <h2 className="text-xl font-bold text-gray-900">{cat.name}</h2>
+          {cat.description && <p className="text-sm text-gray-500 mt-1">{cat.description}</p>}
+        </div>
+        <div className="flex flex-wrap gap-1.5 justify-end">
+          {appliesBadge(cat.applies_to)}
           <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
             {cat.is_active ? 'Active' : 'Inactive'}
           </span>
-        </td>
-        <td className="px-4 py-3 text-right">
-          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="sm" title="Copy" onClick={() => shareCategory(cat, 'copy')}><Copy className="w-3.5 h-3.5 text-gray-500" /></Button>
-            <Button variant="ghost" size="sm" title="WhatsApp" onClick={() => shareCategory(cat, 'whatsapp')}><MessageCircle className="w-3.5 h-3.5 text-green-600" /></Button>
-            <Button variant="ghost" size="sm" title="Email" onClick={() => shareCategory(cat, 'email')}><Mail className="w-3.5 h-3.5 text-blue-600" /></Button>
-            <Button variant="ghost" size="sm" title="View catalogue" onClick={() => onViewCatalogue(cat.id)}>
-              <Eye className="w-4 h-4 text-blue-500" />
-            </Button>
-            <Button variant="ghost" size="sm" title="Add subcategory" onClick={() => onAddSub(cat.id)}>
-              <Plus className="w-4 h-4 text-green-500" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onEdit(cat)}>
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { if (confirm(`Delete "${cat.name}" and all its subcategories?`)) onDelete(cat.id) }}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        </td>
-      </tr>
-      {expanded && hasChildren && cat.children.map(child => (
-        <CategoryRow key={child.id} cat={child} level={level + 1}
-          onEdit={onEdit} onAddSub={onAddSub} onDelete={onDelete} onViewCatalogue={onViewCatalogue} />
-      ))}
-    </>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-3 text-sm mb-4">
+        <div className="rounded-lg bg-gray-50 p-3">
+          <dt className="text-xs text-gray-400">Direct subcategories</dt>
+          <dd className="font-semibold text-gray-900">{childCount}</dd>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <dt className="text-xs text-gray-400">Total nested</dt>
+          <dd className="font-semibold text-gray-900">{descCount}</dd>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <dt className="text-xs text-gray-400">Sort order</dt>
+          <dd className="font-semibold text-gray-900">{cat.sort_order ?? 0}</dd>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <dt className="text-xs text-gray-400">Custom fields</dt>
+          <dd className="font-semibold text-gray-900">{cat.custom_fields?.length ?? 0}</dd>
+        </div>
+      </dl>
+
+      {(cat.children?.length ?? 0) > 0 && (
+        <div className="mb-4 flex-1 min-h-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Subcategories</p>
+          <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-1">
+            {cat.children!.map(child => (
+              <li key={child.id}>
+                {child.name}
+                {(child.children?.length ?? 0) > 0 && (
+                  <ul className="list-disc list-inside ml-4 mt-0.5 text-gray-500">
+                    {child.children!.map(grand => (
+                      <li key={grand.id}>{grand.name}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 pt-4 mt-auto border-t">
+        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => onAddSub(cat.id)}>
+          <Plus className="w-3.5 h-3.5" /> Add subcategory
+        </Button>
+        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => onViewCatalogue(cat.id)}>
+          <Eye className="w-3.5 h-3.5" /> Catalogue
+        </Button>
+        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => onEdit(cat)}>
+          <Pencil className="w-3.5 h-3.5" /> Edit
+        </Button>
+        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => shareCategory(cat, 'copy')}>
+          <Copy className="w-3.5 h-3.5" /> Copy
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="gap-1 text-red-600 hover:text-red-700"
+          onClick={() => { if (confirm(`Delete "${cat.name}" and all subcategories?`)) onDelete(cat.id) }}
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Delete
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -252,8 +489,8 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
             <input type="checkbox" checked={f.required || false} onChange={e => updateField(i, { required: e.target.checked })} className="rounded" />
             Req
           </label>
-          <button type="button" aria-label="Close" type="button" onClick={() => removeField(i)} className="p-1 text-red-400 hover:text-red-600 shrink-0 mt-0.5">
-                <X className="w-4 h-4" />
+          <button type="button" aria-label="Remove field" onClick={() => removeField(i)} className="p-1 text-red-400 hover:text-red-600 shrink-0 mt-0.5">
+            <X className="w-4 h-4" />
           </button>
         </div>
       ))}
@@ -280,6 +517,7 @@ export default function CategoriesPage() {
   const [sortOrder, setSortOrder] = useState(0)
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [catalogueId, setCatalogueId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const resetForm = () => {
     setShowForm(false); setEditing(null); setName(''); setDescription('')
@@ -291,11 +529,15 @@ export default function CategoriesPage() {
 
   const openCreate = (pId?: string) => {
     resetForm()
-    if (pId) setParentId(pId)
+    if (pId) {
+      setParentId(pId)
+      setSelectedId(pId)
+    }
     setShowForm(true)
   }
 
   const openEdit = (cat: VendorCategory) => {
+    setSelectedId(cat.id)
     setEditing(cat); setName(cat.name); setDescription(cat.description || '')
     setAppliesTo(cat.applies_to); setParentId(cat.parent_id || null)
     setSortOrder(cat.sort_order || 0); setCustomFields(cat.custom_fields || [])
@@ -322,13 +564,13 @@ export default function CategoriesPage() {
     }
   }
 
-  // Flatten tree for parent dropdown
+  // Flatten tree for parent dropdown (edit mode — move category)
   const flattenCategories = (cats: VendorCategory[], prefix = ''): { id: string; label: string }[] => {
     const result: { id: string; label: string }[] = []
     for (const c of cats) {
       result.push({ id: c.id, label: prefix + c.name })
       if (c.children?.length) {
-        result.push(...flattenCategories(c.children, prefix + c.name + ' / '))
+        result.push(...flattenCategories(c.children, prefix + '  '))
       }
     }
     return result
@@ -349,6 +591,13 @@ export default function CategoriesPage() {
       },
     )
   }, [data?.categories, sortKey, sortDir])
+
+  const selectedCategory = useMemo(
+    () => (selectedId && data?.categories ? findInTree(data.categories, selectedId) : null),
+    [selectedId, data?.categories],
+  )
+
+  const parentLabel = parentId ? findInTree(data?.categories || [], parentId)?.name : null
 
   return (
     <div className="space-y-6">
@@ -375,15 +624,30 @@ export default function CategoriesPage() {
                   <Label>Name *</Label>
                   <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Electronics" required />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label>Parent Category</Label>
-                  <select value={parentId || ''} onChange={e => setParentId(e.target.value || null)} className={selectCls}>
-                    <option value="">— Root (top-level) —</option>
-                    {flatOptions
-                      .filter(o => o.id !== editing?.id)
-                      .map(o => <option key={o.id} value={o.id}>{o.label}</option>)
-                    }
-                  </select>
+                  {editing ? (
+                    <select value={parentId || ''} onChange={e => setParentId(e.target.value || null)} className={selectCls}>
+                      <option value="">— Root (top-level) —</option>
+                      {flatOptions
+                        .filter(o => o.id !== editing.id)
+                        .map(o => <option key={o.id} value={o.id}>{o.label}</option>)
+                      }
+                    </select>
+                  ) : (
+                    <>
+                      <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-gray-700">
+                        {parentLabel ? (
+                          <span>Under: <strong>{parentLabel}</strong></span>
+                        ) : (
+                          <span className="text-gray-500">Root (top-level category)</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        Use + on a category in the tree to create a subcategory under it.
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Applies To</Label>
@@ -416,55 +680,38 @@ export default function CategoriesPage() {
         </Card>
       )}
 
-      {/* Category Tree Table */}
-      <Card>
-        <CardContent className="p-0">
-          <TableToolbar
-            search=""
-            onSearchChange={() => {}}
-            hideSearch
-            sortOptions={[
-              { value: 'name', label: 'Name' },
-              { value: 'applies_to', label: 'Applies To' },
-              { value: 'status', label: 'Status' },
-            ]}
+      {/* Split tree explorer */}
+      {isLoading ? (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <CategoryTreeExplorer
+            categories={sortedCategories}
+            selectedId={selectedId}
+            onSelect={(c) => { setSelectedId(c.id); setShowForm(false) }}
+            onAddSub={(pid) => openCreate(pid)}
+            onAddRoot={() => openCreate()}
             sortKey={sortKey}
             sortDir={sortDir}
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
-            hint="Sorts top-level categories"
           />
-          <div className="overflow-x-auto">
-            <ResizableTable tableId="categories" defaultWidths={[240, 120, 160, 90, 80]}>
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Category / Subcategory</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Applies To</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Custom Fields</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {isLoading ? (
-                  <tr><td colSpan={5} className="px-6 py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
-                ) : !data?.categories?.length ? (
-                  <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">
-                    No categories yet. Click "Add Category" to get started.
-                  </td></tr>
-                ) : sortedCategories.map(cat => (
-                  <CategoryRow key={cat.id} cat={cat} level={0}
-                    onEdit={openEdit}
-                    onAddSub={(pid) => openCreate(pid)}
-                    onDelete={(id) => deleteCategory.mutate(id)}
-                    onViewCatalogue={(id) => setCatalogueId(id)}
-                  />
-                ))}
-              </tbody>
-            </ResizableTable>
-          </div>
-        </CardContent>
-      </Card>
+          <CategoryDetailPanel
+            cat={selectedCategory}
+            onEdit={openEdit}
+            onDelete={(id) => {
+              deleteCategory.mutate(id)
+              if (selectedId === id) setSelectedId(null)
+            }}
+            onViewCatalogue={(id) => setCatalogueId(id)}
+            onAddSub={(pid) => openCreate(pid)}
+          />
+        </div>
+      )}
 
       {/* Catalogue Drawer */}
       {catalogueId && <CatalogueDrawer categoryId={catalogueId} onClose={() => setCatalogueId(null)} />}

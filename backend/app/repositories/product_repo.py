@@ -6,6 +6,7 @@ from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 
 from app.models.vendor_product import Product, ProductVariant, ProductImage
+from app.services.catalog_store_scope import product_available_at_store
 from app.repositories.base import BaseRepository
 
 
@@ -22,6 +23,7 @@ class ProductRepository(BaseRepository[Product]):
             .options(
                 selectinload(Product.variants),
                 selectinload(Product.images),
+                selectinload(Product.store_assignments),
             )
             .where(Product.id == id)
         )
@@ -38,6 +40,7 @@ class ProductRepository(BaseRepository[Product]):
             .options(
                 selectinload(Product.variants),
                 selectinload(Product.images),
+                selectinload(Product.store_assignments),
             )
             .where(
                 and_(
@@ -59,6 +62,7 @@ class ProductRepository(BaseRepository[Product]):
             .options(
                 selectinload(Product.variants),
                 selectinload(Product.images),
+                selectinload(Product.store_assignments),
             )
             .where(
                 and_(
@@ -97,12 +101,18 @@ class ProductRepository(BaseRepository[Product]):
         category: Optional[str] = None,
         search: Optional[str] = None,
         visible_only: bool = False,
+        store_id: Optional[UUID] = None,
     ) -> tuple[List[Product], int]:
         """List products for a vendor with filters."""
         query = select(Product).where(Product.vendor_id == vendor_id)
         count_query = select(func.count()).select_from(Product).where(
             Product.vendor_id == vendor_id
         )
+
+        if store_id:
+            store_filter = product_available_at_store(store_id)
+            query = query.where(store_filter)
+            count_query = count_query.where(store_filter)
 
         if visible_only:
             # Treat NULL as visible (column added later; legacy rows have no value set)
@@ -135,7 +145,11 @@ class ProductRepository(BaseRepository[Product]):
         # Get items with relationships
         query = (
             query
-            .options(selectinload(Product.variants), selectinload(Product.images))
+            .options(
+                selectinload(Product.variants),
+                selectinload(Product.images),
+                selectinload(Product.store_assignments),
+            )
             .order_by(Product.created_at.desc())
             .offset(skip)
             .limit(limit)

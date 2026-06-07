@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,66 +39,105 @@ function MoreMenu({ service, onDelete }: {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, right: 0, openUp: false })
+
+  useEffect(() => {
+    if (!open || !triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const menuHeight = 320
+    const openUp = window.innerHeight - rect.bottom < menuHeight && rect.top > menuHeight
+    setPos({
+      top: openUp ? rect.top + window.scrollY - 4 : rect.bottom + window.scrollY + 4,
+      right: window.innerWidth - rect.right,
+      openUp,
+    })
+  }, [open])
 
   useEffect(() => {
     if (!open) return
-    const handle = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setConfirmDelete(false) } }
+    const handle = (e: MouseEvent) => {
+      if (
+        triggerRef.current?.contains(e.target as Node) ||
+        menuRef.current?.contains(e.target as Node)
+      ) return
+      setOpen(false)
+      setConfirmDelete(false)
+    }
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
   }, [open])
 
-  return (
-    <div ref={ref} className="relative" onClick={e => e.stopPropagation()}>
-      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setOpen(!open); setConfirmDelete(false) }}>
-        <MoreVertical className="w-4 h-4 text-gray-500" />
-      </Button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg border shadow-lg z-50 py-1 animate-in fade-in-0 zoom-in-95 max-h-[90vh] overflow-y-auto">
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { navigate(`/services/${service.id}`); setOpen(false) }}>
-            <Pencil className="w-4 h-4 text-gray-400" /> Edit
-          </button>
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { shareService(service, 'copy'); setOpen(false) }}>
-            <Copy className="w-4 h-4 text-gray-400" /> Copy Info
-          </button>
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { shareService(service, 'whatsapp'); setOpen(false) }}>
-            <MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp
-          </button>
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { shareService(service, 'email'); setOpen(false) }}>
-            <Mail className="w-4 h-4 text-blue-500" /> Email
-          </button>
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { shareService(service, 'native'); setOpen(false) }}>
-            <Share2 className="w-4 h-4 text-primary/80" /> Share
-          </button>
-          <div className="border-t my-1" />
-          {confirmDelete ? (
-            <div className="px-3 py-2 space-y-2">
-              <p className="text-xs font-medium text-red-600">Delete this service?</p>
-              <div className="flex gap-2">
-                <button className="flex-1 px-2 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
-                  onClick={() => { onDelete(); setOpen(false); setConfirmDelete(false) }}>
-                  Yes, Delete
-                </button>
-                <button className="btn-cancel flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors"
-                  onClick={() => setConfirmDelete(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-              onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="w-4 h-4" /> Delete
+  const menu = open ? createPortal(
+    <div
+      ref={menuRef}
+      style={{
+        position: 'absolute',
+        top: pos.top,
+        right: pos.right,
+        zIndex: 9999,
+        transform: pos.openUp ? 'translateY(-100%)' : undefined,
+      }}
+      className="w-44 max-h-[min(90vh,24rem)] overflow-y-auto rounded-lg border bg-white py-1 shadow-lg animate-in fade-in-0 zoom-in-95"
+    >
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { navigate(`/services/${service.id}`); setOpen(false) }}>
+        <Pencil className="w-4 h-4 text-gray-400" /> Edit
+      </button>
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { shareService(service, 'copy'); setOpen(false) }}>
+        <Copy className="w-4 h-4 text-gray-400" /> Copy Info
+      </button>
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { shareService(service, 'whatsapp'); setOpen(false) }}>
+        <MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp
+      </button>
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { shareService(service, 'email'); setOpen(false) }}>
+        <Mail className="w-4 h-4 text-blue-500" /> Email
+      </button>
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        onClick={() => { shareService(service, 'native'); setOpen(false) }}>
+        <Share2 className="w-4 h-4 text-primary/80" /> Share
+      </button>
+      <div className="border-t my-1" />
+      {confirmDelete ? (
+        <div className="px-3 py-2 space-y-2">
+          <p className="text-xs font-medium text-red-600">Delete this service?</p>
+          <div className="flex gap-2">
+            <button className="flex-1 px-2 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+              onClick={() => { onDelete(); setOpen(false); setConfirmDelete(false) }}>
+              Yes, Delete
             </button>
-          )}
+            <button className="btn-cancel flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors"
+              onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </button>
+          </div>
         </div>
+      ) : (
+        <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          onClick={() => setConfirmDelete(true)}>
+          <Trash2 className="w-4 h-4" /> Delete
+        </button>
       )}
-    </div>
+    </div>,
+    document.body,
+  ) : null
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md p-0 text-gray-500 hover:bg-gray-100 transition-colors"
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); setConfirmDelete(false) }}
+      >
+        <MoreVertical className="w-4 h-4 text-gray-500" />
+      </button>
+      {menu}
+    </>
   )
 }
 

@@ -16,6 +16,46 @@ export function imageCategoryForBusinessType(businessTypeId: string): string {
   return BUSINESS_TYPE_IMAGE_CATEGORY[businessTypeId] ?? 'shop'
 }
 
+type StoreSettingsLike = { settings?: Record<string, unknown> | null }
+
+function storeCompanyType(store: StoreSettingsLike | undefined | null): string {
+  const raw = store?.settings && typeof store.settings === 'object'
+    ? (store.settings as Record<string, unknown>).company_type
+    : undefined
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
+/** Map business-unit company type (or vendor industry) → website wizard preset id. */
+export function companyTypeToWebsitePreset(
+  companyType: string | undefined | null,
+  vendorBusinessType?: string | null,
+): string {
+  const key = (companyType || vendorBusinessType || '').trim().toLowerCase()
+  if (!key || key === 'individual') return 'services'
+
+  if (/restaurant|cafe|café|bakery|fast food|cloud kitchen|hotel|guest house|food/.test(key)) return 'restaurant'
+  if (/electronics/.test(key)) return 'electronics'
+  if (/clothing|fashion|apparel|boutique|jewelry|shop|store|supermarket|beauty.*cosmetic|retail|wellness store/.test(key)) return 'retail'
+  if (/salon|spa|beauty parlor|wellness center|gym|fitness/.test(key)) return 'salon'
+  if (/clinic|hospital|dental|veterinary|pharmacy|diagnostic|healthcare|medical/.test(key)) return 'clinic'
+  if (/consult|agency|software|it |law firm|accounting|real estate|travel/.test(key)) return 'consulting'
+
+  return 'services'
+}
+
+export function resolveWebsiteSetupFromBusinessSettings(
+  vendor: { business_type?: string | null; offering_type?: string | null } | null | undefined,
+  store: StoreSettingsLike | undefined | null,
+): { businessTypeId: string; sellingMode: string } {
+  const companyType = storeCompanyType(store) || vendor?.business_type || ''
+  const businessTypeId = companyTypeToWebsitePreset(companyType, vendor?.business_type)
+  const offering = vendor?.offering_type || 'both'
+  const sellingMode = offering === 'products' || offering === 'services' || offering === 'both'
+    ? offering
+    : 'both'
+  return { businessTypeId, sellingMode }
+}
+
 /** Checkbox options shown in the create-website wizard. */
 export type SetupFeatureId =
   | 'homepage_copy'

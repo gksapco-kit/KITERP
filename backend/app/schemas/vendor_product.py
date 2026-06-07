@@ -251,6 +251,8 @@ class ProductCreate(BaseModel):
     is_best_seller: bool = False
     allow_quote_request: bool = False
     quote_form_config: Optional[list] = []
+    store_scope: Optional[str] = "all"  # all | selected
+    store_ids: List[str] = []
 
     # SEO
     meta_title: Optional[str] = None
@@ -364,6 +366,8 @@ class ProductUpdate(BaseModel):
     is_best_seller: Optional[bool] = None
     allow_quote_request: Optional[bool] = None
     quote_form_config: Optional[list] = None
+    store_scope: Optional[str] = None
+    store_ids: Optional[List[str]] = None
 
     # SEO
     meta_title: Optional[str] = None
@@ -479,6 +483,8 @@ class ProductResponse(BaseModel):
     is_visible: bool = True
     is_new_arrival: bool = False
     is_best_seller: bool = False
+    store_scope: str = "all"
+    store_ids: List[str] = []
 
     # SEO
     meta_title: Optional[str] = None

@@ -234,6 +234,8 @@ export interface Product {
   is_visible: boolean
   is_new_arrival: boolean
   is_best_seller: boolean
+  store_scope?: 'all' | 'selected'
+  store_ids?: string[]
   allow_quote_request: boolean
   quote_form_config: QuoteFormField[]
   // SEO
@@ -471,6 +473,8 @@ export interface Service {
   is_visible: boolean
   is_popular: boolean
   is_new_service: boolean
+  store_scope?: 'all' | 'selected'
+  store_ids?: string[]
   // Media
   image_url?: string
   gallery: string[]
@@ -666,6 +670,9 @@ export interface InventoryMovement {
   vendor_id: string
   product_id: string
   variant_id?: string | null
+  store_id?: string | null
+  storage_location_id?: string | null
+  storage_location_name?: string | null
   movement_type: string
   quantity: number
   quantity_before: number
@@ -706,6 +713,23 @@ export interface VendorCategory {
   sort_order: number
   custom_fields: CustomField[]
   children: VendorCategory[]
+  created_at?: string
+  updated_at?: string
+}
+
+// ── Storage Location ────────────────────────────────────────────
+export interface StorageLocation {
+  id: string
+  vendor_id: string
+  store_id: string
+  parent_id?: string | null
+  name: string
+  code?: string | null
+  description?: string | null
+  is_active: boolean
+  sort_order: number
+  custom_fields: CustomField[]
+  children: StorageLocation[]
   created_at?: string
   updated_at?: string
 }

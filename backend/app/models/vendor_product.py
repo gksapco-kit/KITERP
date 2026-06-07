@@ -94,6 +94,7 @@ class Product(Base):
     is_best_seller = Column(Boolean, default=False)
     allow_quote_request = Column(Boolean, default=False)
     quote_form_config = Column(JSONB, default=[])
+    store_scope = Column(String(20), default="all", nullable=False)  # all | selected
 
     # ── SEO & Metadata ────────────────────────────────────────────
     meta_title = Column(String(255))
@@ -141,6 +142,7 @@ class Product(Base):
     variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
     price_rules = relationship("ProductPriceRule", back_populates="product", cascade="all, delete-orphan")
+    store_assignments = relationship("ProductStore", back_populates="product", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_product_vendor", "vendor_id"),

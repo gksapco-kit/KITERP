@@ -1,19 +1,32 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Sparkles, Search, Globe, ChevronRight, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { WebsiteTemplatePreviewModal, getStorefrontTemplateBrowserPreviewUrl } from '@/components/websites/WebsiteTemplatePreviewModal'
+import { BusinessFrontDefaultTemplatesSection } from '@/components/websites/BusinessFrontDefaultTemplatesSection'
 import { openDraftPreviewInBrowser, wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
+import { vendorApi } from '@/api/vendor'
+import { useVendorStore } from '@/stores/vendorStore'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 export default function WebsiteTemplateGalleryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const vendor = useVendorStore(s => s.vendor)
   const { data: sites = [], isLoading: sitesLoading } = useSiteList()
   const { data: templates = [], isLoading: templatesLoading } = useWebsiteTemplates()
+  const { data: themeConfig, isLoading: themeLoading } = useQuery({
+    queryKey: ['template-config'],
+    queryFn: () => vendorApi.getTemplateConfig(),
+  })
+  const { data: presetsData, isLoading: presetsLoading } = useQuery({
+    queryKey: ['template-presets'],
+    queryFn: () => vendorApi.getTemplatePresets(),
+  })
 
   const [templateSearch, setTemplateSearch] = useState('')
   const [templateCategory, setTemplateCategory] = useState<string>('all')
@@ -62,6 +75,8 @@ export default function WebsiteTemplateGalleryPage() {
 
   const selectedSite = sites.find(s => s.id === selectedSiteId) ?? null
   const busy = sitesLoading || templatesLoading
+  const legacyPresetsBusy = themeLoading || presetsLoading || sitesLoading
+  const legacyPresets = presetsData?.presets ?? []
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-accent/70 to-gray-50/80">
@@ -74,7 +89,7 @@ export default function WebsiteTemplateGalleryPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Website Templates</h1>
             <p className="text-sm text-gray-600 mt-1 max-w-xl">
-            Browse full-site layouts, preview pages and live ERP blocks, then apply to one of your sites. You can also open templates from the builder’s <b>Templates</b> tab.
+            Browse full-site Website Builder layouts, or use <b>default store themes</b> below for the live business front when no site is published.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <Link
@@ -88,6 +103,19 @@ export default function WebsiteTemplateGalleryPage() {
             </div>
           </div>
         </div>
+
+        <BusinessFrontDefaultTemplatesSection
+          presets={legacyPresets}
+          themeTemplateId={themeConfig?.template}
+          sites={sites}
+          vendorSlug={vendor?.slug}
+          isLoading={legacyPresetsBusy}
+        />
+
+        <h2 className="text-lg font-extrabold text-gray-900 mb-3">Website Builder templates</h2>
+        <p className="text-sm text-gray-600 mb-4 max-w-2xl">
+          Full multi-page sites for the Website Builder. Publish a site to replace the default business front home above.
+        </p>
 
         <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-4 sm:p-5 mb-6 max-h-[90vh] overflow-y-auto">
           <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-400 mb-2">Apply template to</label>

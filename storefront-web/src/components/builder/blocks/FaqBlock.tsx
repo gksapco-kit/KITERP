@@ -16,7 +16,7 @@ export default function FaqBlock({ style, props }: Props) {
       {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
       <div className="space-y-3">
         {faqs.map((faq, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div key={i} className="builder-tile-card bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <button onClick={() => setOpen(open === i ? null : i)} className="w-full flex items-center justify-between px-6 py-4 text-left">
               <span className="font-semibold text-gray-900">{faq.question}</span>
               <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open === i ? 'rotate-180' : ''}`} />

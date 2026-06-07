@@ -66,39 +66,6 @@ export function primaryForegroundHslForHex(hex: string): string {
   return relativeLuminance(rgb.r, rgb.g, rgb.b) > 0.55 ? '222 20% 12%' : '0 0% 100%'
 }
 
-type BuilderStyle = {
-  primary_color?: string
-  secondary_color?: string
-  accent_color?: string
-  bg_color?: string
-  font_heading?: string
-  font_body?: string
-}
-
-export function mergeColorsFromBuilderConfig(
-  builderConfig: unknown,
-): Partial<{ primary: string; secondary: string; accent: string; background: string }> {
-  if (!builderConfig || typeof builderConfig !== 'object') return {}
-  const style = (builderConfig as { style?: BuilderStyle }).style
-  if (!style || typeof style !== 'object') return {}
-  const out: Partial<{ primary: string; secondary: string; accent: string; background: string }> = {}
-  if (style.primary_color) out.primary = style.primary_color
-  if (style.secondary_color) out.secondary = style.secondary_color
-  if (style.accent_color) out.accent = style.accent_color
-  if (style.bg_color) out.background = style.bg_color
-  return out
-}
-
-export function mergeFontsFromBuilderConfig(builderConfig: unknown): Partial<{ font: string; font_body: string }> {
-  if (!builderConfig || typeof builderConfig !== 'object') return {}
-  const style = (builderConfig as { style?: BuilderStyle }).style
-  if (!style || typeof style !== 'object') return {}
-  const out: Partial<{ font: string; font_body: string }> = {}
-  if (style.font_heading) out.font = style.font_heading
-  if (style.font_body) out.font_body = style.font_body
-  return out
-}
-
 /**
  * Literal Tailwind classes (picked up by JIT) using CSS vars from ThemeProvider.
  */

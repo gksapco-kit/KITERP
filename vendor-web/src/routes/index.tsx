@@ -29,6 +29,7 @@ import SupportActivityPage from '@/pages/settings/SupportActivity'
 import AboutPage from '@/pages/about/index'
 import CategoriesPage from '@/pages/categories/index'
 import Inventory from '@/pages/inventory/index'
+import StorageLocationsPage from '@/pages/inventory/StorageLocations'
 import POS from '@/pages/pos/index'
 import RestaurantFloorPage from '@/pages/restaurant/Floor'
 import RestaurantKitchenPage from '@/pages/restaurant/Kitchen'
@@ -47,7 +48,6 @@ import InvoiceTemplatesPage from '@/pages/invoices/InvoiceTemplates'
 import CouponsPage from '@/pages/coupons/index'
 import ReportsPage from '@/pages/reports/index'
 import TemplatePage from '@/pages/template/index'
-import StorefrontBuilderPage from '@/pages/storefront-builder/index'
 import PlansPage from '@/pages/plans/index'
 import BookingsPage from '@/pages/bookings/index'
 import BookingDetail from '@/pages/bookings/BookingDetail'
@@ -277,6 +277,7 @@ export const router = createBrowserRouter([
       { path: 'purchase-orders/:id', element: <PurchaseOrderDetail /> },
       { path: 'production', element: <ProductionOrdersPage /> },
       { path: 'inventory', element: <Inventory /> },
+      { path: 'storage-locations', element: <StorageLocationsPage /> },
       { path: 'pos', element: <POS /> },
       { path: 'restaurant/floor', element: <RestaurantFloorPage /> },
       { path: 'restaurant/kitchen', element: <RestaurantKitchenPage /> },
@@ -296,7 +297,6 @@ export const router = createBrowserRouter([
       { path: 'coupons', element: <CouponsPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'template', element: <TemplatePage /> },
-      { path: 'storefront-builder', element: <StorefrontBuilderPage /> },
       { path: 'blog', element: <BlogManagerPage /> },
       { path: 'websites', element: <WebsitesPage /> },
       /* Static path must be above :siteId or "templates" is treated as a site id. */

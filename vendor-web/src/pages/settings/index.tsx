@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { companyTypeLabel } from '@/data/companyTypes'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
@@ -739,6 +740,57 @@ function storeExtraBannersList(settings: Record<string, unknown> | undefined): s
   return raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
 }
 
+/** Ignore vendor signup default — not a real business category label. */
+function normalizeBusinessCategorySource(raw: string | undefined): string {
+  const v = (raw || '').trim()
+  if (!v || v.toLowerCase() === 'individual') return ''
+  return v
+}
+
+function resolveProfileBusinessCategory(
+  vendor: { business_type?: string } | null | undefined,
+  activeStore: StoreRecord | undefined,
+  storeSettings: Record<string, unknown>,
+  allStores: StoreRecord[] | undefined,
+): { label: string; hint: string } {
+  const fromActiveUnit = normalizeBusinessCategorySource(storeSettingStr(storeSettings, 'company_type'))
+  if (fromActiveUnit) {
+    return {
+      label: companyTypeLabel(fromActiveUnit),
+      hint: activeStore
+        ? `Category selected when ${activeStore.name || 'this business unit'} was created.`
+        : 'Category selected when this business unit was created.',
+    }
+  }
+
+  const stores = allStores ?? []
+  const fallbackStore = activeStore ?? stores.find((s) => s.is_default) ?? stores[0]
+  const fromFallbackUnit = normalizeBusinessCategorySource(
+    storeSettingStr(fallbackStore?.settings as Record<string, unknown> | undefined, 'company_type'),
+  )
+  if (fromFallbackUnit) {
+    return {
+      label: companyTypeLabel(fromFallbackUnit),
+      hint: fallbackStore?.name
+        ? `Category from business unit “${fallbackStore.name}”. Select a unit in the top bar to see its own category.`
+        : 'Category from your business unit setup.',
+    }
+  }
+
+  const fromVendor = normalizeBusinessCategorySource(vendor?.business_type)
+  if (fromVendor) {
+    return {
+      label: companyTypeLabel(fromVendor),
+      hint: 'Industry type from account registration. Set per business unit when creating a branch.',
+    }
+  }
+
+  return {
+    label: '—',
+    hint: 'Choose a category when creating a business unit, or during signup.',
+  }
+}
+
 function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEditable, open, toggle, onSave }: ProfileSectionProps) {
   const qc = useQueryClient()
   const setVendor = useVendorStore((s) => s.setVendor)
@@ -876,6 +928,10 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
     : (vendor?.theme_config as { extra_banners?: string[] } | undefined)?.extra_banners ?? []
 
   const unitVisual = unitBrandingEditable && activeStore ? getBusinessUnitVisual(activeStore, vendor) : null
+  const businessCategory = useMemo(
+    () => resolveProfileBusinessCategory(vendor, activeStore, storeSettings, storesData?.stores),
+    [vendor, activeStore, storeSettings, storesData?.stores],
+  )
   const displayLogoUrl = unitBrandingEditable
     ? (unitVisual?.logoUrl ?? '')
     : (vendor?.logo_url ? resolveBrandingImageUrl(vendor.logo_url) : '')
@@ -1290,7 +1346,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="mb-1 flex items-center gap-1">
               <Label className="text-xs font-medium">Business name</Label>
@@ -1329,7 +1385,27 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
               onChange={(e) => setForm({ ...form, display_name: e.target.value })}
             />
           </div>
-          <div className="sm:col-span-2 lg:col-span-1">
+          <div>
+            <div className="mb-1 flex items-center gap-1">
+              <Label className="text-xs font-medium text-muted-foreground">Business category</Label>
+              <button
+                type="button"
+                className="inline-flex text-muted-foreground hover:text-foreground"
+                title={businessCategory.hint}
+                aria-label="About business category"
+              >
+                <HelpCircle className="h-3 w-3" />
+              </button>
+            </div>
+            <div
+              className="flex h-8 w-full items-center rounded-md border border-border bg-muted/60 px-2.5 text-sm text-muted-foreground"
+              aria-readonly="true"
+              title={businessCategory.hint}
+            >
+              <span className="truncate">{businessCategory.label}</span>
+            </div>
+          </div>
+          <div>
             <Label className="mb-1 block text-xs font-medium">Offering type</Label>
             <select
               className="flex h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"

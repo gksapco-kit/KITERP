@@ -35,6 +35,8 @@ class InventoryMovement(Base):
 
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True)
     to_store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True)  # for transfers
+    storage_location_id = Column(UUID(as_uuid=True), ForeignKey("storage_location.id", ondelete="SET NULL"), nullable=True)
+    to_storage_location_id = Column(UUID(as_uuid=True), ForeignKey("storage_location.id", ondelete="SET NULL"), nullable=True)
 
     performed_by = Column(UUID(as_uuid=True), ForeignKey("user.id"))
     extra_data = Column("metadata", JSONB, default={})

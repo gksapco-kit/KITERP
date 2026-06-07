@@ -5,7 +5,10 @@ import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
 import { router } from './routes'
+import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import './styles/globals.css'
+
+initGlobalEscapeHandler()
 
 const queryClient = new QueryClient({
   defaultOptions: {

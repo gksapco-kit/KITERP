@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.user import User
 from app.models.store import Store, StoreInventory
+from app.models.storage_location import StorageLocation
 from app.models.vendor import Vendor
 from app.models.vendor_user import VendorUser
 from app.models.vendor_product import Product
@@ -298,8 +299,9 @@ async def get_store_inventory(
     await _get_store_or_404(store_id, vendor_id, db)
 
     q = (
-        select(StoreInventory, Product)
+        select(StoreInventory, Product, StorageLocation)
         .join(Product, StoreInventory.product_id == Product.id)
+        .outerjoin(StorageLocation, StoreInventory.storage_location_id == StorageLocation.id)
         .where(StoreInventory.store_id == store_id, StoreInventory.vendor_id == vendor_id)
     )
     if search:
@@ -316,13 +318,15 @@ async def get_store_inventory(
             "id": str(inv.id),
             "product_id": str(inv.product_id),
             "variant_id": str(inv.variant_id) if inv.variant_id else None,
+            "storage_location_id": str(inv.storage_location_id) if inv.storage_location_id else None,
+            "storage_location_name": loc.name if loc else None,
             "quantity": inv.quantity,
             "low_stock_threshold": inv.low_stock_threshold,
             "product_name": prod.name,
             "product_sku": prod.sku,
             "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
         }
-        for inv, prod in rows
+        for inv, prod, loc in rows
     ]
     return {"items": items, "total": total, "page": page, "size": size}
 

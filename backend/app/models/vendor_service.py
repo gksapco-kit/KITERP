@@ -80,6 +80,7 @@ class Service(Base):
     is_on_sale = Column(Boolean, default=False)
     allow_quote_request = Column(Boolean, default=False)
     quote_form_config = Column(JSONB, default=[])
+    store_scope = Column(String(20), default="all", nullable=False)  # all | selected
 
     # ── Media ─────────────────────────────────────────────────────
     image_url = Column(Text)
@@ -126,6 +127,7 @@ class Service(Base):
     vendor = relationship("Vendor", back_populates="services")
     availability = relationship("ServiceAvailability", back_populates="service", cascade="all, delete-orphan")
     plans = relationship("ServicePlan", back_populates="service", cascade="all, delete-orphan", order_by="ServicePlan.sort_order")
+    store_assignments = relationship("ServiceStore", back_populates="service", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_service_vendor", "vendor_id"),

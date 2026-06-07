@@ -340,67 +340,6 @@ async def _snapshot_page(
     return revision
 
 
-# ── Legacy theme_config bridge ────────────────────────────────────────────────
-
-async def _sync_legacy_theme_config(db, site, vendor) -> None:
-    """
-    On publish, mirror the homepage blocks into vendor.theme_config.builder_config
-    so the legacy business front Home.tsx (which reads builder_config.sections) keeps
-    working for tenants that haven"t fully migrated to BlockRenderer.
-
-    Only the block types the legacy renderer understands are mapped.
-    """
-    from sqlalchemy import update as sql_update
-    from app.models.vendor import Vendor
-
-    homepage = next((p for p in (site.pages or []) if p.is_homepage and p.is_published), None)
-    if not homepage:
-        return
-
-    LEGACY_MAP = {
-        "hero": "hero",
-        "hero_split": "hero",
-        "hero_minimal": "hero",
-        "features": "trust_badges",
-        "product_grid": "featured_products",
-        "menu_grid": "featured_products",
-        "services_cards": "featured_services",
-        "testimonials": "testimonials",
-        "cta": "cta_banner",
-        "announcement_bar": "announcement_bar",
-        "stats": "trust_badges",
-    }
-
-    sections: list = []
-    seen_legacy: set = set()
-    for block in sorted(homepage.blocks or [], key=lambda b: b.sort_order or 0):
-        if not block.visible:
-            continue
-        legacy_id = LEGACY_MAP.get(block.block_type)
-        if legacy_id and legacy_id not in seen_legacy:
-            sections.append({
-                "id": legacy_id,
-                "visible": True,
-                "props": block.props or {},
-            })
-            seen_legacy.add(legacy_id)
-
-    existing_theme = dict(vendor.theme_config or {})
-    existing_theme["builder_config"] = {
-        "site_id": str(site.id),
-        "style_config": site.style_config or {},
-        "sections": sections,
-        "modules": {},
-    }
-
-    await db.execute(
-        sql_update(Vendor)
-        .where(Vendor.id == vendor.id)
-        .values(theme_config=existing_theme)
-    )
-    await db.commit()
-
-
 # ── Sites ─────────────────────────────────────────────────────────────────────
 
 @router.get("/", response_model=List[SiteListItem])
@@ -566,13 +505,6 @@ async def publish_site(
             pass
 
     await db.commit()
-
-    # Sync homepage blocks into legacy vendor.theme_config.builder_config so
-    # business front tenants that haven"t migrated to BlockRenderer keep working.
-    try:
-        await _sync_legacy_theme_config(db, site, vendor)
-    except Exception:
-        pass  # never block publish
 
     # Invalidate the public-sites Redis cache
     try:

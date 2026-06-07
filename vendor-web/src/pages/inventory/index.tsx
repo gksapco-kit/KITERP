@@ -22,6 +22,7 @@ import {
   useStores,
 } from '@/hooks/useVendor'
 import { formatDate } from '@/lib/utils'
+import { StorageLocationSelect } from '@/components/inventory/StorageLocationSelect'
 import {
   Loader2, Package, ArrowDownCircle, ArrowUpCircle, RefreshCw,
   AlertTriangle, X, ChevronLeft, ChevronRight, History, BarChart3,
@@ -89,7 +90,7 @@ export default function Inventory() {
     ...(historyProductFilter ? { product_id: historyProductFilter } : {}),
     ...(selectedStoreId !== 'all' ? { store_id: selectedStoreId } : {}),
   })
-  const { data: lowStock, isLoading: lowStockLoading } = useInventoryLowStock()
+  const { data: lowStock, isLoading: lowStockLoading } = useInventoryLowStock(summaryStoreParam)
 
   const handleViewHistory = useCallback((productId: string) => {
     setHistoryProductFilter(productId)
@@ -190,6 +191,7 @@ export default function Inventory() {
                     <tr>
                       <th className="text-left px-4 py-2 font-medium text-gray-600">Product</th>
                       <th className="text-left px-4 py-2 font-medium text-gray-600">SKU</th>
+                      <th className="text-left px-4 py-2 font-medium text-gray-600">Location</th>
                       <th className="text-right px-4 py-2 font-medium text-gray-600">Qty</th>
                       <th className="text-right px-4 py-2 font-medium text-gray-600">Min Stock</th>
                       <th className="text-right px-4 py-2 font-medium text-gray-600">Status</th>
@@ -200,6 +202,7 @@ export default function Inventory() {
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="px-4 py-2">{item.product_name}</td>
                         <td className="px-4 py-2 text-gray-400 font-mono text-xs">{item.product_sku ?? '—'}</td>
+                        <td className="px-4 py-2 text-gray-600 text-xs">{item.storage_location_name ?? '—'}</td>
                         <td className="px-4 py-2 text-right font-semibold">{item.quantity}</td>
                         <td className="px-4 py-2 text-right text-gray-500">{item.low_stock_threshold}</td>
                         <td className="px-4 py-2 text-right">
@@ -596,20 +599,21 @@ function HistoryTab({ data, loading, page, setPage, productFilter, onClearFilter
             hint={productFilter ? 'Showing history for one product.' : 'Applies to current page of history.'}
             className="rounded-t-xl"
           />
-          <ResizableTable tableId="inventory-movements" defaultWidths={[110, 80, 80, 80, 180, 120]}>
+          <ResizableTable tableId="inventory-movements" defaultWidths={[110, 80, 80, 80, 140, 180, 120]}>
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Qty</th>
                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Before</th>
                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">After</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Location</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Reason</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {rows.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
               ) : rows.map((m) => {
                 const badge = movementBadge[m.movement_type] || { bg: 'bg-gray-50', text: 'text-gray-700', label: m.movement_type }
                 return (
@@ -622,6 +626,7 @@ function HistoryTab({ data, loading, page, setPage, productFilter, onClearFilter
                     <td className="px-6 py-3 text-sm text-right font-medium">{m.quantity}</td>
                     <td className="px-6 py-3 text-sm text-right text-gray-500">{m.quantity_before}</td>
                     <td className="px-6 py-3 text-sm text-right font-medium">{m.quantity_after}</td>
+                    <td className="px-6 py-3 text-sm text-gray-600 max-w-[140px] truncate">{m.storage_location_name || '—'}</td>
                     <td className="px-6 py-3 text-sm text-gray-600 max-w-xs truncate">{m.reason || '-'}</td>
                     <td className="px-6 py-3 text-sm text-gray-500">{formatDate(m.created_at)}</td>
                   </tr>
@@ -780,6 +785,7 @@ function StockModal({
   const [productId, setProductId] = useState(prefillProductId || '')
   const [variantId, setVariantId] = useState(prefillVariantId || '')
   const [storeId, setStoreId] = useState(prefillStoreId || '')
+  const [storageLocationId, setStorageLocationId] = useState('')
   const [quantity, setQuantity] = useState('')
   const [reason, setReason] = useState('')
   const [supplierId, setSupplierId] = useState('')
@@ -851,6 +857,8 @@ function StockModal({
         variant_id: resolvedVariantId,
         new_quantity: parseInt(quantity),
         reason: reason || undefined,
+        store_id: storeId || undefined,
+        storage_location_id: storageLocationId || undefined,
       }
       try {
         await adjust.mutateAsync(payload)
@@ -865,6 +873,8 @@ function StockModal({
         variant_id: resolvedVariantId,
         quantity: parseInt(quantity),
         reason: reason || undefined,
+        store_id: storeId || undefined,
+        storage_location_id: storageLocationId || undefined,
       }
       try {
         await stockOut.mutateAsync(payload)
@@ -880,6 +890,7 @@ function StockModal({
       quantity: parseInt(quantity),
       reason: reason || undefined,
       store_id: storeId || undefined,
+      storage_location_id: storageLocationId || undefined,
       supplier_id: supplierId || undefined,
       purchase_order_id: purchaseOrderId || undefined,
       batch_number: batchNumber || undefined,
@@ -895,7 +906,7 @@ function StockModal({
       onClose()
     } catch { /* handled by hook */ }
   }, [
-    productId, variantId, quantity, reason, type,
+    productId, variantId, quantity, reason, type, storeId, storageLocationId,
     supplierId, purchaseOrderId, batchNumber, costPrice, sellingPrice,
     expirationDate, manufactureDate, bestBeforeDate,
     stockIn, stockOut, adjust, onClose,
@@ -968,13 +979,25 @@ function StockModal({
           {/* Store selector — shown for all types when stores exist */}
           {stores.length > 0 && (
             <div className="space-y-1.5">
-              <Label>Store <span className="text-gray-400 text-xs">(which store receives this stock)</span></Label>
-              <select className={selectClass} value={storeId} onChange={e => setStoreId(e.target.value)}>
+              <Label>Business Unit <span className="text-gray-400 text-xs">(which store receives or ships this stock)</span></Label>
+              <select className={selectClass} value={storeId} onChange={e => { setStoreId(e.target.value); setStorageLocationId('') }}>
                 <option value="">Global / All Stores</option>
                 {stores.map(s => (
                   <option key={s.id} value={s.id}>{s.name}{s.code ? ` · ${s.code}` : ''}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {storeId && (
+            <div className="space-y-1.5">
+              <Label>Storage Location <span className="text-gray-400 text-xs">(optional — aisle, shelf, bin)</span></Label>
+              <StorageLocationSelect
+                storeId={storeId}
+                value={storageLocationId}
+                onChange={setStorageLocationId}
+                className={selectClass}
+              />
             </div>
           )}
 

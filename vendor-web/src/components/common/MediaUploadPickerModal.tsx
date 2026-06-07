@@ -372,6 +372,10 @@ export function MediaUploadPickerModal({
                         src={img.url}
                         alt={img.label}
                         loading="lazy"
+                        onError={(e) => {
+                          const el = e.currentTarget
+                          if (img.fallbackUrl && el.src !== img.fallbackUrl) el.src = img.fallbackUrl
+                        }}
                         className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
                       />
                       {galleryMultiSelect && (

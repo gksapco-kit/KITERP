@@ -336,12 +336,16 @@ async def list_products(
     search: Optional[str] = None,
     min_price: Optional[float] = Query(None, ge=0),
     max_price: Optional[float] = Query(None, ge=0),
+    branch: Optional[str] = Query(None, description="Business unit code or id"),
+    store_id: Optional[str] = Query(None, description="Business unit id"),
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
     """List active products for vendor business front."""
+    from app.services.catalog_store_scope import resolve_store_id
     repo = ProductRepository(db)
     skip = (page - 1) * size
+    sid = await resolve_store_id(db, vendor_id, store_id=store_id, branch=branch)
     
     items, total = await repo.list_by_vendor(
         vendor_id=vendor_id,
@@ -351,6 +355,7 @@ async def list_products(
         category=category,
         search=search,
         visible_only=True,
+        store_id=sid,
     )
 
     # Apply price range filter if provided
@@ -369,6 +374,7 @@ async def list_products(
             category=category,
             search=search,
             visible_only=True,
+            store_id=sid,
         )
         if min_price is not None:
             all_items = [p for p in all_items if float(p.price or 0) >= min_price]
@@ -564,12 +570,16 @@ async def list_services(
     search: Optional[str] = None,
     min_price: Optional[float] = Query(None, ge=0),
     max_price: Optional[float] = Query(None, ge=0),
+    branch: Optional[str] = Query(None, description="Business unit code or id"),
+    store_id: Optional[str] = Query(None, description="Business unit id"),
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
     """List active services for vendor business front."""
+    from app.services.catalog_store_scope import resolve_store_id
     repo = ServiceRepository(db)
     skip = (page - 1) * size
+    sid = await resolve_store_id(db, vendor_id, store_id=store_id, branch=branch)
 
     items, total = await repo.list_by_vendor(
         vendor_id=vendor_id,
@@ -579,6 +589,7 @@ async def list_services(
         category=category,
         search=search,
         visible_only=True,
+        store_id=sid,
     )
 
     # Apply price range filter if provided
@@ -597,6 +608,7 @@ async def list_services(
             category=category,
             search=search,
             visible_only=True,
+            store_id=sid,
         )
         if min_price is not None:
             all_items = [s for s in all_items if float(s.price or s.price_min or 0) >= min_price]

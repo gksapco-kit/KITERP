@@ -84,11 +84,6 @@ export default defineConfig({
         },
       },
       { find: '@storefront', replacement: storefrontSrc },
-      { find: '@kiterp/home-sections', replacement: path.join(storefrontSrc, 'home-sections') },
-      {
-        find: '@kiterp/storefront-theme-colors',
-        replacement: path.join(storefrontSrc, 'lib/themeColors.ts'),
-      },
     ],
   },
   server: {
