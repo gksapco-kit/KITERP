@@ -303,12 +303,19 @@ export default function Register() {
       })
     } catch (err: unknown) {
       const raw = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-      const msg =
+      let msg =
         typeof raw === 'string'
           ? raw
           : Array.isArray(raw) && raw[0] && typeof (raw[0] as { msg?: string }).msg === 'string'
             ? (raw[0] as { msg: string }).msg
             : 'This email or phone is already registered'
+      if (msg === 'Email already registered') {
+        msg =
+          'This email is already registered. No verification code is sent. Use a different email, or ask your admin to delete the test account from Business Accounts.'
+      } else if (msg === 'Phone number already registered') {
+        msg =
+          'This phone number is already registered. No verification code is sent. Use a different number, or ask your admin to remove the old account.'
+      }
       toast.error(msg)
       return
     } finally {
