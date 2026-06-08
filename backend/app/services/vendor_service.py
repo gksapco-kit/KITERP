@@ -2,11 +2,15 @@
 from datetime import datetime, timezone
 from typing import Optional, List
 from uuid import UUID
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status, UploadFile
 from slugify import slugify
 
 from app.config import settings
+from app.models.order import Order
+from app.models.user import User
 from app.models.vendor import Vendor, VendorDocument, VendorBankAccount, VendorOwner
 from app.models.vendor_user import VendorUser
 from app.schemas.vendor import VendorCreate, VendorUpdate, SlugCheckResponse
@@ -370,6 +374,67 @@ class VendorService:
         })
         
         return vendor
+
+    async def delete_vendor(self, vendor_id: UUID, admin_id: UUID) -> None:
+        """Permanently delete a business account (superuser only)."""
+        vendor = await self.repo.get_by_id(vendor_id)
+        if not vendor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vendor not found",
+            )
+
+        order_count = await self.db.scalar(
+            select(func.count()).select_from(Order).where(Order.vendor_id == vendor_id),
+        )
+        if order_count and order_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Cannot delete this business account because it has customer orders. "
+                    "Reject or suspend it instead."
+                ),
+            )
+
+        user_ids_result = await self.db.execute(
+            select(VendorUser.user_id).where(VendorUser.vendor_id == vendor_id),
+        )
+        linked_user_ids = list({row[0] for row in user_ids_result.all()})
+        business_name = vendor.business_name
+
+        try:
+            await self.db.delete(vendor)
+            await self.db.flush()
+        except IntegrityError as exc:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Cannot delete this business account because it still has linked records "
+                    "(payments, CRM data, etc.). Reject or suspend it instead."
+                ),
+            ) from exc
+
+        for uid in linked_user_ids:
+            remaining = await self.db.scalar(
+                select(func.count()).select_from(VendorUser).where(VendorUser.user_id == uid),
+            )
+            if remaining:
+                continue
+            user = await self.db.get(User, uid)
+            if user and not user.is_superuser and not user.platform_staff_role:
+                await self.db.delete(user)
+
+        await self.db.commit()
+
+        await event_emitter.emit(
+            "vendor.deleted",
+            {
+                "vendor_id": str(vendor_id),
+                "admin_id": str(admin_id),
+                "business_name": business_name,
+            },
+        )
     
     # ============== Lookup ==============
     

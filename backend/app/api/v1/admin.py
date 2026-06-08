@@ -899,6 +899,17 @@ async def reject_vendor(
     return await service.reject_vendor(vendor_id, current_user.id, reason)
 
 
+@router.delete("/vendors/{vendor_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_vendor(
+    vendor_id: UUID,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently delete a business account and its owner login when they have no other stores."""
+    service = VendorService(db)
+    await service.delete_vendor(vendor_id, current_user.id)
+
+
 # ── Plan Management ──────────────────────────────────────────────────────────
 
 @router.get("/plans")

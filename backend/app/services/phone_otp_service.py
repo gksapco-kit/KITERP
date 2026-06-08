@@ -1,6 +1,7 @@
 """OTP delivery — Twilio Verify (SMS + email) with SMS/SMTP fallbacks."""
 from __future__ import annotations
 
+import json
 import logging
 import re
 import secrets
@@ -134,13 +135,22 @@ class OtpService:
             return None, resp.text[:200]
 
     @property
+    def uses_app_email(self) -> bool:
+        from app.services.email_service import sendgrid_api_key
+
+        return bool((settings.SMTP_HOST or "").strip()) or bool(sendgrid_api_key())
+
+    @property
     def uses_smtp_email(self) -> bool:
-        return bool((settings.SMTP_HOST or "").strip())
+        return self.uses_app_email
 
     def _email_purpose_key(self, purpose: str) -> str:
-        if "reset" in purpose.lower() or "password" in purpose.lower():
-            return "verify"
-        return "verify" if "verify" in purpose.lower() else "change"
+        p = purpose.lower()
+        if "reset" in p or "password" in p:
+            return "reset"
+        if "change" in p:
+            return "change"
+        return "verify"
 
     async def _send_email_smtp(self, to: str, code: str, *, purpose: str) -> OtpSendResult:
         from app.services.email_service import send_verification_code_email
@@ -160,22 +170,20 @@ class OtpService:
             to = normalize_email(to)
             if not is_valid_email(to):
                 return OtpSendResult(sent=False, channel="email", twilio_message="Invalid email address")
+            # Prefer app-controlled email (SMTP/SendGrid) so we set subject + template.
+            # Twilio Verify email uses the SendGrid integration template and often ships with no subject.
+            if self.uses_app_email:
+                app_result = await self._send_email_smtp(to, code, purpose=purpose)
+                if app_result.sent:
+                    return app_result
+                log.warning(
+                    "App email OTP send failed for %s; falling back to Twilio Verify. "
+                    "Regenerate SENDGRID_API_KEY in backend/.env for emails with a subject line.",
+                    re.sub(r"(^.).+(@.+$)", r"\1***\2", to),
+                )
             if self.uses_verify:
-                verify_result = await self._send_via_verify(to, channel="email")
-                if verify_result.sent:
-                    return verify_result
-                # Verify email not linked (60223) — fall back to SMTP when configured.
-                if self.uses_smtp_email:
-                    log.warning(
-                        "Twilio Verify email failed (code=%s); falling back to SMTP for %s",
-                        verify_result.twilio_code,
-                        re.sub(r"(^.).+(@.+$)", r"\1***\2", to),
-                    )
-                    smtp_result = await self._send_email_smtp(to, code, purpose=purpose)
-                    if smtp_result.sent:
-                        return smtp_result
-                return verify_result
-            return await self._send_email_smtp(to, code, purpose=purpose)
+                return await self._send_via_verify(to, channel="email")
+            return OtpSendResult(sent=False, channel="email", twilio_message="Email delivery not configured")
 
         to = normalize_e164(to)
         if not is_valid_e164(to):
@@ -202,13 +210,27 @@ class OtpService:
             return OtpDispatch(result=result, stored_code=code)
         return OtpDispatch(result=result, stored_code=None)
 
+    def _verify_email_channel_configuration(self) -> str:
+        from_email = (settings.FROM_EMAIL or "noreply@kiterp.com").strip()
+        config: dict[str, str] = {
+            "from": from_email,
+            "from_name": "KITERP",
+        }
+        template_id = (settings.SENDGRID_OTP_TEMPLATE_ID or "").strip()
+        if template_id:
+            config["template_id"] = template_id
+        return json.dumps(config)
+
     async def _send_via_verify(self, to: str, *, channel: OtpChannel) -> OtpSendResult:
         url = f"{VERIFY_API}/Services/{self.verify_service_sid}/Verifications"
+        payload: dict[str, str] = {"To": to, "Channel": channel}
+        if channel == "email":
+            payload["ChannelConfiguration"] = self._verify_email_channel_configuration()
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
                     url,
-                    data={"To": to, "Channel": channel},
+                    data=payload,
                     auth=self._auth(),
                 )
             if resp.status_code >= 400:

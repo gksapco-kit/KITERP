@@ -16,14 +16,9 @@ import { HelpAccordion } from '@/components/auth/HelpAccordion'
 import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import {
-<<<<<<< Updated upstream
   Loader2, Eye, EyeOff, Check, ChevronDown, Pencil, Plus, X,
   Rocket, Smartphone, LogIn, Mail,
-=======
-  Loader2, Eye, EyeOff, X,
-  Rocket, Smartphone, LogIn,
->>>>>>> Stashed changes
-} from 'lucide-react'
+} from 'lucide-react';
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
@@ -243,10 +238,15 @@ export default function Register() {
       return authApi.vendorSignupSendEmailOtp(target.trim())
     },
     onSuccess: (res, { channel, target }) => {
+      const normalizedTarget = target.trim().toLowerCase()
       setOtpSentTo(
-        res.to || (channel === 'phone' ? maskPhoneTail(target) : target.replace(/(.{2}).+(@.+)/, '$1***$2')),
+        channel === 'email'
+          ? normalizedTarget
+          : res.to || maskPhoneTail(target),
       )
-      toast.success(`Verification code sent${res.to ? ` to ${res.to}` : ''}`)
+      toast.success(
+        `Verification code sent to ${channel === 'email' ? normalizedTarget : res.to || target}`,
+      )
     },
     onError: (err: unknown) => {
       otpAutoSentRef.current = false
@@ -548,14 +548,14 @@ export default function Register() {
               <h3 id="vendor-otp-title" className="text-xl font-bold text-slate-900 sm:text-2xl">
                 {otpChannel === 'phone' ? 'Verify your phone' : 'Verify your email'}
               </h3>
-              <p className="mt-2 text-sm leading-snug text-slate-600 sm:text-base">
-                Enter the 6-digit code we sent to{' '}
-                <span className="font-semibold text-slate-800">
-                  {otpSentTo ?? (otpChannel === 'phone' && pendingSignup.phone
-                    ? maskPhoneTail(pendingSignup.phone)
-                    : pendingSignup.email)}
-                </span>
-              </p>
+              <div className="mt-2 space-y-1.5 text-sm text-slate-600 sm:text-base">
+                <p>Enter the 6-digit code we sent to</p>
+                <p className="font-semibold text-slate-800 break-all px-1">
+                  {otpChannel === 'email'
+                    ? pendingSignup.email
+                    : (otpSentTo ?? maskPhoneTail(pendingSignup.phone ?? ''))}
+                </p>
+              </div>
             </div>
 
             {sendOtpMut.isPending ? (

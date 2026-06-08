@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     FROM_EMAIL: str = "noreply@kiterp.com"
+    # SendGrid HTTP API (preferred over SMTP in Docker). Falls back to SMTP_PASSWORD if it starts with SG.
+    SENDGRID_API_KEY: str = ""
+    # Twilio Verify → SendGrid dynamic template (set subject in SendGrid or run scripts/fix_sendgrid_otp_subject.py)
+    SENDGRID_OTP_TEMPLATE_ID: str = "d-14f75148da1a4b7d8a1a5f8cf9f388a5"
 
     # Vendor dashboard login (localhost / generic host): scope to one business when the same
     # email exists on multiple User rows. Subdomain hosts still set vendor via TenantMiddleware.

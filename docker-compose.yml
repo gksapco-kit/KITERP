@@ -58,6 +58,8 @@ services:
       target: development
     container_name: kiterp-backend
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     ports:
       - "8000:8000"
     environment:

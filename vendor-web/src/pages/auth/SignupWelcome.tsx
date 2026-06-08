@@ -28,7 +28,6 @@ const LAUNCH_STEPS: LaunchStep[] = [
   {
     id: 'account',
     label: 'Account',
-<<<<<<< Updated upstream
     description: 'Login, profile, and verification.',
     nextHref: '/storefront-builder',
   },
@@ -37,16 +36,12 @@ const LAUNCH_STEPS: LaunchStep[] = [
     label: 'Business front',
     description: 'Branding and your public store URL.',
     nextHref: '/storefront-builder',
-=======
-    description: 'Vendor login, business profile, and verification on KITERP.',
-    nextHref: '/websites',
   },
   {
     id: 'business front',
     label: 'Business Front',
     description: 'Template, branding, and pages for your public store URL.',
     nextHref: '/websites',
->>>>>>> Stashed changes
   },
   {
     id: 'catalog',

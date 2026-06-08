@@ -278,6 +278,10 @@ export const adminApi = {
     return response.data
   },
 
+  deleteVendor: async (vendorId: string): Promise<void> => {
+    await apiClient.delete(`/admin/vendors/${vendorId}`)
+  },
+
   getVendorOwner: async (vendorId: string): Promise<{
     user_id: string
     email: string

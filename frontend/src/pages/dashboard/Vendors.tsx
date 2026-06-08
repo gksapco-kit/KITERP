@@ -8,6 +8,7 @@ import {
   useAdminVendors,
   useApproveVendor,
   useRejectVendor,
+  useDeleteVendor,
   useRelationshipManagerOptions,
 } from '@/hooks/useAdmin'
 import { useAuthStore } from '@/stores/authStore'
@@ -29,8 +30,11 @@ import {
   Loader2,
   Plus,
   Globe,
+  Trash2,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { DeleteBusinessAccountModal } from '@/components/admin/DeleteBusinessAccountModal'
+import type { AdminVendor } from '@/api/admin.api'
 import { processRows, type SortDir } from '@/lib/tableList'
 const statusStyles: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
@@ -102,6 +106,8 @@ export default function Vendors() {
 
   const approveVendor = useApproveVendor()
   const rejectVendor = useRejectVendor()
+  const deleteVendor = useDeleteVendor()
+  const [deleteTarget, setDeleteTarget] = useState<AdminVendor | null>(null)
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -123,6 +129,13 @@ export default function Vendors() {
   }
 
   type VendorRow = NonNullable<typeof data>['items'][number]
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    deleteVendor.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
+    })
+  }
   const displayVendors = useMemo(() => {
     if (!data?.items?.length) return []
     return processRows(
@@ -541,6 +554,22 @@ export default function Vendors() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          {canApproveRejectVendors && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Delete business account"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeleteTarget(vendor)
+                              }}
+                              disabled={deleteVendor.isPending}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -580,6 +609,13 @@ export default function Vendors() {
           )}
         </CardContent>
       </Card>
+
+      <DeleteBusinessAccountModal
+        vendor={deleteTarget}
+        isPending={deleteVendor.isPending}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }

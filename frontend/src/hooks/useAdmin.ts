@@ -124,6 +124,25 @@ export function useRejectVendor() {
   })
 }
 
+export function useDeleteVendor() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (vendorId: string) => adminApi.deleteVendor(vendorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.vendors() })
+      queryClient.invalidateQueries({ queryKey: adminKeys.vendorStats() })
+      toast.success('Business account deleted.')
+    },
+    onError: (error: unknown) => {
+      const message =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        'Failed to delete business account'
+      toast.error(message)
+    },
+  })
+}
+
 /** Approve a vendor's domain request (set access_status → active) */
 export function useApproveDomainRequest(vendorId: string) {
   const queryClient = useQueryClient()
