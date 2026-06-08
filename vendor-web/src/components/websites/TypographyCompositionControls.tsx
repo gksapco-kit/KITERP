@@ -1,0 +1,1153 @@
+import type { ComponentProps, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import { forwardRef, useCallback, useEffect, useRef } from 'react'
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  AlignVerticalSpaceBetween,
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowUpFromLine,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  CornerDownLeft,
+  FlipHorizontal,
+  FlipVertical,
+  RotateCcw,
+  RotateCw,
+  WrapText,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+export type TextAlignH = 'left' | 'center' | 'right'
+export type TextAlignV = 'top' | 'middle' | 'bottom'
+import {
+  FONT_SIZE_PX_CHOICES,
+  FONT_SIZE_PX_STEP,
+  LINE_HEIGHT_RATIO_PRESETS,
+  TEXT_CASE_MENU_ROWS,
+  formatLineHeightLabel,
+  normalizeLineHeightRatio,
+  type TextCaseMenuId,
+  normalizeFontSizePx,
+  stepFontSizePx,
+} from '@/lib/builderTypography'
+import { FIELD_OFFSET_STEP_PX, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
+import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded, matchBuilderFontFamily } from '@storefront/lib/builderFontFamilies'
+import { pinInlineTextSelectionBeforeToolbarAction } from '@storefront/lib/builderInlineTextSelection'
+
+type ControlSize = 'panel' | 'compact' | 'mini'
+
+/** Shared tight toolbar shell — square corners, minimal padding. */
+export const typographyToolbarBox =
+  'inline-flex items-stretch overflow-hidden rounded-none border border-gray-200 bg-white shrink-0'
+
+const toolbarShell = typographyToolbarBox
+
+const embeddedShell = 'inline-flex items-stretch shrink-0 border-r border-gray-200'
+
+const sizeStyles = {
+  panel: {
+    cell: 'w-9 h-9',
+    icon: 'w-4 h-4',
+    select: 'h-9 w-[4.25rem] px-1 text-xs',
+    caseBtn: 'px-2.5 py-2 text-xs',
+    wrapW: 'w-9',
+    wrapH: 'h-[4.5rem]',
+  },
+  compact: {
+    cell: 'w-7 h-7',
+    icon: 'w-3.5 h-3.5',
+    select: 'h-7 w-[3.25rem] px-0.5 text-[11px]',
+    caseBtn: 'px-2 py-1.5 text-xs',
+    wrapW: 'w-7',
+    wrapH: 'h-14',
+  },
+  mini: {
+    cell: 'w-3.5 h-3.5',
+    icon: 'w-2 h-2',
+    select: 'h-3.5 w-[2.5rem] px-0.5 text-[9px]',
+    caseBtn: 'px-1 py-0.5 text-[9px]',
+    wrapW: 'w-3.5',
+    wrapH: 'h-7',
+  },
+} as const
+
+/** Box-mode font size: A↑ · A↓ · px — flush grid, no pill rounding. */
+export function FontSizePxControl({
+  valuePx,
+  onChange,
+  onStep,
+  size = 'panel',
+  embedded = false,
+  stacked = false,
+  className,
+  onMouseDown,
+}: {
+  valuePx: number | null | undefined
+  onChange: (px: number | null) => void
+  /** Preferred for A↑ / A↓ — uses selection-aware sizing in the design bar. */
+  onStep?: (delta: number) => void
+  size?: ControlSize
+  /** Strip outer border when nested inside {@link typographyToolbarBox}. */
+  embedded?: boolean
+  /** Stack color row below — no right border on this segment. */
+  stacked?: boolean
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  const s = sizeStyles[size]
+  const normalized = normalizeFontSizePx(valuePx)
+
+  const step = (delta: number) => {
+    if (onStep) {
+      onStep(delta)
+      return
+    }
+    onChange(stepFontSizePx(valuePx, delta))
+  }
+
+  const shell = stacked
+    ? 'inline-flex items-stretch shrink-0 w-full'
+    : embedded
+      ? embeddedShell
+      : toolbarShell
+
+  return (
+    <div className={cn(shell, className)} onMouseDown={onMouseDown}>
+      <button
+        type="button"
+        className={cn(
+          s.cell,
+          'flex shrink-0 items-center justify-center gap-0.5 border-r border-gray-200 text-gray-800 transition-colors hover:bg-gray-50',
+        )}
+        onClick={() => step(FONT_SIZE_PX_STEP)}
+      >
+        <span className="text-[11px] font-bold leading-none">A</span>
+        <ChevronUp className="w-2.5 h-2.5 shrink-0 text-primary" strokeWidth={2.5} />
+      </button>
+      <button
+        type="button"
+        className={cn(
+          s.cell,
+          'flex shrink-0 items-center justify-center gap-0.5 border-r border-gray-200 text-gray-800 transition-colors hover:bg-gray-50',
+        )}
+        onClick={() => step(-FONT_SIZE_PX_STEP)}
+      >
+        <span className="text-[11px] font-bold leading-none">A</span>
+        <ChevronDown className="w-2.5 h-2.5 shrink-0 text-primary" strokeWidth={2.5} />
+      </button>
+      <select
+        className={cn(
+          'shrink-0 cursor-pointer border-0 bg-white font-medium text-gray-800 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40',
+          s.select,
+        )}
+        value={normalized != null ? String(normalized) : ''}
+        onChange={e => {
+          const v = e.target.value
+          onChange(v ? Math.round(Number(v)) : null)
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <option value="">Auto</option>
+        {FONT_SIZE_PX_CHOICES.map(n => (
+          <option key={n} value={n}>{n}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+/** Font family picker — compact select for the design bar or props panel. */
+export function FontFamilyControl({
+  value,
+  onChange,
+  size = 'compact',
+  stacked = false,
+  className,
+  onMouseDown,
+}: {
+  value?: string | null
+  onChange: (font: string | null) => void
+  size?: ControlSize
+  stacked?: boolean
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  const s = sizeStyles[size]
+  const current = matchBuilderFontFamily(value) ?? ''
+  const extraFont =
+    current && !BUILDER_FONT_FAMILIES.includes(current as (typeof BUILDER_FONT_FAMILIES)[number])
+      ? current
+      : null
+
+  return (
+    <select
+      title="Font family"
+      aria-label="Font family"
+      className={cn(
+        'w-full cursor-pointer border-0 bg-white font-medium text-gray-800 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40 truncate',
+        stacked
+          ? 'h-7 shrink-0 border-t border-gray-200 px-1 text-[10px]'
+          : cn(s.select, 'border-l border-gray-200'),
+        className,
+      )}
+      value={current}
+      onChange={e => {
+        const next = e.target.value.trim()
+        if (next) ensureBuilderFontLoaded(next)
+        onChange(next || null)
+      }}
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => {
+        // Parent typography toolbar uses preventDefault on mousedown (keeps canvas focus).
+        // Stop propagation so native <select> can open and show font choices.
+        pinInlineTextSelectionBeforeToolbarAction()
+        e.stopPropagation()
+        onMouseDown?.(e)
+      }}
+      style={current ? { fontFamily: current } : undefined}
+    >
+      <option value="">Auto</option>
+      {extraFont ? (
+        <option value={extraFont} style={{ fontFamily: extraFont }}>
+          {extraFont}
+        </option>
+      ) : null}
+      {BUILDER_FONT_FAMILIES.map(font => (
+        <option key={font} value={font} style={{ fontFamily: font }}>
+          {font}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/** Vertical text-case list — box panel rows. */
+export function TextCaseList({
+  activeId,
+  onSelect,
+  size = 'panel',
+  className,
+}: {
+  activeId: TextCaseMenuId
+  onSelect: (id: TextCaseMenuId) => void
+  size?: ControlSize
+  className?: string
+}) {
+  const s = sizeStyles[size]
+
+  return (
+    <div className={cn('overflow-hidden rounded-none border border-gray-200 bg-white', className)}>
+      {TEXT_CASE_MENU_ROWS.map(row => (
+        <button
+          key={row.id}
+          type="button"
+          onClick={() => onSelect(row.id)}
+          className={cn(
+            'w-full border-b border-gray-100 text-left font-medium transition-colors last:border-b-0',
+            s.caseBtn,
+            activeId === row.id
+              ? 'bg-primary text-white'
+              : 'text-gray-700 hover:bg-gray-50',
+          )}
+        >
+          {row.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Word-style color swatch — T / B with matching letter + color bar sizing. */
+export function ColorIdentPicker({
+  letter,
+  color,
+  onChange,
+  title,
+  size = 'compact',
+  inRow = false,
+  rowPosition = 'single',
+  onMouseDown,
+}: {
+  letter: 'T' | 'B'
+  color: string
+  onChange: (color: string) => void
+  title: string
+  size?: ControlSize
+  /** Equal-width cell inside a T|B row under font size controls. */
+  inRow?: boolean
+  rowPosition?: 'start' | 'middle' | 'end' | 'single'
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  const rowH = size === 'compact' ? 'h-7' : 'h-9'
+  const swatch = 'mt-0.5 h-2 w-[18px] border border-gray-300 pointer-events-none'
+
+  return (
+    <label
+      title={title}
+      onMouseDown={onMouseDown}
+      className={cn(
+        'relative flex flex-col items-center justify-center hover:bg-gray-50 cursor-pointer shrink-0',
+        inRow
+          ? cn(rowH, 'flex-1 min-w-0', (rowPosition === 'start' || rowPosition === 'middle') && 'border-r border-gray-200')
+          : cn(size === 'compact' ? 'w-7 h-7' : 'w-9 h-9', 'border-l border-gray-200'),
+      )}
+    >
+      <span className="text-[11px] font-bold leading-none text-gray-900 select-none pointer-events-none">
+        {letter}
+      </span>
+      <span className={swatch} style={{ backgroundColor: color }} />
+      <input
+        type="color"
+        value={color}
+        onInput={e => onChange(e.currentTarget.value)}
+        onChange={e => onChange(e.target.value)}
+        onClick={e => e.stopPropagation()}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </label>
+  )
+}
+
+/** T + B row — sits directly under the font-size trio (A↑ A↓ Auto). */
+export function ColorIdentPickerRow({
+  textColor,
+  backgroundColor,
+  onTextColorChange,
+  onBackgroundColorChange,
+  size = 'compact',
+  trailing,
+  onMouseDown,
+}: {
+  textColor: string
+  backgroundColor: string
+  onTextColorChange: (color: string) => void
+  onBackgroundColorChange: (color: string) => void
+  size?: ControlSize
+  /** Extra cell(s) after B — e.g. Aa case dropdown. */
+  trailing?: ReactNode
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  const rowH = size === 'compact' ? 'h-7' : 'h-9'
+
+  return (
+    <div
+      className="flex w-full border-t border-gray-200 shrink-0"
+      onMouseDown={onMouseDown}
+    >
+      <ColorIdentPicker
+        letter="T"
+        title="Text color"
+        size={size}
+        inRow
+        rowPosition="start"
+        color={textColor}
+        onChange={onTextColorChange}
+      />
+      <ColorIdentPicker
+        letter="B"
+        title="Block background color"
+        size={size}
+        inRow
+        rowPosition={trailing ? 'middle' : 'end'}
+        color={backgroundColor}
+        onChange={onBackgroundColorChange}
+      />
+      {trailing ? (
+        <div className={cn('relative flex flex-1 min-w-0 items-stretch', rowH)}>
+          {trailing}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** Excel-style alignment — single box, flush cells, wrap column on the right. */
+export function TextFieldAlignGrid({
+  textAlign = 'left',
+  verticalAlign = 'top',
+  textWrap = true,
+  onTextAlignChange,
+  onVerticalAlignChange,
+  onTextWrapChange,
+  wrapColumnExtra,
+  size = 'panel',
+  embedded = false,
+  className,
+  onMouseDown,
+}: {
+  textAlign?: TextAlignH | string | null
+  verticalAlign?: TextAlignV | string | null
+  textWrap?: boolean | null
+  onTextAlignChange: (align: TextAlignH) => void
+  onVerticalAlignChange: (align: TextAlignV) => void
+  onTextWrapChange: (wrap: boolean) => void
+  /** Renders below wrap toggle in the same narrow column (e.g. line spacing). */
+  wrapColumnExtra?: ReactNode
+  size?: ControlSize
+  embedded?: boolean
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  const s = sizeStyles[size]
+  const h = (textAlign === 'center' || textAlign === 'right') ? textAlign : 'left'
+  const v = (verticalAlign === 'middle' || verticalAlign === 'bottom') ? verticalAlign : 'top'
+  const wrap = textWrap !== false
+
+  const cell = (
+    active: boolean,
+    onClick: () => void,
+    title: string,
+    Icon: typeof AlignLeft,
+    borderClass: string,
+  ) => (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={cn(
+        s.cell,
+        'flex items-center justify-center transition-colors',
+        borderClass,
+        active
+          ? 'bg-primary/10 text-primary'
+          : 'bg-white text-gray-600 hover:bg-gray-50',
+      )}
+    >
+      <Icon className={s.icon} strokeWidth={2} />
+    </button>
+  )
+
+  return (
+    <div className={cn(embedded ? embeddedShell : toolbarShell, className)} onMouseDown={onMouseDown}>
+      <div className="grid grid-cols-3">
+        {cell(v === 'top', () => onVerticalAlignChange('top'), 'Align top', AlignVerticalJustifyStart, 'border-r border-b border-gray-200')}
+        {cell(v === 'middle', () => onVerticalAlignChange('middle'), 'Align middle', AlignVerticalJustifyCenter, 'border-r border-b border-gray-200')}
+        {cell(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd, 'border-b border-gray-200')}
+        {cell(h === 'left', () => onTextAlignChange('left'), 'Align left', AlignLeft, 'border-r border-gray-200')}
+        {cell(h === 'center', () => onTextAlignChange('center'), 'Align center', AlignCenter, 'border-r border-gray-200')}
+        {cell(h === 'right', () => onTextAlignChange('right'), 'Align right', AlignRight, '')}
+      </div>
+      <div
+        className={cn(
+          s.wrapW,
+          s.wrapH,
+          'flex shrink-0 flex-col border-l border-gray-200',
+        )}
+      >
+        <button
+          type="button"
+          title={wrap ? 'Wrap text (on)' : 'Wrap text (off)'}
+          onClick={() => onTextWrapChange(!wrap)}
+          className={cn(
+            'flex flex-1 min-h-0 items-center justify-center transition-colors',
+            wrapColumnExtra && 'border-b border-gray-200',
+            wrap
+              ? 'bg-primary/10 text-primary'
+              : 'bg-white text-gray-600 hover:bg-gray-50',
+          )}
+        >
+          <WrapText className={s.icon} strokeWidth={2} />
+        </button>
+        {wrapColumnExtra ? (
+          <div className="relative flex flex-1 min-h-0">{wrapColumnExtra}</div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function isTypingElement(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el) return false
+  const tag = el.tagName?.toLowerCase()
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true
+  return el.isContentEditable
+}
+
+function useHoldRepeatAction(action: () => void) {
+  const actionRef = useRef(action)
+  actionRef.current = action
+  const cleanupRef = useRef<(() => void) | null>(null)
+
+  const stop = useCallback(() => {
+    cleanupRef.current?.()
+    cleanupRef.current = null
+  }, [])
+
+  const start = useCallback((e: ReactPointerEvent) => {
+    e.preventDefault()
+    stop()
+    actionRef.current()
+    let intervalId: number | null = null
+    const delayId = window.setTimeout(() => {
+      intervalId = window.setInterval(() => actionRef.current(), 70)
+    }, 300)
+    const cleanup = () => {
+      window.clearTimeout(delayId)
+      if (intervalId != null) window.clearInterval(intervalId)
+      window.removeEventListener('pointerup', cleanup)
+      window.removeEventListener('pointercancel', cleanup)
+      window.removeEventListener('blur', cleanup)
+    }
+    cleanupRef.current = cleanup
+    window.addEventListener('pointerup', cleanup)
+    window.addEventListener('pointercancel', cleanup)
+    window.addEventListener('blur', cleanup)
+  }, [stop])
+
+  useEffect(() => () => stop(), [stop])
+
+  return start
+}
+
+function HoldRepeatButton({
+  label,
+  onAction,
+  className,
+  children,
+}: {
+  label: string
+  onAction: () => void
+  className?: string
+  children: ReactNode
+}) {
+  const startHold = useHoldRepeatAction(onAction)
+  return (
+    <button
+      type="button"
+      title={label}
+      className={className}
+      onPointerDown={startHold}
+      onClick={e => e.preventDefault()}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** Nudge pad with optional All / 1× scope toggle stacked above. */
+export function FieldPositionControlGroup({
+  scopeMode,
+  onScopeChange,
+  showScopeToggle = true,
+  size = 'mini',
+  ...nudgeProps
+}: {
+  scopeMode?: 'field' | 'group'
+  onScopeChange?: (mode: 'field' | 'group') => void
+  showScopeToggle?: boolean
+  size?: ControlSize
+} & ComponentProps<typeof FieldPositionNudge>) {
+  return (
+    <div className="flex flex-col shrink-0 self-center overflow-hidden rounded-sm border border-gray-200 bg-white">
+      {showScopeToggle && scopeMode != null && onScopeChange ? (
+        <FieldPositionScopeToggle
+          mode={scopeMode}
+          onChange={onScopeChange}
+          layout="horizontal"
+          dense
+          className="w-full border-0 rounded-none border-b border-gray-200"
+        />
+      ) : null}
+      <FieldPositionNudge
+        {...nudgeProps}
+        size={size}
+        embedded
+        className={cn('border-0 rounded-none', nudgeProps.className)}
+      />
+    </div>
+  )
+}
+
+/** Nudge selected text field position within its section (↑↓←→ + reset). */
+export function FieldPositionNudge({
+  offsetX = 0,
+  offsetY = 0,
+  onNudge,
+  onReset,
+  size = 'compact',
+  embedded = false,
+  className,
+  onMouseDown,
+  titleLabel = 'Field position',
+  keyboardShortcuts = false,
+}: {
+  offsetX?: number
+  offsetY?: number
+  onNudge: (dx: number, dy: number) => void
+  onReset: () => void
+  size?: ControlSize
+  embedded?: boolean
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+  titleLabel?: string
+  /** Arrow keys nudge while this control is shown. Hold key or button to keep moving. */
+  keyboardShortcuts?: boolean
+}) {
+  const s = sizeStyles[size]
+  const step = FIELD_OFFSET_STEP_PX
+  const ox = readFieldOffset(offsetX)
+  const oy = readFieldOffset(offsetY)
+  const moved = ox !== 0 || oy !== 0
+  const onNudgeRef = useRef(onNudge)
+  onNudgeRef.current = onNudge
+  const onResetRef = useRef(onReset)
+  onResetRef.current = onReset
+
+  useEffect(() => {
+    if (!keyboardShortcuts) return
+    const onKey = (e: KeyboardEvent) => {
+      if (isTypingElement(e.target)) return
+      let dx = 0
+      let dy = 0
+      switch (e.key) {
+        case 'ArrowUp':
+          dy = -step
+          break
+        case 'ArrowDown':
+          dy = step
+          break
+        case 'ArrowLeft':
+          dx = -step
+          break
+        case 'ArrowRight':
+          dx = step
+          break
+        default:
+          return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+      onNudgeRef.current(dx, dy)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [keyboardShortcuts, step])
+
+  const iconStroke = size === 'mini' ? 1.75 : 2
+
+  const nudgeBtn = (label: string, action: () => void, Icon?: typeof ArrowUp, border = '') => (
+    <HoldRepeatButton
+      label={`${label} — arrow key · hold to repeat`}
+      onAction={action}
+      className={cn(
+        s.cell,
+        'flex items-center justify-center text-gray-600 transition-colors hover:bg-gray-50 active:bg-primary/10 touch-none select-none',
+        border,
+      )}
+    >
+      {Icon ? <Icon className={cn(s.icon, 'shrink-0')} strokeWidth={iconStroke} /> : <span className="text-[6px] font-bold leading-none">·</span>}
+    </HoldRepeatButton>
+  )
+
+  return (
+    <div
+      className={cn(embedded ? embeddedShell : toolbarShell, className)}
+      onMouseDown={onMouseDown}
+      title={`${titleLabel}${moved ? ` (${ox}, ${oy})` : ''} · Arrow keys · hold buttons to repeat`}
+    >
+      <div className="grid grid-cols-3">
+        <div className={cn(s.cell, 'border-r border-b border-gray-200 bg-gray-50/80')} />
+        {nudgeBtn('Move up', () => onNudge(0, -step), ArrowUp, 'border-r border-b border-gray-200')}
+        <div className={cn(s.cell, 'border-b border-gray-200 bg-gray-50/80')} />
+        {nudgeBtn('Move left', () => onNudge(-step, 0), ArrowLeft, 'border-r border-b border-gray-200')}
+        <HoldRepeatButton
+          label="Reset position"
+          onAction={() => onResetRef.current()}
+          className={cn(
+            s.cell,
+            'flex items-center justify-center text-gray-600 transition-colors hover:bg-gray-50 active:bg-primary/10 touch-none select-none',
+            'border-r border-b border-gray-200',
+            moved && 'bg-primary/10 text-primary',
+          )}
+        >
+          <span className={cn('font-bold leading-none', size === 'mini' ? 'text-[6px]' : 'text-[8px]')}>·</span>
+        </HoldRepeatButton>
+        {nudgeBtn('Move right', () => onNudge(step, 0), ArrowRight, 'border-b border-gray-200')}
+        <div className={cn(s.cell, 'border-r border-gray-200 bg-gray-50/80')} />
+        {nudgeBtn('Move down', () => onNudge(0, step), ArrowDown, 'border-r border-gray-200')}
+        <div className={cn(s.cell, 'bg-gray-50/80')} />
+      </div>
+    </div>
+  )
+}
+
+/** Toggle between moving one field vs the whole content cluster. */
+export function FieldPositionScopeToggle({
+  mode,
+  onChange,
+  layout = 'vertical',
+  dense = false,
+  className,
+  onMouseDown,
+}: {
+  mode: 'field' | 'group'
+  onChange: (mode: 'field' | 'group') => void
+  layout?: 'vertical' | 'horizontal'
+  dense?: boolean
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  const cell = cn(
+    'flex flex-1 items-center justify-center font-bold leading-none transition-colors',
+    dense && layout === 'horizontal'
+      ? 'h-3 px-0 text-[7px]'
+      : layout === 'horizontal'
+        ? 'px-0.5 py-0.5 text-[8px]'
+        : 'px-1.5 py-1 text-[9px]',
+  )
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white',
+        layout === 'horizontal' ? 'flex-row w-full' : 'flex-col w-9',
+        className,
+      )}
+      onMouseDown={onMouseDown}
+      title={mode === 'group' ? 'Move all content together' : 'Move selected field only'}
+    >
+      <button
+        type="button"
+        title="Move all content (headline, text, buttons)"
+        onClick={() => onChange('group')}
+        className={cn(
+          cell,
+          layout === 'horizontal' ? 'border-r border-gray-200' : 'border-b border-gray-200',
+          mode === 'group' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50',
+        )}
+      >
+        All
+      </button>
+      <button
+        type="button"
+        title="Move selected field only"
+        onClick={() => onChange('field')}
+        className={cn(cell, mode === 'field' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50')}
+      >
+        1×
+      </button>
+    </div>
+  )
+}
+
+export type LayoutTransformScope = 'section' | 'group' | 'field'
+
+/** Section vs all content vs single field — for flip / rotate. */
+export function LayoutTransformScopeToggle({
+  mode,
+  onChange,
+  showGroup = true,
+  className,
+  onMouseDown,
+}: {
+  mode: LayoutTransformScope
+  onChange: (mode: LayoutTransformScope) => void
+  showGroup?: boolean
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  const cell = 'flex flex-1 items-center justify-center px-1 py-1 text-[9px] font-bold leading-none transition-colors'
+  const mk = (id: LayoutTransformScope, label: string, title: string) => (
+    <button
+      type="button"
+      title={title}
+      onClick={() => onChange(id)}
+      className={cn(
+        cell,
+        id !== 'field' && 'border-b border-gray-200',
+        mode === id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50',
+      )}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div
+      className={cn(
+        'flex flex-col w-9 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white',
+        className,
+      )}
+      onMouseDown={onMouseDown}
+    >
+      {mk('section', 'Sec', 'Flip / rotate entire section')}
+      {showGroup ? mk('group', 'All', 'Flip / rotate all content (headline, text, buttons)') : null}
+      {mk('field', '1×', 'Flip / rotate selected field only')}
+    </div>
+  )
+}
+
+/** Flip horizontal / vertical and rotate 90° steps. */
+export function FlipRotateControls({
+  flipH = false,
+  flipV = false,
+  rotateDeg = 0,
+  onChange,
+  onReset,
+  embedded = true,
+  className,
+  onMouseDown,
+  disabled = false,
+}: {
+  flipH?: boolean
+  flipV?: boolean
+  rotateDeg?: number
+  onChange: (patch: { flip_h?: boolean | null; flip_v?: boolean | null; rotate_deg?: number | null }) => void
+  onReset: () => void
+  embedded?: boolean
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+  disabled?: boolean
+}) {
+  const h = readFlipFlag(flipH)
+  const v = readFlipFlag(flipV)
+  const r = readRotateDeg(rotateDeg)
+  const active = h || v || r !== 0
+  const btn = (
+    label: string,
+    onClick: () => void,
+    Icon: typeof FlipHorizontal,
+    isActive = false,
+    border = '',
+  ) => (
+    <button
+      type="button"
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
+        isActive
+          ? 'border-primary/50 bg-primary/10 text-primary'
+          : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-gray-50',
+        disabled && 'opacity-40 pointer-events-none',
+        border,
+      )}
+    >
+      <Icon className="w-3.5 h-3.5" strokeWidth={2} />
+    </button>
+  )
+
+  const stepRotate = (delta: number) => {
+    const next = readRotateDeg(r + delta)
+    onChange({ rotate_deg: next === 0 ? null : next })
+  }
+
+  return (
+    <div
+      className={cn(
+        embedded ? 'flex items-center gap-0.5' : toolbarShell,
+        className,
+      )}
+      onMouseDown={onMouseDown}
+      title="Flip & rotate"
+    >
+      {btn('Flip horizontal', () => onChange({ flip_h: h ? null : true }), FlipHorizontal, h)}
+      {btn('Flip vertical', () => onChange({ flip_v: v ? null : true }), FlipVertical, v)}
+      {btn('Rotate left 90°', () => stepRotate(-90), RotateCcw, r !== 0 && r % 90 === 0)}
+      {btn('Rotate right 90°', () => stepRotate(90), RotateCw, r !== 0 && r % 90 === 0)}
+      <button
+        type="button"
+        title="Reset flip & rotate"
+        disabled={disabled || !active}
+        onClick={onReset}
+        className={cn(
+          'flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-lg border px-1 text-[9px] font-bold transition-colors',
+          active
+            ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/15'
+            : 'border-gray-200 text-gray-400',
+          disabled && 'opacity-40 pointer-events-none',
+        )}
+      >
+        ·
+      </button>
+    </div>
+  )
+}
+
+/** Docs-style line spacing + paragraph spacing — compact trigger for the design bar. */
+export const LineSpacingToolbarButton = forwardRef(function LineSpacingToolbarButton({
+  lineHeightRatio,
+  active,
+  size = 'compact',
+  embedded = false,
+  stacked = false,
+  className,
+  onClick,
+  onMouseDown,
+}: {
+  lineHeightRatio?: number | null
+  active?: boolean
+  size?: ControlSize
+  embedded?: boolean
+  /** Fills lower half of wrap column — icon + label only, no side border. */
+  stacked?: boolean
+  className?: string
+  onClick?: () => void
+  onMouseDown?: (e: MouseEvent) => void
+}, ref: React.Ref<HTMLButtonElement>) {
+  const s = sizeStyles[size]
+  const label = formatLineHeightLabel(lineHeightRatio)
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      title="Line & paragraph spacing"
+      onClick={onClick}
+      onMouseDown={onMouseDown}
+      className={cn(
+        stacked
+          ? 'flex h-full w-full flex-col items-center justify-center gap-0 transition-colors'
+          : cn(s.cell, 'flex shrink-0 flex-col items-center justify-center gap-0 transition-colors'),
+        !stacked && embedded && 'border-l border-gray-200',
+        active ? 'bg-primary/10 text-primary' : 'bg-white text-gray-700 hover:bg-gray-50',
+        className,
+      )}
+    >
+      <AlignVerticalSpaceBetween className="w-3 h-3" strokeWidth={2} />
+      <span className="text-[8px] font-semibold leading-none">{label}</span>
+      {!stacked ? <ChevronDown className="w-2 h-2 opacity-60" /> : null}
+    </button>
+  )
+})
+
+/** Dropdown body — line spacing presets, paragraph spacing, line break. */
+export function LineSpacingMenuContent({
+  lineHeightRatio,
+  spaceBeforePx = 0,
+  spaceAfterPx,
+  onLineHeightChange,
+  onAddSpaceBefore,
+  onRemoveSpaceBefore,
+  onAddSpaceAfter,
+  onRemoveSpaceAfter,
+  onInsertLineBreak,
+  size = 'compact',
+}: {
+  lineHeightRatio?: number | null
+  spaceBeforePx?: number
+  spaceAfterPx?: number | null
+  onLineHeightChange: (ratio: number | null) => void
+  onAddSpaceBefore: () => void
+  onRemoveSpaceBefore: () => void
+  onAddSpaceAfter: () => void
+  onRemoveSpaceAfter: () => void
+  onInsertLineBreak?: () => void
+  size?: ControlSize
+}) {
+  const s = sizeStyles[size]
+  const activeRatio = normalizeLineHeightRatio(lineHeightRatio)
+
+  return (
+    <div className="min-w-[210px] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-2xl">
+      <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+        Line spacing
+      </div>
+      {LINE_HEIGHT_RATIO_PRESETS.map(ratio => {
+        const active = activeRatio === ratio
+        return (
+          <button
+            key={ratio}
+            type="button"
+            onClick={() => onLineHeightChange(ratio)}
+            className={cn(
+              'flex w-full items-center gap-2 px-3 text-left font-medium transition-colors',
+              s.caseBtn,
+              active ? 'bg-primary/10 text-primary' : 'text-gray-800 hover:bg-gray-50',
+            )}
+          >
+            <span className="w-4 shrink-0">{active ? <Check className="w-3.5 h-3.5" /> : null}</span>
+            <span>{Number.isInteger(ratio) ? ratio.toFixed(1) : ratio}</span>
+          </button>
+        )
+      })}
+      <button
+        type="button"
+        onClick={() => onLineHeightChange(null)}
+        className={cn(
+          'flex w-full items-center gap-2 border-t border-gray-100 px-3 text-left font-medium text-gray-600 transition-colors hover:bg-gray-50',
+          s.caseBtn,
+        )}
+      >
+        <span className="w-4 shrink-0">{activeRatio == null ? <Check className="w-3.5 h-3.5" /> : null}</span>
+        <span>Auto</span>
+      </button>
+
+      <div className="my-1 border-t border-gray-200" />
+
+      <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+        Paragraph spacing
+      </div>
+      <div className="px-3 py-0.5 text-[10px] font-semibold text-gray-500">Before</div>
+      <button
+        type="button"
+        onClick={onAddSpaceBefore}
+        className={cn(
+          'flex w-full items-center gap-2 px-3 text-left text-gray-800 transition-colors hover:bg-gray-50',
+          s.caseBtn,
+        )}
+      >
+        <ArrowDownToLine className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+        <span className="text-xs font-medium">
+          Add space before
+          {spaceBeforePx > 0 ? (
+            <span className="ml-1 text-[10px] text-gray-400">({spaceBeforePx}px)</span>
+          ) : null}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onRemoveSpaceBefore}
+        disabled={spaceBeforePx <= 0}
+        className={cn(
+          'flex w-full items-center gap-2 px-3 text-left text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40',
+          s.caseBtn,
+        )}
+      >
+        <ArrowUpFromLine className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+        <span className="text-xs font-medium">Remove space before</span>
+      </button>
+
+      <div className="px-3 py-0.5 text-[10px] font-semibold text-gray-500">After</div>
+      <button
+        type="button"
+        onClick={onAddSpaceAfter}
+        className={cn(
+          'flex w-full items-center gap-2 px-3 text-left text-gray-800 transition-colors hover:bg-gray-50',
+          s.caseBtn,
+        )}
+      >
+        <ArrowDownToLine className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+        <span className="text-xs font-medium">
+          Add space after
+          {spaceAfterPx != null && spaceAfterPx > 0 ? (
+            <span className="ml-1 text-[10px] text-gray-400">({spaceAfterPx}px)</span>
+          ) : null}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onRemoveSpaceAfter}
+        className={cn(
+          'flex w-full items-center gap-2 px-3 text-left text-gray-800 transition-colors hover:bg-gray-50',
+          s.caseBtn,
+        )}
+      >
+        <ArrowUpFromLine className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+        <span className="text-xs font-medium">
+          Remove space after
+          <span className="ml-1 text-[10px] text-gray-400">
+            ({spaceAfterPx == null ? 'Auto' : `${spaceAfterPx}px`})
+          </span>
+        </span>
+      </button>
+
+      {onInsertLineBreak ? (
+        <>
+          <div className="my-1 border-t border-gray-200" />
+          <button
+            type="button"
+            onClick={onInsertLineBreak}
+            className={cn(
+              'flex w-full items-center gap-2 px-3 text-left text-gray-800 transition-colors hover:bg-gray-50',
+              s.caseBtn,
+            )}
+          >
+            <CornerDownLeft className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+            <span className="text-xs font-medium">Insert line break</span>
+          </button>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+/** Full Composition typography block for the Props side panel. */
+export function TypographyCompositionFields({
+  fontFamily,
+  onFontFamilyChange,
+  fontSizePx,
+  onFontSizeChange,
+  textCaseId,
+  onTextCaseSelect,
+  textAlign,
+  verticalAlign,
+  textWrap,
+  onTextAlignChange,
+  onVerticalAlignChange,
+  onTextWrapChange,
+}: {
+  fontFamily?: string | null
+  onFontFamilyChange?: (font: string | null) => void
+  fontSizePx: number | null | undefined
+  onFontSizeChange: (px: number | null) => void
+  textCaseId: TextCaseMenuId
+  onTextCaseSelect: (id: TextCaseMenuId) => void
+  textAlign?: TextAlignH | string | null
+  verticalAlign?: TextAlignV | string | null
+  textWrap?: boolean | null
+  onTextAlignChange?: (align: TextAlignH) => void
+  onVerticalAlignChange?: (align: TextAlignV) => void
+  onTextWrapChange?: (wrap: boolean) => void
+}) {
+  return (
+    <div className="space-y-3">
+      {onTextAlignChange && onVerticalAlignChange && onTextWrapChange && (
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-gray-500">Text position in field</div>
+          <TextFieldAlignGrid
+            size="panel"
+            textAlign={textAlign}
+            verticalAlign={verticalAlign}
+            textWrap={textWrap}
+            onTextAlignChange={onTextAlignChange}
+            onVerticalAlignChange={onVerticalAlignChange}
+            onTextWrapChange={onTextWrapChange}
+          />
+          <p className="text-xs leading-relaxed text-gray-400">
+            Click a text field on the canvas first for per-field alignment, or set section-wide defaults here.
+          </p>
+        </div>
+      )}
+
+      {onFontFamilyChange ? (
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-gray-500">Font family</div>
+          <FontFamilyControl
+            value={fontFamily}
+            onChange={onFontFamilyChange}
+            size="panel"
+          />
+          <p className="text-xs leading-relaxed text-gray-400">
+            Auto uses your site heading/body fonts. Pick a font to override this field only.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="space-y-1">
+        <div className="text-xs font-medium text-gray-500">Font size (px)</div>
+        <FontSizePxControl valuePx={fontSizePx} onChange={onFontSizeChange} size="panel" />
+        <p className="text-xs leading-relaxed text-gray-400">
+          Px sizing overrides XS–2X scale. Auto uses theme + scale only.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+        <div className="text-xs font-medium text-gray-500">Text case</div>
+        <TextCaseList activeId={textCaseId} onSelect={onTextCaseSelect} size="panel" />
+        <p className="text-xs leading-relaxed text-gray-400">
+          Default clears CSS case. Sentence / toggle rewrite stored text (skips URLs and nav links).
+        </p>
+      </div>
+    </div>
+  )
+}
