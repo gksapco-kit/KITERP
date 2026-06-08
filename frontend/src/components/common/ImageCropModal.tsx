@@ -11,7 +11,7 @@ import 'react-image-crop/dist/ReactCrop.css'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { X, Lock, Unlock, RotateCcw, Check, ZoomIn, ZoomOut } from 'lucide-react'
+import { X, Lock, Unlock, RotateCcw, Check } from 'lucide-react'
 
 interface ImageCropModalProps {
   file: File
@@ -34,7 +34,6 @@ async function getCroppedImg(
   image: HTMLImageElement,
   pixelCrop: PixelCrop,
   originalFile: File,
-  scale = 1,
 ): Promise<File> {
   const canvas = document.createElement('canvas')
   const scaleX = image.naturalWidth / image.width

@@ -50,12 +50,14 @@ function findTopModalOverlay(): HTMLElement | null {
   const tagged = Array.from(document.querySelectorAll<HTMLElement>('[data-kiterp-modal]'))
     .filter(isVisibleOverlay)
   if (tagged.length) {
-    return tagged.sort(overlayZIndex).at(-1) ?? null
+    const sorted = tagged.sort(overlayZIndex)
+    return sorted[sorted.length - 1] ?? null
   }
 
   const overlays = Array.from(document.querySelectorAll<HTMLElement>('div.fixed.inset-0'))
     .filter(el => isVisibleOverlay(el) && overlayZIndex(el) >= 40)
-  return overlays.sort(overlayZIndex).at(-1) ?? null
+  const sorted = overlays.sort(overlayZIndex)
+  return sorted[sorted.length - 1] ?? null
 }
 
 function overlayZIndex(el: HTMLElement): number {

@@ -78,12 +78,6 @@ export default function OnboardingBasic() {
     uploadFile(file, type)
   }
 
-  const fullImageUrl = (url: string) => {
-    if (!url) return ''
-    if (url.startsWith('http')) return url
-    return `${API_URL.replace('/api/v1', '')}${url}`
-  }
-
   const onSubmit = (data: FormData) => {
     sessionStorage.setItem('onboarding_basic', JSON.stringify({
       ...data,
