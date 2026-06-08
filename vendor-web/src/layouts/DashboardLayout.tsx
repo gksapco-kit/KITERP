@@ -19,7 +19,7 @@ import {
   Shuffle, ClipboardCheck, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
-  GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
+  GripVertical, SlidersHorizontal, Database, Search, ExternalLink, Monitor,
   PanelLeftClose, PanelLeft, Settings2,
   ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save,
 } from 'lucide-react'
@@ -134,6 +134,7 @@ import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
 import { Button } from '@/components/ui/button'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
+import { vendorApi } from '@/api/vendor'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { UniversalSearch } from '@/components/UniversalSearch'
@@ -633,8 +634,10 @@ const allSections: NavSection[] = [
     title: 'System Configuration',
     icon: Settings2,
     items: [
+      { to: '/business-front', icon: Monitor, label: 'Business Front', alwaysShow: true },
       { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
+      { to: '/template', icon: Palette, label: 'Store Template', alwaysShow: true },
       { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
@@ -932,7 +935,9 @@ const pageTitles: Record<string, string> = {
   '/master-data': 'Master Data — Customers / Suppliers',
   '/reviews': 'Reviews',
   '/reports': 'Reports',
-  '/template': 'Template',
+  '/template': 'Store Template',
+  '/business-front': 'Business Front',
+  '/storefront-builder': 'Business Front',
   '/document-templates': 'Document Templates',
   '/invoices/templates': 'Invoice Templates',
   '/purchase-orders/templates': 'PO Templates',

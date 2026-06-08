@@ -14,6 +14,16 @@ const CONTENT_PROP_KEYS = new Set([
   'plans', 'messages', 'links', 'menu_categories', 'products', 'hidden_kpi_ids',
 ])
 
+/** Builder styling that should survive layout preset switches. */
+const STYLE_PRESERVE_PROP_KEYS = new Set([
+  'block_shadow', 'padding_top', 'padding_bottom', 'text_color_override', 'bg_color_override',
+  'tile_bg', 'tile_accent', 'tile_text', 'tile_border', 'font_size_px', 'text_scale', 'text_transform',
+  'top_shape', 'bottom_shape', 'shape_color', 'media_clip', 'min_height', 'item_gap', 'item_size', 'image_shape',
+  'columns', 'content_offset_x', 'content_offset_y',
+  'content_flip_h', 'content_flip_v', 'content_rotate_deg',
+  'section_flip_h', 'section_flip_v', 'section_rotate_deg',
+])
+
 function normalizeFeaturesLayout(props: Record<string, unknown>): Record<string, unknown> {
   const layout = String(props.layout ?? '')
   const next = { ...props }
@@ -54,6 +64,13 @@ export function mergeLayoutBlockProps(
   const merged: Record<string, unknown> = { ...layoutShell }
 
   for (const key of CONTENT_PROP_KEYS) {
+    const val = existing[key]
+    if (val !== undefined && val !== null && val !== '') {
+      merged[key] = val
+    }
+  }
+
+  for (const key of STYLE_PRESERVE_PROP_KEYS) {
     const val = existing[key]
     if (val !== undefined && val !== null && val !== '') {
       merged[key] = val
@@ -108,7 +125,7 @@ export function mergeLayoutBlockProps(
     'aspect_ratio', 'show_caption', 'show_newsletter', 'cta_square', 'eyebrow_plain',
     'item_gap', 'max_width', 'show_images', 'bg_color', 'show_annual_toggle', 'card_style',
     'image_shape', 'use_icons', 'show_numbers', 'item_gap', 'footer_bg', 'footer_heading', 'footer_muted', 'footer_border',
-    'color', 'show_close',
+    'color', 'show_close', 'image_width', 'show_divider',
   ] as const
   for (const key of LAYOUT_SHELL_PROP_KEYS) {
     if (key in layoutShell) merged[key] = layoutShell[key]
@@ -127,6 +144,10 @@ export function mergeLayoutBlockProps(
 
   // Preset override keys always win (layout picker selection).
   Object.assign(merged, propsOverride)
+
+  if (blockType.includes('hero') && propsOverride.bg_style === 'minimal' && !('bg_color' in propsOverride)) {
+    delete merged.bg_color
+  }
 
   return merged as BlockProps
 }

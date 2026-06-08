@@ -1,4 +1,8 @@
+import { Video } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
+import { hasMediaClip } from '@/lib/mediaClip'
 
 function getEmbedUrl(url: string): string | null {
   try {
@@ -17,17 +21,31 @@ function getEmbedUrl(url: string): string | null {
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
 
-export default function VideoEmbedBlock({ props }: Props) {
-  const title = (props.title as string) || ''
+export default function VideoEmbedBlock({ style, props }: Props) {
+  const title = (props.title as string) || 'Video'
   const videoUrl = (props.video_url as string) || ''
+  const mediaClip = props.media_clip
+  const clipped = hasMediaClip(mediaClip)
   const embedUrl = videoUrl ? getEmbedUrl(videoUrl) : null
-  if (!embedUrl) return null
+  if (!embedUrl) {
+    return (
+      <BlockEmptyPlaceholder
+        style={style}
+        title={title}
+        message="Paste a YouTube or Vimeo link in the section settings to show your video here."
+        icon={<Video className="w-10 h-10" style={{ color: style.primary_color }} />}
+      />
+    )
+  }
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
       {title && <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">{title}</h2>}
-      <div className="relative w-full pb-[56.25%] rounded-2xl overflow-hidden shadow-lg">
+      <MediaClipFrame
+        clip={mediaClip}
+        className={`relative w-full pb-[56.25%] shadow-lg ${!clipped ? 'rounded-2xl overflow-hidden' : ''}`}
+      >
         <iframe src={embedUrl} className="absolute inset-0 w-full h-full" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" title={title || 'Video'} />
-      </div>
+      </MediaClipFrame>
     </section>
   )
 }

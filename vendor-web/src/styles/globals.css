@@ -1,5 +1,5 @@
-/* Fonts for shared storefront home-sections (editorial kits). */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;600;700&display=swap');
+/* Fonts for shared storefront builder blocks (keep in sync with storefront-web globals.css). */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;600;700&family=Manrope:wght@400;500;600&family=DM+Serif+Display&family=Playfair+Display:wght@400;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -1059,6 +1059,12 @@
   --hosp-accent: 162 52% 38%;
 }
 
+/** Per-section shadow from builder "Block Shadow" — avoid clipping glow on canvas. */
+.builder-block--has-shadow {
+  overflow: visible;
+  isolation: isolate;
+}
+
 /* Sonner — reference layout: left accent, title/message, close on right center */
 html[dir='ltr'],
 [data-sonner-toaster][dir='ltr'] {
@@ -1265,4 +1271,171 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     > div[class*='rounded-'][class*='max-h-'][class*='flex-col']:not([class*='overflow-hidden']) {
     overflow: hidden;
   }
+}
+
+/* Storefront builder block animations (shared BlockRenderer in website editor) */
+@keyframes builder-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes builder-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes builder-slide-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes builder-slide-left {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes builder-slide-right {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes builder-zoom-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes builder-zoom-out {
+  from { opacity: 0; transform: scale(1.08); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes builder-flip-in {
+  from { opacity: 0; transform: perspective(400px) rotateX(-18deg); }
+  to { opacity: 1; transform: perspective(400px) rotateX(0); }
+}
+
+@keyframes builder-bounce-in {
+  0% { opacity: 0; transform: translateY(16px); }
+  60% { opacity: 1; transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes builder-blur-in {
+  from { opacity: 0; filter: blur(8px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+@keyframes builder-rotate-in {
+  from { opacity: 0; transform: rotate(-4deg) scale(0.96); }
+  to { opacity: 1; transform: rotate(0) scale(1); }
+}
+
+@keyframes builder-pop-in {
+  0% { opacity: 0; transform: scale(0.85); }
+  70% { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes builder-reveal-up {
+  from { opacity: 0; transform: translateY(24px); clip-path: inset(100% 0 0 0); }
+  to { opacity: 1; transform: translateY(0); clip-path: inset(0 0 0 0); }
+}
+
+.animate-fade-in { animation: builder-fade-in 0.65s ease-out both; }
+.animate-slide-up { animation: builder-slide-up 0.7s ease-out both; }
+.animate-slide-down { animation: builder-slide-down 0.7s ease-out both; }
+.animate-slide-left { animation: builder-slide-left 0.7s ease-out both; }
+.animate-slide-right { animation: builder-slide-right 0.7s ease-out both; }
+.animate-zoom-in { animation: builder-zoom-in 0.65s ease-out both; }
+.animate-zoom-out { animation: builder-zoom-out 0.65s ease-out both; }
+.animate-flip-in { animation: builder-flip-in 0.75s ease-out both; }
+.animate-bounce-in { animation: builder-bounce-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-blur-in { animation: builder-blur-in 0.7s ease-out both; }
+.animate-rotate-in { animation: builder-rotate-in 0.7s ease-out both; }
+.animate-pop-in { animation: builder-pop-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-reveal-up { animation: builder-reveal-up 0.8s ease-out both; }
+
+@keyframes sf-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.sf-marquee-track {
+  display: inline-flex;
+  animation: sf-marquee 28s linear infinite;
+  will-change: transform;
+}
+
+.sf-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* Website builder — format painter mode */
+.builder-format-paint-active {
+  cursor: copy;
+}
+
+.builder-format-paint-active [data-text-key] {
+  cursor: copy;
+  outline: 1px dashed hsl(var(--primary) / 0.35);
+  outline-offset: 2px;
+}
+
+.builder-format-paint-active [data-block-id]:hover [data-text-key] {
+  outline-color: hsl(var(--primary) / 0.65);
+  background-color: hsl(var(--primary) / 0.04);
+}
+
+/* Website builder — section being inline-edited (double-click text) */
+[data-builder-inline-edit-target] {
+  box-shadow: inset 0 0 0 2px hsl(var(--primary) / 0.4);
+  transition: box-shadow 0.15s ease;
+}
+
+/* Canvas text fields — active field + text selection for partial-word styling */
+.builder-canvas-text-field {
+  user-select: text;
+  cursor: text;
+}
+
+.builder-canvas-text-field-multiline {
+  display: block;
+  white-space: pre-wrap;
+}
+
+/* Standalone text fields (no position wrapper) — single selection ring */
+.builder-canvas-text-field[data-builder-text-active="true"]:not([data-builder-embedded-control="true"]):not(.builder-canvas-text-field-in-layout) {
+  outline: 2px solid rgba(124, 58, 237, 0.75);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+[data-builder-cta-active="true"] {
+  outline: 2px solid hsl(var(--primary) / 0.55);
+  outline-offset: 2px;
+}
+
+/* One box for positionable text fields — resize handles attach here */
+[data-field-layout][data-builder-field-selected="true"] {
+  outline: 2px dashed hsl(var(--primary) / 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.builder-canvas-text-field-in-layout[data-builder-text-active="true"] {
+  outline: none !important;
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+.builder-canvas-text-field::selection,
+.builder-canvas-text-field *::selection {
+  background: rgba(59, 130, 246, 0.38);
+  color: inherit;
+}
+
+/* Partial-word color/size spans from the design bar */
+[data-inline-style="true"] {
+  text-decoration: inherit;
 }

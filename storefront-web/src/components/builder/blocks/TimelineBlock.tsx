@@ -1,4 +1,5 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import {
   genericTimelineContent,
   isTemplateTimelineBlock,
@@ -18,7 +19,17 @@ export default function TimelineBlock({ site, style, props }: Props) {
     ? replacement.items
     : ((props.items as Array<{ year: string; title: string; desc: string }> | undefined) || [])
 
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return (
+      <section className="py-16 sm:py-24 px-6 sm:px-12 max-w-3xl mx-auto" style={{ backgroundColor: style.bg_color || '#F9F9F5' }}>
+        <BlockEmptyPlaceholder
+          style={style}
+          title={title || 'Our story'}
+          message="Share milestones — when you started, how you grew, or steps in your process."
+        />
+      </section>
+    )
+  }
 
   const textColor = style.text_color || '#182E20'
   const bg = style.bg_color || '#F9F9F5'

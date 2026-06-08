@@ -1,5 +1,9 @@
+import { ImageIcon } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { imgUrl } from '@/lib/utils'
+import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
+import { hasMediaClip } from '@/lib/mediaClip'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
 
@@ -18,17 +22,30 @@ export default function ImageBlock({ style, props }: Props) {
   const title = (props.title as string) || ''
   const layout = String(props.layout ?? 'centered')
   const cardRadius = borderRadiusPx(style)
+  const mediaClip = props.media_clip
+  const clipped = hasMediaClip(mediaClip)
 
-  if (!imageUrl) return null
+  if (!imageUrl) {
+    return (
+      <BlockEmptyPlaceholder
+        style={style}
+        title={title || 'Image'}
+        message="Choose an image from the Media panel or right-click this section → Images & media."
+        icon={<ImageIcon className="w-10 h-10" style={{ color: style.primary_color }} />}
+      />
+    )
+  }
 
   const imgEl = (
-    <img
-      src={imageUrl}
-      alt={caption || title || 'Image'}
-      className={`w-full object-cover ${layout === 'full' ? 'max-h-[480px]' : 'max-h-96'}`}
-      style={{ borderRadius: layout === 'full' ? 0 : cardRadius }}
-      loading="lazy"
-    />
+    <MediaClipFrame clip={mediaClip} className="w-full">
+      <img
+        src={imageUrl}
+        alt={caption || title || 'Image'}
+        className={`w-full object-cover ${layout === 'full' ? 'max-h-[480px]' : 'max-h-96'}`}
+        style={{ borderRadius: !clipped && layout !== 'full' ? cardRadius : layout === 'full' ? 0 : 0 }}
+        loading="lazy"
+      />
+    </MediaClipFrame>
   )
 
   if (layout === 'full') {

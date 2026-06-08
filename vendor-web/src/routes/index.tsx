@@ -186,6 +186,7 @@ import WebsitesPage from '@/pages/websites/index'
 import WebsiteBuilder from '@/pages/websites/Builder'
 import WebsiteSubmissions from '@/pages/websites/Submissions'
 import WebsiteTemplateGallery from '@/pages/websites/TemplateGallery'
+import BusinessFrontHubPage from '@/pages/business-front/index'
 import StorefrontBrowserPreviewShell from '@/pages/websites/StorefrontBrowserPreviewShell'
 import LegacyBrowserPreviewRedirect from '@/pages/websites/LegacyBrowserPreviewRedirect'
 import PreviewDraftStorePathRedirect from '@/pages/websites/PreviewDraftStorePathRedirect'
@@ -297,6 +298,8 @@ export const router = createBrowserRouter([
       { path: 'coupons', element: <CouponsPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'template', element: <TemplatePage /> },
+      { path: 'business-front', element: <BusinessFrontHubPage /> },
+      { path: 'storefront-builder', element: <Navigate to="/business-front" replace /> },
       { path: 'blog', element: <BlogManagerPage /> },
       { path: 'websites', element: <WebsitesPage /> },
       /* Static path must be above :siteId or "templates" is treated as a site id. */

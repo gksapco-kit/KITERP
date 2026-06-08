@@ -109,13 +109,76 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: builder-fade-in 0.65s ease-out both;
+@keyframes builder-slide-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-slide-up {
-  animation: builder-slide-up 0.7s ease-out both;
+@keyframes builder-slide-left {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
+
+@keyframes builder-slide-right {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes builder-zoom-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes builder-zoom-out {
+  from { opacity: 0; transform: scale(1.08); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes builder-flip-in {
+  from { opacity: 0; transform: perspective(400px) rotateX(-18deg); }
+  to { opacity: 1; transform: perspective(400px) rotateX(0); }
+}
+
+@keyframes builder-bounce-in {
+  0% { opacity: 0; transform: translateY(16px); }
+  60% { opacity: 1; transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes builder-blur-in {
+  from { opacity: 0; filter: blur(8px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+@keyframes builder-rotate-in {
+  from { opacity: 0; transform: rotate(-4deg) scale(0.96); }
+  to { opacity: 1; transform: rotate(0) scale(1); }
+}
+
+@keyframes builder-pop-in {
+  0% { opacity: 0; transform: scale(0.85); }
+  70% { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes builder-reveal-up {
+  from { opacity: 0; transform: translateY(24px); clip-path: inset(100% 0 0 0); }
+  to { opacity: 1; transform: translateY(0); clip-path: inset(0 0 0 0); }
+}
+
+.animate-fade-in { animation: builder-fade-in 0.65s ease-out both; }
+.animate-slide-up { animation: builder-slide-up 0.7s ease-out both; }
+.animate-slide-down { animation: builder-slide-down 0.7s ease-out both; }
+.animate-slide-left { animation: builder-slide-left 0.7s ease-out both; }
+.animate-slide-right { animation: builder-slide-right 0.7s ease-out both; }
+.animate-zoom-in { animation: builder-zoom-in 0.65s ease-out both; }
+.animate-zoom-out { animation: builder-zoom-out 0.65s ease-out both; }
+.animate-flip-in { animation: builder-flip-in 0.75s ease-out both; }
+.animate-bounce-in { animation: builder-bounce-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-blur-in { animation: builder-blur-in 0.7s ease-out both; }
+.animate-rotate-in { animation: builder-rotate-in 0.7s ease-out both; }
+.animate-pop-in { animation: builder-pop-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-reveal-up { animation: builder-reveal-up 0.8s ease-out both; }
 
 /* Storefront template animations */
 @keyframes sf-marquee {
@@ -441,4 +504,14 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     > div[class*='rounded-'][class*='max-h-'][class*='flex-col']:not([class*='overflow-hidden']) {
     overflow: hidden;
   }
+}
+
+.builder-block--has-shadow {
+  overflow: visible;
+  isolation: isolate;
+}
+
+.builder-canvas-text-field-multiline {
+  display: block;
+  white-space: pre-wrap;
 }

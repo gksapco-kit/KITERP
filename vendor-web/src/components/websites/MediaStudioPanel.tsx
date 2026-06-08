@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import {
   Check,
@@ -9,11 +10,11 @@ import {
   RefreshCcw,
   Upload,
   Wand2,
+  X,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import {
-  ClickableImageButton,
   ImageLightboxSession,
   urlsToLightboxItems,
 } from '@/components/common/CatalogMediaLightbox'
@@ -153,6 +154,48 @@ export function MediaStudioPanel({
     setIsAdjusting(false)
   }
 
+  // Live CSS-filter preview so slider/checkbox changes show instantly in the popup.
+  const previewFilter = useMemo(() => {
+    const a = adjustments
+    return [
+      `brightness(${a.brightness}%)`,
+      `contrast(${a.contrast}%)`,
+      `saturate(${a.saturation}%)`,
+      a.blur ? `blur(${a.blur}px)` : '',
+      a.grayscale ? 'grayscale(1)' : '',
+    ].filter(Boolean).join(' ')
+  }, [adjustments])
+
+  // Same crop / rotate / flip editor used by product & service image uploads.
+  const handleSaveEditedImage = useCallback(async (_index: number, file: File) => {
+    try {
+      const saved = await uploadMedia.mutateAsync(file)
+      setLocalMedia(prev => [saved, ...prev.filter(m => m.id !== saved.id)])
+      refetch()
+      onApplyUrl(saved.original_url)
+      toast.success('Edited image saved & applied')
+    } catch {
+      toast.error('Could not save the edited image')
+    }
+  }, [uploadMedia, refetch, onApplyUrl])
+
+  const openEditorForSelected = useCallback(() => {
+    if (!selectedMediaObj) return
+    const idx = imageMedia.findIndex(x => x.id === selectedMediaObj.id)
+    if (idx >= 0) {
+      setLightboxIndex(idx)
+      setSelectedMedia(null)
+    }
+  }, [selectedMediaObj, imageMedia])
+
+  // Esc closes the tools popup (the editor lightbox handles its own Esc).
+  useEffect(() => {
+    if (!selectedMedia) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedMedia(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedMedia])
+
   const Slider = ({
     label,
     field,
@@ -278,7 +321,7 @@ export function MediaStudioPanel({
                   }}
                   className={cn(
                     'group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all',
-                    isSelected ? 'border-primary ring-2 ring-primary/25 scale-105' : 'border-transparent hover:border-primary/40',
+                    isSelected ? 'border-primary ring-2 ring-primary/25' : 'border-transparent hover:border-primary/40',
                   )}
                 >
                   {m.file_type === 'video' ? (
@@ -286,48 +329,49 @@ export function MediaStudioPanel({
                       <PlayCircle className="w-6 h-6 text-white opacity-80" />
                     </div>
                   ) : (
-                    <div className="w-full h-full" onClick={ev => ev.stopPropagation()}>
-                      <ClickableImageButton
-                        src={src}
-                        alt={m.filename}
-                        title="View image"
-                        className="h-full w-full rounded-none"
-                        imgClassName="w-full h-full object-cover"
-                        onClick={() => {
-                          const idx = imageMedia.findIndex(x => x.id === m.id)
-                          if (idx >= 0) setLightboxIndex(idx)
-                        }}
-                      />
-                    </div>
+                    <img
+                      src={src}
+                      alt={m.filename}
+                      className="w-full h-full object-cover"
+                      onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3' }}
+                    />
                   )}
                   {m.ai_tags?.includes('ai-generated') && (
                     <div className="absolute top-1 left-1 bg-primary text-white text-[8px] font-bold px-1 py-0.5 rounded">AI</div>
                   )}
-                  <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1.5">
+                  {/* Compact action chips (small) */}
+                  <div className="absolute bottom-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
-                      onClick={ev => {
-                        ev.stopPropagation()
-                        onApplyUrl(m.original_url)
-                      }}
-                      className="w-full py-1.5 bg-primary rounded-lg text-xs font-bold text-white hover:bg-primary/90"
+                      title={applyToImageLayer ? 'Use in layer' : 'Use in block'}
+                      onClick={ev => { ev.stopPropagation(); onApplyUrl(m.original_url) }}
+                      className="h-6 w-6 flex items-center justify-center rounded-md bg-primary text-white shadow hover:bg-primary/90"
                     >
-                      {applyToImageLayer ? 'Use in Layer' : 'Use in Block'}
+                      <Check className="w-3 h-3" />
                     </button>
                     <button
                       type="button"
+                      title="Image tools & adjustments"
+                      onClick={ev => { ev.stopPropagation(); setSelectedMedia(m.id); setAdjustedUrl(null) }}
+                      className="h-6 w-6 flex items-center justify-center rounded-md bg-white/95 text-primary shadow hover:bg-white"
+                    >
+                      <Wand2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Copy URL"
                       onClick={ev => {
                         ev.stopPropagation()
                         void navigator.clipboard.writeText(src)
                         toast.success('URL copied!')
                       }}
-                      className="w-full py-1.5 bg-white/90 rounded-lg text-xs font-bold text-gray-700"
+                      className="h-6 w-6 flex items-center justify-center rounded-md bg-white/95 text-gray-700 shadow hover:bg-white"
                     >
-                      Copy URL
+                      <Copy className="w-3 h-3" />
                     </button>
                   </div>
                   {isSelected && (
-                    <div className="absolute bottom-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                    <div className="absolute bottom-1 left-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
                       <Check className="w-2.5 h-2.5 text-white" />
                     </div>
                   )}
@@ -340,15 +384,32 @@ export function MediaStudioPanel({
           items={lightboxItems}
           openIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
+          editable
+          onSaveImage={handleSaveEditedImage}
         />
       </div>
 
-      {selectedMediaObj && (
-        <div className="flex-1 p-3 border-t border-gray-100 space-y-3">
+      {selectedMediaObj && createPortal(
+        <div
+          className="fixed inset-0 z-[100020] flex items-center justify-center bg-black/40 p-4 animate-in fade-in duration-150"
+          onClick={() => setSelectedMedia(null)}
+        >
+        <div
+          className="w-full max-w-sm max-h-[88vh] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 space-y-3 animate-in zoom-in-95 duration-150"
+          onClick={e => e.stopPropagation()}
+        >
           <div className="flex items-center gap-1.5">
             <Wand2 className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-bold text-gray-700">Image Adjuster & Designer</span>
+            <span className="text-xs font-bold text-gray-700">Image tools & adjustments</span>
             <span className="ml-auto text-xs text-gray-400 truncate max-w-[100px]">{selectedMediaObj.filename}</span>
+            <button
+              type="button"
+              onClick={() => setSelectedMedia(null)}
+              className="ml-1 p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              title="Close"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {selectedMediaObj.file_type === 'video' ? (
@@ -362,6 +423,7 @@ export function MediaStudioPanel({
               src={adjustedUrl || resolveUrl(selectedMediaObj.original_url)}
               className="w-full h-full object-cover"
               alt=""
+              style={adjustedUrl ? undefined : { filter: previewFilter }}
               onError={e => {
                 ;(e.target as HTMLImageElement).style.opacity = '0.3'
               }}
@@ -370,6 +432,17 @@ export function MediaStudioPanel({
               <div className="absolute top-2 left-2 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">✓ Adjusted</div>
             )}
           </div>
+
+          {isAdjustableImage && (
+            <button
+              type="button"
+              onClick={openEditorForSelected}
+              className="w-full py-2 bg-white border border-primary/30 text-primary text-xs font-bold rounded-lg hover:bg-accent flex items-center justify-center gap-1.5"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              Crop, rotate &amp; flip (full editor)
+            </button>
+          )}
 
           <div className="flex gap-1.5">
             <button
@@ -516,6 +589,8 @@ export function MediaStudioPanel({
             </>
           ) : null}
         </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

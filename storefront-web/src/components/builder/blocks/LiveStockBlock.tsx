@@ -2,13 +2,24 @@ import { Link } from 'react-router-dom'
 import { Package } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
 
 export default function LiveStockBlock({ style, props, liveItems }: Props) {
   const { storePath } = useVendor()
-  const title = (props.title as string) || 'Live Inventory'
-  if (liveItems.length === 0) return null
+  const title = (props.title as string) || 'In stock now'
+  if (liveItems.length === 0) {
+    return (
+      <BlockEmptyPlaceholder
+        style={style}
+        title={title}
+        message="Live stock levels will appear here once you add products to your catalog."
+        hint="Add products from Products in your dashboard, then connect this section to your catalog."
+        icon={<Package className="w-10 h-10" style={{ color: style.primary_color }} />}
+      />
+    )
+  }
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
       <h3 className="text-xl font-bold text-gray-900 mb-4">{title}</h3>
@@ -33,7 +44,7 @@ export default function LiveStockBlock({ style, props, liveItems }: Props) {
                 <td className="py-2 px-3 text-right font-semibold" style={{ color: style.primary_color }}>{item.price_formatted || '—'}</td>
                 <td className="py-2 px-3 text-center">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${item.meta?.stock_status === 'out_of_stock' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
-                    {item.meta?.stock_status === 'out_of_stock' ? 'Out' : item.meta?.quantity != null ? `${item.meta.quantity} left` : 'In Stock'}
+                    {item.meta?.stock_status === 'out_of_stock' ? 'Out' : item.meta?.quantity != null ? `${item.meta.quantity} left` : 'In stock'}
                   </span>
                 </td>
               </tr>

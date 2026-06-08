@@ -16,9 +16,11 @@ import { HelpAccordion } from '@/components/auth/HelpAccordion'
 import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import {
+
   Loader2, Eye, EyeOff, Check, ChevronDown, Pencil, Plus, X,
   Rocket, Smartphone, LogIn, Mail,
 } from 'lucide-react';
+
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'

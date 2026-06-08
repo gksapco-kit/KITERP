@@ -50,6 +50,11 @@ export interface BlockProps {
   // Nav
   brand?: string
   brand_logo?: string
+  logo_url?: string
+  show_logo?: boolean
+  show_brand_name?: boolean
+  show_nav_links?: boolean
+  nav_links_source?: 'site_pages' | 'manual'
   links?: string[]
   nav_links?: { label: string; url: string; children?: { label: string; url: string }[] }[]
   transparent?: boolean

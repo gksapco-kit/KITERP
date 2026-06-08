@@ -21,9 +21,13 @@ export default function FooterBlock({ site, style, props, liveItems }: Props) {
   const footerBg = (props.footer_bg as string) || style.surface_color || '#f9fafb'
   const footerStyle = String(props.footer_style ?? 'columns')
   const isDark = footerStyle === 'dark'
+  const isMinimal = footerStyle === 'minimal'
+  const isSimple = footerStyle === 'simple'
+  const isBrand = footerStyle === 'brand'
+  const isCompact = footerStyle === 'compact'
   const footerClass = isDark
     ? 'bg-slate-900 text-slate-300 border-slate-700'
-    : footerStyle === 'brand'
+    : isBrand
       ? 'text-white border-white/20'
       : 'border-gray-100'
 
@@ -46,7 +50,7 @@ export default function FooterBlock({ site, style, props, liveItems }: Props) {
       : (props.nav_links as Array<{ label: string; url: string }> | undefined) || []
 
   // Multi-column builder footer — use ColumnFooter (real <Link> elements, fully clickable)
-  if (footerColumns.length > 0) {
+  if (footerColumns.length > 0 && !isMinimal && !isSimple) {
     return (
       <ColumnFooter
         variant="standard"
@@ -64,11 +68,31 @@ export default function FooterBlock({ site, style, props, liveItems }: Props) {
   }
 
   // Default footer — navigation + legal links
+  if (isMinimal || isSimple) {
+    return (
+      <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
+        <div className={cn('max-w-7xl mx-auto px-4 py-8 text-center', isCompact && 'py-6')}>
+          <p className={cn('font-bold mb-3', isBrand || isDark ? 'text-white' : '')} style={!isBrand && !isDark ? { color: style.primary_color } : undefined}>
+            {site.name}
+          </p>
+          <div className={cn('flex flex-wrap justify-center gap-x-4 gap-y-2 mb-4', isSimple && 'text-sm')}>
+            {navLinks.map((link, i) => (
+              <Link key={i} to={storePath(link.url)} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
+                {link.label}
+              </Link>
+            ))}
+          </div>
+          <p className={cn('text-xs', isDark || isBrand ? 'text-white/50' : 'text-gray-400')}>{copyright}</p>
+        </div>
+      </footer>
+    )
+  }
+
   return (
     <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          <div className="md:col-span-2">
+          <div className={cn('md:col-span-2', isCompact && 'md:col-span-1')}>
             {site.logo_url ? (
               <img src={site.logo_url} alt={site.name} className="h-8 w-auto object-contain mb-3" />
             ) : (
@@ -98,7 +122,6 @@ export default function FooterBlock({ site, style, props, liveItems }: Props) {
         </div>
         <div className="border-t border-gray-200 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-gray-400">{copyright}</p>
-          <p className="text-xs text-gray-400">Powered by KITERP</p>
         </div>
       </div>
     </footer>

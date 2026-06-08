@@ -25,6 +25,8 @@ export interface UnifiedNavProps {
   /** Extra block inside the mobile sheet below nav links. */
   sheetExtra?: React.ReactNode;
   links: NavLinkItem[];
+  /** In builder canvas, always show page links (ignore md:hidden). */
+  linksLayout?: 'responsive' | 'always-visible';
   /** Extra controls in the header tray (e.g. business front notification bell). */
   extraTray?: React.ReactNode;
   showSearch?: boolean;
@@ -57,6 +59,7 @@ export function UnifiedNav({
   afterLogo,
   sheetExtra,
   links,
+  linksLayout = 'responsive',
   extraTray,
   showSearch = true,
   showCart = true,
@@ -163,7 +166,10 @@ export function UnifiedNav({
 
         {afterLogo}
 
-        <nav className="hidden md:flex items-center gap-1 ml-2 lg:ml-4 shrink-0">
+        <nav className={cn(
+          'items-center gap-1 ml-2 lg:ml-4 shrink-0',
+          linksLayout === 'always-visible' ? 'flex flex-wrap' : 'hidden md:flex',
+        )}>
           {links.map((l) => (
             <Link
               key={l.href}

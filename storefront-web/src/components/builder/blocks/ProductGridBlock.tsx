@@ -9,6 +9,7 @@ import CategoryCardsWellness from '@/components/builder/blocks/CategoryCardsWell
 import {
   WELLNESS_CATEGORY_FALLBACK_IMAGES,
   WELLNESS_DEFAULT_CATEGORY_TITLES,
+  normalizeCategoryCardItems,
 } from '@/lib/wellnessCategoryStyle'
 import { sanitizeWellnessCategoryTitle } from '@/lib/wellnessTemplateCopy'
 import { normalizeLiveProducts } from '@/lib/liveProductUtils'
@@ -96,16 +97,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     const propImageByTitle = new Map(
       propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
     )
-    const cats = liveItems.length > 0
-      ? liveItems.map((c, i) => ({
-          title: c.title,
-          image_url:
-            c.image_url
-            || (c.meta as any)?.image_url
-            || propImageByTitle.get(String(c.title || '').toLowerCase())
-            || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
-        }))
-      : propCats
+    const cats = normalizeCategoryCardItems(
+      liveItems.length > 0 ? liveItems : propCats,
+      propImageByTitle,
+    )
 
     return (
       <CategoryCardsWellness
@@ -138,15 +133,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     const propImageByTitle = new Map(
       propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
     )
-    const cats: { title: string; image_url?: string | null }[] = liveItems.length > 0
-      ? liveItems.map(c => ({
-          title: c.title,
-          image_url:
-            c.image_url
-            || (c.meta as any)?.image_url
-            || propImageByTitle.get(String(c.title || '').toLowerCase()),
-        }))
-      : propCats
+    const cats = normalizeCategoryCardItems(
+      liveItems.length > 0 ? liveItems : propCats,
+      propImageByTitle,
+    )
 
     return (
       <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: style.bg_color }}>
@@ -166,11 +156,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <div className="grid md:grid-cols-3 gap-1">
           {cats.slice(0, 9).map((c, i) => (
             <Link key={`${c.title}-${i}`} to={storePath('/products')} className="group relative aspect-[4/5] overflow-hidden block">
-              {c.image_url ? (
-                <img src={mediaUrl(c.image_url)} alt={c.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900" />
-              )}
+              <img src={mediaUrl(c.image_url)} alt={c.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
               <div className="absolute bottom-0 left-0 p-6 text-white">
                 <h3 className="text-2xl" style={{ fontFamily: style.font_heading }}>{c.title}</h3>
@@ -190,7 +176,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       return (
         <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: style.surface_color || style.bg_color }}>
           <h2 className="text-3xl sm:text-4xl mb-4" style={{ fontFamily: style.font_heading, color: textColor }}>{title}</h2>
-          <p className="text-sm opacity-70" style={{ color: textColor }}>No products in your catalog yet. Add products in KITERP to show them here.</p>
+          <p className="text-sm opacity-70" style={{ color: textColor }}>Your products will appear here once you add them to your catalog from the Products page.</p>
         </section>
       )
     }
@@ -333,9 +319,10 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
       {items.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p>No products available yet</p>
+        <div className="text-center py-12 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/80">
+          <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-40" style={{ color: style.primary_color }} />
+          <p className="text-sm font-medium text-gray-600">Products will show here</p>
+          <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">Add products in your dashboard under Products, then they will appear in this section automatically.</p>
         </div>
       ) : (
         <div className={`grid ${colClass[columns] || colClass[4]} gap-6`}>

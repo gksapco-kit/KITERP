@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Loader2, X } from 'lucide-react'
+import { AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react'
 import { DraftPreviewRenderer } from '@/components/websites/DraftPreviewRenderer'
 import { fetchPublicPreviewByToken } from '@/lib/publicSitePreview'
 import { rememberDraftPreviewToken } from '@/lib/draftPreviewNavigation'
@@ -8,16 +8,40 @@ import {
   subscribeDraftPreviewUpdates,
   rememberDraftPreviewSession,
   subscribePreviewTabNavigate,
+  subscribePreviewTabError,
   consumePendingPreviewTabNavigate,
   peekPendingPreviewTabNavigate,
   clearPendingPreviewTabNavigate,
+  peekPendingPreviewTabError,
+  clearPendingPreviewTabError,
   PREVIEW_NAV_MESSAGE_TYPE,
+  PREVIEW_NAV_STORAGE_KEY,
+  PREVIEW_ERROR_STORAGE_KEY,
   type PreviewTabPostMessage,
 } from '@/lib/draftPreviewSync'
-import { DRAFT_BROWSER_PREVIEW_PATH, DRAFT_PREVIEW_PENDING_PARAM } from '@/lib/storefrontPreviewUrl'
-import { getStorefrontAppOrigin, getVendorPreviewOrigin } from '@/lib/storefrontPreviewUrl'
+import {
+  DRAFT_BROWSER_PREVIEW_PATH,
+  DRAFT_PREVIEW_PENDING_PARAM,
+  alignPreviewUrlWithCurrentHost,
+  getStorefrontAppOrigin,
+  getVendorPreviewOrigin,
+} from '@/lib/storefrontPreviewUrl'
 import { isSameLoopbackOrigin } from '@/lib/loopbackHost'
 import { cn } from '@/lib/utils'
+
+/** Match builder API timeout so slow snapshots do not false-positive. */
+const PENDING_PREVIEW_TIMEOUT_MS = 120_000
+
+/** Redirect localhost/[::1] → 127.0.0.1 so cross-tab localStorage works on Windows. */
+function useCanonicalLoopbackRedirect(): void {
+  useEffect(() => {
+    const host = window.location.hostname
+    if (host !== 'localhost' && host !== '[::1]') return
+    const url = new URL(window.location.href)
+    url.hostname = '127.0.0.1'
+    window.location.replace(url.toString())
+  }, [])
+}
 
 function isAllowedTemplateTarget(raw: string): boolean {
   try {
@@ -32,7 +56,7 @@ function isAllowedTemplateTarget(raw: string): boolean {
 
 function isAllowedPreviewNavigateUrl(raw: string): boolean {
   try {
-    const url = new URL(raw)
+    const url = new URL(alignPreviewUrlWithCurrentHost(raw))
     if (!isSameLoopbackOrigin(url.origin, window.location.origin) && url.origin !== window.location.origin) {
       return false
     }
@@ -53,6 +77,7 @@ function parseTokenFromLegacyTarget(target: string): string | null {
 }
 
 export default function StorefrontBrowserPreviewShell() {
+  useCanonicalLoopbackRedirect()
   const [searchParams] = useSearchParams()
   const legacyTarget = searchParams.get('target')?.trim() ?? ''
   const token = (searchParams.get('token')?.trim()
@@ -66,6 +91,7 @@ export default function StorefrontBrowserPreviewShell() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(Boolean(token))
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
+  const [pendingError, setPendingError] = useState<string | null>(null)
 
   const loadPreview = useCallback((previewToken: string, opts?: { quiet?: boolean }) => {
     if (!previewToken) return Promise.resolve()
@@ -94,9 +120,10 @@ export default function StorefrontBrowserPreviewShell() {
 
   useEffect(() => {
     const goToPreview = (navUrl: string) => {
-      if (!isAllowedPreviewNavigateUrl(navUrl)) return
+      const canonical = alignPreviewUrlWithCurrentHost(navUrl)
+      if (!isAllowedPreviewNavigateUrl(canonical)) return
       clearPendingPreviewTabNavigate()
-      window.location.replace(navUrl)
+      window.location.replace(canonical)
     }
 
     const onWindowMessage = (ev: MessageEvent<PreviewTabPostMessage>) => {
@@ -106,7 +133,19 @@ export default function StorefrontBrowserPreviewShell() {
     }
     window.addEventListener('message', onWindowMessage)
 
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === PREVIEW_NAV_STORAGE_KEY && ev.newValue) {
+        goToPreview(ev.newValue)
+        return
+      }
+      if (ev.key === PREVIEW_ERROR_STORAGE_KEY && ev.newValue) {
+        setPendingError(ev.newValue)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+
     const unsubscribeChannel = subscribePreviewTabNavigate(goToPreview)
+    const unsubscribeError = subscribePreviewTabError(msg => setPendingError(msg))
 
     if (pending && !token) {
       const immediate = peekPendingPreviewTabNavigate()
@@ -114,17 +153,35 @@ export default function StorefrontBrowserPreviewShell() {
         goToPreview(immediate)
         return () => {
           window.removeEventListener('message', onWindowMessage)
+          window.removeEventListener('storage', onStorage)
           unsubscribeChannel()
+          unsubscribeError()
         }
       }
+      const existingErr = peekPendingPreviewTabError()
+      if (existingErr) setPendingError(existingErr)
+      const startedAt = Date.now()
       const pollId = window.setInterval(() => {
         const nav = peekPendingPreviewTabNavigate()
-        if (nav) goToPreview(nav)
+        if (nav) { goToPreview(nav); return }
+        const err = peekPendingPreviewTabError()
+        if (err) {
+          setPendingError(err)
+          return
+        }
+        if (Date.now() - startedAt > PENDING_PREVIEW_TIMEOUT_MS) {
+          setPendingError(
+            'Preview is taking too long. Return to the builder tab and click "Preview in Browser" again. '
+            + 'If this keeps happening, confirm the backend is running and run alembic upgrade web006.',
+          )
+        }
       }, 200)
       return () => {
         window.clearInterval(pollId)
         window.removeEventListener('message', onWindowMessage)
+        window.removeEventListener('storage', onStorage)
         unsubscribeChannel()
+        unsubscribeError()
       }
     }
 
@@ -133,7 +190,9 @@ export default function StorefrontBrowserPreviewShell() {
 
     return () => {
       window.removeEventListener('message', onWindowMessage)
+      window.removeEventListener('storage', onStorage)
       unsubscribeChannel()
+      unsubscribeError()
     }
   }, [pending, token])
 
@@ -166,6 +225,37 @@ export default function StorefrontBrowserPreviewShell() {
   const previewOrigin = getVendorPreviewOrigin()
 
   if (pending && !token && !templateTarget) {
+    if (pendingError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-6">
+          <AlertTriangle className="w-10 h-10 text-amber-400 mb-4" />
+          <h1 className="text-lg font-semibold mb-2">Preview could not be prepared</h1>
+          <p className="text-sm text-gray-400 text-center max-w-md mb-6">{pendingError}</p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setPendingError(null)
+                clearPendingPreviewTabError()
+                const nav = peekPendingPreviewTabNavigate()
+                if (nav) window.location.replace(alignPreviewUrlWithCurrentHost(nav))
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Check again
+            </button>
+            <button
+              type="button"
+              onClick={() => { clearPendingPreviewTabError(); window.close() }}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+            >
+              Close this tab
+            </button>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-6">
         <Loader2 className="h-10 w-10 animate-spin text-emerald-400 mb-4" />
@@ -198,15 +288,12 @@ export default function StorefrontBrowserPreviewShell() {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-white">
-      <header className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-gray-900 px-3 py-2 text-white z-10">
-        <span className="text-xs font-bold uppercase tracking-wide text-emerald-400 shrink-0">
-          Draft preview
-        </span>
-        <span className="hidden sm:inline text-[11px] text-gray-400 truncate">
-          {previewOrigin} · vendor-web
+      <header className="flex shrink-0 items-center gap-3 border-b border-amber-100 bg-amber-50 px-3 py-2 text-amber-950 z-10">
+        <span className="text-xs font-bold uppercase tracking-wide text-amber-800 shrink-0">
+          Preview — not live yet
         </span>
         {site?.name && (
-          <span className="hidden md:inline text-[11px] text-gray-500 truncate max-w-[200px]">
+          <span className="text-[11px] text-amber-900/70 truncate max-w-[240px]">
             {site.name}
           </span>
         )}
@@ -219,7 +306,7 @@ export default function StorefrontBrowserPreviewShell() {
           <button
             type="button"
             onClick={() => { window.close() }}
-            className="inline-flex items-center gap-1 rounded-lg p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white"
+            className="inline-flex items-center gap-1 rounded-lg p-1.5 text-amber-800/60 hover:bg-amber-100 hover:text-amber-950"
             title="Close preview"
           >
             <X className="w-4 h-4" />

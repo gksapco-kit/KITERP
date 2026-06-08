@@ -25,9 +25,6 @@ import {
   CalendarCheck,
   GalleryHorizontal,
   Lock,
-  LayoutGrid,
-  Palette,
-  Waves,
   Store,
   type LucideIcon,
 } from 'lucide-react'
@@ -38,7 +35,7 @@ import { websiteApi } from '@/api/websites'
 import type { SiteListItem } from '@/types/websites'
 import { cn } from '@/lib/utils'
 import { extractApiError } from '@/lib/errorMessages'
-import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getDefaultSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, DESIGN_QUALITY_FEATURES, type SetupFeatureId, type SetupFeatureOption, resolveWebsiteSetupFromBusinessSettings } from '@/lib/businessSitePresets'
+import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getDefaultSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, type SetupFeatureId, type SetupFeatureOption, resolveWebsiteSetupFromBusinessSettings } from '@/lib/businessSitePresets'
 import { companyTypeLabel } from '@/data/companyTypes'
 import { useVendorStore } from '@/stores/vendorStore'
 import { shouldUseLocalStorefrontUrls } from '@/lib/storefrontPreviewUrl'
@@ -166,8 +163,8 @@ const WEBSITE_STORE_SCOPE_OPTIONS_MULTI = WEBSITE_STORE_SCOPE_OPTIONS.filter(o =
 const EXTERNAL_SCOPE_OPTION = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === 'external')!
 
 const STATUS_CONFIG = {
-  draft:     { label: 'Draft',     icon: AlertCircle,  color: 'text-amber-600 bg-amber-50 border-amber-200' },
-  published: { label: 'Published', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+  draft:     { label: 'Draft — not live', icon: AlertCircle,  color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  published: { label: 'Live for customers', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
   archived:  { label: 'Archived',  icon: EyeOff,       color: 'text-gray-500 bg-gray-50 border-gray-200' },
 }
 
@@ -187,47 +184,6 @@ const SETUP_FEATURE_ICONS: Record<SetupFeatureId, LucideIcon> = {
   blog_page: BookOpen,
   booking_blocks: CalendarCheck,
   menu_gallery: GalleryHorizontal,
-}
-
-const DESIGN_QUALITY_ICONS: Record<string, LucideIcon> = {
-  professional_layouts: LayoutGrid,
-  clean_ui: Layout,
-  smooth_animations: Sparkles,
-  modern_gradients: Palette,
-  wave_dividers: Waves,
-}
-
-function DesignQualityPicker() {
-  return (
-    <div className="rounded-2xl border border-indigo-100 bg-gradient-to-b from-indigo-50/60 to-white overflow-hidden">
-      <div className="px-4 py-3 border-b border-indigo-100/80 bg-white/80">
-        <p className="text-sm font-semibold text-gray-900">Design quality — always included</p>
-        <p className="text-xs text-gray-500 mt-0.5">Every new site gets a polished, modern look out of the box.</p>
-      </div>
-      <div className="px-4 py-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {DESIGN_QUALITY_FEATURES.map(feature => {
-            const Icon = DESIGN_QUALITY_ICONS[feature.id] || Sparkles
-            return (
-              <div
-                key={feature.id}
-                title={feature.description}
-                className="flex items-start gap-2.5 rounded-xl border border-indigo-100 bg-white/90 px-3 py-2.5"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-xs font-semibold text-gray-900">{feature.label}</span>
-                  <span className="block text-[11px] text-gray-500 mt-0.5 leading-snug">{feature.description}</span>
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function SetupFeaturesPicker({
@@ -388,7 +344,6 @@ function CreateSiteModal({
   const singleStore = storeCount === 1 ? stores[0] : null
 
   const [name, setName] = useState('')
-  const [desc, setDesc] = useState('')
   const [websiteStoreScope, setWebsiteStoreScope] = useState<WebsiteStoreScope>(
     storeCount <= 1 ? 'store' : 'store',
   )
@@ -460,7 +415,7 @@ function CreateSiteModal({
       return
     }
     const siteName = name.trim() || selectedBusiness.defaultName
-    const siteDesc = desc.trim() || `${selectedBusiness.label} website for ${effectiveSellingMode === 'both' ? 'products and services' : effectiveSellingMode}.`
+    const siteDesc = `${selectedBusiness.label} website for ${effectiveSellingMode === 'both' ? 'products and services' : effectiveSellingMode}.`
     const imageCategoryId = imageCategoryForBusinessType(effectiveBusinessType)
     const stylePreset = stylePresetForBusinessType(effectiveBusinessType)
     const pages = buildPagesFromSetupFeatures(selectedFeatures, effectiveBusinessType)
@@ -498,7 +453,6 @@ function CreateSiteModal({
             selling?.desc || effectiveSellingMode,
             selectedBusiness.prompt,
             selectedFeatures,
-            desc,
           ),
           niche: selectedBusiness.niche,
           tone: 'professional',
@@ -674,17 +628,11 @@ function CreateSiteModal({
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Site name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Name Your Website Template</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder={selectedBusiness.defaultName}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 onKeyDown={e => e.key === 'Enter' && !isLoading && handleGuidedCreate()} />
-              <p className="text-[11px] text-gray-500 mt-1">Your brand name appears in headlines, navigation, and SEO across all pages.</p>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Extra details (optional)</label>
-              <textarea value={desc} onChange={e => setDesc(e.target.value)}
-                placeholder="Example: We are a premium bakery in Bangalore selling cakes, cookies, and party orders..."
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              <p className="text-[11px] text-gray-500 mt-1">This name identifies your website template in the builder and on published pages.</p>
             </div>
             <SetupFeaturesPicker
               features={availableFeatures}
@@ -695,7 +643,6 @@ function CreateSiteModal({
               onToggle={toggleFeature}
               onSelectRecommended={() => setSelectedFeatures(getDefaultSetupFeatures(effectiveBusinessType, effectiveSellingMode))}
             />
-            <DesignQualityPicker />
             <div className="flex items-center justify-end gap-3">
               <Button variant="cancel" onClick={onClose} disabled={isLoading}>Cancel</Button>
               <Button onClick={handleGuidedCreate} disabled={isLoading || (websiteStoreScope === 'store' && storeCount > 1 && !websiteStoreId)} className="bg-primary hover:bg-primary/90 text-white">
@@ -771,10 +718,10 @@ function SiteCard({ site }: { site: SiteListItem }) {
     try {
       if (site.is_published) {
         await unpublishSite.mutateAsync()
-        toast.success('Site unpublished')
+        toast.success('Store taken offline — customers will no longer see this site')
       } else {
         await publishSite.mutateAsync()
-        toast.success('Site published!')
+        toast.success('Store is live! Customers can now visit your site.')
       }
     } catch {
       toast.error('Failed to update status')
@@ -927,8 +874,8 @@ function SiteCard({ site }: { site: SiteListItem }) {
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
                   >
                     {site.is_published
-                      ? <><EyeOff className="w-4 h-4 text-gray-400" /> Unpublish</>
-                      : <><Eye className="w-4 h-4 text-gray-400" /> Publish</>
+                      ? <><EyeOff className="w-4 h-4 text-gray-400" /> Take offline</>
+                      : <><Eye className="w-4 h-4 text-gray-400" /> Publish store</>
                     }
                   </button>
                   <div className="border-t border-gray-100 my-1" />

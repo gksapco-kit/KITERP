@@ -1,4 +1,6 @@
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { registerEscapeHandler } from '@/lib/escapeCloseRegistry'
+import { dismissBuilderEscapeLayer, type BuilderEscapeActions, type BuilderEscapeUiState } from '@/lib/builderEscapeDismiss'
 import React, {
   useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo,
 } from 'react'
@@ -9,21 +11,21 @@ import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
 import {
   ArrowLeft, Monitor, Tablet, Smartphone, Save, Eye, EyeOff,
-  Undo2, Redo2, Plus, Trash2, Copy, ChevronUp, ChevronDown,
+  Undo2, Redo2, Plus, Trash2, Copy, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown,
   GripVertical, Settings2, Palette, Sparkles, Image as ImageIcon,
   FileText, Layers, Layout, Code, Globe, Search, X, Check,
   Loader2, ChevronRight, MoreVertical, PanelLeft, PanelRight,
   Wand2, AlertTriangle, Download, ExternalLink, RefreshCw,
-  Bold, Italic, AlignLeft, AlignCenter, AlignRight, Link2,
+  Bold, Italic, Link2,
   Maximize2, Minimize2, Move, Pencil, PlusCircle, Upload,
   ZoomIn, ZoomOut,
-  Zap, Star, Shield, Phone, Mail, MapPin, Clock, Rocket, CheckCircle2,
+  Zap, Star, Shield, Phone, Mail, MapPin, Clock, CheckCircle2,
   ChevronLeft, BarChart3, Users, ShoppingBag, Heart,
   PlayCircle, Quote, Award, Briefcase, Camera,
   Type, Square, Columns, Video, Map as MapIcon, MessageSquare,
   Hash, Minus, List, ToggleLeft, Radio, Info,
   Database, Plug, RefreshCcw, Package, Wrench, ShoppingCart,
-  Store as StoreIcon, ClipboardCopy, RotateCcw,
+  Store as StoreIcon, ClipboardCopy, ClipboardPaste, RotateCcw, SlidersHorizontal, Paintbrush, Scissors,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -52,9 +54,80 @@ import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { formatStoreCode } from '@/lib/verification'
 import CommerceLibraryPreview from '@/components/websites/CommerceLibraryPreview'
+import { BuilderCanvasProviders } from '@/components/websites/BuilderCanvasProviders'
+import { BuilderCanvasPageRenderer, mergePageStyle } from '@/components/websites/BuilderCanvasPageRenderer'
+import { BuilderSectionOverlay } from '@/components/websites/BuilderSectionOverlay'
+import {
+  FontSizePxControl,
+  FontFamilyControl,
+  TextCaseList,
+  TextFieldAlignGrid,
+  FieldPositionControlGroup,
+  FieldPositionNudge,
+  FlipRotateControls,
+  LayoutTransformScopeToggle,
+  type LayoutTransformScope,
+  ColorIdentPickerRow,
+  LineSpacingMenuContent,
+  LineSpacingToolbarButton,
+  TypographyCompositionFields,
+  typographyToolbarBox,
+  type TextAlignH,
+  type TextAlignV,
+} from '@/components/websites/TypographyCompositionControls'
+import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
+import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
+import {
+  BuilderCanvasInlineTextEdit,
+  type InlineTextEditSession,
+} from '@/components/websites/BuilderCanvasInlineTextEdit'
+import {
+  listSectionTextFields,
+  buildPropPatchFromFieldKey,
+  insertActiveCanvasLineBreak,
+  getCanvasFieldComputedFontSizePx,
+  getCanvasFieldComputedFormatPaintStyle,
+  resolveToolbarFontFamily,
+  runCanvasTextClipboardAction,
+} from '@/lib/builderCanvasTextEdit'
+import {
+  editableFieldKeys,
+  primaryTextFieldKey,
+  toggleTextFieldInTarget,
+  type ActiveTextTarget,
+} from '@/lib/builderTextSelection'
+import { isCanvasFieldClickTarget, resolveCanvasFieldKeyFromTarget } from '@storefront/lib/builderMultiSelect'
+import {
+  FONT_SIZE_PX_MAX,
+  FONT_SIZE_PX_MIN,
+  FONT_SIZE_PX_STEP,
+  FONT_SIZE_PX_FALLBACK,
+  PARAGRAPH_SPACE_MAX_PX,
+  PARAGRAPH_SPACE_STEP_PX,
+  buildTextCasePropsPatch,
+  currentTextCaseMenuId,
+  toSentenceCase,
+  toToggleCase,
+} from '@/lib/builderTypography'
+import { buildBuilderPublicSite } from '@/lib/builderPublicSite'
+import {
+  extractFormatPaintStyle,
+  formatPaintStyleSummary,
+  hasFormatPaintStyle,
+  buildFormatPaintPropsPatch,
+  resolveFormatPaintStyle,
+  type FormatPaintStyle,
+} from '@/lib/builderFormatPainter'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
+import { MediaClipPicker } from '@/components/websites/MediaClipPicker'
+import { MEDIA_CLIP_BLOCK_TYPES } from '@storefront/lib/mediaClip'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
+import {
+  SectionEditorRibbon,
+  resolveSectionEditorTab,
+  type SectionEditorTabId,
+} from '@/components/websites/SectionEditorRibbon'
 import {
   applyCategoryImagesToBlockProps,
   blockSupportsGalleryCategory,
@@ -69,7 +142,17 @@ import {
   type BlockColorProps,
   type ThemeColors,
 } from '@/lib/blockColorOverrides'
-import { BLOCK_QUICK_PRESETS, getSectionLayoutOptions } from '@/lib/sectionLayoutPresets'
+import { getSectionLayoutOptions, findActiveSectionLayoutOption, findActiveLayoutIndex, getCycledSectionLayoutOption } from '@/lib/sectionLayoutPresets'
+import {
+  BLOCK_AUTO_SOURCE,
+  DATA_SOURCES,
+  normalizeSourceType,
+  applyDataSourceToBlockProps,
+  getRecommendedDataSources,
+  getOtherDataSources,
+  BLOCK_REQUIRED_DATA_SOURCE,
+  type LayoutPickerDataSourceChoice,
+} from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
 import { heroShouldUseFullBleedImage, heroUsesBackgroundImage, heroUsesSideImage, resolveGradientCss } from '@/lib/heroLayoutUtils'
 import { resolveFooterTheme } from '@/lib/footerLayoutTheme'
@@ -95,14 +178,44 @@ import {
   resolveWellnessFeatureImage,
 } from '@/lib/wellnessTemplateCopy'
 import {
+  isLiveTeamDataSource,
+  shouldUseLiveTeam,
+  liveItemToPropMember,
+  teamPropMembers,
+} from '@/lib/teamGridContent'
+import {
   isWellnessRetailContext,
   resolveWellnessSiteProducts,
 } from '@storefront/lib/wellnessProductFilter'
-import { pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
+import { broadcastPreviewTabError, clearPendingPreviewTabError, clearPendingPreviewTabNavigate, pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
 import {
   WELLNESS_CATEGORY_FALLBACK_IMAGES,
   WELLNESS_DEFAULT_CATEGORY_TITLES,
 } from '@storefront/lib/wellnessCategoryStyle'
+import {
+  IMAGE_SHAPE_OPTIONS,
+  cardImageShapeClass,
+  iconBoxFromItemSize,
+  thumbnailShapeClass,
+  type ImageShape,
+} from '@storefront/lib/sectionItemLayout'
+import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
+import { BUILDER_FONT_FAMILIES } from '@storefront/lib/builderFontFamilies'
+import {
+  applyInlineTextSelectionStyle,
+  applyPatchToLastStyledSpan,
+  BUILDER_DESIGN_BAR_CHROME_ATTR,
+  BUILDER_TYPOGRAPHY_TOOLBAR_ATTR,
+  ensureInlineTextSelectionTracking,
+  getLastInlineStyledSpan,
+  getSavedInlineTextSelection,
+  getSelectionFontSizePx,
+  hasActiveInlineTextSelection,
+  pinInlineTextSelectionBeforeToolbarAction,
+  rememberInlineTextSelection,
+  restoreSavedInlineSelection,
+} from '@storefront/lib/builderInlineTextSelection'
+import { mergeBlockSectionStyles, readRawBlockStyleOverrides, resolveBreakpointStyleOverrides } from '@storefront/lib/blockStyleOverrides'
 import CategoryCardMosaic from '@storefront/components/builder/blocks/CategoryCardMosaic'
 
 // ── Block definitions catalog ─────────────────────────────────────────────────
@@ -118,41 +231,41 @@ interface BlockDef {
 
 const BLOCK_CATALOG: BlockDef[] = [
   // Structure
-  { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'Your Brand', nav_links: [{ label: 'Home', url: '/' }, { label: 'About', url: '/about' }, { label: 'Contact', url: '/contact' }], cta_label: 'Get Started' } },
+  { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Home', url: '/' }, { label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Shop now' } },
   { type: 'footer', label: 'Footer', icon: Layout, desc: 'Site footer with links and copyright', category: 'structure', defaultProps: {
-    copyright: '© 2026 Your Company. All rights reserved.',
+    copyright: '© 2026 My Store. All rights reserved.',
     show_legal: true,
     footer_columns: [
-      { title: 'Company', links: ['About', 'Careers', 'Contact'] },
-      { title: 'Product', links: ['Features', 'Pricing', 'Demo'] },
-      { title: 'Resources', links: ['Blog', 'Docs', 'Support'] },
-      { title: 'Legal', links: ['Terms', 'Privacy', 'Refund'] },
+      { title: 'Shop', links: ['All products', 'Categories', 'Offers'] },
+      { title: 'Help', links: ['Contact', 'Shipping', 'Returns'] },
+      { title: 'About', links: ['Our story', 'Visit us', 'Careers'] },
+      { title: 'Legal', links: ['Terms', 'Privacy', 'Refund policy'] },
     ],
   } },
-  { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: 'Daily meals delivered to your doorstep — wholesome, plant-based, and delicious.', color: '#274832', show_close: true } },
-  { type: 'marquee_strip', label: 'Marquee strip', icon: Type, desc: 'Scrolling one-line highlights (e.g. shipping, craft)', category: 'structure', defaultProps: { text: '100% Plant-based,Wholesome,Naturally Grown,Nutritionally Balanced,Deliciously Healthy,Minimally Processed' } },
+  { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: 'Free delivery on orders over ₹499 — shop our latest arrivals today.', color: '#274832', show_close: true } },
+  { type: 'marquee_strip', label: 'Marquee strip', icon: Type, desc: 'Scrolling one-line highlights (e.g. shipping, craft)', category: 'structure', defaultProps: { text: 'Free shipping,Easy returns,Fresh daily,Handpicked quality,Secure checkout,Local & trusted' } },
   // Hero
-  { type: 'hero', label: 'Hero — Centered', icon: Square, desc: 'Full-width hero with CTA buttons', category: 'hero', defaultProps: { headline: 'Build Something Amazing', subtitle: 'The all-in-one platform that helps you create, launch, and grow.', bg_style: 'gradient', cta_primary: 'Get Started Free', cta_secondary: 'Learn More', layout: 'centered' } },
-  { type: 'hero_split', label: 'Hero — Split', icon: Columns, desc: 'Left text, right image hero', category: 'hero', defaultProps: { headline: 'Discover wellness essentials', headline_line2: 'for everyday wellness', subtitle: 'Wholesome snacks, gourmet groceries, and pantry staples — crafted with natural ingredients.', bg_style: 'minimal', cta_primary: 'Shop bestsellers', cta_secondary: 'Browse categories', layout: 'split', eyebrow: 'Welcome', eyebrow_plain: true } },
-  { type: 'hero_minimal', label: 'Hero — Minimal', icon: Type, desc: 'Clean, text-focused hero', category: 'hero', defaultProps: { headline: 'Simple. Powerful. Yours.', subtitle: 'Less complexity, more results.', bg_style: 'minimal', cta_primary: 'Get Started', layout: 'minimal' } },
+  { type: 'hero', label: 'Hero — Centered', icon: Square, desc: 'Full-width hero with CTA buttons', category: 'hero', defaultProps: { headline: 'Welcome to Our Store', subtitle: 'Thoughtfully chosen products and friendly service — everything you need in one place.', bg_style: 'gradient', cta_primary: 'Shop now', cta_secondary: 'Learn more', layout: 'centered' } },
+  { type: 'hero_split', label: 'Hero — Split', icon: Columns, desc: 'Left text, right image hero', category: 'hero', defaultProps: { headline: 'Discover what we offer', headline_line2: 'made for everyday life', subtitle: 'Browse our collection — quality you can see, service you can trust.', bg_style: 'minimal', cta_primary: 'Shop bestsellers', cta_secondary: 'Browse categories', layout: 'split', eyebrow: 'Welcome', eyebrow_plain: true } },
+  { type: 'hero_minimal', label: 'Hero — Minimal', icon: Type, desc: 'Clean, text-focused hero', category: 'hero', defaultProps: { headline: 'Simple. Beautiful. Yours.', subtitle: 'A clean start for your brand — edit this headline to match your store.', bg_style: 'minimal', cta_primary: 'Get started', layout: 'minimal' } },
   // Content
-  { type: 'features', label: 'Features Grid', icon: Columns, desc: 'Feature cards in a grid', category: 'content', defaultProps: { title: 'Everything You Need', layout: 'grid-3', features: [{ icon: 'Zap', title: 'Lightning Fast', desc: 'Optimized for performance' }, { icon: 'Shield', title: 'Secure by Default', desc: 'Enterprise-grade security' }, { icon: 'Star', title: 'Award Winning', desc: 'Loved by thousands of users' }] } },
-  { type: 'features_alternating', label: 'Features — Alternating', icon: List, desc: 'Alternating image/text sections', category: 'content', defaultProps: { title: 'Why Choose Us', layout: 'stacked', image_position: 'left', features: [{ title: 'Feature One', desc: 'Detailed description of this feature and how it benefits users.', image_url: '' }, { title: 'Feature Two', desc: 'Another great feature that sets you apart from the competition.', image_url: '' }] } },
-  { type: 'stats', label: 'Stats / Numbers', icon: BarChart3, desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'By the Numbers', stats: [{ value: '50K+', label: 'Happy Customers' }, { value: '99.9%', label: 'Uptime' }, { value: '4.9★', label: 'Average Rating' }, { value: '24/7', label: 'Support' }] } },
-  { type: 'testimonials', label: 'Testimonials', icon: Quote, desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What Our Customers Say', testimonials: [{ name: 'Sarah Johnson', role: 'CEO', company: 'TechCorp', quote: 'This platform transformed the way we work. Highly recommend!', rating: 5 }, { name: 'Michael Chen', role: 'Founder', company: 'StartupXYZ', quote: 'Incredibly powerful yet surprisingly easy to use.', rating: 5 }] } },
-  { type: 'team_grid', label: 'Team Grid', icon: Users, desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet Our Team', columns: 4, members: [{ name: 'Jane Doe', role: 'CEO & Founder', bio: 'Leading the vision and strategy.' }, { name: 'John Smith', role: 'CTO', bio: 'Building the technology.' }] } },
-  { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Simple, Transparent Pricing', show_annual_toggle: true, plans: [{ name: 'Starter', price: 0, period: 'month', features: ['Up to 5 users', '10GB storage', 'Basic analytics', 'Email support'], cta: 'Start Free' }, { name: 'Pro', price: 49, period: 'month', features: ['Up to 50 users', '100GB storage', 'Advanced analytics', 'Priority support', 'API access'], highlighted: true, cta: 'Start Trial' }, { name: 'Enterprise', price: 'Custom', period: '', features: ['Unlimited users', 'Unlimited storage', 'Custom analytics', 'Dedicated support', 'SLA guarantee'], cta: 'Contact Sales' }] } },
-  { type: 'faq', label: 'FAQ / Accordion', icon: MessageSquare, desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Frequently Asked Questions', faqs: [{ question: 'How do I get started?', answer: 'Simply sign up for a free account and follow our quick onboarding guide.' }, { question: 'Is there a free trial?', answer: 'Yes! We offer a 14-day free trial with no credit card required.' }, { question: 'Can I cancel anytime?', answer: 'Absolutely. You can cancel your subscription at any time with no penalties.' }] } },
-  { type: 'cta', label: 'Call to Action', icon: Zap, desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to Get Started?', subtitle: 'Join 50,000+ businesses already using our platform.', cta_label: 'Start Free Trial', cta_url: '/signup' } },
-  { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get In Touch', layout: 'split', full_page: false, email: 'hello@yoursite.com', phone: '+1 (555) 000-0000', address: '123 Main Street, City, State', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your Name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your Email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'Your Message' }] } },
+  { type: 'features', label: 'Features Grid', icon: Columns, desc: 'Feature cards in a grid', category: 'content', defaultProps: { title: 'Why shop with us', layout: 'grid-3', features: [{ icon: 'Truck', title: 'Fast delivery', desc: 'Quick, reliable shipping to your door' }, { icon: 'Shield', title: 'Secure checkout', desc: 'Safe payments and protected orders' }, { icon: 'Heart', title: 'Quality guaranteed', desc: 'Handpicked products we stand behind' }] } },
+  { type: 'features_alternating', label: 'Features — Alternating', icon: List, desc: 'Alternating image/text sections', category: 'content', defaultProps: { title: 'Why Choose Us', layout: 'stacked', image_position: 'left', features: [{ title: 'Fresh & quality', desc: 'We source carefully so every order meets our standards.', image_url: '' }, { title: 'Friendly support', desc: 'Questions? Our team is happy to help before and after you buy.', image_url: '' }] } },
+  { type: 'stats', label: 'Stats / Numbers', icon: BarChart3, desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'Trusted by our community', stats: [{ value: '2K+', label: 'Happy customers' }, { value: '500+', label: 'Products' }, { value: '4.8★', label: 'Average rating' }, { value: '24/7', label: 'Online ordering' }] } },
+  { type: 'testimonials', label: 'Testimonials', icon: Quote, desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What our customers say', testimonials: [{ name: 'Priya Sharma', role: 'Regular customer', company: '', quote: 'Great quality and fast delivery — I order every week!', rating: 5 }, { name: 'James Wilson', role: 'Local buyer', company: '', quote: 'Easy to shop and the team was very helpful.', rating: 5 }] } },
+  { type: 'team_grid', label: 'Team Grid', icon: Users, desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet our team', columns: 4, members: [{ name: 'Alex Morgan', role: 'Store owner', bio: 'Passionate about great products and service.' }, { name: 'Sam Rivera', role: 'Customer care', bio: 'Here to help with orders and questions.' }] } },
+  { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Our packages', show_annual_toggle: false, plans: [{ name: 'Starter', price: 299, period: 'order', features: ['Curated selection', 'Standard delivery', 'Email support'], cta: 'Order now' }, { name: 'Popular', price: 599, period: 'order', features: ['Best value bundle', 'Priority delivery', 'Phone support', 'Gift wrap'], highlighted: true, cta: 'Order now' }, { name: 'Premium', price: 999, period: 'order', features: ['Full collection access', 'Same-day delivery', 'Dedicated support', 'Custom requests'], cta: 'Contact us' }] } },
+  { type: 'faq', label: 'FAQ / Accordion', icon: MessageSquare, desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Common questions', faqs: [{ question: 'How do I place an order?', answer: 'Browse our products, add items to your cart, and checkout securely online.' }, { question: 'What are your delivery times?', answer: 'Most orders arrive within 2–5 business days. Local delivery may be faster.' }, { question: 'Can I return an item?', answer: 'Yes — unused items can be returned within 14 days. Contact us to start a return.' }] } },
+  { type: 'cta', label: 'Call to Action', icon: Zap, desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to shop?', subtitle: 'Browse our collection and find something you will love today.', cta_label: 'Start shopping', cta_url: '/products' } },
+  { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get in touch', layout: 'split', full_page: false, email: '', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'How can we help?' }] } },
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
   { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [] } },
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
-  { type: 'video_embed', label: 'Video Embed', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch Our Demo', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', aspect_ratio: '16:9' } },
-  { type: 'map_embed', label: 'Map', icon: MapIcon, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Find Us', address: '123 Main Street, City' } },
-  { type: 'trust_logos', label: 'Trust Logos', icon: Award, desc: 'Partner/client logo strip', category: 'social', defaultProps: { title: 'Trusted by Industry Leaders' } },
-  { type: 'timeline', label: 'Timeline', icon: Clock, desc: 'Company history or process steps', category: 'about', defaultProps: { title: 'Our Journey', items: [{ year: '2020', title: 'Founded', desc: 'Started with a simple idea.' }, { year: '2022', title: 'Series A', desc: 'Raised $5M to accelerate growth.' }, { year: '2024', title: 'Global Launch', desc: 'Expanded to 50+ countries.' }] } },
+  { type: 'video_embed', label: 'Video Embed', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
+  { type: 'map_embed', label: 'Map', icon: MapIcon, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Visit us', address: '' } },
+  { type: 'trust_logos', label: 'Trust Logos', icon: Award, desc: 'Partner/client logo strip', category: 'social', defaultProps: { title: 'Trusted by our partners' } },
+  { type: 'timeline', label: 'Timeline', icon: Clock, desc: 'Company history or process steps', category: 'about', defaultProps: { title: 'Our story', items: [{ year: '2020', title: 'We opened our doors', desc: 'Started as a small local shop with a big vision.' }, { year: '2022', title: 'Growing together', desc: 'Expanded our range and welcomed thousands of customers.' }, { year: '2024', title: 'Online store launch', desc: 'Now you can shop with us anytime, anywhere.' }] } },
   { type: 'rich_text', label: 'Rich Text', icon: Type, desc: 'Formatted text content block', category: 'content', defaultProps: { content: '<h2>Your Heading</h2><p>Add your content here. This block supports <strong>bold</strong>, <em>italic</em>, and other formatting.</p>' } },
   { type: 'image_block', label: 'Image', icon: ImageIcon, desc: 'Single image with optional caption', category: 'media', defaultProps: { image_url: '', caption: 'Image caption' } },
   { type: 'divider', label: 'Divider', icon: Minus, desc: 'Visual separator between sections', category: 'layout', defaultProps: { style: 'line', color: '#e5e7eb', spacing: 40 } },
@@ -171,12 +284,12 @@ const BLOCK_CATALOG: BlockDef[] = [
     })),
   } },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
-  { type: 'about_split', label: 'About Split', icon: Columns, desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About Us', subtitle: 'Our Story', description: 'We are a passionate team dedicated to creating exceptional experiences.' } },
-  { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our Services', columns: 3, features: [{ icon: 'Zap', title: 'Service One', desc: 'Description of this service.' }, { icon: 'Shield', title: 'Service Two', desc: 'Description of this service.' }, { icon: 'Star', title: 'Service Three', desc: 'Description of this service.' }] } },
+  { type: 'about_split', label: 'About Split', icon: Columns, desc: 'About section with image and text', category: 'about', defaultProps: { title: 'About us', subtitle: 'Our story', description: 'Tell customers who you are, what you sell, and why they can trust you.' } },
+  { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our services', columns: 3, features: [{ icon: 'Zap', title: 'Consultation', desc: 'Expert advice tailored to your needs.' }, { icon: 'Shield', title: 'Installation', desc: 'Professional setup you can rely on.' }, { icon: 'Star', title: 'Support', desc: 'Friendly help after you buy.' }] } },
   { type: 'html_embed', label: 'HTML Embed', icon: Code, desc: 'Custom HTML/widget embed', category: 'advanced', defaultProps: { html: '<p>Add your custom HTML here</p>' } },
 
   // ERP / live data blocks
-  { type: 'live_stock', label: 'Live Stock Ticker', icon: RefreshCw, desc: 'Real-time product stock levels from ERP', category: 'erp', defaultProps: { title: 'Live Inventory', show_count: 6 } },
+  { type: 'live_stock', label: 'Live Stock Ticker', icon: RefreshCw, desc: 'Real-time product stock levels from your catalog', category: 'erp', defaultProps: { title: 'In stock now', show_count: 6 } },
   { type: 'order_status', label: 'Order Status Lookup', icon: Package, desc: 'Customer-facing order tracking widget', category: 'erp', defaultProps: { title: 'Track Your Order', placeholder: 'Enter order number...' } },
   { type: 'live_quote', label: 'Live Quote Widget', icon: RefreshCcw, desc: 'Auto-generated price quote from catalog', category: 'erp', defaultProps: { title: 'Get an Instant Quote', cta_label: 'Calculate Price' } },
 
@@ -326,7 +439,7 @@ const BLOCK_CATEGORIES = [
   { id: 'blog', label: 'Blog' },
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'ecommerce', label: 'Commerce' },
-  { id: 'erp', label: 'Live ERP' },
+  { id: 'erp', label: 'Store features' },
   { id: 'widgets', label: 'Widgets' },
   { id: 'layout', label: 'Layout' },
   { id: 'advanced', label: 'Advanced' },
@@ -352,10 +465,7 @@ const DEFAULT_STYLE: StyleConfig = {
 }
 
 function mergePageStyleConfig(siteStyle: StyleConfig, pageId: string | null | undefined): StyleConfig {
-  if (!pageId) return siteStyle
-  const overrides = siteStyle.page_styles?.[pageId]
-  if (!overrides || Object.keys(overrides).length === 0) return siteStyle
-  return { ...siteStyle, ...overrides }
+  return mergePageStyle(siteStyle, pageId)
 }
 
 /** Export shape matches `GET /vendors/me/websites/:id/export` — paste into `/import` or keep as backup. */
@@ -408,81 +518,10 @@ function buildPublicSitePayloadFromLocal(
   localBlocks: Record<string, WebsiteBlock[]>,
   localStyle: StyleConfig,
 ): Record<string, unknown> {
-  const pagesSorted = [...localPages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-  const pages = pagesSorted.map(page => {
-    const blocksRaw = (localBlocks[page.id] ?? []).slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    const blocks = blocksRaw.map(b => ({
-      id: b.id,
-      page_id: b.page_id || page.id,
-      block_type: b.block_type,
-      label: b.label,
-      props: b.props ?? {},
-      style_overrides: b.style_overrides ?? {},
-      visible: b.visible !== false,
-      visible_on_mobile: b.visible_on_mobile !== false,
-      visible_on_tablet: b.visible_on_tablet !== false,
-      visible_on_desktop: b.visible_on_desktop !== false,
-      animation: b.animation ?? null,
-      animation_delay: b.animation_delay ?? 0,
-      sort_order: b.sort_order ?? 0,
-      visible_branches: ((b.props ?? {}) as { _visible_branches?: string[] })._visible_branches ?? [],
-    }))
-    return {
-      id: page.id,
-      site_id: page.site_id || site.id,
-      title: page.title,
-      slug: page.slug,
-      page_type: page.page_type,
-      seo_title: page.seo_title,
-      seo_description: page.seo_description,
-      og_image_url: page.og_image_url,
-      layout: page.layout ?? 'full',
-      sort_order: page.sort_order ?? 0,
-      is_published: true,
-      is_homepage: !!page.is_homepage,
-      show_in_nav: page.show_in_nav !== false,
-      blocks,
-    }
-  })
-  return {
-    id: site.id,
-    vendor_id: site.vendor_id,
-    name: site.name,
-    subdomain: site.subdomain,
-    custom_domain: site.custom_domain,
-    description: site.description,
-    favicon_url: site.favicon_url,
-    logo_url: site.logo_url,
-    style_config: localStyle,
-    seo_title: site.seo_title,
-    seo_description: site.seo_description,
-    seo_keywords: site.seo_keywords,
-    og_image_url: site.og_image_url,
-    is_published: true,
-    status: site.status,
-    google_analytics_id: site.google_analytics_id,
-    meta_pixel_id: site.meta_pixel_id,
-    custom_head_code: site.custom_head_code,
-    custom_body_code: site.custom_body_code,
-    language: site.language,
-    languages_enabled: site.languages_enabled ?? ['en'],
-    currency: site.currency,
-    currencies_enabled: site.currencies_enabled ?? [site.currency],
-    currency_symbol: site.currency_symbol,
-    currency_position: site.currency_position,
-    location: site.location,
-    timezone: site.timezone,
-    pages,
-    updated_at: new Date().toISOString(),
-  }
+  return buildBuilderPublicSite(site, localPages, localBlocks, localStyle) as unknown as Record<string, unknown>
 }
 
-const FONTS = [
-  'Inter', 'Roboto', 'Open Sans', 'Lato', 'Nunito', 'Poppins',
-  'Montserrat', 'Raleway', 'DM Sans', 'Plus Jakarta Sans',
-  'Playfair Display', 'Merriweather', 'Lora', 'Crimson Text',
-  'Space Grotesk', 'Sora', 'Manrope', 'Outfit',
-]
+const FONTS = [...BUILDER_FONT_FAMILIES]
 
 // ── In-block overlay element system ──────────────────────────────────────────
 
@@ -680,6 +719,7 @@ function TextPromptPopup({
   const [val, setVal] = useState(initialValue || '')
   const [submitting, setSubmitting] = useState(false)
   const { ref, pos, headerMouseDown } = useDraggablePopup(open)
+  useEscapeToClose(onClose, open)
   useEffect(() => { if (open) setVal(initialValue || '') }, [open, initialValue])
 
   if (!open) return null
@@ -897,6 +937,7 @@ function LinkEditorPopup({
   // holds the serialized query (`/stores?branch=a,b,c`).
   const [multiSelected, setMultiSelected] = useState<string[]>([])
   const { ref, pos, headerMouseDown } = useDraggablePopup(open)
+  useEscapeToClose(onClose, open)
 
   useEffect(() => {
     if (!open) return
@@ -1015,7 +1056,7 @@ function LinkEditorPopup({
           <div className="flex items-center gap-2 min-w-0">
             <Move className="w-3 h-3 opacity-60 shrink-0" />
             <Link2 className="w-4 h-4 shrink-0" />
-            <span className="text-sm font-bold truncate">Connect link or ERP item</span>
+            <span className="text-sm font-bold truncate">Connect link or product</span>
             {type !== 'none' && currentMeta && (
               <span className="ml-1 px-1.5 py-0.5 rounded bg-white/20 text-xs font-medium">{currentMeta.label}</span>
             )}
@@ -1149,7 +1190,7 @@ function LinkEditorPopup({
                 </div>
               ) : pickableList.length === 0 ? (
                 <div className="text-xs text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">
-                  No stores found — add branches in KITERP first.
+                  No stores found — add a branch in Settings first.
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -1249,7 +1290,7 @@ function LinkEditorPopup({
               ) : filteredList.length === 0 ? (
                 <div className="text-xs text-gray-400 text-center py-6 border border-dashed border-gray-200 rounded-lg">
                   {pickerSearch ? 'No matches for ' : 'No live '}<b>{pickerSearch || resource}</b>{pickerSearch ? '.' : ' yet.'}
-                  {!pickerSearch && <div className="mt-1 text-xs text-gray-400">Add them inside KITERP first.</div>}
+                  {!pickerSearch && <div className="mt-1 text-xs text-gray-400">Add products or services in your catalog first.</div>}
                 </div>
               ) : (
                 <div className="max-h-56 overflow-y-auto border border-gray-100 rounded-lg p-1 space-y-0.5 bg-gray-50/50">
@@ -1366,15 +1407,13 @@ function ContextMenu({ open, x, y, actions, onClose }: {
   onClose: () => void
 }) {
   const [submenu, setSubmenu] = useState<string | null>(null)
+  useEscapeToClose(onClose, open)
   useEffect(() => {
     if (!open) return
     const h = () => onClose()
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('click', h)
-    window.addEventListener('keydown', esc)
     return () => {
       window.removeEventListener('click', h)
-      window.removeEventListener('keydown', esc)
     }
   }, [open, onClose])
 
@@ -1443,10 +1482,6 @@ const InlineTextStyleContext = React.createContext<{
   onActivateKey: (key: string) => void
 } | null>(null)
 
-let savedInlineTextSelection: { key: string; range: Range; root: HTMLElement } | null = null
-let lastInlineStyledSpan: { key: string; span: HTMLSpanElement; root: HTMLElement } | null = null
-let selectionTrackingInstalled = false
-
 function inferInlineTextStyleKey(onCommit: (v: string) => void): string | null {
   const src = Function.prototype.toString.call(onCommit)
   const commit = src.match(/commitProp\(['"`]([^'"`]+)['"`]/)
@@ -1458,162 +1493,6 @@ function inferInlineTextStyleKey(onCommit: (v: string) => void): string | null {
 
 function hasInlineHtml(value: string): boolean {
   return /<\/?[a-z][\s\S]*>/i.test(value)
-}
-
-function findInlineTextRoot(node: Node): { root: HTMLElement; key: string } | null {
-  let el: HTMLElement | null = node.nodeType === Node.TEXT_NODE
-    ? node.parentElement
-    : (node as HTMLElement)
-  while (el) {
-    const key = el.getAttribute('data-text-key')
-    if (key) return { root: el, key }
-    el = el.parentElement
-  }
-  return null
-}
-
-function syncInlineTextSelectionFromDocument() {
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return
-  const range = sel.getRangeAt(0)
-  if (range.collapsed) return
-  const found = findInlineTextRoot(range.commonAncestorContainer)
-  if (!found) return
-  if (!found.root.contains(range.startContainer) || !found.root.contains(range.endContainer)) return
-  savedInlineTextSelection = { key: found.key, range: range.cloneRange(), root: found.root }
-  lastInlineStyledSpan = null
-}
-
-function ensureInlineTextSelectionTracking() {
-  if (selectionTrackingInstalled) return
-  selectionTrackingInstalled = true
-  document.addEventListener('selectionchange', syncInlineTextSelectionFromDocument)
-}
-
-function restoreSavedInlineSelection(): boolean {
-  if (!savedInlineTextSelection) return false
-  const { range, root } = savedInlineTextSelection
-  if (!root.isConnected || range.collapsed) return false
-  try {
-    const sel = window.getSelection()
-    sel?.removeAllRanges()
-    sel?.addRange(range)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function hasActiveInlineTextSelection(fieldKey?: string | null): boolean {
-  if (!savedInlineTextSelection || savedInlineTextSelection.range.collapsed) return false
-  if (!savedInlineTextSelection.root.isConnected) return false
-  if (fieldKey && savedInlineTextSelection.key !== fieldKey) return false
-  return true
-}
-
-function getSelectionFontSizePx(range: Range): number {
-  let node: Node | null = range.startContainer
-  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement
-  while (node && node instanceof HTMLElement) {
-    const px = parseFloat(window.getComputedStyle(node).fontSize)
-    if (px > 0 && Number.isFinite(px)) return Math.round(px)
-    node = node.parentElement
-  }
-  return 16
-}
-
-function notifyInlineTextCommit(root: HTMLElement) {
-  root.dispatchEvent(new CustomEvent('builder-inline-text-commit', { bubbles: true }))
-}
-
-function rememberInlineTextSelection(root: HTMLElement | null, key: string | null) {
-  if (!root || !key) return
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return
-  const range = sel.getRangeAt(0)
-  if (!root.contains(range.commonAncestorContainer)) return
-  if (range.collapsed) return
-  savedInlineTextSelection = { key, range: range.cloneRange(), root }
-  lastInlineStyledSpan = null
-}
-
-function finishInlineStyleApply(key: string, span: HTMLSpanElement, root: HTMLElement) {
-  const sel = window.getSelection()
-  sel?.removeAllRanges()
-  lastInlineStyledSpan = { key, span, root }
-  savedInlineTextSelection = null
-  notifyInlineTextCommit(root)
-}
-
-function applyPatchToLastStyledSpan(key: string | null | undefined, patch: Record<string, unknown>): boolean {
-  if (!key || !lastInlineStyledSpan || lastInlineStyledSpan.key !== key) return false
-  const { span, root } = lastInlineStyledSpan
-  if (!span.isConnected || !root.isConnected) {
-    lastInlineStyledSpan = null
-    return false
-  }
-  const css = stylePatchToCss(patch)
-  if (!css.color && !css.fontSize && !css.textTransform) return false
-  if (css.color) span.style.color = css.color
-  if (css.fontSize) span.style.fontSize = css.fontSize
-  if (css.textTransform) span.style.textTransform = css.textTransform
-  notifyInlineTextCommit(root)
-  return true
-}
-
-function stylePatchToCss(patch: Record<string, unknown>): Partial<CSSStyleDeclaration> {
-  const css: Partial<CSSStyleDeclaration> = {}
-  if (typeof patch.text_color_override === 'string') css.color = patch.text_color_override
-  if (typeof patch.font_size_px === 'number' && patch.font_size_px > 0) css.fontSize = `${Math.round(patch.font_size_px)}px`
-  if (typeof patch.text_transform === 'string') css.textTransform = patch.text_transform
-  return css
-}
-
-function findInlineStyleSpanForRange(range: Range): HTMLSpanElement | null {
-  let node: Node | null = range.commonAncestorContainer
-  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement
-  if (node instanceof HTMLSpanElement && node.getAttribute('data-inline-style')) return node
-  return null
-}
-
-function applyInlineTextSelectionStyle(key: string | null | undefined, patch: Record<string, unknown>): boolean {
-  if (!key || !savedInlineTextSelection || savedInlineTextSelection.key !== key) return false
-  const { root } = savedInlineTextSelection
-  if (!root.isConnected) return false
-
-  restoreSavedInlineSelection()
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return false
-  const range = sel.getRangeAt(0)
-  if (range.collapsed || !root.contains(range.commonAncestorContainer)) return false
-
-  const css = stylePatchToCss(patch)
-  if (!css.color && !css.fontSize && !css.textTransform) return false
-
-  const existingSpan = findInlineStyleSpanForRange(range)
-  if (existingSpan && range.toString() === existingSpan.textContent) {
-    if (css.color) existingSpan.style.color = css.color
-    if (css.fontSize) existingSpan.style.fontSize = css.fontSize
-    if (css.textTransform) existingSpan.style.textTransform = css.textTransform
-    finishInlineStyleApply(key, existingSpan, root)
-    return true
-  }
-
-  const span = document.createElement('span')
-  if (css.color) span.style.color = css.color
-  if (css.fontSize) span.style.fontSize = css.fontSize
-  if (css.textTransform) span.style.textTransform = css.textTransform
-  span.setAttribute('data-inline-style', 'true')
-
-  try {
-    const fragment = range.extractContents()
-    span.appendChild(fragment)
-    range.insertNode(span)
-    finishInlineStyleApply(key, span, root)
-    return true
-  } catch {
-    return false
-  }
 }
 
 function InlineEditableText({
@@ -3136,6 +3015,7 @@ function syncNavLinksInBlockMap(
   for (const [pageId, blocks] of Object.entries(blocksByPage)) {
     next[pageId] = blocks.map(block => {
       if (block.block_type !== 'nav') return block
+      if ((block.props as { nav_links_source?: string })?.nav_links_source === 'manual') return block
       const current = ((block.props as any)?.nav_links as { label?: string; url?: string }[] | undefined) || []
       const normalized = current.map(l => ({
         label: String(l?.label ?? ''),
@@ -3167,6 +3047,10 @@ function structureLayoutFingerprint(props: Record<string, unknown> | undefined):
   if (!props) return ''
   return [
     props.nav_style,
+    props.nav_layout,
+    props.nav_glass,
+    props.nav_elevated,
+    props.nav_compact,
     props.footer_style,
     props.layout,
     props.variant,
@@ -3174,6 +3058,12 @@ function structureLayoutFingerprint(props: Record<string, unknown> | undefined):
     props.nav_bg,
     props.footer_bg,
     props.bg_style,
+    props.bg_color,
+    props.gradient_preset,
+    props.columns,
+    props.image_position,
+    props.card_style,
+    props.overlay,
     props.padding_top,
     props.padding_bottom,
   ].map(v => String(v ?? '')).join('|')
@@ -3222,6 +3112,76 @@ function insertBlockAtIndex(
   const next = [...blocks]
   next.splice(insertAt, 0, block)
   return next.map((b, i) => ({ ...b, sort_order: i }))
+}
+
+/** Stable sort by sort_order (ties keep current array order). */
+function sortPageBlocks(blocks: WebsiteBlock[]): WebsiteBlock[] {
+  return blocks
+    .slice()
+    .map((b, i) => ({ b, i }))
+    .sort((a, b) => {
+      const d = (a.b.sort_order ?? 0) - (b.b.sort_order ?? 0)
+      return d !== 0 ? d : a.i - b.i
+    })
+    .map(({ b }) => b)
+}
+
+/** First/last index where regular content blocks may be placed (between header shell and footer). */
+function getContentMoveBounds(blocks: WebsiteBlock[]): { min: number; max: number } {
+  let min = 0
+  while (min < blocks.length && (blocks[min].block_type === 'announcement_bar' || blocks[min].block_type === 'nav')) {
+    min += 1
+  }
+  let max = blocks.length - 1
+  while (max >= min && blocks[max].block_type === 'footer') {
+    max -= 1
+  }
+  return { min, max: Math.max(min, max) }
+}
+
+function computeBlockMoveIndex(
+  blocks: WebsiteBlock[],
+  fromIdx: number,
+  dir: 'up' | 'down' | 'top' | 'bottom',
+): number | null {
+  if (fromIdx < 0 || fromIdx >= blocks.length) return null
+  const block = blocks[fromIdx]
+
+  if (GLOBAL_STRUCTURE_BLOCK_TYPES.has(block.block_type)) {
+    let explicitIdx = -1
+    if (dir === 'top' || dir === 'up') explicitIdx = Math.max(0, fromIdx - 1)
+    else if (dir === 'bottom' || dir === 'down') explicitIdx = Math.min(blocks.length - 1, fromIdx + 1)
+    const relocated = relocateExistingStructureBlock(blocks, block.block_type, explicitIdx)
+    if (!relocated) return null
+    const newIdx = relocated.findIndex(b => b.id === block.id)
+    return newIdx >= 0 && newIdx !== fromIdx ? newIdx : null
+  }
+
+  const { min, max } = getContentMoveBounds(blocks)
+  if (fromIdx < min || fromIdx > max) return null
+
+  switch (dir) {
+    case 'up':
+      return fromIdx > min ? fromIdx - 1 : null
+    case 'down':
+      return fromIdx < max ? fromIdx + 1 : null
+    case 'top':
+      return fromIdx !== min ? min : null
+    case 'bottom':
+      return fromIdx !== max ? max : null
+    default:
+      return null
+  }
+}
+
+function reorderBlockByIndex(blocks: WebsiteBlock[], fromIdx: number, toIdx: number): WebsiteBlock[] {
+  if (fromIdx < 0 || toIdx < 0 || fromIdx >= blocks.length || toIdx >= blocks.length || fromIdx === toIdx) {
+    return blocks
+  }
+  const reordered = [...blocks]
+  const [moved] = reordered.splice(fromIdx, 1)
+  reordered.splice(toIdx, 0, moved)
+  return reordered.map((b, i) => ({ ...b, sort_order: i }))
 }
 
 /** Move an existing structure block (nav, announcement, footer) to its canonical slot. */
@@ -3514,14 +3474,11 @@ function BlockPreview({
 
   const fieldStyles = ((block.props as any)._field_styles || {}) as Record<string, Record<string, unknown>>
   const styleForField = (key: string, base: React.CSSProperties = {}): React.CSSProperties => {
-    const fs = fieldStyles[key] || {}
-    return {
-      ...base,
-      ...(typeof fs.text_color_override === 'string' ? { color: fs.text_color_override } : {}),
-      ...(typeof fs.font_size_px === 'number' && fs.font_size_px > 0 ? { fontSize: `${fs.font_size_px}px` } : {}),
-      ...(typeof fs.text_transform === 'string' ? { textTransform: fs.text_transform as React.CSSProperties['textTransform'] } : {}),
-      ...(activeTextField === key && canEdit ? { outline: '2px solid rgba(124,58,237,0.7)', outlineOffset: 3, borderRadius: 4 } : {}),
+    const styled = fieldTextStyle(block.props as Record<string, unknown>, key, base)
+    if (activeTextField === key && canEdit) {
+      return { ...styled, outline: '2px solid rgba(124,58,237,0.7)', outlineOffset: 3, borderRadius: 4 }
     }
+    return styled
   }
 
   // Shorthand: render an InlineEditableText for a block prop as any HTML element
@@ -3735,13 +3692,17 @@ function BlockPreview({
   const cardRadius = border_radius === 'pill' ? '16px' : border_radius === 'sharp' ? '0px' : '12px'
   const btnRadius = border_radius === 'pill' ? '999px' : cardRadius
 
-  const ptop = (block.style_overrides?.padding_top as number) ?? ((p as any).padding_top as number) ?? 0
-  const pbot = (block.style_overrides?.padding_bottom as number) ?? ((p as any).padding_bottom as number) ?? 0
+  const resolvedBlockStyles = mergeBlockSectionStyles(
+    p as Record<string, unknown>,
+    resolveBreakpointStyleOverrides(readRawBlockStyleOverrides(block)),
+  )
+  const ptop = resolvedBlockStyles.paddingTop
+  const pbot = resolvedBlockStyles.paddingBottom
   const blockShadow = (p as any).block_shadow as string | undefined
   const gradientPreset = (p as any).gradient_preset as string | undefined
 
-  const overrideBg = (p as any).bg_color_override as string | undefined || block.style_overrides?.bg_color as string | undefined
-  const textColorOverride = (p as any).text_color_override as string | undefined
+  const overrideBg = resolvedBlockStyles.backgroundColor
+  const textColorOverride = resolvedBlockStyles.color || (p as any).text_color_override as string | undefined
   const fontSizePxRaw = (p as any).font_size_px as number | undefined
   const fontSizePx =
     typeof fontSizePxRaw === 'number' && Number.isFinite(fontSizePxRaw) && fontSizePxRaw > 0
@@ -4312,7 +4273,7 @@ function BlockPreview({
                           'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
                           (p as any).cta_primary_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
                         )}
-                        title={(p as any).cta_primary_url ? `Linked → ${(p as any).cta_primary_url}` : 'Connect link / ERP item'}
+                        title={(p as any).cta_primary_url ? `Linked → ${(p as any).cta_primary_url}` : 'Connect link or product'}
                       >
                         🔗
                       </button>
@@ -4354,7 +4315,7 @@ function BlockPreview({
                           'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
                           (p as any).cta_secondary_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
                         )}
-                        title={(p as any).cta_secondary_url ? `Linked → ${(p as any).cta_secondary_url}` : 'Connect link / ERP item'}
+                        title={(p as any).cta_secondary_url ? `Linked → ${(p as any).cta_secondary_url}` : 'Connect link or product'}
                       >
                         🔗
                       </button>
@@ -4428,6 +4389,10 @@ function BlockPreview({
             { title: 'Feature Three', desc: 'Why customers love working with you.' },
           ])).slice(0, 9)
         const icons = ['⚡', '🎯', '🚀', '💡', '🛡️', '🌟']
+        const featImageShape = String((p as any).image_shape ?? 'rounded') as ImageShape
+        const featThumbClass = thumbnailShapeClass(featImageShape)
+        const featCardImgClass = cardImageShapeClass(featImageShape)
+        const featThumbSize = iconBoxFromItemSize(Number((p as any).item_size ?? 160))
         const featureCard = (f: any, i: number, listMode = false) => (
           <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius, borderTop: listMode ? undefined : `3px solid ${primary_color}` }} className={cn('builder-tile-card p-5 space-y-2.5 shadow-sm relative group/item', !listMode && 'builder-tile-top-accent', listMode && 'flex gap-4 items-start border border-gray-100')}>
             {ItemMenu('features', i, feats.length, [
@@ -4440,8 +4405,14 @@ function BlockPreview({
                   url => editItem('features', i, 'image_url', url),
                   { arrayKey: 'features', index: i, itemField: 'image_url' },
                   {
-                    className: cn('mb-2', listMode ? 'w-24 h-24 shrink-0 mb-0' : 'w-full h-28'),
-                    imgClassName: cn('object-cover rounded-lg w-full h-full', listMode ? 'w-24 h-24' : 'h-28'),
+                    className: cn('mb-2', listMode ? 'shrink-0 mb-0' : 'w-full h-28'),
+                    style: listMode ? { width: featThumbSize, height: featThumbSize } : undefined,
+                    imgClassName: cn(
+                      listMode ? featThumbClass : featCardImgClass,
+                      'w-full h-full',
+                      listMode ? '' : 'h-28',
+                      !listMode && featImageShape === 'circle' && 'max-w-[140px] mx-auto aspect-square',
+                    ),
                   },
                 )
               : <div className={cn('text-2xl mb-1', listMode && 'shrink-0')}>{f.icon || icons[i % icons.length]}</div>}
@@ -4959,7 +4930,7 @@ function BlockPreview({
                       'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
                       (p as any).cta_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
                     )}
-                    title={(p as any).cta_url ? `Linked → ${(p as any).cta_url}` : 'Connect link / ERP item'}
+                    title={(p as any).cta_url ? `Linked → ${(p as any).cta_url}` : 'Connect link or product'}
                   >
                     🔗
                   </button>
@@ -4980,10 +4951,8 @@ function BlockPreview({
         const teamCardStyle = String((p as any).card_style ?? 'card')
         const isMinimalTeam = teamCardStyle === 'minimal'
         const avatarSize = Math.round(teamSize * (isMinimalTeam ? 0.45 : 0.55))
-        const isLive = dsType === 'team' && liveTeam.length > 0
-        const propMembers: any[] = Array.isArray(p.members) ? (p.members as any[]) : []
-        const hasPropAvatars = propMembers.some(m => !!m?.avatar_url)
-        const useLiveTeam = isLive && !hasPropAvatars
+        const propMembers = teamPropMembers(p as Record<string, unknown>)
+        const useLiveTeam = shouldUseLiveTeam(p as Record<string, unknown>, liveTeam)
         const members: any[] = useLiveTeam
           ? liveTeam.map(t => ({
               name: t.title,
@@ -6004,6 +5973,10 @@ function BlockPreview({
         const cols = p.columns || 3
         const svcLayout = String((p as any).layout ?? 'grid')
         const svcCardStyle = String((p as any).card_style ?? 'card')
+        const svcImageShape = String((p as any).image_shape ?? 'rounded') as ImageShape
+        const svcThumbClass = thumbnailShapeClass(svcImageShape)
+        const svcCardImgClass = cardImageShapeClass(svcImageShape)
+        const svcThumbSize = iconBoxFromItemSize(Number((p as any).item_size ?? 160))
         const isCompactSvc = svcCardStyle === 'compact'
         const isList = svcLayout === 'list'
         return (
@@ -6024,8 +5997,14 @@ function BlockPreview({
                     url => editItem('features', i, 'image_url', url),
                     { arrayKey: 'features', index: i, itemField: 'image_url' },
                     {
-                      className: cn(isList ? 'w-24 h-24 shrink-0' : 'w-full h-28'),
-                      imgClassName: cn('object-cover rounded-lg w-full h-full', isList ? 'w-24 h-24' : 'h-28'),
+                      className: cn(isList ? 'shrink-0' : 'w-full h-28', !isList && svcImageShape === 'circle' && 'flex justify-center'),
+                      style: isList ? { width: svcThumbSize, height: svcThumbSize } : undefined,
+                      imgClassName: cn(
+                        isList ? svcThumbClass : svcCardImgClass,
+                        'w-full h-full',
+                        isList ? '' : 'h-28',
+                        !isList && svcImageShape === 'circle' && 'max-w-[140px] aspect-square',
+                      ),
                       alt: f.title,
                     },
                   )}
@@ -7074,16 +7053,7 @@ function BlockPreview({
   const blockColorCss = buildBlockColorStyleCss('data-bid', bid, blockColorProps, blockThemeColors, {
     bgOverrideAppliesToContent: true,
   })
-  const fieldStyleCss = Object.entries(fieldStyles).map(([key, fs]) => {
-    const selectorKey = key.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-    return `
-      [data-bid="${bid}"] [data-text-key="${selectorKey}"] {
-        ${typeof fs.text_color_override === 'string' ? `color: ${fs.text_color_override} !important;` : ''}
-        ${typeof fs.font_size_px === 'number' && fs.font_size_px > 0 ? `font-size: ${Math.round(fs.font_size_px)}px;` : ''}
-        ${typeof fs.text_transform === 'string' ? `text-transform: ${fs.text_transform} !important;` : ''}
-      }
-    `
-  }).join('\n')
+  const fieldStyleCss = buildFieldStylesCss('data-bid', bid, block.props as Record<string, unknown>)
   const inlineTextStyleValue = useMemo(() => ({
     styleForKey: styleForField,
     onActivateKey: (key: string) => onActiveTextFieldChange?.(key),
@@ -7244,10 +7214,27 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   faq: {
     arrayKey: 'faqs', itemLabel: 'FAQ',
-    defaultItem: { q: 'New question?', a: 'Answer here.' },
+    defaultItem: { question: 'New question?', answer: 'Answer here.' },
     fields: [
-      { key: 'q', label: 'Question', type: 'text' },
-      { key: 'a', label: 'Answer',   type: 'textarea' },
+      { key: 'question', label: 'Question', type: 'text' },
+      { key: 'answer', label: 'Answer',   type: 'textarea' },
+    ],
+  },
+  gallery_masonry: {
+    arrayKey: 'images', itemLabel: 'Image',
+    defaultItem: { src: '', caption: '', alt: '' },
+    fields: [
+      { key: 'src',     label: 'Image URL', type: 'image' },
+      { key: 'caption', label: 'Caption',   type: 'text' },
+      { key: 'alt',     label: 'Alt Text',  type: 'text' },
+    ],
+  },
+  stats: {
+    arrayKey: 'stats', itemLabel: 'Stat',
+    defaultItem: { value: '100+', label: 'Metric label' },
+    fields: [
+      { key: 'value', label: 'Value', type: 'text' },
+      { key: 'label', label: 'Label', type: 'text' },
     ],
   },
   gallery: {
@@ -7269,6 +7256,18 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
     ],
   },
 }
+
+/** Block types whose tile thumbnails respect `image_shape` (square / rounded / circle). */
+const IMAGE_SHAPE_BLOCK_TYPES = new Set([
+  'features',
+  'features_alternating',
+  'services_cards',
+  'services_list',
+  'team_grid',
+  'gallery_masonry',
+  'gallery',
+  'portfolio_grid',
+])
 
 // ── Inline Media Picker ───────────────────────────────────────────────────────
 
@@ -7417,6 +7416,10 @@ function SubItemEditor({
   schema, items, siteId, onUpdate, onPreview,
   columns, gap, itemSize,
   onColumnsChange, onGapChange, onItemSizeChange,
+  readOnly = false,
+  connectedBanner,
+  onSwitchToManual,
+  sections = 'all',
 }: {
   schema: ItemSchema
   items: any[]
@@ -7429,6 +7432,11 @@ function SubItemEditor({
   onColumnsChange: (n: number) => void
   onGapChange: (n: number) => void
   onItemSizeChange: (n: number) => void
+  readOnly?: boolean
+  connectedBanner?: React.ReactNode
+  onSwitchToManual?: () => void
+  /** Split layout vs item list across ribbon tabs */
+  sections?: 'all' | 'layout' | 'items'
 }) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set([0]))
   const [dragging, setDragging] = useState<number | null>(null)
@@ -7468,9 +7476,12 @@ function SubItemEditor({
     setDragging(null); setOver(null)
   }
 
+  const showLayoutSection = sections === 'all' || sections === 'layout'
+  const showItemsSection = sections === 'all' || sections === 'items'
+
   return (
     <div className="space-y-3">
-      {/* Layout controls */}
+      {showLayoutSection && (
       <div className="bg-gray-50 rounded-xl p-3 space-y-3 border border-gray-100">
         <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">Layout & Spacing</div>
 
@@ -7521,19 +7532,33 @@ function SubItemEditor({
             className="w-full accent-primary h-1.5" />
         </div>
       </div>
+      )}
 
-      {/* Items list */}
+      {showItemsSection && connectedBanner}
+
+      {showItemsSection && (
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-            {schema.itemLabel}s ({items.length})
+            {schema.itemLabel}s ({items.length}){readOnly ? ' · from People' : ''}
           </span>
+          {!readOnly && (
           <button
             onClick={addItem}
             className="flex items-center gap-0.5 px-2 py-1 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-3 h-3" /> Add {schema.itemLabel}
           </button>
+          )}
+          {readOnly && onSwitchToManual && (
+            <button
+              type="button"
+              onClick={onSwitchToManual}
+              className="px-2 py-1 text-xs font-semibold text-primary border border-primary/30 rounded-lg hover:bg-accent transition-colors"
+            >
+              Use custom list
+            </button>
+          )}
         </div>
 
         {items.map((item, idx) => {
@@ -7546,10 +7571,10 @@ function SubItemEditor({
           return (
             <div
               key={idx}
-              draggable
-              onDragStart={() => handleDragStart(idx)}
-              onDragOver={e => handleDragOver(e, idx)}
-              onDrop={() => handleDrop(idx)}
+              draggable={!readOnly}
+              onDragStart={() => !readOnly && handleDragStart(idx)}
+              onDragOver={e => !readOnly && handleDragOver(e, idx)}
+              onDrop={() => !readOnly && handleDrop(idx)}
               onDragEnd={() => { setDragging(null); setOver(null) }}
               className={cn(
                 'rounded-xl border-2 overflow-hidden transition-all',
@@ -7566,7 +7591,7 @@ function SubItemEditor({
                   return n
                 })}
               >
-                <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab shrink-0" />
+                <GripVertical className={cn('w-3.5 h-3.5 shrink-0', readOnly ? 'text-gray-200' : 'text-gray-300 cursor-grab')} />
                 {/* Thumbnail */}
                 {thumb ? (
                   <img src={thumb} className="w-7 h-7 rounded-lg object-cover shrink-0 border border-gray-100" alt="" />
@@ -7576,6 +7601,7 @@ function SubItemEditor({
                   </div>
                 )}
                 <span className="text-xs font-medium text-gray-700 flex-1 truncate">{title}</span>
+                {!readOnly && (
                 <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => duplicateItem(idx)}
@@ -7588,6 +7614,7 @@ function SubItemEditor({
                     title="Delete"
                   ><Trash2 className="w-3 h-3" /></button>
                 </div>
+                )}
                 <ChevronRight className={cn('w-3.5 h-3.5 text-gray-400 transition-transform shrink-0', isExpanded && 'rotate-90')} />
               </div>
 
@@ -7601,7 +7628,7 @@ function SubItemEditor({
                         siteId={siteId}
                         value={item[field.key] || ''}
                         label={field.label}
-                        onChange={url => updateItem(idx, { [field.key]: url })}
+                        onChange={readOnly ? () => {} : url => updateItem(idx, { [field.key]: url })}
                       />
                     )
                     if (field.type === 'boolean') return (
@@ -7609,7 +7636,8 @@ function SubItemEditor({
                         <input
                           type="checkbox"
                           checked={!!item[field.key]}
-                          onChange={e => updateItem(idx, { [field.key]: e.target.checked })}
+                          disabled={readOnly}
+                          onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.checked })}
                           className="rounded accent-primary w-4 h-4"
                         />
                         <span className="text-xs font-medium text-gray-700">{field.label}</span>
@@ -7621,7 +7649,8 @@ function SubItemEditor({
                         <div className="flex gap-1">
                           {(field.options || []).map(opt => (
                             <button key={opt}
-                              onClick={() => updateItem(idx, { [field.key]: Number(opt) || opt })}
+                              disabled={readOnly}
+                              onClick={() => !readOnly && updateItem(idx, { [field.key]: Number(opt) || opt })}
                               className={cn('flex-1 py-1 rounded border text-xs font-bold transition-colors',
                                 String(item[field.key]) === opt ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40')}
                             >{opt}</button>
@@ -7635,14 +7664,16 @@ function SubItemEditor({
                         <div className="flex gap-1.5 flex-wrap">
                           {['✨','⚡','🚀','🎯','💡','🛡️','🔥','💎','🌟','🎨','🔧','📱','🌍','❤️','🏆'].map(e => (
                             <button key={e}
-                              onClick={() => updateItem(idx, { [field.key]: e })}
+                              disabled={readOnly}
+                              onClick={() => !readOnly && updateItem(idx, { [field.key]: e })}
                               className={cn('w-8 h-8 rounded-lg text-base border-2 transition-all hover:scale-110',
                                 item[field.key] === e ? 'border-primary bg-accent' : 'border-transparent bg-white hover:border-primary/30')}
                             >{e}</button>
                           ))}
                           <input
                             value={item[field.key] || ''}
-                            onChange={e => updateItem(idx, { [field.key]: e.target.value })}
+                            readOnly={readOnly}
+                            onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
                             className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring"
                             placeholder="or type"
                           />
@@ -7654,7 +7685,8 @@ function SubItemEditor({
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
                         <textarea
                           value={item[field.key] || ''}
-                          onChange={e => updateItem(idx, { [field.key]: e.target.value })}
+                          readOnly={readOnly}
+                          onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
                           rows={2}
                           className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring resize-y leading-relaxed"
                         />
@@ -7667,7 +7699,8 @@ function SubItemEditor({
                         <input
                           type={field.type === 'number' ? 'number' : 'text'}
                           value={item[field.key] || ''}
-                          onChange={e => updateItem(idx, { [field.key]: e.target.value })}
+                          readOnly={readOnly}
+                          onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
                           className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
@@ -7679,6 +7712,7 @@ function SubItemEditor({
           )
         })}
       </div>
+      )}
     </div>
   )
 }
@@ -8110,8 +8144,127 @@ function BlockImagePickerField({
 }
 
 
+// ── Section layout controls (Edit panel + toolbar) ───────────────────────────
+
+function SectionLayoutControls({
+  block,
+  currentProps,
+  onOpenLayoutPicker,
+  onCycleLayout,
+  compact = false,
+}: {
+  block: WebsiteBlock
+  currentProps: Record<string, unknown>
+  onOpenLayoutPicker: () => void
+  onCycleLayout: (direction: 'prev' | 'next') => void
+  compact?: boolean
+}) {
+  const layoutOptions = getSectionLayoutOptions(block.block_type)
+  if (layoutOptions.length === 0) return null
+
+  const activeLayout = findActiveSectionLayoutOption(currentProps, layoutOptions)
+    ?? layoutOptions[findActiveLayoutIndex(currentProps, block.block_type)]
+  const activeIdx = findActiveLayoutIndex(currentProps, block.block_type)
+  const canCycle = layoutOptions.length > 1
+
+  if (compact) {
+    return (
+      <div className="inline-flex items-center rounded-md bg-gray-800/80 border border-gray-700/80 overflow-hidden">
+        <button
+          type="button"
+          disabled={!canCycle}
+          onClick={e => { e.stopPropagation(); onCycleLayout('prev') }}
+          title="Previous layout"
+          className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft className="w-7 h-7" />
+        </button>
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onOpenLayoutPicker() }}
+          title={`Choose layout — ${activeLayout?.label || 'Current'}`}
+          className="px-2 py-1.5 text-gray-300 hover:text-white border-x border-gray-700/80"
+        >
+          <Layout className="w-7 h-7" />
+        </button>
+        <button
+          type="button"
+          disabled={!canCycle}
+          onClick={e => { e.stopPropagation(); onCycleLayout('next') }}
+          title="Next layout"
+          className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronRight className="w-7 h-7" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/8 to-white p-3 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-primary">
+            {block.label || block.block_type}
+          </div>
+          <div className="text-sm font-semibold text-gray-900 truncate mt-0.5">
+            {activeLayout?.label || 'Default layout'}
+          </div>
+          {activeLayout?.desc && (
+            <p className="text-xs text-gray-500 mt-0.5 leading-snug">{activeLayout.desc}</p>
+          )}
+        </div>
+        <span className="shrink-0 text-[11px] font-semibold text-gray-400 tabular-nums">
+          {activeIdx + 1}/{layoutOptions.length}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={!canCycle}
+          onClick={() => onCycleLayout('prev')}
+          title="Previous layout"
+          className={cn(
+            'shrink-0 p-2 rounded-lg border transition-colors',
+            canCycle
+              ? 'border-gray-200 bg-white text-gray-600 hover:border-primary/40 hover:text-primary'
+              : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed',
+          )}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onOpenLayoutPicker}
+          className="flex-1 min-w-0 py-2 px-3 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          Choose layout
+        </button>
+        <button
+          type="button"
+          disabled={!canCycle}
+          onClick={() => onCycleLayout('next')}
+          title="Next layout"
+          className={cn(
+            'shrink-0 p-2 rounded-lg border transition-colors',
+            canCycle
+              ? 'border-gray-200 bg-white text-gray-600 hover:border-primary/40 hover:text-primary'
+              : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed',
+          )}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+      <p className="text-[11px] text-gray-400 leading-snug">
+        Use arrows to preview layouts quickly, or open the gallery to compare all {layoutOptions.length} designs.
+      </p>
+    </div>
+  )
+}
+
 function PropsEditor({
   block, onUpdate, onPreview, siteId, pages, onAddPage, onEditPropLink, themeColors,
+  onOpenLayoutPicker, onCycleLayout,
 }: {
   block: WebsiteBlock
   onUpdate: (props: Partial<BlockProps>) => void
@@ -8121,6 +8274,8 @@ function PropsEditor({
   onAddPage?: () => void
   onEditPropLink?: (propKey: string, anchor: { x: number; y: number }) => void
   themeColors: ThemeColors
+  onOpenLayoutPicker?: () => void
+  onCycleLayout?: (direction: 'prev' | 'next') => void
 }) {
   const p = block.props
   const showTileColors = TILE_COLOR_BLOCK_TYPES.has(block.block_type)
@@ -8142,9 +8297,89 @@ function PropsEditor({
   }, [block.id, (p as any).padding_top, (p as any).padding_bottom])
 
   const itemSchema = ITEM_SCHEMAS[block.block_type]
+    ?? (block.block_type === 'features_alternating' ? ITEM_SCHEMAS.features : undefined)
+    ?? (block.block_type === 'services_list' ? ITEM_SCHEMAS.services_cards : undefined)
+    ?? (['stats', 'counters', 'impact_stats'].includes(block.block_type) ? ITEM_SCHEMAS.stats : undefined)
   const [subColumns, setSubColumns] = useState<number>((p as any).columns ?? itemSchema?.fields.length ?? 3)
   const [subGap, setSubGap] = useState<number>((p as any).item_gap ?? 24)
   const [subItemSize, setSubItemSize] = useState<number>((p as any).item_size ?? 160)
+  const [teamLiveItems, setTeamLiveItems] = useState<LiveItem[]>([])
+
+  useEffect(() => {
+    setSubColumns((p as any).columns ?? itemSchema?.fields.length ?? 3)
+    setSubGap((p as any).item_gap ?? 24)
+    setSubItemSize((p as any).item_size ?? 160)
+  }, [block.id, (p as any).columns, (p as any).item_gap, (p as any).item_size, itemSchema?.fields.length])
+
+  const isTeamBlock = block.block_type === 'team_grid' || block.block_type === 'team_list'
+  useEffect(() => {
+    if (!isTeamBlock || !siteId) {
+      setTeamLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'team', { limit: 50 })
+      .then(r => setTeamLiveItems(r.items ?? []))
+      .catch(() => setTeamLiveItems([]))
+  }, [isTeamBlock, siteId, block.id, (p as any).data_source])
+
+  const teamUseLive = isTeamBlock && shouldUseLiveTeam(p as Record<string, unknown>, teamLiveItems)
+  const subEditorItems = isTeamBlock && teamUseLive
+    ? teamLiveItems.map(liveItemToPropMember)
+    : (itemSchema ? ((p as any)[itemSchema.arrayKey] || []) : [])
+
+  const [editorTab, setEditorTab] = useState<SectionEditorTabId>('content')
+  useEffect(() => {
+    setEditorTab('content')
+  }, [block.id])
+
+  const teamConnectedBanner = teamUseLive ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug">
+      <span className="font-semibold">Connected to your People list.</span>{' '}
+      Names and roles come from HR. Layout controls below still apply on the canvas.
+      Click <span className="font-semibold">Use custom list</span> to edit members here instead.
+    </div>
+  ) : isTeamBlock && isLiveTeamDataSource(p as Record<string, unknown>) && teamLiveItems.length > 0 ? (
+    <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-600 leading-snug">
+      Using your custom member list. Disconnect Team in the Data tab to pull from People again.
+    </div>
+  ) : undefined
+
+  const renderSubItemEditor = (sections: 'layout' | 'items') => itemSchema ? (
+    <SubItemEditor
+      schema={itemSchema}
+      items={subEditorItems}
+      siteId={siteId}
+      sections={sections}
+      readOnly={teamUseLive}
+      connectedBanner={teamConnectedBanner}
+      onSwitchToManual={teamUseLive ? () => {
+        const members = teamLiveItems.length > 0
+          ? teamLiveItems.map(liveItemToPropMember)
+          : teamPropMembers(p as Record<string, unknown>)
+        onUpdate({ use_manual_members: true, members } as any)
+      } : undefined}
+      onUpdate={items => onUpdate({ [itemSchema.arrayKey]: items, use_manual_members: true } as any)}
+      onPreview={items => onPreview({ [itemSchema.arrayKey]: items, use_manual_members: true } as any)}
+      columns={subColumns}
+      gap={subGap}
+      itemSize={subItemSize}
+      onColumnsChange={n => {
+        setSubColumns(n)
+        onPreview({ columns: n } as any)
+        onUpdate({ columns: n } as any)
+      }}
+      onGapChange={n => {
+        setSubGap(n)
+        onPreview({ item_gap: n } as any)
+        onUpdate({ item_gap: n } as any)
+      }}
+      onItemSizeChange={n => {
+        setSubItemSize(n)
+        onPreview({ item_size: n } as any)
+        onUpdate({ item_size: n } as any)
+      }}
+    />
+  ) : null
 
   // ── InputRow — render helper that inlines PropsInputRow ───────────────
   // CRITICAL: this is NOT a React component. Declaring a component inside
@@ -8297,7 +8532,7 @@ function PropsEditor({
 
   const imageUrlField = !isHeroBlock && p.image_url !== undefined && imagePicker('Image', 'image_url')
 
-  const layoutField = p.layout !== undefined && (
+  const layoutField = p.layout !== undefined && !getSectionLayoutOptions(block.block_type).length && (
     <div className="grid grid-cols-3 gap-1">
         {['centered','split','minimal','left','right','full'].map(l => (
           <button key={l}
@@ -8309,30 +8544,84 @@ function PropsEditor({
     </div>
   )
 
+  const sectionLayoutCount = getSectionLayoutOptions(block.block_type).length
+  const hasImageShape = IMAGE_SHAPE_BLOCK_TYPES.has(block.block_type)
+  const hasMediaClip = MEDIA_CLIP_BLOCK_TYPES.has(block.block_type)
+  const hasMediaPanel = isHeroBlock || p.bg_style === 'image' || p.image_url !== undefined || block.block_type === 'nav'
+
+  const ribbonTabs = useMemo(() => ([
+    { id: 'content' as SectionEditorTabId, label: 'Content', icon: Type },
+    { id: 'layout' as SectionEditorTabId, label: 'Layout', icon: Layout },
+    { id: 'design' as SectionEditorTabId, label: 'Design', icon: Palette },
+    { id: 'media' as SectionEditorTabId, label: 'Media', icon: ImageIcon, hidden: !hasMediaPanel },
+    { id: 'more' as SectionEditorTabId, label: 'More', icon: SlidersHorizontal },
+  ]), [hasMediaPanel])
+
+  useEffect(() => {
+    setEditorTab(prev => resolveSectionEditorTab(ribbonTabs, prev))
+  }, [block.id, ribbonTabs])
+
+  const imageShapePicker = hasImageShape && (
+    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Tile image shape</span>
+        <span className="text-[10px] text-gray-400">All cards in section</span>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {IMAGE_SHAPE_OPTIONS.map(opt => {
+          const active = String((p as any).image_shape ?? (block.block_type === 'team_grid' ? 'circle' : 'rounded')) === opt.value
+          const previewClass = opt.value === 'circle'
+            ? 'rounded-full'
+            : opt.value === 'square'
+              ? 'rounded-sm'
+              : 'rounded-lg'
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                onPreview({ image_shape: opt.value } as any)
+                onUpdate({ image_shape: opt.value } as any)
+              }}
+              className={cn(
+                'flex flex-col items-center gap-1.5 py-2 px-1 rounded-lg border text-xs font-semibold transition-colors',
+                active
+                  ? 'border-primary bg-white text-primary shadow-sm'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-primary/40',
+              )}
+            >
+              <span className={cn('w-8 h-8 bg-primary/20 border border-primary/30', previewClass)} aria-hidden />
+              {opt.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  const mediaClipPicker = hasMediaClip && (
+    <MediaClipPicker
+      value={(p as any).media_clip}
+      onChange={clip => {
+        onPreview({ media_clip: clip } as any)
+        onUpdate({ media_clip: clip } as any)
+      }}
+    />
+  )
+
   return (
-    <div className="space-y-2 p-4">
-      {BLOCK_QUICK_PRESETS[block.block_type] ? (
-        <PropsCollapsible
-          accent
-          title={block.label || block.block_type}
-          preview={`${BLOCK_QUICK_PRESETS[block.block_type].length} presets`}
-        >
-          <div className="grid grid-cols-2 gap-1.5">
-            {BLOCK_QUICK_PRESETS[block.block_type].map((preset, i) => (
-              <button
-                key={i}
-                onClick={() => { onUpdate(preset.props as any); toast.success(`"${preset.label}" preset applied!`) }}
-                className="py-2 px-3 rounded-xl border border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-all group"
-              >
-                <div className="text-xs font-bold text-gray-700 group-hover:text-primary">{preset.label}</div>
-                {preset.desc && <div className="text-xs text-gray-400 mt-0.5">{preset.desc}</div>}
-              </button>
-            ))}
-          </div>
-        </PropsCollapsible>
-      ) : (
-        <div className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-bold uppercase w-fit">{block.label || block.block_type}</div>
-      )}
+    <div className="flex flex-col min-h-0">
+      <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white">
+        <p className="text-xs font-bold text-gray-900 truncate">{block.label || block.block_type}</p>
+        <p className="text-[10px] text-gray-400">Press E or use Edit text in the design bar</p>
+      </div>
+
+      <SectionEditorRibbon tabs={ribbonTabs} active={editorTab} onChange={setEditorTab} />
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+        {editorTab === 'content' && (
+          <>
+      {commonFields}
 
       {onEditPropLink && (
         <PropsCollapsible
@@ -8363,130 +8652,168 @@ function PropsEditor({
       )}
 
       {block.block_type === 'nav' && (
-        <PropsCollapsible title="Brand Logo" preview={p.brand_logo ? 'Logo set' : 'Text only'}>
-          <BlockImagePickerField
-            blockId={block.id}
-            label=""
-            fieldKey="brand_logo"
-            siteId={siteId}
-            currentUrl={p.brand_logo as string | undefined}
-            onUpdate={onUpdate}
-          />
-          {p.brand_logo && (
-            <button
-              type="button"
-              onClick={() => onUpdate({ brand_logo: '' } as any)}
-              className="text-xs text-red-500 hover:text-red-700 font-semibold"
-            >
-              ✕ Remove logo (show text instead)
-            </button>
-          )}
-          {!p.brand_logo && (
-            <p className="text-xs text-gray-400">Upload a logo to replace the brand name text. SVG or PNG with transparent background works best.</p>
-          )}
+        <PropsCollapsible title="Header elements" preview="Logo · links · actions">
+          {[
+            { key: 'show_nav_links', label: 'Show page links' },
+            { key: 'show_search', label: 'Show search' },
+            { key: 'show_cart', label: 'Show cart' },
+            { key: 'show_login', label: 'Show account / sign in' },
+          ].map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={(p as any)[key] !== false}
+                onChange={e => onUpdate({ [key]: e.target.checked } as any)}
+                className="rounded accent-primary"
+              />
+              <span className="text-xs text-gray-600">{label}</span>
+            </label>
+          ))}
         </PropsCollapsible>
       )}
 
-      {block.block_type === 'nav' && pages && pages.length > 0 && (
-        <PropsCollapsible title="Navigation links" preview={`${pages.length} page${pages.length === 1 ? '' : 's'}`}>
-          {onAddPage && (
-            <button
-              onClick={onAddPage}
-              className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
+      {block.block_type === 'nav' && (
+        <PropsCollapsible
+          title="Navigation links"
+          preview={(p.nav_links_source as string) === 'manual' ? 'Manual links' : `${pages?.length ?? 0} site page${(pages?.length ?? 0) === 1 ? '' : 's'}`}
+        >
+          <div className="space-y-2">
+            <label className="text-xs text-gray-500">Link source</label>
+            <select
+              value={(p.nav_links_source as string) || 'site_pages'}
+              onChange={e => onUpdate({ nav_links_source: e.target.value } as any)}
+              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
             >
-              <Plus className="w-3 h-3" /> New Page
-            </button>
-          )}
-          <div className="space-y-1">
-            {[...pages]
-              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-              .map(pg => (
-                <div key={pg.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-700 truncate">{pg.title}</div>
-                    <div className="text-xs text-gray-400 font-mono">{pg.is_homepage ? '/' : `/${pg.slug}`}</div>
-                  </div>
-                  <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    In nav
-                  </span>
+              <option value="site_pages">Site pages (auto-sync)</option>
+              <option value="manual">Manual links</option>
+            </select>
+          </div>
+
+          {(p.nav_links_source as string) === 'manual' ? (
+            <div className="space-y-2 mt-2">
+              {((p.nav_links as { label?: string; url?: string }[]) || []).map((link, i) => (
+                <div key={i} className="flex gap-1.5 items-center">
+                  <input
+                    type="text"
+                    value={link.label || ''}
+                    placeholder="Label"
+                    onChange={e => {
+                      const links = [...((p.nav_links as { label: string; url: string }[]) || [])]
+                      links[i] = { ...links[i], label: e.target.value }
+                      onUpdate({ nav_links: links } as any)
+                    }}
+                    className="flex-1 min-w-0 px-2 py-1 border border-gray-200 rounded text-xs"
+                  />
+                  <input
+                    type="text"
+                    value={link.url || ''}
+                    placeholder="/about"
+                    onChange={e => {
+                      const links = [...((p.nav_links as { label: string; url: string }[]) || [])]
+                      links[i] = { ...links[i], url: e.target.value }
+                      onUpdate({ nav_links: links } as any)
+                    }}
+                    className="flex-1 min-w-0 px-2 py-1 border border-gray-200 rounded text-xs font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const links = [...((p.nav_links as { label: string; url: string }[]) || [])]
+                      links.splice(i, 1)
+                      onUpdate({ nav_links: links } as any)
+                    }}
+                    className="p-1 text-red-400 hover:text-red-600"
+                    aria-label="Remove link"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
-          </div>
-          <p className="text-xs text-gray-400">Navigation stays in sync with your site pages automatically.</p>
+              <button
+                type="button"
+                onClick={() => onUpdate({
+                  nav_links: [...((p.nav_links as { label: string; url: string }[]) || []), { label: 'New Link', url: '/' }],
+                } as any)}
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
+              >
+                <Plus className="w-3 h-3" /> Add link
+              </button>
+            </div>
+          ) : pages && pages.length > 0 ? (
+            <>
+              {onAddPage && (
+                <button
+                  onClick={onAddPage}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold"
+                >
+                  <Plus className="w-3 h-3" /> New Page
+                </button>
+              )}
+              <div className="space-y-1">
+                {[...pages]
+                  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                  .map(pg => (
+                    <div key={pg.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-gray-700 truncate">{pg.title}</div>
+                        <div className="text-xs text-gray-400 font-mono">{pg.is_homepage ? '/' : `/${pg.slug}`}</div>
+                      </div>
+                      <span className={cn(
+                        'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                        pg.show_in_nav !== false
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-gray-100 text-gray-500 border-gray-200',
+                      )}>
+                        {pg.show_in_nav !== false ? 'In nav' : 'Hidden'}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+              <p className="text-xs text-gray-400">Pages with “In nav” appear automatically. Toggle visibility in the Pages panel.</p>
+            </>
+          ) : onAddPage ? (
+            <button
+              onClick={onAddPage}
+              className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-primary/30 rounded-xl text-xs text-primary font-semibold hover:border-primary/60 hover:bg-accent transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Add your first page
+            </button>
+          ) : null}
         </PropsCollapsible>
       )}
-
-      {block.block_type === 'nav' && (!pages || pages.length === 0) && onAddPage && (
-        <PropsCollapsible title="Navigation links" preview="No pages yet">
-          <button
-            onClick={onAddPage}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-primary/30 rounded-xl text-xs text-primary font-semibold hover:border-primary/60 hover:bg-accent transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Add your first page
-          </button>
-        </PropsCollapsible>
-      )}
-
-      {commonFields}
 
       {itemSchema && (
-        <PropsCollapsible title={itemSchema.itemLabel || 'Items'} preview={`${((p as any)[itemSchema.arrayKey] || []).length} item(s)`}>
-          <SubItemEditor
-            schema={itemSchema}
-            items={(p as any)[itemSchema.arrayKey] || []}
-            siteId={siteId}
-            onUpdate={items => onUpdate({ [itemSchema.arrayKey]: items } as any)}
-            onPreview={items => onPreview({ [itemSchema.arrayKey]: items } as any)}
-            columns={subColumns}
-            gap={subGap}
-            itemSize={subItemSize}
-            onColumnsChange={n => { setSubColumns(n); onUpdate({ columns: n } as any) }}
-            onGapChange={n => { setSubGap(n); onUpdate({ item_gap: n } as any) }}
-            onItemSizeChange={n => { setSubItemSize(n); onUpdate({ item_size: n } as any) }}
-          />
+        <PropsCollapsible title={itemSchema.itemLabel || 'Items'} preview={`${subEditorItems.length} item(s)`}>
+          {renderSubItemEditor('items')}
         </PropsCollapsible>
       )}
+          </>
+        )}
 
-      {bgStyleField && (
-        <PropsCollapsible title="Background Style" preview={String(p.bg_style || '')}>
-          {bgStyleField}
-        </PropsCollapsible>
-      )}
-      {gradientField && (
-        <PropsCollapsible title="Gradient Preset" preview={(p as any).gradient_preset ? 'Custom' : 'Default'}>
-          {gradientField}
-        </PropsCollapsible>
-      )}
-      {heroImageField}
-      {bgImageField}
-      {imageUrlField}
+        {editorTab === 'layout' && (
+          <>
+      {sectionLayoutCount > 0 && onOpenLayoutPicker && onCycleLayout ? (
+        <SectionLayoutControls
+          block={block}
+          currentProps={p as Record<string, unknown>}
+          onOpenLayoutPicker={onOpenLayoutPicker}
+          onCycleLayout={onCycleLayout}
+        />
+      ) : null}
+
+      {imageShapePicker}
+
       {layoutField && (
-        <PropsCollapsible title="Layout" preview={String(p.layout || '')}>
+        <PropsCollapsible title="Layout variant" preview={String(p.layout || '')}>
           {layoutField}
         </PropsCollapsible>
       )}
 
-      <PropsCollapsible
-        title="Block Shadow"
-        preview={SHADOW_PRESETS.find(sh => sh.value === (p as any).block_shadow)?.label || 'None'}
-      >
-        <div className="grid grid-cols-4 gap-1">
-          {SHADOW_PRESETS.map(sh => (
-            <button
-              key={sh.label}
-              onClick={() => onUpdate({ block_shadow: sh.value } as any)}
-              title={sh.label}
-              className={cn(
-                'py-2 rounded-lg border text-xs font-bold transition-all text-center',
-                (p as any).block_shadow === sh.value ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40'
-              )}
-              style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
-            >
-              {sh.label}
-            </button>
-          ))}
-        </div>
-      </PropsCollapsible>
+      {itemSchema && (
+        <PropsCollapsible title="Grid & spacing" preview={`${subColumns} col · ${subGap}px gap`}>
+          {renderSubItemEditor('layout')}
+        </PropsCollapsible>
+      )}
 
       <PropsCollapsible title="Section Spacing" preview={`↑${paddingTop}px ↓${paddingBottom}px`}>
         {([
@@ -8581,95 +8908,74 @@ function PropsEditor({
             </div>
           )}
       </PropsCollapsible>
+          </>
+        )}
+
+        {editorTab === 'design' && (
+          <>
+      {mediaClipPicker}
+      {bgStyleField && (
+        <PropsCollapsible title="Background Style" preview={String(p.bg_style || '')}>
+          {bgStyleField}
+        </PropsCollapsible>
+      )}
+      {gradientField && (
+        <PropsCollapsible title="Gradient Preset" preview={(p as any).gradient_preset ? 'Custom' : 'Default'}>
+          {gradientField}
+        </PropsCollapsible>
+      )}
 
       <PropsCollapsible
-        title="Composition"
+        title="Block Shadow"
+        preview={SHADOW_PRESETS.find(sh => sh.value === ((p as any).block_shadow ?? 'none'))?.label || 'None'}
+      >
+        <div className="grid grid-cols-4 gap-1">
+          {SHADOW_PRESETS.map(sh => (
+            <button
+              key={sh.label}
+              onClick={() => {
+                onPreview({ block_shadow: sh.value } as any)
+                onUpdate({ block_shadow: sh.value } as any)
+              }}
+              title={sh.label}
+              className={cn(
+                'py-2 rounded-lg border text-xs font-bold transition-all text-center',
+                ((p as any).block_shadow ?? 'none') === sh.value ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40'
+              )}
+              style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
+            >
+              {sh.label}
+            </button>
+          ))}
+        </div>
+      </PropsCollapsible>
+
+      <PropsCollapsible
+        title="Text & sizing"
         preview={
           typeof (p as any).font_size_px === 'number' && (p as any).font_size_px > 0
             ? `${Math.round((p as any).font_size_px)}px`
             : 'Auto'
         }
       >
-        {/* Font size px: step + preset (same as canvas bar) */}
-        <div className="space-y-1.5">
-          <div className="text-xs font-medium text-gray-500">Font size (px)</div>
-          <div className="inline-flex w-full max-w-sm items-center gap-1 rounded-lg border border-gray-700 bg-gray-900 p-1">
-            <button
-              type="button"
-              className="flex flex-1 h-8 items-center justify-center gap-1 rounded text-white hover:bg-gray-800"
-              onClick={() => {
-                const cur = (p as any).font_size_px as number | undefined
-                const base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : FONT_SIZE_PX_FALLBACK
-                const next = Math.min(FONT_SIZE_PX_MAX, Math.max(FONT_SIZE_PX_MIN, base + FONT_SIZE_PX_STEP))
-                onUpdate({ font_size_px: next, text_scale: null } as any)
-              }}
-            >
-              <span className="text-xs font-bold">A</span>
-              <ChevronUp className="w-3 h-3 text-sky-400" strokeWidth={2.5} />
-            </button>
-            <button
-              type="button"
-              className="flex flex-1 h-8 items-center justify-center gap-1 rounded text-white hover:bg-gray-800"
-              onClick={() => {
-                const cur = (p as any).font_size_px as number | undefined
-                const base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : FONT_SIZE_PX_FALLBACK
-                const next = Math.min(FONT_SIZE_PX_MAX, Math.max(FONT_SIZE_PX_MIN, base - FONT_SIZE_PX_STEP))
-                onUpdate({ font_size_px: next, text_scale: null } as any)
-              }}
-            >
-              <span className="text-xs font-bold">A</span>
-              <ChevronDown className="w-3 h-3 text-sky-400" strokeWidth={2.5} />
-            </button>
-            <select
-              className="h-8 min-w-[4.5rem] flex-[1.2] rounded border border-gray-600 bg-gray-950 px-2 text-xs font-medium text-white outline-none focus-visible:ring-1 focus-visible:ring-sky-500"
-              value={
-                typeof (p as any).font_size_px === 'number' && (p as any).font_size_px > 0 && Number.isFinite((p as any).font_size_px)
-                  ? String(Math.round((p as any).font_size_px))
-                  : ''
-              }
-              onChange={e => {
-                const v = e.target.value
-                if (!v) onUpdate({ font_size_px: null } as any)
-                else onUpdate({ font_size_px: Math.round(Number(v)), text_scale: null } as any)
-              }}
-            >
-              <option value="">Auto</option>
-              {FONT_SIZE_PX_CHOICES.map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-          <p className="text-xs text-gray-400">Px sizing overrides XS–2X scale. Auto uses theme + scale only.</p>
-        </div>
-
-        {/* Text case — same options as the canvas typography menu */}
-        <div className="space-y-1.5">
-          <div className="text-xs font-medium text-gray-500">Text case</div>
-          <div className="rounded-lg border border-gray-200 bg-gray-900 overflow-hidden">
-            {TEXT_CASE_MENU_ROWS.map(row => (
-              <button
-                key={row.id}
-                type="button"
-                onClick={() => {
-                  const patch = buildTextCasePropsPatch(p as Record<string, unknown>, row.id)
-                  onUpdate(patch as any)
-                  if (row.id === 'sentence' || row.id === 'toggle') {
-                    toast.success(row.id === 'sentence' ? 'Sentence case applied' : 'Toggle case applied')
-                  }
-                }}
-                className={cn(
-                  'w-full text-left px-3 py-2 text-xs transition-colors border-b border-gray-800 last:border-b-0',
-                  currentTextCaseMenuId(p as any) === row.id
-                    ? 'bg-primary text-white'
-                    : 'text-gray-100 hover:bg-gray-800',
-                )}
-              >
-                {row.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400">Default clears CSS case. Sentence / toggle rewrite stored text (skips URLs and nav links).</p>
-        </div>
+        <TypographyCompositionFields
+          fontSizePx={(p as any).font_size_px as number | undefined}
+          onFontSizeChange={px => onUpdate({ font_size_px: px, text_scale: null } as any)}
+          textCaseId={currentTextCaseMenuId(p as any)}
+          onTextCaseSelect={id => {
+            const patch = buildTextCasePropsPatch(p as Record<string, unknown>, id)
+            onUpdate(patch as any)
+            if (id === 'sentence' || id === 'toggle') {
+              toast.success(id === 'sentence' ? 'Sentence case applied' : 'Toggle case applied')
+            }
+          }}
+          textAlign={(p as any).text_align as string | undefined}
+          verticalAlign={(p as any).vertical_align as string | undefined}
+          textWrap={(p as any).text_wrap as boolean | undefined}
+          onTextAlignChange={align => onUpdate({ text_align: align } as any)}
+          onVerticalAlignChange={align => onUpdate({ vertical_align: align } as any)}
+          onTextWrapChange={wrap => onUpdate({ text_wrap: wrap } as any)}
+        />
       </PropsCollapsible>
 
       {showTileColors && (
@@ -8714,7 +9020,59 @@ function PropsEditor({
         )}
       </PropsCollapsible>
       )}
+          </>
+        )}
 
+        {editorTab === 'media' && (
+          <>
+      {mediaClipPicker}
+      {heroImageField}
+      {bgImageField}
+      {imageUrlField}
+      {block.block_type === 'nav' && (
+        <PropsCollapsible title="Logo & brand" preview={p.brand_logo ? 'Logo + name' : (p.brand as string) || 'Text only'}>
+          <BlockImagePickerField
+            blockId={block.id}
+            label="Logo image"
+            fieldKey="brand_logo"
+            siteId={siteId}
+            currentUrl={p.brand_logo as string | undefined}
+            onUpdate={onUpdate}
+          />
+          {p.brand_logo && (
+            <button
+              type="button"
+              onClick={() => onUpdate({ brand_logo: '' } as any)}
+              className="text-xs text-red-500 hover:text-red-700 font-semibold"
+            >
+              Remove logo image
+            </button>
+          )}
+          <p className="text-xs text-gray-400 leading-snug">
+            Pick from your media gallery or upload. Brand name is edited under Content.
+          </p>
+          {[
+            { key: 'show_logo', label: 'Show logo image', disabled: !p.brand_logo },
+            { key: 'show_brand_name', label: 'Show brand name' },
+          ].map(({ key, label, disabled }) => (
+            <label key={key} className={cn('flex items-center gap-2', disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer')}>
+              <input
+                type="checkbox"
+                disabled={disabled}
+                checked={(p as any)[key] !== false}
+                onChange={e => onUpdate({ [key]: e.target.checked } as any)}
+                className="rounded accent-primary"
+              />
+              <span className="text-xs text-gray-600">{label}</span>
+            </label>
+          ))}
+        </PropsCollapsible>
+      )}
+          </>
+        )}
+
+        {editorTab === 'more' && (
+          <>
       <PropsCollapsible title="Visibility" preview={(block as any).visible === false ? 'Hidden' : 'Visible'}>
         {[
           { key: 'visible', label: 'Visible' },
@@ -8740,41 +9098,22 @@ function PropsEditor({
       </PropsCollapsible>
 
       <BlockBreakpointStyles
-        styleOverrides={(block.style_overrides || {}) as any}
+        styleOverrides={readRawBlockStyleOverrides(block) as any}
         onChange={overrides => onUpdate({ style_overrides: overrides } as any)}
       />
 
-      <PropsCollapsible title="Scroll Animation" preview={block.animation || 'None'}>
-        <div className="grid grid-cols-4 gap-1">
-          {[
-            { id: 'none', label: '⊘ None' },
-            { id: 'fade-in', label: '✨ Fade' },
-            { id: 'slide-up', label: '⬆ Slide Up' },
-            { id: 'slide-down', label: '⬇ Slide Down' },
-            { id: 'slide-left', label: '◀ From Left' },
-            { id: 'slide-right', label: '▶ From Right' },
-            { id: 'zoom-in', label: '🔍 Zoom' },
-            { id: 'flip', label: '🔄 Flip' },
-          ].map(a => (
-            <button key={a.id}
-              onClick={() => onUpdate({ animation: a.id === 'none' ? null : a.id } as any)}
-              className={cn('py-1.5 px-1 text-xs font-medium rounded-lg border transition-colors text-center',
-                (block.animation || 'none') === a.id ? 'bg-primary text-white border-primary' : 'text-gray-500 border-gray-200 hover:border-primary/40')}
-            >{a.label}</button>
-          ))}
-        </div>
-        {block.animation && block.animation !== 'none' && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-gray-500 w-16 shrink-0">Delay (ms)</label>
-              <input type="range" min={0} max={1000} step={100} defaultValue={block.animation_delay || 0}
-                onChange={e => onUpdate({ animation_delay: Number(e.target.value) } as any)}
-                className="flex-1 accent-primary h-1" />
-              <span className="text-xs text-gray-500 w-10 text-right">{block.animation_delay || 0}ms</span>
-            </div>
-          </div>
-        )}
+      <PropsCollapsible title="Scroll Animation" preview={animationOptionLabel(block.animation)}>
+        <ScrollAnimationControls
+          variant="panel"
+          animation={block.animation}
+          animationDelay={block.animation_delay || 0}
+          onAnimationChange={id => onUpdate({ animation: id === 'none' ? null : id } as any)}
+          onDelayChange={ms => onUpdate({ animation_delay: ms } as any)}
+        />
       </PropsCollapsible>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -9089,9 +9428,7 @@ function StylePanel({
   return (
     <div className="p-4 space-y-5">
 
-      <CheckoutStyleSection style={style} onChange={onChange} />
-
-      <div className="pt-1 border-t border-gray-100">
+      <div className="pt-1">
         <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Theme and appearance</div>
         <div className="flex gap-1.5 p-0.5 rounded-xl bg-gray-100 mb-2">
           <button
@@ -9322,8 +9659,8 @@ function StylePanel({
         <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Typography Scale</div>
         <div className="space-y-2">
           {[
-            { key: 'font_family_heading', label: 'Heading Font', opts: ['Inter', 'Merriweather', 'Playfair Display', 'Space Grotesk', 'Syne', 'DM Serif Display', 'Outfit'] },
-            { key: 'font_family_body', label: 'Body Font', opts: ['Inter', 'Lato', 'Open Sans', 'Nunito', 'Roboto', 'Source Sans Pro', 'DM Sans'] },
+            { key: 'font_family_heading', label: 'Heading Font', opts: FONTS },
+            { key: 'font_family_body', label: 'Body Font', opts: FONTS },
           ].map(({ key, label, opts }) => (
             <div key={key}>
               <label className="text-xs text-gray-500 mb-1 block">{label}</label>
@@ -9395,191 +9732,22 @@ function StylePanel({
   )
 }
 
-// ── Checkout Style Section ────────────────────────────────────────────────────
-
-const CHECKOUT_LAYOUT_OPTS: { id: 'two-column' | 'wizard' | 'accordion'; label: string; desc: string }[] = [
-  { id: 'two-column', label: 'Two-column', desc: 'Form left, order summary right' },
-  { id: 'wizard',     label: 'Wizard',     desc: 'Step-by-step guided flow' },
-  { id: 'accordion',  label: 'Accordion',  desc: 'Collapsible sections on one page' },
-]
-
-const CHECKOUT_TOKEN_FIELDS: { key: string; label: string }[] = [
-  { key: '--brand-primary',    label: 'Brand color (HSL)' },
-  { key: '--surface',          label: 'Surface BG (HSL)' },
-  { key: '--surface-muted',    label: 'Muted surface (HSL)' },
-  { key: '--text',             label: 'Text (HSL)' },
-  { key: '--radius-md',        label: 'Radius (e.g. 10px)' },
-  { key: '--font-heading',     label: 'Heading font' },
-  { key: '--font-body',        label: 'Body font' },
-]
-
-function CheckoutStyleSection({
-  style,
-  onChange,
-}: {
-  style: StyleConfig
-  onChange: (s: Partial<StyleConfig>) => void
-}) {
-  const [open, setOpen] = React.useState(false)
-  const current = (style as any).checkout_layout as string | undefined
-  const overrides: Record<string, string> = (style as any).checkout_token_overrides ?? {}
-
-  function setTokenOverride(key: string, value: string) {
-    const next = { ...overrides }
-    if (value.trim()) {
-      next[key] = value.trim()
-    } else {
-      delete next[key]
-    }
-    onChange({ checkout_token_overrides: next } as any)
-  }
-
-  return (
-    <div className="pt-1">
-      <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Checkout layout</div>
-
-      {/* Layout picker */}
-      <div className="mb-4">
-        <div className="text-xs font-medium text-gray-500 mb-2">Page Layout</div>
-        <div className="space-y-1.5">
-          {CHECKOUT_LAYOUT_OPTS.map(o => (
-            <button
-              key={o.id}
-              onClick={() => onChange({ checkout_layout: o.id } as any)}
-              className={cn(
-                'w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all',
-                current === o.id || (!current && o.id === 'two-column')
-                  ? 'border-primary bg-accent'
-                  : 'border-gray-200 hover:border-primary/40 bg-white',
-              )}
-            >
-              <div>
-                <div className={cn('text-xs font-medium', current === o.id || (!current && o.id === 'two-column') ? 'text-primary' : 'text-gray-700')}>{o.label}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{o.desc}</div>
-              </div>
-              {(current === o.id || (!current && o.id === 'two-column')) && (
-                <div className="w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center shrink-0">
-                  <svg className="w-2 h-2 text-white" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Advanced token overrides */}
-      <div>
-        <button
-          onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wide"
-        >
-          <span>Advanced Checkout Tokens</span>
-          <svg className={cn('w-3.5 h-3.5 transition-transform', open ? 'rotate-180' : '')} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {open && (
-          <div className="mt-2 space-y-2">
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Override individual checkout CSS variables. Colors should be HSL triplets like <code className="bg-gray-100 px-1 rounded">222 47% 11%</code>. Leave blank to inherit from Style panel.
-            </p>
-            {CHECKOUT_TOKEN_FIELDS.map(({ key, label }) => (
-              <div key={key}>
-                <label className="text-xs font-medium text-gray-500 block mb-0.5">{label}</label>
-                <input
-                  type="text"
-                  placeholder={`e.g. ${key === '--radius-md' ? '10px' : key.includes('font') ? 'Inter' : '222 47% 11%'}`}
-                  value={overrides[key] ?? ''}
-                  onChange={e => setTokenOverride(key, e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-primary/60 focus:outline-none font-mono"
-                />
-              </div>
-            ))}
-            {Object.keys(overrides).length > 0 && (
-              <button
-                onClick={() => onChange({ checkout_token_overrides: {} } as any)}
-                className="text-xs text-red-400 hover:text-red-600 transition-colors"
-              >
-                ✕ Clear all overrides
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ── Data Source Panel ─────────────────────────────────────────────────────────
 
-// Full catalog of live KITERP data feeds any block can be bound to.
-// `id` maps to the /live/{resource} endpoint on the backend.
-const DATA_SOURCES: {
-  id: LiveResource | 'external_api'
-  label: string
-  icon: React.ElementType
-  desc: string
-  blockTypes: string[]
-  selectable: boolean       // if true, the panel shows an item picker
-}[] = [
-  { id: 'products',     label: 'Products',      icon: Package,      desc: 'Your product catalog',                    blockTypes: ['product_grid', 'menu_grid', 'live_stock', 'live_quote', 'gallery_masonry', 'product_detail', 'related_products', 'cart_drawer'], selectable: true  },
-  { id: 'services',     label: 'Services',      icon: Wrench,       desc: 'Your service offerings',                  blockTypes: ['services_cards', 'booking_widget', 'booking_slot_picker', 'menu_grid'], selectable: true  },
-  { id: 'testimonials', label: 'Testimonials',  icon: Quote,        desc: 'Verified customer reviews (4★+)',         blockTypes: ['testimonials', 'product_reviews'], selectable: false },
-  { id: 'team',         label: 'Team',          icon: Users,        desc: 'Active employees & roles',                blockTypes: ['team_grid'], selectable: false },
-  { id: 'kpis',         label: 'Business KPIs', icon: BarChart3,    desc: 'Live stats: orders, revenue, rating',     blockTypes: ['stats', 'counters', 'impact_stats'], selectable: false },
-  { id: 'profile',      label: 'Vendor Profile',icon: Briefcase,    desc: 'Brand, address, contact, socials',        blockTypes: ['contact_form', 'map_embed', 'footer', 'nav', 'about_split', 'social_links'], selectable: false },
-  { id: 'pages',        label: 'Site Pages',    icon: Layout,       desc: 'Published pages for nav & footer links',  blockTypes: ['nav', 'footer'], selectable: false },
-  { id: 'categories',   label: 'Categories',    icon: List,         desc: 'Product & service categories',            blockTypes: ['menu_grid', 'category_cards', 'product_filters'], selectable: false },
-  { id: 'customers',    label: 'Customers',     icon: Users,        desc: 'Top customers for social proof',          blockTypes: ['trust_logos'], selectable: false },
-  { id: 'orders',       label: 'Orders',        icon: ShoppingCart, desc: 'Recent orders (for admin widgets)',       blockTypes: ['stats'], selectable: false },
-  { id: 'bookings',     label: 'Bookings',      icon: Clock,        desc: 'Upcoming / recent bookings',              blockTypes: ['booking_widget'], selectable: false },
-  { id: 'media',        label: 'Site Media',    icon: ImageIcon,    desc: 'Images & videos uploaded to this site',   blockTypes: ['gallery_masonry', 'portfolio_grid'], selectable: false },
-  { id: 'external_api', label: 'External API',  icon: Plug,         desc: 'Custom REST endpoint',                    blockTypes: [], selectable: false },
-]
-
-// Map block type -> default live data source to auto-bind on drag-drop.
-// A block dropped into the canvas is immediately wired to real KITERP data;
-// the user can override/disconnect in the Data panel.
-const BLOCK_AUTO_SOURCE: Record<string, LiveResource> = {
-  product_grid:    'products',
-  product_detail:  'products',
-  related_products:'products',
-  cart_drawer:     'products',
-  live_stock:      'products',
-  live_quote:      'products',
-  services_cards:  'services',
-  services_list:   'services',
-  booking_slot_picker: 'services',
-  menu_grid:       'products',
-  testimonials:    'testimonials',
-  product_reviews: 'testimonials',
-  testimonials_grid:'testimonials',
-  team_grid:       'team',
-  team_list:       'team',
-  stats:           'kpis',
-  counters:        'kpis',
-  impact_stats:    'kpis',
-  contact_form:    'profile',
-  map_embed:       'profile',
-  footer:          'pages',
-  nav:             'pages',
-  about_split:     'profile',
-  social_links:    'profile',
-  category_cards:  'categories',
-  product_filters: 'categories',
-  gallery_masonry: 'media',
-  portfolio_grid:  'media',
-  booking_widget:  'services',
-  trust_logos:     'customers',
-}
-
-// Back-compat: some older blocks persisted `internal_*` source ids.
-function normalizeSourceType(t: unknown): LiveResource | 'external_api' | null {
-  if (typeof t !== 'string') return null
-  if (t.startsWith('internal_')) return t.slice(9) as LiveResource
-  return t as LiveResource | 'external_api'
+const DATA_SOURCE_ICONS: Record<string, React.ElementType> = {
+  products: Package,
+  services: Wrench,
+  testimonials: Quote,
+  team: Users,
+  kpis: BarChart3,
+  profile: Briefcase,
+  pages: Layout,
+  categories: List,
+  customers: Users,
+  orders: ShoppingCart,
+  bookings: Clock,
+  media: ImageIcon,
+  external_api: Plug,
 }
 
 function DataSourcePanel({
@@ -9674,15 +9842,12 @@ function DataSourcePanel({
     )
   }
 
-  // Recommended + other sources. Recommended = listed explicitly or matches block type.
-  const recommended = DATA_SOURCES.filter(s =>
-    s.id !== 'external_api' && s.blockTypes.some(t => t === block.block_type),
-  )
-  const others = DATA_SOURCES.filter(s =>
-    s.id !== 'external_api' && !recommended.some(r => r.id === s.id),
-  )
+  // Recommended + other sources for this block type.
+  const recommended = getRecommendedDataSources(block.block_type)
+  const others = getOtherDataSources(block.block_type)
   const activeSource = DATA_SOURCES.find(s => s.id === normalizedDsType)
   const canPickItems = activeSource?.selectable
+  const connectionRequired = BLOCK_REQUIRED_DATA_SOURCE.has(block.block_type)
 
   return (
     <div className="p-4 space-y-4">
@@ -9690,7 +9855,7 @@ function DataSourcePanel({
         <Database className="w-4 h-4 text-primary/80" />
         <span className="text-xs font-bold text-gray-700">Data Connections</span>
       </div>
-      <p className="text-xs text-gray-400">Connect <strong>{block.label || block.block_type}</strong> to live KITERP data or any external API.</p>
+      <p className="text-xs text-gray-400">Connect <strong>{block.label || block.block_type}</strong> to your live catalog or an external link.</p>
 
       {/* Auto-connect CTA (if block has a suggested source and isn't already connected) */}
       {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
@@ -9712,7 +9877,9 @@ function DataSourcePanel({
             {DATA_SOURCES.find(s => s.id === normalizedDsType)?.label || normalizedDsType}
           </span>
           <span className="ml-auto text-xs text-emerald-600 font-semibold">{liveItems.length} live</span>
-          <button onClick={() => onUpdate(null)} className="text-xs text-red-500 hover:text-red-700">Disconnect</button>
+          {!connectionRequired && (
+            <button onClick={() => onUpdate(null)} className="text-xs text-red-500 hover:text-red-700">Disconnect</button>
+          )}
         </div>
       )}
 
@@ -9721,7 +9888,9 @@ function DataSourcePanel({
         <div>
           <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Recommended for this block</div>
           <div className="space-y-1.5">
-            {recommended.map(source => (
+            {recommended.map(source => {
+              const SourceIcon = DATA_SOURCE_ICONS[source.id] || Database
+              return (
               <button
                 key={source.id}
                 onClick={() => handleSelectInternal(source.id as LiveResource)}
@@ -9732,23 +9901,25 @@ function DataSourcePanel({
                     : 'border-emerald-100 hover:border-primary/30 hover:bg-accent/70 bg-emerald-50/30'
                 )}
               >
-                <source.icon className="w-4 h-4 text-primary/80 shrink-0" />
+                <SourceIcon className="w-4 h-4 text-primary/80 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium text-gray-700">{source.label}</div>
                   <div className="text-xs text-gray-400">{source.desc}</div>
                 </div>
                 {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-primary/80" />}
               </button>
-            ))}
+            )})}
           </div>
         </div>
       )}
 
       {/* All other internal sources */}
       <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">All KITERP Data</div>
+        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Your store data</div>
         <div className="space-y-1.5">
-          {others.map(source => (
+          {others.map(source => {
+            const SourceIcon = DATA_SOURCE_ICONS[source.id] || Database
+            return (
             <button
               key={source.id}
               onClick={() => handleSelectInternal(source.id as LiveResource)}
@@ -9759,14 +9930,14 @@ function DataSourcePanel({
                   : 'border-gray-100 hover:border-primary/30 hover:bg-gray-50'
               )}
             >
-              <source.icon className="w-4 h-4 text-gray-500 shrink-0" />
+              <SourceIcon className="w-4 h-4 text-gray-500 shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium text-gray-700">{source.label}</div>
                 <div className="text-xs text-gray-400">{source.desc}</div>
               </div>
               {normalizedDsType === source.id && <Check className="w-3.5 h-3.5 text-primary/80" />}
             </button>
-          ))}
+          )})}
         </div>
       </div>
 
@@ -9954,32 +10125,6 @@ function DataSourcePanel({
 
 // ── Block Design Bar (inline canvas floating toolbar) ─────────────────────────
 
-const QUICK_INSERT_TYPES = [
-  { type: 'hero',        label: '🚀 Hero' },
-  { type: 'features',    label: '⚡ Features' },
-  { type: 'cta',         label: '🎯 CTA' },
-  { type: 'rich_text',   label: '📝 Text' },
-  { type: 'image_block', label: '🖼 Image' },
-  { type: 'video_embed', label: '▶ Video' },
-  { type: 'stats',       label: '📊 Stats' },
-  { type: 'testimonials',label: '💬 Reviews' },
-  { type: 'contact_form',label: '✉ Contact' },
-  { type: 'divider',     label: '— Divider' },
-  { type: 'spacer',      label: '⬜ Spacer' },
-  { type: 'newsletter',  label: '📧 Newsletter' },
-] as const
-
-const CANVAS_ANIM_OPTIONS = [
-  { id: 'none',        label: '⊘', title: 'No animation' },
-  { id: 'fade-in',     label: '✨', title: 'Fade In' },
-  { id: 'slide-up',    label: '⬆', title: 'Slide Up' },
-  { id: 'slide-down',  label: '⬇', title: 'Slide Down' },
-  { id: 'slide-left',  label: '◀', title: 'Slide from Left' },
-  { id: 'slide-right', label: '▶', title: 'Slide from Right' },
-  { id: 'zoom-in',     label: '🔍', title: 'Zoom In' },
-  { id: 'flip',        label: '🔄', title: 'Flip' },
-]
-
 const ELEMENT_INSERT_TYPES = [
   { type: 'text',    label: '📝 Text Box',         desc: 'Editable text overlay' },
   { type: 'image',   label: '🖼 Image',             desc: 'Draggable image layer' },
@@ -9995,102 +10140,6 @@ const ELEMENT_INSERT_TYPES = [
 // ── Typography toolbar: font scale + text case (canvas bar & properties panel) ─
 const FONT_SCALE_STEPS: [string, number][] = [
   ['XS', 0.75], ['S', 0.875], ['M', 1], ['L', 1.125], ['XL', 1.25], ['2X', 1.5],
-]
-
-/** Pixel presets for the numeric dropdown (Figma/Word-style). */
-const FONT_SIZE_PX_CHOICES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72] as const
-const FONT_SIZE_PX_MIN = 8
-const FONT_SIZE_PX_MAX = 72
-const FONT_SIZE_PX_STEP = 1
-const FONT_SIZE_PX_FALLBACK = 16
-
-const TEXT_CASE_CSS = ['uppercase', 'lowercase', 'capitalize'] as const
-type TextCaseCss = (typeof TEXT_CASE_CSS)[number]
-type TextCaseMenuId = 'default' | 'sentence' | TextCaseCss | 'toggle'
-
-function toSentenceCase(s: string): string {
-  const t = s.trim().toLowerCase()
-  if (!t) return s
-  return t.replace(/(^|[.!?]\s+)(\w)/g, (_m, sep: string, ch: string) => sep + ch.toUpperCase())
-}
-
-function toToggleCase(s: string): string {
-  return [...s].map(c => (c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase())).join('')
-}
-
-const TEXT_CASE_SKIP_KEYS = new Set([
-  'data_source', 'overlays', 'nav_links', 'social_links', 'form_fields', 'html',
-  'gradient_preset',
-])
-
-function shouldSkipStringCase(val: string, key: string): boolean {
-  const t = val.trim()
-  if (!t) return true
-  if (/^https?:\/\//i.test(t) || /^www\./i.test(t)) return true
-  if (/^#[0-9a-f]{3,8}$/i.test(t)) return true
-  const lk = key.toLowerCase()
-  if ((lk.includes('url') || lk.endsWith('_url')) && t.length > 3) return true
-  if ((lk === 'email' || lk === 'phone') && (t.includes('@') || /^\+?[\d\s().-]{8,}$/.test(t))) return true
-  return false
-}
-
-/** Walk props and rewrite user-facing strings (skips URLs, nav config, embed HTML, etc.). */
-function mapPropsStringsDeep(
-  props: Record<string, unknown>,
-  mode: 'sentence' | 'toggle',
-): Record<string, unknown> {
-  const fn = mode === 'sentence' ? toSentenceCase : toToggleCase
-  const visit = (val: unknown, key: string): unknown => {
-    if (typeof val === 'string') {
-      if (shouldSkipStringCase(val, key)) return val
-      return fn(val)
-    }
-    if (Array.isArray(val)) return val.map((el, i) => visit(el, `${key}[${i}]`))
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
-      const o = val as Record<string, unknown>
-      const out: Record<string, unknown> = {}
-      for (const [k, v] of Object.entries(o)) {
-        if (TEXT_CASE_SKIP_KEYS.has(k)) {
-          out[k] = v
-          continue
-        }
-        out[k] = visit(v, k)
-      }
-      return out
-    }
-    return val
-  }
-  return visit({ ...props }, 'root') as Record<string, unknown>
-}
-
-function buildTextCasePropsPatch(
-  current: Record<string, unknown>,
-  cmd: TextCaseMenuId,
-): Partial<BlockProps> {
-  if (cmd === 'default') return { text_transform: null }
-  if (cmd === 'uppercase' || cmd === 'lowercase' || cmd === 'capitalize') {
-    return { text_transform: cmd }
-  }
-  if (cmd === 'sentence' || cmd === 'toggle') {
-    const mode = cmd === 'sentence' ? 'sentence' : 'toggle'
-    return { text_transform: null, ...mapPropsStringsDeep(current, mode) } as Partial<BlockProps>
-  }
-  return {}
-}
-
-function currentTextCaseMenuId(props: Record<string, unknown>): TextCaseMenuId {
-  const t = (props.text_transform as string | undefined)?.toLowerCase()
-  if (t && (TEXT_CASE_CSS as readonly string[]).includes(t)) return t as TextCaseCss
-  return 'default'
-}
-
-const TEXT_CASE_MENU_ROWS: { id: TextCaseMenuId; label: string }[] = [
-  { id: 'default', label: 'Default' },
-  { id: 'sentence', label: 'Sentence case.' },
-  { id: 'lowercase', label: 'lowercase' },
-  { id: 'uppercase', label: 'UPPERCASE' },
-  { id: 'capitalize', label: 'Capitalize Each Word' },
-  { id: 'toggle', label: 'tOGGLE cASE' },
 ]
 
 /** Portals design-bar dropdowns to body so they aren't clipped by overflow-x-auto / section overflow. */
@@ -10152,42 +10201,200 @@ const DEVICE_SWITCHER: { mode: DeviceMode; Icon: typeof Monitor; label: string; 
 const CANVAS_ZOOM_MIN = 0.25
 const CANVAS_ZOOM_MAX = 3
 const CANVAS_ZOOM_STEP = 0.1
+/** Horizontal inset on the canvas scroll area (keep 0 for edge-to-edge fit). */
+const CANVAS_VIEWPORT_PAD_PX = 0
 
-function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, onUndo, onRedo, canUndo, canRedo }: {
+function BuilderShortcutKbd({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <kbd
+      className={cn(
+        'inline-flex min-h-[1rem] min-w-[1.1rem] items-center justify-center rounded border border-gray-200 bg-gray-50 px-1 text-[9px] font-mono font-semibold text-gray-500 leading-none shadow-sm',
+        className,
+      )}
+    >
+      {children}
+    </kbd>
+  )
+}
+
+function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, floating = false, docked = false }: {
   block: WebsiteBlock
   onUpdate: (p: Partial<BlockProps>) => void
   onInsertAfter: (type: string) => void
   activeTextField?: string | null
+  activeTextFields?: string[]
+  onActivateTextField?: (fieldKey: string) => void
+  onEditText?: () => void
+  onEscapeDismiss?: () => void
   onOpenLinkEditorForOverlay?: (item: BlockOverlayItem, anchor: { x: number; y: number }) => void
   onUndo?: () => void
   onRedo?: () => void
   canUndo?: boolean
   canRedo?: boolean
+  formatPaintActive?: boolean
+  formatPaintSticky?: boolean
+  onFormatPaintStart?: (style: FormatPaintStyle, sticky: boolean) => void
+  onFormatPaintCancel?: () => void
+  /** When true, bar is not absolutely positioned inside the canvas block. */
+  floating?: boolean
+  /** Fixed strip below the canvas toolbar (stable; does not overlap page content). */
+  docked?: boolean
 }) {
   const [showInsert, setShowInsert] = useState(false)
-  const [showBlocks, setShowBlocks] = useState(false)
   const [showAnim, setShowAnim] = useState(false)
   const [showShapes, setShowShapes] = useState(false)
+  const [designBarTab, setDesignBarTab] = useState<'general' | 'media' | 'style'>('general')
   const [showCase, setShowCase] = useState(false)
+  const [showLineSpacing, setShowLineSpacing] = useState(false)
+  const [transformScope, setTransformScope] = useState<LayoutTransformScope>('section')
+  const [typographyDisplayTick, setTypographyDisplayTick] = useState(0)
   const barRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const insertBtnRef = useRef<HTMLButtonElement>(null)
-  const blocksBtnRef = useRef<HTMLButtonElement>(null)
   const caseBtnRef = useRef<HTMLButtonElement>(null)
+  const lineSpacingBtnRef = useRef<HTMLButtonElement>(null)
   const animBtnRef = useRef<HTMLButtonElement>(null)
   const shapesBtnRef = useRef<HTMLButtonElement>(null)
+  const formatPaintClickTimerRef = useRef<number | null>(null)
   const p = block.props
+  const blockSupportsMediaClip = MEDIA_CLIP_BLOCK_TYPES.has(block.block_type)
   const fieldStyles = ((p as any)._field_styles || {}) as Record<string, Record<string, unknown>>
-  const activeFieldStyle = activeTextField ? (fieldStyles[activeTextField] || {}) : null
+  const selectedEditableFields = activeTextFields.filter(k => k !== CONTENT_GROUP_FIELD_KEY)
+  const multiFieldSelection = selectedEditableFields.length > 1
+  const activeFieldStyle = activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
+    ? (fieldStyles[activeTextField] || {})
+    : null
+  const supportsContentGroup = /^hero(_split|_minimal)?$/.test(String(block.block_type))
+  const positionScope: 'field' | 'group' =
+    multiFieldSelection || (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY)
+      ? 'field'
+      : activeTextField === CONTENT_GROUP_FIELD_KEY || !activeTextField
+        ? 'group'
+        : 'field'
+
+  useEffect(() => {
+    if (multiFieldSelection || (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY)) {
+      setTransformScope('field')
+    } else if (supportsContentGroup) setTransformScope('group')
+    else setTransformScope('section')
+  }, [activeTextField, multiFieldSelection, supportsContentGroup, block.id])
+
+  useEffect(() => {
+    if (!activeTextField || activeTextField === CONTENT_GROUP_FIELD_KEY) return
+    let raf = 0
+    const bump = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => setTypographyDisplayTick(n => n + 1))
+    }
+    document.addEventListener('selectionchange', bump)
+    const blockEl = document.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`)
+    blockEl?.addEventListener('builder-inline-text-commit', bump)
+    return () => {
+      cancelAnimationFrame(raf)
+      document.removeEventListener('selectionchange', bump)
+      blockEl?.removeEventListener('builder-inline-text-commit', bump)
+    }
+  }, [activeTextField, block.id])
+
+  useEffect(() => {
+    setDesignBarTab('general')
+  }, [block.id])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase()
+      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target as HTMLElement)?.isContentEditable
+      if (isInput) return
+      if (multiFieldSelection) return
+      if (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY) return
+      e.preventDefault()
+      setDesignBarTab(e.key === 'ArrowLeft' ? 'media' : 'style')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [activeTextField, multiFieldSelection])
+
+  const patchSelectedFieldStyles = (patch: Record<string, unknown>, keys = selectedEditableFields) => {
+    if (!keys.length) return
+    const nextStyles = { ...fieldStyles }
+    keys.forEach(k => {
+      nextStyles[k] = { ...(fieldStyles[k] || {}), ...patch }
+    })
+    onUpdate({ _field_styles: nextStyles } as Partial<BlockProps>)
+  }
+
+  const transformValues = transformScope === 'section'
+    ? {
+        flipH: (p as any).section_flip_h,
+        flipV: (p as any).section_flip_v,
+        rotateDeg: (p as any).section_rotate_deg,
+      }
+    : transformScope === 'group'
+      ? {
+          flipH: (p as any).content_flip_h,
+          flipV: (p as any).content_flip_v,
+          rotateDeg: (p as any).content_rotate_deg,
+        }
+      : {
+          flipH: (activeFieldStyle as any)?.flip_h,
+          flipV: (activeFieldStyle as any)?.flip_v,
+          rotateDeg: (activeFieldStyle as any)?.rotate_deg,
+        }
+
+  const applyTransform = (patch: { flip_h?: boolean | null; flip_v?: boolean | null; rotate_deg?: number | null }) => {
+    if (transformScope === 'section') {
+      onUpdate({
+        ...(patch.flip_h !== undefined ? { section_flip_h: patch.flip_h } : {}),
+        ...(patch.flip_v !== undefined ? { section_flip_v: patch.flip_v } : {}),
+        ...(patch.rotate_deg !== undefined ? { section_rotate_deg: patch.rotate_deg } : {}),
+      } as Partial<BlockProps>)
+      return
+    }
+    if (transformScope === 'group') {
+      onUpdate({
+        ...(patch.flip_h !== undefined ? { content_flip_h: patch.flip_h } : {}),
+        ...(patch.flip_v !== undefined ? { content_flip_v: patch.flip_v } : {}),
+        ...(patch.rotate_deg !== undefined ? { content_rotate_deg: patch.rotate_deg } : {}),
+      } as Partial<BlockProps>)
+      onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
+      return
+    }
+    if (!activeTextField || activeTextField === CONTENT_GROUP_FIELD_KEY) return
+    if (multiFieldSelection) {
+      patchSelectedFieldStyles(patch)
+      return
+    }
+    updateTextStyle(patch)
+  }
+
+  const resetTransform = () => {
+    applyTransform({ flip_h: null, flip_v: null, rotate_deg: null })
+  }
 
   const updateTextStyle = (patch: Record<string, unknown>, opts?: { fontSizeDelta?: number }) => {
-    const fieldKey = savedInlineTextSelection?.key || activeTextField || null
+    const savedSelection = getSavedInlineTextSelection()
+    const fieldKey = savedSelection?.key || activeTextField || null
     let stylePatch = { ...patch }
+    const isFieldLayoutStyle =
+      'text_align' in stylePatch ||
+      'vertical_align' in stylePatch ||
+      'text_wrap' in stylePatch ||
+      'line_height_ratio' in stylePatch ||
+      'paragraph_space_before_px' in stylePatch ||
+      'paragraph_space_after_px' in stylePatch ||
+      'field_offset_x' in stylePatch ||
+      'field_offset_y' in stylePatch ||
+      'flip_h' in stylePatch ||
+      'flip_v' in stylePatch ||
+      'rotate_deg' in stylePatch
 
     if (opts?.fontSizeDelta != null) {
       if (hasActiveInlineTextSelection(fieldKey)) {
         restoreSavedInlineSelection()
-        const px = getSelectionFontSizePx(savedInlineTextSelection!.range)
+        const activeRange = getSavedInlineTextSelection()?.range
+        const px = activeRange ? getSelectionFontSizePx(activeRange) : FONT_SIZE_PX_FALLBACK
         stylePatch = {
           ...stylePatch,
           font_size_px: Math.min(
@@ -10196,25 +10403,42 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           ),
           text_scale: null,
         }
-      } else if (
-        fieldKey &&
-        lastInlineStyledSpan &&
-        lastInlineStyledSpan.key === fieldKey &&
-        lastInlineStyledSpan.span.isConnected
-      ) {
-        const px = parseFloat(window.getComputedStyle(lastInlineStyledSpan.span).fontSize)
-        const base = px > 0 && Number.isFinite(px) ? Math.round(px) : FONT_SIZE_PX_FALLBACK
-        stylePatch = {
-          ...stylePatch,
-          font_size_px: Math.min(
-            FONT_SIZE_PX_MAX,
-            Math.max(FONT_SIZE_PX_MIN, base + opts.fontSizeDelta),
-          ),
-          text_scale: null,
+      } else if (fieldKey) {
+        const styledSpan = getLastInlineStyledSpan()
+        if (styledSpan && styledSpan.key === fieldKey && styledSpan.span.isConnected) {
+          const px = parseFloat(window.getComputedStyle(styledSpan.span).fontSize)
+          const base = px > 0 && Number.isFinite(px) ? Math.round(px) : FONT_SIZE_PX_FALLBACK
+          stylePatch = {
+            ...stylePatch,
+            font_size_px: Math.min(
+              FONT_SIZE_PX_MAX,
+              Math.max(FONT_SIZE_PX_MIN, base + opts.fontSizeDelta),
+            ),
+            text_scale: null,
+          }
+        } else {
+          const cur = (typographySource as any).font_size_px as number | undefined
+          let base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : null
+          if (base == null && fieldKey) {
+            base = getCanvasFieldComputedFontSizePx(block.id, fieldKey) ?? FONT_SIZE_PX_FALLBACK
+          } else if (base == null) {
+            base = FONT_SIZE_PX_FALLBACK
+          }
+          stylePatch = {
+            ...stylePatch,
+            font_size_px: Math.min(
+              FONT_SIZE_PX_MAX,
+              Math.max(FONT_SIZE_PX_MIN, base + opts.fontSizeDelta),
+            ),
+            text_scale: null,
+          }
         }
       } else {
         const cur = (typographySource as any).font_size_px as number | undefined
-        const base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : FONT_SIZE_PX_FALLBACK
+        let base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : null
+        if (base == null) {
+          base = FONT_SIZE_PX_FALLBACK
+        }
         stylePatch = {
           ...stylePatch,
           font_size_px: Math.min(
@@ -10226,25 +10450,41 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       }
     }
 
-    if (fieldKey && hasActiveInlineTextSelection(fieldKey)) {
+    if (fieldKey && hasActiveInlineTextSelection(fieldKey) && !isFieldLayoutStyle) {
       if (applyInlineTextSelectionStyle(fieldKey, stylePatch)) return
-      // Selection was active — do not fall back to styling the whole field
-      return
     }
 
-    if (fieldKey && applyPatchToLastStyledSpan(fieldKey, stylePatch)) return
-
-    if (
-      fieldKey &&
-      lastInlineStyledSpan &&
-      lastInlineStyledSpan.key === fieldKey &&
-      lastInlineStyledSpan.span.isConnected
-    ) {
-      return
-    }
+    if (fieldKey && !isFieldLayoutStyle && applyPatchToLastStyledSpan(fieldKey, stylePatch)) return
 
     if (!activeTextField) {
       onUpdate(stylePatch as any)
+      return
+    }
+    const batchKeys = !savedSelection?.key && selectedEditableFields.length > 1
+      ? selectedEditableFields
+      : null
+    if (batchKeys) {
+      if (opts?.fontSizeDelta != null) {
+        const nextStyles = { ...fieldStyles }
+        batchKeys.forEach(k => {
+          const cur = (fieldStyles[k] as any)?.font_size_px as number | undefined
+          let base = typeof cur === 'number' && cur > 0 ? Math.round(cur) : FONT_SIZE_PX_FALLBACK
+          if (base === FONT_SIZE_PX_FALLBACK) {
+            base = getCanvasFieldComputedFontSizePx(block.id, k) ?? FONT_SIZE_PX_FALLBACK
+          }
+          nextStyles[k] = {
+            ...(fieldStyles[k] || {}),
+            font_size_px: Math.min(
+              FONT_SIZE_PX_MAX,
+              Math.max(FONT_SIZE_PX_MIN, base + opts.fontSizeDelta),
+            ),
+            text_scale: null,
+          }
+        })
+        onUpdate({ _field_styles: nextStyles } as Partial<BlockProps>)
+        return
+      }
+      patchSelectedFieldStyles(stylePatch, batchKeys)
       return
     }
     onUpdate({
@@ -10258,19 +10498,127 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     } as any)
   }
 
-  const typographySource = activeFieldStyle || (p as Record<string, unknown>)
+  const typographySource = activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
+    ? { ...(p as Record<string, unknown>), ...(fieldStyles[activeTextField] || {}) }
+    : activeTextField === CONTENT_GROUP_FIELD_KEY
+      ? {
+          field_offset_x: (p as any).content_offset_x,
+          field_offset_y: (p as any).content_offset_y,
+          flip_h: (p as any).content_flip_h,
+          flip_v: (p as any).content_flip_v,
+          rotate_deg: (p as any).content_rotate_deg,
+        }
+      : (p as Record<string, unknown>)
+
+  void typographyDisplayTick
+  const toolbarFontFamily = resolveToolbarFontFamily(
+    block.id,
+    p as Record<string, unknown>,
+    activeTextField ?? null,
+  )
+
+  const startFormatPaint = (sticky: boolean) => {
+    if (formatPaintActive) {
+      onFormatPaintCancel?.()
+      return
+    }
+
+    const fieldKey = activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
+      ? activeTextField
+      : activeTextField === CONTENT_GROUP_FIELD_KEY
+        ? CONTENT_GROUP_FIELD_KEY
+        : null
+
+    if (!fieldKey && !activeTextField) {
+      toast.info('Click a text field on the canvas first — headline, subtitle, or button label.')
+      return
+    }
+
+    const selectionRange =
+      fieldKey && fieldKey !== CONTENT_GROUP_FIELD_KEY && hasActiveInlineTextSelection(fieldKey)
+        ? getSavedInlineTextSelection()?.range ?? null
+        : null
+
+    const lastStyledSpan = getLastInlineStyledSpan()
+    if (
+      fieldKey && fieldKey !== CONTENT_GROUP_FIELD_KEY
+      && lastStyledSpan?.key === fieldKey
+      && lastStyledSpan.span.isConnected
+    ) {
+      const cs = window.getComputedStyle(lastStyledSpan.span)
+      const fromSpan: FormatPaintStyle = {}
+      const px = parseFloat(cs.fontSize)
+      if (Number.isFinite(px) && px > 0) fromSpan.font_size_px = Math.round(px)
+      if (cs.color) fromSpan.text_color_override = cs.color
+      if (cs.textTransform && cs.textTransform !== 'none') fromSpan.text_transform = cs.textTransform
+      const ff = cs.fontFamily
+      if (ff) {
+        const primary = ff.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '')
+        if (primary) fromSpan.font_family = primary
+      }
+      if (hasFormatPaintStyle(fromSpan)) {
+        onFormatPaintStart?.(fromSpan, sticky)
+        toast.success(
+          sticky
+            ? `Format copied (${formatPaintStyleSummary(fromSpan)}). Click text fields to apply — Esc to stop.`
+            : `Format copied (${formatPaintStyleSummary(fromSpan)}). Click one text field to apply.`,
+        )
+        return
+      }
+    }
+
+    const computed =
+      fieldKey && fieldKey !== CONTENT_GROUP_FIELD_KEY
+        ? getCanvasFieldComputedFormatPaintStyle(block.id, fieldKey)
+        : null
+
+    const style = resolveFormatPaintStyle({
+      blockProps: p as Record<string, unknown>,
+      fieldKey,
+      selectionRange,
+      computed,
+    })
+
+    if (!hasFormatPaintStyle(style)) {
+      toast.info('No formatting to copy — select text or apply font, color, or alignment from the toolbar first.')
+      return
+    }
+    onFormatPaintStart?.(style, sticky)
+    toast.success(
+      sticky
+        ? `Format copied (${formatPaintStyleSummary(style)}). Click text fields to apply — Esc to stop.`
+        : `Format copied (${formatPaintStyleSummary(style)}). Click one text field to apply.`,
+    )
+  }
+
+  useEffect(() => {
+    if (!showInsert && !showAnim && !showShapes && !showCase && !showLineSpacing) return
+    return registerEscapeHandler(() => {
+      setShowInsert(false)
+      setShowAnim(false)
+      setShowShapes(false)
+      setShowCase(false)
+      setShowLineSpacing(false)
+    })
+  }, [showInsert, showAnim, showShapes, showCase, showLineSpacing])
+
+  useEffect(() => {
+    return () => {
+      if (formatPaintClickTimerRef.current) window.clearTimeout(formatPaintClickTimerRef.current)
+    }
+  }, [])
 
   // Close any open dropdown when clicking outside the bar (dropdown is portalled to body)
   useEffect(() => {
-    if (!showInsert && !showBlocks && !showAnim && !showShapes && !showCase) return
+    if (!showInsert && !showAnim && !showShapes && !showCase && !showLineSpacing) return
     const handler = (e: MouseEvent) => {
       const t = e.target as Node
       if (barRef.current?.contains(t) || dropdownRef.current?.contains(t)) return
-      setShowInsert(false); setShowBlocks(false); setShowAnim(false); setShowShapes(false); setShowCase(false)
+      setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowCase(false); setShowLineSpacing(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [showInsert, showBlocks, showAnim, showShapes, showCase])
+  }, [showInsert, showAnim, showShapes, showCase, showLineSpacing])
 
   const addOverlayElement = (type: string, anchor?: { x: number; y: number }) => {
     const defaults = OVERLAY_DEFAULTS[type] || {}
@@ -10298,243 +10646,573 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
 
   const overlayCount = ((p as any).overlays as any[] || []).length
 
+  const runTextClipboard = (action: 'cut' | 'copy' | 'paste') => {
+    if (!runCanvasTextClipboardAction(action, block.id, activeTextField ?? null)) {
+      toast.info('Click a text field on the canvas first — headline, subtitle, or button label.')
+    }
+  }
+
   return (
+    <div className="flex flex-col shrink-0">
+      <div
+        className="flex items-center gap-1 px-2 py-1 border-b border-gray-100 bg-gray-50/90"
+        role="tablist"
+        aria-label="Section design tools"
+      >
+        {([
+          { id: 'general' as const, label: 'General' },
+          { id: 'media' as const, label: 'Media' },
+          { id: 'style' as const, label: 'Style' },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={designBarTab === tab.id}
+            onClick={() => setDesignBarTab(tab.id)}
+            className={cn(
+              'px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors',
+              designBarTab === tab.id
+                ? 'bg-white text-primary border border-primary/25 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-white/70',
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
     <div
       ref={barRef}
-      className="absolute top-0 left-0 right-0 z-[80] flex min-h-[38px] items-center gap-1.5 overflow-x-auto overflow-y-visible border-t-2 border-primary border-b border-primary/30 bg-white px-2 py-1.5 shadow-sm"
+      role="tabpanel"
+      aria-label={designBarTab === 'general' ? 'General tools' : designBarTab === 'media' ? 'Media tools' : 'Style tools'}
+      className={cn(
+        'z-[80] flex min-h-[32px] items-center gap-0.5 overflow-x-auto overflow-y-visible bg-white px-1 py-1',
+        docked
+          ? 'relative w-full border-b border-primary/20'
+          : floating
+            ? 'relative w-full rounded-t-lg border-t-2 border-primary border-b border-primary/30 shadow-sm'
+            : 'absolute top-0 left-0 right-0 border-t-2 border-primary border-b border-primary/30 shadow-sm',
+      )}
       onClick={e => e.stopPropagation()}
     >
-      {/* INSERT ELEMENT — primary action: adds elements WITHIN the block */}
-      <div className="relative">
-        <button
-          ref={insertBtnRef}
-          onClick={() => { setShowInsert(v => !v); setShowBlocks(false); setShowAnim(false); setShowShapes(false); setShowCase(false) }}
-          className={cn(
-            'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-colors',
-            showInsert ? 'bg-primary/90 text-white' : 'bg-primary text-white hover:bg-primary/90'
-          )}
-        >
-          <Plus className="w-3 h-3" /> Insert
-          {overlayCount > 0 && (
-            <span className="bg-white text-primary rounded-full px-1 text-[8px] font-black ml-0.5">{overlayCount}</span>
-          )}
-        </button>
-        <DesignBarDropdownPortal
-          open={showInsert}
-          anchorRef={insertBtnRef}
-          menuRef={dropdownRef}
-          className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden w-56 max-h-[90vh] overflow-y-auto"
-        >
-            <div className="px-3 py-2 bg-accent border-b border-primary/20">
-              <div className="text-xs font-bold text-primary">Insert inside this section</div>
-              <div className="text-xs text-primary/80 mt-0.5">Elements are draggable & resizable within the block</div>
-            </div>
-            <div className="p-2 space-y-0.5">
-              {ELEMENT_INSERT_TYPES.map(({ type, label, desc }) => (
-                <button key={type}
-                  onMouseDown={e => {
-                    e.stopPropagation()
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                    addOverlayElement(type, { x: rect.right + 8, y: rect.top })
-                  }}
-                  className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-accent transition-colors group"
-                >
-                  <span className="text-base leading-none mt-0.5">{label.split(' ')[0]}</span>
-                  <div>
-                    <div className="text-xs font-medium text-gray-800 group-hover:text-primary">{label.slice(label.indexOf(' ') + 1)}</div>
-                    <div className="text-xs text-gray-400">{desc}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-            {overlayCount > 0 && (
-              <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-500">{overlayCount} element{overlayCount !== 1 ? 's' : ''} in this section</span>
-                <button
-                  onMouseDown={e => { e.stopPropagation(); onUpdate({ overlays: [] } as any); setShowInsert(false) }}
-                  className="text-xs text-red-400 hover:text-red-600 font-semibold"
-                >Clear all</button>
-              </div>
+      {designBarTab === 'general' && (
+        <>
+      {/* INSERT + Edit + clipboard — two columns */}
+      <div className="flex shrink-0 items-start gap-1">
+        <div className="flex flex-col gap-1">
+        <div className="relative">
+          <button
+            ref={insertBtnRef}
+            onClick={() => { setShowInsert(v => !v); setShowAnim(false); setShowShapes(false); setShowCase(false); setShowLineSpacing(false) }}
+            title="Insert element"
+            className={cn(
+              'relative flex h-8 w-[4.25rem] items-center justify-center gap-1 rounded-lg px-2 text-xs font-bold leading-none transition-colors',
+              showInsert ? 'bg-primary/90 text-white' : 'bg-primary text-white hover:bg-primary/90',
             )}
-        </DesignBarDropdownPortal>
-      </div>
+          >
+            <Plus className="w-3.5 h-3.5 shrink-0" />
+            <span>Insert</span>
+            {overlayCount > 0 && (
+              <span className="absolute -right-1 -top-1 bg-white text-primary rounded-full px-1 text-[9px] font-black leading-none">{overlayCount}</span>
+            )}
+          </button>
+          <DesignBarDropdownPortal
+            open={showInsert}
+            anchorRef={insertBtnRef}
+            menuRef={dropdownRef}
+            className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden w-56 max-h-[90vh] overflow-y-auto"
+          >
+              <div className="px-3 py-2 bg-accent border-b border-primary/20">
+                <div className="text-xs font-bold text-primary">Insert inside this section</div>
+                <div className="text-xs text-primary/80 mt-0.5">Elements are draggable & resizable within the block</div>
+              </div>
+              <div className="p-2 space-y-0.5">
+                {ELEMENT_INSERT_TYPES.map(({ type, label, desc }) => (
+                  <button key={type}
+                    onMouseDown={e => {
+                      e.stopPropagation()
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                      addOverlayElement(type, { x: rect.right + 8, y: rect.top })
+                    }}
+                    className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-accent transition-colors group"
+                  >
+                    <span className="text-base leading-none mt-0.5">{label.split(' ')[0]}</span>
+                    <div>
+                      <div className="text-xs font-medium text-gray-800 group-hover:text-primary">{label.slice(label.indexOf(' ') + 1)}</div>
+                      <div className="text-xs text-gray-400">{desc}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {overlayCount > 0 && (
+                <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">{overlayCount} element{overlayCount !== 1 ? 's' : ''} in this section</span>
+                  <button
+                    onMouseDown={e => { e.stopPropagation(); onUpdate({ overlays: [] } as any); setShowInsert(false) }}
+                    className="text-xs text-red-400 hover:text-red-600 font-semibold"
+                  >Clear all</button>
+                </div>
+              )}
+          </DesignBarDropdownPortal>
+        </div>
 
-      {/* ADD BLOCK — secondary: add new section after this one */}
-      <div className="relative">
         <button
-          ref={blocksBtnRef}
-          onClick={() => { setShowBlocks(v => !v); setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowCase(false) }}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300 text-gray-600 text-xs font-medium hover:border-primary/60 hover:bg-accent transition-colors"
-          title="Add a new block section after this one"
+          type="button"
+          onClick={() => onEditText?.()}
+          title="Edit section text (E)"
+          className="flex h-8 w-[4.25rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-gray-200 px-2 text-xs font-medium leading-none text-gray-700 transition-colors hover:border-primary/40 hover:bg-accent"
         >
-          <Layers className="w-3 h-3" /> Block
+          <Pencil className="h-3.5 w-3.5 shrink-0" />
+          <BuilderShortcutKbd>E</BuilderShortcutKbd>
         </button>
-        <DesignBarDropdownPortal
-          open={showBlocks}
-          anchorRef={blocksBtnRef}
-          menuRef={dropdownRef}
-          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2 grid grid-cols-2 gap-0.5 w-44 max-h-[90vh] overflow-y-auto"
+        </div>
+
+        <div
+          {...{ [BUILDER_DESIGN_BAR_CHROME_ATTR]: true }}
+          className="flex w-9 shrink-0 flex-col divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200"
+          onMouseDown={e => {
+            pinInlineTextSelectionBeforeToolbarAction()
+            e.preventDefault()
+          }}
         >
-            <div className="col-span-2 text-xs font-bold text-gray-400 uppercase tracking-wide px-2 py-1">Add section after this</div>
-            {QUICK_INSERT_TYPES.map(({ type, label }) => (
-              <button key={type}
-                onMouseDown={e => { e.stopPropagation(); onInsertAfter(type); setShowBlocks(false) }}
-                className="text-left px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:bg-accent hover:text-primary transition-colors"
-              >{label}</button>
-            ))}
-        </DesignBarDropdownPortal>
+          <button
+            type="button"
+            title="Cut (Ctrl+X)"
+            onClick={() => runTextClipboard('cut')}
+            className="flex h-8 flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+          >
+            <Scissors className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Copy (Ctrl+C)"
+            onClick={() => runTextClipboard('copy')}
+            className="flex h-8 flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Paste (Ctrl+V)"
+            onClick={() => runTextClipboard('paste')}
+            className="flex h-8 flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+          >
+            <ClipboardPaste className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
-      <div className="w-px h-4 bg-gray-200 shrink-0" />
+      <div className="w-px h-4 bg-gray-200 shrink-0 self-stretch" />
 
-      {/* A↑ / A↓ + px dropdown (design-tool style); clears em scale when used */}
       <div
-        className="inline-flex items-center gap-0.5 rounded-lg border border-gray-700 bg-gray-900 p-0.5 shrink-0 shadow-sm"
-        title="Font size in pixels"
-        onMouseDown={e => e.preventDefault()}
+        {...{ [BUILDER_TYPOGRAPHY_TOOLBAR_ATTR]: true }}
+        className={typographyToolbarBox}
+        onMouseDown={e => {
+          pinInlineTextSelectionBeforeToolbarAction()
+          e.preventDefault()
+        }}
       >
-        <button
-          type="button"
-          className="flex h-6 items-center gap-0.5 rounded px-1.5 text-white hover:bg-gray-800"
-          onMouseDown={e => e.preventDefault()}
-          onClick={() => updateTextStyle({ text_scale: null }, { fontSizeDelta: FONT_SIZE_PX_STEP })}
-        >
-          <span className="text-xs font-bold leading-none">A</span>
-          <ChevronUp className="w-2.5 h-2.5 text-sky-400 shrink-0" strokeWidth={2.75} />
-        </button>
-        <button
-          type="button"
-          className="flex h-6 items-center gap-0.5 rounded px-1.5 text-white hover:bg-gray-800"
-          onMouseDown={e => e.preventDefault()}
-          onClick={() => updateTextStyle({ text_scale: null }, { fontSizeDelta: -FONT_SIZE_PX_STEP })}
-        >
-          <span className="text-xs font-bold leading-none">A</span>
-          <ChevronDown className="w-2.5 h-2.5 text-sky-400 shrink-0" strokeWidth={2.75} />
-        </button>
-        <div className="w-px h-4 self-center bg-gray-600 mx-0.5 shrink-0" />
-        <select
-          className="h-6 min-w-[3.5rem] cursor-pointer rounded border-0 bg-gray-900 py-0 pl-1.5 pr-1 text-xs font-medium text-white outline-none focus-visible:ring-1 focus-visible:ring-sky-500"
-          value={
-            typeof (typographySource as any).font_size_px === 'number' && (typographySource as any).font_size_px > 0 && Number.isFinite((typographySource as any).font_size_px)
-              ? String(Math.round((typographySource as any).font_size_px))
-              : ''
-          }
-          onMouseDown={e => e.preventDefault()}
-          onChange={e => {
-            const v = e.target.value
-            if (!v) updateTextStyle({ font_size_px: null })
-            else updateTextStyle({ font_size_px: Math.round(Number(v)), text_scale: null })
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          <option value="">Auto</option>
-          {FONT_SIZE_PX_CHOICES.map(n => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="relative shrink-0">
-        <button
-          ref={caseBtnRef}
-          type="button"
-          title="Text case"
-          onClick={() => {
-            setShowCase(v => !v)
-            setShowInsert(false); setShowBlocks(false); setShowAnim(false); setShowShapes(false)
-          }}
-          className={cn(
-            'flex items-center gap-0.5 h-6 px-1.5 rounded-lg border text-xs font-bold transition-colors',
-            showCase || currentTextCaseMenuId(typographySource as any) !== 'default'
-              ? 'border-primary bg-accent text-primary'
-              : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-accent',
-          )}
-        >
-          Aa
-          <ChevronDown className="w-3 h-3 opacity-70" />
-        </button>
-        <DesignBarDropdownPortal
-          open={showCase}
-          anchorRef={caseBtnRef}
-          menuRef={dropdownRef}
-          className="min-w-[220px] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-2xl"
-        >
-            {TEXT_CASE_MENU_ROWS.map(row => (
-              <button
-                key={row.id}
-                type="button"
-                className={cn(
-                  'w-full text-left px-3 py-2 text-xs transition-colors',
-                  currentTextCaseMenuId(typographySource as any) === row.id
-                    ? 'bg-primary text-white'
-                    : 'text-gray-100 hover:bg-gray-800',
-                )}
-                onMouseDown={e => {
-                  e.stopPropagation()
-                  if (activeTextField) {
-                    if (row.id === 'sentence' || row.id === 'toggle') {
-                      const currentVal = (p as any)[activeTextField]
-                      if (typeof currentVal === 'string') {
-                        onUpdate({
-                          [activeTextField]: row.id === 'sentence' ? toSentenceCase(currentVal) : toToggleCase(currentVal),
-                          _field_styles: {
-                            ...fieldStyles,
-                            [activeTextField]: { ...(fieldStyles[activeTextField] || {}), text_transform: null },
-                          },
-                        } as any)
+        <div className="flex flex-col shrink-0 border-r border-gray-200">
+          <FontFamilyControl
+            stacked
+            size="compact"
+            value={toolbarFontFamily}
+            onChange={font => updateTextStyle({ font_family: font })}
+          />
+          <FontSizePxControl
+            embedded
+            stacked
+            size="compact"
+            valuePx={(typographySource as any).font_size_px as number | undefined}
+            onStep={delta => updateTextStyle({}, { fontSizeDelta: delta })}
+            onChange={px => {
+              updateTextStyle({ text_scale: null, font_size_px: px })
+            }}
+          />
+          <ColorIdentPickerRow
+            size="compact"
+            textColor={(typographySource as any).text_color_override || '#111827'}
+            backgroundColor={(p as any).bg_color_override || '#ffffff'}
+            onTextColorChange={c => updateTextStyle({ text_color_override: c })}
+            onBackgroundColorChange={c => onUpdate({ bg_color_override: c } as any)}
+            trailing={
+              <>
+                <button
+                  ref={caseBtnRef}
+                  type="button"
+                  title="Text case"
+                  onClick={() => {
+                    setShowCase(v => !v)
+                    setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowLineSpacing(false)
+                  }}
+                  className={cn(
+                    'flex h-full w-full items-center justify-center gap-0 px-1 text-[11px] font-bold transition-colors',
+                    showCase || currentTextCaseMenuId(typographySource as any) !== 'default'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-white text-gray-700 hover:bg-gray-50',
+                  )}
+                >
+                  Aa
+                  <ChevronDown className="w-2.5 h-2.5 opacity-70" />
+                </button>
+                <DesignBarDropdownPortal
+                  open={showCase}
+                  anchorRef={caseBtnRef}
+                  menuRef={dropdownRef}
+                  className="min-w-[220px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl"
+                >
+                  <TextCaseList
+                    size="compact"
+                    activeId={currentTextCaseMenuId(typographySource as any)}
+                    onSelect={rowId => {
+                      if (activeTextField) {
+                        if (rowId === 'sentence' || rowId === 'toggle') {
+                          const currentVal = (p as any)[activeTextField]
+                          if (typeof currentVal === 'string') {
+                            onUpdate({
+                              [activeTextField]: rowId === 'sentence' ? toSentenceCase(currentVal) : toToggleCase(currentVal),
+                              _field_styles: {
+                                ...fieldStyles,
+                                [activeTextField]: { ...(fieldStyles[activeTextField] || {}), text_transform: null },
+                              },
+                            } as any)
+                          } else {
+                            updateTextStyle({ text_transform: null })
+                          }
+                        } else {
+                          updateTextStyle(buildTextCasePropsPatch({} as Record<string, unknown>, rowId) as Record<string, unknown>)
+                        }
                       } else {
-                        updateTextStyle({ text_transform: null })
+                        const patch = buildTextCasePropsPatch(p as Record<string, unknown>, rowId)
+                        onUpdate(patch as any)
                       }
-                    } else {
-                      updateTextStyle(buildTextCasePropsPatch({} as Record<string, unknown>, row.id) as Record<string, unknown>)
-                    }
-                  } else {
-                    const patch = buildTextCasePropsPatch(p as Record<string, unknown>, row.id)
-                    onUpdate(patch as any)
-                  }
-                  setShowCase(false)
-                  if (row.id === 'sentence' || row.id === 'toggle') {
-                    toast.success(row.id === 'sentence' ? 'Sentence case applied to section text' : 'Toggle case applied to section text')
-                  }
+                      setShowCase(false)
+                      if (rowId === 'sentence' || rowId === 'toggle') {
+                        toast.success(rowId === 'sentence' ? 'Sentence case applied to section text' : 'Toggle case applied to section text')
+                      }
+                    }}
+                  />
+                </DesignBarDropdownPortal>
+              </>
+            }
+          />
+        </div>
+
+        <TextFieldAlignGrid
+          embedded
+          size="compact"
+          textAlign={(typographySource as any).text_align as string | undefined}
+          verticalAlign={(typographySource as any).vertical_align as string | undefined}
+          textWrap={(typographySource as any).text_wrap as boolean | undefined}
+          onTextAlignChange={(align: TextAlignH) => updateTextStyle({ text_align: align })}
+          onVerticalAlignChange={(align: TextAlignV) => updateTextStyle({ vertical_align: align })}
+          onTextWrapChange={wrap => updateTextStyle({ text_wrap: wrap })}
+          wrapColumnExtra={
+            <>
+              <LineSpacingToolbarButton
+                ref={lineSpacingBtnRef}
+                stacked
+                size="compact"
+                lineHeightRatio={(typographySource as any).line_height_ratio as number | undefined}
+                active={showLineSpacing || (typographySource as any).line_height_ratio != null}
+                onClick={() => {
+                  setShowLineSpacing(v => !v)
+                  setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowCase(false)
                 }}
+              />
+              <DesignBarDropdownPortal
+                open={showLineSpacing}
+                anchorRef={lineSpacingBtnRef}
+                menuRef={dropdownRef}
               >
-                {row.label}
-              </button>
-            ))}
-        </DesignBarDropdownPortal>
-      </div>
-
-      <div className="w-px h-4 bg-gray-200 shrink-0" />
-
-      {/* TEXT COLOR */}
-      <div className="flex items-center gap-1" title="Text color" onMouseDown={e => e.preventDefault()}>
-        <Type className="w-3 h-3 text-gray-400 shrink-0" />
-        <input type="color"
-          value={(typographySource as any).text_color_override || '#111827'}
-          onMouseDown={e => e.preventDefault()}
-          onInput={e => updateTextStyle({ text_color_override: e.currentTarget.value })}
-          onChange={e => updateTextStyle({ text_color_override: e.target.value })}
-          className="w-6 h-6 rounded border border-gray-200 cursor-pointer p-0 shrink-0"
+                <LineSpacingMenuContent
+                  size="compact"
+                  lineHeightRatio={(typographySource as any).line_height_ratio as number | undefined}
+                  spaceBeforePx={Number((typographySource as any).paragraph_space_before_px) || 0}
+                  spaceAfterPx={
+                    (typographySource as any).paragraph_space_after_px != null
+                      ? Number((typographySource as any).paragraph_space_after_px)
+                      : null
+                  }
+                  onLineHeightChange={ratio => {
+                    updateTextStyle({ line_height_ratio: ratio })
+                    if (ratio == null) setShowLineSpacing(false)
+                  }}
+                  onAddSpaceBefore={() => {
+                    const cur = Number((typographySource as any).paragraph_space_before_px) || 0
+                    updateTextStyle({
+                      paragraph_space_before_px: Math.min(PARAGRAPH_SPACE_MAX_PX, cur + PARAGRAPH_SPACE_STEP_PX),
+                    })
+                  }}
+                  onRemoveSpaceBefore={() => {
+                    const cur = Number((typographySource as any).paragraph_space_before_px) || 0
+                    const next = Math.max(0, cur - PARAGRAPH_SPACE_STEP_PX)
+                    updateTextStyle({ paragraph_space_before_px: next === 0 ? null : next })
+                  }}
+                  onAddSpaceAfter={() => {
+                    const raw = (typographySource as any).paragraph_space_after_px
+                    const cur = raw != null && Number.isFinite(Number(raw)) ? Number(raw) : 0
+                    updateTextStyle({
+                      paragraph_space_after_px: Math.min(PARAGRAPH_SPACE_MAX_PX, cur + PARAGRAPH_SPACE_STEP_PX),
+                    })
+                  }}
+                  onRemoveSpaceAfter={() => {
+                    const raw = (typographySource as any).paragraph_space_after_px
+                    const cur = raw != null && Number.isFinite(Number(raw)) ? Number(raw) : 0
+                    const next = Math.max(0, cur - PARAGRAPH_SPACE_STEP_PX)
+                    updateTextStyle({ paragraph_space_after_px: next === 0 ? null : next })
+                  }}
+                  onInsertLineBreak={() => {
+                    if (!insertActiveCanvasLineBreak(block.id, activeTextField ?? null)) {
+                      toast.info('Click a headline or subtitle on the canvas first, then use Insert line break — or press Enter while typing.')
+                      return
+                    }
+                    setShowLineSpacing(false)
+                  }}
+                />
+              </DesignBarDropdownPortal>
+            </>
+          }
         />
       </div>
 
-      {/* BACKGROUND COLOR */}
-      <div className="flex items-center gap-1" title="Block background">
-        <Square className="w-3 h-3 text-gray-400 shrink-0" />
-        <input type="color"
-          value={(p as any).bg_color_override || '#ffffff'}
-          onChange={e => onUpdate({ bg_color_override: e.target.value } as any)}
-          className="w-6 h-6 rounded border border-gray-200 cursor-pointer p-0 shrink-0"
-        />
-      </div>
+      {supportsContentGroup ? (
+        <>
+          <FieldPositionControlGroup
+            scopeMode={positionScope}
+            onScopeChange={mode => {
+              if (mode === 'group') {
+                onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
+              } else if (activeTextField === CONTENT_GROUP_FIELD_KEY) {
+                onActivateTextField?.('headline')
+              }
+            }}
+            size="mini"
+            keyboardShortcuts
+            titleLabel={positionScope === 'group' ? 'All content position' : 'Field position'}
+            offsetX={
+              positionScope === 'group'
+                ? readFieldOffset((p as any).content_offset_x)
+                : readFieldOffset((typographySource as any).field_offset_x)
+            }
+            offsetY={
+              positionScope === 'group'
+                ? readFieldOffset((p as any).content_offset_y)
+                : readFieldOffset((typographySource as any).field_offset_y)
+            }
+            onNudge={(dx, dy) => {
+              if (positionScope === 'group') {
+                const curX = readFieldOffset((p as any).content_offset_x)
+                const curY = readFieldOffset((p as any).content_offset_y)
+                const nextX = readFieldOffset(curX + dx)
+                const nextY = readFieldOffset(curY + dy)
+                onUpdate({
+                  content_offset_x: nextX === 0 ? null : nextX,
+                  content_offset_y: nextY === 0 ? null : nextY,
+                } as Partial<BlockProps>)
+                onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
+                return
+              }
+              if (!activeTextField || activeTextField === CONTENT_GROUP_FIELD_KEY) return
+              if (multiFieldSelection) {
+                const nextStyles = { ...fieldStyles }
+                selectedEditableFields.forEach(k => {
+                  const fs = (fieldStyles[k] || {}) as Record<string, unknown>
+                  const curX = readFieldOffset(fs.field_offset_x)
+                  const curY = readFieldOffset(fs.field_offset_y)
+                  const nextX = readFieldOffset(curX + dx)
+                  const nextY = readFieldOffset(curY + dy)
+                  nextStyles[k] = {
+                    ...fs,
+                    field_offset_x: nextX === 0 ? null : nextX,
+                    field_offset_y: nextY === 0 ? null : nextY,
+                  }
+                })
+                onUpdate({ _field_styles: nextStyles } as Partial<BlockProps>)
+                return
+              }
+              const curX = readFieldOffset((typographySource as any).field_offset_x)
+              const curY = readFieldOffset((typographySource as any).field_offset_y)
+              const nextX = readFieldOffset(curX + dx)
+              const nextY = readFieldOffset(curY + dy)
+              updateTextStyle({
+                field_offset_x: nextX === 0 ? null : nextX,
+                field_offset_y: nextY === 0 ? null : nextY,
+              })
+            }}
+            onReset={() => {
+              if (positionScope === 'group') {
+                onUpdate({ content_offset_x: null, content_offset_y: null } as Partial<BlockProps>)
+                onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
+                return
+              }
+              updateTextStyle({ field_offset_x: null, field_offset_y: null })
+            }}
+          />
+          <div className="w-px h-4 bg-gray-200 shrink-0" />
+        </>
+      ) : activeTextField ? (
+        <>
+          <FieldPositionNudge
+            embedded
+            size="compact"
+            keyboardShortcuts
+            offsetX={readFieldOffset((typographySource as any).field_offset_x)}
+            offsetY={readFieldOffset((typographySource as any).field_offset_y)}
+            onNudge={(dx, dy) => {
+              if (multiFieldSelection) {
+                const nextStyles = { ...fieldStyles }
+                selectedEditableFields.forEach(k => {
+                  const fs = (fieldStyles[k] || {}) as Record<string, unknown>
+                  const curX = readFieldOffset(fs.field_offset_x)
+                  const curY = readFieldOffset(fs.field_offset_y)
+                  const nextX = readFieldOffset(curX + dx)
+                  const nextY = readFieldOffset(curY + dy)
+                  nextStyles[k] = {
+                    ...fs,
+                    field_offset_x: nextX === 0 ? null : nextX,
+                    field_offset_y: nextY === 0 ? null : nextY,
+                  }
+                })
+                onUpdate({ _field_styles: nextStyles } as Partial<BlockProps>)
+                return
+              }
+              const curX = readFieldOffset((typographySource as any).field_offset_x)
+              const curY = readFieldOffset((typographySource as any).field_offset_y)
+              const nextX = readFieldOffset(curX + dx)
+              const nextY = readFieldOffset(curY + dy)
+              updateTextStyle({
+                field_offset_x: nextX === 0 ? null : nextX,
+                field_offset_y: nextY === 0 ? null : nextY,
+              })
+            }}
+            onReset={() => updateTextStyle({ field_offset_x: null, field_offset_y: null })}
+          />
+          <div className="w-px h-4 bg-gray-200 shrink-0" />
+        </>
+      ) : null}
+
+      <LayoutTransformScopeToggle
+        mode={transformScope}
+        showGroup={supportsContentGroup}
+        onChange={mode => {
+          setTransformScope(mode)
+          if (mode === 'group') onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
+          else if (mode === 'field' && activeTextField === CONTENT_GROUP_FIELD_KEY) {
+            onActivateTextField?.('headline')
+          }
+        }}
+      />
+      <FlipRotateControls
+        embedded
+        flipH={transformValues.flipH}
+        flipV={transformValues.flipV}
+        rotateDeg={transformValues.rotateDeg}
+        disabled={transformScope === 'field' && !activeTextField}
+        onChange={applyTransform}
+        onReset={resetTransform}
+      />
+      <div className="w-px h-4 bg-gray-200 shrink-0" />
+
+      <button
+        type="button"
+        title={
+          formatPaintActive
+            ? 'Format painter active — click text to apply (Esc to cancel)'
+            : 'Format painter — copy this text style. Click once: apply once. Double-click: apply to multiple fields.'
+        }
+        onClick={() => {
+          if (formatPaintClickTimerRef.current) window.clearTimeout(formatPaintClickTimerRef.current)
+          formatPaintClickTimerRef.current = window.setTimeout(() => {
+            startFormatPaint(false)
+            formatPaintClickTimerRef.current = null
+          }, 220)
+        }}
+        onDoubleClick={e => {
+          e.preventDefault()
+          if (formatPaintClickTimerRef.current) {
+            window.clearTimeout(formatPaintClickTimerRef.current)
+            formatPaintClickTimerRef.current = null
+          }
+          startFormatPaint(true)
+        }}
+        className={cn(
+          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
+          formatPaintActive
+            ? formatPaintSticky
+              ? 'border-amber-400 bg-amber-100 text-amber-800 shadow-sm'
+              : 'border-primary bg-primary/15 text-primary shadow-sm'
+            : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-accent',
+        )}
+      >
+        <Paintbrush className={cn('h-3.5 w-3.5', formatPaintActive && 'text-amber-700')} />
+      </button>
 
       <div className="w-px h-4 bg-gray-200 shrink-0" />
 
+      {/* Block label */}
+      <div className="ml-auto text-xs text-gray-400 font-mono truncate max-w-[80px]">
+        {block.label || block.block_type}
+      </div>
+
+      {/* Undo / Redo — mirrored from top toolbar for quick access while editing a block */}
+      {(onUndo || onRedo) && (
+        <>
+          <div className="w-px h-4 bg-gray-200 shrink-0" />
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              type="button"
+              disabled={!canUndo}
+              onClick={onUndo}
+              title="Undo (Ctrl+Z)"
+              className={cn(
+                'flex items-center justify-center w-6 h-6 rounded transition-colors',
+                canUndo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed',
+              )}
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={!canRedo}
+              onClick={onRedo}
+              title="Redo (Ctrl+Y)"
+              className={cn(
+                'flex items-center justify-center w-6 h-6 rounded transition-colors',
+                canRedo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed',
+              )}
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </>
+      )}
+        </>
+      )}
+
+      {designBarTab === 'media' && (
+        <div className="flex min-h-[32px] w-full items-center gap-2 px-1 py-1">
+          {blockSupportsMediaClip ? (
+            <MediaClipPicker
+              compact
+              value={(p as any).media_clip}
+              onChange={clip => onUpdate({ media_clip: clip } as Partial<BlockProps>)}
+            />
+          ) : (
+            <p className="text-xs text-gray-500 px-1">
+              Background and gallery settings for this section — use the <span className="font-semibold text-gray-700">Media</span> tab in the right panel.
+            </p>
+          )}
+        </div>
+      )}
+
+      {designBarTab === 'style' && (
+        <>
       {/* ANIMATION */}
       <div className="relative">
         <button
           ref={animBtnRef}
-          onClick={() => { setShowAnim(v => !v); setShowInsert(false); setShowShapes(false); setShowCase(false) }}
+          onClick={() => { setShowAnim(v => !v); setShowInsert(false); setShowShapes(false); setShowCase(false); setShowLineSpacing(false) }}
           title="Scroll animation"
           className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors border',
             block.animation && block.animation !== 'none'
@@ -10542,38 +11220,23 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
               : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent')}
         >
           <Zap className="w-3 h-3" />
-          {block.animation && block.animation !== 'none' ? block.animation.replace('-', ' ') : 'Anim'}
+          {block.animation && block.animation !== 'none'
+            ? animationOptionLabel(block.animation)
+            : 'Anim'}
         </button>
         <DesignBarDropdownPortal
           open={showAnim}
           anchorRef={animBtnRef}
           menuRef={dropdownRef}
-          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2 max-h-[90vh] overflow-y-auto"
+          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2.5 w-[13rem] max-h-[90vh] overflow-y-auto"
         >
-            <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Scroll Animation</div>
-            <div className="grid grid-cols-4 gap-1 w-36">
-              {CANVAS_ANIM_OPTIONS.map(({ id, label, title }) => (
-                <button key={id}
-                  onMouseDown={e => { e.stopPropagation(); onUpdate({ animation: id === 'none' ? null : id } as any); setShowAnim(false) }}
-                  title={title}
-                  className={cn('w-8 h-8 text-sm rounded-lg border transition-colors flex items-center justify-center',
-                    (block.animation || 'none') === id
-                      ? 'bg-primary text-white border-primary'
-                      : 'text-gray-600 border-gray-200 hover:border-primary/40 hover:bg-accent')}
-                >{label}</button>
-              ))}
-            </div>
-            {block.animation && block.animation !== 'none' && (
-              <div className="mt-2 flex items-center gap-2">
-                <label className="text-xs text-gray-500 shrink-0">Delay</label>
-                <input type="range" min={0} max={1000} step={100}
-                  defaultValue={block.animation_delay || 0}
-                  onChange={e => onUpdate({ animation_delay: Number(e.target.value) } as any)}
-                  className="flex-1 accent-primary h-1"
-                />
-                <span className="text-xs text-gray-500 w-10">{block.animation_delay || 0}ms</span>
-              </div>
-            )}
+          <ScrollAnimationControls
+            variant="compact"
+            animation={block.animation}
+            animationDelay={block.animation_delay || 0}
+            onAnimationChange={id => onUpdate({ animation: id === 'none' ? null : id } as any)}
+            onDelayChange={ms => onUpdate({ animation_delay: ms } as any)}
+          />
         </DesignBarDropdownPortal>
       </div>
 
@@ -10583,7 +11246,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       <div className="relative">
         <button
           ref={shapesBtnRef}
-          onClick={() => { setShowShapes(v => !v); setShowInsert(false); setShowAnim(false); setShowCase(false) }}
+          onClick={() => { setShowShapes(v => !v); setShowInsert(false); setShowAnim(false); setShowCase(false); setShowLineSpacing(false) }}
           title="Section shape dividers"
           className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors border',
             ((p as any).top_shape && (p as any).top_shape !== 'none') || ((p as any).bottom_shape && (p as any).bottom_shape !== 'none')
@@ -10636,49 +11299,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         </DesignBarDropdownPortal>
       </div>
 
-      {/* FONT LABEL */}
-      <div className="flex items-center gap-1 ml-1" title="Font family (change in Style panel)">
-        <span className="text-xs text-gray-400">Font</span>
-        <span className="text-xs font-medium text-gray-600">→ Style tab</span>
-      </div>
-
-      {/* Block label */}
       <div className="ml-auto text-xs text-gray-400 font-mono truncate max-w-[80px]">
         {block.label || block.block_type}
       </div>
-
-      {/* Undo / Redo — mirrored from top toolbar for quick access while editing a block */}
-      {(onUndo || onRedo) && (
-        <>
-          <div className="w-px h-4 bg-gray-200 shrink-0" />
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button
-              type="button"
-              disabled={!canUndo}
-              onClick={onUndo}
-              title="Undo (Ctrl+Z)"
-              className={cn(
-                'flex items-center justify-center w-6 h-6 rounded transition-colors',
-                canUndo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed',
-              )}
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              disabled={!canRedo}
-              onClick={onRedo}
-              title="Redo (Ctrl+Y)"
-              className={cn(
-                'flex items-center justify-center w-6 h-6 rounded transition-colors',
-                canRedo ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed',
-              )}
-            >
-              <Redo2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
         </>
       )}
+    </div>
     </div>
   )
 }
@@ -10709,9 +11335,30 @@ export default function WebsiteBuilder() {
   // State
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
-  const [activeTextTarget, setActiveTextTarget] = useState<{ blockId: string; fieldKey: string } | null>(null)
+  const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null)
+  const [activeTextTarget, setActiveTextTarget] = useState<ActiveTextTarget | null>(null)
+  const [formatPaintBrush, setFormatPaintBrush] = useState<{ style: FormatPaintStyle; sticky: boolean } | null>(null)
+  const applyFormatPaintTargetRef = useRef<(blockId: string, fieldKey: string | null) => boolean>(() => false)
+  const openInlineTextEditForSelectedRef = useRef<(anchorX?: number, anchorY?: number) => void>(() => {})
+  const dismissBuilderUiRef = useRef<() => void>(() => {})
+  const [inlineTextEdit, setInlineTextEdit] = useState<InlineTextEditSession | null>(null)
+  const inlineTextEditRef = useRef<InlineTextEditSession | null>(null)
+  useEffect(() => { inlineTextEditRef.current = inlineTextEdit }, [inlineTextEdit])
+
+  useEffect(() => {
+    ensureInlineTextSelectionTracking()
+  }, [])
+
+  useEffect(() => {
+    const blockId = inlineTextEdit?.blockId
+    if (!blockId) return
+    const el = document.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) as HTMLElement | null
+    if (!el) return
+    el.setAttribute('data-builder-inline-edit-target', 'true')
+    return () => el.removeAttribute('data-builder-inline-edit-target')
+  }, [inlineTextEdit?.blockId])
   const [device, setDevice] = useState<DeviceMode>('desktop')
-  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates'>(() => {
+  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates' | 'media' | 'settings'>(() => {
     const sp = new URLSearchParams(window.location.search)
     if (sp.get('templateMode') === 'true') return 'templates'
     return 'blocks'
@@ -10726,7 +11373,7 @@ export default function WebsiteBuilder() {
   const applyPopoverRef = useRef<HTMLDivElement>(null)
   const [clearingTemplateSandbox, setClearingTemplateSandbox] = useState(false)
   const [resettingCanvasFromServer, setResettingCanvasFromServer] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'media' | 'data' | 'seo' | 'settings'>('props')
+  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'data' | 'seo'>('props')
   const [sidebarDraggedIdx, setSidebarDraggedIdx] = useState<number | null>(null)
   const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
   const [sectionSearch, setSectionSearch] = useState('')
@@ -10896,9 +11543,34 @@ export default function WebsiteBuilder() {
 
   const scrollCanvasToBlock = useCallback((blockId: string) => {
     requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(`[data-block-id="${blockId}"]`)
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const root = canvasMainRef.current
+      const el = builderPageRootRef.current?.querySelector(
+        `[data-block-id="${CSS.escape(blockId)}"]`,
+      ) as HTMLElement | null
+      if (!root || !el) {
+        document.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(blockId)}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        return
+      }
+      const rootRect = root.getBoundingClientRect()
+      const elRect = el.getBoundingClientRect()
+      const elCenterY = elRect.top + elRect.height / 2 - rootRect.top + root.scrollTop
+      root.scrollTo({ top: Math.max(0, elCenterY - root.clientHeight / 2), behavior: 'smooth' })
     })
+  }, [])
+
+  /** After reorder, scroll the canvas so the block stays at the same screen Y (toolbar under cursor). */
+  const compensateCanvasScrollForBlockMove = useCallback((blockId: string, anchorTop: number) => {
+    const adjust = () => {
+      const root = canvasMainRef.current
+      const el = builderPageRootRef.current?.querySelector(
+        `[data-block-id="${CSS.escape(blockId)}"]`,
+      ) as HTMLElement | null
+      if (!root || !el) return
+      const delta = el.getBoundingClientRect().top - anchorTop
+      if (Math.abs(delta) > 0.5) root.scrollTop += delta
+    }
+    requestAnimationFrame(() => requestAnimationFrame(adjust))
   }, [])
 
   const layoutThemeFallback = useCallback(() => ({
@@ -10910,6 +11582,7 @@ export default function WebsiteBuilder() {
 
   const canvasViewportRef = useRef<HTMLDivElement | null>(null)
   const canvasPreviewInnerRef = useRef<HTMLDivElement | null>(null)
+  const builderPageRootRef = useRef<HTMLDivElement | null>(null)
   const dragAutoScrollRafRef = useRef<number | null>(null)
   const dragPointerYRef = useRef(0)
   const [draggingNewBlock, setDraggingNewBlock] = useState<BlockDef | null>(null)
@@ -11320,7 +11993,7 @@ export default function WebsiteBuilder() {
     handleRedo,
     handleDeleteBlock: (_id: string) => {},
     handleDuplicateBlock: (_id: string) => {},
-    handleMoveBlock: (_id: string, _dir: 'up' | 'down') => {},
+    handleMoveBlock: (_id: string, _dir: 'up' | 'down' | 'top' | 'bottom') => {},
   })
 
   useEffect(() => {
@@ -11338,32 +12011,44 @@ export default function WebsiteBuilder() {
         if (selectedBlockId) dup(selectedBlockId)
         return
       }
+      if ((e.key === 'e' || e.key === 'E') && !ctrl && selectedBlockId) {
+        e.preventDefault()
+        openInlineTextEditForSelectedRef.current()
+        return
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockId) {
         e.preventDefault()
         // Del key arms the confirmation; pressing again within 2.5s confirms.
         del(selectedBlockId)
         return
       }
-      if (e.key === 'Escape') { setSelectedBlockId(null); return }
+      const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
+      if (arrowKeys.includes(e.key) && selectedBlockId && activePageId) {
+        const pageBlocks = localBlocks[activePageId] || []
+        const selBlock = pageBlocks.find(b => b.id === selectedBlockId)
+        const heroPosition = selBlock && /^hero(_split|_minimal)?$/.test(String(selBlock.block_type))
+        const fieldPosition = activeTextTarget?.blockId === selectedBlockId
+          && editableFieldKeys(activeTextTarget).length > 0
+        if (heroPosition || fieldPosition) {
+          // FieldPositionNudge listens in capture phase — skip section reorder.
+          return
+        }
+      }
       if (e.key === 'ArrowUp' && selectedBlockId && activePageId) {
         e.preventDefault()
-        const blocks = localBlocks[activePageId] || []
-        const idx = blocks.findIndex(b => b.id === selectedBlockId)
-        if (idx > 0) move(selectedBlockId, 'up')
+        move(selectedBlockId, 'up')
         return
       }
       if (e.key === 'ArrowDown' && selectedBlockId && activePageId) {
         e.preventDefault()
-        const blocks = localBlocks[activePageId] || []
-        const idx = blocks.findIndex(b => b.id === selectedBlockId)
-        if (idx < blocks.length - 1) move(selectedBlockId, 'down')
+        move(selectedBlockId, 'down')
         return
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBlockId, activePageId, localBlocks, handleUndo, handleRedo])
+  }, [selectedBlockId, activePageId, localBlocks, handleUndo, handleRedo, activeTextTarget])
 
   const activePage = useMemo(() =>
     localPages.find(p => p.id === activePageId) || null
@@ -11373,6 +12058,96 @@ export default function WebsiteBuilder() {
     () => mergePageStyleConfig(localStyle, activePageId),
     [localStyle, activePageId],
   )
+
+  const builderPublicSite = useMemo(() => {
+    if (!site) return null
+    return buildBuilderPublicSite(site, localPages, localBlocks, localStyle)
+  }, [site, localPages, localBlocks, localStyle])
+
+  const builderVendorSlug = myVendor?.slug?.trim() || site?.subdomain?.trim() || ''
+
+  const handleNavigateBuilderPage = useCallback((url: string) => {
+    const cleanUrl = (url || '/').split('?')[0].split('#')[0]
+    const slug = cleanUrl === '/' ? '' : cleanUrl.replace(/^\/+|\/+$/g, '')
+    const target = localPages.find(p => (
+      (p.is_homepage && (cleanUrl === '/' || slug === 'home')) ||
+      p.slug.replace(/^\/+|\/+$/g, '') === slug
+    ))
+    if (target) {
+      setActivePageId(target.id)
+      setSelectedBlockId(null)
+    } else {
+      toast.info(`No builder page found for "${url}". Add it from the Pages panel or update the nav link.`)
+    }
+  }, [localPages])
+
+  const handleCanvasTextFieldActivate = useCallback((
+    blockId: string,
+    fieldKey: string,
+    opts?: { additive?: boolean },
+  ) => {
+    if (formatPaintBrush && applyFormatPaintTargetRef.current(blockId, fieldKey)) return
+    setSelectedBlockId(blockId)
+    setActiveTextTarget(prev => toggleTextFieldInTarget(prev, blockId, fieldKey, opts?.additive ?? false))
+    setRightPanel('props')
+    setRightCollapsed(false)
+  }, [formatPaintBrush])
+
+  const handleCanvasBlockSelectCapture = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.pointer-events-auto')) return
+    const blockRoot = (e.target as HTMLElement).closest('[data-block-id]') as HTMLElement | null
+    if (!blockRoot) return
+    if ((e.target as HTMLElement).closest('[contenteditable="true"], [data-builder-inline-edit-target="true"]')) return
+    const id = blockRoot.getAttribute('data-block-id')
+    if (!id) return
+
+    const fieldKey = resolveCanvasFieldKeyFromTarget(e.target)
+
+    if (formatPaintBrush) {
+      if (isCanvasFieldClickTarget(e.target) || fieldKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        applyFormatPaintTargetRef.current(id, fieldKey)
+        return
+      }
+    }
+
+    if (isCanvasFieldClickTarget(e.target)) return
+
+    if ((e.target as HTMLElement).closest('a, button, input, textarea, select, label, [role="button"]')) return
+
+    setSelectedBlockId(id)
+    setActiveTextTarget(null)
+    setRightPanel('props')
+    setRightCollapsed(false)
+  }, [formatPaintBrush])
+
+  const handleCanvasBlockHover = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    const overlay = target.closest('[data-builder-overlay]') as HTMLElement | null
+    if (overlay) {
+      const oid = overlay.getAttribute('data-builder-overlay')
+      setHoveredBlockId(prev => (prev === oid ? prev : oid))
+      return
+    }
+    const blockRoot = target.closest('[data-block-id]') as HTMLElement | null
+    const id = blockRoot?.getAttribute('data-block-id') || null
+    setHoveredBlockId(prev => (prev === id ? prev : id))
+  }, [])
+
+  const handleCanvasBlockHoverLeave = useCallback(() => {
+    setHoveredBlockId(null)
+  }, [])
+
+  const handleCanvasNavClickCapture = useCallback((e: React.MouseEvent) => {
+    const anchor = (e.target as HTMLElement).closest('a[href]') as HTMLAnchorElement | null
+    if (!anchor || !canvasPreviewInnerRef.current?.contains(anchor)) return
+    const href = anchor.getAttribute('href')
+    if (!href || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) return
+    e.preventDefault()
+    e.stopPropagation()
+    handleNavigateBuilderPage(href)
+  }, [handleNavigateBuilderPage])
 
   const handlePageStyleChange = useCallback((pageId: string, patch: PageStyleOverrides) => {
     setLocalStyle(prev => {
@@ -11401,8 +12176,13 @@ export default function WebsiteBuilder() {
   }, [])
 
   const activeBlocks = useMemo(() =>
-    (localBlocks[activePageId || ''] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    sortPageBlocks(localBlocks[activePageId || ''] || [])
   , [localBlocks, activePageId])
+
+  const canvasBlocksRevision = useMemo(
+    () => activeBlocks.map((b, i) => `${i}:${b.sort_order}:${b.id}:${b.updated_at}:${structureLayoutFingerprint(b.props as Record<string, unknown>)}`).join('|'),
+    [activeBlocks],
+  )
 
   const sectionSearchLower = sectionSearch.trim().toLowerCase()
 
@@ -11495,24 +12275,12 @@ export default function WebsiteBuilder() {
   }, [selectedBlockId])
 
   const openMediaFromCanvas = useCallback(() => {
-    setRightCollapsed(false)
-    setRightPanel('media')
+    setLeftCollapsed(false)
+    setLeftPanel('media')
   }, [])
 
   // ── BLOCK OPERATIONS (all optimistic) ────────────────────────────────────
 
-  const inferCommerceAutoSource = (blockType: string): LiveResource | undefined => {
-    if (blockType.startsWith('product.')) return blockType.includes('categories') || blockType.includes('filters') ? 'categories' : 'products'
-    if (blockType.startsWith('service.')) {
-      if (blockType.includes('testimonial')) return 'testimonials'
-      if (blockType.includes('team')) return 'team'
-      return 'services'
-    }
-    if (blockType.startsWith('menu.')) return 'products'
-    if (blockType.startsWith('booking.')) return 'bookings'
-    if (blockType.startsWith('commerce.')) return 'products'
-    return undefined
-  }
 
   const persistStructureLayoutNow = useCallback(async (
     def: BlockDef,
@@ -11616,6 +12384,7 @@ export default function WebsiteBuilder() {
     def: BlockDef,
     propsOverride: Partial<BlockProps>,
     imageCategoryId?: string,
+    dataSourceChoice?: LayoutPickerDataSourceChoice,
   ) => {
     if (!activePageId || !siteId) return false
     const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
@@ -11670,10 +12439,14 @@ export default function WebsiteBuilder() {
         { forceRefresh: true },
       ),
     ) as BlockProps
-    const mergedFinalProps: BlockProps = {
-      ...finalProps,
-      _image_category_id: resolvedCategoryId,
-    }
+    const mergedFinalProps: BlockProps = applyDataSourceToBlockProps(
+      def.type,
+      {
+        ...finalProps,
+        _image_category_id: resolvedCategoryId,
+      },
+      dataSourceChoice,
+    ) as BlockProps
 
     let nextMap: Record<string, WebsiteBlock[]>
     if (isStructure) {
@@ -11739,6 +12512,7 @@ export default function WebsiteBuilder() {
     propsOverride?: Partial<BlockProps>,
     imageCategoryId?: string,
     replaceBlockId?: string,
+    dataSourceChoice?: LayoutPickerDataSourceChoice,
   ) => {
     if (!activePageId) return
     const blocksMap = localBlocksRef.current
@@ -11801,9 +12575,6 @@ export default function WebsiteBuilder() {
     // The user can disconnect / override inside the Data panel later.
     const resolvedCategoryId = imageCategoryId || suggestImageCategoryForBlock(def.category, site)
     const useCategoryImages = blockSupportsGalleryCategory(def.type)
-    const autoSource = useCategoryImages
-      ? undefined
-      : (BLOCK_AUTO_SOURCE[def.type as string] || inferCommerceAutoSource(def.type))
     const mergedDefaults = finalizeCategoryLayoutProps(
       def.type,
       applyCategoryImagesToBlockProps(
@@ -11819,10 +12590,18 @@ export default function WebsiteBuilder() {
         { forceRefresh: true },
       ),
     )
-    const initialProps: BlockProps = {
-      ...(autoSource ? { ...mergedDefaults, data_source: { type: autoSource, auto: true } } : mergedDefaults),
-      ...(useCategoryImages ? { _image_category_id: resolvedCategoryId } : {}),
-    } as BlockProps
+    const initialProps: BlockProps = applyDataSourceToBlockProps(
+      def.type,
+      {
+        ...mergedDefaults,
+        ...(useCategoryImages ? { _image_category_id: resolvedCategoryId } : {}),
+      },
+      dataSourceChoice ?? (
+        useCategoryImages && !BLOCK_REQUIRED_DATA_SOURCE.has(def.type)
+          ? { connect: false, sourceType: null }
+          : undefined
+      ),
+    ) as BlockProps
 
     const tempBlock: WebsiteBlock = {
       id: tempId, page_id: activePageId,
@@ -11980,16 +12759,28 @@ export default function WebsiteBuilder() {
     openSectionLayoutPicker(def, -1, block.id)
   }, [openSectionLayoutPicker])
 
+  const cycleBlockLayout = useCallback(async (block: WebsiteBlock, direction: 'prev' | 'next') => {
+    const def = BLOCK_CATALOG.find(d => d.type === block.block_type)
+    if (!def || !site) return
+    const option = getCycledSectionLayoutOption(block.props as Record<string, unknown>, block.block_type, direction)
+    if (!option) return
+    const categoryId = (block.props as Record<string, unknown>)?._image_category_id as string | undefined
+      || suggestImageCategoryForBlock(def.category, site)
+    const applied = await applyLayoutToBlock(block.id, def, option.props as Partial<BlockProps>, categoryId)
+    if (applied) toast.success(`Layout: ${option.label}`)
+  }, [applyLayoutToBlock, site])
+
   const handleSelectSectionLayout = useCallback(async (
     propsOverride: Partial<BlockProps>,
     imageCategoryId: string,
+    dataSourceChoice: LayoutPickerDataSourceChoice,
   ) => {
     if (!sectionLayoutPicker) return
     const { def, insertAtIdx, targetBlockId, replaceBlockId } = sectionLayoutPicker
     setSectionLayoutPicker(null)
 
     if (Object.keys(propsOverride).length === 0) {
-      await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId)
+      await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId, dataSourceChoice)
       return
     }
 
@@ -12007,7 +12798,7 @@ export default function WebsiteBuilder() {
     if (!applyTargetId && structureHit) applyTargetId = structureHit.block.id
 
     if (applyTargetId) {
-      const applied = await applyLayoutToBlock(applyTargetId, def, propsOverride, imageCategoryId)
+      const applied = await applyLayoutToBlock(applyTargetId, def, propsOverride, imageCategoryId, dataSourceChoice)
       if (applied) return
     }
 
@@ -12015,17 +12806,17 @@ export default function WebsiteBuilder() {
     if (!applyTargetId && activePageId && selectedBlockId) {
       const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
       if (selected?.block_type === def.type) {
-        const applied = await applyLayoutToBlock(selected.id, def, propsOverride, imageCategoryId)
+        const applied = await applyLayoutToBlock(selected.id, def, propsOverride, imageCategoryId, dataSourceChoice)
         if (applied) return
       }
     }
 
     if (isStructure) {
-      await handleAddBlock(def, -1, propsOverride, imageCategoryId)
+      await handleAddBlock(def, -1, propsOverride, imageCategoryId, undefined, dataSourceChoice)
       return
     }
 
-    await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId)
+    await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId, dataSourceChoice)
   }, [sectionLayoutPicker, handleAddBlock, applyLayoutToBlock, activePageId, selectedBlockId])
 
   // Preview-only update — instant canvas update, no API call (used while typing)
@@ -12059,7 +12850,10 @@ export default function WebsiteBuilder() {
       if (!block) return prev
       const mergedProps: BlockProps = { ...block.props, ...propsUpdate }
       const topLevel: Partial<WebsiteBlock> = {}
-      const TOP_KEYS = ['visible', 'visible_on_mobile', 'visible_on_tablet', 'visible_on_desktop', 'animation', 'animation_delay'] as const
+      const TOP_KEYS = [
+        'visible', 'visible_on_mobile', 'visible_on_tablet', 'visible_on_desktop',
+        'animation', 'animation_delay', 'style_overrides', 'visible_branches',
+      ] as const
       TOP_KEYS.forEach(k => {
         if (k in propsUpdate) {
           (topLevel as any)[k] = (propsUpdate as any)[k]
@@ -12074,6 +12868,201 @@ export default function WebsiteBuilder() {
       }
     })
   }, [activePageId, scheduleEditorHistorySnapshot])
+
+  const handleCanvasTextFieldCommit = useCallback((blockId: string, fieldKey: string, value: string) => {
+    const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, blockId, activePageId)
+    const block = pageId ? (localBlocksRef.current[pageId] || []).find(b => b.id === blockId) : null
+    const patch = buildPropPatchFromFieldKey(
+      fieldKey,
+      value,
+      (block?.props ?? {}) as Record<string, unknown>,
+    )
+    handleUpdateBlockProps(blockId, patch as Partial<BlockProps>)
+    setActiveTextTarget(prev => {
+      if (prev?.blockId === blockId && prev.fieldKeys.includes(fieldKey)) return prev
+      return { blockId, fieldKeys: [fieldKey] }
+    })
+  }, [activePageId, handleUpdateBlockProps])
+
+  const preserveTextTargetAfterStylePatch = useCallback((
+    blockId: string,
+    fieldKey: string,
+  ) => {
+    setActiveTextTarget(prev => {
+      if (fieldKey === CONTENT_GROUP_FIELD_KEY) {
+        return { blockId, fieldKeys: [CONTENT_GROUP_FIELD_KEY] }
+      }
+      if (prev?.blockId === blockId && prev.fieldKeys.includes(fieldKey)) {
+        return prev
+      }
+      return { blockId, fieldKeys: [fieldKey] }
+    })
+  }, [])
+
+  const handleCanvasTextFieldStylePatch = useCallback((
+    blockId: string,
+    fieldKey: string,
+    patch: Record<string, unknown>,
+  ) => {
+    if (fieldKey === CONTENT_GROUP_FIELD_KEY) {
+      handleUpdateBlockProps(blockId, {
+        ...(patch.field_offset_x !== undefined ? { content_offset_x: patch.field_offset_x } : {}),
+        ...(patch.field_offset_y !== undefined ? { content_offset_y: patch.field_offset_y } : {}),
+        ...(patch.content_offset_x !== undefined ? { content_offset_x: patch.content_offset_x } : {}),
+        ...(patch.content_offset_y !== undefined ? { content_offset_y: patch.content_offset_y } : {}),
+        ...(patch.flip_h !== undefined ? { content_flip_h: patch.flip_h } : {}),
+        ...(patch.flip_v !== undefined ? { content_flip_v: patch.flip_v } : {}),
+        ...(patch.rotate_deg !== undefined ? { content_rotate_deg: patch.rotate_deg } : {}),
+      } as Partial<BlockProps>)
+      preserveTextTargetAfterStylePatch(blockId, CONTENT_GROUP_FIELD_KEY)
+      return
+    }
+    const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, blockId, activePageId)
+    const block = pageId ? (localBlocksRef.current[pageId] || []).find(b => b.id === blockId) : null
+    const fieldStyles = ((block?.props ?? {}) as Record<string, unknown>)._field_styles as Record<string, Record<string, unknown>> || {}
+    handleUpdateBlockProps(blockId, {
+      _field_styles: {
+        ...fieldStyles,
+        [fieldKey]: {
+          ...(fieldStyles[fieldKey] || {}),
+          ...patch,
+        },
+      },
+    } as Partial<BlockProps>)
+    preserveTextTargetAfterStylePatch(blockId, fieldKey)
+  }, [activePageId, handleUpdateBlockProps, preserveTextTargetAfterStylePatch])
+
+  const handleCanvasTextFieldBatchStylePatch = useCallback((
+    blockId: string,
+    patchesByField: Record<string, Record<string, unknown>>,
+  ) => {
+    const keys = Object.keys(patchesByField)
+    if (!keys.length) return
+    const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, blockId, activePageId)
+    const block = pageId ? (localBlocksRef.current[pageId] || []).find(b => b.id === blockId) : null
+    const fieldStyles = ((block?.props ?? {}) as Record<string, unknown>)._field_styles as Record<string, Record<string, unknown>> || {}
+    const nextStyles = { ...fieldStyles }
+    keys.forEach(k => {
+      nextStyles[k] = { ...(fieldStyles[k] || {}), ...patchesByField[k] }
+    })
+    handleUpdateBlockProps(blockId, { _field_styles: nextStyles } as Partial<BlockProps>)
+    setActiveTextTarget(prev => {
+      const allSelected = prev?.blockId === blockId && keys.every(k => prev.fieldKeys.includes(k))
+      if (allSelected) return prev
+      const merged = prev?.blockId === blockId
+        ? [...new Set([...prev.fieldKeys.filter(k => k !== CONTENT_GROUP_FIELD_KEY), ...keys])]
+        : keys
+      return merged.length ? { blockId, fieldKeys: merged } : { blockId, fieldKeys: keys }
+    })
+  }, [activePageId, handleUpdateBlockProps])
+
+  const applyFormatPaintTarget = useCallback((blockId: string, fieldKey: string | null) => {
+    if (!formatPaintBrush) return false
+    const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, blockId, activePageId)
+    const block = pageId ? (localBlocksRef.current[pageId] || []).find(b => b.id === blockId) : null
+    if (!block) return false
+
+    if (fieldKey && hasActiveInlineTextSelection(fieldKey)) {
+      if (applyInlineTextSelectionStyle(fieldKey, formatPaintBrush.style as Record<string, unknown>)) {
+        setSelectedBlockId(blockId)
+        setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
+        setRightPanel('props')
+        setRightCollapsed(false)
+        if (!formatPaintBrush.sticky) setFormatPaintBrush(null)
+        toast.success('Formatting applied to selected text')
+        return true
+      }
+    }
+
+    const patch = buildFormatPaintPropsPatch(
+      block.props as Record<string, unknown>,
+      fieldKey,
+      formatPaintBrush.style,
+    )
+    if (Object.keys(patch).length === 0) return false
+    handleUpdateBlockProps(blockId, patch as Partial<BlockProps>)
+    setSelectedBlockId(blockId)
+    if (fieldKey) setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
+    else setActiveTextTarget(null)
+    setRightPanel('props')
+    setRightCollapsed(false)
+    if (!formatPaintBrush.sticky) setFormatPaintBrush(null)
+    toast.success(fieldKey ? 'Formatting applied to text field' : 'Formatting applied to section')
+    return true
+  }, [formatPaintBrush, activePageId, handleUpdateBlockProps])
+
+  applyFormatPaintTargetRef.current = applyFormatPaintTarget
+
+  const builderEscapeUiRef = useRef<BuilderEscapeUiState>({
+    formatPaintActive: false,
+    armedDeleteActive: false,
+    overlayImageActive: false,
+    canvasImageActive: false,
+    applyPopoverOpen: false,
+    storePopoverOpen: false,
+    hasActiveTextTarget: false,
+    hasSelectedBlock: false,
+  })
+  const builderEscapeActionsRef = useRef<BuilderEscapeActions>({
+    clearFormatPaint: () => {},
+    clearArmedDelete: () => {},
+    clearOverlayImage: () => {},
+    clearCanvasImage: () => {},
+    closeApplyPopover: () => {},
+    closeStorePopover: () => {},
+    clearActiveTextTarget: () => {},
+    clearSelectedBlock: () => {},
+  })
+
+  builderEscapeUiRef.current = {
+    formatPaintActive: Boolean(formatPaintBrush),
+    armedDeleteActive: Boolean(armedDeleteId),
+    overlayImageActive: Boolean(overlayImageTarget),
+    canvasImageActive: Boolean(canvasImageTarget),
+    applyPopoverOpen,
+    storePopoverOpen: storePopover,
+    hasActiveTextTarget: Boolean(activeTextTarget),
+    hasSelectedBlock: Boolean(selectedBlockId),
+  }
+
+  builderEscapeActionsRef.current = {
+    clearFormatPaint: () => setFormatPaintBrush(null),
+    clearArmedDelete: () => setArmedDeleteId(null),
+    clearOverlayImage: () => setOverlayImageTarget(null),
+    clearCanvasImage: () => setCanvasImageTarget(null),
+    closeApplyPopover: () => {
+      setApplyPopoverOpen(false)
+      setApplyPickerStep('root')
+    },
+    closeStorePopover: () => setStorePopover(false),
+    clearActiveTextTarget: () => setActiveTextTarget(null),
+    clearSelectedBlock: () => setSelectedBlockId(null),
+  }
+
+  useLayoutEffect(() => {
+    return registerEscapeHandler(() => {
+      dismissBuilderEscapeLayer(builderEscapeUiRef.current, builderEscapeActionsRef.current)
+    })
+  }, [])
+
+  useEffect(() => {
+    const root = builderPageRootRef.current
+    if (!root) return
+    const onInlineCommit = (e: Event) => {
+      const target = e.target as HTMLElement
+      const fieldKey = target.getAttribute('data-text-key')
+      if (!fieldKey) return
+      const blockRoot = target.closest('[data-block-id]') as HTMLElement | null
+      const blockId = blockRoot?.getAttribute('data-block-id')
+      if (!blockId) return
+      const html = target.innerHTML.trim()
+      const text = (target.innerText ?? '').trim()
+      const value = hasInlineHtml(html) ? html : text
+      handleUpdateBlockProps(blockId, { [fieldKey]: value } as Partial<BlockProps>)
+    }
+    root.addEventListener('builder-inline-text-commit', onInlineCommit)
+    return () => root.removeEventListener('builder-inline-text-commit', onInlineCommit)
+  }, [handleUpdateBlockProps, activePageId, canvasBlocksRevision])
 
   // ── Image / media apply ───────────────────────────────────────────────────
   // Top-level image field for simple blocks
@@ -12471,6 +13460,60 @@ export default function WebsiteBuilder() {
   const getBlockPrimaryText = (bt: string) =>
     BLOCK_PRIMARY_TEXT[bt] ?? { field: 'title', label: 'Title' }
 
+  const openInlineTextEditForBlock = useCallback((
+    block: WebsiteBlock,
+    initialFieldKey: string,
+    clickX: number,
+    clickY: number,
+  ) => {
+    const fields = listSectionTextFields(block.props as Record<string, unknown>, block.block_type as string)
+    if (fields.length === 0) {
+      toast.message('No editable text fields on this section')
+      return
+    }
+    const fieldKey = fields.some(f => f.fieldKey === initialFieldKey)
+      ? initialFieldKey
+      : fields[0].fieldKey
+
+    setSelectedBlockId(block.id)
+    setActiveTextTarget({ blockId: block.id, fieldKeys: [fieldKey] })
+    setRightPanel('props')
+    setRightCollapsed(false)
+    setInlineTextEdit({
+      blockId: block.id,
+      fields,
+      initialFieldKey: fieldKey,
+      clickX,
+      clickY,
+    })
+  }, [])
+
+  openInlineTextEditForSelectedRef.current = (anchorX?: number, anchorY?: number) => {
+    if (!selectedBlockId) return
+    const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, selectedBlockId, activePageId)
+    const block = pageId ? (localBlocksRef.current[pageId] || []).find(b => b.id === selectedBlockId) : null
+    if (!block) return
+    const fields = listSectionTextFields(block.props as Record<string, unknown>, block.block_type as string)
+    if (fields.length === 0) {
+      toast.info('This section has no editable text fields')
+      return
+    }
+    const fieldKey =
+      activeTextTarget?.blockId === block.id
+        ? primaryTextFieldKey(activeTextTarget) ?? fields[0].fieldKey
+        : fields[0].fieldKey
+    openInlineTextEditForBlock(
+      block,
+      fieldKey,
+      anchorX ?? Math.round(window.innerWidth / 2),
+      anchorY ?? 140,
+    )
+  }
+
+  dismissBuilderUiRef.current = () => {
+    dismissBuilderEscapeLayer(builderEscapeUiRef.current, builderEscapeActionsRef.current)
+  }
+
   const openBlockContextMenu = useCallback((block: WebsiteBlock, e: React.MouseEvent) => {
     setSelectedBlockId(block.id)
     const suggested = BLOCK_AUTO_SOURCE[block.block_type as string]
@@ -12479,29 +13522,24 @@ export default function WebsiteBuilder() {
     const dsLabel = dsType ? DATA_SOURCES.find(s => s.id === dsType)?.label : null
     const actions: ContextMenuAction[] = [
       {
+        id: 'props',
+        label: 'Block properties (side panel)',
+        icon: SlidersHorizontal,
+        onSelect: () => { setRightPanel('props'); setRightCollapsed(false) },
+      },
+      {
         id: 'edit',
-        label: 'Edit content',
+        label: 'Edit text…',
         icon: Pencil,
+        shortcut: 'E',
         onSelect: () => {
-          setRightPanel('props')
-          setRightCollapsed(false)
-          // Open the styled text prompt so the user can immediately type
-          const { field, label, multiline } = getBlockPrimaryText(block.block_type)
-          const currentVal = ((block.props as any)[field] ?? '') as string
-          openTextPrompt({
-            title: `Edit ${block.label || block.block_type}`,
-            subtitle: `Field: ${label}`,
-            placeholder: `Type your ${label.toLowerCase()}…`,
-            initialValue: currentVal,
-            multiline,
-            confirmLabel: 'Save',
-            onSave: v => handleUpdateBlockProps(block.id, { [field]: v } as any),
-          })
+          const { field } = getBlockPrimaryText(block.block_type)
+          openInlineTextEditForBlock(block, field, e.clientX, e.clientY)
         },
       },
       {
         id: 'style',
-        label: 'Style / design',
+        label: 'Style & colors (side panel)',
         icon: Palette,
         onSelect: () => { setRightPanel('style'); setRightCollapsed(false) },
       },
@@ -12533,9 +13571,9 @@ export default function WebsiteBuilder() {
       { id: 'div1', label: '', divider: true },
       {
         id: 'media',
-        label: 'Add image / media',
+        label: 'Images & media upload',
         icon: ImageIcon,
-        onSelect: () => { setRightPanel('media'); setRightCollapsed(false) },
+        onSelect: () => { setLeftPanel('media'); setLeftCollapsed(false) },
       },
       { id: 'div2', label: '', divider: true },
       {
@@ -12576,7 +13614,44 @@ export default function WebsiteBuilder() {
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [handleUpdateBlockProps, handleDeleteBlock, handleDuplicateBlock, openTextPrompt, openLayoutPickerForBlock])
+  }, [handleUpdateBlockProps, handleDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock])
+
+  const handleCanvasBlockContextMenuCapture = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (target.closest('[data-kiterp-modal]')) return
+    const blockRoot = target.closest('[data-block-id]') as HTMLElement | null
+    if (!blockRoot) return
+    const id = blockRoot.getAttribute('data-block-id')
+    if (!id) return
+    const block = activeBlocks.find(b => b.id === id)
+    if (!block) return
+    e.preventDefault()
+    e.stopPropagation()
+    openBlockContextMenu(block, e)
+  }, [activeBlocks, openBlockContextMenu])
+
+  const handleInlineTextFieldSave = useCallback((fieldKey: string, value: string) => {
+    const s = inlineTextEditRef.current
+    if (!s) return
+    const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, s.blockId, activePageId)
+    const block = pageId
+      ? (localBlocksRef.current[pageId] || []).find(b => b.id === s.blockId)
+      : undefined
+    const patch = buildPropPatchFromFieldKey(
+      fieldKey,
+      value,
+      (block?.props ?? {}) as Record<string, unknown>,
+    )
+    handleUpdateBlockProps(s.blockId, patch as Partial<BlockProps>)
+    setActiveTextTarget({ blockId: s.blockId, fieldKeys: [fieldKey] })
+    setInlineTextEdit(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        fields: prev.fields.map(f => (f.fieldKey === fieldKey ? { ...f, value } : f)),
+      }
+    })
+  }, [handleUpdateBlockProps, activePageId])
 
   const openOverlayContextMenu = useCallback((blockId: string, item: BlockOverlayItem, e: React.MouseEvent) => {
     if (!activePageId) return
@@ -12606,7 +13681,7 @@ export default function WebsiteBuilder() {
       }] : []),
       ...(isLinkable ? [{
         id: 'link',
-        label: item.linkType && item.linkType !== 'none' ? `Edit link (${item.linkType})` : 'Connect to link / ERP item',
+        label: item.linkType && item.linkType !== 'none' ? `Edit link (${item.linkType})` : 'Connect link or product',
         icon: Link2,
         onSelect: () => openLinkEditorForOverlay(blockId, item, { x: e.clientX, y: e.clientY }),
       }] : []),
@@ -12928,30 +14003,42 @@ export default function WebsiteBuilder() {
     clearBlockDragState()
   }, [draggingNewBlock, activeBlocks, handleAddBlock, applyReorder, clearBlockDragState, shouldOpenLayoutPickerForBlock, openSectionLayoutPicker])
 
-  // Move block up/down — optimistic
-  const handleMoveBlock = useCallback(async (blockId: string, dir: 'up' | 'down') => {
-    const idx = activeBlocks.findIndex(b => b.id === blockId)
-    if (idx < 0) return
-    const newIdx = dir === 'up' ? idx - 1 : idx + 1
-    if (newIdx < 0 || newIdx >= activeBlocks.length) return
-    const reordered = [...activeBlocks]
-    const [moved] = reordered.splice(idx, 1)
-    reordered.splice(newIdx, 0, moved)
-    await applyReorder(reordered)
-  }, [activeBlocks, applyReorder])
+  // Move block up/down/top/bottom — optimistic (content blocks stay between nav and footer)
+  const handleMoveBlock = useCallback((blockId: string, dir: 'up' | 'down' | 'top' | 'bottom') => {
+    const pageId = activePageId
+    if (!pageId) return
+    const blocks = sortPageBlocks(localBlocksRef.current[pageId] || [])
+    const fromIdx = blocks.findIndex(b => b.id === blockId)
+    const toIdx = computeBlockMoveIndex(blocks, fromIdx, dir)
+    if (toIdx == null) return
+    const blockEl = builderPageRootRef.current?.querySelector(
+      `[data-block-id="${CSS.escape(blockId)}"]`,
+    ) as HTMLElement | null
+    const anchorTop = blockEl?.getBoundingClientRect().top
+    applyReorderForPage(pageId, reorderBlockByIndex(blocks, fromIdx, toIdx))
+    if (anchorTop != null) compensateCanvasScrollForBlockMove(blockId, anchorTop)
+  }, [activePageId, applyReorderForPage, compensateCanvasScrollForBlockMove])
 
-  const handleMoveBlockOnPage = useCallback(async (pageId: string, blockId: string, dir: 'up' | 'down') => {
-    const blocks = (localBlocks[pageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
-    const idx = blocks.findIndex(b => b.id === blockId)
-    if (idx < 0) return
-    const newIdx = dir === 'up' ? idx - 1 : idx + 1
-    if (newIdx < 0 || newIdx >= blocks.length) return
-    const reordered = [...blocks]
-    const [moved] = reordered.splice(idx, 1)
-    reordered.splice(newIdx, 0, moved)
-    applyReorderForPage(pageId, reordered)
-    if (activePageId !== pageId) setActivePageId(pageId)
-  }, [localBlocks, applyReorderForPage, activePageId])
+  const handleMoveBlockOnPage = useCallback((pageId: string, blockId: string, dir: 'up' | 'down' | 'top' | 'bottom') => {
+    const blocks = sortPageBlocks(localBlocksRef.current[pageId] || [])
+    const fromIdx = blocks.findIndex(b => b.id === blockId)
+    const toIdx = computeBlockMoveIndex(blocks, fromIdx, dir)
+    if (toIdx == null) return
+    const samePage = activePageId === pageId
+    const blockEl = samePage
+      ? builderPageRootRef.current?.querySelector(
+        `[data-block-id="${CSS.escape(blockId)}"]`,
+      ) as HTMLElement | null
+      : null
+    const anchorTop = blockEl?.getBoundingClientRect().top
+    applyReorderForPage(pageId, reorderBlockByIndex(blocks, fromIdx, toIdx))
+    if (!samePage) setActivePageId(pageId)
+    if (samePage && anchorTop != null) {
+      compensateCanvasScrollForBlockMove(blockId, anchorTop)
+    } else {
+      scrollCanvasToBlock(blockId)
+    }
+  }, [applyReorderForPage, activePageId, compensateCanvasScrollForBlockMove, scrollCanvasToBlock])
 
   const onSidebarSectionDragStart = (pageId: string, idx: number) => {
     setSidebarDraggedPageId(pageId)
@@ -13011,6 +14098,16 @@ export default function WebsiteBuilder() {
     if (!activePageId) return
     const def = BLOCK_CATALOG.find(d => d.type === blockType)
     if (!def) return
+    const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
+    const insertIdx = currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
+    openSectionLayoutPicker(def, insertIdx)
+  }, [activePageId, activeBlocks, selectedBlockId, openSectionLayoutPicker])
+
+  // "Add Section" panel: always INSERT a new section (after the selected block,
+  // or at the end) — never replace the current selection. Passing an explicit
+  // insert index (>= 0) bypasses the replace path in openSectionLayoutPicker.
+  const handleAddSectionFromPanel = useCallback((def: BlockDef) => {
+    if (!activePageId) return
     const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
     const insertIdx = currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
     openSectionLayoutPicker(def, insertIdx)
@@ -13616,6 +14713,8 @@ export default function WebsiteBuilder() {
       toast.error('Could not resolve your vendor store slug. Open the dashboard home once, then try again.')
       return
     }
+    clearPendingPreviewTabNavigate()
+    clearPendingPreviewTabError()
     const previewTab = prepareDraftPreviewTab()
     setOpeningBrowserPreview(true)
     try {
@@ -13626,20 +14725,28 @@ export default function WebsiteBuilder() {
       })
       rememberDraftPreviewSession(siteId, preview_token)
       const url = buildVendorDraftPreviewUrl(preview_token, activePage?.slug)
-      if (!navigateDraftPreviewTab(url)) {
-        toast.error('Could not open preview — try Preview in Browser again.')
+      const delivered = navigateDraftPreviewTab(url)
+      if (!delivered) {
+        try {
+          await navigator.clipboard.writeText(url)
+          toast.error('Pop-up blocked. Preview link copied — paste it into a new tab.', { duration: 8000 })
+        } catch {
+          toast.error(`Could not open preview tab. Open this URL manually: ${url}`, { duration: 12000 })
+        }
       } else if (!previewTab) {
-        toast.error('If preview stays blank, allow pop-ups for this site and try again.')
+        toast.message('Preview opened in a new tab', { duration: 3000 })
       }
     } catch (err) {
       console.error('[BrowserPreview] failed:', err)
+      let message: string
       if (isBuilderPreviewInfraFailure(err)) {
-        toast.error(
-          'Draft preview is not available on this server (run alembic upgrade web006 on the database your API uses, then restart the API). Preview opens on localhost:3001 only.',
-        )
+        message = 'Draft preview is not available on this server (run alembic upgrade web006 on the database your API uses, then restart the API). Preview opens on localhost:3001 only.'
       } else {
-        toast.error(extractApiError(err, 'Browser preview'))
+        message = extractApiError(err, 'Browser preview')
       }
+      toast.error(message)
+      // Stop the opened preview tab from hanging on "Preparing…" forever.
+      broadcastPreviewTabError(message)
     } finally {
       setOpeningBrowserPreview(false)
     }
@@ -13669,18 +14776,31 @@ export default function WebsiteBuilder() {
   }, [device])
 
   useLayoutEffect(() => {
-    const viewport = canvasViewportRef.current
-    if (!viewport) return
+    const main = canvasMainRef.current
+    if (!main) return
     const recalcScale = () => {
-      const available = viewport.clientWidth
+      const available = Math.max(0, main.clientWidth - CANVAS_VIEWPORT_PAD_PX)
       if (available <= 0) return
-      setCanvasFitScale(Math.min(1, available / designWidthPx))
+      // Always scale to the panel width (up or down) so the page fills edge-to-edge.
+      setCanvasFitScale(available / designWidthPx)
     }
     recalcScale()
+    const raf = requestAnimationFrame(recalcScale)
     const ro = new ResizeObserver(recalcScale)
-    ro.observe(viewport)
-    return () => ro.disconnect()
-  }, [designWidthPx, leftCollapsed, rightCollapsed, leftWidth, rightWidth])
+    ro.observe(main)
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+    }
+  }, [designWidthPx, leftCollapsed, rightCollapsed, leftWidth, rightWidth, isLoading, site, activePageId])
+
+  useLayoutEffect(() => {
+    const main = canvasMainRef.current
+    if (!main) return
+    main.scrollLeft = 0
+    // Keep preview fitted when side panels resize (user can zoom again after).
+    setCanvasZoom(1)
+  }, [canvasFitScale, designWidthPx, leftCollapsed, rightCollapsed, leftWidth, rightWidth])
 
   useLayoutEffect(() => {
     const inner = canvasPreviewInnerRef.current
@@ -13693,12 +14813,11 @@ export default function WebsiteBuilder() {
   }, [activeBlocks, activePageId, device, selectedBlockId, effectiveCanvasScale])
 
   const scaledCanvasWidth = Math.round(designWidthPx * effectiveCanvasScale)
-  const canvasScrollPadPx = 32 // p-4 horizontal padding on the canvas viewport
 
   useLayoutEffect(() => {
     const main = canvasMainRef.current
     if (!main) return
-    const maxScrollLeft = Math.max(0, scaledCanvasWidth + canvasScrollPadPx - main.clientWidth)
+    const maxScrollLeft = Math.max(0, scaledCanvasWidth + CANVAS_VIEWPORT_PAD_PX - main.clientWidth)
     if (main.scrollLeft > maxScrollLeft) main.scrollLeft = maxScrollLeft
   }, [scaledCanvasWidth, leftCollapsed, rightCollapsed, leftWidth, rightWidth])
 
@@ -13706,7 +14825,7 @@ export default function WebsiteBuilder() {
   useLayoutEffect(() => {
     const main = canvasMainRef.current
     if (!main) return
-    const maxScrollLeft = Math.max(0, scaledCanvasWidth + canvasScrollPadPx - main.clientWidth)
+    const maxScrollLeft = Math.max(0, scaledCanvasWidth + CANVAS_VIEWPORT_PAD_PX - main.clientWidth)
     if (prevCanvasZoomRef.current !== canvasZoom && maxScrollLeft > 0) {
       main.scrollLeft = maxScrollLeft / 2
     }
@@ -13733,77 +14852,8 @@ export default function WebsiteBuilder() {
     )
   }
 
-  const allBlocks = Object.values(localBlocks).flat()
   const connectableBlocks = activeBlocks.filter(b => BLOCK_AUTO_SOURCE[b.block_type as string])
   const disconnectedBlocks = connectableBlocks.filter(b => !normalizeSourceType((b.props as any)?.data_source?.type))
-  const hasCommerceBlock = allBlocks.some(b => [
-    'product_grid', 'services_cards', 'booking_widget', 'booking_slot_picker',
-    'live_quote', 'contact_form', 'checkout_form', 'cart_drawer',
-  ].includes(b.block_type as string))
-  const seoReady = !!(site.seo_title || site.name) && !!site.seo_description && localPages.every(p => !!p.seo_description)
-  const brandReady = !!((site as any).logo_url || (site as any).favicon_url || (site as any).og_image_url)
-  const setupItems = [
-    {
-      id: 'pages',
-      label: 'Pages',
-      desc: `${localPages.length} page${localPages.length !== 1 ? 's' : ''}`,
-      done: localPages.length > 0,
-      icon: FileText,
-      action: () => { setLeftPanel('pages'); setLeftCollapsed(false) },
-    },
-    {
-      id: 'commerce',
-      label: 'Store blocks',
-      desc: hasCommerceBlock ? 'Sales sections added' : 'Add product/service blocks',
-      done: hasCommerceBlock,
-      icon: ShoppingCart,
-      action: () => { setLeftPanel('blocks'); setSectionCategory('ecommerce'); setLeftCollapsed(false) },
-    },
-    {
-      id: 'data',
-      label: 'Live data',
-      desc: disconnectedBlocks.length ? `${disconnectedBlocks.length} block${disconnectedBlocks.length !== 1 ? 's' : ''} on this page not connected` : 'Current page connected',
-      done: disconnectedBlocks.length === 0,
-      icon: Database,
-      action: () => {
-        if (disconnectedBlocks.length > 0) {
-          disconnectedBlocks.forEach(b => {
-            const src = BLOCK_AUTO_SOURCE[b.block_type as string]
-            if (src) handleUpdateBlockProps(b.id, { data_source: { type: src, auto: true } } as any)
-          })
-          toast.success(`Connected ${disconnectedBlocks.length} block${disconnectedBlocks.length !== 1 ? 's' : ''} to live data`)
-        } else {
-          setRightPanel('data'); setRightCollapsed(false)
-        }
-      },
-    },
-    {
-      id: 'seo',
-      label: 'SEO',
-      desc: seoReady ? 'Ready for search' : 'Add title/descriptions',
-      done: seoReady,
-      icon: Search,
-      action: () => { setRightPanel('seo'); setRightCollapsed(false) },
-    },
-    {
-      id: 'brand',
-      label: 'Branding',
-      desc: brandReady ? 'Logo/share image set' : 'Logo, favicon, share image',
-      done: brandReady,
-      icon: Palette,
-      action: () => { setRightPanel('settings'); setRightCollapsed(false) },
-    },
-    {
-      id: 'go-live',
-      label: 'Go live',
-      desc: site.is_published ? 'Live on your store' : siteTestUrl ? 'Apply to publish changes' : 'Set link, then Apply',
-      done: !!site.is_published,
-      icon: Rocket,
-      action: handleViewStore,
-    },
-  ]
-  const completedSetup = setupItems.filter(i => i.done).length
-
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-100 z-[100]" style={{ fontFamily: 'Inter, sans-serif' }}>
       <input
@@ -13837,6 +14887,12 @@ export default function WebsiteBuilder() {
         />
       )}
 
+      <BuilderCanvasInlineTextEdit
+        session={inlineTextEdit}
+        onSaveField={handleInlineTextFieldSave}
+        onClose={() => setInlineTextEdit(null)}
+      />
+
       {/* Styled text prompt (replaces native window.prompt) */}
       {textPrompt && (
         <TextPromptPopup
@@ -13866,7 +14922,9 @@ export default function WebsiteBuilder() {
             || suggestImageCategoryForBlock(sectionLayoutPicker.def.category, site)
           }
           currentProps={layoutPickerCurrentProps}
-          onSelect={(propsOverride, imageCategoryId) => { void handleSelectSectionLayout(propsOverride, imageCategoryId) }}
+          onSelect={(propsOverride, imageCategoryId, dataSourceChoice) => {
+            void handleSelectSectionLayout(propsOverride, imageCategoryId, dataSourceChoice)
+          }}
           onClose={() => setSectionLayoutPicker(null)}
         />
       )}
@@ -13893,7 +14951,7 @@ export default function WebsiteBuilder() {
               </span>
             ) : (
               <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-semibold leading-none antialiased', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
-                {site.is_published ? 'Live' : 'Draft'}
+                {site.is_published ? 'Live for customers' : 'Not live yet'}
               </span>
             )}
           </div>
@@ -13966,7 +15024,8 @@ export default function WebsiteBuilder() {
               <button
                 key={mode}
                 onClick={() => setDevice(mode)}
-                title={`${label} (${num}) — ${sizeLabel}`}
+                title={`${label} preview (${sizeLabel})`}
+                aria-label={`${label} preview`}
                 className={cn(
                   'group relative p-1.5 rounded transition-colors',
                   device === mode ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-white',
@@ -14009,10 +15068,10 @@ export default function WebsiteBuilder() {
               disabled={isSaving || !hasSaveChanges}
               title={
                 hasSaveChanges
-                  ? 'Save now (also auto-saves after a short pause)'
+                  ? 'Save your draft (does not publish to customers — use Publish store for that)'
                   : lastSavedAt
-                    ? `Saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                    : 'All changes saved'
+                    ? `Draft saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    : 'Draft saved — publish when ready for customers to see it'
               }
               className={cn(
                 'relative inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-white transition-colors duration-200 select-none',
@@ -14032,14 +15091,14 @@ export default function WebsiteBuilder() {
               ) : (
                 <Save className="w-3.5 h-3.5" />
               )}
-              {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Saved' : 'Save'}
+              {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Draft saved' : 'Save draft'}
               {hasSaveChanges && !isSaving && !saveFlash && (
                 <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 border-2 border-gray-900 animate-pulse" />
               )}
             </button>
           </div>
 
-          {/* Apply — saves canvas + publishes; multi-BU picker when several stores exist */}
+          {/* Publish — saves canvas + pushes live to customer storefront */}
           <div className="relative shrink-0" ref={applyPopoverRef}>
             <button
               type="button"
@@ -14047,8 +15106,8 @@ export default function WebsiteBuilder() {
               onClick={handleApplyButtonClick}
               title={
                 isSiteApplied
-                  ? 'Site is live — click to apply again or change business units'
-                  : 'Save current canvas and publish it to your live store'
+                  ? 'Your store is live — click to publish latest changes again'
+                  : 'Save and publish this design so customers can see it on your store'
               }
               className={cn(
                 'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-colors shadow-sm',
@@ -14061,9 +15120,9 @@ export default function WebsiteBuilder() {
               )}
             >
               {isApplyingToStore ? (
-                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…</>
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Publishing…</>
               ) : (
-                <><Check className="w-3.5 h-3.5" /> {isSiteApplied ? 'Applied' : 'Apply'}</>
+                <><Check className="w-3.5 h-3.5" /> {isSiteApplied ? 'Live on store' : 'Publish store'}</>
               )}
             </button>
 
@@ -14189,35 +15248,199 @@ export default function WebsiteBuilder() {
           </div>
         </div>
 
-        {/* Row 2: Page tabs */}
-        <div className="relative z-10 flex items-center gap-1 px-3 sm:px-5 min-h-10 py-1.5 bg-gray-800/60 overflow-x-auto hide-scrollbar">
-          {sortedSitePages.map(page => (
+        {/* Row 2: Page tabs + canvas controls */}
+        <div className="relative z-10 flex items-center gap-2 px-3 sm:px-5 min-h-10 py-1.5 bg-gray-800/60 overflow-hidden">
+          <div className="flex items-center gap-1 min-w-0 flex-1 overflow-x-auto hide-scrollbar">
+            {sortedSitePages.map(page => (
+              <button
+                key={page.id}
+                onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
+                className={cn(
+                  'flex items-center gap-1.5 px-3.5 py-1 rounded-full whitespace-nowrap transition-colors antialiased subpixel-antialiased',
+                  BUILDER_CRISP_LABEL,
+                  activePageId === page.id
+                    ? 'bg-primary text-white shadow-sm shadow-primary/40'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/70 font-medium',
+                )}
+              >
+                <FileText className="w-3 h-3 shrink-0" />
+                {page.title}
+                {page.is_homepage && (
+                  <span className={cn('text-[10px] rounded px-1 font-semibold leading-none antialiased', activePageId === page.id ? 'bg-white/20 text-white' : 'bg-gray-700 text-gray-400')}>
+                    Home
+                  </span>
+                )}
+              </button>
+            ))}
             <button
-              key={page.id}
-              onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
+              onClick={handleAddPage}
+              className={cn('flex items-center gap-1 px-2.5 py-1 rounded-full text-gray-500 hover:bg-gray-700/70 hover:text-gray-300 transition-colors antialiased shrink-0', BUILDER_CRISP_LABEL, 'font-medium')}
+            >
+              <Plus className="w-3 h-3" /> Add Page
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 flex-nowrap shrink-0 pl-2 border-l border-gray-700/80">
+            <span className="hidden lg:inline text-gray-500 tabular-nums whitespace-nowrap text-[12px] leading-none">
+              {activeBlocks.length} block{activeBlocks.length !== 1 ? 's' : ''}
+            </span>
+            {(() => {
+              const connectable = activeBlocks.filter(b => BLOCK_AUTO_SOURCE[b.block_type as string])
+              const connected = connectable.filter(b => normalizeSourceType((b.props as any)?.data_source?.type))
+              const disconnected = connectable.filter(b => !normalizeSourceType((b.props as any)?.data_source?.type))
+              if (connectable.length === 0) return null
+              return (
+                <>
+                  <span className="hidden lg:inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300 text-[11px] font-semibold leading-none tabular-nums whitespace-nowrap border border-emerald-700/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {connected.length}/{connectable.length}
+                  </span>
+                  {disconnected.length > 0 && (
+                    <button
+                      onClick={() => {
+                        disconnected.forEach(b => {
+                          const src = BLOCK_AUTO_SOURCE[b.block_type as string]
+                          if (src) handleUpdateBlockProps(b.id, { data_source: { type: src, auto: true } } as any)
+                        })
+                        toast.success(`Connected ${disconnected.length} section${disconnected.length !== 1 ? 's' : ''} to your store data`)
+                      }}
+                      className={cn('hidden xl:inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded bg-primary/90 text-white hover:bg-primary transition-colors shadow-sm', BUILDER_CRISP_LABEL)}
+                      title="Auto-connect remaining sections to your catalog"
+                    >
+                      <Zap className="w-2.5 h-2.5" />
+                      Connect {disconnected.length}
+                    </button>
+                  )}
+                </>
+              )
+            })()}
+            <div className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-gray-600 bg-gray-900/50 px-1 py-0.5">
+              <button
+                type="button"
+                title="Zoom out"
+                disabled={canvasZoom <= CANVAS_ZOOM_MIN}
+                onClick={() => setCanvasZoom(z => clampCanvasZoom(z - CANVAS_ZOOM_STEP))}
+                className="p-1 rounded hover:bg-gray-700 text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="w-10 shrink-0 text-center text-[12px] font-semibold leading-none tabular-nums text-gray-200 antialiased">
+                {Math.round(effectiveCanvasScale * 100)}%
+              </span>
+              <button
+                type="button"
+                title="Zoom in"
+                disabled={canvasZoom >= CANVAS_ZOOM_MAX}
+                onClick={() => setCanvasZoom(z => clampCanvasZoom(z + CANVAS_ZOOM_STEP))}
+                className="p-1 rounded hover:bg-gray-700 text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+              <select
+                className="h-7 w-[4.5rem] shrink-0 cursor-pointer rounded border-0 border-l border-gray-600 bg-transparent pl-1.5 text-[11px] font-semibold leading-none text-gray-400 outline-none antialiased"
+                value={(() => {
+                  const pct = Math.round(canvasZoom * 100)
+                  const presets = [50, 75, 100, 125, 150, 175, 200, 250, 300]
+                  return presets.includes(pct) ? String(pct) : ''
+                })()}
+                onChange={e => {
+                  const v = Number(e.target.value)
+                  if (v > 0) setCanvasZoom(clampCanvasZoom(v / 100))
+                }}
+                title="Zoom presets"
+              >
+                <option value="" disabled={Math.round(canvasZoom * 100) !== 100}>Zoom</option>
+                {[50, 75, 100, 125, 150, 175, 200, 250, 300].map(pct => (
+                  <option key={pct} value={pct}>{pct}%</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                title="Reset zoom to fit width"
+                onClick={() => {
+                  setCanvasZoom(1)
+                  const main = canvasMainRef.current
+                  if (main) main.scrollLeft = 0
+                }}
+                aria-hidden={canvasZoom === 1}
+                tabIndex={canvasZoom === 1 ? -1 : 0}
+                className={cn(
+                  'ml-0.5 w-7 shrink-0 px-1 py-0.5 rounded text-[11px] font-semibold leading-none text-primary hover:bg-gray-700 antialiased',
+                  canvasZoom === 1 && 'invisible pointer-events-none',
+                )}
+              >
+                Fit
+              </button>
+            </div>
+            <span
+              className="hidden xl:inline shrink-0 text-gray-500 text-[11px] tabular-nums whitespace-nowrap"
+              title={`Design canvas ${designWidthPx}px wide · ${Math.round(effectiveCanvasScale * 100)}% of design size (fit + zoom)`}
+            >
+              {designWidthPx}px
+              <span className="text-primary/90 font-medium"> · {Math.round(effectiveCanvasScale * 100)}%</span>
+            </span>
+            <button
+              type="button"
+              disabled={
+                !siteId
+                || applyingTemplateInline
+                || clearingTemplateSandbox
+                || resettingCanvasFromServer
+              }
+              onClick={() => { void handleCopyTemplateJson() }}
+              title="Copy site JSON (current canvas and style). Use Import elsewhere or keep as backup."
               className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1 rounded-full whitespace-nowrap transition-colors antialiased subpixel-antialiased',
+                'hidden sm:inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded-lg border transition-colors',
                 BUILDER_CRISP_LABEL,
-                activePageId === page.id
-                  ? 'bg-primary text-white shadow-sm shadow-primary/40'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/70 font-medium',
+                siteId && !applyingTemplateInline && !clearingTemplateSandbox && !resettingCanvasFromServer
+                  ? 'border-primary/40 text-primary bg-primary/10 hover:bg-primary/20'
+                  : 'border-gray-600 text-gray-500 cursor-not-allowed bg-gray-800/50',
               )}
             >
-              <FileText className="w-3 h-3 shrink-0" />
-              {page.title}
-              {page.is_homepage && (
-                <span className={cn('text-[10px] rounded px-1 font-semibold leading-none antialiased', activePageId === page.id ? 'bg-white/20 text-white' : 'bg-gray-700 text-gray-400')}>
-                  Home
-                </span>
-              )}
+              <ClipboardCopy className="w-3 h-3 shrink-0" /> Copy template
             </button>
-          ))}
-          <button
-            onClick={handleAddPage}
-            className={cn('flex items-center gap-1 px-2.5 py-1 rounded-full text-gray-500 hover:bg-gray-700/70 hover:text-gray-300 transition-colors antialiased', BUILDER_CRISP_LABEL, 'font-medium')}
-          >
-            <Plus className="w-3 h-3" /> Add Page
-          </button>
+            <button
+              type="button"
+              disabled={
+                !siteId
+                || resettingCanvasFromServer
+                || applyingTemplateInline
+                || clearingTemplateSandbox
+              }
+              onClick={() => { void handleResetCanvasFromServer() }}
+              title="Reset to last saved site from the server (discards unsaved canvas and style changes)"
+              className={cn(
+                'hidden sm:inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded-lg border transition-colors',
+                BUILDER_CRISP_LABEL,
+                siteId && !resettingCanvasFromServer && !applyingTemplateInline && !clearingTemplateSandbox
+                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700/70 bg-gray-800/50'
+                  : 'border-gray-600 text-gray-500 cursor-not-allowed bg-gray-800/50',
+              )}
+            >
+              {resettingCanvasFromServer ? (
+                <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3 h-3 shrink-0" />
+              )}
+              Reset
+            </button>
+            <button
+              type="button"
+              aria-label="Deselect block"
+              aria-hidden={!selectedBlockId}
+              tabIndex={selectedBlockId ? 0 : -1}
+              onClick={() => setSelectedBlockId(null)}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1.5 px-2 py-1 rounded text-gray-300 bg-gray-700/60 hover:bg-gray-700 transition-colors',
+                BUILDER_CRISP_LABEL,
+                'font-medium',
+                !selectedBlockId && 'invisible pointer-events-none',
+              )}
+            >
+              <X className="w-3 h-3 shrink-0" /> Deselect
+              <BuilderShortcutKbd className="border-gray-600 bg-gray-800 text-gray-400 shadow-none">Esc</BuilderShortcutKbd>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -14236,22 +15459,28 @@ export default function WebsiteBuilder() {
           ) : (
             <>
               {/* Left panel tabs */}
-              <div className="flex items-center border-b border-gray-100 shrink-0">
+              <div className="flex items-center border-b border-gray-100 shrink-0 overflow-x-auto hide-scrollbar">
                 {([
                   { id: 'blocks' as const, icon: Layout, label: 'Sections' },
                   { id: 'pages' as const, icon: FileText, label: 'Pages' },
                   { id: 'templates' as const, icon: Sparkles, label: 'Templates' },
+                  { id: 'media' as const, icon: ImageIcon, label: 'Media' },
+                  { id: 'settings' as const, icon: Globe, label: 'Site' },
                 ] as const).map(({ id, icon: Icon, label }) => (
                     <button
                       key={id}
                       onClick={() => setLeftPanel(id)}
                       title={label}
-                      className={cn('flex-1 py-2.5 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors', leftPanel === id ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600')}
+                      className={cn(
+                        'min-w-[3.25rem] shrink-0 py-2 px-1 flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors',
+                        leftPanel === id ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600',
+                      )}
                     >
                       <Icon className="w-4 h-4" />
+                      <span>{label}</span>
                     </button>
                   ))}
-                <button onClick={() => setLeftCollapsed(true)} className="px-2 py-2.5 text-gray-300 hover:text-gray-500">
+                <button onClick={() => setLeftCollapsed(true)} className="ml-auto px-2 py-2.5 text-gray-300 hover:text-gray-500 shrink-0">
                   <ChevronLeft className="w-3 h-3" />
                 </button>
               </div>
@@ -14277,7 +15506,7 @@ export default function WebsiteBuilder() {
                         <input
                           value={sectionSearch}
                           onChange={e => setSectionSearch(e.target.value)}
-                          placeholder="Search blocks to add..."
+                          placeholder="Search sections to add..."
                           className="w-full pl-8 pr-8 py-2 text-xs border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
                         />
                         {sectionSearch && (
@@ -14311,7 +15540,7 @@ export default function WebsiteBuilder() {
                         <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">
                           Add Section{sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}
                         </p>
-                        <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">Click a section to pick a layout. With a block selected on the canvas, the new section replaces it in the same place. Use the layout icon on a block to switch styles only.</p>
+                        <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">Click a section to add it after the selected block (or at the end). Use the layout icon on a block to switch its style, or right-click a block to replace it.</p>
                         <div className="space-y-0.5">
                           {filteredCatalogBlocks.map(def => (
                             <button
@@ -14320,7 +15549,7 @@ export default function WebsiteBuilder() {
                               draggable
                               onDragStart={() => setDraggingNewBlock(def)}
                               onDragEnd={() => setDraggingNewBlock(null)}
-                              onClick={() => openSectionLayoutPicker(def)}
+                              onClick={() => handleAddSectionFromPanel(def)}
                               className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl border border-dashed border-gray-200 hover:border-primary/40 hover:bg-accent text-left transition-colors cursor-grab active:cursor-grabbing"
                               title={def.desc}
                             >
@@ -14672,6 +15901,19 @@ export default function WebsiteBuilder() {
                   </div>
                 )}
 
+                {leftPanel === 'media' && (
+                  <MediaStudioPanel
+                    siteId={siteId!}
+                    selectedBlock={selectedBlock}
+                    applyToImageLayer={applyToImageLayer}
+                    onApplyUrl={applyMediaUrlToSelection}
+                  />
+                )}
+
+                {leftPanel === 'settings' && site && (
+                  <SiteSettingsPanel siteId={siteId!} site={site} />
+                )}
+
               </div>
             </>
           )}
@@ -14695,166 +15937,51 @@ export default function WebsiteBuilder() {
 
         {/* ── CANVAS ──────────────────────────────────────────────────── */}
         <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-gray-100">
-          {/* Canvas toolbar — fixed above scroll area so zoom/actions stay visible while panning */}
-          <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 sm:px-5 py-2.5 bg-white border-b border-gray-100 text-gray-500 z-10 shadow-sm min-h-[44px] antialiased">
-            <div className="flex items-center gap-3 min-w-0 overflow-hidden">
-              <span className="font-semibold text-gray-800 text-[13px] leading-none truncate">{activePage?.title || 'Select a page'}</span>
-              <span className="text-gray-200 shrink-0">|</span>
-              <span className="text-gray-400 shrink-0 tabular-nums whitespace-nowrap text-[13px] leading-none">{activeBlocks.length} block{activeBlocks.length !== 1 ? 's' : ''}</span>
-
-              {/* Live-data connection stats */}
-              {(() => {
-                const connectable = activeBlocks.filter(b => BLOCK_AUTO_SOURCE[b.block_type as string])
-                const connected = connectable.filter(b => normalizeSourceType((b.props as any)?.data_source?.type))
-                const disconnected = connectable.filter(b => !normalizeSourceType((b.props as any)?.data_source?.type))
-                if (connectable.length === 0) return null
-                return (
-                  <>
-                    <span className="text-gray-300 shrink-0">•</span>
-                    <span className="inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[13px] font-semibold leading-none tabular-nums whitespace-nowrap">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      {connected.length}/{connectable.length} Live
-                    </span>
-                    {disconnected.length > 0 && (
-                      <button
-                        onClick={() => {
-                          disconnected.forEach(b => {
-                            const src = BLOCK_AUTO_SOURCE[b.block_type as string]
-                            if (src) handleUpdateBlockProps(b.id, { data_source: { type: src, auto: true } } as any)
-                          })
-                          toast.success(`Connected ${disconnected.length} block${disconnected.length !== 1 ? 's' : ''} to live data`)
-                        }}
-                        className={cn('inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded bg-gradient-to-r from-primary to-emerald-700 text-white hover:opacity-90 transition-opacity shadow-sm', BUILDER_CRISP_LABEL)}
-                        title="Auto-connect remaining blocks to KITERP live data"
-                      >
-                        <Zap className="w-2.5 h-2.5" />
-                        Connect {disconnected.length}
-                      </button>
-                    )}
-                  </>
-                )
-              })()}
-            </div>
-            <div className="flex items-center gap-2 flex-nowrap shrink-0">
-              <div className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-gray-200 bg-white px-1 py-0.5 shadow-sm">
-                <button
-                  type="button"
-                  title="Zoom out"
-                  disabled={canvasZoom <= CANVAS_ZOOM_MIN}
-                  onClick={() => setCanvasZoom(z => clampCanvasZoom(z - CANVAS_ZOOM_STEP))}
-                  className="p-1 rounded hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                >
-                  <ZoomOut className="w-3.5 h-3.5" />
-                </button>
-                <span className="w-10 shrink-0 text-center text-[13px] font-semibold leading-none tabular-nums text-gray-700 antialiased">
-                  {Math.round(canvasZoom * 100)}%
-                </span>
-                <button
-                  type="button"
-                  title="Zoom in"
-                  disabled={canvasZoom >= CANVAS_ZOOM_MAX}
-                  onClick={() => setCanvasZoom(z => clampCanvasZoom(z + CANVAS_ZOOM_STEP))}
-                  className="p-1 rounded hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                >
-                  <ZoomIn className="w-3.5 h-3.5" />
-                </button>
-                <select
-                  className="h-7 w-[4.5rem] shrink-0 cursor-pointer rounded border-0 border-l border-gray-200 bg-transparent pl-1.5 text-[11px] font-semibold leading-none text-gray-500 outline-none antialiased"
-                  value=""
-                  onChange={e => {
-                    const v = Number(e.target.value)
-                    if (v > 0) setCanvasZoom(clampCanvasZoom(v / 100))
-                  }}
-                  title="Zoom presets"
-                >
-                  <option value="" disabled>Preset</option>
-                  {[50, 75, 100, 125, 150, 175, 200, 250, 300].map(pct => (
-                    <option key={pct} value={pct}>{pct}%</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  title="Reset zoom to fit"
-                  onClick={() => setCanvasZoom(1)}
-                  aria-hidden={canvasZoom === 1}
-                  tabIndex={canvasZoom === 1 ? -1 : 0}
-                  className={cn(
-                    'ml-0.5 w-7 shrink-0 px-1 py-0.5 rounded text-[11px] font-semibold leading-none text-primary hover:bg-accent antialiased',
-                    canvasZoom === 1 && 'invisible pointer-events-none',
-                  )}
-                >
-                  Fit
-                </button>
+          {selectedBlockId && (() => {
+            const block = activeBlocks.find(b => b.id === selectedBlockId)
+            if (!block) return null
+            const canvasFieldKeys = activeTextTarget?.blockId === block.id
+              ? editableFieldKeys(activeTextTarget)
+              : []
+            const multiFieldSelectionOnBlock = canvasFieldKeys.length > 1
+            const selectedCount = canvasFieldKeys.length
+            return (
+              <div className="shrink-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between gap-2 px-3 py-1 bg-accent/40 border-b border-primary/10">
+                  <span className="text-[11px] font-medium text-primary/90 truncate">
+                    {formatPaintBrush
+                      ? `Format painter — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · multi-apply' : ''} · Esc to cancel`
+                      : multiFieldSelectionOnBlock
+                        ? `${selectedCount} fields selected — Shift/Ctrl+click to add/remove · toolbar applies to all`
+                        : `${catalogBlockLabel(block)} selected — Shift/Ctrl+click multi-select · E to edit · Esc to dismiss`}
+                  </span>
+                  <span className="hidden sm:inline text-[10px] text-gray-400 shrink-0">
+                    Esc — close · ← Media · → Style · General — text &amp; layout
+                  </span>
+                </div>
+                <BlockDesignBar
+                  docked
+                  block={block}
+                  onUpdate={updates => handleUpdateBlockProps(block.id, updates)}
+                  onInsertAfter={type => handleAddBlockAfter(type)}
+                  onOpenLinkEditorForOverlay={(item, anchor) => openLinkEditorForOverlay(block.id, item, anchor)}
+                  activeTextField={activeTextTarget?.blockId === block.id ? primaryTextFieldKey(activeTextTarget) : null}
+                  activeTextFields={activeTextTarget?.blockId === block.id ? activeTextTarget.fieldKeys : []}
+                  onActivateTextField={fieldKey => handleCanvasTextFieldActivate(block.id, fieldKey)}
+                  formatPaintActive={Boolean(formatPaintBrush)}
+                  formatPaintSticky={formatPaintBrush?.sticky ?? false}
+                  onFormatPaintStart={(style, sticky) => setFormatPaintBrush({ style, sticky })}
+                  onFormatPaintCancel={() => setFormatPaintBrush(null)}
+                  onEditText={() => openInlineTextEditForSelectedRef.current()}
+                  onEscapeDismiss={() => dismissBuilderUiRef.current()}
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
+                />
               </div>
-              <span
-                className="hidden sm:inline shrink-0 text-gray-400 text-xs tabular-nums whitespace-nowrap"
-                title={`Design canvas ${designWidthPx}px wide · shown at ${Math.round(effectiveCanvasScale * 100)}% scale (fit + zoom)`}
-              >
-                {designWidthPx}px
-                <span className="text-primary font-medium"> · {Math.round(effectiveCanvasScale * 100)}%</span>
-              </span>
-              <button
-                type="button"
-                disabled={
-                  !siteId
-                  || applyingTemplateInline
-                  || clearingTemplateSandbox
-                  || resettingCanvasFromServer
-                }
-                onClick={() => { void handleCopyTemplateJson() }}
-                title="Copy site JSON (current canvas and style). Use Import elsewhere or keep as backup."
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded-lg border transition-colors',
-                  BUILDER_CRISP_LABEL,
-                  siteId && !applyingTemplateInline && !clearingTemplateSandbox && !resettingCanvasFromServer
-                    ? 'border-primary/30 text-primary bg-accent/80 hover:bg-accent'
-                    : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
-                )}
-              >
-                <ClipboardCopy className="w-3 h-3 shrink-0" /> Copy template
-              </button>
-              <button
-                type="button"
-                disabled={
-                  !siteId
-                  || resettingCanvasFromServer
-                  || applyingTemplateInline
-                  || clearingTemplateSandbox
-                }
-                onClick={() => { void handleResetCanvasFromServer() }}
-                title="Reset to last saved site from the server (discards unsaved canvas and style changes)"
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded-lg border transition-colors',
-                  BUILDER_CRISP_LABEL,
-                  siteId && !resettingCanvasFromServer && !applyingTemplateInline && !clearingTemplateSandbox
-                    ? 'border-gray-200 text-gray-700 hover:bg-gray-50 bg-white'
-                    : 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50/50',
-                )}
-              >
-                {resettingCanvasFromServer ? (
-                  <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
-                ) : (
-                  <RotateCcw className="w-3 h-3 shrink-0" />
-                )}
-                Reset
-              </button>
-              <button
-                type="button"
-                aria-label="Deselect block"
-                aria-hidden={!selectedBlockId}
-                tabIndex={selectedBlockId ? 0 : -1}
-                onClick={() => setSelectedBlockId(null)}
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors',
-                  BUILDER_CRISP_LABEL,
-                  'font-medium',
-                  !selectedBlockId && 'invisible pointer-events-none',
-                )}
-              >
-                <X className="w-3 h-3 shrink-0" /> Deselect
-              </button>
-            </div>
-          </div>
+            )
+          })()}
 
           {/* Scrollable canvas preview */}
           <div
@@ -14864,48 +15991,17 @@ export default function WebsiteBuilder() {
             onDrop={handleDropOnCanvas}
           >
 
-          {/* Store owner setup assistant — keeps hidden features visible */}
-          <div className="px-4 py-2 bg-white border-b border-gray-200 hidden">
-            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
-              <div className="shrink-0 flex items-center gap-1.5 pr-1 text-xs font-bold text-gray-500">
-                <CheckCircle2 className="w-3.5 h-3.5 text-primary/80" />
-                Setup {completedSetup}/{setupItems.length}
-              </div>
-              {setupItems.map(item => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={item.action}
-                  className={cn(
-                    'shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left transition-all',
-                    item.done
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                      : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100',
-                  )}
-                  title={item.desc}
-                >
-                  <item.icon className="w-3.5 h-3.5 shrink-0" />
-                  <span className="min-w-0">
-                    <span className="block text-xs font-bold leading-tight">{item.label}</span>
-                    <span className="block text-xs opacity-75 leading-tight truncate max-w-[120px]">{item.desc}</span>
-                  </span>
-                  {item.done ? <Check className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Canvas area — scales full design width to fit available editor space */}
           <div
             ref={canvasViewportRef}
-            className="w-full max-w-full p-4 min-h-full box-border"
+            className="w-full max-w-full min-h-full box-border py-3"
             style={{
               background: 'repeating-linear-gradient(0deg,transparent,transparent 24px,rgba(99,102,241,0.04) 24px,rgba(99,102,241,0.04) 25px),repeating-linear-gradient(90deg,transparent,transparent 24px,rgba(99,102,241,0.04) 24px,rgba(99,102,241,0.04) 25px)',
               backgroundColor: '#f3f4f6',
             }}
           >
             <div
-              className="relative shrink-0 mx-auto"
+              className="relative shrink-0"
               style={{
                 width: scaledCanvasWidth,
                 height: Math.round(canvasPreviewHeight * effectiveCanvasScale),
@@ -14914,27 +16010,14 @@ export default function WebsiteBuilder() {
               <div
                 ref={canvasPreviewInnerRef}
                 data-page-canvas="true"
+                onClickCapture={handleCanvasNavClickCapture}
                 style={{
                   width: designWidthPx,
                   transform: `scale(${effectiveCanvasScale})`,
                   transformOrigin: 'top left',
-                  backgroundColor: canvasStyle.bg_color,
-                  color: canvasStyle.text_color,
-                  fontFamily: canvasStyle.font_body,
-                  fontSize: canvasStyle.font_size_base ? `${canvasStyle.font_size_base}px` : undefined,
                 }}
-                className="bg-white shadow-2xl rounded-xl min-h-[600px]"
+                className="shadow-lg rounded-none min-h-[600px] overflow-visible"
               >
-              {(canvasStyle.font_heading || canvasStyle.font_size_heading) && (
-                <style>{`
-                  [data-page-canvas="true"] h1,
-                  [data-page-canvas="true"] h2,
-                  [data-page-canvas="true"] h3 {
-                    font-family: ${JSON.stringify(canvasStyle.font_heading)} !important;
-                    ${canvasStyle.font_size_heading ? `font-size: ${canvasStyle.font_size_heading}px !important;` : ''}
-                  }
-                `}</style>
-              )}
               {!activePage ? (
                 <div className="flex items-center justify-center h-full text-gray-400 py-32">
                   <div className="text-center">
@@ -14972,252 +16055,234 @@ export default function WebsiteBuilder() {
                   </div>
                 </div>
               ) : (
+                <BuilderCanvasProviders
+                  siteId={siteId!}
+                  vendorSlug={builderVendorSlug || 'preview'}
+                  siteName={site?.name}
+                  activeBlockId={activeTextTarget?.blockId ?? null}
+                  activeTextField={primaryTextFieldKey(activeTextTarget)}
+                  activeTextFields={activeTextTarget?.fieldKeys ?? []}
+                  onTextFieldActivate={handleCanvasTextFieldActivate}
+                  onTextFieldCommit={handleCanvasTextFieldCommit}
+                  onTextFieldStylePatch={handleCanvasTextFieldStylePatch}
+                  onTextFieldBatchStylePatch={handleCanvasTextFieldBatchStylePatch}
+                >
                 <>
-                  {activeBlocks.map((block, idx) => (
-                    <div
-                      key={block.id}
-                      data-block-id={block.id}
-                      data-block-index={idx}
-                      onDragOver={e => handleDragOverBlock(e, idx)}
-                      onDrop={e => handleDropOnBlock(e, idx)}
-                      onClick={() => { setSelectedBlockId(block.id); setActiveTextTarget(null); setRightPanel('props'); setRightCollapsed(false) }}
-                      onContextMenu={e => { e.preventDefault(); openBlockContextMenu(block, e) }}
-                      className={cn(
-                        'relative group cursor-pointer',
-                        selectedBlockId === block.id
-                          ? savingBlockId === block.id
-                            ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-gray-100'
-                            : 'ring-2 ring-ring ring-offset-1 ring-offset-gray-100'
-                          : 'hover:ring-1 hover:ring-ring hover:ring-offset-1',
-                        dropTarget?.idx === idx && dropTarget.before && 'border-t-4 border-primary',
-                        dropTarget?.idx === idx && !dropTarget.before && 'border-b-4 border-primary',
-                        draggingBlockIdx === idx && 'opacity-50',
-                        !block.visible && 'opacity-40'
-                      )}
-                      style={{
-                        // Ensure blocks are visible on white backgrounds; footer is page end — no extra chrome
-                        outline:
-                          selectedBlockId !== block.id && block.block_type !== 'footer'
-                            ? '1px dashed rgba(100,100,200,0.15)'
-                            : undefined,
-                        minHeight: block.block_type === 'footer' ? undefined : '48px',
-                      }}
-                    >
-                      {/* ── Design Bar (full-width inline toolbar, shown when selected) */}
-                      {selectedBlockId === block.id && (
-                        <BlockDesignBar
-                          block={block}
-                          onUpdate={updates => handleUpdateBlockProps(block.id, updates)}
-                          onInsertAfter={type => handleAddBlockAfter(type)}
-                          onOpenLinkEditorForOverlay={(item, anchor) => openLinkEditorForOverlay(block.id, item, anchor)}
-                          activeTextField={activeTextTarget?.blockId === block.id ? activeTextTarget.fieldKey : null}
-                          onUndo={handleUndo}
-                          onRedo={handleRedo}
-                          canUndo={canUndo}
-                          canRedo={canRedo}
-                        />
-                      )}
+                  <div
+                    ref={builderPageRootRef}
+                    className={cn('relative', formatPaintBrush && 'builder-format-paint-active')}
+                    onClickCapture={handleCanvasBlockSelectCapture}
+                    onContextMenuCapture={handleCanvasBlockContextMenuCapture}
+                    onMouseMove={handleCanvasBlockHover}
+                    onMouseLeave={handleCanvasBlockHoverLeave}
+                  >
+                    {builderPublicSite && (
+                      <BuilderCanvasPageRenderer
+                        publicSite={builderPublicSite}
+                        blocks={activeBlocks}
+                        pageId={activePageId}
+                        revision={canvasBlocksRevision}
+                      />
+                    )}
 
-                      {/* Block toolbar — below design bar when selected to avoid covering typography controls */}
-                      <div className={cn(
-                        'absolute z-[70] flex items-center gap-1 rounded-lg border border-white/10 bg-gray-950/95 px-2 py-1 text-white shadow-lg shadow-black/20 backdrop-blur transition-all',
-                        selectedBlockId === block.id
-                          ? 'top-12 right-2 opacity-100'
-                          : 'top-1 right-1 z-[140] opacity-0 group-hover:opacity-100'
-                      )}>
-                        {(() => {
-                          const rawDs = (block.props as any)?.data_source
-                          const dsType = normalizeSourceType(rawDs?.type)
-                          const suggested = BLOCK_AUTO_SOURCE[block.block_type as string]
-                          const label = dsType ? DATA_SOURCES.find(s => s.id === dsType)?.label : null
-                          if (dsType) {
-                            return (
-                              <button
-                                onClick={e => { e.stopPropagation(); setSelectedBlockId(block.id); setRightPanel('data'); setRightCollapsed(false) }}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors text-xs font-bold"
-                                title={`Connected to ${label}. Click to edit data source.`}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                LIVE · {label}
-                              </button>
-                            )
-                          }
-                          if (suggested) {
-                            return (
-                              <button
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as any)
-                                  toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`)
-                                }}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/30 text-primary-foreground/85 hover:bg-accent/50 transition-colors text-xs font-bold"
-                                title={`One-click connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`}
-                              >
-                                <Zap className="w-2.5 h-2.5" />
-                                CONNECT
-                              </button>
-                            )
-                          }
-                          return null
-                        })()}
-                        {selectedBlockId === block.id && (
-                          <button onClick={e => { e.stopPropagation(); setRightPanel('data'); setRightCollapsed(false) }} className="p-0.5 text-gray-400 hover:text-white" title="Data source">
-                            <Database className="w-3 h-3" />
-                          </button>
-                        )}
-                        <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'up') }} className="p-0.5 text-gray-400 hover:text-white" title="Move up">
-                          <ChevronUp className="w-3 h-3" />
-                        </button>
-                        <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'down') }} className="p-0.5 text-gray-400 hover:text-white" title="Move down">
-                          <ChevronDown className="w-3 h-3" />
-                        </button>
-                        {selectedBlockId === block.id && getSectionLayoutOptions(block.block_type).length > 0 && (
-                          <button
-                            onClick={e => { e.stopPropagation(); openLayoutPickerForBlock(block) }}
-                            className="p-0.5 text-gray-400 hover:text-white"
-                            title="Change layout"
-                          >
-                            <Layout className="w-3 h-3" />
-                          </button>
-                        )}
-                        <button onClick={e => { e.stopPropagation(); handleDuplicateBlock(block.id) }} className="p-0.5 text-gray-400 hover:text-white" title="Duplicate (Ctrl+D)">
-                          <Copy className="w-3 h-3" />
-                        </button>
-                        {/* Delete — arm then confirm (prevents accidental deletion) */}
-                        <button
-                          onClick={e => { e.stopPropagation(); handleDeleteBlock(block.id) }}
-                          title={armedDeleteId === block.id ? 'Click again to confirm delete' : 'Delete block (click twice to confirm)'}
+                    {activeBlocks.map((block, idx) => (
+                      <BuilderSectionOverlay
+                        key={block.id}
+                        blockId={block.id}
+                        containerRef={builderPageRootRef}
+                        scrollRootRef={canvasMainRef}
+                        revision={canvasBlocksRevision}
+                        selected={selectedBlockId === block.id}
+                        saving={savingBlockId === block.id}
+                        visible={block.visible !== false}
+                        dropBefore={dropTarget?.idx === idx && dropTarget.before}
+                        dropAfter={dropTarget?.idx === idx && !dropTarget.before}
+                        dragging={draggingBlockIdx === idx}
+                        interactive={draggingBlockIdx !== null || draggingNewBlock}
+                        onContextMenu={e => { e.preventDefault(); openBlockContextMenu(block, e) }}
+                        onDragOver={e => handleDragOverBlock(e, idx)}
+                        onDrop={e => handleDropOnBlock(e, idx)}
+                      >
+                        <div
+                          data-builder-overlay={block.id}
                           className={cn(
-                            'flex items-center gap-0.5 rounded px-1 transition-all duration-200',
-                            armedDeleteId === block.id
-                              ? 'bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 animate-pulse'
-                              : 'p-0.5 text-gray-400 hover:text-red-400'
+                          'absolute z-[75] flex items-center gap-1.5 rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg shadow-black/20 backdrop-blur transition-all pointer-events-auto',
+                          selectedBlockId === block.id
+                            ? 'top-2 right-2 opacity-100'
+                            : hoveredBlockId === block.id
+                              ? 'top-1 right-1 opacity-100'
+                              : 'top-1 right-1 opacity-0 group-hover:opacity-100',
+                        )}>
+                          {(() => {
+                            const rawDs = (block.props as Record<string, unknown>)?.data_source
+                            const dsType = normalizeSourceType((rawDs as { type?: string })?.type)
+                            const suggested = BLOCK_AUTO_SOURCE[block.block_type as string]
+                            const label = dsType ? DATA_SOURCES.find(s => s.id === dsType)?.label : null
+                            if (dsType) {
+                              return (
+                                <button
+                                  onClick={e => { e.stopPropagation(); setSelectedBlockId(block.id); setRightPanel('data'); setRightCollapsed(false) }}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors text-sm font-bold"
+                                  title={`Connected to ${label}. Click to edit data source.`}
+                                >
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                  Connected · {label}
+                                </button>
+                              )
+                            }
+                            if (suggested) {
+                              return (
+                                <button
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as BlockProps)
+                                    toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`)
+                                  }}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-accent/30 text-primary-foreground/85 hover:bg-accent/50 transition-colors text-sm font-bold"
+                                  title={`One-click connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`}
+                                >
+                                  <Zap className="w-5 h-5" />
+                                  CONNECT
+                                </button>
+                              )
+                            }
+                            return null
+                          })()}
+                          {selectedBlockId === block.id && (
+                            <button onClick={e => { e.stopPropagation(); setRightPanel('data'); setRightCollapsed(false) }} className="p-1.5 text-gray-400 hover:text-white" title="Data source">
+                              <Database className="w-7 h-7" />
+                            </button>
                           )}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          {armedDeleteId === block.id && 'Delete?'}
-                        </button>
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onPointerDown={e => handleBlockReorderPointerDown(e, idx)}
-                          onClick={e => e.stopPropagation()}
-                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
-                          title="Drag to reorder section"
-                          className="p-0.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none"
-                        >
-                          <GripVertical className="w-3 h-3 pointer-events-none" />
+                          <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'top') }} className="p-1.5 text-gray-400 hover:text-white" title="Move to top">
+                            <ChevronsUp className="w-7 h-7" />
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'up') }} className="p-1.5 text-gray-400 hover:text-white" title="Move up">
+                            <ChevronUp className="w-7 h-7" />
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'down') }} className="p-1.5 text-gray-400 hover:text-white" title="Move down">
+                            <ChevronDown className="w-7 h-7" />
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'bottom') }} className="p-1.5 text-gray-400 hover:text-white" title="Move to bottom">
+                            <ChevronsDown className="w-7 h-7" />
+                          </button>
+                          {selectedBlockId === block.id && getSectionLayoutOptions(block.block_type).length > 0 && (
+                            <SectionLayoutControls
+                              block={block}
+                              currentProps={(block.props ?? {}) as Record<string, unknown>}
+                              compact
+                              onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
+                              onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
+                            />
+                          )}
+                          <button onClick={e => { e.stopPropagation(); handleDuplicateBlock(block.id) }} className="p-1.5 text-gray-400 hover:text-white" title="Duplicate (Ctrl+D)">
+                            <Copy className="w-7 h-7" />
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); handleDeleteBlock(block.id) }}
+                            title={armedDeleteId === block.id ? 'Click again to confirm delete' : 'Delete block (click twice to confirm)'}
+                            className={cn(
+                              'flex items-center gap-1 rounded-md px-1.5 transition-all duration-200',
+                              armedDeleteId === block.id
+                                ? 'bg-red-500 text-white text-sm font-bold px-2.5 py-1 animate-pulse'
+                                : 'p-1.5 text-gray-400 hover:text-red-400',
+                            )}
+                          >
+                            <Trash2 className="w-7 h-7" />
+                            {armedDeleteId === block.id && 'Delete?'}
+                          </button>
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onPointerDown={e => handleBlockReorderPointerDown(e, idx)}
+                            onClick={e => e.stopPropagation()}
+                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+                            title="Drag to reorder section"
+                            className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none"
+                          >
+                            <GripVertical className="w-7 h-7 pointer-events-none" />
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Left-edge drag handle — visible when selected for easier reordering */}
-                      {selectedBlockId === block.id && (
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onPointerDown={e => handleBlockReorderPointerDown(e, idx)}
-                          onClick={e => e.stopPropagation()}
-                          title="Drag to reorder section"
-                          className="absolute left-0 top-12 bottom-0 z-[75] w-5 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none bg-primary/5 hover:bg-primary/15 border-r border-primary/25"
-                        >
-                          <GripVertical className="w-3.5 h-3.5 text-primary/70 pointer-events-none" />
+                        {selectedBlockId === block.id && (
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onPointerDown={e => handleBlockReorderPointerDown(e, idx)}
+                            onClick={e => e.stopPropagation()}
+                            title="Drag to reorder section"
+                            className="absolute left-0 top-0 bottom-0 z-[76] w-5 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none bg-primary/5 hover:bg-primary/15 border-r border-primary/25 pointer-events-auto"
+                          >
+                            <GripVertical className="w-3.5 h-3.5 text-primary/70 pointer-events-none" />
+                          </div>
+                        )}
+
+                        <div className={cn(
+                          'absolute bottom-1 left-1 z-[74] flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold bg-primary/80 text-white transition-opacity pointer-events-none',
+                          selectedBlockId === block.id ? 'opacity-0' : 'opacity-0 group-hover:opacity-70',
+                        )}>
+                          {catalogBlockLabel(block)}
                         </div>
-                      )}
+                        {savingBlockId === block.id && (
+                          <div className="absolute bottom-1 right-1 z-[74] flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/90 text-white text-xs font-bold pointer-events-none">
+                            <Loader2 className="w-2.5 h-2.5 animate-spin" /> Saving…
+                          </div>
+                        )}
 
-                      {/* Block label chip + saving indicator */}
-                      <div className={cn(
-                        'absolute bottom-1 left-1 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold bg-primary/80 text-white transition-opacity pointer-events-none',
-                        selectedBlockId === block.id ? 'opacity-0' : 'opacity-0 group-hover:opacity-70'
-                      )}>
-                        {catalogBlockLabel(block)}
-                      </div>
-                      {savingBlockId === block.id && (
-                        <div className="absolute bottom-1 right-1 z-20 flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/90 text-white text-xs font-bold pointer-events-none">
-                          <Loader2 className="w-2.5 h-2.5 animate-spin" /> Saving…
-                        </div>
-                      )}
-
-                      {/* Canvas preview — offset top padding when design bar is showing */}
-                      <div style={selectedBlockId === block.id ? { paddingTop: 48 } : undefined}>
-                        <BlockPreview
-                          key={`${block.id}-${block.updated_at}-${structureLayoutFingerprint(block.props as Record<string, unknown>)}`}
-                          block={block}
-                          style={canvasStyle}
-                          isSelected={selectedBlockId === block.id}
+                        <BlockOverlayCanvas
+                          overlays={(((block.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || [])}
                           isEditing={selectedBlockId === block.id}
-                          sitePages={sortedSitePages}
-                          pageBlocks={activeBlocks}
-                          onOverlayUpdate={selectedBlockId === block.id
-                            ? (overlays) => handleUpdateBlockProps(block.id, { overlays } as any)
+                          blockBackgroundColor={
+                            ((block.props as Record<string, unknown>).bg_color_override as string | undefined)
+                            || canvasStyle.bg_color
+                            || canvasStyle.surface_color
+                            || '#ffffff'
+                          }
+                          onUpdate={selectedBlockId === block.id
+                            ? (overlays) => handleUpdateBlockProps(block.id, { overlays } as BlockProps)
                             : undefined}
                           onOverlaySelectionChange={block.id === selectedBlockId ? onOverlayLayerPicked : undefined}
+                          onOpenAiImageTools={undefined}
                           onOpenMediaLibrary={block.id === selectedBlockId ? openMediaFromCanvas : undefined}
                           onPickLocalImage={block.id === selectedBlockId ? openOverlayImageFilePicker : undefined}
                           onImageFileDrop={block.id === selectedBlockId ? uploadImageFileToSelection : undefined}
-                          onPropsUpdate={block.id === selectedBlockId
-                            ? (patch) => handleUpdateBlockProps(block.id, patch as any)
-                            : undefined}
                           onEditLinkForOverlay={block.id === selectedBlockId
                             ? (item, anchor) => openLinkEditorForOverlay(block.id, item, anchor)
                             : undefined}
                           onOverlayContextMenu={block.id === selectedBlockId
                             ? (item, e) => { e.preventDefault(); e.stopPropagation(); openOverlayContextMenu(block.id, item, e) }
                             : undefined}
-                          onEditPropLink={block.id === selectedBlockId
-                            ? (propKey, anchor) => openLinkEditorForProp(block.id, propKey, anchor)
-                            : undefined}
                           onRequestText={block.id === selectedBlockId ? openTextPrompt : undefined}
-                          onNavigatePage={(url) => {
-                            const cleanUrl = (url || '/').split('?')[0].split('#')[0]
-                            const slug = cleanUrl === '/' ? '' : cleanUrl.replace(/^\/+|\/+$/g, '')
-                            const target = localPages.find(p => (
-                              (p.is_homepage && (cleanUrl === '/' || slug === 'home')) ||
-                              p.slug.replace(/^\/+|\/+$/g, '') === slug
-                            ))
-                            if (target) {
-                              setActivePageId(target.id)
-                              setSelectedBlockId(null)
-                            } else {
-                              toast.info(`No builder page found for "${url}". Add it from the Pages panel or update the nav link.`)
-                            }
-                          }}
-                          activeTextField={activeTextTarget?.blockId === block.id ? activeTextTarget.fieldKey : null}
-                          onActiveTextFieldChange={(fieldKey) => setActiveTextTarget(fieldKey ? { blockId: block.id, fieldKey } : null)}
-                          onCanvasImageFocus={block.id === selectedBlockId
-                            ? (target) => setCanvasImageTarget({ blockId: block.id, ...target })
-                            : undefined}
                         />
-                      </div>
 
-                      {/* ── Section height resize handle (drag bottom edge) ── */}
-                      {selectedBlockId === block.id && (
-                        <div
-                          title="Drag to resize section height"
-                          className="absolute bottom-0 left-0 right-0 h-3 z-20 flex items-center justify-center cursor-ns-resize group/resize hover:bg-primary/10 transition-colors"
-                          onMouseDown={e => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            const startY = e.clientY
-                            const startH = (block.props as any).min_height || 0
-                            document.body.style.cursor = 'ns-resize'
-                            const onMove = (mv: MouseEvent) => {
-                              const newH = Math.max(0, startH + (mv.clientY - startY))
-                              handleUpdateBlockProps(block.id, { min_height: Math.round(newH) } as any)
-                            }
-                            const onUp = () => {
-                              document.body.style.cursor = ''
-                              document.removeEventListener('mousemove', onMove)
-                              document.removeEventListener('mouseup', onUp)
-                            }
-                            document.addEventListener('mousemove', onMove)
-                            document.addEventListener('mouseup', onUp)
-                          }}
-                        >
-                          <div className="w-12 h-1 rounded-full bg-primary/50/60 group-hover/resize:bg-accent group-hover/resize:w-20 transition-all" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        {selectedBlockId === block.id && (
+                          <div
+                            title="Drag to resize section height"
+                            className="absolute bottom-0 left-0 right-0 h-3 z-[77] flex items-center justify-center cursor-ns-resize group/resize hover:bg-primary/10 transition-colors pointer-events-auto"
+                            onMouseDown={e => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              const startY = e.clientY
+                              const startH = (block.props as Record<string, unknown>).min_height as number || 0
+                              document.body.style.cursor = 'ns-resize'
+                              const onMove = (mv: MouseEvent) => {
+                                const newH = Math.max(0, startH + (mv.clientY - startY))
+                                handleUpdateBlockProps(block.id, { min_height: Math.round(newH) } as BlockProps)
+                              }
+                              const onUp = () => {
+                                document.body.style.cursor = ''
+                                document.removeEventListener('mousemove', onMove)
+                                document.removeEventListener('mouseup', onUp)
+                              }
+                              document.addEventListener('mousemove', onMove)
+                              document.addEventListener('mouseup', onUp)
+                            }}
+                          >
+                            <div className="w-12 h-1 rounded-full bg-primary/50/60 group-hover/resize:bg-accent group-hover/resize:w-20 transition-all" />
+                          </div>
+                        )}
+                      </BuilderSectionOverlay>
+                    ))}
+                  </div>
 
                   {/* Drop zone at end — omit when page ends with footer so the footer isn’t visually stacked under a dashed “slot” */}
                   {activeBlocks[activeBlocks.length - 1]?.block_type !== 'footer' && (
@@ -15244,6 +16309,7 @@ export default function WebsiteBuilder() {
                     </div>
                   )}
                 </>
+                </BuilderCanvasProviders>
               )}
               </div>
             </div>
@@ -15289,8 +16355,6 @@ export default function WebsiteBuilder() {
                   { id: 'style' as const, icon: Palette, label: 'Style' },
                   { id: 'seo' as const, icon: Search, label: 'SEO' },
                   { id: 'data' as const, icon: Database, label: 'Data' },
-                  { id: 'media' as const, icon: ImageIcon, label: 'Media' },
-                  { id: 'settings' as const, icon: Globe, label: 'Site' },
                 ] as const).map(({ id, icon: Icon, label }) => (
                   <button
                     key={id}
@@ -15318,6 +16382,8 @@ export default function WebsiteBuilder() {
                       pages={localPages}
                       onAddPage={handleAddPage}
                       onEditPropLink={(propKey, anchor) => openLinkEditorForProp(selectedBlock.id, propKey, anchor)}
+                      onOpenLayoutPicker={() => openLayoutPickerForBlock(selectedBlock)}
+                      onCycleLayout={dir => { void cycleBlockLayout(selectedBlock, dir) }}
                       themeColors={{
                         primary_color: canvasStyle.primary_color || '#64C3A0',
                         text_color: canvasStyle.text_color || '#111827',
@@ -15405,15 +16471,6 @@ export default function WebsiteBuilder() {
                   </div>
                 )}
 
-                {rightPanel === 'media' && (
-                  <MediaStudioPanel
-                    siteId={siteId!}
-                    selectedBlock={selectedBlock}
-                    applyToImageLayer={applyToImageLayer}
-                    onApplyUrl={applyMediaUrlToSelection}
-                  />
-                )}
-
                 {rightPanel === 'seo' && (
                   <SEOPanel
                     siteId={siteId!}
@@ -15452,9 +16509,6 @@ export default function WebsiteBuilder() {
                   />
                 )}
 
-                {rightPanel === 'settings' && site && (
-                  <SiteSettingsPanel siteId={siteId!} site={site} />
-                )}
               </div>
             </>
           )}
@@ -15537,6 +16591,11 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
   const disableHeadless = useDisableHeadless(siteId)
   const siteHeadless = (site as any).headless_enabled as boolean
   const headlessToken = (site as any).headless_token as string | null
+  const showHeadlessTab = import.meta.env.DEV || siteHeadless
+
+  useEffect(() => {
+    if (tab === 'headless' && !showHeadlessTab) setTab('i18n')
+  }, [tab, showHeadlessTab])
 
   const handleSaveI18n = async () => {
     setSavingI18n(true)
@@ -15566,7 +16625,7 @@ function SiteSettingsPanel({ siteId, site }: { siteId: string; site: WebsiteSite
           { id: 'i18n', label: 'Language' },
           { id: 'analytics', label: 'Branding & Analytics' },
           { id: 'redirects', label: 'Redirects' },
-          { id: 'headless', label: 'Headless API' },
+          ...(showHeadlessTab ? [{ id: 'headless' as const, label: 'Headless API' }] : []),
         ] as const).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={cn('flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors', tab === t.id ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100')}>

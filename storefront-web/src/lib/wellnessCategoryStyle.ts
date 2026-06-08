@@ -24,6 +24,24 @@ export const WELLNESS_CATEGORY_IMAGE_BY_TITLE: Record<string, string> = {
   'fruit chews': BOWL_PICKLE,
   'cold pressed oils': BOWL_GRAINS,
   'dried fruits': BOWL_BUDDHA,
+  // Restaurant / menu categories (live ERP category strings)
+  desserts: 'https://images.unsplash.com/photo-1488477181946-6428a0291776?auto=format&fit=crop&w=900&q=80',
+  drinks: BOWL_DRINK,
+  beverages: BOWL_DRINK,
+  mains: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80',
+  starters: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=900&q=80',
+  appetizers: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=900&q=80',
+  general: BOWL_GROCERY,
+  wine: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=900&q=80',
+  sides: BOWL_TOP,
+  breakfast: BOWL_GRAINS,
+  lunch: BOWL_COLORFUL,
+  dinner: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=900&q=80',
+  // Fashion editorial defaults
+  women: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=900&q=80',
+  men: 'https://images.unsplash.com/photo-1617137968427-85924c800a22?auto=format&fit=crop&w=900&q=80',
+  accessories: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80',
+  kids: 'https://images.unsplash.com/photo-1503454537198-1aeabb88b42e?auto=format&fit=crop&w=900&q=80',
 }
 
 export const WELLNESS_CATEGORY_FALLBACK_IMAGES = [
@@ -242,10 +260,29 @@ export function resolveCategoryCardImage(
 ): string {
   const titleKey = String(cat.title || '').trim().toLowerCase()
   const direct = cat.image_url?.trim()
-  if (direct && (direct.startsWith('http') || direct.startsWith('data:'))) return direct
+  if (direct && (direct.startsWith('http') || direct.startsWith('data:') || direct.startsWith('/'))) return direct
   const fromTitle = WELLNESS_CATEGORY_IMAGE_BY_TITLE[titleKey]
   if (fromTitle) return fromTitle
   const fromProps = propImageByTitle?.get(titleKey)?.trim()
-  if (fromProps && (fromProps.startsWith('http') || fromProps.startsWith('data:'))) return fromProps
+  if (fromProps && (fromProps.startsWith('http') || fromProps.startsWith('data:') || fromProps.startsWith('/'))) return fromProps
   return WELLNESS_CATEGORY_FALLBACK_IMAGES[index % WELLNESS_CATEGORY_FALLBACK_IMAGES.length]
+}
+
+/** Live/prop category rows → cards with guaranteed image URLs. */
+export function normalizeCategoryCardItems(
+  items: { title?: string; image_url?: string | null; meta?: Record<string, unknown> }[],
+  propImageByTitle?: Map<string, string | undefined>,
+): { title: string; image_url: string }[] {
+  return items.map((c, i) => {
+    const title = String(c.title || `Category ${i + 1}`)
+    const raw =
+      c.image_url?.trim()
+      || (typeof c.meta?.image_url === 'string' ? c.meta.image_url.trim() : '')
+      || propImageByTitle?.get(title.toLowerCase())?.trim()
+      || ''
+    return {
+      title,
+      image_url: resolveCategoryCardImage({ title, image_url: raw || null }, i, propImageByTitle),
+    }
+  })
 }

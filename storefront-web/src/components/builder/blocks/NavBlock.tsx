@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { MapPin, ChevronDown } from 'lucide-react'
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { MapPin, ChevronDown, Search, ShoppingBag, User } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useCustomerLogout } from '@/hooks/useStore'
-import { imgUrl } from '@/lib/utils'
-import { UnifiedNav, AnnouncementBar } from '@/kit/header/UnifiedNav'
+import { imgUrl, cn } from '@/lib/utils'
+import { AnnouncementBar } from '@/kit/header/UnifiedNav'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -17,6 +16,7 @@ import {
 import { storeApi, type StoreLocation } from '@/api/store'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
+import { resolveNavBlockShell } from '@/lib/navBlockLayout'
 
 interface Props {
   site: PublicSite
@@ -24,32 +24,42 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  isEditorCanvas?: boolean
 }
 
-export default function NavBlock({ site, style, props, liveItems, branchCode: branchFromBlocks }: Props) {
+function resolveLogoUrl(props: Record<string, unknown>, site: PublicSite, vendorLogo?: string | null) {
+  return (
+    (props.brand_logo as string | null | undefined)
+    || (props.logo_url as string | null | undefined)
+    || site.logo_url
+    || vendorLogo
+    || null
+  )
+}
+
+export default function NavBlock({
+  site,
+  style,
+  props,
+  liveItems,
+  branchCode: branchFromBlocks,
+  isEditorCanvas = false,
+}: Props) {
   const { storePath, vendor } = useVendor()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  const { isAuthenticated, customer } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const { itemCount } = useCartStore()
-  const logout = useCustomerLogout()
 
   const [branches, setBranches] = useState<StoreLocation[]>([])
 
   useEffect(() => {
     let cancelled = false
-    storeApi
-      .listBranches()
-      .then((r) => {
-        if (!cancelled) setBranches(r.stores || [])
-      })
-      .catch(() => {
-        if (!cancelled) setBranches([])
-      })
-    return () => {
-      cancelled = true
-    }
+    storeApi.listBranches()
+      .then(r => { if (!cancelled) setBranches(r.stores || []) })
+      .catch(() => { if (!cancelled) setBranches([]) })
+    return () => { cancelled = true }
   }, [])
 
   const urlBranch = searchParams.get('branch')
@@ -65,139 +75,196 @@ export default function NavBlock({ site, style, props, liveItems, branchCode: br
 
   const selectedBranch = useMemo(() => {
     if (!effectiveBranch || !branches.length) return null
-    return branches.find((b) => b.code === effectiveBranch || b.id === effectiveBranch) ?? null
+    return branches.find(b => b.code === effectiveBranch || b.id === effectiveBranch) ?? null
   }, [branches, effectiveBranch])
 
-  const brand =
-    (props.brand as string) ||
-    site.name ||
-    vendor?.display_name ||
-    'Store'
-  const logoUrl =
-    (props.logo_url as string | null) ||
-    site.logo_url ||
-    vendor?.logo_url ||
-    null
+  const brand = (props.brand as string) || site.name || vendor?.display_name || 'Store'
+  const logoUrl = resolveLogoUrl(props, site, vendor?.logo_url)
+  const showLogo = props.show_logo !== false && !!logoUrl
+  const showBrandName = props.show_brand_name !== false
+  const showNavLinks = props.show_nav_links !== false
+  const showSearch = props.show_search !== false
+  const showCart = props.show_cart !== false
+  const showAccount = props.show_login !== false && props.show_account !== false
   const ctaLabel = (props.cta_label as string | null) || null
   const ctaUrl = (props.cta_url as string | null) || '/contact'
-  const navStyle = (style.nav_style as 'default' | 'transparent' | undefined) || 'default'
   const announcement = (props.announcement as string | undefined) || null
 
+  const shell = resolveNavBlockShell(props, style)
+  const navLinksSource = (props.nav_links_source as string) || 'site_pages'
   const rawLinks = (props.nav_links as Array<{ label: string; url: string }> | undefined) || []
-  const pageLinks: NavLinkItem[] =
-    liveItems.length > 0
-      ? liveItems.map((item) => ({ label: item.title, href: storePath(item.url || '/') }))
-      : rawLinks.map((l) => ({ label: l.label, href: storePath(l.url) }))
 
-  const kitLinks: NavLinkItem[] = []
-  const seenHrefs = new Set<string>()
-  for (const link of pageLinks) {
-    const href = link.href
-    if (seenHrefs.has(href)) continue
-    seenHrefs.add(href)
-    kitLinks.push(link)
-  }
-
-  if (kitLinks.length === 0) {
-    kitLinks.push(
-      { label: 'Home', href: storePath('/') },
-      { label: 'Products', href: storePath('/products') },
-      { label: 'Services', href: storePath('/services') },
-    )
-  }
-
-  const kitUser = isAuthenticated && customer
-    ? { id: customer.id, name: customer.full_name ?? customer.email ?? '', email: customer.email ?? '', phone: customer.phone ?? undefined }
-    : null
-
-  const logo = logoUrl ? (
-    <img src={imgUrl(logoUrl)} alt={brand} className="h-8 w-auto object-contain" />
-  ) : (
-    <span className="font-bold text-lg text-primary">{brand}</span>
-  )
+  const kitLinks: NavLinkItem[] = useMemo(() => {
+    if (!showNavLinks) return []
+    let pageLinks: NavLinkItem[] = []
+    if (navLinksSource === 'manual') {
+      pageLinks = rawLinks.map(l => ({ label: l.label, href: storePath(l.url) }))
+    } else if (liveItems.length > 0) {
+      pageLinks = liveItems.map(item => ({ label: item.title, href: storePath(item.url || '/') }))
+    } else if (rawLinks.length > 0) {
+      pageLinks = rawLinks.map(l => ({ label: l.label, href: storePath(l.url) }))
+    }
+    const deduped: NavLinkItem[] = []
+    const seen = new Set<string>()
+    for (const link of pageLinks) {
+      if (seen.has(link.href)) continue
+      seen.add(link.href)
+      deduped.push(link)
+    }
+    if (deduped.length === 0) {
+      deduped.push(
+        { label: 'Home', href: storePath('/') },
+        { label: 'Products', href: storePath('/products') },
+        { label: 'Services', href: storePath('/services') },
+      )
+    }
+    return deduped
+  }, [showNavLinks, navLinksSource, rawLinks, liveItems, storePath])
 
   const showBranchPicker = branches.length > 1
+  const primary = style.primary_color || '#64C3A0'
+  const borderRadius = style.border_radius === 'sharp' || style.border_radius === 'none' ? 0 : 8
 
-  const branchDesktop = showBranchPicker ? (
-    <div className="hidden md:flex items-center shrink-0 ml-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 max-w-[200px] font-normal" aria-label="Choose store location">
-            <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" />
-            <span className="truncate">{selectedBranch?.name || 'All locations'}</span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          <DropdownMenuItem onClick={() => setBranchParam(null)}>All locations</DropdownMenuItem>
-          {branches.map((b) => (
-            <DropdownMenuItem key={b.id} onClick={() => setBranchParam(b.code || b.id)}>
-              {b.name}
-              {b.address?.city ? <span className="text-muted-foreground text-xs ml-1">({b.address.city})</span> : null}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  ) : null
+  const logoNode = (
+    <Link to={storePath('/')} className="inline-flex items-center gap-2 min-w-0 shrink-0 max-w-[min(100%,220px)]">
+      {showLogo && logoUrl && (
+        <img
+          src={imgUrl(logoUrl)}
+          alt={brand}
+          className={cn('w-auto object-contain shrink-0', shell.isCompact ? 'h-6 max-w-[100px]' : 'h-8 max-w-[120px]')}
+        />
+      )}
+      {showBrandName && (
+        <span className={cn('font-bold truncate', shell.isCompact ? 'text-sm' : 'text-base')} style={{ color: shell.navBrandCol, fontFamily: style.font_heading }}>
+          {brand}
+        </span>
+      )}
+    </Link>
+  )
 
-  const branchSheet = showBranchPicker ? (
-    <div>
-      <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Store location</p>
-      <div className="flex flex-col gap-0.5">
-        <button
-          type="button"
-          className="text-left px-3 py-2 rounded-md hover:bg-muted text-sm"
-          onClick={() => setBranchParam(null)}
+  const linksNode = kitLinks.length > 0 && (
+    <nav className={cn(
+      'flex items-center gap-1 flex-wrap',
+      shell.isCentered ? 'justify-center' : 'justify-center flex-1',
+      isEditorCanvas ? 'flex' : 'hidden md:flex',
+    )}>
+      {kitLinks.map(link => (
+        <Link
+          key={link.href}
+          to={link.href}
+          className={cn('rounded-md text-sm font-medium hover:opacity-80 transition-opacity', shell.isCompact ? 'px-2 py-1' : 'px-3 py-2')}
+          style={{ color: shell.navTextCol }}
         >
-          All locations
+          {link.label}
+        </Link>
+      ))}
+    </nav>
+  )
+
+  const actionsNode = (
+    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+      {showSearch && (
+        <button type="button" className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Search">
+          <Search className="w-5 h-5" />
         </button>
-        {branches.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            className="text-left px-3 py-2 rounded-md hover:bg-muted text-sm"
-            onClick={() => setBranchParam(b.code || b.id)}
-          >
-            {b.name}
-            {b.address?.city ? <span className="text-muted-foreground"> — {b.address.city}</span> : null}
-          </button>
-        ))}
-      </div>
+      )}
+      {showCart && (
+        <Link to={storePath('/cart')} className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: shell.navTextCol }} aria-label="Cart">
+          <ShoppingBag className="w-5 h-5" />
+          {itemCount() > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+              {itemCount()}
+            </span>
+          )}
+        </Link>
+      )}
+      {showAccount && (
+        <Link to={storePath(isAuthenticated ? '/account' : '/login')} className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Account">
+          <User className="w-5 h-5" />
+        </Link>
+      )}
+      {showBranchPicker && !shell.isCentered && (
+        <div className="hidden md:flex items-center shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 max-w-[160px] font-normal" aria-label="Choose store location">
+                <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                <span className="truncate">{selectedBranch?.name || 'All locations'}</span>
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem onClick={() => setBranchParam(null)}>All locations</DropdownMenuItem>
+              {branches.map(b => (
+                <DropdownMenuItem key={b.id} onClick={() => setBranchParam(b.code || b.id)}>
+                  {b.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+      {ctaLabel && (
+        <Link
+          to={storePath(ctaUrl)}
+          className={cn(
+            'text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
+            shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
+            shell.isTransparentCta && 'ring-2 ring-white/30',
+          )}
+          style={{
+            backgroundColor: primary,
+            borderRadius,
+            color: '#fff',
+            boxShadow: shell.isTransparentCta ? `0 4px 14px ${primary}66` : undefined,
+          }}
+        >
+          {ctaLabel}
+        </Link>
+      )}
     </div>
-  ) : null
+  )
 
   return (
     <>
       {announcement && <AnnouncementBar message={announcement} />}
-      <UnifiedNav
-        logo={logo}
-        logoHomeTo={storePath('/')}
-        afterLogo={branchDesktop}
-        sheetExtra={branchSheet}
-        links={kitLinks}
-        showSearch
-        showCart
-        showAccount
-        cartCount={itemCount()}
-        cartHref={storePath('/cart')}
-        user={kitUser}
-        cta={ctaLabel ? { label: ctaLabel, href: storePath(ctaUrl) } : undefined}
-        variant={navStyle === 'transparent' ? 'transparent' : 'bordered'}
-        sticky
-        onSearch={(q) => navigate(storePath(`/products?search=${encodeURIComponent(q)}`))}
-        onSignOut={logout}
-        accountPaths={{
-          signIn: storePath('/login'),
-          register: storePath('/register'),
-          account: storePath('/account'),
-          orders: storePath('/account/orders'),
-          bookings: storePath('/account/bookings'),
-          wishlist: storePath('/account/wishlist'),
-          profile: storePath('/account/profile'),
-          notifications: storePath('/account/notifications'),
+      <header
+        className={cn(
+          'sticky top-0 z-40 w-full',
+          shell.isGlass && 'backdrop-blur-md',
+        )}
+        style={{
+          backgroundColor: shell.navBg === 'transparent' ? undefined : shell.navBg,
+          borderBottom: shell.isElevated ? undefined : shell.navBorderBottom,
         }}
-      />
+      >
+        <div
+          className={cn(
+            'relative mx-auto max-w-full',
+            shell.isCentered
+              ? 'flex flex-col items-center text-center gap-2'
+              : 'flex items-center justify-between gap-3',
+            shell.isCompact ? 'py-1.5 px-4' : 'py-3 px-4 sm:px-6',
+            shell.isElevated && 'mx-3 sm:mx-4 mt-2 rounded-xl shadow-lg border border-black/5',
+          )}
+        >
+          {shell.isCentered ? (
+            <>
+              {logoNode}
+              {linksNode}
+              {actionsNode}
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 min-w-0 flex-1 md:flex-initial">
+                {logoNode}
+              </div>
+              {linksNode}
+              {actionsNode}
+            </>
+          )}
+        </div>
+      </header>
     </>
   )
 }

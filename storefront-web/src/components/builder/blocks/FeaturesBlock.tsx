@@ -1,5 +1,20 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { cn } from '@/lib/utils'
 import { imgUrl } from '@/lib/utils'
+import { resolveSectionSurface } from '@/lib/navBlockLayout'
+import {
+  cardImageShapeClass,
+  cardPaddingFromItemSize,
+  columnsFromProps,
+  iconBoxFromItemSize,
+  iconBoxShapeClass,
+  imageShapeFromProps,
+  renderFeatureIcon,
+  sectionGridColumnClass,
+  sectionItemGap,
+  sectionItemSize,
+  thumbnailShapeClass,
+} from '@/lib/sectionItemLayout'
 import {
   alternatingImageClassNames,
   alternatingRowFlip,
@@ -139,21 +154,125 @@ export default function FeaturesBlock({ site, style, props, blockType }: Props) 
   }
 
   const layout = (props.layout as string) || 'grid-3'
-  const colClass = layout === 'grid-2' ? 'grid-cols-1 sm:grid-cols-2' :
-    layout === 'grid-4' ? 'grid-cols-2 sm:grid-cols-4' :
-    'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+  const surface = resolveSectionSurface(props, style)
+  const showImages = props.show_images === true || features.some(f => !!f.image_url)
+  const cardStyle = String(props.card_style ?? '')
+  const iconTop = props.icon_position === 'top'
+  const columns = columnsFromProps(props, layout)
+  const itemGap = sectionItemGap(props, 24)
+  const itemSize = sectionItemSize(props, 160)
+  const cardPad = cardPaddingFromItemSize(itemSize)
+  const iconBox = iconBoxFromItemSize(itemSize)
+  const imageShape = imageShapeFromProps(props)
+
+  if (layout === 'list') {
+    return (
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+        {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+        <div className="space-y-6" style={{ gap: itemGap }}>
+          {features.map((feature, i) => (
+            <div
+              key={i}
+              className={cn('flex gap-4 items-start rounded-2xl border', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')}
+              style={{ padding: cardPad }}
+            >
+              {feature.image_url ? (
+                <img src={imgUrl(feature.image_url)} alt="" className={thumbnailShapeClass(imageShape)} style={{ width: iconBox, height: iconBox }} loading="lazy" />
+              ) : (
+                <div className={cn(iconBoxShapeClass(imageShape), 'flex items-center justify-center shrink-0 text-2xl')} style={{ width: iconBox, height: iconBox, backgroundColor: `${style.primary_color}15` }}>
+                  {renderFeatureIcon(feature.icon, altIcons[i % altIcons.length])}
+                </div>
+              )}
+              <div>
+                <h3 className="font-semibold mb-1">{sanitizeWellnessBodyCopy(feature.title)}</h3>
+                <p className={cn('text-sm leading-relaxed', surface.isDark ? 'text-white/70' : 'text-gray-500')}>{sanitizeWellnessBodyCopy(feature.desc || feature.description)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  if (layout === 'strip') {
+    return (
+      <section className="py-12 px-4 overflow-x-auto" style={{ background: surface.background, color: surface.color }}>
+        {title && <h2 className="text-2xl font-bold mb-8 text-center px-4">{title}</h2>}
+        <div className="flex min-w-max px-4 mx-auto justify-center" style={{ gap: itemGap }}>
+          {features.map((feature, i) => (
+            <div
+              key={i}
+              className={cn('builder-tile-card shrink-0 w-56 rounded-2xl border', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')}
+              style={{ padding: cardPad }}
+            >
+              <div className="text-2xl mb-2">{renderFeatureIcon(feature.icon, '✨')}</div>
+              <h3 className="font-semibold text-sm mb-1">{sanitizeWellnessBodyCopy(feature.title)}</h3>
+              <p className={cn('text-xs leading-relaxed', surface.isDark ? 'text-white/70' : 'text-gray-500')}>{sanitizeWellnessBodyCopy(feature.desc || feature.description)}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  if (layout === 'masonry') {
+    return (
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+        {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+        <div className={cn('columns-1 sm:columns-2 gap-6 space-y-6', columns >= 3 && 'lg:columns-3', columns >= 4 && 'lg:columns-4')} style={{ columnGap: itemGap }}>
+          {features.map((feature, i) => (
+            <div key={i} className={cn('builder-tile-card break-inside-avoid rounded-2xl border mb-6', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')} style={{ padding: cardPad }}>
+              {showImages && feature.image_url && (
+                <img
+                  src={imgUrl(feature.image_url)}
+                  alt=""
+                  className={cn(cardImageShapeClass(imageShape), 'h-32 mb-3', imageShape === 'circle' && 'max-w-[140px]')}
+                  loading="lazy"
+                />
+              )}
+              <h3 className="font-semibold mb-2">{sanitizeWellnessBodyCopy(feature.title)}</h3>
+              <p className={cn('text-sm leading-relaxed', surface.isDark ? 'text-white/70' : 'text-gray-500')}>{sanitizeWellnessBodyCopy(feature.desc || feature.description)}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
-      <div className={`grid ${colClass} gap-6`}>
+    <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+      {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+      <div className={cn('grid', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
         {features.map((feature, i) => (
-          <div key={i} className="builder-tile-card bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-shadow max-h-[90vh] overflow-y-auto">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-2xl" style={{ backgroundColor: `${style.primary_color}15` }}>
-              {feature.icon === 'Zap' ? '⚡' : feature.icon === 'Shield' ? '🛡️' : feature.icon === 'Star' ? '⭐' : feature.icon === 'Clock' ? '⏱️' : '✨'}
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-2">{sanitizeWellnessBodyCopy(feature.title)}</h3>
-            <p className="text-gray-500 text-sm leading-relaxed">{sanitizeWellnessBodyCopy(feature.desc || feature.description)}</p>
+          <div
+            key={i}
+            className={cn(
+              'builder-tile-card rounded-2xl hover:shadow-md transition-shadow',
+              cardStyle === 'bordered' ? 'border-2' : 'border',
+              surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white',
+              iconTop ? 'text-center' : '',
+            )}
+            style={{ padding: cardPad }}
+          >
+            {showImages && feature.image_url && (
+              <img
+                src={imgUrl(feature.image_url)}
+                alt=""
+                className={cn(cardImageShapeClass(imageShape), 'mb-4', imageShape === 'circle' && 'max-w-[180px]')}
+                style={{ height: imageShape === 'circle' ? iconBox : Math.round(itemSize * 0.55) }}
+                loading="lazy"
+              />
+            )}
+            {!feature.image_url && (
+              <div
+                className={cn(iconBoxShapeClass(imageShape), 'flex items-center justify-center mb-4', iconTop && 'mx-auto')}
+                style={{ width: iconBox, height: iconBox, backgroundColor: `${style.primary_color}15`, fontSize: Math.round(iconBox * 0.45) }}
+              >
+                {renderFeatureIcon(feature.icon, altIcons[i % altIcons.length])}
+              </div>
+            )}
+            <h3 className="font-semibold mb-2">{sanitizeWellnessBodyCopy(feature.title)}</h3>
+            <p className={cn('text-sm leading-relaxed', surface.isDark ? 'text-white/70' : 'text-gray-500')}>{sanitizeWellnessBodyCopy(feature.desc || feature.description)}</p>
           </div>
         ))}
       </div>

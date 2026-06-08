@@ -18,8 +18,17 @@ import type { PublicBlock, PublicSite, LiveItem, StyleConfig } from '@/blocks/re
 import { DEFAULT_STYLE } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
+import { useLiveDataFetch } from '@/contexts/LiveDataFetchContext'
 import SectionShapeDivider from './SectionShapeDivider'
 import { buildBlockColorStyleCss, type BlockColorProps, type ThemeColors } from '@/lib/blockColorOverrides'
+import { blockShadowIsActive, resolveBlockBoxShadow } from '@/lib/blockSectionStyle'
+import { buildFieldStylesCss, sectionTransformStyle } from '@/lib/fieldTextStyles'
+import { getBlockScrollAnimationClass } from '@/lib/builderScrollAnimations'
+import {
+  mergeBlockSectionStyles,
+  readRawBlockStyleOverrides,
+  resolveBreakpointStyleOverrides,
+} from '@/lib/blockStyleOverrides'
 
 // Lazy-import the heavy block families to keep initial bundle small
 const NavBlock = lazy(() => import('./blocks/NavBlock'))
@@ -123,35 +132,93 @@ function inferCommerceLiveResource(blockType: string): LiveResource | undefined 
   return undefined
 }
 
+/** Prefer embedded site pages (builder draft / hydrated public site) over a network fetch. */
+function sitePagesToLiveItems(site: PublicSite, limit: number): LiveItem[] {
+  const pages = site.pages || []
+  if (!pages.length) return []
+  const seen = new Set<string>()
+  const items: LiveItem[] = []
+  const sorted = [...pages]
+    .filter(p => p.show_in_nav !== false && p.is_published !== false)
+    .sort((a, b) => {
+      if (a.is_homepage !== b.is_homepage) return a.is_homepage ? -1 : 1
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0)
+    })
+  for (const page of sorted) {
+    let url = page.is_homepage ? '/' : `/${String(page.slug || '').replace(/^\/+|\/+$/g, '')}`
+    if (url === '/home') url = '/'
+    if (seen.has(url)) continue
+    seen.add(url)
+    items.push({
+      id: page.id,
+      title: page.is_homepage ? 'Home' : (page.title || page.slug || 'Page'),
+      subtitle: page.slug,
+      url,
+      meta: {
+        is_homepage: page.is_homepage,
+        slug: page.slug,
+        page_type: page.page_type,
+      },
+    })
+    if (items.length >= limit) break
+  }
+  return items
+}
+
 function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
+  const customFetch = useLiveDataFetch()
   const dataSource = block.props?.data_source as { type?: string; selected_ids?: string[]; limit?: number; auto?: boolean } | undefined
   const sourceType = typeof dataSource?.type === 'string'
     ? dataSource.type.replace(/^internal_/, '')
     : undefined
   const resource = (sourceType && sourceType !== 'external_api' ? sourceType : BLOCK_LIVE_RESOURCE[block.block_type] || inferCommerceLiveResource(block.block_type)) as LiveResource | undefined
   const effectiveLimit = Number(dataSource?.limit ?? limit) || limit
+  const embeddedPagesKey = resource === 'pages'
+    ? (site.pages || []).map(p => `${p.id}:${p.slug}:${p.title}:${p.show_in_nav}:${p.is_homepage}`).join('|')
+    : ''
   const [data, setData] = useState<LiveItem[] | null>(null)
 
   useEffect(() => {
     if (!resource || !site.id) { setData([]); return }
+    if (resource === 'pages' && site.pages?.length) {
+      setData(sitePagesToLiveItems(site, effectiveLimit))
+      return
+    }
     const params = dataSource?.selected_ids?.length
       ? { ids: dataSource.selected_ids.join(',') }
       : undefined
+    const selectedIds = dataSource?.selected_ids || []
+    const applySelection = (items: LiveItem[]) =>
+      selectedIds.length
+        ? items.filter(item => item.id && selectedIds.includes(item.id))
+        : items
+
+    if (customFetch) {
+      customFetch(site.id, resource, effectiveLimit, params)
+        .then(items => setData(applySelection(items)))
+        .catch(() => setData([]))
+      return
+    }
+
     publicSitesApi.getLiveResource(site.id, resource, effectiveLimit, params)
-      .then(r => {
-        const selectedIds = dataSource?.selected_ids || []
-        const items = selectedIds.length
-          ? r.items.filter(item => item.id && selectedIds.includes(item.id))
-          : r.items
-        setData(items)
-      })
+      .then(r => setData(applySelection(r.items)))
       .catch(() => setData([]))
-  }, [site.id, resource, effectiveLimit, dataSource?.selected_ids?.join(',')])
+  }, [customFetch, site.id, resource, effectiveLimit, embeddedPagesKey, dataSource?.selected_ids?.join(',')])
 
   return data
 }
 
 // ── Individual block renderer ──────────────────────────────────────────────
+
+function blockLayoutKey(props: Record<string, unknown> | undefined): string {
+  if (!props) return ''
+  return [
+    props.layout, props.variant, props.nav_style, props.nav_layout, props.footer_style,
+    props.bg_style, props.bg_color, props.columns, props.image_position, props.card_style,
+    props.gradient_preset, props.nav_bg, props.footer_bg, props.overlay, props.compact,
+    props.block_shadow,
+  ].map(v => String(v ?? '')).join(':')
+}
 
 export function SingleBlock({
   block,
@@ -161,6 +228,7 @@ export function SingleBlock({
   pageBlocks,
 }: Omit<BlockProps, 'liveData'> & { pageBlocks?: PublicBlock[] }) {
   const { storePath } = useVendor()
+  const customFetch = useLiveDataFetch()
   const liveItems = useLiveData(block, site, (block.props.show_count as number | undefined) || 12)
   const p = block.props as Record<string, unknown>
 
@@ -170,6 +238,8 @@ export function SingleBlock({
     props: p,
     liveItems: liveItems ?? [],
     branchCode,
+    blockId: block.id,
+    isEditorCanvas: !!customFetch,
     pageBlocks: pageBlocks?.map(b => ({ block_type: b.block_type, props: b.props as Record<string, unknown> })),
   }
 
@@ -303,15 +373,24 @@ export function SingleBlock({
   const bottomShape = typeof p.bottom_shape === 'string' ? p.bottom_shape : undefined
   const shapeColor = (typeof p.shape_color === 'string' && p.shape_color) || style.surface_color || style.bg_color || '#ffffff'
   const hasShape = (topShape && topShape !== 'none') || (bottomShape && bottomShape !== 'none')
-  const paddingTop = Number(p.padding_top ?? block.style_overrides?.padding_top ?? 0)
-  const paddingBottom = Number(p.padding_bottom ?? block.style_overrides?.padding_bottom ?? 0)
+  const rawStyleOverrides = readRawBlockStyleOverrides(block)
+  const resolvedOverrides = resolveBreakpointStyleOverrides(rawStyleOverrides)
+  const sectionStyles = mergeBlockSectionStyles(p, resolvedOverrides)
+  const paddingTop = sectionStyles.paddingTop
+  const paddingBottom = sectionStyles.paddingBottom
+  const blockShadow = resolveBlockBoxShadow(p)
+  const hasBlockShadow = blockShadowIsActive(p)
 
   const wrapperStyle: CSSProperties = {}
   if (block.animation_delay) wrapperStyle.animationDelay = `${block.animation_delay}ms`
   if (textTransformCss) wrapperStyle.textTransform = textTransformCss
   if (paddingTop > 0) wrapperStyle.paddingTop = `${paddingTop}px`
   if (paddingBottom > 0) wrapperStyle.paddingBottom = `${paddingBottom}px`
+  if (sectionStyles.backgroundColor) wrapperStyle.backgroundColor = sectionStyles.backgroundColor
+  if (sectionStyles.color) wrapperStyle.color = sectionStyles.color
   if (hasShape) wrapperStyle.position = 'relative'
+  if (blockShadow) wrapperStyle.boxShadow = blockShadow
+  Object.assign(wrapperStyle, sectionTransformStyle(p))
 
   const sfBid = `sf${block.id.replace(/-/g, '')}`
   const blockColorProps = p as BlockColorProps
@@ -322,6 +401,7 @@ export function SingleBlock({
     bg_color: style.bg_color || '#ffffff',
   }
   const blockColorCss = buildBlockColorStyleCss('data-sf-bid', sfBid, blockColorProps, blockThemeColors)
+  const fieldStyleCss = buildFieldStylesCss('data-sf-bid', sfBid, p)
   const blockLink = typeof p.block_link_url === 'string' ? p.block_link_url.trim() : ''
   const blockLinkNewTab = Boolean(p.block_link_new_tab)
   const resolvedBlockLink = blockLink
@@ -339,6 +419,7 @@ export function SingleBlock({
   return (
     <div
       data-sf-bid={sfBid}
+      data-block-id={block.id}
       role={resolvedBlockLink ? 'link' : undefined}
       tabIndex={resolvedBlockLink ? 0 : undefined}
       aria-label={resolvedBlockLink ? `Open ${resolvedBlockLink}` : undefined}
@@ -351,20 +432,21 @@ export function SingleBlock({
       } : undefined}
       className={[
         'builder-block relative w-full',
+        hasBlockShadow ? 'builder-block--has-shadow' : '',
         resolvedBlockLink ? 'cursor-pointer' : '',
         shellStack,
+        sectionStyles.fontSizeClass,
         !block.visible_on_mobile ? 'hidden sm:block' : '',
         !block.visible_on_tablet ? 'sm:hidden lg:block' : '',
         !block.visible_on_desktop ? 'lg:hidden' : '',
-        block.animation === 'fade-in' ? 'animate-fade-in' : '',
-        block.animation === 'slide-up' ? 'animate-slide-up' : '',
+        getBlockScrollAnimationClass(block.animation),
       ].filter(Boolean).join(' ')}
       style={Object.keys(wrapperStyle).length ? wrapperStyle : undefined}
     >
       {topShape && topShape !== 'none' && (
         <SectionShapeDivider shape={topShape} fillColor={shapeColor} position="top" />
       )}
-      {(fontSizePx || textScaleEm || blockColorCss) && (
+      {(fontSizePx || textScaleEm || blockColorCss || fieldStyleCss) && (
         <style>{`
           [data-sf-bid="${sfBid}"] h1,
           [data-sf-bid="${sfBid}"] h2,
@@ -377,6 +459,7 @@ export function SingleBlock({
             ${textScaleEm ? `font-size: ${textScaleEm}em !important;` : ''}
           }
           ${blockColorCss}
+          ${fieldStyleCss}
         `}</style>
       )}
       {inner}
@@ -475,7 +558,7 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode }: Bloc
       )}
       {visibleBlocks.map(block => (
         <SingleBlock
-          key={block.id}
+          key={`${block.id}:${blockLayoutKey(block.props as Record<string, unknown>)}`}
           block={block}
           site={site}
           style={style}

@@ -1,6 +1,6 @@
 import { useMemo, useState, type ElementType } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, Search, X } from 'lucide-react'
+import { ChevronDown, Database, Search, X, Zap, Lock } from 'lucide-react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { cn } from '@/lib/utils'
 import {
@@ -13,6 +13,12 @@ import {
   pickGalleryImageUrls,
 } from '@/lib/blockGalleryImages'
 import { findActiveSectionLayoutOption, getSectionLayoutOptions, type SectionLayoutOption } from '@/lib/sectionLayoutPresets'
+import {
+  getBlockDataConnectionMeta,
+  initialLayoutPickerDataSourceChoice,
+  type LayoutPickerDataSourceChoice,
+} from '@/lib/blockDataSources'
+import type { LiveResource } from '@/types/websites'
 import { SectionLayoutPreview } from '@/components/websites/SectionLayoutPreview'
 import type { BlockProps } from '@/types/websites'
 
@@ -46,6 +52,7 @@ function LayoutOptionCard({
   )
   const usesImages = blockSupportsGalleryCategory(def.type)
   const isCommerceBlock = def.type.includes('.')
+  const dataMeta = getBlockDataConnectionMeta(def.type)
   const sampleUrls = useMemo(() => {
     if (!usesImages) return []
     const pool = pickGalleryImageUrls(categoryId, 10)
@@ -112,11 +119,169 @@ function LayoutOptionCard({
       <div className="p-3">
         <div className="text-sm font-semibold text-gray-800">{option.label}</div>
         {option.desc && <div className="text-xs text-gray-500 mt-0.5 leading-snug">{option.desc}</div>}
+        {dataMeta.canConnect && (
+          <div className={cn(
+            'text-[10px] mt-1.5 font-medium flex items-center gap-1',
+            dataMeta.connectionRequired ? 'text-amber-600' : 'text-emerald-600',
+          )}>
+            <Database className="w-3 h-3 shrink-0" />
+            {dataMeta.connectionRequired ? 'Requires live data' : 'Can connect to store data'}
+          </div>
+        )}
+        {!dataMeta.canConnect && (
+          <div className="text-[10px] text-gray-400 mt-1.5">Static content only</div>
+        )}
         {usesImages && sampleUrls.length > 0 && (
           <div className="text-[10px] text-primary/80 mt-1.5 font-medium">Preview uses selected category images</div>
         )}
       </div>
     </button>
+  )
+}
+
+function DataConnectionPanel({
+  blockType,
+  choice,
+  onChange,
+}: {
+  blockType: string
+  choice: LayoutPickerDataSourceChoice
+  onChange: (next: LayoutPickerDataSourceChoice) => void
+}) {
+  const meta = getBlockDataConnectionMeta(blockType)
+
+  if (!meta.canConnect) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-800/40 p-3">
+        <div className="flex items-center gap-2 text-gray-400">
+          <Database className="w-3.5 h-3.5 shrink-0 opacity-60" />
+          <span className="text-xs font-medium">Static content only</span>
+        </div>
+        <p className="text-[10px] text-gray-500 mt-1.5 leading-relaxed">
+          This section does not connect to your store database. Edit text and images directly on the canvas.
+        </p>
+      </div>
+    )
+  }
+
+  const toggleConnect = () => {
+    if (meta.connectionRequired) return
+    onChange({ ...choice, connect: !choice.connect })
+  }
+
+  const pickSource = (sourceId: LiveResource) => {
+    onChange({ connect: true, sourceType: sourceId })
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 px-0.5">Database connection</p>
+
+      <button
+        type="button"
+        onClick={toggleConnect}
+        disabled={meta.connectionRequired}
+        className={cn(
+          'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-colors',
+          choice.connect
+            ? 'border-emerald-600/50 bg-emerald-950/40'
+            : 'border-gray-700 bg-gray-800/40',
+          meta.connectionRequired ? 'cursor-default' : 'hover:border-gray-600',
+        )}
+      >
+        <div className={cn(
+          'w-8 h-4 rounded-full shrink-0 relative transition-colors',
+          choice.connect ? 'bg-emerald-500' : 'bg-gray-600',
+        )}>
+          <div className={cn(
+            'absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform',
+            choice.connect ? 'translate-x-4' : 'translate-x-0.5',
+          )} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-semibold text-white flex items-center gap-1.5">
+            {choice.connect ? 'Connect to live data' : 'Use static content'}
+            {meta.connectionRequired && (
+              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-400/90">
+                <Lock className="w-2.5 h-2.5" /> Required
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">
+            {meta.connectionRequired
+              ? 'This section needs live store data to work.'
+              : choice.connect
+                ? 'Pulls from your catalog automatically. Turn off to use placeholder content.'
+                : 'Section will not sync with your store until you connect in the Data tab.'}
+          </p>
+        </div>
+        {choice.connect && (
+          <Zap className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+        )}
+      </button>
+
+      {choice.connect && meta.recommended.length > 0 && (
+        <div className="rounded-lg border border-gray-800 overflow-hidden">
+          <div className="px-2.5 py-1.5 bg-gray-800/60 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+            Recommended for this section
+          </div>
+          <div className="divide-y divide-gray-800">
+            {meta.recommended.map(source => (
+              <button
+                key={source.id}
+                type="button"
+                onClick={() => pickSource(source.id as LiveResource)}
+                className={cn(
+                  'w-full text-left px-2.5 py-2 transition-colors',
+                  choice.sourceType === source.id
+                    ? 'bg-orange-500/15'
+                    : 'hover:bg-white/5',
+                )}
+              >
+                <div className={cn(
+                  'text-xs font-medium',
+                  choice.sourceType === source.id ? 'text-orange-400' : 'text-gray-200',
+                )}>
+                  {source.label}
+                </div>
+                <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">{source.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {choice.connect && meta.optional.length > 0 && (
+        <div className="rounded-lg border border-gray-800 overflow-hidden">
+          <div className="px-2.5 py-1.5 bg-gray-800/60 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+            Other connections
+          </div>
+          <div className="divide-y divide-gray-800 max-h-32 overflow-y-auto">
+            {meta.optional.map(source => (
+              <button
+                key={source.id}
+                type="button"
+                onClick={() => pickSource(source.id as LiveResource)}
+                className={cn(
+                  'w-full text-left px-2.5 py-2 transition-colors',
+                  choice.sourceType === source.id
+                    ? 'bg-orange-500/15'
+                    : 'hover:bg-white/5',
+                )}
+              >
+                <div className={cn(
+                  'text-xs font-medium',
+                  choice.sourceType === source.id ? 'text-orange-400' : 'text-gray-300',
+                )}>
+                  {source.label}
+                </div>
+                <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">{source.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -130,7 +295,7 @@ export function SectionLayoutPickerModal({
   def: SectionBlockDef
   defaultImageCategoryId: string
   currentProps?: Record<string, unknown>
-  onSelect: (propsOverride: Partial<BlockProps>, imageCategoryId: string) => void
+  onSelect: (propsOverride: Partial<BlockProps>, imageCategoryId: string, dataSourceChoice: LayoutPickerDataSourceChoice) => void
   onClose: () => void
 }) {
   useEscapeToClose(onClose)
@@ -142,6 +307,10 @@ export function SectionLayoutPickerModal({
   const [imageCategoryId, setImageCategoryId] = useState(defaultImageCategoryId)
   const [categorySearch, setCategorySearch] = useState('')
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set(IMAGE_CATEGORY_GROUPS.slice(0, 1)))
+  const [dataSourceChoice, setDataSourceChoice] = useState<LayoutPickerDataSourceChoice>(() =>
+    initialLayoutPickerDataSourceChoice(def.type, currentProps),
+  )
+  const dataMeta = getBlockDataConnectionMeta(def.type)
   const Icon = def.icon
   const categories = listImageCategoryOptions()
   const activeCategory = categories.find(c => c.id === imageCategoryId)
@@ -171,7 +340,9 @@ export function SectionLayoutPickerModal({
               <p className="text-sm text-gray-400 mt-0.5">
                 {blockSupportsGalleryCategory(def.type)
                   ? 'Preview uses images from your selected category'
-                  : `${options.length} layout styles — pick the look that fits your page`}
+                  : dataMeta.canConnect
+                    ? `${options.length} layouts · connect to your store data below`
+                    : `${options.length} layout styles — pick the look that fits your page`}
               </p>
             </div>
             <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10">
@@ -191,6 +362,15 @@ export function SectionLayoutPickerModal({
                 <p className="text-xs text-gray-400 leading-relaxed">{def.desc}</p>
               </div>
 
+              <div className="p-3 border-b border-gray-800 shrink-0">
+                <DataConnectionPanel
+                  blockType={def.type}
+                  choice={dataSourceChoice}
+                  onChange={setDataSourceChoice}
+                />
+              </div>
+
+              {blockSupportsGalleryCategory(def.type) && (
               <div className="p-3 flex-1 min-h-0 flex flex-col gap-2">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 px-0.5">Image gallery category</p>
                 <div className="relative shrink-0">
@@ -262,12 +442,24 @@ export function SectionLayoutPickerModal({
                   <p className="text-[10px] text-gray-500 leading-snug shrink-0 px-0.5">{activeCategory.description}</p>
                 )}
               </div>
+              )}
+
+              {!blockSupportsGalleryCategory(def.type) && dataMeta.canConnect && (
+                <div className="flex-1 min-h-0" />
+              )}
             </div>
 
             <div className="flex-1 min-h-0 flex flex-col bg-gray-50">
               <div className="shrink-0 p-4 sm:px-5 sm:pt-5 sm:pb-2 space-y-3">
                 <div className="md:hidden space-y-2">
                   <p className="text-xs font-medium text-gray-600">{def.label}</p>
+                  <DataConnectionPanel
+                    blockType={def.type}
+                    choice={dataSourceChoice}
+                    onChange={setDataSourceChoice}
+                  />
+                  {blockSupportsGalleryCategory(def.type) && (
+                  <>
                   <label className="block text-[10px] font-bold uppercase tracking-wide text-gray-500">Image category</label>
                   <select
                     value={imageCategoryId}
@@ -278,6 +470,8 @@ export function SectionLayoutPickerModal({
                       <option key={cat.id} value={cat.id}>{cat.label}</option>
                     ))}
                   </select>
+                  </>
+                  )}
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-gray-600">
@@ -298,7 +492,7 @@ export function SectionLayoutPickerModal({
                       categoryId={imageCategoryId}
                       optionIndex={idx}
                       isActive={activeOptionId === opt.id}
-                      onSelect={() => onSelect(opt.props as Partial<BlockProps>, imageCategoryId)}
+                      onSelect={() => onSelect(opt.props as Partial<BlockProps>, imageCategoryId, dataSourceChoice)}
                     />
                   ))}
                 </div>

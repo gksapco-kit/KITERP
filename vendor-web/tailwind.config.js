@@ -5,6 +5,9 @@ export default {
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
     '../storefront-web/src/components/builder/**/*.{js,ts,jsx,tsx}',
+    '../storefront-web/src/components/builder/BlockRenderer.tsx',
+    '../storefront-web/src/components/builder/SectionShapeDivider.tsx',
+    '../storefront-web/src/kit/**/*.{js,ts,jsx,tsx}',
     '../storefront-web/src/lib/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {

@@ -1,5 +1,7 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { imgUrl } from '@/lib/utils'
+import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
+import { hasMediaClip } from '@/lib/mediaClip'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
 
@@ -10,6 +12,8 @@ export default function AboutSplitBlock({ site, style, props, liveItems }: Props
   const description = (props.description as string) || profile?.description || site.description || ''
   const imageRaw = (props.image_url as string | null) || profile?.image_url || null
   const imageUrl = imageRaw ? imgUrl(imageRaw) : null
+  const mediaClip = props.media_clip
+  const clipped = hasMediaClip(mediaClip)
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
@@ -21,7 +25,9 @@ export default function AboutSplitBlock({ site, style, props, liveItems }: Props
         </div>
         <div>
           {imageUrl ? (
-            <img src={imageUrl} alt={title} className="w-full rounded-2xl shadow-lg object-cover aspect-video" loading="lazy" />
+            <MediaClipFrame clip={mediaClip} className="w-full aspect-video shadow-lg">
+              <img src={imageUrl} alt={title} className={`w-full h-full object-cover ${!clipped ? 'rounded-2xl' : ''}`} loading="lazy" />
+            </MediaClipFrame>
           ) : (
             <div className="w-full aspect-video rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${style.primary_color}10` }}>
               <span className="text-gray-400">About Image</span>

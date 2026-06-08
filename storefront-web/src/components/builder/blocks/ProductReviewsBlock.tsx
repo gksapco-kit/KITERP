@@ -1,12 +1,22 @@
 import { Star } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
 
 export default function ProductReviewsBlock({ style, props, liveItems }: Props) {
-  const title = (props.title as string) || 'Customer Reviews'
+  const title = (props.title as string) || 'Customer reviews'
   const showSummary = props.show_summary !== false
-  if (liveItems.length === 0) return null
+  if (liveItems.length === 0) {
+    return (
+      <BlockEmptyPlaceholder
+        style={style}
+        title={title}
+        message="Customer reviews will appear here once you receive orders and collect feedback."
+        icon={<Star className="w-10 h-10" style={{ color: style.primary_color }} />}
+      />
+    )
+  }
   const avgRating = liveItems.reduce((sum, i) => sum + (i.rating || 0), 0) / liveItems.length
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">

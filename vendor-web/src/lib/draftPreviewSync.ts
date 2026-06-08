@@ -4,11 +4,13 @@ import {
   recallDraftPreviewToken,
   rememberDraftPreviewToken,
 } from '@/lib/draftPreviewNavigation'
+import { normalizeLoopbackHostname } from '@/lib/loopbackHost'
 
 const PREVIEW_SITE_KEY = 'kiterp:draft-preview-site-id'
 const PREVIEW_CHANNEL = 'kiterp-draft-preview'
 const PREVIEW_NAV_CHANNEL = 'kiterp-draft-preview-nav'
-const PREVIEW_NAV_STORAGE_KEY = 'kiterp:pending-preview-navigate'
+export const PREVIEW_NAV_STORAGE_KEY = 'kiterp:pending-preview-navigate'
+export const PREVIEW_ERROR_STORAGE_KEY = 'kiterp:pending-preview-error'
 
 /** postMessage type — works in Cursor Simple Browser where BroadcastChannel may not. */
 export const PREVIEW_NAV_MESSAGE_TYPE = 'kiterp-preview-navigate'
@@ -18,9 +20,29 @@ export type DraftPreviewNavigateMessage = {
   url: string
 }
 
+export type DraftPreviewErrorMessage = {
+  type: 'preview-error'
+  message: string
+}
+
 export type PreviewTabPostMessage = {
   type: typeof PREVIEW_NAV_MESSAGE_TYPE
   url: string
+}
+
+function canonicalizePreviewNavigateUrl(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed) return trimmed
+  try {
+    const u = new URL(trimmed)
+    u.hostname = normalizeLoopbackHostname(u.hostname)
+    if (typeof window !== 'undefined' && window.location.port) {
+      u.port = window.location.port
+    }
+    return u.toString()
+  } catch {
+    return trimmed
+  }
 }
 
 export type DraftPreviewUpdateMessage = {
@@ -49,9 +71,11 @@ export function recallDraftPreviewSiteId(): string {
 
 /** Tell an open /preview/draft?pending=1 tab to navigate (works after async API calls). */
 export function broadcastPreviewTabNavigate(url: string): void {
-  const target = url.trim()
+  const target = canonicalizePreviewNavigateUrl(url)
   if (!target) return
-  // localStorage is shared across tabs; sessionStorage is per-tab (breaks Cursor Simple Browser).
+  // A successful navigate supersedes any earlier error.
+  clearPendingPreviewTabError()
+  // localStorage is shared across tabs on the same origin (canonical 127.0.0.1 in dev).
   try {
     localStorage.setItem(PREVIEW_NAV_STORAGE_KEY, target)
   } catch {
@@ -89,13 +113,63 @@ export function consumePendingPreviewTabNavigate(): string | null {
   return pending
 }
 
+/** Tell the pending preview tab the builder failed to produce a snapshot. */
+export function broadcastPreviewTabError(message: string): void {
+  const msg = message.trim() || 'Preview could not be prepared.'
+  try {
+    localStorage.setItem(PREVIEW_ERROR_STORAGE_KEY, msg)
+  } catch {
+    /* private mode */
+  }
+  try {
+    const channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
+    channel.postMessage({ type: 'preview-error', message: msg })
+    channel.close()
+  } catch {
+    /* BroadcastChannel unavailable */
+  }
+}
+
+export function peekPendingPreviewTabError(): string | null {
+  try {
+    return localStorage.getItem(PREVIEW_ERROR_STORAGE_KEY)?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingPreviewTabError(): void {
+  try {
+    localStorage.removeItem(PREVIEW_ERROR_STORAGE_KEY)
+  } catch {
+    /* private mode */
+  }
+}
+
 export function subscribePreviewTabNavigate(handler: (url: string) => void): () => void {
   let channel: BroadcastChannel | null = null
   try {
     channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
-    channel.onmessage = (ev: MessageEvent<DraftPreviewNavigateMessage>) => {
+    channel.onmessage = (ev: MessageEvent<DraftPreviewNavigateMessage | DraftPreviewErrorMessage>) => {
       if (ev.data?.type === 'navigate' && typeof ev.data.url === 'string') {
         handler(ev.data.url)
+      }
+    }
+  } catch {
+    /* noop */
+  }
+  return () => {
+    channel?.close()
+  }
+}
+
+export function subscribePreviewTabError(handler: (message: string) => void): () => void {
+  let channel: BroadcastChannel | null = null
+  try {
+    channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
+    channel.onmessage = (ev: MessageEvent<DraftPreviewNavigateMessage | DraftPreviewErrorMessage>) => {
+      if (ev.data?.type === 'preview-error' && typeof ev.data.message === 'string') {
+        handler(ev.data.message)
       }
     }
   } catch {

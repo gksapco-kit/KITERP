@@ -70,6 +70,9 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Tax Returns':                          ['gst', 'vat', 'tax', 'filing', 'tax return', 'return filing'],
   'Master Data — Customers & Suppliers':  ['customer', 'supplier', 'contacts', 'parties', 'vendors', 'client list'],
   'Website Builder':                      ['web', 'site', 'page', 'cms', 'website', 'web builder'],
+  'Business Front':                       ['storefront', 'store front', 'business front builder', 'customer store', 'public store', 'branding'],
+  'Store Template':                       ['theme', 'colors', 'hero', 'classic store', 'legacy template', 'homepage sections'],
+  'Website Templates':                    ['preset', 'gallery', 'apply template', 'store theme'],
   'Document Templates':                   ['doc', 'template', 'prescription', 'sop', 'challan', 'document', 'invoice template', 'quotation template', 'po template', 'purchase order template', 'billing', 'estimate'],
   'Blog Manager':                         ['blog', 'post', 'article', 'content', 'news'],
   'Notifications':                        ['alerts', 'bell', 'updates', 'notification list'],
@@ -276,7 +279,7 @@ export const EXTRA_NAV_ENTRIES: NavSearchEntry[] = [
   { kind: 'nav', id: 'notification-prefs', label: 'Notification Settings',    description: 'My Kit → Notification preferences',     section: 'My Kit',                 sectionId: 'my-kit',    to: '/notifications/settings',   keywords: ['notifications', 'preferences', 'alerts', 'sound', 'push', 'digest', 'quiet hours', 'do not disturb'] },
   { kind: 'nav', id: 'profile-page',       label: 'My Profile',               description: 'Account → Personal profile',            section: 'My Kit',                 sectionId: 'my-kit',    to: '/profile',                   keywords: ['profile', 'account', 'me', 'personal', 'my account', 'password', 'avatar'] },
   { kind: 'nav', id: 'business-units',     label: 'Business Units / Branches', description: 'Finance → Business units',              section: 'Finance Management',     sectionId: 'finance',   to: '/stores',                    keywords: ['business unit', 'branch', 'outlet', 'unit code', 'multi store', 'locations'] },
-  { kind: 'nav', id: 'pos-settings',       label: 'POS Invoice Settings',     description: 'POS → Print template settings',        section: 'Sales Management',       sectionId: 'sales',     to: '/pos',                       keywords: ['pos', 'receipt', 'print receipt', 'pos template', 'pos invoice'] },
+  { kind: 'nav', id: 'storefront-builder-legacy', label: 'Business Front Builder (legacy)', description: 'Redirects to Business Front hub', section: 'System Configuration', sectionId: 'system', to: '/business-front', keywords: ['storefront builder', 'business front builder', 'front builder'] },
   { kind: 'nav', id: 'master-data',        label: 'Customers & Suppliers',    description: 'Master Data → All parties',             section: 'Master Data Management', sectionId: 'master-data', to: '/master-data',             keywords: ['customer', 'supplier', 'parties', 'contacts', 'client', 'vendor', 'debtor', 'creditor'] },
   { kind: 'nav', id: 'projects-hub',       label: 'Projects',                 description: 'Sales → Project management',            section: 'Sales Management',       sectionId: 'sales',     to: '/projects',                  keywords: ['project', 'tasks', 'milestones', 'kanban', 'pm', 'delivery', 'project management'] },
 ]

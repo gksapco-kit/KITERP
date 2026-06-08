@@ -530,3 +530,31 @@ export function findActiveSectionLayoutOption(
   if (!best || bestScore < Object.keys(best.props).length) return undefined
   return best
 }
+
+export function findActiveLayoutIndex(
+  currentProps: Record<string, unknown> | undefined,
+  blockType: string,
+): number {
+  const options = getSectionLayoutOptions(blockType)
+  if (!options.length) return 0
+  const active = findActiveSectionLayoutOption(currentProps, options)
+  if (active) {
+    const idx = options.findIndex(o => o.id === active.id)
+    if (idx >= 0) return idx
+  }
+  return 0
+}
+
+export function getCycledSectionLayoutOption(
+  currentProps: Record<string, unknown> | undefined,
+  blockType: string,
+  direction: 'prev' | 'next',
+): SectionLayoutOption | undefined {
+  const options = getSectionLayoutOptions(blockType)
+  if (options.length <= 1) return undefined
+  const currentIdx = findActiveLayoutIndex(currentProps, blockType)
+  const nextIdx = direction === 'next'
+    ? (currentIdx + 1) % options.length
+    : (currentIdx - 1 + options.length) % options.length
+  return options[nextIdx]
+}

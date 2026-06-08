@@ -33,6 +33,16 @@ function isDraftPreviewPath(pathname: string): boolean {
 
 ;(() => {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  // In dev, canonicalize loopback so cross-tab preview sync (localStorage) works on Windows.
+  if (import.meta.env.DEV) {
+    const host = window.location.hostname
+    if (host === 'localhost' || host === '[::1]') {
+      const url = new URL(window.location.href)
+      url.hostname = '127.0.0.1'
+      window.location.replace(url.toString())
+      return
+    }
+  }
   if (path === '/auth/handoff') return
   if (isDraftPreviewPath(path)) return
 

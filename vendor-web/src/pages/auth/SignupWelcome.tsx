@@ -29,7 +29,7 @@ const LAUNCH_STEPS: LaunchStep[] = [
     id: 'account',
     label: 'Account',
     description: 'Login, profile, and verification.',
-    nextHref: '/storefront-builder',
+    nextHref: '/business-front',
   },
   {
     id: 'business front',
@@ -42,7 +42,9 @@ const LAUNCH_STEPS: LaunchStep[] = [
     label: 'Business Front',
     description: 'Template, branding, and pages for your public store URL.',
     nextHref: '/websites',
+
   },
+  
   {
     id: 'catalog',
     label: 'Catalog',

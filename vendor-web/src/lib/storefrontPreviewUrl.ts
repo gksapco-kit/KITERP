@@ -2,6 +2,7 @@ import {
   broadcastPreviewTabNavigate,
   PREVIEW_NAV_MESSAGE_TYPE,
 } from '@/lib/draftPreviewSync'
+import { normalizeLoopbackHostname } from '@/lib/loopbackHost'
 
 /** True when the dashboard is opened on a loopback host (vite dev, vite preview, etc.). */
 function isLoopbackDashboardHost(): boolean {
@@ -10,14 +11,8 @@ function isLoopbackDashboardHost(): boolean {
   return h === 'localhost' || h === '127.0.0.1' || h === '[::1]'
 }
 
-/**
- * Windows + Docker: `localhost` often resolves to IPv6 (::1) while published ports
- * only answer on 127.0.0.1 — use the numeric loopback for dev URLs.
- */
-export function normalizeLoopbackHostname(hostname: string): string {
-  if (hostname === 'localhost' || hostname === '[::1]') return '127.0.0.1'
-  return hostname
-}
+/** Re-export for callers that already import from this module. */
+export { normalizeLoopbackHostname }
 
 /** Current vendor panel origin with loopback hostname normalized (port 3001 in local dev). */
 export function getVendorPanelOrigin(): string {
@@ -74,26 +69,25 @@ export const DRAFT_BROWSER_PREVIEW_PATH = '/preview/draft'
 export const DRAFT_PREVIEW_PENDING_PARAM = 'pending'
 
 /**
- * Origin for preview URLs — same host/port as the open vendor dashboard tab.
- * Must match `window.location` (not normalized loopback) so named preview tabs reuse correctly.
+ * Origin for preview URLs — canonical loopback (127.0.0.1) so builder + preview tabs
+ * share localStorage/BroadcastChannel (localhost and 127.0.0.1 are different origins).
  */
 export function getVendorPreviewOrigin(): string {
   if (typeof window === 'undefined') return 'http://127.0.0.1:3001'
   const { protocol, hostname, port } = window.location
+  const host = normalizeLoopbackHostname(hostname)
   const portSuffix = port ? `:${port}` : ''
-  return `${protocol}//${hostname}${portSuffix}`
+  return `${protocol}//${host}${portSuffix}`
 }
 
-/** Keep preview on the same loopback spelling as the builder (localhost vs 127.0.0.1). */
-function alignPreviewUrlWithCurrentHost(previewShellUrl: string): string {
+/** Canonicalize loopback hostnames so cross-tab preview signaling stays on one origin. */
+export function alignPreviewUrlWithCurrentHost(previewShellUrl: string): string {
   if (typeof window === 'undefined') return previewShellUrl
   try {
     const url = new URL(previewShellUrl)
-    const current = window.location.hostname
-    const previewHost = url.hostname
-    const loopback = new Set(['localhost', '127.0.0.1', '[::1]'])
-    if (loopback.has(current) && loopback.has(previewHost) && current !== previewHost) {
-      url.hostname = current
+    url.hostname = normalizeLoopbackHostname(url.hostname)
+    if (typeof window !== 'undefined' && window.location.port) {
+      url.port = window.location.port
     }
     return url.toString()
   } catch {
@@ -159,7 +153,7 @@ export function prepareDraftPreviewTab(): Window | null {
   try {
     if (previewWindowRef && !previewWindowRef.closed) {
       try {
-        previewWindowRef.location.href = pendingUrl
+        previewWindowRef.location.replace(pendingUrl)
         previewWindowRef.focus()
         return previewWindowRef
       } catch {
@@ -180,21 +174,37 @@ export function prepareDraftPreviewTab(): Window | null {
 /** Navigate the prepared preview tab (safe to call after async work). */
 export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
   const url = alignPreviewUrlWithCurrentHost(previewShellUrl)
+  let delivered = false
   try {
-    // Primary path after await: preview tab navigates itself (opener ref is often blocked).
+    // Cross-tab fallback: localStorage + BroadcastChannel (works when opener ref is blocked).
     broadcastPreviewTabNavigate(url)
 
     if (previewWindowRef && !previewWindowRef.closed) {
       try {
         const targetOrigin = new URL(url).origin
         previewWindowRef.postMessage({ type: PREVIEW_NAV_MESSAGE_TYPE, url }, targetOrigin)
-        previewWindowRef.location.href = url
+        previewWindowRef.location.replace(url)
         previewWindowRef.focus()
+        delivered = true
       } catch {
         previewWindowRef = null
       }
     }
-    return true
+
+    if (!delivered) {
+      try {
+        const tab = window.open(url, PREVIEW_WINDOW_NAME)
+        if (tab) {
+          previewWindowRef = tab
+          tab.focus()
+          delivered = true
+        }
+      } catch {
+        /* popup blocked */
+      }
+    }
+
+    return delivered
   } catch {
     return false
   }
