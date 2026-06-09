@@ -167,6 +167,8 @@ services:
       - BACKEND_URL=http://backend:8000
       - VITE_API_URL=http://127.0.0.1:8000/api/v1
       - VITE_STOREFRONT_URL=http://localhost:3002
+      # Bind-mount file events are unreliable on Docker Desktop (Windows); poll so Vite picks up storefront-web changes.
+      - VITE_WATCH_POLLING=1
     volumes:
       - ./vendor-web:/app
       - ./storefront-web:/storefront-web:ro
