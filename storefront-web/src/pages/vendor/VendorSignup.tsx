@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
-import { Loader2, Rocket, Eye, EyeOff, Check, Smartphone, X } from 'lucide-react'
+import { Loader2, Rocket, Eye, EyeOff, Check, Smartphone, Mail, X } from 'lucide-react'
 import axios from 'axios'
 import { vendorAppUrl } from '@/lib/appUrls'
 import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
@@ -175,14 +175,16 @@ function maskPhoneTail(phone: string): string {
   return `•••• ${dig.slice(-4)}`
 }
 
-type PendingPhoneSignup = {
+type PendingSignup = {
   full_name: string
   business_name: string
   business_category: string
   email?: string
-  phone: string
+  phone?: string
   password: string
 }
+
+type OtpChannel = 'phone' | 'email'
 
 export default function VendorSignup() {
   const navigate = useNavigate()
@@ -196,15 +198,18 @@ export default function VendorSignup() {
   const [error, setError] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [otpModalOpen, setOtpModalOpen] = useState(false)
-  const [pendingPhoneSignup, setPendingPhoneSignup] = useState<PendingPhoneSignup | null>(null)
+  const [otpChannel, setOtpChannel] = useState<OtpChannel>('phone')
+  const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null)
   const [modalOtp, setModalOtp] = useState('')
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null)
+  const [otpSendError, setOtpSendError] = useState<string | null>(null)
 
   const closeOtpModal = useCallback(() => {
     setOtpModalOpen(false)
-    setPendingPhoneSignup(null)
+    setPendingSignup(null)
     setModalOtp('')
     setOtpSentTo(null)
+    setOtpSendError(null)
     otpAutoSentRef.current = false
   }, [])
 
@@ -255,11 +260,29 @@ export default function VendorSignup() {
     restoredToastRef.current = true
   }, [initialDraft.email, initialDraft.full_name, initialDraft.phone])
 
-  const sendOtpToPhone = async (phone: string) => {
-    const res = await axios.post(`${API_URL}/auth/vendor-signup/send-phone-otp`, { phone: phone.trim() })
-    const d = res.data as { to?: string }
-    setOtpSentTo(d.to || maskPhoneTail(phone))
-    toast.success(`Verification code sent${d.to ? ` to ${d.to}` : ''}`)
+  const sendOtp = async (channel: OtpChannel, target: string) => {
+    if (channel === 'phone') {
+      const res = await axios.post(`${API_URL}/auth/vendor-signup/send-phone-otp`, { phone: target.trim() })
+      const d = res.data as { to?: string; dev_hint?: string }
+      setOtpSentTo(d.to || maskPhoneTail(target))
+      if (d.dev_hint) {
+        setModalOtp(d.dev_hint)
+        toast.message(`Dev mode: your code is ${d.dev_hint}`, { duration: 12_000 })
+      } else {
+        toast.success(`Verification code sent${d.to ? ` to ${d.to}` : ''}`)
+      }
+      return
+    }
+    const email = target.trim().toLowerCase()
+    const res = await axios.post(`${API_URL}/auth/vendor-signup/send-email-otp`, { email })
+    const d = res.data as { to?: string; dev_hint?: string }
+    setOtpSentTo(email)
+    if (d.dev_hint) {
+      setModalOtp(d.dev_hint)
+      toast.message(`Dev mode: your code is ${d.dev_hint}`, { duration: 12_000 })
+    } else {
+      toast.success(`Verification code sent to ${email}`)
+    }
   }
 
   useEffect(() => {
@@ -267,27 +290,29 @@ export default function VendorSignup() {
       otpAutoSentRef.current = false
       return
     }
-    if (!pendingPhoneSignup?.phone || otpAutoSentRef.current) return
+    const target = otpChannel === 'phone' ? pendingSignup?.phone : pendingSignup?.email
+    if (!target || otpAutoSentRef.current) return
     otpAutoSentRef.current = true
     setModalOtp('')
+    setOtpSendError(null)
     ;(async () => {
       setModalOtpSending(true)
       try {
-        await sendOtpToPhone(pendingPhoneSignup.phone)
+        await sendOtp(otpChannel, target)
       } catch (err: unknown) {
         otpAutoSentRef.current = false
-        closeOtpModal()
         const msg =
           axios.isAxiosError(err) && typeof err.response?.data?.detail === 'string'
             ? err.response.data.detail
             : 'Could not send verification code'
+        setOtpSendError(msg)
         toast.error(msg)
       } finally {
         setModalOtpSending(false)
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [otpModalOpen, pendingPhoneSignup?.phone])
+  }, [otpModalOpen, otpChannel, pendingSignup?.phone, pendingSignup?.email])
 
   const completeSignup = async (payload: {
     full_name: string
@@ -296,6 +321,7 @@ export default function VendorSignup() {
     email?: string
     phone?: string
     phone_otp?: string
+    email_otp?: string
     password: string
   }) => {
     setLoading(true)
@@ -375,55 +401,68 @@ export default function VendorSignup() {
       setCheckingContact(false)
     }
 
-    if (phoneOk) {
-      setPendingPhoneSignup({
+    // Prefer email OTP when both are valid (SendGrid on prod; SMS needs Twilio).
+    if (emailOk) {
+      setOtpChannel('email')
+      setPendingSignup({
         full_name: data.full_name,
         business_name: data.business_name,
         business_category: data.business_category,
-        email: emailOk ? emailTrim : undefined,
-        phone: phoneTrim,
+        email: emailTrim,
+        phone: undefined,
         password: data.password,
       })
       setOtpModalOpen(true)
       return
     }
 
-    await completeSignup({
-      full_name: data.full_name,
-      business_name: data.business_name,
-      business_category: data.business_category,
-      email: emailOk ? emailTrim : undefined,
-      password: data.password,
-    })
+    if (phoneOk) {
+      setOtpChannel('phone')
+      setPendingSignup({
+        full_name: data.full_name,
+        business_name: data.business_name,
+        business_category: data.business_category,
+        email: undefined,
+        phone: phoneTrim,
+        password: data.password,
+      })
+      setOtpModalOpen(true)
+      return
+    }
   }
 
-  const submitPhoneWithOtp = async () => {
+  const submitWithOtp = async () => {
     const otp = modalOtp.replace(/\D/g, '').slice(0, 6)
-    if (!pendingPhoneSignup || otp.length !== 6) {
+    if (!pendingSignup || otp.length !== 6) {
       toast.error('Enter the 6-digit code')
       return
     }
     await completeSignup({
-      full_name: pendingPhoneSignup.full_name,
-      business_name: pendingPhoneSignup.business_name,
-      business_category: pendingPhoneSignup.business_category,
-      email: pendingPhoneSignup.email,
-      phone: pendingPhoneSignup.phone,
-      phone_otp: otp,
-      password: pendingPhoneSignup.password,
+      full_name: pendingSignup.full_name,
+      business_name: pendingSignup.business_name,
+      business_category: pendingSignup.business_category,
+      email: pendingSignup.email,
+      phone: pendingSignup.phone,
+      phone_otp: otpChannel === 'phone' ? otp : undefined,
+      email_otp: otpChannel === 'email' ? otp : undefined,
+      password: pendingSignup.password,
     })
   }
 
   const resendOtp = async () => {
-    if (!pendingPhoneSignup?.phone) return
+    const target = otpChannel === 'phone' ? pendingSignup?.phone : pendingSignup?.email
+    if (!target) return
     setModalOtpSending(true)
+    setOtpSendError(null)
+    otpAutoSentRef.current = false
     try {
-      await sendOtpToPhone(pendingPhoneSignup.phone)
+      await sendOtp(otpChannel, target)
     } catch (err: unknown) {
       const msg =
         axios.isAxiosError(err) && typeof err.response?.data?.detail === 'string'
           ? err.response.data.detail
           : 'Could not send OTP'
+      setOtpSendError(msg)
       toast.error(msg)
     } finally {
       setModalOtpSending(false)
@@ -503,7 +542,7 @@ export default function VendorSignup() {
                   </div>
 
                   <p className="text-[11px] leading-snug text-slate-500">
-                    Email or phone required. Phone signups use OTP after submit.
+                    Email or phone required. We send a 6-digit code to your email (or SMS if email is omitted).
                   </p>
                   {/* Row 3 — Phone + Email */}
                   <div className={fieldRow}>
@@ -608,7 +647,7 @@ export default function VendorSignup() {
               </div>
     </VendorSignupShell>
 
-      {otpModalOpen && pendingPhoneSignup ? (
+      {otpModalOpen && pendingSignup ? (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-[2px] overflow-y-auto"
           role="dialog"
@@ -633,16 +672,30 @@ export default function VendorSignup() {
 
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ring-4" style={{ backgroundColor: `${SIGNUP_BRAND}18`, boxShadow: `0 0 0 4px ${SIGNUP_BRAND}1a` }}>
-                <Smartphone className="w-7 h-7" style={{ color: SIGNUP_BRAND }} />
+                {otpChannel === 'phone' ? (
+                  <Smartphone className="w-7 h-7" style={{ color: SIGNUP_BRAND }} />
+                ) : (
+                  <Mail className="w-7 h-7" style={{ color: SIGNUP_BRAND }} />
+                )}
               </div>
               <h3 id="sf-vendor-otp-title" className="text-lg font-bold text-slate-900">
-                Verify your phone
+                {otpChannel === 'phone' ? 'Verify your phone' : 'Verify your email'}
               </h3>
               <p className="text-sm text-slate-500 mt-1.5 leading-snug">
                 Enter the 6-digit code we sent to{' '}
-                <span className="font-semibold text-slate-800">{otpSentTo ?? maskPhoneTail(pendingPhoneSignup.phone)}</span>
+                <span className="font-semibold text-slate-800 break-all">
+                  {otpChannel === 'email'
+                    ? pendingSignup.email
+                    : (otpSentTo ?? maskPhoneTail(pendingSignup.phone ?? ''))}
+                </span>
               </p>
             </div>
+
+            {otpSendError ? (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {otpSendError}
+              </div>
+            ) : null}
 
             {modalOtpSending ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-600">
@@ -659,7 +712,7 @@ export default function VendorSignup() {
                   value={modalOtp}
                   onChange={(e) => setModalOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && modalOtp.replace(/\D/g, '').length === 6) void submitPhoneWithOtp()
+                    if (e.key === 'Enter' && modalOtp.replace(/\D/g, '').length === 6) void submitWithOtp()
                   }}
                   className="h-14 text-center text-2xl font-semibold tracking-[0.35em] font-mono border-slate-200 focus-visible:ring-[#64C3A0]"
                   autoFocus
@@ -671,7 +724,7 @@ export default function VendorSignup() {
                     className="w-full h-11 font-bold text-white"
                     style={{ backgroundColor: SIGNUP_BRAND }}
                     disabled={loading || modalOtp.replace(/\D/g, '').length !== 6}
-                    onClick={() => void submitPhoneWithOtp()}
+                    onClick={() => void submitWithOtp()}
                   >
                     {loading ? (
                       <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating your business…</>
