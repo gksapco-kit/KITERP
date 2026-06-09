@@ -25,7 +25,7 @@ import {
   Type, Square, Columns, Video, Map as MapIcon, MessageSquare,
   Hash, Minus, List, ToggleLeft, Radio, Info,
   Database, Plug, RefreshCcw, Package, Wrench, ShoppingCart,
-  Store as StoreIcon, ClipboardCopy, ClipboardPaste, RotateCcw, SlidersHorizontal, Paintbrush, Scissors,
+  Store as StoreIcon, ClipboardCopy, ClipboardPaste, RotateCcw, SlidersHorizontal, Paintbrush, Scissors, Eraser, Pin,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -62,10 +62,8 @@ import {
   FontFamilyControl,
   TextCaseList,
   TextFieldAlignGrid,
-  FieldPositionControlGroup,
+  LayoutTransformPositionGroup,
   FieldPositionNudge,
-  FlipRotateControls,
-  LayoutTransformScopeToggle,
   type LayoutTransformScope,
   ColorIdentPickerRow,
   LineSpacingMenuContent,
@@ -87,9 +85,14 @@ import {
   insertActiveCanvasLineBreak,
   getCanvasFieldComputedFontSizePx,
   getCanvasFieldComputedFormatPaintStyle,
-  resolveToolbarFontFamily,
+  resolveToolbarTypographyDisplay,
   runCanvasTextClipboardAction,
 } from '@/lib/builderCanvasTextEdit'
+import {
+  runCanvasTextClearAction,
+  TEXT_CLEAR_MENU,
+  type TextClearAction,
+} from '@/lib/builderCanvasTextClear'
 import {
   editableFieldKeys,
   primaryTextFieldKey,
@@ -112,6 +115,8 @@ import {
 import { buildBuilderPublicSite } from '@/lib/builderPublicSite'
 import {
   extractFormatPaintStyle,
+  extractFormatPaintStyleFromElement,
+  extractFormatPaintStyleFromRange,
   formatPaintStyleSummary,
   hasFormatPaintStyle,
   buildFormatPaintPropsPatch,
@@ -120,7 +125,24 @@ import {
 } from '@/lib/builderFormatPainter'
 import { MediaStudioPanel } from '@/components/websites/MediaStudioPanel'
 import { MediaClipPicker } from '@/components/websites/MediaClipPicker'
-import { MEDIA_CLIP_BLOCK_TYPES } from '@storefront/lib/mediaClip'
+import { DesignBarDropdownPortal } from '@/components/websites/DesignBarDropdownPortal'
+import { VisualDesignBarTools } from '@/components/websites/VisualDesignBarTools'
+import { OverlayIconPicker } from '@/components/websites/OverlayIconPicker'
+import { OverlayTransformControls } from '@/components/websites/OverlayTransformControls'
+import { SectionImageControls } from '@/components/websites/SectionImageControls'
+import type { OverlayLayerItem } from '@/lib/builderOverlayVisual'
+import { overlayImageImgStyle } from '@storefront/lib/overlayImageStyle'
+import { builderOverlayIconLabel, overlayIconRenderSize, resolveBuilderOverlayIcon } from '@storefront/lib/builderOverlayIcons'
+import { SHADOW_PRESETS, SHAPE_OPTIONS } from '@/lib/builderVisualPresets'
+import { blockSupportsMediaClip } from '@storefront/lib/mediaClip'
+import {
+  sectionPrimaryImageField,
+  sectionSupportsBgStyle,
+  sectionSupportsContentGroupTransform,
+  sectionSupportsEdgeShapes,
+  sectionSupportsMediaClip,
+} from '@storefront/lib/designBarCapabilities'
+import { MediaDesignBarTools } from '@/components/websites/MediaDesignBarTools'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
 import {
@@ -154,7 +176,7 @@ import {
   type LayoutPickerDataSourceChoice,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
-import { heroShouldUseFullBleedImage, heroUsesBackgroundImage, heroUsesSideImage, resolveGradientCss } from '@/lib/heroLayoutUtils'
+import { heroShouldUseFullBleedImage, heroUsesBackgroundImage, heroUsesSideImage, resolveBlockPrimaryImageField, resolveGradientCss } from '@/lib/heroLayoutUtils'
 import { resolveFooterTheme } from '@/lib/footerLayoutTheme'
 import {
   buildVendorDraftPreviewUrl,
@@ -200,13 +222,15 @@ import {
   type ImageShape,
 } from '@storefront/lib/sectionItemLayout'
 import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
-import { BUILDER_FONT_FAMILIES } from '@storefront/lib/builderFontFamilies'
+import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded } from '@storefront/lib/builderFontFamilies'
 import {
   applyInlineTextSelectionStyle,
+  applyInlineTextStyleAtPoint,
   applyPatchToLastStyledSpan,
   BUILDER_DESIGN_BAR_CHROME_ATTR,
   BUILDER_TYPOGRAPHY_TOOLBAR_ATTR,
   ensureInlineTextSelectionTracking,
+  getInlineStyledElementAtSelection,
   getLastInlineStyledSpan,
   getSavedInlineTextSelection,
   getSelectionFontSizePx,
@@ -561,7 +585,7 @@ export type OverlayLinkType =
 
 export interface BlockOverlayItem {
   id: string
-  type: 'text' | 'image' | 'button' | 'box' | 'badge' | 'video'
+  type: 'text' | 'image' | 'button' | 'box' | 'badge' | 'icon' | 'video'
   x: number   // px from block left
   y: number   // px from block top
   w: number   // px width
@@ -589,6 +613,8 @@ export interface BlockOverlayItem {
   objectFit?: 'cover' | 'contain' | 'fill'
   /** When `'none'`, fill is transparent so the block/page background shows through. */
   bgFill?: 'solid' | 'none'
+  /** Lucide icon id when type is `icon`. */
+  iconName?: string
 }
 
 function isOverlayNoFill(item: BlockOverlayItem): boolean {
@@ -618,6 +644,7 @@ const OVERLAY_DEFAULTS: Record<string, Partial<BlockOverlayItem>> = {
   button:  { w: 160, h: 44,  text: 'Click Here', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 8, fontSize: 14, fontWeight: 'bold' },
   box:     { w: 280, h: 180, bgColor: 'rgba(255,255,255,0.9)', borderRadius: 12, shadow: true, borderColor: 'rgba(124,58,237,0.2)', borderWidth: 2 },
   badge:   { w: 90,  h: 32,  text: 'New', bgColor: '#64C3A0', color: '#ffffff', borderRadius: 999, fontSize: 12, fontWeight: 'bold' },
+  icon:    { w: 56,  h: 56,  iconName: 'star', color: '#111827', bgColor: 'transparent', bgFill: 'none', fontSize: 32 },
   video:   { w: 320, h: 200, bgColor: '#000000', borderRadius: 8 },
   // Insert-helpers: reuse the button overlay shape but seed link fields so the
   // link-editor popup opens pre-focused on the right section (URL vs DB).
@@ -1456,6 +1483,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
 
   return (
     <div
+      data-builder-floating-ui
       style={{ position: 'fixed', top, left, zIndex: 100001 }}
       className="w-56 bg-white border border-gray-200 rounded-xl shadow-2xl py-1.5 animate-in fade-in zoom-in-95 duration-100 max-h-[90vh] overflow-y-auto"
       onClick={e => e.stopPropagation()}
@@ -1938,10 +1966,10 @@ function InlineEditableRichText({
 
 /** Clicks on builder popovers / overlay UI must not clear overlay selection. */
 const BUILDER_OVERLAY_UI_SELECTOR =
-  '[data-overlay-root],[data-overlay-toolbar],[data-builder-floating-ui]'
+  '[data-overlay-root],[data-overlay-toolbar],[data-builder-section-image],[data-builder-section-toolbar],[data-builder-floating-ui],[data-block-design-bar],[data-block-design-bar-dropdown]'
 
 /** Fixed width — layout never reflows when link state or labels change. */
-const OVERLAY_TOOLBAR_WIDTH_PX = 268
+const OVERLAY_TOOLBAR_WIDTH_PX = 320
 
 /** Shared classes — light default, `dark:` when dashboard theme is dark (html.dark). */
 const overlayToolbarUi = {
@@ -2116,6 +2144,8 @@ function OverlayEditToolbar({
   onOpenAiForImage,
   onOpenMediaForImage,
   onPickLocalImage,
+  onBringToFront,
+  onSendToBack,
 }: {
   item: BlockOverlayItem
   onUpdate: (u: Partial<BlockOverlayItem>) => void
@@ -2136,13 +2166,17 @@ function OverlayEditToolbar({
   onOpenAiForImage?: () => void
   onOpenMediaForImage?: () => void
   onPickLocalImage?: () => void
+  onBringToFront?: () => void
+  onSendToBack?: () => void
 }) {
   const hasTextControls = item.type === 'text' || item.type === 'button' || item.type === 'badge'
-  const hasFillControls = item.type !== 'image' || !item.src
-  const hasLink = item.type === 'button' || item.type === 'badge' || item.type === 'text' || item.type === 'image'
+  const isImage = item.type === 'image'
+  const isIcon = item.type === 'icon'
+  const hasLink = item.type === 'button' || item.type === 'badge' || item.type === 'text' || isImage || isIcon
   const isLinked = !!(item.linkType && item.linkType !== 'none')
-  const noFill = isOverlayNoFill(item)
-  const toolbarTop = item.h + 8
+  const placeToolbarAbove = item.h > 220
+  const toolbarTop = placeToolbarAbove ? 0 : item.h + 8
+  const showCanvasToolbar = true
 
   const stopToolbarEvent = (e: React.SyntheticEvent) => {
     e.stopPropagation()
@@ -2193,14 +2227,7 @@ function OverlayEditToolbar({
   const toolbarBtn =
     'flex h-8 w-full min-w-0 items-center justify-center rounded-lg transition-colors'
 
-  const segmentBtn = (active: boolean) => cn(
-    'flex-1 rounded-md py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors',
-    active ? 'bg-primary text-primary-foreground shadow-sm' : overlayToolbarUi.segmentInactive,
-  )
-
-  const savedFillColor = item.bgColor && item.bgColor !== 'transparent'
-    ? item.bgColor
-    : defaultOverlayFillColor(item.type)
+  if (!showCanvasToolbar) return null
 
   return (
     <div
@@ -2214,6 +2241,7 @@ function OverlayEditToolbar({
       style={{
         top: toolbarTop,
         width: OVERLAY_TOOLBAR_WIDTH_PX,
+        ...(placeToolbarAbove ? { transform: 'translateY(calc(-100% - 8px))' } : {}),
       }}
       onMouseDown={stopToolbarEvent}
       onPointerDown={stopToolbarEvent}
@@ -2221,6 +2249,17 @@ function OverlayEditToolbar({
       onDoubleClick={stopToolbarEvent}
     >
       <div className="space-y-2">
+        <OverlayToolbarSection title="Position & size">
+          <OverlayTransformControls
+            item={item}
+            onUpdate={onUpdate}
+            onBringToFront={onBringToFront}
+            onSendToBack={onSendToBack}
+            variant="toolbar"
+            onStopBubble={stopToolbarEvent}
+          />
+        </OverlayToolbarSection>
+
         {/* Typography */}
         {hasTextControls && (
           <OverlayToolbarSection title="Text">
@@ -2246,93 +2285,110 @@ function OverlayEditToolbar({
           </OverlayToolbarSection>
         )}
 
-        {/* Background */}
-        {hasFillControls && (
-          <OverlayToolbarSection title="Background">
-            <div
-              className={cn('mb-2 flex rounded-lg border p-0.5', overlayToolbarUi.segmentTrack)}
-              role="group"
-              aria-label="Fill type"
-            >
-              <button
-                type="button"
-                className={segmentBtn(!noFill)}
-                onClick={() => onUpdate({ bgFill: 'solid', bgColor: savedFillColor })}
-              >
-                Solid
-              </button>
-              <button
-                type="button"
-                className={segmentBtn(noFill)}
-                onClick={() => onUpdate({ bgFill: 'none' })}
-              >
-                None
-              </button>
-            </div>
-            {noFill ? (
-              <div className="flex items-center gap-2">
-                <div
-                  className={cn('h-8 w-10 shrink-0 overflow-hidden rounded-md border', overlayToolbarUi.previewSwatch)}
-                  style={{ backgroundColor: blockBackgroundColor || '#ffffff' }}
-                  title="Section background (preview)"
-                />
-                <p className={cn('text-[10px] leading-snug', overlayToolbarUi.hint)}>
-                  Transparent — shows your section background. Tap <span className={overlayToolbarUi.hintEmphasis}>Solid</span> to add a color.
-                </p>
-              </div>
-            ) : (
-              <OverlayToolbarField label="Fill color">
+        {isIcon && (
+          <OverlayToolbarSection title="Icon">
+            <div className="grid grid-cols-2 gap-2">
+              <OverlayToolbarField label="Icon">
+                <div onMouseDown={stopToolbarEvent} onClick={stopToolbarEvent}>
+                  <OverlayIconPicker
+                    value={item.iconName}
+                    onChange={iconName => onUpdate({ iconName })}
+                  />
+                </div>
+              </OverlayToolbarField>
+              <OverlayToolbarField label="Color">
                 <OverlayToolbarColorSwatch
-                  value={item.bgColor || savedFillColor}
-                  onChange={color => onUpdate({ bgFill: 'solid', bgColor: color })}
+                  value={item.color || '#111827'}
+                  onChange={color => onUpdate({ color })}
                   onStopBubble={stopToolbarEvent}
-                  title="Background fill color"
+                  title="Icon color"
                 />
               </OverlayToolbarField>
-            )}
+              <OverlayToolbarNumberInput
+                label="Size (px)"
+                value={item.fontSize ?? 32}
+                min={12}
+                max={160}
+                fallback={32}
+                onCommit={n => onUpdate({ fontSize: n })}
+                onStopBubble={stopToolbarEvent}
+              />
+            </div>
           </OverlayToolbarSection>
         )}
 
-        {/* Border */}
-        <OverlayToolbarSection title="Border">
-          <div className="grid grid-cols-3 gap-2">
-            <OverlayToolbarNumberInput
-              label="Radius"
-              value={item.borderRadius ?? 0}
-              min={0}
-              max={999}
-              fallback={0}
-              onCommit={n => onUpdate({ borderRadius: n })}
-              onStopBubble={stopToolbarEvent}
-            />
-            <OverlayToolbarNumberInput
-              label="Width"
-              value={item.borderWidth ?? 0}
-              min={0}
-              max={24}
-              fallback={0}
-              onCommit={n => onUpdate({
-                borderWidth: n,
-                ...(n > 0 && !item.borderColor ? { borderColor: '#111827' } : {}),
-              })}
-              onStopBubble={stopToolbarEvent}
-            />
-            <OverlayToolbarField label="Color">
-              <OverlayToolbarColorSwatch
-                value={item.borderColor || '#111827'}
-                onChange={color => onUpdate({
-                  borderColor: color,
-                  borderWidth: Math.max(1, item.borderWidth ?? 1),
-                })}
+        {isImage && (
+          <OverlayToolbarSection title="Image">
+            <div className="grid grid-cols-2 gap-1.5">
+              {onPickLocalImage ? (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onPickLocalImage() }}
+                  className={cn(toolbarBtn, 'gap-1 bg-sky-600 text-white hover:bg-sky-500 text-[10px] font-semibold')}
+                  title="Upload image"
+                >
+                  <Upload className="h-3.5 w-3.5 shrink-0" />
+                  Upload
+                </button>
+              ) : null}
+              {onOpenMediaForImage ? (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onOpenMediaForImage() }}
+                  className={cn(toolbarBtn, 'gap-1 bg-emerald-600 text-white hover:bg-emerald-500 text-[10px] font-semibold')}
+                  title="Media library"
+                >
+                  <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+                  Library
+                </button>
+              ) : null}
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <OverlayToolbarNumberInput
+                label="Zoom %"
+                value={item.imageScale ?? 100}
+                min={25}
+                max={400}
+                fallback={100}
+                onCommit={n => onUpdate({ imageScale: n })}
                 onStopBubble={stopToolbarEvent}
-                title={(item.borderWidth ?? 0) <= 0 ? 'Border color (sets width to 1px)' : 'Border color'}
               />
-            </OverlayToolbarField>
-          </div>
-        </OverlayToolbarSection>
-      </div>
+              <OverlayToolbarNumberInput
+                label="Radius"
+                value={item.borderRadius ?? 0}
+                min={0}
+                max={999}
+                fallback={0}
+                onCommit={n => onUpdate({ borderRadius: n })}
+                onStopBubble={stopToolbarEvent}
+              />
+              <OverlayToolbarField label="Shadow">
+                <button
+                  type="button"
+                  onClick={() => onUpdate({ shadow: !item.shadow })}
+                  className={cn(
+                    toolbarBtn,
+                    'text-[10px] font-semibold',
+                    item.shadow ? 'bg-primary text-white' : overlayToolbarUi.actionMuted,
+                  )}
+                >
+                  {item.shadow ? 'On' : 'Off'}
+                </button>
+              </OverlayToolbarField>
+              <OverlayToolbarNumberInput
+                label="Opacity %"
+                value={item.opacity ?? 100}
+                min={10}
+                max={100}
+                fallback={100}
+                onCommit={n => onUpdate({ opacity: n })}
+                onStopBubble={stopToolbarEvent}
+              />
+            </div>
+          </OverlayToolbarSection>
+        )}
 
-      {(hasTextControls || (hasLink && onEditLink) || ((item.type === 'button' || item.type === 'badge') && onRequestText)) && (
+      {(hasTextControls || isIcon || isImage || (hasLink && onEditLink) || ((item.type === 'button' || item.type === 'badge') && onRequestText)) && (
         <div className="mt-2 grid grid-cols-3 gap-1.5">
           {hasTextControls ? (
             <button
@@ -2361,7 +2417,7 @@ function OverlayEditToolbar({
             >
               <Link2 className="h-4 w-4 shrink-0" />
             </button>
-          ) : <div className="h-8" aria-hidden />}
+          ) : (isImage ? null : <div className="h-8" aria-hidden />)}
           {(item.type === 'button' || item.type === 'badge') && onRequestText ? (
             <button
               type="button"
@@ -2374,70 +2430,6 @@ function OverlayEditToolbar({
           ) : <div className="h-8" aria-hidden />}
         </div>
       )}
-
-      {item.type === 'image' && (
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {onPickLocalImage && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onPickLocalImage() }}
-              className={cn(toolbarBtn, 'bg-sky-600 text-white hover:bg-sky-500')}
-              title="Upload from your computer"
-            >
-              <Upload className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Upload</span>
-            </button>
-          )}
-          {onOpenAiForImage && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onOpenAiForImage() }}
-              className={cn(toolbarBtn, 'bg-amber-600 text-white hover:bg-amber-500')}
-              title="AI image generator"
-            >
-              <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">AI</span>
-            </button>
-          )}
-          {onOpenMediaForImage && (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onOpenMediaForImage() }}
-              className={cn(toolbarBtn, 'bg-emerald-600 text-white hover:bg-emerald-500')}
-              title="Media library"
-            >
-              <ImageIcon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Library</span>
-            </button>
-          )}
-          {onRequestText && (
-            <button
-              type="button"
-              onClick={e => {
-                e.stopPropagation()
-                const rect = e.currentTarget.getBoundingClientRect()
-                onRequestText({
-                  title: 'Set image URL',
-                  placeholder: 'https://…/image.jpg',
-                  initialValue: item.src || '',
-                  anchor: { x: rect.left, y: rect.bottom + 6 },
-                  onSave: v => { if (v) onUpdate({ src: v }) },
-                })
-              }}
-              className={cn(toolbarBtn, 'bg-primary text-white hover:bg-primary/90')}
-            >
-              <Link2 className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">URL</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      <div
-        className={cn('mt-2 border-t pt-1.5 text-center text-[10px] font-medium tabular-nums', overlayToolbarUi.footer)}
-        title="Element size"
-      >
-        {Math.round(item.w)}×{Math.round(item.h)} px
       </div>
     </div>
   )
@@ -2446,7 +2438,7 @@ function OverlayEditToolbar({
 function OverlayElement({
   item, isSelected, containerRef, blockBackgroundColor, onSelect, onUpdate, onDelete,
   onOpenAiForImage, onOpenMediaForImage, onPickLocalImage, onImageFileDrop,
-  onEditLink, onContextMenu, onRequestText,
+  onEditLink, onContextMenu, onRequestText, onBringToFront, onSendToBack,
 }: {
   item: BlockOverlayItem
   isSelected: boolean
@@ -2461,6 +2453,8 @@ function OverlayElement({
   onImageFileDrop?: (file: File) => void
   onEditLink?: (anchor: { x: number; y: number }) => void
   onContextMenu?: (e: React.MouseEvent) => void
+  onBringToFront?: () => void
+  onSendToBack?: () => void
   // Open the styled text prompt (title/prompt/placeholder/current value)
   onRequestText?: (opts: {
     title: string
@@ -2491,6 +2485,15 @@ function OverlayElement({
     }
     textRef.current.focus()
   }, [textEditing, item.text])
+
+  useEffect(() => {
+    if (item.type !== 'text') return
+    const root = document.querySelector(`[data-overlay-id="${CSS.escape(item.id)}"]`)
+    if (!root) return
+    const handler = () => setTextEditing(true)
+    root.addEventListener('builder-overlay-start-text-edit', handler)
+    return () => root.removeEventListener('builder-overlay-start-text-edit', handler)
+  }, [item.id, item.type])
 
   const startDrag = useCallback((e: React.MouseEvent) => {
     if (textEditing) return
@@ -2572,22 +2575,12 @@ function OverlayElement({
         )
       case 'image':
         return item.src ? (
-          <img src={mediaUrl(item.src)} style={{ width: '100%', height: '100%', objectFit: item.objectFit || 'cover', borderRadius: item.borderRadius || 0 }} alt="" draggable={false} />
+          <div style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: item.borderRadius || 0 }}>
+            <img src={mediaUrl(item.src)} style={overlayImageImgStyle(item)} alt="" draggable={false} />
+          </div>
         ) : (
           <div
-            style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#f3f4f6'), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}
-            onClick={e => {
-              e.stopPropagation()
-              if (onPickLocalImage) onPickLocalImage()
-              else if (onRequestText) {
-                onRequestText({
-                  title: 'Set image URL',
-                  subtitle: 'Paste a direct image URL — or close and use AI / Media library instead.',
-                  placeholder: 'https://…/image.jpg',
-                  onSave: v => { if (v) onUpdate({ src: v }) },
-                })
-              }
-            }}
+            style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#f3f4f6'), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'move' }}
             onDragOver={onImageFileDrop ? e => { e.preventDefault(); e.stopPropagation() } : undefined}
             onDrop={onImageFileDrop ? e => {
               e.preventDefault(); e.stopPropagation()
@@ -2596,7 +2589,7 @@ function OverlayElement({
             } : undefined}
           >
             <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, fill: '#9ca3af' }}><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-8.5-5.5l2.5 3.01L18 12l4 5H6l3.5-4.5z"/></svg>
-            <span style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>Click to upload — or AI, Lib, URL</span>
+            <span style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>Right-click to upload or replace</span>
           </div>
         )
       case 'button': {
@@ -2633,6 +2626,24 @@ function OverlayElement({
             </span>
           </div>
         )
+      case 'icon': {
+        const IconGlyph = resolveBuilderOverlayIcon(item.iconName)
+        const iconPx = overlayIconRenderSize(item)
+        return (
+          <div
+            style={{
+              ...commonStyle,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: resolveOverlayBackground(item, 'transparent'),
+            }}
+            title={item.description || builderOverlayIconLabel(item.iconName)}
+          >
+            <IconGlyph size={iconPx} color={item.color || '#111827'} strokeWidth={2} aria-hidden />
+          </div>
+        )
+      }
       case 'video':
         return (
           <div style={{ ...commonStyle, backgroundColor: item.bgColor || '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2671,11 +2682,28 @@ function OverlayElement({
       onDoubleClick={e => {
         if ((e.target as HTMLElement).closest('[data-overlay-toolbar],[data-overlay-delete]')) return
         if (item.type === 'text') { e.stopPropagation(); setTextEditing(true) }
+        if (item.type === 'image') {
+          e.stopPropagation()
+          onPickLocalImage?.()
+        }
       }}
     >
       {renderContent()}
       {isSelected && !textEditing && (
         <>
+          <OverlayEditToolbar
+            item={item}
+            onUpdate={onUpdate}
+            blockBackgroundColor={blockBackgroundColor}
+            onEditLink={onEditLink}
+            onRequestText={onRequestText}
+            onStartTextEdit={() => setTextEditing(true)}
+            onOpenAiForImage={onOpenAiForImage}
+            onOpenMediaForImage={onOpenMediaForImage}
+            onPickLocalImage={onPickLocalImage}
+            onBringToFront={onBringToFront}
+            onSendToBack={onSendToBack}
+          />
           {/* Selection ring */}
           <div style={{ position: 'absolute', inset: -2, border: '2px solid #64C3A0', borderRadius: 3, pointerEvents: 'none', zIndex: 1 }} />
           {/* Resize handles */}
@@ -2703,17 +2731,6 @@ function OverlayElement({
           >
             <X className="h-4 w-4" />
           </button>
-          <OverlayEditToolbar
-            item={item}
-            onUpdate={onUpdate}
-            blockBackgroundColor={blockBackgroundColor}
-            onEditLink={onEditLink}
-            onRequestText={onRequestText}
-            onStartTextEdit={() => setTextEditing(true)}
-            onOpenAiForImage={onOpenAiForImage}
-            onOpenMediaForImage={onOpenMediaForImage}
-            onPickLocalImage={onPickLocalImage}
-          />
         </>
       )}
     </div>
@@ -2721,14 +2738,19 @@ function OverlayElement({
 }
 
 function BlockOverlayCanvas({
-  overlays, isEditing, blockBackgroundColor, onUpdate, onOverlaySelectionChange, onOpenAiImageTools, onOpenMediaLibrary,
+  blockId,
+  overlays, isEditing, blockBackgroundColor, onUpdate, onOverlaySelectionChange, selectedOverlayId: controlledSelectedId,
+  onOpenAiImageTools, onOpenMediaLibrary,
   onPickLocalImage, onImageFileDrop, onEditLinkForOverlay, onOverlayContextMenu, onRequestText,
 }: {
+  blockId?: string
   overlays: BlockOverlayItem[]
   isEditing: boolean
   blockBackgroundColor?: string
   onUpdate?: (overlays: BlockOverlayItem[]) => void
-  onOverlaySelectionChange?: (selectedId: string | null) => void
+  onOverlaySelectionChange?: (selectedId: string | null, blockId?: string | null) => void
+  /** When set, canvas selection follows parent state (ribbon / context menu). */
+  selectedOverlayId?: string | null
   onOpenAiImageTools?: () => void
   onOpenMediaLibrary?: () => void
   onPickLocalImage?: () => void
@@ -2746,27 +2768,29 @@ function BlockOverlayCanvas({
     onSave: (v: string) => void
   }) => void
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const isControlled = controlledSelectedId !== undefined
+  const selectedId = isControlled ? controlledSelectedId : internalSelectedId
 
   const setSelected = useCallback((id: string | null) => {
-    setSelectedId(id)
-    onOverlaySelectionChange?.(id)
-  }, [onOverlaySelectionChange])
+    if (!isControlled) setInternalSelectedId(id)
+    onOverlaySelectionChange?.(id, blockId ?? null)
+  }, [isControlled, onOverlaySelectionChange, blockId])
 
   useEffect(() => {
     if (!isEditing) {
-      setSelectedId(null)
+      if (!isControlled) setInternalSelectedId(null)
       onOverlaySelectionChange?.(null)
     }
-  }, [isEditing, onOverlaySelectionChange])
+  }, [isEditing, isControlled, onOverlaySelectionChange])
 
   useEffect(() => {
     if (selectedId && !overlays.some(o => o.id === selectedId)) {
-      setSelectedId(null)
+      if (!isControlled) setInternalSelectedId(null)
       onOverlaySelectionChange?.(null)
     }
-  }, [overlays, selectedId, onOverlaySelectionChange])
+  }, [overlays, selectedId, isControlled, onOverlaySelectionChange])
 
   const updateItem = useCallback((id: string, updates: Partial<BlockOverlayItem>) => {
     if (!onUpdate) return
@@ -2818,7 +2842,7 @@ function BlockOverlayCanvas({
     <div
       ref={containerRef}
       style={{
-        position: 'absolute', inset: 0, zIndex: 15,
+        position: 'absolute', inset: 0, zIndex: 78,
         // Container itself never blocks clicks — lets them pass through to the
         // underlying inline-editable text. Each overlay item re-enables pointer
         // events on itself so it's still interactive.
@@ -2828,7 +2852,7 @@ function BlockOverlayCanvas({
       onClick={e => { if (e.target === containerRef.current) setSelected(null) }}
     >
       {overlays.map(item => (
-        <div key={item.id} style={{ pointerEvents: isEditing ? 'auto' : 'none' }}>
+        <div key={item.id} className={isEditing ? 'pointer-events-auto' : 'pointer-events-none'}>
           <OverlayElement
             item={item}
             isSelected={isEditing && selectedId === item.id}
@@ -2838,15 +2862,227 @@ function BlockOverlayCanvas({
             onUpdate={updates => updateItem(item.id, updates)}
             onDelete={() => deleteItem(item.id)}
             onOpenAiForImage={item.type === 'image' ? onOpenAiImageTools : undefined}
-            onOpenMediaForImage={item.type === 'image' ? onOpenMediaLibrary : undefined}
-            onPickLocalImage={item.type === 'image' ? onPickLocalImage : undefined}
+            onOpenMediaForImage={item.type === 'image' && onOpenMediaLibrary
+              ? () => { onOverlaySelectionChange?.(item.id); onOpenMediaLibrary() }
+              : undefined}
+            onPickLocalImage={item.type === 'image' && onPickLocalImage
+              ? () => { onOverlaySelectionChange?.(item.id); onPickLocalImage() }
+              : undefined}
             onImageFileDrop={item.type === 'image' ? onImageFileDrop : undefined}
             onEditLink={onEditLinkForOverlay ? (anchor) => onEditLinkForOverlay(item, anchor) : undefined}
             onContextMenu={onOverlayContextMenu ? (e) => onOverlayContextMenu(item, e) : undefined}
             onRequestText={onRequestText}
+            onBringToFront={() => {
+              const maxZ = Math.max(10, ...overlays.map(o => o.zIndex || 10))
+              updateItem(item.id, { zIndex: maxZ + 1 })
+            }}
+            onSendToBack={() => {
+              const minZ = Math.min(10, ...overlays.map(o => o.zIndex || 10))
+              updateItem(item.id, { zIndex: minZ - 1 })
+            }}
           />
         </div>
       ))}
+    </div>
+  )
+}
+
+/** Floating section chrome (reorder, duplicate, delete) — can minimize to a hover ball. */
+function BuilderSectionChromeToolbar({
+  block,
+  blockIdx,
+  selected,
+  minimized,
+  pinned,
+  onMinimize,
+  onTogglePin,
+  positionClassName,
+  armedDeleteId,
+  dsConnectedLabel,
+  dsSuggestedLabel,
+  onConnectSuggestedDataSource,
+  onOpenDataPanel,
+  onMoveBlock,
+  onDuplicate,
+  onDelete,
+  onReorderPointerDown,
+  onOpenLayoutPicker,
+  onCycleLayout,
+}: {
+  block: WebsiteBlock
+  blockIdx: number
+  selected: boolean
+  minimized: boolean
+  pinned: boolean
+  onMinimize: () => void
+  onTogglePin: () => void
+  positionClassName: string
+  armedDeleteId: string | null
+  dsConnectedLabel: string | null
+  dsSuggestedLabel: string | null
+  onConnectSuggestedDataSource: () => void
+  onOpenDataPanel: () => void
+  onMoveBlock: (dir: 'top' | 'up' | 'down' | 'bottom') => void
+  onDuplicate: () => void
+  onDelete: () => void
+  onReorderPointerDown: (e: React.PointerEvent) => void
+  onOpenLayoutPicker: () => void
+  onCycleLayout: (dir: 'prev' | 'next') => void
+}) {
+  const showLayout = getSectionLayoutOptions(block.block_type).length > 0
+  const iconBtn = 'p-1.5 text-gray-400 hover:text-white transition-colors'
+
+  const dataSourceTitle = dsConnectedLabel
+    ? `Connected to ${dsConnectedLabel} — click to edit`
+    : dsSuggestedLabel
+      ? `Connect to ${dsSuggestedLabel}`
+      : 'Data source'
+
+  const toolbarBody = (
+    <>
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation()
+          if (dsSuggestedLabel && !dsConnectedLabel) onConnectSuggestedDataSource()
+          else onOpenDataPanel()
+        }}
+        className={cn(
+          iconBtn,
+          'relative rounded-md shrink-0',
+          dsConnectedLabel && 'text-emerald-300 bg-emerald-500/20 ring-1 ring-emerald-400/30 hover:text-emerald-200 hover:bg-emerald-500/30',
+          dsSuggestedLabel && !dsConnectedLabel && 'text-amber-200 bg-accent/25 ring-1 ring-accent/40 hover:text-amber-100 hover:bg-accent/40',
+        )}
+        title={dataSourceTitle}
+      >
+        <Database className="w-7 h-7" />
+        {dsConnectedLabel ? (
+          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden />
+        ) : dsSuggestedLabel ? (
+          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden />
+        ) : null}
+      </button>
+      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('top') }} className={iconBtn} title="Move to top">
+        <ChevronsUp className="w-7 h-7" />
+      </button>
+      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('up') }} className={iconBtn} title="Move up">
+        <ChevronUp className="w-7 h-7" />
+      </button>
+      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('down') }} className={iconBtn} title="Move down">
+        <ChevronDown className="w-7 h-7" />
+      </button>
+      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('bottom') }} className={iconBtn} title="Move to bottom">
+        <ChevronsDown className="w-7 h-7" />
+      </button>
+      {showLayout ? (
+        <SectionLayoutControls
+          block={block}
+          currentProps={(block.props ?? {}) as Record<string, unknown>}
+          compact
+          onOpenLayoutPicker={onOpenLayoutPicker}
+          onCycleLayout={onCycleLayout}
+        />
+      ) : null}
+      <button type="button" onClick={e => { e.stopPropagation(); onDuplicate() }} className={iconBtn} title="Duplicate (Ctrl+D)">
+        <Copy className="w-7 h-7" />
+      </button>
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        title={armedDeleteId === block.id ? 'Click again to confirm delete' : 'Delete block (click twice to confirm)'}
+        className={cn(
+          'flex items-center gap-1 rounded-md px-1.5 transition-all duration-200',
+          armedDeleteId === block.id
+            ? 'bg-red-500 text-white text-sm font-bold px-2.5 py-1 animate-pulse'
+            : cn(iconBtn, 'hover:text-red-400'),
+        )}
+      >
+        <Trash2 className="w-7 h-7" />
+        {armedDeleteId === block.id && 'Delete?'}
+      </button>
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onTogglePin() }}
+        className={cn(
+          iconBtn,
+          pinned && 'text-primary bg-primary/15 ring-1 ring-primary/40 rounded-md hover:text-primary',
+        )}
+        title={pinned ? 'Unpin — collapse to hover ball' : 'Pin toolbar open'}
+      >
+        <Pin className={cn('w-5 h-5', pinned && 'fill-current')} />
+      </button>
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onMinimize() }}
+        className={cn(iconBtn, 'hover:text-amber-300')}
+        title={minimized && pinned ? 'Restore full toolbar' : 'Minimize to hover ball'}
+      >
+        <X className="w-6 h-6" />
+      </button>
+      <div
+        role="button"
+        tabIndex={0}
+        onPointerDown={onReorderPointerDown}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+        title="Drag to reorder section"
+        className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none"
+      >
+        <GripVertical className="w-7 h-7 pointer-events-none" />
+      </div>
+    </>
+  )
+
+  const panelClass =
+    'flex items-center gap-1.5 rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg shadow-black/20 backdrop-blur'
+
+  if (minimized) {
+    const stayOpen = pinned
+    return (
+      <div
+        data-builder-overlay={block.id}
+        data-builder-section-toolbar
+        className={cn(
+          'absolute z-[75] pointer-events-auto',
+          stayOpen ? 'flex items-center gap-1.5' : 'group/section-chrome',
+          positionClassName,
+        )}
+        onClick={e => e.stopPropagation()}
+      >
+        {!stayOpen ? (
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-gray-950/95 text-gray-300 shadow-lg shadow-black/30 backdrop-blur ring-1 ring-white/10 transition-all hover:scale-110 hover:text-white hover:ring-primary/40"
+            title="Section tools — hover to expand"
+          >
+            <GripVertical className="h-4 w-4" />
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            panelClass,
+            stayOpen
+              ? 'relative shrink-0'
+              : cn(
+                  'absolute right-0 top-0 origin-top-right',
+                  'scale-[0.94] opacity-0 pointer-events-none transition-all duration-150',
+                  'group-hover/section-chrome:scale-100 group-hover/section-chrome:opacity-100 group-hover/section-chrome:pointer-events-auto',
+                ),
+          )}
+        >
+          {toolbarBody}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      data-builder-overlay={block.id}
+      data-builder-section-toolbar
+      className={cn(panelClass, 'absolute z-[75] pointer-events-auto transition-all', positionClassName)}
+      onClick={e => e.stopPropagation()}
+    >
+      {toolbarBody}
     </div>
   )
 }
@@ -2866,21 +3102,6 @@ const SHAPE_SVG_PATHS: Record<string, string> = {
   triangle:    'M0,64 L500,0 L1000,64 Z',
   tilt:        'M0,0 L1000,32 L1000,64 L0,64 Z',
 }
-
-const SHAPE_OPTIONS = [
-  { id: 'none',       label: '⊘ None' },
-  { id: 'wave',       label: '〜 Wave' },
-  { id: 'wave_soft',  label: '〰 Soft Wave' },
-  { id: 'curve',      label: '⌣ Curve' },
-  { id: 'curve_deep', label: '⌢ Deep Curve' },
-  { id: 'slant',      label: '/ Slant →' },
-  { id: 'slant_r',    label: '\\ Slant ←' },
-  { id: 'arrow_down', label: '▼ Arrow' },
-  { id: 'arrow_up',   label: '▲ Arrow Up' },
-  { id: 'zigzag',     label: '⋀ Zigzag' },
-  { id: 'triangle',   label: '△ Triangle' },
-  { id: 'tilt',       label: '⬡ Tilt' },
-]
 
 function SectionShapeDivider({ shape, fillColor, position }: {
   shape: string
@@ -7141,16 +7362,7 @@ const GRADIENT_PRESETS = [
   { label: 'Midnight',      value: 'linear-gradient(135deg,#0f172a,#1e293b)' },
 ]
 
-const SHADOW_PRESETS = [
-  { label: 'None',     value: 'none' },
-  { label: 'Soft',     value: '0 4px 24px 0 rgba(0,0,0,0.08)' },
-  { label: 'Medium',   value: '0 8px 40px 0 rgba(0,0,0,0.16)' },
-  { label: 'Harsh',    value: '4px 4px 0px 0px rgba(0,0,0,0.85)' },
-  { label: 'Glow Vio', value: '0 0 40px 10px rgba(124,58,237,0.35)' },
-  { label: 'Glow Blue',value: '0 0 40px 10px rgba(59,130,246,0.35)' },
-  { label: 'Glow Pink',value: '0 0 40px 10px rgba(251,113,133,0.35)' },
-  { label: 'Inner',    value: 'inset 0 2px 16px 0 rgba(0,0,0,0.12)' },
-]
+// SHADOW_PRESETS imported from @/lib/builderVisualPresets
 
 // ── Sub-item schema registry ─────────────────────────────────────────────────
 
@@ -7748,7 +7960,16 @@ function PropsCollapsible({
             {title}
           </span>
           {preview && (
-            <span className={cn('text-xs truncate', accent ? 'text-primary/70' : 'text-gray-400')}>
+            <span
+              className={cn(
+                'text-xs truncate',
+                preview === 'Empty'
+                  ? 'italic text-gray-300'
+                  : accent
+                    ? 'text-primary/70'
+                    : 'text-gray-400',
+              )}
+            >
               {preview}
             </span>
           )}
@@ -7812,7 +8033,7 @@ function PropsInputRow({
   }
 
   const inputClass = "w-full px-3 py-2.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-white text-gray-800 placeholder-gray-400 leading-relaxed"
-  const preview = localVal.trim() || placeholder || 'Empty'
+  const preview = localVal.trim() || 'Empty'
 
   return (
     <PropsCollapsible title={label} preview={preview}>
@@ -8546,7 +8767,7 @@ function PropsEditor({
 
   const sectionLayoutCount = getSectionLayoutOptions(block.block_type).length
   const hasImageShape = IMAGE_SHAPE_BLOCK_TYPES.has(block.block_type)
-  const hasMediaClip = MEDIA_CLIP_BLOCK_TYPES.has(block.block_type)
+  const hasMediaClip = blockSupportsMediaClip(block.block_type)
   const hasMediaPanel = isHeroBlock || p.bg_style === 'image' || p.image_url !== undefined || block.block_type === 'nav'
 
   const ribbonTabs = useMemo(() => ([
@@ -10125,68 +10346,13 @@ function DataSourcePanel({
 
 // ── Block Design Bar (inline canvas floating toolbar) ─────────────────────────
 
-const ELEMENT_INSERT_TYPES = [
-  { type: 'text',    label: '📝 Text Box',         desc: 'Editable text overlay' },
-  { type: 'image',   label: '🖼 Image',             desc: 'Draggable image layer' },
-  { type: 'button',  label: '🔘 Button',            desc: 'Clickable button element' },
-  { type: 'box',     label: '⬜ Box / Card',        desc: 'Styled container shape' },
-  { type: 'badge',   label: '🏷 Badge',             desc: 'Label or tag chip' },
-  { type: 'video',   label: '▶ Video',              desc: 'Video media layer' },
-  { type: 'link',    label: '🔗 Link',              desc: 'Button that opens a URL or internal page' },
-  { type: 'db_link', label: '🔌 Connect to Data',  desc: 'Link to a product, service, team member, category…' },
-  { type: 'store',   label: '🏬 Connect to Store',  desc: 'Switch to a specific physical outlet / branch' },
-] as const
-
 // ── Typography toolbar: font scale + text case (canvas bar & properties panel) ─
 const FONT_SCALE_STEPS: [string, number][] = [
   ['XS', 0.75], ['S', 0.875], ['M', 1], ['L', 1.125], ['XL', 1.25], ['2X', 1.5],
 ]
 
-/** Portals design-bar dropdowns to body so they aren't clipped by overflow-x-auto / section overflow. */
-function DesignBarDropdownPortal({
-  open,
-  anchorRef,
-  menuRef,
-  className,
-  children,
-}: {
-  open: boolean
-  anchorRef: React.RefObject<HTMLElement | null>
-  menuRef: React.RefObject<HTMLDivElement | null>
-  className?: string
-  children: React.ReactNode
-}) {
-  const [pos, setPos] = useState({ top: 0, left: 0 })
-
-  useEffect(() => {
-    if (!open || !anchorRef.current) return
-    const update = () => {
-      const rect = anchorRef.current!.getBoundingClientRect()
-      setPos({ top: rect.bottom + 4, left: rect.left })
-    }
-    update()
-    window.addEventListener('scroll', update, true)
-    window.addEventListener('resize', update)
-    return () => {
-      window.removeEventListener('scroll', update, true)
-      window.removeEventListener('resize', update)
-    }
-  }, [open, anchorRef])
-
-  if (!open) return null
-
-  return createPortal(
-    <div
-      ref={menuRef}
-      style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 100000 }}
-      className={className}
-      onMouseDown={e => e.stopPropagation()}
-    >
-      {children}
-    </div>,
-    document.body,
-  )
-}
+const DESIGN_BAR_TABS = ['general', 'visual', 'media'] as const
+type DesignBarTabId = (typeof DESIGN_BAR_TABS)[number]
 
 const CANVAS_DESIGN_WIDTH: Record<DeviceMode, number> = {
   desktop: 1440,
@@ -10217,7 +10383,7 @@ function BuilderShortcutKbd({ children, className }: { children: React.ReactNode
   )
 }
 
-function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, floating = false, docked = false }: {
+function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, floating = false, docked = false }: {
   block: WebsiteBlock
   onUpdate: (p: Partial<BlockProps>) => void
   onInsertAfter: (type: string) => void
@@ -10227,6 +10393,19 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   onEditText?: () => void
   onEscapeDismiss?: () => void
   onOpenLinkEditorForOverlay?: (item: BlockOverlayItem, anchor: { x: number; y: number }) => void
+  selectedOverlayId?: string | null
+  /** Built-in section image field (image_url, bg_image_url) when clicked on canvas. */
+  canvasImageField?: string | null
+  onSectionImagePick?: () => void
+  onSectionImageLibrary?: () => void
+  onFocusPrimaryImage?: () => void
+  onSelectOverlay?: (overlayId: string | null) => void
+  blockBackgroundColor?: string
+  onOverlayPickImage?: () => void
+  onOverlayOpenLibrary?: () => void
+  onOverlaySetImageUrl?: () => void
+  onOverlayEditText?: () => void
+  onOverlayEditDescription?: () => void
   onUndo?: () => void
   onRedo?: () => void
   canUndo?: boolean
@@ -10240,37 +10419,28 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   /** Fixed strip below the canvas toolbar (stable; does not overlap page content). */
   docked?: boolean
 }) {
-  const [showInsert, setShowInsert] = useState(false)
-  const [showAnim, setShowAnim] = useState(false)
-  const [showShapes, setShowShapes] = useState(false)
-  const [designBarTab, setDesignBarTab] = useState<'general' | 'media' | 'style'>('general')
+  const [designBarTab, setDesignBarTab] = useState<DesignBarTabId>('general')
   const [showCase, setShowCase] = useState(false)
+  const [showClear, setShowClear] = useState(false)
   const [showLineSpacing, setShowLineSpacing] = useState(false)
   const [transformScope, setTransformScope] = useState<LayoutTransformScope>('section')
   const [typographyDisplayTick, setTypographyDisplayTick] = useState(0)
   const barRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const insertBtnRef = useRef<HTMLButtonElement>(null)
   const caseBtnRef = useRef<HTMLButtonElement>(null)
   const lineSpacingBtnRef = useRef<HTMLButtonElement>(null)
-  const animBtnRef = useRef<HTMLButtonElement>(null)
-  const shapesBtnRef = useRef<HTMLButtonElement>(null)
+  const clearBtnRef = useRef<HTMLButtonElement>(null)
   const formatPaintClickTimerRef = useRef<number | null>(null)
   const p = block.props
-  const blockSupportsMediaClip = MEDIA_CLIP_BLOCK_TYPES.has(block.block_type)
+  const blockSupportsMediaClip = sectionSupportsMediaClip(block.block_type)
+  const supportsContentGroup = sectionSupportsContentGroupTransform(String(block.block_type))
+  const primaryImageField = sectionPrimaryImageField(String(block.block_type), p as Record<string, unknown>)
   const fieldStyles = ((p as any)._field_styles || {}) as Record<string, Record<string, unknown>>
   const selectedEditableFields = activeTextFields.filter(k => k !== CONTENT_GROUP_FIELD_KEY)
   const multiFieldSelection = selectedEditableFields.length > 1
   const activeFieldStyle = activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
     ? (fieldStyles[activeTextField] || {})
     : null
-  const supportsContentGroup = /^hero(_split|_minimal)?$/.test(String(block.block_type))
-  const positionScope: 'field' | 'group' =
-    multiFieldSelection || (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY)
-      ? 'field'
-      : activeTextField === CONTENT_GROUP_FIELD_KEY || !activeTextField
-        ? 'group'
-        : 'field'
 
   useEffect(() => {
     if (multiFieldSelection || (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY)) {
@@ -10296,9 +10466,29 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     }
   }, [activeTextField, block.id])
 
-  useEffect(() => {
-    setDesignBarTab('general')
-  }, [block.id])
+  // Keep the active tab when switching sections (General / Visual / Media). = ((p as any).overlays as BlockOverlayItem[]) || []
+  const selectedOverlay = selectedOverlayId
+    ? overlays.find(o => o.id === selectedOverlayId) ?? null
+    : null
+
+  const updateSelectedOverlay = (patch: Partial<OverlayLayerItem>) => {
+    if (!selectedOverlayId) return
+    onUpdate({
+      overlays: overlays.map(o => (o.id === selectedOverlayId ? { ...o, ...patch } : o)),
+    } as Partial<BlockProps>)
+  }
+
+  const bringSelectedOverlayFront = () => {
+    if (!selectedOverlayId) return
+    const maxZ = Math.max(10, ...overlays.map(o => o.zIndex || 10))
+    updateSelectedOverlay({ zIndex: maxZ + 1 })
+  }
+
+  const sendSelectedOverlayBack = () => {
+    if (!selectedOverlayId) return
+    const minZ = Math.min(10, ...overlays.map(o => o.zIndex || 10))
+    updateSelectedOverlay({ zIndex: minZ - 1 })
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -10309,12 +10499,18 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       if (isInput) return
       if (multiFieldSelection) return
       if (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY) return
+      // Layer or section image selected on General — arrow keys adjust, not switch tabs
+      if ((selectedOverlay || canvasImageField) && designBarTab === 'general') return
       e.preventDefault()
-      setDesignBarTab(e.key === 'ArrowLeft' ? 'media' : 'style')
+      const idx = DESIGN_BAR_TABS.indexOf(designBarTab)
+      const nextIdx = e.key === 'ArrowLeft'
+        ? (idx - 1 + DESIGN_BAR_TABS.length) % DESIGN_BAR_TABS.length
+        : (idx + 1) % DESIGN_BAR_TABS.length
+      setDesignBarTab(DESIGN_BAR_TABS[nextIdx])
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activeTextField, multiFieldSelection])
+  }, [activeTextField, multiFieldSelection, designBarTab, selectedOverlay, canvasImageField])
 
   const patchSelectedFieldStyles = (patch: Record<string, unknown>, keys = selectedEditableFields) => {
     if (!keys.length) return
@@ -10511,11 +10707,21 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       : (p as Record<string, unknown>)
 
   void typographyDisplayTick
-  const toolbarFontFamily = resolveToolbarFontFamily(
+  const toolbarLiveTypography = resolveToolbarTypographyDisplay(
     block.id,
     p as Record<string, unknown>,
     activeTextField ?? null,
   )
+  const toolbarFontFamily = toolbarLiveTypography.font_family
+  const toolbarTypography = {
+    ...typographySource,
+    ...(toolbarLiveTypography.font_size_px != null
+      ? { font_size_px: toolbarLiveTypography.font_size_px }
+      : {}),
+    ...(toolbarLiveTypography.text_color_override
+      ? { text_color_override: toolbarLiveTypography.text_color_override }
+      : {}),
+  }
 
   const startFormatPaint = (sticky: boolean) => {
     if (formatPaintActive) {
@@ -10539,23 +10745,43 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         ? getSavedInlineTextSelection()?.range ?? null
         : null
 
+    if (selectionRange && !selectionRange.collapsed) {
+      const fromSelection = extractFormatPaintStyleFromRange(selectionRange)
+      if (hasFormatPaintStyle(fromSelection)) {
+        onFormatPaintStart?.(fromSelection, sticky)
+        toast.success(
+          sticky
+            ? `Format copied (${formatPaintStyleSummary(fromSelection)}). Click text to apply — Esc to stop.`
+            : `Format copied (${formatPaintStyleSummary(fromSelection)}). Click one text field to apply.`,
+        )
+        return
+      }
+    }
+
+    const styledAtCaret =
+      fieldKey && fieldKey !== CONTENT_GROUP_FIELD_KEY
+        ? getInlineStyledElementAtSelection(fieldKey)
+        : null
+    if (styledAtCaret) {
+      const fromCaret = extractFormatPaintStyleFromElement(styledAtCaret)
+      if (hasFormatPaintStyle(fromCaret)) {
+        onFormatPaintStart?.(fromCaret, sticky)
+        toast.success(
+          sticky
+            ? `Format copied (${formatPaintStyleSummary(fromCaret)}). Click text to apply — Esc to stop.`
+            : `Format copied (${formatPaintStyleSummary(fromCaret)}). Click one text field to apply.`,
+        )
+        return
+      }
+    }
+
     const lastStyledSpan = getLastInlineStyledSpan()
     if (
       fieldKey && fieldKey !== CONTENT_GROUP_FIELD_KEY
       && lastStyledSpan?.key === fieldKey
       && lastStyledSpan.span.isConnected
     ) {
-      const cs = window.getComputedStyle(lastStyledSpan.span)
-      const fromSpan: FormatPaintStyle = {}
-      const px = parseFloat(cs.fontSize)
-      if (Number.isFinite(px) && px > 0) fromSpan.font_size_px = Math.round(px)
-      if (cs.color) fromSpan.text_color_override = cs.color
-      if (cs.textTransform && cs.textTransform !== 'none') fromSpan.text_transform = cs.textTransform
-      const ff = cs.fontFamily
-      if (ff) {
-        const primary = ff.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '')
-        if (primary) fromSpan.font_family = primary
-      }
+      const fromSpan = extractFormatPaintStyleFromElement(lastStyledSpan.span)
       if (hasFormatPaintStyle(fromSpan)) {
         onFormatPaintStart?.(fromSpan, sticky)
         toast.success(
@@ -10592,15 +10818,13 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   }
 
   useEffect(() => {
-    if (!showInsert && !showAnim && !showShapes && !showCase && !showLineSpacing) return
+    if (!showCase && !showClear && !showLineSpacing) return
     return registerEscapeHandler(() => {
-      setShowInsert(false)
-      setShowAnim(false)
-      setShowShapes(false)
       setShowCase(false)
+      setShowClear(false)
       setShowLineSpacing(false)
     })
-  }, [showInsert, showAnim, showShapes, showCase, showLineSpacing])
+  }, [showCase, showClear, showLineSpacing])
 
   useEffect(() => {
     return () => {
@@ -10610,22 +10834,24 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
 
   // Close any open dropdown when clicking outside the bar (dropdown is portalled to body)
   useEffect(() => {
-    if (!showInsert && !showAnim && !showShapes && !showCase && !showLineSpacing) return
+    if (!showCase && !showLineSpacing) return
     const handler = (e: MouseEvent) => {
       const t = e.target as Node
       if (barRef.current?.contains(t) || dropdownRef.current?.contains(t)) return
-      setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowCase(false); setShowLineSpacing(false)
+      setShowCase(false)
+      setShowLineSpacing(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [showInsert, showAnim, showShapes, showCase, showLineSpacing])
+  }, [showCase, showLineSpacing])
 
-  const addOverlayElement = (type: string, anchor?: { x: number; y: number }) => {
+  const addOverlayElement = (
+    type: string,
+    anchor?: { x: number; y: number },
+    initialPatch?: Partial<BlockOverlayItem>,
+  ) => {
     const defaults = OVERLAY_DEFAULTS[type] || {}
     const currentOverlays: BlockOverlayItem[] = ((p as any).overlays as BlockOverlayItem[]) || []
-    // "link", "db_link" and "store" are insert helpers — they render as a
-    // standard button overlay but pre-seed link fields and auto-open the
-    // link editor so the user lands directly on the right tab.
     const overlayType = (type === 'link' || type === 'db_link' || type === 'store') ? 'button' : type
     const newId = `ov-${Date.now()}`
     const newItem: BlockOverlayItem = {
@@ -10636,9 +10862,10 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       w: (defaults as any).w || 200,
       h: (defaults as any).h || 80,
       ...defaults,
+      ...initialPatch,
     }
     onUpdate({ overlays: [...currentOverlays, newItem] } as any)
-    setShowInsert(false)
+    onSelectOverlay?.(newId)
     if ((type === 'link' || type === 'db_link' || type === 'store') && onOpenLinkEditorForOverlay) {
       onOpenLinkEditorForOverlay(newItem, anchor || { x: window.innerWidth / 2, y: 200 })
     }
@@ -10652,17 +10879,40 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     }
   }
 
+  const runTextClear = (action: TextClearAction) => {
+    const keys = selectedEditableFields.length > 0
+      ? selectedEditableFields
+      : activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
+        ? [activeTextField]
+        : []
+    if (!keys.length) {
+      toast.info('Click a text field on the canvas first.')
+      return
+    }
+    const result = runCanvasTextClearAction(action, block, keys)
+    if (!result || Object.keys(result.propsPatch).length === 0) {
+      toast.info('Nothing to clear.')
+      return
+    }
+    onUpdate(result.propsPatch as Partial<BlockProps>)
+    setShowClear(false)
+    const label = TEXT_CLEAR_MENU.find(row => row.id === action)?.label ?? 'Cleared'
+    toast.success(
+      result.usedSelection ? `${label} on selected text` : `${label} on ${keys.length > 1 ? `${keys.length} fields` : 'text field'}`,
+    )
+  }
+
   return (
-    <div className="flex flex-col shrink-0">
+    <div className="flex flex-col shrink-0" data-block-design-bar>
       <div
-        className="flex items-center gap-1 px-2 py-1 border-b border-gray-100 bg-gray-50/90"
+        className="flex items-center gap-0.5 px-2 py-0.5 border-b border-gray-100 bg-gray-50/90"
         role="tablist"
         aria-label="Section design tools"
       >
         {([
           { id: 'general' as const, label: 'General' },
+          { id: 'visual' as const, label: 'Visual' },
           { id: 'media' as const, label: 'Media' },
-          { id: 'style' as const, label: 'Style' },
         ]).map(tab => (
           <button
             key={tab.id}
@@ -10671,7 +10921,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             aria-selected={designBarTab === tab.id}
             onClick={() => setDesignBarTab(tab.id)}
             className={cn(
-              'px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors',
+              'px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors',
               designBarTab === tab.id
                 ? 'bg-white text-primary border border-primary/25 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-white/70',
@@ -10684,9 +10934,16 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     <div
       ref={barRef}
       role="tabpanel"
-      aria-label={designBarTab === 'general' ? 'General tools' : designBarTab === 'media' ? 'Media tools' : 'Style tools'}
+      aria-label={
+        designBarTab === 'general'
+          ? 'General tools'
+          : designBarTab === 'visual'
+            ? 'Visual tools'
+            : 'Media tools'
+      }
       className={cn(
-        'z-[80] flex min-h-[32px] items-center gap-0.5 overflow-x-auto overflow-y-visible bg-white px-1 py-1',
+        'z-[80] flex min-h-[2.25rem] gap-0 overflow-x-auto overflow-y-visible bg-white px-1 py-0.5',
+        'items-center',
         docked
           ? 'relative w-full border-b border-primary/20'
           : floating
@@ -10697,79 +10954,61 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     >
       {designBarTab === 'general' && (
         <>
-      {/* INSERT + Edit + clipboard — two columns */}
-      <div className="flex shrink-0 items-start gap-1">
-        <div className="flex flex-col gap-1">
-        <div className="relative">
+      <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+      {/* Edit + clipboard */}
+      <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex h-14 w-[3.75rem] shrink-0 gap-px">
           <button
-            ref={insertBtnRef}
-            onClick={() => { setShowInsert(v => !v); setShowAnim(false); setShowShapes(false); setShowCase(false); setShowLineSpacing(false) }}
-            title="Insert element"
-            className={cn(
-              'relative flex h-8 w-[4.25rem] items-center justify-center gap-1 rounded-lg px-2 text-xs font-bold leading-none transition-colors',
-              showInsert ? 'bg-primary/90 text-white' : 'bg-primary text-white hover:bg-primary/90',
-            )}
+            type="button"
+            onClick={() => onEditText?.()}
+            title="Edit section text (E)"
+            className="flex h-full min-w-0 flex-1 items-center justify-center gap-0.5 rounded-md border border-gray-200 px-0.5 text-xs font-medium leading-none text-gray-700 transition-colors hover:border-primary/40 hover:bg-accent"
           >
-            <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span>Insert</span>
-            {overlayCount > 0 && (
-              <span className="absolute -right-1 -top-1 bg-white text-primary rounded-full px-1 text-[9px] font-black leading-none">{overlayCount}</span>
-            )}
+            <Pencil className="h-3.5 w-3.5 shrink-0" />
+            <BuilderShortcutKbd className="min-w-[0.85rem] px-0.5 text-[8px]">E</BuilderShortcutKbd>
           </button>
-          <DesignBarDropdownPortal
-            open={showInsert}
-            anchorRef={insertBtnRef}
-            menuRef={dropdownRef}
-            className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden w-56 max-h-[90vh] overflow-y-auto"
+          <button
+            type="button"
+            title={
+              formatPaintActive
+                ? 'Format painter active — click text to apply (Esc to cancel)'
+                : 'Format painter — copy this text style. Click once: apply once. Double-click: apply to multiple fields.'
+            }
+            onMouseDown={e => {
+              pinInlineTextSelectionBeforeToolbarAction()
+              e.preventDefault()
+            }}
+            onClick={() => {
+              if (formatPaintClickTimerRef.current) window.clearTimeout(formatPaintClickTimerRef.current)
+              formatPaintClickTimerRef.current = window.setTimeout(() => {
+                startFormatPaint(false)
+                formatPaintClickTimerRef.current = null
+              }, 220)
+            }}
+            onDoubleClick={e => {
+              e.preventDefault()
+              if (formatPaintClickTimerRef.current) {
+                window.clearTimeout(formatPaintClickTimerRef.current)
+                formatPaintClickTimerRef.current = null
+              }
+              startFormatPaint(true)
+            }}
+            className={cn(
+              'flex h-full min-w-0 flex-1 items-center justify-center rounded-md border transition-colors',
+              formatPaintActive
+                ? formatPaintSticky
+                  ? 'border-amber-400 bg-amber-100 text-amber-800 shadow-sm'
+                  : 'border-primary bg-primary/15 text-primary shadow-sm'
+                : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-accent',
+            )}
           >
-              <div className="px-3 py-2 bg-accent border-b border-primary/20">
-                <div className="text-xs font-bold text-primary">Insert inside this section</div>
-                <div className="text-xs text-primary/80 mt-0.5">Elements are draggable & resizable within the block</div>
-              </div>
-              <div className="p-2 space-y-0.5">
-                {ELEMENT_INSERT_TYPES.map(({ type, label, desc }) => (
-                  <button key={type}
-                    onMouseDown={e => {
-                      e.stopPropagation()
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                      addOverlayElement(type, { x: rect.right + 8, y: rect.top })
-                    }}
-                    className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-accent transition-colors group"
-                  >
-                    <span className="text-base leading-none mt-0.5">{label.split(' ')[0]}</span>
-                    <div>
-                      <div className="text-xs font-medium text-gray-800 group-hover:text-primary">{label.slice(label.indexOf(' ') + 1)}</div>
-                      <div className="text-xs text-gray-400">{desc}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {overlayCount > 0 && (
-                <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs text-gray-500">{overlayCount} element{overlayCount !== 1 ? 's' : ''} in this section</span>
-                  <button
-                    onMouseDown={e => { e.stopPropagation(); onUpdate({ overlays: [] } as any); setShowInsert(false) }}
-                    className="text-xs text-red-400 hover:text-red-600 font-semibold"
-                  >Clear all</button>
-                </div>
-              )}
-          </DesignBarDropdownPortal>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onEditText?.()}
-          title="Edit section text (E)"
-          className="flex h-8 w-[4.25rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-gray-200 px-2 text-xs font-medium leading-none text-gray-700 transition-colors hover:border-primary/40 hover:bg-accent"
-        >
-          <Pencil className="h-3.5 w-3.5 shrink-0" />
-          <BuilderShortcutKbd>E</BuilderShortcutKbd>
-        </button>
+            <Paintbrush className={cn('h-3.5 w-3.5 shrink-0', formatPaintActive && 'text-amber-700')} />
+          </button>
         </div>
 
         <div
           {...{ [BUILDER_DESIGN_BAR_CHROME_ATTR]: true }}
-          className="flex w-9 shrink-0 flex-col divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200"
+          className="flex h-14 w-7 shrink-0 flex-col divide-y divide-gray-200 overflow-hidden rounded-md border border-gray-200"
           onMouseDown={e => {
             pinInlineTextSelectionBeforeToolbarAction()
             e.preventDefault()
@@ -10779,31 +11018,91 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             type="button"
             title="Cut (Ctrl+X)"
             onClick={() => runTextClipboard('cut')}
-            className="flex h-8 flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+            className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
           >
-            <Scissors className="h-3.5 w-3.5" />
+            <Scissors className="h-3 w-3" />
           </button>
           <button
             type="button"
             title="Copy (Ctrl+C)"
             onClick={() => runTextClipboard('copy')}
-            className="flex h-8 flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+            className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
           >
-            <Copy className="h-3.5 w-3.5" />
+            <Copy className="h-3 w-3" />
           </button>
           <button
             type="button"
             title="Paste (Ctrl+V)"
             onClick={() => runTextClipboard('paste')}
-            className="flex h-8 flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
+            className="flex flex-1 items-center justify-center text-gray-700 transition-colors hover:bg-accent"
           >
-            <ClipboardPaste className="h-3.5 w-3.5" />
+            <ClipboardPaste className="h-3 w-3" />
           </button>
+        </div>
+
+        <div className="relative shrink-0">
+          <button
+            ref={clearBtnRef}
+            type="button"
+            title="Clear text, formatting, or links"
+            onClick={() => {
+              setShowClear(v => !v)
+              setShowCase(false)
+              setShowLineSpacing(false)
+            }}
+            className={cn(
+              'flex h-14 w-7 flex-col items-center justify-center gap-0 rounded-md border border-gray-200 text-gray-700 transition-colors hover:bg-accent',
+              showClear && 'border-primary/40 bg-primary/10 text-primary',
+            )}
+          >
+            <Eraser className="h-3.5 w-3.5 shrink-0" />
+            <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-70" />
+          </button>
+          <DesignBarDropdownPortal
+            open={showClear}
+            anchorRef={clearBtnRef}
+            menuRef={dropdownRef}
+            className="min-w-[240px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
+          >
+            <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
+              <div className="text-xs font-bold text-gray-800">Clear</div>
+              <div className="text-[10px] text-gray-500 mt-0.5">Selection, field, or multiple fields</div>
+            </div>
+            <div className="py-1">
+              {TEXT_CLEAR_MENU.map(row => (
+                <button
+                  key={row.id}
+                  type="button"
+                  onMouseDown={e => {
+                    pinInlineTextSelectionBeforeToolbarAction()
+                    e.preventDefault()
+                  }}
+                  onClick={() => runTextClear(row.id)}
+                  className={cn(
+                    'flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors hover:bg-accent',
+                    row.dividerBefore && 'border-t border-gray-100 mt-1 pt-2',
+                  )}
+                >
+                  <Eraser className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-500" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium text-gray-800">
+                      {row.label}
+                      {row.shortcut ? (
+                        <span className="ml-1 text-[10px] font-normal text-gray-400">({row.shortcut})</span>
+                      ) : null}
+                    </div>
+                    <div className="text-[10px] leading-snug text-gray-500">{row.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </DesignBarDropdownPortal>
         </div>
       </div>
 
-      <div className="w-px h-4 bg-gray-200 shrink-0 self-stretch" />
+      <div className="w-px h-10 bg-gray-200 shrink-0" />
 
+      {!selectedOverlay ? (
       <div
         {...{ [BUILDER_TYPOGRAPHY_TOOLBAR_ATTR]: true }}
         className={typographyToolbarBox}
@@ -10812,26 +11111,29 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           e.preventDefault()
         }}
       >
-        <div className="flex flex-col shrink-0 border-r border-gray-200">
-          <FontFamilyControl
-            stacked
-            size="compact"
-            value={toolbarFontFamily}
-            onChange={font => updateTextStyle({ font_family: font })}
-          />
-          <FontSizePxControl
-            embedded
-            stacked
-            size="compact"
-            valuePx={(typographySource as any).font_size_px as number | undefined}
-            onStep={delta => updateTextStyle({}, { fontSizeDelta: delta })}
-            onChange={px => {
-              updateTextStyle({ text_scale: null, font_size_px: px })
-            }}
-          />
+        <div className="flex shrink-0 items-start border-r border-gray-200">
+          <div className="flex h-14 w-[6.25rem] shrink-0 flex-col">
+            <FontFamilyControl
+              stacked
+              size="compact"
+              value={toolbarFontFamily}
+              onChange={font => updateTextStyle({ font_family: font })}
+            />
+            <FontSizePxControl
+              embedded
+              stacked
+              size="compact"
+              valuePx={(toolbarTypography as any).font_size_px as number | undefined}
+              onStep={delta => updateTextStyle({}, { fontSizeDelta: delta })}
+              onChange={px => {
+                updateTextStyle({ text_scale: null, font_size_px: px })
+              }}
+            />
+          </div>
           <ColorIdentPickerRow
+            vertical
             size="compact"
-            textColor={(typographySource as any).text_color_override || '#111827'}
+            textColor={(toolbarTypography as any).text_color_override || '#111827'}
             backgroundColor={(p as any).bg_color_override || '#ffffff'}
             onTextColorChange={c => updateTextStyle({ text_color_override: c })}
             onBackgroundColorChange={c => onUpdate({ bg_color_override: c } as any)}
@@ -10843,17 +11145,17 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                   title="Text case"
                   onClick={() => {
                     setShowCase(v => !v)
-                    setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowLineSpacing(false)
+                    setShowLineSpacing(false)
                   }}
                   className={cn(
-                    'flex h-full w-full items-center justify-center gap-0 px-1 text-[11px] font-bold transition-colors',
+                    'flex h-full w-full items-center justify-center gap-0 px-0 text-[9px] font-bold leading-none transition-colors',
                     showCase || currentTextCaseMenuId(typographySource as any) !== 'default'
                       ? 'bg-primary/10 text-primary'
                       : 'bg-white text-gray-700 hover:bg-gray-50',
                   )}
                 >
                   Aa
-                  <ChevronDown className="w-2.5 h-2.5 opacity-70" />
+                  <ChevronDown className="w-2 h-2 opacity-70 shrink-0" />
                 </button>
                 <DesignBarDropdownPortal
                   open={showCase}
@@ -10917,7 +11219,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                 active={showLineSpacing || (typographySource as any).line_height_ratio != null}
                 onClick={() => {
                   setShowLineSpacing(v => !v)
-                  setShowInsert(false); setShowAnim(false); setShowShapes(false); setShowCase(false)
+                  setShowCase(false)
                 }}
               />
               <DesignBarDropdownPortal
@@ -10975,191 +11277,138 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
           }
         />
       </div>
-
-      {supportsContentGroup ? (
-        <>
-          <FieldPositionControlGroup
-            scopeMode={positionScope}
-            onScopeChange={mode => {
-              if (mode === 'group') {
-                onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
-              } else if (activeTextField === CONTENT_GROUP_FIELD_KEY) {
-                onActivateTextField?.('headline')
-              }
-            }}
-            size="mini"
-            keyboardShortcuts
-            titleLabel={positionScope === 'group' ? 'All content position' : 'Field position'}
-            offsetX={
-              positionScope === 'group'
-                ? readFieldOffset((p as any).content_offset_x)
-                : readFieldOffset((typographySource as any).field_offset_x)
-            }
-            offsetY={
-              positionScope === 'group'
-                ? readFieldOffset((p as any).content_offset_y)
-                : readFieldOffset((typographySource as any).field_offset_y)
-            }
-            onNudge={(dx, dy) => {
-              if (positionScope === 'group') {
-                const curX = readFieldOffset((p as any).content_offset_x)
-                const curY = readFieldOffset((p as any).content_offset_y)
-                const nextX = readFieldOffset(curX + dx)
-                const nextY = readFieldOffset(curY + dy)
-                onUpdate({
-                  content_offset_x: nextX === 0 ? null : nextX,
-                  content_offset_y: nextY === 0 ? null : nextY,
-                } as Partial<BlockProps>)
-                onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
-                return
-              }
-              if (!activeTextField || activeTextField === CONTENT_GROUP_FIELD_KEY) return
-              if (multiFieldSelection) {
-                const nextStyles = { ...fieldStyles }
-                selectedEditableFields.forEach(k => {
-                  const fs = (fieldStyles[k] || {}) as Record<string, unknown>
-                  const curX = readFieldOffset(fs.field_offset_x)
-                  const curY = readFieldOffset(fs.field_offset_y)
-                  const nextX = readFieldOffset(curX + dx)
-                  const nextY = readFieldOffset(curY + dy)
-                  nextStyles[k] = {
-                    ...fs,
-                    field_offset_x: nextX === 0 ? null : nextX,
-                    field_offset_y: nextY === 0 ? null : nextY,
-                  }
-                })
-                onUpdate({ _field_styles: nextStyles } as Partial<BlockProps>)
-                return
-              }
-              const curX = readFieldOffset((typographySource as any).field_offset_x)
-              const curY = readFieldOffset((typographySource as any).field_offset_y)
-              const nextX = readFieldOffset(curX + dx)
-              const nextY = readFieldOffset(curY + dy)
-              updateTextStyle({
-                field_offset_x: nextX === 0 ? null : nextX,
-                field_offset_y: nextY === 0 ? null : nextY,
-              })
-            }}
-            onReset={() => {
-              if (positionScope === 'group') {
-                onUpdate({ content_offset_x: null, content_offset_y: null } as Partial<BlockProps>)
-                onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
-                return
-              }
-              updateTextStyle({ field_offset_x: null, field_offset_y: null })
-            }}
-          />
-          <div className="w-px h-4 bg-gray-200 shrink-0" />
-        </>
-      ) : activeTextField ? (
-        <>
-          <FieldPositionNudge
-            embedded
-            size="compact"
-            keyboardShortcuts
-            offsetX={readFieldOffset((typographySource as any).field_offset_x)}
-            offsetY={readFieldOffset((typographySource as any).field_offset_y)}
-            onNudge={(dx, dy) => {
-              if (multiFieldSelection) {
-                const nextStyles = { ...fieldStyles }
-                selectedEditableFields.forEach(k => {
-                  const fs = (fieldStyles[k] || {}) as Record<string, unknown>
-                  const curX = readFieldOffset(fs.field_offset_x)
-                  const curY = readFieldOffset(fs.field_offset_y)
-                  const nextX = readFieldOffset(curX + dx)
-                  const nextY = readFieldOffset(curY + dy)
-                  nextStyles[k] = {
-                    ...fs,
-                    field_offset_x: nextX === 0 ? null : nextX,
-                    field_offset_y: nextY === 0 ? null : nextY,
-                  }
-                })
-                onUpdate({ _field_styles: nextStyles } as Partial<BlockProps>)
-                return
-              }
-              const curX = readFieldOffset((typographySource as any).field_offset_x)
-              const curY = readFieldOffset((typographySource as any).field_offset_y)
-              const nextX = readFieldOffset(curX + dx)
-              const nextY = readFieldOffset(curY + dy)
-              updateTextStyle({
-                field_offset_x: nextX === 0 ? null : nextX,
-                field_offset_y: nextY === 0 ? null : nextY,
-              })
-            }}
-            onReset={() => updateTextStyle({ field_offset_x: null, field_offset_y: null })}
-          />
-          <div className="w-px h-4 bg-gray-200 shrink-0" />
-        </>
       ) : null}
 
-      <LayoutTransformScopeToggle
-        mode={transformScope}
+      {selectedOverlay ? (
+        <div className="flex shrink-0 flex-col self-center overflow-hidden rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
+          <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
+            Layer — position & size
+          </div>
+          <OverlayTransformControls
+            item={selectedOverlay}
+            onUpdate={updateSelectedOverlay}
+            onBringToFront={bringSelectedOverlayFront}
+            onSendToBack={sendSelectedOverlayBack}
+            variant="compact"
+          />
+        </div>
+      ) : canvasImageField ? (
+        <div className="flex shrink-0 flex-col self-center rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
+          <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
+            Section image
+          </div>
+          <SectionImageControls
+            imageField={canvasImageField}
+            blockProps={p as Record<string, unknown>}
+            blockType={String(block.block_type)}
+            onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
+            onPickImage={onSectionImagePick}
+            onOpenLibrary={onSectionImageLibrary}
+          />
+        </div>
+      ) : (
+      <LayoutTransformPositionGroup
+        scopeMode={transformScope}
         showGroup={supportsContentGroup}
-        onChange={mode => {
+        nudgeDisabled={
+          transformScope === 'section'
+          || (transformScope === 'group' && !supportsContentGroup)
+          || (transformScope === 'field' && !activeTextField && !multiFieldSelection)
+        }
+        onScopeChange={mode => {
           setTransformScope(mode)
           if (mode === 'group') onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
           else if (mode === 'field' && activeTextField === CONTENT_GROUP_FIELD_KEY) {
             onActivateTextField?.('headline')
           }
         }}
-      />
-      <FlipRotateControls
-        embedded
-        flipH={transformValues.flipH}
-        flipV={transformValues.flipV}
-        rotateDeg={transformValues.rotateDeg}
-        disabled={transformScope === 'field' && !activeTextField}
-        onChange={applyTransform}
-        onReset={resetTransform}
-      />
-      <div className="w-px h-4 bg-gray-200 shrink-0" />
-
-      <button
-        type="button"
-        title={
-          formatPaintActive
-            ? 'Format painter active — click text to apply (Esc to cancel)'
-            : 'Format painter — copy this text style. Click once: apply once. Double-click: apply to multiple fields.'
+        size="transformPad"
+        keyboardShortcuts={transformScope !== 'section'}
+        titleLabel={
+          transformScope === 'group'
+            ? 'All content position'
+            : transformScope === 'field'
+              ? 'Field position'
+              : 'Position — choose All or 1×'
         }
-        onClick={() => {
-          if (formatPaintClickTimerRef.current) window.clearTimeout(formatPaintClickTimerRef.current)
-          formatPaintClickTimerRef.current = window.setTimeout(() => {
-            startFormatPaint(false)
-            formatPaintClickTimerRef.current = null
-          }, 220)
-        }}
-        onDoubleClick={e => {
-          e.preventDefault()
-          if (formatPaintClickTimerRef.current) {
-            window.clearTimeout(formatPaintClickTimerRef.current)
-            formatPaintClickTimerRef.current = null
+        offsetX={
+          transformScope === 'group'
+            ? readFieldOffset((p as any).content_offset_x)
+            : readFieldOffset((typographySource as any).field_offset_x)
+        }
+        offsetY={
+          transformScope === 'group'
+            ? readFieldOffset((p as any).content_offset_y)
+            : readFieldOffset((typographySource as any).field_offset_y)
+        }
+        onNudge={(dx, dy) => {
+          if (transformScope === 'group') {
+            const curX = readFieldOffset((p as any).content_offset_x)
+            const curY = readFieldOffset((p as any).content_offset_y)
+            const nextX = readFieldOffset(curX + dx)
+            const nextY = readFieldOffset(curY + dy)
+            onUpdate({
+              content_offset_x: nextX === 0 ? null : nextX,
+              content_offset_y: nextY === 0 ? null : nextY,
+            } as Partial<BlockProps>)
+            onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
+            return
           }
-          startFormatPaint(true)
+          if (transformScope !== 'field') return
+          if (!activeTextField || activeTextField === CONTENT_GROUP_FIELD_KEY) return
+          if (multiFieldSelection) {
+            const nextStyles = { ...fieldStyles }
+            selectedEditableFields.forEach(k => {
+              const fs = (fieldStyles[k] || {}) as Record<string, unknown>
+              const curX = readFieldOffset(fs.field_offset_x)
+              const curY = readFieldOffset(fs.field_offset_y)
+              const nextX = readFieldOffset(curX + dx)
+              const nextY = readFieldOffset(curY + dy)
+              nextStyles[k] = {
+                ...fs,
+                field_offset_x: nextX === 0 ? null : nextX,
+                field_offset_y: nextY === 0 ? null : nextY,
+              }
+            })
+            onUpdate({ _field_styles: nextStyles } as Partial<BlockProps>)
+            return
+          }
+          const curX = readFieldOffset((typographySource as any).field_offset_x)
+          const curY = readFieldOffset((typographySource as any).field_offset_y)
+          const nextX = readFieldOffset(curX + dx)
+          const nextY = readFieldOffset(curY + dy)
+          updateTextStyle({
+            field_offset_x: nextX === 0 ? null : nextX,
+            field_offset_y: nextY === 0 ? null : nextY,
+          })
         }}
-        className={cn(
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
-          formatPaintActive
-            ? formatPaintSticky
-              ? 'border-amber-400 bg-amber-100 text-amber-800 shadow-sm'
-              : 'border-primary bg-primary/15 text-primary shadow-sm'
-            : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-accent',
-        )}
-      >
-        <Paintbrush className={cn('h-3.5 w-3.5', formatPaintActive && 'text-amber-700')} />
-      </button>
-
-      <div className="w-px h-4 bg-gray-200 shrink-0" />
-
-      {/* Block label */}
-      <div className="ml-auto text-xs text-gray-400 font-mono truncate max-w-[80px]">
-        {block.label || block.block_type}
+        onReset={() => {
+          if (transformScope === 'group') {
+            onUpdate({ content_offset_x: null, content_offset_y: null } as Partial<BlockProps>)
+            onActivateTextField?.(CONTENT_GROUP_FIELD_KEY)
+            return
+          }
+          if (transformScope !== 'field') return
+          updateTextStyle({ field_offset_x: null, field_offset_y: null })
+        }}
+        flipProps={{
+          flipH: transformValues.flipH,
+          flipV: transformValues.flipV,
+          rotateDeg: transformValues.rotateDeg,
+          disabled: transformScope === 'field' && !activeTextField,
+          onChange: applyTransform,
+          onReset: resetTransform,
+        }}
+      />
+      )}
       </div>
 
-      {/* Undo / Redo — mirrored from top toolbar for quick access while editing a block */}
-      {(onUndo || onRedo) && (
-        <>
-          <div className="w-px h-4 bg-gray-200 shrink-0" />
-          <div className="flex items-center gap-0.5 shrink-0">
+      <div className="flex shrink-0 items-center gap-1 border-l border-gray-200 pl-1">
+        <span className="hidden md:inline text-[10px] text-gray-400 font-mono truncate max-w-[5rem]" title={block.label || block.block_type}>
+          {block.label || block.block_type}
+        </span>
+        {(onUndo || onRedo) && (
+          <div className="flex items-center gap-px shrink-0">
             <button
               type="button"
               disabled={!canUndo}
@@ -11185,124 +11434,67 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
               <Redo2 className="w-3.5 h-3.5" />
             </button>
           </div>
+        )}
+      </div>
         </>
       )}
-        </>
+
+      {designBarTab === 'visual' && canvasImageField && !selectedOverlay ? (
+        <div className="flex shrink-0 flex-col self-center rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
+          <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
+            Section image
+          </div>
+          <SectionImageControls
+            imageField={canvasImageField}
+            blockProps={p as Record<string, unknown>}
+            blockType={String(block.block_type)}
+            onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
+            onPickImage={onSectionImagePick}
+            onOpenLibrary={onSectionImageLibrary}
+          />
+        </div>
+      ) : null}
+
+      {designBarTab === 'visual' && (
+        <VisualDesignBarTools
+          blockType={String(block.block_type)}
+          blockProps={p as Record<string, unknown>}
+          blockAnimation={block.animation}
+          blockAnimationDelay={block.animation_delay}
+          blockSupportsMediaClip={blockSupportsMediaClip}
+          overlayCount={overlayCount}
+          selectedOverlay={selectedOverlay}
+          blockBackgroundColor={blockBackgroundColor}
+          onUpdate={onUpdate}
+          onUpdateOverlay={selectedOverlay ? updateSelectedOverlay : undefined}
+          onAddOverlay={addOverlayElement}
+          onClearOverlays={() => onUpdate({ overlays: [] } as Partial<BlockProps>)}
+          onOverlayPickImage={onOverlayPickImage}
+          onOverlayOpenLibrary={onOverlayOpenLibrary}
+          onOverlaySetImageUrl={onOverlaySetImageUrl}
+          onOverlayEditLink={
+            selectedOverlay && onOpenLinkEditorForOverlay
+              ? () => onOpenLinkEditorForOverlay(selectedOverlay, { x: window.innerWidth / 2, y: 200 })
+              : undefined
+          }
+          onOverlayEditText={selectedOverlay ? onOverlayEditText : undefined}
+          onOverlayEditDescription={selectedOverlay ? onOverlayEditDescription : undefined}
+          onOverlayBringToFront={selectedOverlay ? bringSelectedOverlayFront : undefined}
+          onOverlaySendToBack={selectedOverlay ? sendSelectedOverlayBack : undefined}
+        />
       )}
 
       {designBarTab === 'media' && (
-        <div className="flex min-h-[32px] w-full items-center gap-2 px-1 py-1">
-          {blockSupportsMediaClip ? (
-            <MediaClipPicker
-              compact
-              value={(p as any).media_clip}
-              onChange={clip => onUpdate({ media_clip: clip } as Partial<BlockProps>)}
-            />
-          ) : (
-            <p className="text-xs text-gray-500 px-1">
-              Background and gallery settings for this section — use the <span className="font-semibold text-gray-700">Media</span> tab in the right panel.
-            </p>
-          )}
-        </div>
-      )}
-
-      {designBarTab === 'style' && (
-        <>
-      {/* ANIMATION */}
-      <div className="relative">
-        <button
-          ref={animBtnRef}
-          onClick={() => { setShowAnim(v => !v); setShowInsert(false); setShowShapes(false); setShowCase(false); setShowLineSpacing(false) }}
-          title="Scroll animation"
-          className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors border',
-            block.animation && block.animation !== 'none'
-              ? 'bg-blue-100 text-blue-700 border-blue-200'
-              : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent')}
-        >
-          <Zap className="w-3 h-3" />
-          {block.animation && block.animation !== 'none'
-            ? animationOptionLabel(block.animation)
-            : 'Anim'}
-        </button>
-        <DesignBarDropdownPortal
-          open={showAnim}
-          anchorRef={animBtnRef}
-          menuRef={dropdownRef}
-          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-2.5 w-[13rem] max-h-[90vh] overflow-y-auto"
-        >
-          <ScrollAnimationControls
-            variant="compact"
-            animation={block.animation}
-            animationDelay={block.animation_delay || 0}
-            onAnimationChange={id => onUpdate({ animation: id === 'none' ? null : id } as any)}
-            onDelayChange={ms => onUpdate({ animation_delay: ms } as any)}
-          />
-        </DesignBarDropdownPortal>
-      </div>
-
-      <div className="w-px h-4 bg-gray-200 shrink-0" />
-
-      {/* SHAPES / ORIGINS */}
-      <div className="relative">
-        <button
-          ref={shapesBtnRef}
-          onClick={() => { setShowShapes(v => !v); setShowInsert(false); setShowAnim(false); setShowCase(false); setShowLineSpacing(false) }}
-          title="Section shape dividers"
-          className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors border',
-            ((p as any).top_shape && (p as any).top_shape !== 'none') || ((p as any).bottom_shape && (p as any).bottom_shape !== 'none')
-              ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-              : 'text-gray-500 border-gray-200 hover:border-primary/40 hover:bg-accent')}
-        >
-          <svg viewBox="0 0 20 10" className="w-4 h-3 fill-current"><path d="M0,10 C5,0 10,10 15,3 C17,1 18,5 20,4 L20,10 Z"/></svg>
-          Origins
-        </button>
-        <DesignBarDropdownPortal
-          open={showShapes}
-          anchorRef={shapesBtnRef}
-          menuRef={dropdownRef}
-          className="bg-white border border-gray-200 rounded-xl shadow-2xl p-3 w-72 max-h-[90vh] overflow-y-auto"
-        >
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Top Edge Shape</div>
-              <div className="grid grid-cols-3 gap-1 mb-3">
-                {SHAPE_OPTIONS.map(({ id, label }) => (
-                  <button key={`db-top-${id}`}
-                    onClick={() => onUpdate({ top_shape: id === 'none' ? null : id } as any)}
-                    className={cn('py-1 px-1 text-xs font-medium rounded border transition-colors text-center truncate',
-                      ((p as any).top_shape || 'none') === id
-                        ? 'bg-primary text-white border-primary'
-                        : 'text-gray-500 border-gray-200 hover:border-primary/40')}
-                  >{label}</button>
-                ))}
-              </div>
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Bottom Edge Shape</div>
-              <div className="grid grid-cols-3 gap-1 mb-3">
-                {SHAPE_OPTIONS.map(({ id, label }) => (
-                  <button key={`db-bot-${id}`}
-                    onClick={() => onUpdate({ bottom_shape: id === 'none' ? null : id } as any)}
-                    className={cn('py-1 px-1 text-xs font-medium rounded border transition-colors text-center truncate',
-                      ((p as any).bottom_shape || 'none') === id
-                        ? 'bg-primary text-white border-primary'
-                        : 'text-gray-500 border-gray-200 hover:border-primary/40')}
-                  >{label}</button>
-                ))}
-              </div>
-              {(((p as any).top_shape && (p as any).top_shape !== 'none') || ((p as any).bottom_shape && (p as any).bottom_shape !== 'none')) && (
-                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                  <input type="color"
-                    value={(p as any).shape_color || '#ffffff'}
-                    onChange={e => onUpdate({ shape_color: e.target.value } as any)}
-                    className="w-8 h-8 rounded border border-gray-200 cursor-pointer p-0.5"
-                  />
-                  <span className="text-xs text-gray-600">Shape fill color</span>
-                </div>
-              )}
-        </DesignBarDropdownPortal>
-      </div>
-
-      <div className="ml-auto text-xs text-gray-400 font-mono truncate max-w-[80px]">
-        {block.label || block.block_type}
-      </div>
-        </>
+        <MediaDesignBarTools
+          blockType={String(block.block_type)}
+          blockProps={p as Record<string, unknown>}
+          primaryImageField={primaryImageField}
+          canvasImageField={canvasImageField}
+          onUpdate={onUpdate}
+          onOpenMediaLibrary={onSectionImageLibrary}
+          onPickImage={onSectionImagePick}
+          onFocusPrimaryImage={onFocusPrimaryImage}
+        />
       )}
     </div>
     </div>
@@ -11336,9 +11528,37 @@ export default function WebsiteBuilder() {
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null)
+  const [minimizedSectionToolbars, setMinimizedSectionToolbars] = useState<Set<string>>(() => new Set())
+  const [pinnedSectionToolbars, setPinnedSectionToolbars] = useState<Set<string>>(() => new Set())
+  const minimizeSectionToolbar = useCallback((blockId: string) => {
+    setMinimizedSectionToolbars(prev => {
+      const next = new Set(prev)
+      next.add(blockId)
+      return next
+    })
+  }, [])
+  const expandSectionToolbar = useCallback((blockId: string) => {
+    setMinimizedSectionToolbars(prev => {
+      const next = new Set(prev)
+      next.delete(blockId)
+      return next
+    })
+  }, [])
+  const togglePinSectionToolbar = useCallback((blockId: string) => {
+    setPinnedSectionToolbars(prev => {
+      const next = new Set(prev)
+      if (next.has(blockId)) next.delete(blockId)
+      else next.add(blockId)
+      return next
+    })
+  }, [])
   const [activeTextTarget, setActiveTextTarget] = useState<ActiveTextTarget | null>(null)
   const [formatPaintBrush, setFormatPaintBrush] = useState<{ style: FormatPaintStyle; sticky: boolean } | null>(null)
-  const applyFormatPaintTargetRef = useRef<(blockId: string, fieldKey: string | null) => boolean>(() => false)
+  const applyFormatPaintTargetRef = useRef<(
+    blockId: string,
+    fieldKey: string | null,
+    opts?: { clientX?: number; clientY?: number },
+  ) => boolean>(() => false)
   const openInlineTextEditForSelectedRef = useRef<(anchorX?: number, anchorY?: number) => void>(() => {})
   const dismissBuilderUiRef = useRef<() => void>(() => {})
   const [inlineTextEdit, setInlineTextEdit] = useState<InlineTextEditSession | null>(null)
@@ -11419,6 +11639,10 @@ export default function WebsiteBuilder() {
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
   /** Selected in-canvas image overlay (for AI / Media apply). */
   const [overlayImageTarget, setOverlayImageTarget] = useState<{ blockId: string; overlayId: string } | null>(null)
+  const overlayImageTargetRef = useRef<{ blockId: string; overlayId: string } | null>(null)
+  const selectedBlockIdRef = useRef<string | null>(null)
+  useEffect(() => { overlayImageTargetRef.current = overlayImageTarget }, [overlayImageTarget])
+  useEffect(() => { selectedBlockIdRef.current = selectedBlockId }, [selectedBlockId])
   /** Selected canvas image slot (for Media panel apply). */
   const [canvasImageTarget, setCanvasImageTarget] = useState<{
     blockId: string
@@ -12084,39 +12308,48 @@ export default function WebsiteBuilder() {
   const handleCanvasTextFieldActivate = useCallback((
     blockId: string,
     fieldKey: string,
-    opts?: { additive?: boolean },
+    opts?: { additive?: boolean; clientX?: number; clientY?: number },
   ) => {
-    if (formatPaintBrush && applyFormatPaintTargetRef.current(blockId, fieldKey)) return
+    if (formatPaintBrush && applyFormatPaintTargetRef.current(blockId, fieldKey, opts)) return
     setSelectedBlockId(blockId)
+    setOverlayImageTarget(null)
+    setCanvasImageTarget(null)
     setActiveTextTarget(prev => toggleTextFieldInTarget(prev, blockId, fieldKey, opts?.additive ?? false))
     setRightPanel('props')
     setRightCollapsed(false)
   }, [formatPaintBrush])
 
   const handleCanvasBlockSelectCapture = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.pointer-events-auto')) return
-    const blockRoot = (e.target as HTMLElement).closest('[data-block-id]') as HTMLElement | null
+    const target = e.target as HTMLElement
+    const fieldKey = resolveCanvasFieldKeyFromTarget(e.target)
+    const isFieldClick = isCanvasFieldClickTarget(e.target)
+
+    if (target.closest('[data-overlay-root],[data-overlay-toolbar],[data-builder-section-image]')) return
+    if (target.closest('[contenteditable="true"], [data-builder-inline-edit-target="true"]')) return
+
+    const blockRoot = target.closest('[data-block-id]') as HTMLElement | null
     if (!blockRoot) return
-    if ((e.target as HTMLElement).closest('[contenteditable="true"], [data-builder-inline-edit-target="true"]')) return
     const id = blockRoot.getAttribute('data-block-id')
     if (!id) return
 
-    const fieldKey = resolveCanvasFieldKeyFromTarget(e.target)
-
     if (formatPaintBrush) {
-      if (isCanvasFieldClickTarget(e.target) || fieldKey) {
+      if (isFieldClick || fieldKey) {
         e.preventDefault()
         e.stopPropagation()
-        applyFormatPaintTargetRef.current(id, fieldKey)
+        applyFormatPaintTargetRef.current(id, fieldKey, { clientX: e.clientX, clientY: e.clientY })
         return
       }
     }
 
-    if (isCanvasFieldClickTarget(e.target)) return
+    if (isFieldClick) return
+
+    if (target.closest('.pointer-events-auto')) return
 
     if ((e.target as HTMLElement).closest('a, button, input, textarea, select, label, [role="button"]')) return
 
     setSelectedBlockId(id)
+    setOverlayImageTarget(null)
+    setCanvasImageTarget(null)
     setActiveTextTarget(null)
     setRightPanel('props')
     setRightCollapsed(false)
@@ -12261,13 +12494,28 @@ export default function WebsiteBuilder() {
     return !!overlays.find(o => o.id === overlayImageTarget.overlayId && o.type === 'image')
   }, [selectedBlock, overlayImageTarget])
 
-  const onOverlayLayerPicked = useCallback((overlayId: string | null) => {
-    if (!selectedBlockId) {
+  const onOverlayLayerPicked = useCallback((overlayId: string | null, blockId?: string | null) => {
+    const bid = blockId ?? selectedBlockId
+    if (!bid) {
       setOverlayImageTarget(null)
       setCanvasImageTarget(null)
       return
     }
-    setOverlayImageTarget(overlayId ? { blockId: selectedBlockId, overlayId } : null)
+    if (blockId && blockId !== selectedBlockId) {
+      setSelectedBlockId(blockId)
+    }
+    setOverlayImageTarget(overlayId ? { blockId: bid, overlayId } : null)
+    if (overlayId) {
+      setCanvasImageTarget(null)
+      setActiveTextTarget(null)
+    }
+  }, [selectedBlockId])
+
+  const handleSectionImageActivate = useCallback((blockId: string, field: string) => {
+    if (blockId !== selectedBlockId) setSelectedBlockId(blockId)
+    setOverlayImageTarget(null)
+    setActiveTextTarget(null)
+    setCanvasImageTarget({ blockId, propField: field })
   }, [selectedBlockId])
 
   useEffect(() => {
@@ -12956,21 +13204,56 @@ export default function WebsiteBuilder() {
     })
   }, [activePageId, handleUpdateBlockProps])
 
-  const applyFormatPaintTarget = useCallback((blockId: string, fieldKey: string | null) => {
+  const applyFormatPaintTarget = useCallback((
+    blockId: string,
+    fieldKey: string | null,
+    opts?: { clientX?: number; clientY?: number },
+  ) => {
     if (!formatPaintBrush) return false
     const pageId = findPageIdForBlock(localBlocksRef.current, localPagesRef.current, blockId, activePageId)
     const block = pageId ? (localBlocksRef.current[pageId] || []).find(b => b.id === blockId) : null
     if (!block) return false
 
-    if (fieldKey && hasActiveInlineTextSelection(fieldKey)) {
-      if (applyInlineTextSelectionStyle(fieldKey, formatPaintBrush.style as Record<string, unknown>)) {
-        setSelectedBlockId(blockId)
-        setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
-        setRightPanel('props')
-        setRightCollapsed(false)
-        if (!formatPaintBrush.sticky) setFormatPaintBrush(null)
-        toast.success('Formatting applied to selected text')
-        return true
+    if (typeof formatPaintBrush.style.font_family === 'string') {
+      ensureBuilderFontLoaded(formatPaintBrush.style.font_family)
+    }
+
+    const stylePatch = formatPaintBrush.style as Record<string, unknown>
+
+    if (fieldKey && fieldKey !== CONTENT_GROUP_FIELD_KEY) {
+      const fieldEl = document.querySelector(
+        `[data-block-id="${CSS.escape(blockId)}"] [data-text-key="${CSS.escape(fieldKey)}"]`,
+      ) as HTMLElement | null
+
+      if (
+        fieldEl
+        && typeof opts?.clientX === 'number'
+        && typeof opts?.clientY === 'number'
+        && !hasActiveInlineTextSelection(fieldKey)
+      ) {
+        if (applyInlineTextStyleAtPoint(fieldKey, fieldEl, stylePatch, opts.clientX, opts.clientY)) {
+          setSelectedBlockId(blockId)
+          setOverlayImageTarget(null)
+          setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
+          setRightPanel('props')
+          setRightCollapsed(false)
+          if (!formatPaintBrush.sticky) setFormatPaintBrush(null)
+          toast.success('Formatting applied to word')
+          return true
+        }
+      }
+
+      if (hasActiveInlineTextSelection(fieldKey)) {
+        if (applyInlineTextSelectionStyle(fieldKey, stylePatch)) {
+          setSelectedBlockId(blockId)
+          setOverlayImageTarget(null)
+          setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
+          setRightPanel('props')
+          setRightCollapsed(false)
+          if (!formatPaintBrush.sticky) setFormatPaintBrush(null)
+          toast.success('Formatting applied to selected text')
+          return true
+        }
       }
     }
 
@@ -12982,6 +13265,7 @@ export default function WebsiteBuilder() {
     if (Object.keys(patch).length === 0) return false
     handleUpdateBlockProps(blockId, patch as Partial<BlockProps>)
     setSelectedBlockId(blockId)
+    setOverlayImageTarget(null)
     if (fieldKey) setActiveTextTarget({ blockId, fieldKeys: [fieldKey] })
     else setActiveTextTarget(null)
     setRightPanel('props')
@@ -13100,29 +13384,55 @@ export default function WebsiteBuilder() {
     pricing:              { arrayKey: 'plans',        itemField: 'image_url',   defaultTitle: 'Plan' },
   }
 
-  const applyMediaUrlToSelection = useCallback((url: string) => {
-    if (!selectedBlock || !activePageId) {
+  const applyMediaUrlToSelection = useCallback((
+    url: string,
+    opts?: { blockId?: string; overlayTarget?: { blockId: string; overlayId: string } | null },
+  ) => {
+    const pageId = activePageId
+    if (!pageId) {
+      toast.error('Select a block first')
+      return
+    }
+    const blockId = opts?.blockId ?? selectedBlockIdRef.current
+    if (!blockId) {
+      toast.error('Select a block first')
+      return
+    }
+    const block = (localBlocksRef.current[pageId] || []).find(b => b.id === blockId)
+    if (!block) {
       toast.error('Select a block first')
       return
     }
 
-    // 1) Overlay image target (drag-and-drop canvas layer)
-    if (overlayImageTarget && overlayImageTarget.blockId === selectedBlock.id) {
-      const overlays = ((selectedBlock.props as any).overlays as BlockOverlayItem[]) || []
-      const target = overlays.find(o => o.id === overlayImageTarget.overlayId && o.type === 'image')
+    const overlayTarget = opts?.overlayTarget !== undefined
+      ? opts.overlayTarget
+      : overlayImageTargetRef.current
+
+    // 1) Overlay layer target (inserted image / video on canvas)
+    if (overlayTarget && overlayTarget.blockId === blockId) {
+      const overlays = ((block.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
+      const target = overlays.find(o => o.id === overlayTarget.overlayId)
       if (target) {
-        handleUpdateBlockProps(selectedBlock.id, {
-          overlays: overlays.map(o => o.id === overlayImageTarget.overlayId ? { ...o, src: url } : o),
-        } as any)
+        handleUpdateBlockProps(blockId, {
+          overlays: overlays.map(o => (
+            o.id === overlayTarget.overlayId
+              ? {
+                  ...o,
+                  src: url,
+                  ...(o.type === 'video' ? {} : { type: 'image' as const }),
+                }
+              : o
+          )),
+        } as Partial<BlockProps>)
         toast.success('Image applied to layer!')
         return
       }
     }
 
     // 2) Canvas image target (clicked image on preview)
-    if (canvasImageTarget && canvasImageTarget.blockId === selectedBlock.id) {
+    if (canvasImageTarget && canvasImageTarget.blockId === blockId) {
       if (canvasImageTarget.propField) {
-        handleUpdateBlockProps(selectedBlock.id, { [canvasImageTarget.propField]: url } as any)
+        handleUpdateBlockProps(blockId, { [canvasImageTarget.propField]: url } as Partial<BlockProps>)
         toast.success('Image updated')
         return
       }
@@ -13131,32 +13441,32 @@ export default function WebsiteBuilder() {
         && canvasImageTarget.itemField
         && canvasImageTarget.index != null
       ) {
-        const arr = [...(((selectedBlock.props as any)[canvasImageTarget.arrayKey] as any[]) || [])]
+        const arr = [...(((block.props as Record<string, unknown>)[canvasImageTarget.arrayKey] as unknown[]) || [])]
         while (arr.length <= canvasImageTarget.index) {
           arr.push({ [canvasImageTarget.itemField]: null })
         }
         const updated = arr.map((item, idx) =>
           idx === canvasImageTarget.index
-            ? { ...item, [canvasImageTarget.itemField!]: url }
+            ? { ...item as Record<string, unknown>, [canvasImageTarget.itemField!]: url }
             : item)
-        handleUpdateBlockProps(selectedBlock.id, { [canvasImageTarget.arrayKey]: updated } as any)
+        handleUpdateBlockProps(blockId, { [canvasImageTarget.arrayKey]: updated } as Partial<BlockProps>)
         toast.success('Image updated')
         return
       }
     }
 
     // 3) Array-item blocks (testimonials, team, features, gallery, etc.)
-    const arrayCfg = BLOCK_ARRAY_IMAGE[selectedBlock.block_type]
+    const arrayCfg = BLOCK_ARRAY_IMAGE[block.block_type]
     if (arrayCfg) {
       const targetIdx = (
         canvasImageTarget
-        && canvasImageTarget.blockId === selectedBlock.id
+        && canvasImageTarget.blockId === blockId
         && canvasImageTarget.arrayKey === arrayCfg.arrayKey
         && canvasImageTarget.index != null
       )
         ? canvasImageTarget.index
         : 0
-      let arr: any[] = ((selectedBlock.props as any)[arrayCfg.arrayKey] as any[] | undefined) || []
+      let arr: Record<string, unknown>[] = ((block.props as Record<string, unknown>)[arrayCfg.arrayKey] as Record<string, unknown>[] | undefined) || []
       if (arr.length > 0) {
         while (arr.length <= targetIdx) {
           const filler: Record<string, any> = { [arrayCfg.itemField]: null }
@@ -13166,7 +13476,7 @@ export default function WebsiteBuilder() {
         }
         const updated = arr.map((item, idx) =>
           idx === targetIdx ? { ...item, [arrayCfg.itemField]: url } : item)
-        handleUpdateBlockProps(selectedBlock.id, { [arrayCfg.arrayKey]: updated } as any)
+        handleUpdateBlockProps(blockId, { [arrayCfg.arrayKey]: updated } as Partial<BlockProps>)
         toast.success(
           targetIdx > 0 || canvasImageTarget
             ? `Image applied to slot ${targetIdx + 1}`
@@ -13174,24 +13484,25 @@ export default function WebsiteBuilder() {
         )
       } else {
         // No items yet — create one with the image
-        const newItem: Record<string, any> = { [arrayCfg.itemField]: url }
+        const newItem: Record<string, unknown> = { [arrayCfg.itemField]: url }
         if (arrayCfg.defaultTitle) newItem.title = arrayCfg.defaultTitle
         if (arrayCfg.itemField === 'avatar_url') newItem.name = arrayCfg.defaultTitle || 'Person'
         if (arrayCfg.itemField === 'src') delete newItem.title
-        handleUpdateBlockProps(selectedBlock.id, { [arrayCfg.arrayKey]: [newItem] } as any)
+        handleUpdateBlockProps(blockId, { [arrayCfg.arrayKey]: [newItem] } as Partial<BlockProps>)
         toast.success('Image added as new item.')
       }
       return
     }
 
-    // 4) Simple top-level field
-    const field = BLOCK_IMAGE_FIELD[selectedBlock.block_type]
-      ?? (selectedBlock.block_type.includes('hero') || selectedBlock.block_type.includes('banner')
-          ? 'bg_image_url'
-          : 'image_url')
-    handleUpdateBlockProps(selectedBlock.id, { [field]: url } as any)
+    // 4) Simple top-level field (hero split → image_url, full-bleed hero → bg_image_url, etc.)
+    const field = resolveBlockPrimaryImageField(
+      block.block_type,
+      (block.props ?? {}) as Record<string, unknown>,
+      BLOCK_IMAGE_FIELD,
+    )
+    handleUpdateBlockProps(blockId, { [field]: url } as Partial<BlockProps>)
     toast.success('Image applied to block!')
-  }, [selectedBlock, activePageId, overlayImageTarget, canvasImageTarget, handleUpdateBlockProps])
+  }, [activePageId, canvasImageTarget, handleUpdateBlockProps])
 
   const uploadImageFileToSelection = useCallback(async (file: File) => {
     if (!siteId) return
@@ -13199,21 +13510,94 @@ export default function WebsiteBuilder() {
       toast.error('Please use an image file (JPG, PNG, WebP, …)')
       return
     }
-    if (!selectedBlock) {
+    if (!selectedBlockIdRef.current) {
       toast.error('Select a block on the canvas first')
       return
     }
+    const capturedBlockId = selectedBlockIdRef.current
+    const capturedOverlayTarget = overlayImageTargetRef.current
     try {
       const saved = await overlayLayerUpload.mutateAsync(file)
-      applyMediaUrlToSelection(saved.original_url)
+      const uploadedUrl = saved.original_url || (saved as { url?: string }).url || ''
+      applyMediaUrlToSelection(uploadedUrl, {
+        blockId: capturedBlockId,
+        overlayTarget: capturedOverlayTarget,
+      })
     } catch {
       toast.error('Upload failed — try a smaller file or check your connection')
     }
-  }, [siteId, selectedBlock, overlayLayerUpload, applyMediaUrlToSelection])
+  }, [siteId, overlayLayerUpload, applyMediaUrlToSelection])
 
   const openOverlayImageFilePicker = useCallback(() => {
     overlayImageUploadRef.current?.click()
   }, [])
+
+  const openOverlayImageUrlPrompt = useCallback(() => {
+    if (!selectedBlock || !overlayImageTarget || overlayImageTarget.blockId !== selectedBlock.id) return
+    const overlays = ((selectedBlock.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
+    const item = overlays.find(o => o.id === overlayImageTarget.overlayId && o.type === 'image')
+    if (!item) return
+    openTextPrompt({
+      title: 'Set image URL',
+      placeholder: 'https://…/image.jpg',
+      initialValue: item.src || '',
+      onSave: v => {
+        if (!v) return
+        handleUpdateBlockProps(selectedBlock.id, {
+          overlays: overlays.map(o => (o.id === item.id ? { ...o, src: v } : o)),
+        } as BlockProps)
+      },
+    })
+  }, [selectedBlock, overlayImageTarget, openTextPrompt, handleUpdateBlockProps])
+
+  const startOverlayLayerTextEdit = useCallback((overlayId: string) => {
+    document
+      .querySelector(`[data-overlay-id="${CSS.escape(overlayId)}"]`)
+      ?.dispatchEvent(new CustomEvent('builder-overlay-start-text-edit', { bubbles: true }))
+  }, [])
+
+  const openOverlayTextEdit = useCallback(() => {
+    if (!selectedBlock || !overlayImageTarget || overlayImageTarget.blockId !== selectedBlock.id) return
+    const overlays = ((selectedBlock.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
+    const item = overlays.find(o => o.id === overlayImageTarget.overlayId)
+    if (!item) return
+    if (item.type === 'text') {
+      startOverlayLayerTextEdit(item.id)
+      return
+    }
+    if (item.type === 'button' || item.type === 'badge') {
+      openTextPrompt({
+        title: `Edit ${item.type} label`,
+        placeholder: item.type === 'button' ? 'e.g. Book Now' : 'e.g. NEW',
+        initialValue: item.text || '',
+        onSave: v => {
+          handleUpdateBlockProps(selectedBlock.id, {
+            overlays: overlays.map(o => (o.id === item.id ? { ...o, text: v } : o)),
+          } as BlockProps)
+        },
+      })
+    }
+  }, [selectedBlock, overlayImageTarget, openTextPrompt, handleUpdateBlockProps, startOverlayLayerTextEdit])
+
+  const openOverlayDescriptionEdit = useCallback(() => {
+    if (!selectedBlock || !overlayImageTarget || overlayImageTarget.blockId !== selectedBlock.id) return
+    const overlays = ((selectedBlock.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
+    const item = overlays.find(o => o.id === overlayImageTarget.overlayId)
+    if (!item || (item.type !== 'button' && item.type !== 'badge')) return
+    openTextPrompt({
+      title: 'Button description',
+      subtitle: 'Shown as tooltip on hover and used for screen-reader labels.',
+      placeholder: 'Book a table for 4 guests',
+      initialValue: item.description || '',
+      multiline: true,
+      maxLength: 160,
+      onSave: v => {
+        handleUpdateBlockProps(selectedBlock.id, {
+          overlays: overlays.map(o => (o.id === item.id ? { ...o, description: v } : o)),
+        } as BlockProps)
+      },
+    })
+  }, [selectedBlock, overlayImageTarget, openTextPrompt, handleUpdateBlockProps])
 
   const handleOverlayImageFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -13476,6 +13860,7 @@ export default function WebsiteBuilder() {
       : fields[0].fieldKey
 
     setSelectedBlockId(block.id)
+    setOverlayImageTarget(null)
     setActiveTextTarget({ blockId: block.id, fieldKeys: [fieldKey] })
     setRightPanel('props')
     setRightCollapsed(false)
@@ -13619,6 +14004,7 @@ export default function WebsiteBuilder() {
   const handleCanvasBlockContextMenuCapture = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest('[data-kiterp-modal]')) return
+    if (target.closest('[data-overlay-root],[data-overlay-toolbar]')) return
     const blockRoot = target.closest('[data-block-id]') as HTMLElement | null
     if (!blockRoot) return
     const id = blockRoot.getAttribute('data-block-id')
@@ -13655,6 +14041,8 @@ export default function WebsiteBuilder() {
 
   const openOverlayContextMenu = useCallback((blockId: string, item: BlockOverlayItem, e: React.MouseEvent) => {
     if (!activePageId) return
+    setSelectedBlockId(blockId)
+    onOverlayLayerPicked(item.id, blockId)
     const isLinkable = item.type === 'button' || item.type === 'badge' || item.type === 'text' || item.type === 'image'
     const actions: ContextMenuAction[] = [
       ...(item.type === 'text' || item.type === 'button' || item.type === 'badge' ? [{
@@ -13709,29 +14097,49 @@ export default function WebsiteBuilder() {
           })
         },
       }] : []),
-      ...(item.type === 'image' ? [{
-        id: 'replace-img',
-        label: 'Replace image…',
-        icon: ImageIcon,
-        onSelect: () => {
-          openTextPrompt({
-            title: 'Replace image',
-            subtitle: 'Paste a direct image URL — or close and use AI / Media library instead.',
-            placeholder: 'https://…/image.jpg',
-            initialValue: item.src || '',
-            anchor: { x: e.clientX, y: e.clientY },
-            onSave: v => {
-              if (!v) return
-              const block = (localBlocks[activePageId] || []).find(b => b.id === blockId)
-              if (!block) return
-              const overlays: BlockOverlayItem[] = ((block.props as any).overlays as BlockOverlayItem[]) || []
-              handleUpdateBlockProps(blockId, {
-                overlays: overlays.map(o => o.id === item.id ? { ...o, src: v } : o),
-              } as any)
-            },
-          })
+      ...(item.type === 'image' ? [
+        {
+          id: 'upload-img',
+          label: 'Upload image…',
+          icon: Upload,
+          onSelect: () => {
+            onOverlayLayerPicked(item.id, blockId)
+            openOverlayImageFilePicker()
+          },
         },
-      }] : []),
+        {
+          id: 'library-img',
+          label: 'Choose from library…',
+          icon: ImageIcon,
+          onSelect: () => {
+            onOverlayLayerPicked(item.id, blockId)
+            openMediaFromCanvas()
+          },
+        },
+        {
+          id: 'replace-img',
+          label: 'Replace image…',
+          icon: Link2,
+          onSelect: () => {
+            openTextPrompt({
+              title: 'Replace image',
+              subtitle: 'Paste a direct image URL.',
+              placeholder: 'https://…/image.jpg',
+              initialValue: item.src || '',
+              anchor: { x: e.clientX, y: e.clientY },
+              onSave: v => {
+                if (!v) return
+                const block = (localBlocks[activePageId] || []).find(b => b.id === blockId)
+                if (!block) return
+                const overlays: BlockOverlayItem[] = ((block.props as any).overlays as BlockOverlayItem[]) || []
+                handleUpdateBlockProps(blockId, {
+                  overlays: overlays.map(o => o.id === item.id ? { ...o, src: v } : o),
+                } as any)
+              },
+            })
+          },
+        },
+      ] : []),
       { id: 'div1', label: '', divider: true },
       {
         id: 'bring-front',
@@ -13776,6 +14184,7 @@ export default function WebsiteBuilder() {
             y: item.y + 16,
           }
           handleUpdateBlockProps(blockId, { overlays: [...overlays, copy] } as any)
+          onOverlayLayerPicked(copy.id, blockId)
         },
       },
       { id: 'div2', label: '', divider: true },
@@ -13789,11 +14198,14 @@ export default function WebsiteBuilder() {
           if (!block) return
           const overlays: BlockOverlayItem[] = ((block.props as any).overlays as BlockOverlayItem[]) || []
           handleUpdateBlockProps(blockId, { overlays: overlays.filter(o => o.id !== item.id) } as any)
+          if (overlayImageTarget?.blockId === blockId && overlayImageTarget.overlayId === item.id) {
+            onOverlayLayerPicked(null, blockId)
+          }
         },
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [activePageId, localBlocks, handleUpdateBlockProps, openLinkEditorForOverlay, openTextPrompt])
+  }, [activePageId, localBlocks, handleUpdateBlockProps, openLinkEditorForOverlay, openTextPrompt, openOverlayImageFilePicker, openMediaFromCanvas, onOverlayLayerPicked, overlayImageTarget])
 
   // Reorder — local only until Save (same as block prop edits)
   const applyReorderForPage = useCallback((pageId: string, reordered: WebsiteBlock[]) => {
@@ -14781,8 +15193,8 @@ export default function WebsiteBuilder() {
     const recalcScale = () => {
       const available = Math.max(0, main.clientWidth - CANVAS_VIEWPORT_PAD_PX)
       if (available <= 0) return
-      // Always scale to the panel width (up or down) so the page fills edge-to-edge.
-      setCanvasFitScale(available / designWidthPx)
+      const next = available / designWidthPx
+      setCanvasFitScale(prev => (Math.abs(prev - next) < 0.0001 ? prev : next))
     }
     recalcScale()
     const raf = requestAnimationFrame(recalcScale)
@@ -14805,12 +15217,22 @@ export default function WebsiteBuilder() {
   useLayoutEffect(() => {
     const inner = canvasPreviewInnerRef.current
     if (!inner) return
-    const recalcHeight = () => setCanvasPreviewHeight(Math.max(600, inner.scrollHeight))
+    let raf = 0
+    const recalcHeight = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const next = Math.max(600, Math.ceil(inner.scrollHeight))
+        setCanvasPreviewHeight(prev => (prev === next ? prev : next))
+      })
+    }
     recalcHeight()
     const ro = new ResizeObserver(recalcHeight)
     ro.observe(inner)
-    return () => ro.disconnect()
-  }, [activeBlocks, activePageId, device, selectedBlockId, effectiveCanvasScale])
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+    }
+  }, [activePageId, device, canvasBlocksRevision])
 
   const scaledCanvasWidth = Math.round(designWidthPx * effectiveCanvasScale)
 
@@ -15951,12 +16373,16 @@ export default function WebsiteBuilder() {
                   <span className="text-[11px] font-medium text-primary/90 truncate">
                     {formatPaintBrush
                       ? `Format painter — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · multi-apply' : ''} · Esc to cancel`
-                      : multiFieldSelectionOnBlock
-                        ? `${selectedCount} fields selected — Shift/Ctrl+click to add/remove · toolbar applies to all`
-                        : `${catalogBlockLabel(block)} selected — Shift/Ctrl+click multi-select · E to edit · Esc to dismiss`}
+                      : overlayImageTarget?.blockId === block.id && overlayImageTarget.overlayId
+                        ? `Layer selected — General: move, size & zoom · Visual: style · Esc to deselect`
+                        : canvasImageTarget?.blockId === block.id && canvasImageTarget.propField
+                          ? `Section image selected — General: zoom, pan, fit & height · Esc to deselect`
+                          : multiFieldSelectionOnBlock
+                          ? `${selectedCount} fields selected — Shift/Ctrl+click to add/remove · toolbar applies to all`
+                          : `${catalogBlockLabel(block)} selected — Shift/Ctrl+click multi-select · E to edit · Esc to dismiss`}
                   </span>
                   <span className="hidden sm:inline text-[10px] text-gray-400 shrink-0">
-                    Esc — close · ← Media · → Style · General — text &amp; layout
+                    Esc — close · ← General · → Media · Visual — layers &amp; effects
                   </span>
                 </div>
                 <BlockDesignBar
@@ -15965,6 +16391,28 @@ export default function WebsiteBuilder() {
                   onUpdate={updates => handleUpdateBlockProps(block.id, updates)}
                   onInsertAfter={type => handleAddBlockAfter(type)}
                   onOpenLinkEditorForOverlay={(item, anchor) => openLinkEditorForOverlay(block.id, item, anchor)}
+                  selectedOverlayId={overlayImageTarget?.blockId === block.id ? overlayImageTarget.overlayId : null}
+                  canvasImageField={
+                    canvasImageTarget?.blockId === block.id ? canvasImageTarget.propField ?? null : null
+                  }
+                  onSectionImagePick={openOverlayImageFilePicker}
+                  onSectionImageLibrary={openMediaFromCanvas}
+                  onFocusPrimaryImage={(() => {
+                    const field = sectionPrimaryImageField(String(block.block_type), (block.props ?? {}) as Record<string, unknown>)
+                    return field ? () => handleSectionImageActivate(block.id, field) : undefined
+                  })()}
+                  onSelectOverlay={onOverlayLayerPicked}
+                  blockBackgroundColor={
+                    ((block.props as Record<string, unknown>).bg_color_override as string | undefined)
+                    || canvasStyle.bg_color
+                    || canvasStyle.surface_color
+                    || '#ffffff'
+                  }
+                  onOverlayPickImage={openOverlayImageFilePicker}
+                  onOverlayOpenLibrary={openMediaFromCanvas}
+                  onOverlaySetImageUrl={openOverlayImageUrlPrompt}
+                  onOverlayEditText={openOverlayTextEdit}
+                  onOverlayEditDescription={openOverlayDescriptionEdit}
                   activeTextField={activeTextTarget?.blockId === block.id ? primaryTextFieldKey(activeTextTarget) : null}
                   activeTextFields={activeTextTarget?.blockId === block.id ? activeTextTarget.fieldKeys : []}
                   onActivateTextField={fieldKey => handleCanvasTextFieldActivate(block.id, fieldKey)}
@@ -16059,7 +16507,16 @@ export default function WebsiteBuilder() {
                   siteId={siteId!}
                   vendorSlug={builderVendorSlug || 'preview'}
                   siteName={site?.name}
-                  activeBlockId={activeTextTarget?.blockId ?? null}
+                  activeBlockId={selectedBlockId}
+                  activeSectionImageField={
+                    canvasImageTarget?.blockId === selectedBlockId ? canvasImageTarget.propField ?? null : null
+                  }
+                  blockPropsForImage={
+                    selectedBlockId
+                      ? ((activeBlocks.find(b => b.id === selectedBlockId)?.props ?? null) as Record<string, unknown> | null)
+                      : null
+                  }
+                  onSectionImageActivate={handleSectionImageActivate}
                   activeTextField={primaryTextFieldKey(activeTextTarget)}
                   activeTextFields={activeTextTarget?.fieldKeys ?? []}
                   onTextFieldActivate={handleCanvasTextFieldActivate}
@@ -16103,105 +16560,57 @@ export default function WebsiteBuilder() {
                         onDragOver={e => handleDragOverBlock(e, idx)}
                         onDrop={e => handleDropOnBlock(e, idx)}
                       >
-                        <div
-                          data-builder-overlay={block.id}
-                          className={cn(
-                          'absolute z-[75] flex items-center gap-1.5 rounded-xl border border-white/10 bg-gray-950/95 px-3 py-2.5 text-white shadow-lg shadow-black/20 backdrop-blur transition-all pointer-events-auto',
-                          selectedBlockId === block.id
-                            ? 'top-2 right-2 opacity-100'
-                            : hoveredBlockId === block.id
-                              ? 'top-1 right-1 opacity-100'
-                              : 'top-1 right-1 opacity-0 group-hover:opacity-100',
-                        )}>
-                          {(() => {
+                        <BuilderSectionChromeToolbar
+                          block={block}
+                          blockIdx={idx}
+                          selected={selectedBlockId === block.id}
+                          minimized={minimizedSectionToolbars.has(block.id)}
+                          pinned={pinnedSectionToolbars.has(block.id)}
+                          onMinimize={() => {
+                            if (minimizedSectionToolbars.has(block.id)) {
+                              expandSectionToolbar(block.id)
+                            } else {
+                              minimizeSectionToolbar(block.id)
+                            }
+                          }}
+                          onTogglePin={() => togglePinSectionToolbar(block.id)}
+                          positionClassName={cn(
+                            'top-2 right-2',
+                            selectedBlockId === block.id || hoveredBlockId === block.id
+                              ? 'opacity-100'
+                              : 'opacity-0 group-hover:opacity-100',
+                          )}
+                          armedDeleteId={armedDeleteId}
+                          dsConnectedLabel={(() => {
+                            const rawDs = (block.props as Record<string, unknown>)?.data_source
+                            const dsType = normalizeSourceType((rawDs as { type?: string })?.type)
+                            return dsType ? DATA_SOURCES.find(s => s.id === dsType)?.label ?? null : null
+                          })()}
+                          dsSuggestedLabel={(() => {
                             const rawDs = (block.props as Record<string, unknown>)?.data_source
                             const dsType = normalizeSourceType((rawDs as { type?: string })?.type)
                             const suggested = BLOCK_AUTO_SOURCE[block.block_type as string]
-                            const label = dsType ? DATA_SOURCES.find(s => s.id === dsType)?.label : null
-                            if (dsType) {
-                              return (
-                                <button
-                                  onClick={e => { e.stopPropagation(); setSelectedBlockId(block.id); setRightPanel('data'); setRightCollapsed(false) }}
-                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors text-sm font-bold"
-                                  title={`Connected to ${label}. Click to edit data source.`}
-                                >
-                                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                  Connected · {label}
-                                </button>
-                              )
-                            }
-                            if (suggested) {
-                              return (
-                                <button
-                                  onClick={e => {
-                                    e.stopPropagation()
-                                    handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as BlockProps)
-                                    toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`)
-                                  }}
-                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-accent/30 text-primary-foreground/85 hover:bg-accent/50 transition-colors text-sm font-bold"
-                                  title={`One-click connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`}
-                                >
-                                  <Zap className="w-5 h-5" />
-                                  CONNECT
-                                </button>
-                              )
-                            }
-                            return null
+                            if (dsType || !suggested) return null
+                            return DATA_SOURCES.find(s => s.id === suggested)?.label ?? null
                           })()}
-                          {selectedBlockId === block.id && (
-                            <button onClick={e => { e.stopPropagation(); setRightPanel('data'); setRightCollapsed(false) }} className="p-1.5 text-gray-400 hover:text-white" title="Data source">
-                              <Database className="w-7 h-7" />
-                            </button>
-                          )}
-                          <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'top') }} className="p-1.5 text-gray-400 hover:text-white" title="Move to top">
-                            <ChevronsUp className="w-7 h-7" />
-                          </button>
-                          <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'up') }} className="p-1.5 text-gray-400 hover:text-white" title="Move up">
-                            <ChevronUp className="w-7 h-7" />
-                          </button>
-                          <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'down') }} className="p-1.5 text-gray-400 hover:text-white" title="Move down">
-                            <ChevronDown className="w-7 h-7" />
-                          </button>
-                          <button onClick={e => { e.stopPropagation(); handleMoveBlock(block.id, 'bottom') }} className="p-1.5 text-gray-400 hover:text-white" title="Move to bottom">
-                            <ChevronsDown className="w-7 h-7" />
-                          </button>
-                          {selectedBlockId === block.id && getSectionLayoutOptions(block.block_type).length > 0 && (
-                            <SectionLayoutControls
-                              block={block}
-                              currentProps={(block.props ?? {}) as Record<string, unknown>}
-                              compact
-                              onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
-                              onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
-                            />
-                          )}
-                          <button onClick={e => { e.stopPropagation(); handleDuplicateBlock(block.id) }} className="p-1.5 text-gray-400 hover:text-white" title="Duplicate (Ctrl+D)">
-                            <Copy className="w-7 h-7" />
-                          </button>
-                          <button
-                            onClick={e => { e.stopPropagation(); handleDeleteBlock(block.id) }}
-                            title={armedDeleteId === block.id ? 'Click again to confirm delete' : 'Delete block (click twice to confirm)'}
-                            className={cn(
-                              'flex items-center gap-1 rounded-md px-1.5 transition-all duration-200',
-                              armedDeleteId === block.id
-                                ? 'bg-red-500 text-white text-sm font-bold px-2.5 py-1 animate-pulse'
-                                : 'p-1.5 text-gray-400 hover:text-red-400',
-                            )}
-                          >
-                            <Trash2 className="w-7 h-7" />
-                            {armedDeleteId === block.id && 'Delete?'}
-                          </button>
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            onPointerDown={e => handleBlockReorderPointerDown(e, idx)}
-                            onClick={e => e.stopPropagation()}
-                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
-                            title="Drag to reorder section"
-                            className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none"
-                          >
-                            <GripVertical className="w-7 h-7 pointer-events-none" />
-                          </div>
-                        </div>
+                          onConnectSuggestedDataSource={() => {
+                            const suggested = BLOCK_AUTO_SOURCE[block.block_type as string]
+                            if (!suggested) return
+                            handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as BlockProps)
+                            toast.success(`Connected to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`)
+                          }}
+                          onOpenDataPanel={() => {
+                            setSelectedBlockId(block.id)
+                            setRightPanel('data')
+                            setRightCollapsed(false)
+                          }}
+                          onMoveBlock={dir => handleMoveBlock(block.id, dir)}
+                          onDuplicate={() => handleDuplicateBlock(block.id)}
+                          onDelete={() => handleDeleteBlock(block.id)}
+                          onReorderPointerDown={e => handleBlockReorderPointerDown(e, idx)}
+                          onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
+                          onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
+                        />
 
                         {selectedBlockId === block.id && (
                           <div
@@ -16229,6 +16638,7 @@ export default function WebsiteBuilder() {
                         )}
 
                         <BlockOverlayCanvas
+                          blockId={block.id}
                           overlays={(((block.props as Record<string, unknown>).overlays as BlockOverlayItem[]) || [])}
                           isEditing={selectedBlockId === block.id}
                           blockBackgroundColor={
@@ -16241,6 +16651,11 @@ export default function WebsiteBuilder() {
                             ? (overlays) => handleUpdateBlockProps(block.id, { overlays } as BlockProps)
                             : undefined}
                           onOverlaySelectionChange={block.id === selectedBlockId ? onOverlayLayerPicked : undefined}
+                          selectedOverlayId={
+                            block.id === selectedBlockId && overlayImageTarget?.blockId === block.id
+                              ? overlayImageTarget.overlayId
+                              : null
+                          }
                           onOpenAiImageTools={undefined}
                           onOpenMediaLibrary={block.id === selectedBlockId ? openMediaFromCanvas : undefined}
                           onPickLocalImage={block.id === selectedBlockId ? openOverlayImageFilePicker : undefined}

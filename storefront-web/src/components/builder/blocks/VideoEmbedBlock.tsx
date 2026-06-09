@@ -1,6 +1,7 @@
 import { Video } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
 
@@ -19,9 +20,9 @@ function getEmbedUrl(url: string): string | null {
   } catch { return null }
 }
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
-export default function VideoEmbedBlock({ style, props }: Props) {
+export default function VideoEmbedBlock({ style, props, blockId }: Props) {
   const title = (props.title as string) || 'Video'
   const videoUrl = (props.video_url as string) || ''
   const mediaClip = props.media_clip
@@ -39,7 +40,9 @@ export default function VideoEmbedBlock({ style, props }: Props) {
   }
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-      {title && <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">{title}</h2>}
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-2xl font-bold text-gray-900 mb-6 text-center" />
+      )}
       <MediaClipFrame
         clip={mediaClip}
         className={`relative w-full pb-[56.25%] shadow-lg ${!clipped ? 'rounded-2xl overflow-hidden' : ''}`}

@@ -11,6 +11,7 @@ import {
 } from '@/lib/heroLayoutUtils'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderContentGroup } from '@/components/builder/BuilderContentGroup'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
@@ -296,15 +297,16 @@ export default function HeroBlock({ site, style, props, blockType, blockId }: Pr
           }
         >
           {sideImageUrl ? (
-            <img
+            <BuilderSectionImage
+              blockId={blockId}
+              field="image_url"
+              blockProps={props}
               src={sideImageUrl}
-              alt=""
               className={
                 splitSideBySide || panelClass
-                  ? 'absolute inset-0 h-full w-full min-h-[420px] md:min-h-[640px] object-cover'
-                  : cn('w-full h-full object-cover', !clippedMedia && 'shadow-2xl rounded-2xl')
+                  ? 'absolute inset-0 h-full w-full min-h-[420px] md:min-h-[640px]'
+                  : cn('w-full h-full', !clippedMedia && 'shadow-2xl rounded-2xl')
               }
-              loading="lazy"
             />
           ) : (
             <div
@@ -373,7 +375,13 @@ export default function HeroBlock({ site, style, props, blockType, blockId }: Pr
         <div className="relative w-full min-h-[280px] md:min-h-[360px] shrink-0">
           <MediaClipFrame clip={mediaClip} className="absolute inset-0">
             {sideImageUrl ? (
-              <img src={sideImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+              <BuilderSectionImage
+                blockId={blockId}
+                field="image_url"
+                blockProps={props}
+                src={sideImageUrl}
+                className="absolute inset-0 h-full w-full"
+              />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                 <span className="text-sm font-medium text-gray-400">Hero Image</span>
@@ -394,7 +402,13 @@ export default function HeroBlock({ site, style, props, blockType, blockId }: Pr
       <section className="relative overflow-hidden min-h-[420px] md:min-h-[520px]" style={{ color: heroText }}>
         <MediaClipFrame clip={mediaClip} className="absolute inset-0">
           {sideImageUrl ? (
-            <img src={sideImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+            <BuilderSectionImage
+              blockId={blockId}
+              field="image_url"
+              blockProps={props}
+              src={sideImageUrl}
+              className="absolute inset-0 h-full w-full"
+            />
           ) : (
             <div className="absolute inset-0 bg-gray-200" />
           )}

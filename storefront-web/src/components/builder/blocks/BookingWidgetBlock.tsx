@@ -2,10 +2,11 @@ import { Link } from 'react-router-dom'
 import { Clock, ArrowRight } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
-export default function BookingWidgetBlock({ style, props, liveItems }: Props) {
+export default function BookingWidgetBlock({ style, props, liveItems, blockId }: Props) {
   const { storePath } = useVendor()
   const title = (props.title as string) || 'Book a Session'
   const subtitle = (props.subtitle as string) || 'Choose a time that works for you'
@@ -16,8 +17,8 @@ export default function BookingWidgetBlock({ style, props, liveItems }: Props) {
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
       <div className="text-center mb-10">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">{title}</h2>
-        <p className="text-gray-500">{subtitle}</p>
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-2" />
+        <BuilderTextField fieldKey="subtitle" blockId={blockId} blockProps={props} value={subtitle} as="p" multiline className="text-gray-500" />
       </div>
       {services.length > 0 ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

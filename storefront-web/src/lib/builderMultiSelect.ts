@@ -11,7 +11,7 @@ export function isCanvasFieldClickTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null
   if (!node?.closest) return false
   return !!node.closest(
-    '[data-text-key], [data-field-layout], [data-content-group], [data-builder-cta-shell]',
+    '[data-text-key], [data-field-layout], [data-content-group], [data-builder-cta-shell], .builder-canvas-text-field',
   )
 }
 

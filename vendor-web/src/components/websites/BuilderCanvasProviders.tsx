@@ -28,6 +28,9 @@ export function BuilderCanvasProviders({
   activeBlockId = null,
   activeTextField = null,
   activeTextFields = [],
+  activeSectionImageField = null,
+  blockPropsForImage = null,
+  onSectionImageActivate,
   onTextFieldActivate,
   onTextFieldCommit,
   onTextFieldStylePatch,
@@ -40,7 +43,14 @@ export function BuilderCanvasProviders({
   activeBlockId?: string | null
   activeTextField?: string | null
   activeTextFields?: string[]
-  onTextFieldActivate?: (blockId: string, fieldKey: string, opts?: { additive?: boolean }) => void
+  activeSectionImageField?: string | null
+  blockPropsForImage?: Record<string, unknown> | null
+  onSectionImageActivate?: (blockId: string, field: string) => void
+  onTextFieldActivate?: (
+    blockId: string,
+    fieldKey: string,
+    opts?: { additive?: boolean; clientX?: number; clientY?: number },
+  ) => void
   onTextFieldCommit?: (blockId: string, fieldKey: string, value: string) => void
   onTextFieldStylePatch?: (blockId: string, fieldKey: string, patch: Record<string, unknown>) => void
   onTextFieldBatchStylePatch?: (
@@ -88,11 +98,25 @@ export function BuilderCanvasProviders({
     activeBlockId,
     activeTextField,
     activeTextFields,
+    activeSectionImageField,
+    blockPropsForImage,
+    onSectionImageActivate,
     onTextFieldActivate,
     onTextFieldCommit,
     onTextFieldStylePatch,
     onTextFieldBatchStylePatch,
-  }), [activeBlockId, activeTextField, activeTextFields, onTextFieldActivate, onTextFieldCommit, onTextFieldStylePatch, onTextFieldBatchStylePatch])
+  }), [
+    activeBlockId,
+    activeTextField,
+    activeTextFields,
+    activeSectionImageField,
+    blockPropsForImage,
+    onSectionImageActivate,
+    onTextFieldActivate,
+    onTextFieldCommit,
+    onTextFieldStylePatch,
+    onTextFieldBatchStylePatch,
+  ])
 
   return (
     <VendorContext.Provider value={vendorValue}>

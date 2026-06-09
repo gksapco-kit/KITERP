@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Calculator, Loader2, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { storeApi } from '@/api/store'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
 interface QuoteRow {
@@ -32,7 +34,7 @@ interface QuoteRow {
  *  - Pre-submit fields are deliberately small (name + email/phone + notes) so
  *    the form feels like a "get a quote" form, not a checkout form.
  */
-export default function LiveQuoteBlock({ site, style, props, liveItems }: Props) {
+export default function LiveQuoteBlock({ site, style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || 'Get an Instant Quote'
   const ctaLabel = (props.cta_label as string) || 'Send Quote Request'
 
@@ -118,12 +120,15 @@ export default function LiveQuoteBlock({ site, style, props, liveItems }: Props)
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto" aria-label={title}>
       <header className="text-center mb-8">
         <Calculator className="w-8 h-8 mx-auto mb-3" style={{ color: style.primary_color }} aria-hidden="true" />
-        <h2
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title}
+          as="h2"
           className="text-2xl sm:text-3xl font-bold"
           style={{ fontFamily: style.font_heading, color: style.text_color }}
-        >
-          {title}
-        </h2>
+        />
         <p className="text-sm text-gray-500 mt-2 max-w-lg mx-auto">
           Pick the items you're interested in, set quantities, and we'll get back with a tailored quote.
         </p>

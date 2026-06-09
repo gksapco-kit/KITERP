@@ -5,9 +5,10 @@
  */
 import { useState, useEffect } from 'react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { publicSitesApi } from '@/api/publicSites'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[] }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; blockId?: string }
 
 type Step = 'service' | 'date' | 'slot' | 'confirm' | 'done'
 
@@ -20,7 +21,7 @@ function getMonthDays(year: number, month: number) {
   return { first, count }
 }
 
-export default function BookingSlotPickerBlock({ site, style, props, liveItems }: Props) {
+export default function BookingSlotPickerBlock({ site, style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || 'Book an Appointment'
   const subtitle = (props.subtitle as string) || 'Select a service and choose your preferred time'
 
@@ -85,8 +86,8 @@ export default function BookingSlotPickerBlock({ site, style, props, liveItems }
     <section className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">{title}</h2>
-          <p className="text-gray-500">{subtitle}</p>
+          <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-2" />
+          <BuilderTextField fieldKey="subtitle" blockId={blockId} blockProps={props} value={subtitle} as="p" multiline className="text-gray-500" />
         </div>
 
         {/* Step indicator */}

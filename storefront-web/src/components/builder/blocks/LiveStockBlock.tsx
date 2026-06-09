@@ -3,10 +3,11 @@ import { Package } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
-export default function LiveStockBlock({ style, props, liveItems }: Props) {
+export default function LiveStockBlock({ style, props, liveItems, blockId }: Props) {
   const { storePath } = useVendor()
   const title = (props.title as string) || 'In stock now'
   if (liveItems.length === 0) {
@@ -22,7 +23,7 @@ export default function LiveStockBlock({ style, props, liveItems }: Props) {
   }
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-      <h3 className="text-xl font-bold text-gray-900 mb-4">{title}</h3>
+      <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h3" className="text-xl font-bold text-gray-900 mb-4" />
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>

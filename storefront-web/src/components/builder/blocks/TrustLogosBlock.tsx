@@ -1,10 +1,11 @@
 import { Award } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
-export default function TrustLogosBlock({ style, props, liveItems }: Props) {
+export default function TrustLogosBlock({ style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || 'Trusted by'
   const logos = liveItems.filter(i => i.image_url)
   if (logos.length === 0) {
@@ -19,7 +20,9 @@ export default function TrustLogosBlock({ style, props, liveItems }: Props) {
   }
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      {title && <p className="text-center text-sm font-semibold text-gray-400 uppercase tracking-widest mb-8">{title}</p>}
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="p" className="text-center text-sm font-semibold text-gray-400 uppercase tracking-widest mb-8" />
+      )}
       <div className="flex flex-wrap justify-center gap-8 items-center">
         {logos.map(logo => (
           <img key={logo.id} src={logo.image_url as string} alt={logo.title} className="h-10 w-auto grayscale hover:grayscale-0 opacity-60 hover:opacity-100 transition-all object-contain" loading="lazy" />

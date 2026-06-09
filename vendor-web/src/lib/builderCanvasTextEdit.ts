@@ -1,12 +1,14 @@
 import type { WebsiteBlock } from '@/types/websites'
-import { matchBuilderFontFamily } from '@storefront/lib/builderFontFamilies'
+import { matchBuilderFontFamily, builderFontFromComputedStyle } from '@storefront/lib/builderFontFamilies'
 import {
   getLastInlineStyledSpan,
   getSavedInlineTextSelection,
+  getSelectionFontSizePx,
   hasActiveInlineTextSelection,
 } from '@storefront/lib/builderInlineTextSelection'
 import { CONTENT_GROUP_FIELD_KEY } from '@storefront/lib/fieldTextStyles'
-import { extractFormatPaintStyleFromRange, resolveFormatPaintStyle } from './builderFormatPainter'
+import { extractFormatPaintStyleFromRange, extractFormatPaintStyleFromElement, resolveFormatPaintStyle } from './builderFormatPainter'
+import type { FormatPaintStyle } from './builderFormatPainter'
 
 const NON_EDITABLE_PROP_KEYS = new Set([
   'html', 'bg_image_url', 'image_url', 'bg_image', 'logo_url', 'brand_logo',
@@ -641,6 +643,17 @@ export function insertActiveCanvasLineBreak(
   return false
 }
 
+/** Computed typography from the rendered canvas field (theme classes, tag defaults, etc.). */
+export function getCanvasFieldComputedFormatPaintStyle(
+  blockId: string,
+  fieldKey: string,
+): FormatPaintStyle {
+  const blockEl = document.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`)
+  const fieldEl = blockEl?.querySelector(`[data-text-key="${CSS.escape(fieldKey)}"]`) as HTMLElement | null
+  if (!fieldEl) return {}
+  return extractFormatPaintStyleFromElement(fieldEl)
+}
+
 /** Live computed font size for a canvas text field (respects theme classes when px override is Auto). */
 export function getCanvasFieldComputedFontSizePx(
   blockId: string,
@@ -654,42 +667,139 @@ export function getCanvasFieldComputedFontSizePx(
   return Math.round(px)
 }
 
-import type { FormatPaintStyle } from './builderFormatPainter'
+function resolveToolbarSelectionRange(blockId: string, fieldKey: string): Range | null {
+  const fieldEl = document.querySelector(
+    `[data-block-id="${CSS.escape(blockId)}"] [data-text-key="${CSS.escape(fieldKey)}"]`,
+  ) as HTMLElement | null
+  if (!fieldEl) return null
 
-/** Computed typography from the rendered canvas field (theme classes, tag defaults, etc.). */
-export function getCanvasFieldComputedFormatPaintStyle(
+  const sel = window.getSelection()
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0)
+    if (fieldEl.contains(range.commonAncestorContainer) && !range.collapsed) {
+      return range
+    }
+  }
+
+  if (hasActiveInlineTextSelection(fieldKey)) {
+    const saved = getSavedInlineTextSelection()?.range
+    if (saved && !saved.collapsed) return saved
+  }
+
+  return null
+}
+
+function fontFamilyAtRangeStart(range: Range): string | null {
+  let node: Node | null = range.startContainer
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement
+  if (!(node instanceof HTMLElement)) return null
+  const cs = window.getComputedStyle(node)
+  return matchBuilderFontFamily(builderFontFromComputedStyle(cs.fontFamily, cs.fontStyle))
+}
+
+/** Live typography readout for the design bar (selection → stored styles → computed canvas). */
+export function resolveToolbarTypographyDisplay(
   blockId: string,
-  fieldKey: string,
-): FormatPaintStyle {
-  const blockEl = document.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`)
-  const fieldEl = blockEl?.querySelector(`[data-text-key="${CSS.escape(fieldKey)}"]`) as HTMLElement | null
-  if (!fieldEl) return {}
-  const cs = window.getComputedStyle(fieldEl)
-  const out: Record<string, unknown> = {}
-  const px = parseFloat(cs.fontSize)
-  if (Number.isFinite(px) && px > 0) out.font_size_px = Math.round(px)
-  const color = cs.color
-  if (color && color !== 'rgba(0, 0, 0, 0)') out.text_color_override = color
-  const tt = cs.textTransform
-  if (tt && tt !== 'none') out.text_transform = tt
-  const ff = cs.fontFamily
-  if (ff) {
-    const primary = ff.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '')
-    if (primary) out.font_family = primary
+  blockProps: Record<string, unknown>,
+  fieldKey: string | null | undefined,
+): {
+  font_family: string | null
+  font_size_px: number | null
+  text_color_override: string | null
+} {
+  if (!fieldKey) {
+    const resolved = resolveFormatPaintStyle({ blockProps, fieldKey: null })
+    return {
+      font_family: matchBuilderFontFamily(
+        typeof resolved.font_family === 'string' ? resolved.font_family : null,
+      ),
+      font_size_px:
+        typeof resolved.font_size_px === 'number' && resolved.font_size_px > 0
+          ? Math.round(resolved.font_size_px)
+          : null,
+      text_color_override:
+        typeof resolved.text_color_override === 'string' ? resolved.text_color_override : null,
+    }
   }
-  const ta = cs.textAlign
-  if (ta === 'left' || ta === 'center' || ta === 'right' || ta === 'start' || ta === 'end') {
-    out.text_align = ta === 'start' ? 'left' : ta === 'end' ? 'right' : ta
+
+  if (fieldKey === CONTENT_GROUP_FIELD_KEY) {
+    return { font_family: null, font_size_px: null, text_color_override: null }
   }
-  const lh = parseFloat(cs.lineHeight)
-  const fs = parseFloat(cs.fontSize)
-  if (Number.isFinite(lh) && Number.isFinite(fs) && fs > 0 && lh > 0) {
-    const ratio = Math.round((lh / fs) * 100) / 100
-    if (ratio > 0 && Math.abs(ratio - 1) > 0.05) out.line_height_ratio = ratio
+
+  const fieldEl = document.querySelector(
+    `[data-block-id="${CSS.escape(blockId)}"] [data-text-key="${CSS.escape(fieldKey)}"]`,
+  ) as HTMLElement | null
+  const selectionRange = resolveToolbarSelectionRange(blockId, fieldKey)
+  const computed = getCanvasFieldComputedFormatPaintStyle(blockId, fieldKey)
+
+  const resolved = resolveFormatPaintStyle({
+    blockProps,
+    fieldKey,
+    selectionRange,
+    computed,
+  })
+
+  let font_size_px =
+    typeof resolved.font_size_px === 'number' && resolved.font_size_px > 0
+      ? Math.round(resolved.font_size_px)
+      : null
+
+  if (selectionRange) {
+    font_size_px = getSelectionFontSizePx(selectionRange)
+  } else if (fieldEl) {
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0) {
+      const caret = sel.getRangeAt(0)
+      if (fieldEl.contains(caret.commonAncestorContainer)) {
+        if (font_size_px == null) font_size_px = getSelectionFontSizePx(caret)
+      }
+    }
   }
-  if (cs.whiteSpace === 'nowrap') out.text_wrap = false
-  else if (cs.whiteSpace === 'pre-wrap') out.text_wrap = true
-  return out
+
+  if (font_size_px == null) {
+    font_size_px = getCanvasFieldComputedFontSizePx(blockId, fieldKey)
+  }
+
+  let font_family = matchBuilderFontFamily(
+    typeof resolved.font_family === 'string' ? resolved.font_family : null,
+  )
+
+  if (!font_family && selectionRange) {
+    font_family = fontFamilyAtRangeStart(selectionRange)
+  }
+
+  if (!font_family && fieldEl) {
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0) {
+      const caret = sel.getRangeAt(0)
+      if (fieldEl.contains(caret.commonAncestorContainer) && caret.collapsed) {
+        const fromCaret = extractFormatPaintStyleFromRange(caret)
+        font_family = matchBuilderFontFamily(
+          typeof fromCaret.font_family === 'string' ? fromCaret.font_family : null,
+        )
+        if (!font_family) font_family = fontFamilyAtRangeStart(caret)
+      }
+    }
+  }
+
+  if (!font_family) {
+    font_family = matchBuilderFontFamily(
+      typeof computed.font_family === 'string' ? computed.font_family : null,
+    )
+  }
+
+  if (!font_family) {
+    const lastSpan = getLastInlineStyledSpan()
+    if (lastSpan?.key === fieldKey && lastSpan.span.isConnected) {
+      const cs = window.getComputedStyle(lastSpan.span)
+      font_family = matchBuilderFontFamily(builderFontFromComputedStyle(cs.fontFamily, cs.fontStyle))
+    }
+  }
+
+  const text_color_override =
+    typeof resolved.text_color_override === 'string' ? resolved.text_color_override : null
+
+  return { font_family, font_size_px, text_color_override }
 }
 
 /** Font family shown in the design-bar picker (selection, caret, field styles, or computed). */
@@ -698,54 +808,16 @@ export function resolveToolbarFontFamily(
   blockProps: Record<string, unknown>,
   fieldKey: string | null | undefined,
 ): string | null {
-  if (!fieldKey || fieldKey === CONTENT_GROUP_FIELD_KEY) {
-    const stored = resolveFormatPaintStyle({ blockProps, fieldKey: null }).font_family
-    return matchBuilderFontFamily(typeof stored === 'string' ? stored : null)
-  }
+  return resolveToolbarTypographyDisplay(blockId, blockProps, fieldKey).font_family
+}
 
-  const fieldEl = document.querySelector(
-    `[data-block-id="${CSS.escape(blockId)}"] [data-text-key="${CSS.escape(fieldKey)}"]`,
-  ) as HTMLElement | null
-
-  let selectionRange: Range | null = null
-  const sel = window.getSelection()
-  if (sel && sel.rangeCount > 0 && fieldEl) {
-    const range = sel.getRangeAt(0)
-    if (fieldEl.contains(range.commonAncestorContainer)) {
-      if (!range.collapsed) {
-        selectionRange = range
-      } else {
-        const fromCaret = extractFormatPaintStyleFromRange(range)
-        const caretFont = matchBuilderFontFamily(
-          typeof fromCaret.font_family === 'string' ? fromCaret.font_family : null,
-        )
-        if (caretFont) return caretFont
-      }
-    }
-  }
-
-  if (!selectionRange && hasActiveInlineTextSelection(fieldKey)) {
-    selectionRange = getSavedInlineTextSelection()?.range ?? null
-  }
-
-  const resolved = resolveFormatPaintStyle({
-    blockProps,
-    fieldKey,
-    selectionRange,
-    computed: getCanvasFieldComputedFormatPaintStyle(blockId, fieldKey),
-  })
-
-  const resolvedFont = matchBuilderFontFamily(
-    typeof resolved.font_family === 'string' ? resolved.font_family : null,
-  )
-  if (resolvedFont) return resolvedFont
-
-  const lastSpan = getLastInlineStyledSpan()
-  if (lastSpan?.key === fieldKey && lastSpan.span.isConnected) {
-    return matchBuilderFontFamily(window.getComputedStyle(lastSpan.span).fontFamily)
-  }
-
-  return null
+/** Font size shown in the design-bar picker (selection, caret, field styles, or computed). */
+export function resolveToolbarFontSizePx(
+  blockId: string,
+  blockProps: Record<string, unknown>,
+  fieldKey: string | null | undefined,
+): number | null {
+  return resolveToolbarTypographyDisplay(blockId, blockProps, fieldKey).font_size_px
 }
 
 /** Cut, copy, or paste in the active on-canvas text field. */

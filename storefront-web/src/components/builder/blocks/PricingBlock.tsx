@@ -1,12 +1,13 @@
 import { Check } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { columnsFromProps, sectionGridColumnClass, sectionItemGap } from '@/lib/sectionItemLayout'
 import { cn } from '@/lib/utils'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
-export default function PricingBlock({ style, props }: Props) {
+export default function PricingBlock({ style, props, blockId }: Props) {
   const title = (props.title as string) || 'Pricing'
   const plans = (props.plans as Array<{ name: string; price: number | string; period?: string; features: string[]; highlighted?: boolean; cta: string }> | undefined) || []
   const columns = Math.min(plans.length || columnsFromProps(props), 6)
@@ -24,7 +25,9 @@ export default function PricingBlock({ style, props }: Props) {
   }
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" />
+      )}
       <div className={cn('grid grid-cols-1 max-w-4xl mx-auto', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
         {plans.map((plan, i) => (
           <div key={i} className={`builder-tile-card rounded-2xl p-8 flex flex-col ${plan.highlighted ? 'text-white shadow-xl scale-105' : 'bg-white border border-gray-100'}`} style={plan.highlighted ? { backgroundColor: style.primary_color } : {}}>

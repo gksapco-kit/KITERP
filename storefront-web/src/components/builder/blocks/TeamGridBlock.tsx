@@ -1,15 +1,16 @@
 import { Users } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import {
   resolveTeamGridMembers,
   teamGridColumnClass,
 } from '@/lib/teamGridContent'
 import { sectionGridColumnClass, iconBoxShapeClass, imageShapeFromProps } from '@/lib/sectionItemLayout'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
-export default function TeamGridBlock({ style, props, liveItems }: Props) {
+export default function TeamGridBlock({ style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || 'Our team'
   const description = (props.description as string) || ''
   const columns = Number(props.columns ?? 4)
@@ -41,9 +42,11 @@ export default function TeamGridBlock({ style, props, liveItems }: Props) {
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {title && <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">{title}</h2>}
-      {description && (
-        <p className="text-center text-sm text-gray-500 mb-10 max-w-2xl mx-auto">{description}</p>
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-4 text-center" />
+      )}
+      {(description || blockId) && (
+        <BuilderTextField fieldKey="description" blockId={blockId} blockProps={props} value={description} as="p" multiline className="text-center text-sm text-gray-500 mb-10 max-w-2xl mx-auto" placeholder="Optional description" />
       )}
       <div
         className={`grid ${sectionGridColumnClass(columns)} mx-auto`}

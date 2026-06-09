@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
 import { useVendor } from '@/contexts/VendorContext'
 import { imgUrl, cn } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
 
 interface Props {
   site: PublicSite
@@ -11,9 +12,10 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
-export default function CtaBlock({ style, props }: Props) {
+export default function CtaBlock({ style, props, blockId }: Props) {
   const { storePath } = useVendor()
   const headline = (props.headline as string) || 'Ready to Get Started?'
   const subtitle = (props.subtitle as string) || ''
@@ -47,27 +49,31 @@ export default function CtaBlock({ style, props }: Props) {
 
   const ctaButtons = (
     <div className={cn('flex gap-3 flex-wrap', isSplit ? 'shrink-0' : 'justify-center')}>
-      <Link
-        to={storePath(ctaUrl)}
+      <BuilderCtaButton
+        fieldKey="cta_label"
+        blockId={blockId}
+        blockProps={props}
+        label={ctaLabel}
+        href={ctaUrl}
         className="inline-flex items-center px-8 py-4 font-bold rounded-xl hover:opacity-90 transition-all text-base"
         style={{
           backgroundColor: textLight ? '#fff' : style.primary_color,
           color: textLight ? style.primary_color : '#fff',
         }}
-      >
-        {ctaLabel}
-      </Link>
+      />
       {ctaSecondary && (
-        <Link
-          to={storePath(ctaSecUrl)}
+        <BuilderCtaButton
+          fieldKey="cta_secondary"
+          blockId={blockId}
+          blockProps={props}
+          label={ctaSecondary}
+          href={ctaSecUrl}
           className="inline-flex items-center px-8 py-4 font-semibold rounded-xl border-2 hover:opacity-80 transition-all text-base"
           style={{
             borderColor: textLight ? 'rgba(255,255,255,0.5)' : `${style.text_color}66`,
             color: textLight ? '#fff' : style.text_color,
           }}
-        >
-          {ctaSecondary}
-        </Link>
+        />
       )}
     </div>
   )
@@ -85,13 +91,26 @@ export default function CtaBlock({ style, props }: Props) {
         style={shellStyle}
       >
         <div className={isSplit ? 'flex-1 min-w-0' : undefined}>
-          <h2 className={cn('font-bold mb-4', compact ? 'text-2xl' : 'text-3xl sm:text-4xl')} style={{ fontFamily: style.font_heading }}>
-            {headline}
-          </h2>
-          {subtitle && (
-            <p className={cn('text-lg mb-8 max-w-xl', !isSplit && 'mx-auto', textLight ? 'text-white/80' : 'opacity-80')}>
-              {subtitle}
-            </p>
+          <BuilderTextField
+            fieldKey="headline"
+            blockId={blockId}
+            blockProps={props}
+            value={headline}
+            as="h2"
+            className={cn('font-bold mb-4', compact ? 'text-2xl' : 'text-3xl sm:text-4xl')}
+            style={{ fontFamily: style.font_heading }}
+          />
+          {(subtitle || blockId) && (
+            <BuilderTextField
+              fieldKey="subtitle"
+              blockId={blockId}
+              blockProps={props}
+              value={subtitle}
+              as="p"
+              multiline
+              className={cn('text-lg mb-8 max-w-xl', !isSplit && 'mx-auto', textLight ? 'text-white/80' : 'opacity-80')}
+              placeholder="Add a subtitle"
+            />
           )}
           {!isSplit && ctaButtons}
         </div>

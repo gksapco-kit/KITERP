@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Wrench, Clock, ArrowRight } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import {
   cardImageShapeClass,
   cardPaddingFromItemSize,
@@ -23,9 +24,10 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
-export default function ServicesCardsBlock({ site, style, props, liveItems }: Props) {
+export default function ServicesCardsBlock({ site, style, props, liveItems, blockId }: Props) {
   const { storePath } = useVendor()
   const title = (props.title as string) || 'Our Services'
   const columns = columnsFromProps(props)
@@ -56,7 +58,9 @@ export default function ServicesCardsBlock({ site, style, props, liveItems }: Pr
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" />
+      )}
       {items.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <Wrench className="w-10 h-10 mx-auto mb-3 opacity-30" />

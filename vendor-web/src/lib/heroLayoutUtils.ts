@@ -44,3 +44,19 @@ export function heroShouldUseFullBleedImage(
 ): boolean {
   return hasBgImage && heroUsesBackgroundImage(blockType, props)
 }
+
+/** Which top-level prop receives a section image upload (matches HeroBlock + props panel). */
+export function resolveBlockPrimaryImageField(
+  blockType: string,
+  props: Record<string, unknown>,
+  blockImageFieldMap: Record<string, string> = {},
+): string {
+  if (blockType.includes('hero')) {
+    if (heroUsesSideImage(blockType, props)) return 'image_url'
+    if (heroUsesBackgroundImage(blockType, props)) return 'bg_image_url'
+    return 'bg_image_url'
+  }
+  if (blockImageFieldMap[blockType]) return blockImageFieldMap[blockType]
+  if (blockType.includes('banner')) return 'bg_image_url'
+  return 'image_url'
+}

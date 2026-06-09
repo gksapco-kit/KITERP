@@ -1,6 +1,7 @@
 import { Globe } from 'lucide-react'
 import type { JSX } from 'react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
 interface Props {
   site: PublicSite
@@ -8,6 +9,7 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
 /**
@@ -68,7 +70,7 @@ const PLATFORM_ICONS: Record<string, JSX.Element> = {
   ),
 }
 
-export default function SocialLinksBlock({ style, props, liveItems }: Props) {
+export default function SocialLinksBlock({ style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || 'Follow Us'
   const profile = liveItems[0]
   const links =
@@ -80,7 +82,9 @@ export default function SocialLinksBlock({ style, props, liveItems }: Props) {
 
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 text-center" aria-label={title}>
-      {title && <h3 className="text-lg font-semibold text-gray-700 mb-4">{title}</h3>}
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h3" className="text-lg font-semibold text-gray-700 mb-4" />
+      )}
       <div className="flex justify-center gap-3 flex-wrap">
         {entries.map(([platform, url]) => {
           const key = platform.toLowerCase()

@@ -1,3 +1,5 @@
+import { resolveBuilderFont } from '@/lib/builderFontFamilies'
+
 export const BUILDER_TYPOGRAPHY_TOOLBAR_ATTR = 'data-builder-typography-toolbar'
 export const BUILDER_DESIGN_BAR_CHROME_ATTR = 'data-builder-design-bar-chrome'
 
@@ -197,7 +199,17 @@ function stylePatchToCss(patch: Record<string, unknown>): Partial<CSSStyleDeclar
   }
   if (typeof patch.text_transform === 'string') css.textTransform = patch.text_transform
   if (typeof patch.font_family === 'string' && patch.font_family.trim()) {
-    css.fontFamily = patch.font_family.trim()
+    const resolved = resolveBuilderFont(patch.font_family)
+    if (resolved) {
+      css.fontFamily = resolved.fontFamily
+      css.fontStyle = resolved.fontStyle ?? 'normal'
+    }
+  }
+  if (typeof patch.font_style === 'string' && patch.font_style === 'italic') {
+    const resolved = typeof patch.font_family === 'string' ? resolveBuilderFont(patch.font_family) : null
+    if (!resolved?.fontStyle) css.fontStyle = 'italic'
+  } else if (typeof patch.font_style === 'string' && patch.font_style === 'normal') {
+    css.fontStyle = 'normal'
   }
   return css
 }
@@ -220,11 +232,12 @@ export function applyPatchToLastStyledSpan(
     return false
   }
   const css = stylePatchToCss(patch)
-  if (!css.color && !css.fontSize && !css.textTransform && !css.fontFamily) return false
+  if (!css.color && !css.fontSize && !css.textTransform && !css.fontFamily && css.fontStyle == null) return false
   if (css.color) span.style.color = css.color
   if (css.fontSize) span.style.fontSize = css.fontSize
   if (css.textTransform) span.style.textTransform = css.textTransform
   if (css.fontFamily) span.style.fontFamily = css.fontFamily
+  if (css.fontStyle != null) span.style.fontStyle = css.fontStyle
   notifyInlineTextCommit(root)
   return true
 }
@@ -242,7 +255,7 @@ export function applyInlineTextSelectionStyle(
   if (!working || working.collapsed || !root.contains(working.commonAncestorContainer)) return false
 
   const css = stylePatchToCss(patch)
-  if (!css.color && !css.fontSize && !css.textTransform && !css.fontFamily) return false
+  if (!css.color && !css.fontSize && !css.textTransform && !css.fontFamily && css.fontStyle == null) return false
 
   const existingSpan = findInlineStyleSpanForRange(working)
   if (existingSpan && working.toString() === existingSpan.textContent) {
@@ -250,6 +263,7 @@ export function applyInlineTextSelectionStyle(
     if (css.fontSize) existingSpan.style.fontSize = css.fontSize
     if (css.textTransform) existingSpan.style.textTransform = css.textTransform
     if (css.fontFamily) existingSpan.style.fontFamily = css.fontFamily
+    if (css.fontStyle != null) existingSpan.style.fontStyle = css.fontStyle
     finishInlineStyleApply(key, existingSpan, root)
     return true
   }
@@ -259,6 +273,7 @@ export function applyInlineTextSelectionStyle(
   if (css.fontSize) span.style.fontSize = css.fontSize
   if (css.textTransform) span.style.textTransform = css.textTransform
   if (css.fontFamily) span.style.fontFamily = css.fontFamily
+  if (css.fontStyle != null) span.style.fontStyle = css.fontStyle
   span.setAttribute('data-inline-style', 'true')
 
   try {
@@ -274,4 +289,115 @@ export function applyInlineTextSelectionStyle(
 
 export function getLastInlineStyledSpan() {
   return lastInlineStyledSpan
+}
+
+const NON_WORD_BOUNDARY = /\s/
+
+function textOffsetInRoot(root: HTMLElement, container: Node, offset: number): number | null {
+  try {
+    const probe = document.createRange()
+    probe.selectNodeContents(root)
+    probe.setEnd(container, offset)
+    return probe.toString().length
+  } catch {
+    return null
+  }
+}
+
+function rangeFromTextOffsets(root: HTMLElement, start: number, end: number): Range | null {
+  if (start >= end) return null
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let pos = 0
+  let startNode: Text | null = null
+  let startOff = 0
+  let endNode: Text | null = null
+  let endOff = 0
+  let n: Node | null
+  while ((n = walker.nextNode())) {
+    const t = n as Text
+    const len = t.length
+    if (!startNode && pos + len >= start) {
+      startNode = t
+      startOff = Math.max(0, start - pos)
+    }
+    if (!endNode && pos + len >= end) {
+      endNode = t
+      endOff = Math.max(0, end - pos)
+      break
+    }
+    pos += len
+  }
+  if (!startNode || !endNode) return null
+  const out = document.createRange()
+  out.setStart(startNode, startOff)
+  out.setEnd(endNode, endOff)
+  return out
+}
+
+/** Expand a caret or partial range to the non-whitespace token under the caret. */
+export function expandRangeToWord(root: HTMLElement, range: Range): Range | null {
+  if (!root.contains(range.commonAncestorContainer)) return null
+  if (!range.collapsed && range.toString().trim()) return range.cloneRange()
+
+  const caret = textOffsetInRoot(root, range.startContainer, range.startOffset)
+  if (caret == null) return null
+  const full = root.textContent || ''
+  if (!full.trim()) return null
+
+  let start = caret
+  let end = caret
+  while (start > 0 && !NON_WORD_BOUNDARY.test(full[start - 1]!)) start -= 1
+  while (end < full.length && !NON_WORD_BOUNDARY.test(full[end]!)) end += 1
+  return rangeFromTextOffsets(root, start, end)
+}
+
+function rangeAtPointInRoot(root: HTMLElement, clientX: number, clientY: number): Range | null {
+  const doc = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
+  }
+  let range: Range | null = null
+  if (typeof doc.caretRangeFromPoint === 'function') {
+    range = doc.caretRangeFromPoint(clientX, clientY)
+  } else if (typeof doc.caretPositionFromPoint === 'function') {
+    const pos = doc.caretPositionFromPoint(clientX, clientY)
+    if (pos) {
+      range = document.createRange()
+      range.setStart(pos.offsetNode, pos.offset)
+      range.collapse(true)
+    }
+  }
+  if (!range || !root.contains(range.startContainer)) return null
+  return range
+}
+
+/** Apply typography patch to the word at a canvas click point (format painter destination). */
+export function applyInlineTextStyleAtPoint(
+  key: string,
+  root: HTMLElement,
+  patch: Record<string, unknown>,
+  clientX: number,
+  clientY: number,
+): boolean {
+  if (!key || !root.isConnected) return false
+  const caret = rangeAtPointInRoot(root, clientX, clientY)
+  if (!caret) return false
+  const word = expandRangeToWord(root, caret)
+  if (!word) return false
+  saveSelectionFromRange({ root, key }, word)
+  return applyInlineTextSelectionStyle(key, patch)
+}
+
+/** Styled inline element under the caret when selection is collapsed inside partial formatting. */
+export function getInlineStyledElementAtSelection(fieldKey: string): HTMLElement | null {
+  if (!savedInlineTextSelection || savedInlineTextSelection.key !== fieldKey) return null
+  const working = resolveWorkingRange(savedInlineTextSelection)
+  if (!working) return null
+  let node: Node | null = working.startContainer
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement
+  while (node && node instanceof HTMLElement && node !== savedInlineTextSelection.root) {
+    if (node.getAttribute('data-inline-style') === 'true') return node
+    node = node.parentElement
+  }
+  return null
 }

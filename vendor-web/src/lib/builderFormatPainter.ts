@@ -1,9 +1,16 @@
+import {
+  builderFontFromComputedStyle,
+  ensureBuilderFontLoaded,
+  resolveBuilderFont,
+} from '@storefront/lib/builderFontFamilies'
+
 /** Typography keys copied/applied by the format painter (Word-style). */
 export const FORMAT_PAINT_STYLE_KEYS = [
   'font_size_px',
   'text_scale',
   'text_color_override',
   'font_family',
+  'font_style',
   'text_transform',
   'text_align',
   'vertical_align',
@@ -22,6 +29,42 @@ export type FormatPaintStyleKey = (typeof FORMAT_PAINT_STYLE_KEYS)[number]
 export type FormatPaintStyle = Partial<Record<FormatPaintStyleKey, unknown>>
 
 const CONTENT_GROUP_KEY = '__content_group__'
+
+/** Read live computed typography from a DOM element (inline span or field root). */
+export function extractFormatPaintStyleFromElement(el: HTMLElement): FormatPaintStyle {
+  const cs = window.getComputedStyle(el)
+  const out: FormatPaintStyle = {}
+  const px = parseFloat(cs.fontSize)
+  if (Number.isFinite(px) && px > 0) out.font_size_px = Math.round(px)
+  const color = cs.color
+  if (color && color !== 'rgba(0, 0, 0, 0)') out.text_color_override = color
+  if (cs.textTransform && cs.textTransform !== 'none') out.text_transform = cs.textTransform
+  const fontName = builderFontFromComputedStyle(cs.fontFamily, cs.fontStyle)
+  if (fontName) {
+    out.font_family = fontName
+    const resolved = resolveBuilderFont(fontName)
+    if (
+      (cs.fontStyle === 'italic' || cs.fontStyle === 'oblique')
+      && !resolved?.fontStyle
+      && !String(fontName).endsWith(' Italic')
+    ) {
+      out.font_style = 'italic'
+    }
+  }
+  const ta = cs.textAlign
+  if (ta === 'left' || ta === 'center' || ta === 'right' || ta === 'start' || ta === 'end') {
+    out.text_align = ta === 'start' ? 'left' : ta === 'end' ? 'right' : ta
+  }
+  const lh = parseFloat(cs.lineHeight)
+  const fs = parseFloat(cs.fontSize)
+  if (Number.isFinite(lh) && Number.isFinite(fs) && fs > 0 && lh > 0) {
+    const ratio = Math.round((lh / fs) * 100) / 100
+    if (ratio > 0 && Math.abs(ratio - 1) > 0.05) out.line_height_ratio = ratio
+  }
+  if (cs.whiteSpace === 'nowrap') out.text_wrap = false
+  else if (cs.whiteSpace === 'pre-wrap') out.text_wrap = true
+  return out
+}
 
 export function extractFormatPaintStyle(source: Record<string, unknown>): FormatPaintStyle {
   const out: FormatPaintStyle = {}
@@ -72,33 +115,25 @@ function mapFormatStyleToContentGroupPatch(style: FormatPaintStyle): Record<stri
 
 /** Read partial-word / selection formatting from a live DOM range. */
 export function extractFormatPaintStyleFromRange(range: Range): FormatPaintStyle {
-  const out: FormatPaintStyle = {}
   let node: Node | null = range.startContainer
   if (node.nodeType === Node.TEXT_NODE) node = node.parentElement
+  let target: HTMLElement | null = null
   while (node && node instanceof HTMLElement) {
-    const cs = window.getComputedStyle(node)
-    if (!out.font_size_px) {
-      const px = parseFloat(cs.fontSize)
-      if (Number.isFinite(px) && px > 0) out.font_size_px = Math.round(px)
+    if (node.getAttribute('data-inline-style') === 'true') {
+      target = node
+      break
     }
-    if (!out.text_color_override) {
-      const color = cs.color
-      if (color && color !== 'rgba(0, 0, 0, 0)') out.text_color_override = color
-    }
-    if (!out.text_transform && cs.textTransform && cs.textTransform !== 'none') {
-      out.text_transform = cs.textTransform
-    }
-    if (!out.font_family) {
-      const ff = cs.fontFamily
-      if (ff) {
-        const primary = ff.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '')
-        if (primary) out.font_family = primary
-      }
-    }
-    if (node.getAttribute('data-inline-style') === 'true') break
     node = node.parentElement
   }
-  return out
+  if (!target) {
+    const leaf = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer.parentElement
+      : range.startContainer instanceof HTMLElement
+        ? range.startContainer
+        : null
+    if (leaf instanceof HTMLElement) target = leaf
+  }
+  return target ? extractFormatPaintStyleFromElement(target) : {}
 }
 
 export function resolveFormatPaintStyle(input: {
@@ -131,6 +166,10 @@ export function buildFormatPaintPropsPatch(
 ): Record<string, unknown> {
   if (!hasFormatPaintStyle(style)) return {}
 
+  if (typeof style.font_family === 'string') {
+    ensureBuilderFontLoaded(style.font_family)
+  }
+
   if (fieldKey === CONTENT_GROUP_KEY) {
     return mapFormatStyleToContentGroupPatch(style)
   }
@@ -161,6 +200,7 @@ export function formatPaintStyleSummary(style: FormatPaintStyle): string {
   }
   if (typeof style.text_color_override === 'string') parts.push('color')
   if (typeof style.font_family === 'string') parts.push(String(style.font_family))
+  if (style.font_style === 'italic') parts.push('italic')
   if (style.text_align === 'left' || style.text_align === 'center' || style.text_align === 'right') {
     parts.push(String(style.text_align))
   }

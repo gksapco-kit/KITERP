@@ -1,6 +1,7 @@
 import { Quote, Star } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { cn } from '@/lib/utils'
 import { isLiveTestimonialsBound, isTemplateTestimonial } from '@/lib/testimonialPlaceholders'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
@@ -12,6 +13,7 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
 function TestimonialCard({
@@ -59,8 +61,13 @@ function TestimonialCard({
   )
 }
 
-export default function TestimonialsBlock({ style, props, liveItems }: Props) {
+export default function TestimonialsBlock({ style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || 'What Our Customers Say'
+  const sectionTitle = (className: string) => (
+    (title || blockId) ? (
+      <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className={className} />
+    ) : null
+  )
   const layout = String(props.layout ?? 'grid')
   const columns = columnsFromProps(props, layout === 'grid' ? 'grid-3' : layout)
   const itemGap = sectionItemGap(props, 24)
@@ -107,7 +114,7 @@ export default function TestimonialsBlock({ style, props, liveItems }: Props) {
     const item = items[0]
     return (
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
-        {title && <h2 className="text-3xl font-bold mb-10">{title}</h2>}
+        {sectionTitle('text-3xl font-bold mb-10')}
         <TestimonialCard item={item} style={style} dark={dark} />
       </section>
     )
@@ -116,7 +123,7 @@ export default function TestimonialsBlock({ style, props, liveItems }: Props) {
   if (layout === 'list') {
     return (
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-        {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+        {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className="space-y-4" style={{ gap: itemGap }}>
           {items.map(item => <TestimonialCard key={item.id} item={item} style={style} dark={dark} compact />)}
         </div>
@@ -127,7 +134,7 @@ export default function TestimonialsBlock({ style, props, liveItems }: Props) {
   if (layout === 'carousel') {
     return (
       <section className="py-16 px-4" style={{ background: surface.background, color: surface.color }}>
-        {title && <h2 className="text-3xl font-bold mb-8 text-center px-4">{title}</h2>}
+        {sectionTitle('text-3xl font-bold mb-8 text-center px-4')}
         <div className="flex overflow-x-auto pb-4 px-4 snap-x snap-mandatory" style={{ gap: itemGap }}>
           {items.map(item => (
             <div key={item.id} className="snap-start shrink-0 w-80">
@@ -142,7 +149,7 @@ export default function TestimonialsBlock({ style, props, liveItems }: Props) {
   if (layout === 'masonry') {
     return (
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-        {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+        {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className="columns-1 sm:columns-2 gap-6 space-y-6">
           {items.map(item => (
             <div key={item.id} className="break-inside-avoid mb-6">
@@ -156,7 +163,7 @@ export default function TestimonialsBlock({ style, props, liveItems }: Props) {
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-      {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+      {sectionTitle('text-3xl font-bold mb-10 text-center')}
       <div className={cn('grid grid-cols-1 sm:grid-cols-2', colClass)} style={{ gap: itemGap }}>
         {items.map(item => <TestimonialCard key={item.id} item={item} style={style} dark={dark} />)}
       </div>

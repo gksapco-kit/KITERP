@@ -161,12 +161,10 @@ export function mediaClipStyle(value: unknown): CSSProperties {
   }
 }
 
-/** Block types that support `media_clip` on primary photo / video. */
-export const MEDIA_CLIP_BLOCK_TYPES = new Set([
-  'hero',
-  'hero_split',
-  'hero_minimal',
-  'image_block',
-  'video_embed',
-  'about_split',
-])
+/** @deprecated Use {@link sectionSupportsMediaClip} — all sections support clip props. */
+export function blockSupportsMediaClip(_blockType?: string): boolean {
+  return true
+}
+
+/** @deprecated All sections support media clip; kept for legacy imports. */
+export const MEDIA_CLIP_BLOCK_TYPES: ReadonlySet<string> = new Set(['*'])

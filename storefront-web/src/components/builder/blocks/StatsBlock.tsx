@@ -1,5 +1,6 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { cn } from '@/lib/utils'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
 import { columnsFromProps, sectionGridColumnClass, sectionItemGap } from '@/lib/sectionItemLayout'
@@ -10,9 +11,10 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
-export default function StatsBlock({ style, props, liveItems }: Props) {
+export default function StatsBlock({ style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || ''
   const surface = resolveSectionSurface(props, style)
   const columns = columnsFromProps(props)
@@ -40,7 +42,17 @@ export default function StatsBlock({ style, props, liveItems }: Props) {
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-      {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+      {(title || blockId) && (
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title}
+          as="h2"
+          className="text-3xl font-bold mb-10 text-center"
+          placeholder="Section title"
+        />
+      )}
       <div className={cn('grid grid-cols-2 text-center', colClass, showDividers && 'divide-x divide-white/10')} style={{ gap: itemGap }}>
         {items.map((stat, i) => (
           <div

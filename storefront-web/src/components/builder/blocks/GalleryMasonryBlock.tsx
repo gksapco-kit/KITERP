@@ -3,11 +3,12 @@ import { ImageIcon, X } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { columnsFromProps, sectionGridColumnClass, sectionItemGap } from '@/lib/sectionItemLayout'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
-export default function GalleryMasonryBlock({ style, props, liveItems }: Props) {
+export default function GalleryMasonryBlock({ style, props, liveItems, blockId }: Props) {
   const [lightbox, setLightbox] = useState<string | null>(null)
   const title = (props.title as string) || 'Gallery'
   const layout = String(props.layout ?? 'grid')
@@ -45,7 +46,9 @@ export default function GalleryMasonryBlock({ style, props, liveItems }: Props) 
 
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {title && <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">{title}</h2>}
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-8 text-center" />
+      )}
       {layout === 'featured' ? (
         <div className="grid grid-cols-3 grid-rows-2 max-w-5xl mx-auto min-h-[320px]" style={{ gap: itemGap }}>
           <Img url={images[0].url} alt={images[0].alt} className="col-span-2 row-span-2 h-full min-h-[280px] rounded-xl" />

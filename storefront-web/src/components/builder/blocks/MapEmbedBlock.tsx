@@ -1,5 +1,6 @@
 import { MapPin } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
 interface Props {
   site: PublicSite
@@ -7,9 +8,10 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
-export default function MapEmbedBlock({ style, props, liveItems }: Props) {
+export default function MapEmbedBlock({ style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || 'Find Us'
   const profile = liveItems[0]
   const address = (props.address as string) || (profile?.meta?.address as string) || ''
@@ -28,7 +30,7 @@ export default function MapEmbedBlock({ style, props, liveItems }: Props) {
         <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${style.primary_color}15` }}>
           <MapPin className="w-5 h-5" style={{ color: style.primary_color }} />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-2xl font-bold text-gray-900" />
       </div>
       {address && <p className="text-gray-500 mb-6 flex items-center gap-2"><MapPin className="w-4 h-4" />{address}</p>}
       {mapSrc ? (

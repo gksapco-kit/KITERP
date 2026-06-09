@@ -40,10 +40,10 @@ import {
   stepFontSizePx,
 } from '@/lib/builderTypography'
 import { FIELD_OFFSET_STEP_PX, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
-import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded, matchBuilderFontFamily } from '@storefront/lib/builderFontFamilies'
+import { BUILDER_FONT_FAMILIES, builderFontPreviewStyle, ensureBuilderFontLoaded, matchBuilderFontFamily } from '@storefront/lib/builderFontFamilies'
 import { pinInlineTextSelectionBeforeToolbarAction } from '@storefront/lib/builderInlineTextSelection'
 
-type ControlSize = 'panel' | 'compact' | 'mini'
+type ControlSize = 'panel' | 'compact' | 'mini' | 'transformPad'
 
 /** Shared tight toolbar shell — square corners, minimal padding. */
 export const typographyToolbarBox =
@@ -78,7 +78,20 @@ const sizeStyles = {
     wrapW: 'w-3.5',
     wrapH: 'h-7',
   },
+  /** Sec/All/1× + nudge/flip pads — 40% wider cells, same height as mini. */
+  transformPad: {
+    cell: 'h-3.5 w-[1.225rem]',
+    icon: 'w-2 h-2',
+    select: 'h-3.5 w-[3.5rem] px-0.5 text-[9px]',
+    caseBtn: 'px-1 py-0.5 text-[9px]',
+    wrapW: 'w-[1.225rem]',
+    wrapH: 'h-7',
+  },
 } as const
+
+/** Design-bar font stack = h-7 family + h-7 size (compact). */
+const COMPACT_FONT_STACK_H = 'h-14'
+const COMPACT_COLOR_COL_W = 'w-7'
 
 /** Box-mode font size: A↑ · A↓ · px — flush grid, no pill rounding. */
 export function FontSizePxControl({
@@ -105,6 +118,10 @@ export function FontSizePxControl({
 }) {
   const s = sizeStyles[size]
   const normalized = normalizeFontSizePx(valuePx)
+  const extraSize =
+    normalized != null && !(FONT_SIZE_PX_CHOICES as readonly number[]).includes(normalized)
+      ? normalized
+      : null
 
   const step = (delta: number) => {
     if (onStep) {
@@ -157,6 +174,9 @@ export function FontSizePxControl({
         onClick={e => e.stopPropagation()}
       >
         <option value="">Auto</option>
+        {extraSize != null ? (
+          <option key={`extra-${extraSize}`} value={extraSize}>{extraSize}</option>
+        ) : null}
         {FONT_SIZE_PX_CHOICES.map(n => (
           <option key={n} value={n}>{n}</option>
         ))}
@@ -195,7 +215,7 @@ export function FontFamilyControl({
       className={cn(
         'w-full cursor-pointer border-0 bg-white font-medium text-gray-800 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40 truncate',
         stacked
-          ? 'h-7 shrink-0 border-t border-gray-200 px-1 text-[10px]'
+          ? 'h-7 shrink-0 border-t border-gray-200 px-1 text-[10px] w-[6.75rem]'
           : cn(s.select, 'border-l border-gray-200'),
         className,
       )}
@@ -213,16 +233,16 @@ export function FontFamilyControl({
         e.stopPropagation()
         onMouseDown?.(e)
       }}
-      style={current ? { fontFamily: current } : undefined}
+      style={current ? builderFontPreviewStyle(current) : undefined}
     >
       <option value="">Auto</option>
       {extraFont ? (
-        <option value={extraFont} style={{ fontFamily: extraFont }}>
+        <option value={extraFont} style={builderFontPreviewStyle(extraFont)}>
           {extraFont}
         </option>
       ) : null}
       {BUILDER_FONT_FAMILIES.map(font => (
-        <option key={font} value={font} style={{ fontFamily: font }}>
+        <option key={font} value={font} style={builderFontPreviewStyle(font)}>
           {font}
         </option>
       ))}
@@ -275,6 +295,7 @@ export function ColorIdentPicker({
   size = 'compact',
   inRow = false,
   rowPosition = 'single',
+  orientation = 'horizontal',
   onMouseDown,
 }: {
   letter: 'T' | 'B'
@@ -285,23 +306,36 @@ export function ColorIdentPicker({
   /** Equal-width cell inside a T|B row under font size controls. */
   inRow?: boolean
   rowPosition?: 'start' | 'middle' | 'end' | 'single'
+  /** Stack T / B vertically (design bar column). */
+  orientation?: 'horizontal' | 'vertical'
   onMouseDown?: (e: MouseEvent) => void
 }) {
   const rowH = size === 'compact' ? 'h-7' : 'h-9'
-  const swatch = 'mt-0.5 h-2 w-[18px] border border-gray-300 pointer-events-none'
+  const vertical = orientation === 'vertical'
+  const colCell = size === 'compact' ? `${COMPACT_COLOR_COL_W} flex-1 min-h-0` : 'h-9 w-11 flex-1 min-h-0'
+  const swatch = vertical
+    ? 'mt-px h-[3px] w-2.5 border border-gray-300 pointer-events-none'
+    : 'mt-0.5 h-2 w-[18px] border border-gray-300 pointer-events-none'
+  const letterClass = vertical && size === 'compact'
+    ? 'text-[9px] font-bold leading-none text-gray-900 select-none pointer-events-none'
+    : 'text-[11px] font-bold leading-none text-gray-900 select-none pointer-events-none'
 
   return (
     <label
       title={title}
       onMouseDown={onMouseDown}
       className={cn(
-        'relative flex flex-col items-center justify-center hover:bg-gray-50 cursor-pointer shrink-0',
+        'relative flex flex-col items-center justify-center hover:bg-gray-50 cursor-pointer shrink-0 py-0',
         inRow
-          ? cn(rowH, 'flex-1 min-w-0', (rowPosition === 'start' || rowPosition === 'middle') && 'border-r border-gray-200')
+          ? cn(
+              vertical ? colCell : cn(rowH, 'flex-1 min-w-0'),
+              !vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-r border-gray-200',
+              vertical && (rowPosition === 'start' || rowPosition === 'middle') && 'border-b border-gray-200',
+            )
           : cn(size === 'compact' ? 'w-7 h-7' : 'w-9 h-9', 'border-l border-gray-200'),
       )}
     >
-      <span className="text-[11px] font-bold leading-none text-gray-900 select-none pointer-events-none">
+      <span className={letterClass}>
         {letter}
       </span>
       <span className={swatch} style={{ backgroundColor: color }} />
@@ -317,13 +351,14 @@ export function ColorIdentPicker({
   )
 }
 
-/** T + B row — sits directly under the font-size trio (A↑ A↓ Auto). */
+/** T + B row — sits under font size, or stacks vertically beside font controls. */
 export function ColorIdentPickerRow({
   textColor,
   backgroundColor,
   onTextColorChange,
   onBackgroundColorChange,
   size = 'compact',
+  vertical = false,
   trailing,
   onMouseDown,
 }: {
@@ -332,11 +367,50 @@ export function ColorIdentPickerRow({
   onTextColorChange: (color: string) => void
   onBackgroundColorChange: (color: string) => void
   size?: ControlSize
+  /** Stack T, B, and trailing controls in a narrow column. */
+  vertical?: boolean
   /** Extra cell(s) after B — e.g. Aa case dropdown. */
   trailing?: ReactNode
   onMouseDown?: (e: MouseEvent) => void
 }) {
   const rowH = size === 'compact' ? 'h-7' : 'h-9'
+
+  if (vertical) {
+    const stackH = size === 'compact' ? COMPACT_FONT_STACK_H : 'h-[4.5rem]'
+    const colW = size === 'compact' ? COMPACT_COLOR_COL_W : 'w-11'
+    return (
+      <div
+        className={cn('flex shrink-0 flex-col border-l border-gray-200', stackH, colW)}
+        onMouseDown={onMouseDown}
+      >
+        <ColorIdentPicker
+          letter="T"
+          title="Text color"
+          size={size}
+          inRow
+          orientation="vertical"
+          rowPosition="start"
+          color={textColor}
+          onChange={onTextColorChange}
+        />
+        <ColorIdentPicker
+          letter="B"
+          title="Block background color"
+          size={size}
+          inRow
+          orientation="vertical"
+          rowPosition={trailing ? 'middle' : 'end'}
+          color={backgroundColor}
+          onChange={onBackgroundColorChange}
+        />
+        {trailing ? (
+          <div className={cn('relative flex min-h-0 flex-1 items-stretch justify-center', colW)}>
+            {trailing}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -514,19 +588,22 @@ function HoldRepeatButton({
   onAction,
   className,
   children,
+  disabled = false,
 }: {
   label: string
   onAction: () => void
   className?: string
   children: ReactNode
+  disabled?: boolean
 }) {
   const startHold = useHoldRepeatAction(onAction)
   return (
     <button
       type="button"
       title={label}
+      disabled={disabled}
       className={className}
-      onPointerDown={startHold}
+      onPointerDown={disabled ? undefined : startHold}
       onClick={e => e.preventDefault()}
     >
       {children}
@@ -580,6 +657,7 @@ export function FieldPositionNudge({
   onMouseDown,
   titleLabel = 'Field position',
   keyboardShortcuts = false,
+  disabled = false,
 }: {
   offsetX?: number
   offsetY?: number
@@ -592,6 +670,7 @@ export function FieldPositionNudge({
   titleLabel?: string
   /** Arrow keys nudge while this control is shown. Hold key or button to keep moving. */
   keyboardShortcuts?: boolean
+  disabled?: boolean
 }) {
   const s = sizeStyles[size]
   const step = FIELD_OFFSET_STEP_PX
@@ -604,7 +683,7 @@ export function FieldPositionNudge({
   onResetRef.current = onReset
 
   useEffect(() => {
-    if (!keyboardShortcuts) return
+    if (!keyboardShortcuts || disabled) return
     const onKey = (e: KeyboardEvent) => {
       if (isTypingElement(e.target)) return
       let dx = 0
@@ -631,18 +710,20 @@ export function FieldPositionNudge({
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [keyboardShortcuts, step])
+  }, [keyboardShortcuts, disabled, step])
 
-  const iconStroke = size === 'mini' ? 1.75 : 2
+  const iconStroke = size === 'mini' || size === 'transformPad' ? 1.75 : 2
 
   const nudgeBtn = (label: string, action: () => void, Icon?: typeof ArrowUp, border = '') => (
     <HoldRepeatButton
       label={`${label} — arrow key · hold to repeat`}
       onAction={action}
+      disabled={disabled}
       className={cn(
         s.cell,
         'flex items-center justify-center text-gray-600 transition-colors hover:bg-gray-50 active:bg-primary/10 touch-none select-none',
         border,
+        disabled && 'opacity-40 pointer-events-none',
       )}
     >
       {Icon ? <Icon className={cn(s.icon, 'shrink-0')} strokeWidth={iconStroke} /> : <span className="text-[6px] font-bold leading-none">·</span>}
@@ -663,14 +744,16 @@ export function FieldPositionNudge({
         <HoldRepeatButton
           label="Reset position"
           onAction={() => onResetRef.current()}
+          disabled={disabled}
           className={cn(
             s.cell,
             'flex items-center justify-center text-gray-600 transition-colors hover:bg-gray-50 active:bg-primary/10 touch-none select-none',
             'border-r border-b border-gray-200',
-            moved && 'bg-primary/10 text-primary',
+            moved && !disabled && 'bg-primary/10 text-primary',
+            disabled && 'opacity-40 pointer-events-none',
           )}
         >
-          <span className={cn('font-bold leading-none', size === 'mini' ? 'text-[6px]' : 'text-[8px]')}>·</span>
+          <span className={cn('font-bold leading-none', size === 'mini' || size === 'transformPad' ? 'text-[6px]' : 'text-[8px]')}>·</span>
         </HoldRepeatButton>
         {nudgeBtn('Move right', () => onNudge(step, 0), ArrowRight, 'border-b border-gray-200')}
         <div className={cn(s.cell, 'border-r border-gray-200 bg-gray-50/80')} />
@@ -746,46 +829,112 @@ export function LayoutTransformScopeToggle({
   mode,
   onChange,
   showGroup = true,
+  layout = 'vertical',
+  dense = false,
   className,
   onMouseDown,
 }: {
   mode: LayoutTransformScope
   onChange: (mode: LayoutTransformScope) => void
   showGroup?: boolean
+  layout?: 'vertical' | 'horizontal'
+  dense?: boolean
   className?: string
   onMouseDown?: (e: MouseEvent) => void
 }) {
-  const cell = 'flex flex-1 items-center justify-center px-1 py-1 text-[9px] font-bold leading-none transition-colors'
-  const mk = (id: LayoutTransformScope, label: string, title: string) => (
-    <button
-      type="button"
-      title={title}
-      onClick={() => onChange(id)}
-      className={cn(
-        cell,
-        id !== 'field' && 'border-b border-gray-200',
-        mode === id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50',
-      )}
-    >
-      {label}
-    </button>
+  const horizontal = layout === 'horizontal'
+  const cell = cn(
+    'flex flex-1 items-center justify-center font-bold leading-none transition-colors',
+    dense && horizontal
+      ? 'h-5 px-0 text-[7px]'
+      : horizontal
+        ? 'px-1 py-0.5 text-[8px]'
+        : 'px-1 py-1 text-[9px]',
   )
+  const items: { id: LayoutTransformScope; label: string; title: string }[] = [
+    { id: 'section', label: 'Sec', title: 'Flip / rotate entire section' },
+    ...(showGroup ? [{ id: 'group' as const, label: 'All', title: 'Flip / rotate all content (headline, text, buttons)' }] : []),
+    { id: 'field', label: '1×', title: 'Flip / rotate selected field only' },
+  ]
   return (
     <div
       className={cn(
-        'flex flex-col w-9 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white',
+        'flex shrink-0 overflow-hidden bg-white',
+        horizontal ? 'flex-row w-full' : 'flex-col w-9 rounded-lg border border-gray-200',
         className,
       )}
       onMouseDown={onMouseDown}
     >
-      {mk('section', 'Sec', 'Flip / rotate entire section')}
-      {showGroup ? mk('group', 'All', 'Flip / rotate all content (headline, text, buttons)') : null}
-      {mk('field', '1×', 'Flip / rotate selected field only')}
+      {items.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          title={item.title}
+          onClick={() => onChange(item.id)}
+          className={cn(
+            cell,
+            horizontal
+              ? index < items.length - 1 && 'border-r border-gray-200'
+              : index < items.length - 1 && 'border-b border-gray-200',
+            mode === item.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50',
+          )}
+        >
+          {item.label}
+        </button>
+      ))}
     </div>
   )
 }
 
-/** Flip horizontal / vertical and rotate 90° steps. */
+/** Sec / All / 1× scope row with nudge + flip pads stacked below. */
+export function LayoutTransformPositionGroup({
+  scopeMode,
+  onScopeChange,
+  showGroup = true,
+  nudgeDisabled = false,
+  size = 'transformPad',
+  flipProps,
+  ...nudgeProps
+}: {
+  scopeMode: LayoutTransformScope
+  onScopeChange: (mode: LayoutTransformScope) => void
+  showGroup?: boolean
+  nudgeDisabled?: boolean
+  size?: ControlSize
+  flipProps?: ComponentProps<typeof FlipRotateControls>
+} & ComponentProps<typeof FieldPositionNudge>) {
+  return (
+    <div className="flex shrink-0 flex-col self-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <LayoutTransformScopeToggle
+        mode={scopeMode}
+        onChange={onScopeChange}
+        showGroup={showGroup}
+        layout="horizontal"
+        dense
+        className="w-full border-b border-gray-200"
+      />
+      <div className="flex items-stretch">
+        <FieldPositionNudge
+          {...nudgeProps}
+          size={size}
+          embedded
+          disabled={nudgeDisabled}
+          className={cn('rounded-none border-0', nudgeProps.className)}
+        />
+        {flipProps ? (
+          <FlipRotateControls
+            {...flipProps}
+            size={size}
+            embedded
+            className="rounded-none border-0"
+          />
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+/** Flip horizontal / vertical and rotate 90° — 3×3 pad matching {@link FieldPositionNudge}. */
 export function FlipRotateControls({
   flipH = false,
   flipV = false,
@@ -793,6 +942,7 @@ export function FlipRotateControls({
   onChange,
   onReset,
   embedded = true,
+  size = 'mini',
   className,
   onMouseDown,
   disabled = false,
@@ -803,15 +953,24 @@ export function FlipRotateControls({
   onChange: (patch: { flip_h?: boolean | null; flip_v?: boolean | null; rotate_deg?: number | null }) => void
   onReset: () => void
   embedded?: boolean
+  size?: ControlSize
   className?: string
   onMouseDown?: (e: MouseEvent) => void
   disabled?: boolean
 }) {
+  const s = sizeStyles[size]
   const h = readFlipFlag(flipH)
   const v = readFlipFlag(flipV)
   const r = readRotateDeg(rotateDeg)
   const active = h || v || r !== 0
-  const btn = (
+  const iconStroke = size === 'mini' || size === 'transformPad' ? 1.75 : 2
+
+  const stepRotate = (delta: number) => {
+    const next = readRotateDeg(r + delta)
+    onChange({ rotate_deg: next === 0 ? null : next })
+  }
+
+  const padBtn = (
     label: string,
     onClick: () => void,
     Icon: typeof FlipHorizontal,
@@ -824,51 +983,56 @@ export function FlipRotateControls({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
-        isActive
-          ? 'border-primary/50 bg-primary/10 text-primary'
-          : 'border-gray-200 text-gray-600 hover:border-primary/40 hover:bg-gray-50',
-        disabled && 'opacity-40 pointer-events-none',
+        s.cell,
+        'flex items-center justify-center transition-colors touch-none select-none',
         border,
+        isActive ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50 active:bg-primary/10',
+        disabled && 'opacity-40 pointer-events-none',
       )}
     >
-      <Icon className="w-3.5 h-3.5" strokeWidth={2} />
+      <Icon className={cn(s.icon, 'shrink-0')} strokeWidth={iconStroke} />
     </button>
   )
 
-  const stepRotate = (delta: number) => {
-    const next = readRotateDeg(r + delta)
-    onChange({ rotate_deg: next === 0 ? null : next })
-  }
+  const spacer = (border: string) => (
+    <div className={cn(s.cell, 'bg-gray-50/80', border)} aria-hidden />
+  )
 
   return (
     <div
       className={cn(
-        embedded ? 'flex items-center gap-0.5' : toolbarShell,
+        embedded ? embeddedShell : toolbarShell,
+        !embedded && 'overflow-hidden rounded-lg border border-gray-200 bg-white',
         className,
       )}
       onMouseDown={onMouseDown}
       title="Flip & rotate"
     >
-      {btn('Flip horizontal', () => onChange({ flip_h: h ? null : true }), FlipHorizontal, h)}
-      {btn('Flip vertical', () => onChange({ flip_v: v ? null : true }), FlipVertical, v)}
-      {btn('Rotate left 90°', () => stepRotate(-90), RotateCcw, r !== 0 && r % 90 === 0)}
-      {btn('Rotate right 90°', () => stepRotate(90), RotateCw, r !== 0 && r % 90 === 0)}
-      <button
-        type="button"
-        title="Reset flip & rotate"
-        disabled={disabled || !active}
-        onClick={onReset}
-        className={cn(
-          'flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-lg border px-1 text-[9px] font-bold transition-colors',
-          active
-            ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/15'
-            : 'border-gray-200 text-gray-400',
-          disabled && 'opacity-40 pointer-events-none',
-        )}
-      >
-        ·
-      </button>
+      <div className="grid grid-cols-3">
+        {spacer('border-r border-b border-gray-200')}
+        {padBtn('Flip horizontal', () => onChange({ flip_h: h ? null : true }), FlipHorizontal, h, 'border-r border-b border-gray-200')}
+        {spacer('border-b border-gray-200')}
+        {padBtn('Rotate left 90°', () => stepRotate(-90), RotateCcw, r !== 0, 'border-r border-b border-gray-200')}
+        <button
+          type="button"
+          title="Reset flip & rotate"
+          disabled={disabled || !active}
+          onClick={onReset}
+          className={cn(
+            s.cell,
+            'flex items-center justify-center transition-colors touch-none select-none',
+            'border-r border-b border-gray-200',
+            active && !disabled ? 'bg-primary/10 text-primary hover:bg-primary/15' : 'text-gray-600 hover:bg-gray-50',
+            disabled && 'opacity-40 pointer-events-none',
+          )}
+        >
+          <span className={cn('font-bold leading-none', size === 'mini' || size === 'transformPad' ? 'text-[6px]' : 'text-[8px]')}>·</span>
+        </button>
+        {padBtn('Rotate right 90°', () => stepRotate(90), RotateCw, r !== 0, 'border-b border-gray-200')}
+        {spacer('border-r border-gray-200')}
+        {padBtn('Flip vertical', () => onChange({ flip_v: v ? null : true }), FlipVertical, v, 'border-r border-gray-200')}
+        {spacer('')}
+      </div>
     </div>
   )
 }

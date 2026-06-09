@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
 interface Props {
   site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null
+  blockId?: string
 }
 
-export default function FaqBlock({ style, props }: Props) {
+export default function FaqBlock({ style, props, blockId }: Props) {
   const [open, setOpen] = useState<number | null>(0)
   const title = (props.title as string) || 'FAQ'
   const layout = String(props.layout ?? 'accordion')
@@ -27,7 +29,9 @@ export default function FaqBlock({ style, props }: Props) {
   if (layout === 'grid' || layout === 'two-column') {
     return (
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-        {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
+        {(title || blockId) && (
+          <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" />
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {faqs.map((faq, i) => (
             <div key={i} className="builder-tile-card bg-white rounded-2xl border border-gray-100 p-6">
@@ -42,7 +46,9 @@ export default function FaqBlock({ style, props }: Props) {
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
-      {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" />
+      )}
       <div className="space-y-3">
         {faqs.map((faq, i) => (
           <div key={i} className="builder-tile-card bg-white rounded-2xl border border-gray-100 overflow-hidden">

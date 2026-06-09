@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
 function useCountdown(targetDate: string) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
@@ -15,13 +16,13 @@ function useCountdown(targetDate: string) {
   return timeLeft
 }
 
-export default function CountdownBlock({ style, props }: Props) {
+export default function CountdownBlock({ style, props, blockId }: Props) {
   const title = (props.title as string) || 'Launching In'
   const targetDate = (props.target_date as string) || new Date(Date.now() + 7 * 86400000).toISOString()
   const { days, hours, minutes, seconds } = useCountdown(targetDate)
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 text-center">
-      <h2 className="text-2xl font-bold text-gray-900 mb-8">{title}</h2>
+      <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-2xl font-bold text-gray-900 mb-8" />
       <div className="flex justify-center gap-4 flex-wrap">
         {[{ v: days, l: 'Days' }, { v: hours, l: 'Hours' }, { v: minutes, l: 'Minutes' }, { v: seconds, l: 'Seconds' }].map(({ v, l }) => (
           <div key={l} className="flex flex-col items-center w-24">

@@ -2,10 +2,18 @@ import { useState } from 'react'
 import { Mail, Loader2 } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props {
+  site: PublicSite
+  style: StyleConfig
+  props: Record<string, unknown>
+  liveItems: LiveItem[]
+  branchCode?: string | null
+  blockId?: string
+}
 
-export default function NewsletterBlock({ site, style, props }: Props) {
+export default function NewsletterBlock({ site, style, props, blockId }: Props) {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
@@ -25,8 +33,23 @@ export default function NewsletterBlock({ site, style, props }: Props) {
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: style.primary_color }}>
           <Mail className="w-6 h-6 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
-        <p className="text-gray-500 mb-6">{subtitle}</p>
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title}
+          as="h2"
+          className="text-2xl font-bold text-gray-900 mb-2"
+        />
+        <BuilderTextField
+          fieldKey="subtitle"
+          blockId={blockId}
+          blockProps={props}
+          value={subtitle}
+          as="p"
+          multiline
+          className="text-gray-500 mb-6"
+        />
         {done ? (
           <p className="text-green-600 font-semibold">You're subscribed! 🎉</p>
         ) : (

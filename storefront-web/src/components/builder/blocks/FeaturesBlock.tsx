@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { cn } from '@/lib/utils'
 import { imgUrl } from '@/lib/utils'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
@@ -35,15 +37,30 @@ interface Props {
   liveItems: LiveItem[]
   branchCode?: string | null
   blockType: string
+  blockId?: string
 }
 
-export default function FeaturesBlock({ site, style, props, blockType }: Props) {
+export default function FeaturesBlock({ site, style, props, blockType, blockId }: Props) {
   const isAlternating = blockType === 'features_alternating'
   const useTemplateReplacement = isAlternating && isTemplateMealFeaturesBlock(props)
   const replacement = useTemplateReplacement ? productFocusedFeatureContent(site.name) : null
 
   const title = sanitizeWellnessBodyCopy(
     (useTemplateReplacement ? replacement?.title : (props.title as string)) || '',
+  )
+  const sectionTitle = (className: string, extraStyle?: CSSProperties) => (
+    (title || blockId) ? (
+      <BuilderTextField
+        fieldKey="title"
+        blockId={blockId}
+        blockProps={props}
+        value={title}
+        as="h2"
+        className={className}
+        style={extraStyle}
+        placeholder="Section title"
+      />
+    ) : null
   )
   const rawFeatures = (props.features as FeatureItem[] | undefined) || []
   const features = useTemplateReplacement && replacement
@@ -78,13 +95,9 @@ export default function FeaturesBlock({ site, style, props, blockType }: Props) 
         className={`py-16 sm:py-24 px-6 sm:px-12 mx-auto ${isFull ? 'max-w-none px-0 sm:px-0' : 'max-w-6xl'}`}
         style={{ backgroundColor: sectionBg }}
       >
-        {title && (
-          <h2
-            className="text-3xl sm:text-4xl font-semibold text-center mb-12 sm:mb-16 text-balance px-6"
-            style={{ fontFamily: style.font_heading, color: sectionText }}
-          >
-            {title}
-          </h2>
+        {sectionTitle(
+          'text-3xl sm:text-4xl font-semibold text-center mb-12 sm:mb-16 text-balance px-6',
+          { fontFamily: style.font_heading, color: sectionText },
         )}
         <div className={rowGap}>
           {features.map((feature, i) => {
@@ -168,7 +181,7 @@ export default function FeaturesBlock({ site, style, props, blockType }: Props) 
   if (layout === 'list') {
     return (
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-        {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+        {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className="space-y-6" style={{ gap: itemGap }}>
           {features.map((feature, i) => (
             <div
@@ -197,7 +210,7 @@ export default function FeaturesBlock({ site, style, props, blockType }: Props) 
   if (layout === 'strip') {
     return (
       <section className="py-12 px-4 overflow-x-auto" style={{ background: surface.background, color: surface.color }}>
-        {title && <h2 className="text-2xl font-bold mb-8 text-center px-4">{title}</h2>}
+        {sectionTitle('text-2xl font-bold mb-8 text-center px-4')}
         <div className="flex min-w-max px-4 mx-auto justify-center" style={{ gap: itemGap }}>
           {features.map((feature, i) => (
             <div
@@ -218,7 +231,7 @@ export default function FeaturesBlock({ site, style, props, blockType }: Props) 
   if (layout === 'masonry') {
     return (
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-        {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+        {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className={cn('columns-1 sm:columns-2 gap-6 space-y-6', columns >= 3 && 'lg:columns-3', columns >= 4 && 'lg:columns-4')} style={{ columnGap: itemGap }}>
           {features.map((feature, i) => (
             <div key={i} className={cn('builder-tile-card break-inside-avoid rounded-2xl border mb-6', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')} style={{ padding: cardPad }}>
@@ -241,7 +254,7 @@ export default function FeaturesBlock({ site, style, props, blockType }: Props) 
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
-      {title && <h2 className="text-3xl font-bold mb-10 text-center">{title}</h2>}
+      {sectionTitle('text-3xl font-bold mb-10 text-center')}
       <div className={cn('grid', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
         {features.map((feature, i) => (
           <div

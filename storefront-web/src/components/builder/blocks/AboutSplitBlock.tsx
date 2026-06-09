@@ -2,10 +2,18 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { imgUrl } from '@/lib/utils'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props {
+  site: PublicSite
+  style: StyleConfig
+  props: Record<string, unknown>
+  liveItems: LiveItem[]
+  branchCode?: string | null
+  blockId?: string
+}
 
-export default function AboutSplitBlock({ site, style, props, liveItems }: Props) {
+export default function AboutSplitBlock({ site, style, props, liveItems, blockId }: Props) {
   const profile = liveItems[0]
   const title = (props.title as string) || profile?.title || 'About Us'
   const subtitle = (props.subtitle as string) || 'Our Story'
@@ -19,9 +27,35 @@ export default function AboutSplitBlock({ site, style, props, liveItems }: Props
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
       <div className="grid lg:grid-cols-2 gap-12 items-center">
         <div>
-          {subtitle && <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: style.primary_color }}>{subtitle}</p>}
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">{title}</h2>
-          <p className="text-gray-600 leading-relaxed">{description}</p>
+          {(subtitle || blockId) && (
+            <BuilderTextField
+              fieldKey="subtitle"
+              blockId={blockId}
+              blockProps={props}
+              value={subtitle}
+              as="p"
+              className="text-sm font-semibold uppercase tracking-widest mb-2"
+              style={{ color: style.primary_color }}
+            />
+          )}
+          <BuilderTextField
+            fieldKey="title"
+            blockId={blockId}
+            blockProps={props}
+            value={title}
+            as="h2"
+            className="text-3xl font-bold text-gray-900 mb-4"
+          />
+          <BuilderTextField
+            fieldKey="description"
+            blockId={blockId}
+            blockProps={props}
+            value={description}
+            as="p"
+            multiline
+            className="text-gray-600 leading-relaxed"
+            placeholder="Tell your story"
+          />
         </div>
         <div>
           {imageUrl ? (

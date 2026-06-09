@@ -1,14 +1,15 @@
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import {
   genericTimelineContent,
   isTemplateTimelineBlock,
   sanitizeWellnessBodyCopy,
 } from '@/lib/wellnessTemplateCopy'
 
-interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null }
+interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
-export default function TimelineBlock({ site, style, props }: Props) {
+export default function TimelineBlock({ site, style, props, blockId }: Props) {
   const useReplacement = isTemplateTimelineBlock(props)
   const replacement = useReplacement ? genericTimelineContent(site.name) : null
 
@@ -36,13 +37,16 @@ export default function TimelineBlock({ site, style, props }: Props) {
 
   return (
     <section className="py-16 sm:py-24 px-6 sm:px-12 max-w-3xl mx-auto" style={{ backgroundColor: bg }}>
-      {title && (
-        <h2
+      {(title || blockId) && (
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title}
+          as="h2"
           className="text-3xl sm:text-4xl font-semibold mb-12 sm:mb-16 text-center"
           style={{ fontFamily: style.font_heading, color: textColor }}
-        >
-          {title}
-        </h2>
+        />
       )}
       <div className="relative">
         <div className="absolute left-8 sm:left-10 top-2 bottom-2 w-px opacity-20" style={{ backgroundColor: textColor }} />

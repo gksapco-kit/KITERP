@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
 import type { StyleConfig } from '@/blocks/registry'
 import CategoryCardMosaic, { type MosaicCategory } from '@/components/builder/blocks/CategoryCardMosaic'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 
 export type WellnessCategory = MosaicCategory
 
@@ -11,6 +14,8 @@ interface Props {
   categories: MosaicCategory[]
   propImageByTitle?: Map<string, string | undefined>
   storePath?: (path: string) => string
+  blockId?: string
+  blockProps?: Record<string, unknown>
 }
 
 export default function CategoryCardsWellness({
@@ -20,7 +25,11 @@ export default function CategoryCardsWellness({
   categories,
   propImageByTitle,
   storePath = p => p,
+  blockId,
+  blockProps,
 }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const textColor = style.text_color || '#182E20'
   const bg = style.bg_color || '#F9F9F5'
 
@@ -28,17 +37,27 @@ export default function CategoryCardsWellness({
     <section className="py-16 sm:py-28 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: bg }}>
       <div className="flex items-end justify-between mb-12 sm:mb-16 gap-4 flex-wrap">
         <div>
-          {eyebrow && (
-            <span className="text-xs uppercase tracking-[0.3em] opacity-70 block" style={{ color: textColor }}>
-              {eyebrow}
-            </span>
+          {(eyebrow || blockId) && (
+            <BuilderTextField
+              fieldKey="eyebrow"
+              blockId={blockId}
+              blockProps={blockProps}
+              value={eyebrow}
+              as="span"
+              className="text-xs uppercase tracking-[0.3em] opacity-70 block"
+              style={{ color: textColor }}
+              placeholder="Eyebrow"
+            />
           )}
-          <h2
+          <BuilderTextField
+            fieldKey="title"
+            blockId={blockId}
+            blockProps={blockProps}
+            value={title}
+            as="h2"
             className="text-3xl sm:text-4xl md:text-5xl mt-2"
             style={{ fontFamily: style.font_heading, color: textColor }}
-          >
-            {title}
-          </h2>
+          />
         </div>
         <Link to={storePath('/products')} className="text-sm underline opacity-80 hover:opacity-100" style={{ color: textColor }}>
           View all
@@ -49,10 +68,33 @@ export default function CategoryCardsWellness({
         categories={categories}
         style={style}
         propImageByTitle={propImageByTitle}
+        renderTitle={(displayTitle, i) => (
+          <CategoryCardTitle
+            index={i}
+            title={displayTitle}
+            blockId={blockId}
+            blockProps={blockProps}
+            as="h3"
+            style={{
+              fontFamily: style.font_heading,
+              color: textColor,
+              fontSize: '1.125rem',
+              fontWeight: 500,
+              lineHeight: 1.35,
+              margin: 0,
+            }}
+          />
+        )}
         wrapCard={(child, i) => (
-          <Link key={i} to={storePath('/products')} className="block w-full no-underline text-inherit">
-            {child}
-          </Link>
+          isEditorCanvas ? (
+            <div key={i} className="block w-full no-underline text-inherit">
+              {child}
+            </div>
+          ) : (
+            <Link key={i} to={storePath('/products')} className="block w-full no-underline text-inherit">
+              {child}
+            </Link>
+          )
         )}
       />
     </section>

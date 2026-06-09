@@ -6,6 +6,12 @@ import {
   type MediaClipId,
 } from '@storefront/lib/mediaClip'
 
+export function mediaClipActiveLabel(value: unknown): string | null {
+  const current = normalizeMediaClip(value)
+  if (current === 'none') return null
+  return MEDIA_CLIP_OPTIONS.find(o => o.id === current)?.shortLabel ?? null
+}
+
 export function MediaClipPicker({
   value,
   onChange,

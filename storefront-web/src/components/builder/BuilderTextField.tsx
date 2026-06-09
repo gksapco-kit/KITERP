@@ -5,6 +5,7 @@ import {
   hasInlineHtml,
   isInlineEditTag,
   isMultilineCanvasField,
+  mergeFieldTypographyClassName,
 } from '@/lib/fieldTextStyles'
 import { isMultiSelectModifier } from '@/lib/builderMultiSelect'
 import {
@@ -173,9 +174,9 @@ export function BuilderTextField({
     return () => el.removeEventListener('builder-inline-text-commit', onInlineCommit)
   }, [blockId, ctx, fieldKey, readValue, value])
 
-  const activate = useCallback((additive = false) => {
+  const activate = useCallback((additive = false, clientX?: number, clientY?: number) => {
     if (!isEditor || !blockId) return
-    ctx?.onTextFieldActivate?.(blockId, fieldKey, { additive })
+    ctx?.onTextFieldActivate?.(blockId, fieldKey, { additive, clientX, clientY })
   }, [isEditor, blockId, ctx, fieldKey])
 
   const insertLineBreak = useCallback(() => {
@@ -310,6 +311,7 @@ export function BuilderTextField({
 
   const Component = Tag as ElementType
   const textStyle = blockProps ? fieldTextStyle(blockProps, fieldKey, style) : style
+  const typographyClassName = mergeFieldTypographyClassName(className, blockProps, fieldKey)
   const embeddedStyle: CSSProperties | undefined = embeddedInControl
     ? { ...textStyle, color: 'inherit' }
     : textStyle
@@ -318,7 +320,7 @@ export function BuilderTextField({
   const fieldEl = (
     <Component
       ref={ref}
-      data-text-key={isEditor ? fieldKey : undefined}
+      data-text-key={fieldKey}
       data-builder-embedded-control={embeddedInControl ? 'true' : undefined}
       data-builder-inline-edit-target={editing ? 'true' : undefined}
       data-builder-field-selected={isSelected && !inPositionWrapper ? 'true' : undefined}
@@ -328,7 +330,7 @@ export function BuilderTextField({
       suppressContentEditableWarning
       spellCheck={editing}
       className={cn(
-        className,
+        typographyClassName,
         isEditor && !embeddedInControl && 'builder-canvas-text-field',
         inPositionWrapper && 'builder-canvas-text-field-in-layout',
         allowMultiline && 'builder-canvas-text-field-multiline',
@@ -351,18 +353,18 @@ export function BuilderTextField({
         if (!isEditor) return
         e.stopPropagation()
         if (isMultiSelectModifier(e)) {
-          activate(true)
+          activate(true, e.clientX, e.clientY)
           return
         }
         if (embeddedInControl) {
           if (!isSelected) {
-            activate(false)
+            activate(false, e.clientX, e.clientY)
             return
           }
           if (!editing) setEditing(true)
           return
         }
-        activate(false)
+        activate(false, e.clientX, e.clientY)
         if (!editing) setEditing(true)
       }}
       onBlur={(e: ReactFocusEvent<HTMLElement>) => {

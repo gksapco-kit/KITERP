@@ -10,9 +10,14 @@ import {
   WELLNESS_CATEGORY_FALLBACK_IMAGES,
   WELLNESS_DEFAULT_CATEGORY_TITLES,
   normalizeCategoryCardItems,
+  resolveCategoryCardImage,
 } from '@/lib/wellnessCategoryStyle'
 import { sanitizeWellnessCategoryTitle } from '@/lib/wellnessTemplateCopy'
 import { normalizeLiveProducts } from '@/lib/liveProductUtils'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
+import { CategoryEditorialImage } from '@/components/builder/CategoryEditorialImage'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import {
   isWellnessRetailContext,
   resolveWellnessSiteProducts,
@@ -26,6 +31,7 @@ interface Props {
   liveItems: LiveItem[]
   branchCode?: string | null
   blockType?: string
+  blockId?: string
   /** Other blocks on the same page — used to detect wellness category layout. */
   pageBlocks?: { block_type?: string; props?: Record<string, unknown> }[]
 }
@@ -34,7 +40,9 @@ function mediaUrl(url: string | null | undefined) {
   return imgUrl(url)
 }
 
-export default function ProductGridBlock({ site, style, props, liveItems, blockType = 'product_grid', pageBlocks }: Props) {
+export default function ProductGridBlock({ site, style, props, liveItems, blockType = 'product_grid', pageBlocks, blockId }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const siteStyle = { ...(site.style_config || {}), ...style } as Record<string, unknown>
   const { storePath } = useVendor()
   const { isAuthenticated } = useAuthStore()
@@ -110,6 +118,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         categories={cats}
         propImageByTitle={propImageByTitle}
         storePath={storePath}
+        blockId={blockId}
+        blockProps={props}
       />
     )
   }
@@ -142,28 +152,72 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: style.bg_color }}>
         <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
           <div>
-            {eyebrow && (
-              <span className="text-xs uppercase tracking-[0.3em] opacity-70 block" style={{ color: textColor }}>
-                {eyebrow}
-              </span>
+            {(eyebrow || blockId) && (
+              <BuilderTextField
+                fieldKey="eyebrow"
+                blockId={blockId}
+                blockProps={props}
+                value={eyebrow}
+                as="span"
+                className="text-xs uppercase tracking-[0.3em] opacity-70 block"
+                style={{ color: textColor }}
+                placeholder="Eyebrow"
+              />
             )}
-            <h2 className="text-3xl sm:text-4xl md:text-5xl mt-2" style={{ fontFamily: style.font_heading, color: textColor }}>
-              {title}
-            </h2>
+            <BuilderTextField
+              fieldKey="title"
+              blockId={blockId}
+              blockProps={props}
+              value={title}
+              as="h2"
+              className="text-3xl sm:text-4xl md:text-5xl mt-2"
+              style={{ fontFamily: style.font_heading, color: textColor }}
+            />
           </div>
           <span className="text-sm underline opacity-80 cursor-pointer" style={{ color: textColor }}>View all</span>
         </div>
         <div className="grid md:grid-cols-3 gap-1">
-          {cats.slice(0, 9).map((c, i) => (
-            <Link key={`${c.title}-${i}`} to={storePath('/products')} className="group relative aspect-[4/5] overflow-hidden block">
-              <img src={mediaUrl(c.image_url)} alt={c.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-              <div className="absolute bottom-0 left-0 p-6 text-white">
-                <h3 className="text-2xl" style={{ fontFamily: style.font_heading }}>{c.title}</h3>
-                <span className="text-xs uppercase tracking-[0.2em] text-white/80">Shop now →</span>
-              </div>
-            </Link>
-          ))}
+          {cats.slice(0, 9).map((c, i) => {
+            const fallback = resolveCategoryCardImage({ title: c.title, image_url: null }, i, propImageByTitle)
+            const cardInner = (
+              <>
+                <CategoryEditorialImage
+                  src={c.image_url}
+                  fallback={fallback}
+                  alt={c.title}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 p-6 text-white">
+                  <CategoryCardTitle
+                    index={i}
+                    title={c.title}
+                    blockId={blockId}
+                    blockProps={props}
+                    as="h3"
+                    className="text-2xl"
+                    style={{ fontFamily: style.font_heading, color: '#fff' }}
+                  />
+                  <span className="text-xs uppercase tracking-[0.2em] text-white/80 pointer-events-none">Shop now →</span>
+                </div>
+              </>
+            )
+            if (isEditorCanvas) {
+              return (
+                <div
+                  key={`${c.title}-${i}`}
+                  className="group relative aspect-[4/5] overflow-hidden block"
+                >
+                  {cardInner}
+                </div>
+              )
+            }
+            return (
+              <Link key={`${c.title}-${i}`} to={storePath('/products')} className="group relative aspect-[4/5] overflow-hidden block">
+                {cardInner}
+              </Link>
+            )
+          })}
         </div>
       </section>
     )
@@ -175,7 +229,15 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     if (rawItems.length === 0 && !wellnessSite) {
       return (
         <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: style.surface_color || style.bg_color }}>
-          <h2 className="text-3xl sm:text-4xl mb-4" style={{ fontFamily: style.font_heading, color: textColor }}>{title}</h2>
+          <BuilderTextField
+            fieldKey="title"
+            blockId={blockId}
+            blockProps={props}
+            value={title}
+            as="h2"
+            className="text-3xl sm:text-4xl mb-4"
+            style={{ fontFamily: style.font_heading, color: textColor }}
+          />
           <p className="text-sm opacity-70" style={{ color: textColor }}>Your products will appear here once you add them to your catalog from the Products page.</p>
         </section>
       )
@@ -189,7 +251,15 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       <div style={{ backgroundColor: style.surface_color || style.bg_color }}>
         <section className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto">
           <div className="flex items-end justify-between mb-10 gap-4">
-            <h2 className="text-3xl sm:text-4xl" style={{ fontFamily: style.font_heading, color: textColor }}>{title}</h2>
+            <BuilderTextField
+              fieldKey="title"
+              blockId={blockId}
+              blockProps={props}
+              value={title}
+              as="h2"
+              className="text-3xl sm:text-4xl"
+              style={{ fontFamily: style.font_heading, color: textColor }}
+            />
             <span className="text-sm underline opacity-80" style={{ color: textColor }}>View all</span>
           </div>
 
@@ -317,7 +387,9 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {title && <h2 className="text-3xl font-bold text-gray-900 mb-10 text-center">{title}</h2>}
+      {(title || blockId) && (
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" />
+      )}
       {items.length === 0 ? (
         <div className="text-center py-12 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/80">
           <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-40" style={{ color: style.primary_color }} />

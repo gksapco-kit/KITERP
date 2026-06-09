@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { resolveBuilderFont } from '@/lib/builderFontFamilies'
 
 export function hasInlineHtml(value: string): boolean {
   return /<\/?[a-z][\s\S]*>/i.test(value)
@@ -94,6 +95,33 @@ function fieldStyleEntry(
   return fieldStyles[fieldKey] || {}
 }
 
+/** Tailwind text-size utilities that fight builder `_field_styles.font_size_px`. */
+const TAILWIND_FONT_SIZE_CLASS =
+  /\b(?:(?:sm|md|lg|xl|2xl):)?text-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)\b/g
+
+export function stripTailwindFontSizeClasses(className?: string): string {
+  if (!className) return ''
+  return className.replace(TAILWIND_FONT_SIZE_CLASS, '').replace(/\s+/g, ' ').trim()
+}
+
+export function fieldHasCustomFontSize(
+  props: Record<string, unknown> | undefined,
+  fieldKey: string,
+): boolean {
+  if (!props) return false
+  const px = fieldStyleEntry(props, fieldKey).font_size_px
+  return typeof px === 'number' && px > 0
+}
+
+export function mergeFieldTypographyClassName(
+  className: string | undefined,
+  props: Record<string, unknown> | undefined,
+  fieldKey: string,
+): string {
+  if (!fieldHasCustomFontSize(props, fieldKey)) return className ?? ''
+  return stripTailwindFontSizeClasses(className)
+}
+
 /** Per-field typography from builder `_field_styles` (color, size, case, align, wrap). */
 export function fieldTextStyle(
   props: Record<string, unknown>,
@@ -111,7 +139,17 @@ export function fieldTextStyle(
       ? { textTransform: fs.text_transform as CSSProperties['textTransform'] }
       : {}),
     ...(typeof fs.font_family === 'string' && fs.font_family.trim()
-      ? { fontFamily: fs.font_family.trim() }
+      ? (() => {
+          const resolved = resolveBuilderFont(fs.font_family)
+          if (!resolved) return {}
+          let fontStyle = (resolved.fontStyle ?? 'normal') as CSSProperties['fontStyle']
+          if (fs.font_style === 'italic' && !resolved.fontStyle) fontStyle = 'italic'
+          if (fs.font_style === 'normal') fontStyle = 'normal'
+          return {
+            fontFamily: resolved.fontFamily,
+            fontStyle,
+          }
+        })()
       : {}),
     ...(fs.text_align === 'left' || fs.text_align === 'center' || fs.text_align === 'right'
       ? { textAlign: fs.text_align as CSSProperties['textAlign'] }
@@ -246,7 +284,16 @@ export function buildFieldStylesCss(
         textRules.push(`text-transform: ${fs.text_transform} !important`)
       }
       if (typeof fs.font_family === 'string' && fs.font_family.trim()) {
-        textRules.push(`font-family: ${JSON.stringify(fs.font_family.trim())} !important`)
+        const resolved = resolveBuilderFont(fs.font_family)
+        if (resolved) {
+          textRules.push(`font-family: ${resolved.fontFamily} !important`)
+          let style = resolved.fontStyle ?? 'normal'
+          if (fs.font_style === 'italic' && !resolved.fontStyle) style = 'italic'
+          if (fs.font_style === 'normal') style = 'normal'
+          textRules.push(`font-style: ${style} !important`)
+        }
+      } else if (fs.font_style === 'italic') {
+        textRules.push('font-style: italic !important')
       }
       if (fs.text_align === 'left' || fs.text_align === 'center' || fs.text_align === 'right') {
         textRules.push(`text-align: ${fs.text_align} !important`)

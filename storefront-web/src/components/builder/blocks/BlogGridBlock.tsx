@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import { Calendar } from 'lucide-react'
 import type { PublicSite, StyleConfig } from '@/blocks/registry'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
 interface Props {
   site: PublicSite
   style: StyleConfig
   props: Record<string, unknown>
   branchCode?: string | null
+  blockId?: string
 }
 
 /**
@@ -18,7 +20,7 @@ interface Props {
  * Falls back gracefully when there are no blog pages: renders a single
  * "no posts yet" tile so admins immediately see something is wired up.
  */
-export default function BlogGridBlock({ site, style, props }: Props) {
+export default function BlogGridBlock({ site, style, props, blockId }: Props) {
   const title = (props.title as string) || 'Latest Posts'
   const cols = Math.min(Math.max(Number(props.columns ?? 3) || 3, 1), 4)
 
@@ -38,9 +40,15 @@ export default function BlogGridBlock({ site, style, props }: Props) {
   if (posts.length === 0) {
     return (
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto text-center" aria-label={title}>
-        <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ fontFamily: style.font_heading, color: style.text_color }}>
-          {title}
-        </h2>
+        <BuilderTextField
+          fieldKey="title"
+          blockId={blockId}
+          blockProps={props}
+          value={title}
+          as="h2"
+          className="text-2xl sm:text-3xl font-bold mb-2"
+          style={{ fontFamily: style.font_heading, color: style.text_color }}
+        />
         <p className="text-sm text-gray-500 max-w-md mx-auto">
           Once you mark a page as <strong>page type "blog"</strong> in the editor, it will show up here.
         </p>
@@ -57,12 +65,15 @@ export default function BlogGridBlock({ site, style, props }: Props) {
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto" aria-label={title}>
-      <h2
+      <BuilderTextField
+        fieldKey="title"
+        blockId={blockId}
+        blockProps={props}
+        value={title}
+        as="h2"
         className="text-2xl sm:text-3xl font-bold mb-8 text-center"
         style={{ fontFamily: style.font_heading, color: style.text_color }}
-      >
-        {title}
-      </h2>
+      />
 
       <div className={`grid grid-cols-1 ${colClass[cols] || colClass[3]} gap-6`}>
         {posts.map(p => (

@@ -7,6 +7,7 @@ import { useState, useRef } from 'react'
 import { Mail, Phone, MapPin, Send, Loader2, ChevronRight, ChevronLeft, Upload } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
+import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
 interface FormField {
   name: string
@@ -25,9 +26,10 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
-export default function ContactFormBlock({ site, style, props, liveItems }: Props) {
+export default function ContactFormBlock({ site, style, props, liveItems, blockId }: Props) {
   const title = (props.title as string) || 'Get In Touch'
   const showGdpr = props.show_gdpr !== false
   const isMultiStep = props.multi_step === true
@@ -96,7 +98,7 @@ export default function ContactFormBlock({ site, style, props, liveItems }: Prop
       <div className="grid lg:grid-cols-2 gap-12 items-start">
         {/* Contact info */}
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">{title}</h2>
+          <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-4" />
           <div className="space-y-4 mt-8">
             {emailAddr && (
               <div className="flex items-center gap-3 text-gray-600">

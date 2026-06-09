@@ -19,7 +19,10 @@ import { DEFAULT_STYLE } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
 import { useLiveDataFetch } from '@/contexts/LiveDataFetchContext'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import SectionShapeDivider from './SectionShapeDivider'
+import { BlockOverlayLayers } from './BlockOverlayLayers'
+import { overlayMinContainerHeight, type BlockOverlayItem } from '@/lib/blockOverlays'
 import { buildBlockColorStyleCss, type BlockColorProps, type ThemeColors } from '@/lib/blockColorOverrides'
 import { blockShadowIsActive, resolveBlockBoxShadow } from '@/lib/blockSectionStyle'
 import { buildFieldStylesCss, sectionTransformStyle } from '@/lib/fieldTextStyles'
@@ -229,6 +232,8 @@ export function SingleBlock({
 }: Omit<BlockProps, 'liveData'> & { pageBlocks?: PublicBlock[] }) {
   const { storePath } = useVendor()
   const customFetch = useLiveDataFetch()
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas ?? false
   const liveItems = useLiveData(block, site, (block.props.show_count as number | undefined) || 12)
   const p = block.props as Record<string, unknown>
 
@@ -239,7 +244,7 @@ export function SingleBlock({
     liveItems: liveItems ?? [],
     branchCode,
     blockId: block.id,
-    isEditorCanvas: !!customFetch,
+    isEditorCanvas,
     pageBlocks: pageBlocks?.map(b => ({ block_type: b.block_type, props: b.props as Record<string, unknown> })),
   }
 
@@ -380,6 +385,14 @@ export function SingleBlock({
   const paddingBottom = sectionStyles.paddingBottom
   const blockShadow = resolveBlockBoxShadow(p)
   const hasBlockShadow = blockShadowIsActive(p)
+  const overlays = (Array.isArray(p.overlays) ? p.overlays : []) as BlockOverlayItem[]
+  const overlayMinH = overlayMinContainerHeight(overlays)
+  const minHeightRaw = p.min_height as number | undefined
+  const minHeightPx =
+    typeof minHeightRaw === 'number' && Number.isFinite(minHeightRaw) && minHeightRaw > 0
+      ? Math.round(minHeightRaw)
+      : 0
+  const sectionMinHeight = Math.max(minHeightPx, overlayMinH)
 
   const wrapperStyle: CSSProperties = {}
   if (block.animation_delay) wrapperStyle.animationDelay = `${block.animation_delay}ms`
@@ -389,6 +402,7 @@ export function SingleBlock({
   if (sectionStyles.backgroundColor) wrapperStyle.backgroundColor = sectionStyles.backgroundColor
   if (sectionStyles.color) wrapperStyle.color = sectionStyles.color
   if (hasShape) wrapperStyle.position = 'relative'
+  if (sectionMinHeight > 0) wrapperStyle.minHeight = `${sectionMinHeight}px`
   if (blockShadow) wrapperStyle.boxShadow = blockShadow
   Object.assign(wrapperStyle, sectionTransformStyle(p))
 
@@ -454,7 +468,8 @@ export function SingleBlock({
           [data-sf-bid="${sfBid}"] h4,
           [data-sf-bid="${sfBid}"] p,
           [data-sf-bid="${sfBid}"] li,
-          [data-sf-bid="${sfBid}"] blockquote {
+          [data-sf-bid="${sfBid}"] blockquote,
+          [data-sf-bid="${sfBid}"] [data-text-key] {
             ${fontSizePx ? `font-size: ${fontSizePx}px !important;` : ''}
             ${textScaleEm ? `font-size: ${textScaleEm}em !important;` : ''}
           }
@@ -463,6 +478,7 @@ export function SingleBlock({
         `}</style>
       )}
       {inner}
+      {overlays.length > 0 && !isEditorCanvas ? <BlockOverlayLayers overlays={overlays} /> : null}
       {bottomShape && bottomShape !== 'none' && (
         <SectionShapeDivider shape={bottomShape} fillColor={shapeColor} position="bottom" />
       )}
