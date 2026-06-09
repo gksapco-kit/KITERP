@@ -41,7 +41,23 @@ def upgrade() -> None:
             sa.Column("is_2fa_enabled", sa.Boolean(), server_default="false", nullable=False),
         )
 
-    # rental_asset may already exist from an earlier schema — only add booking/dispute tables.
+    if not insp.has_table("rental_asset"):
+        op.create_table(
+            "rental_asset",
+            sa.Column("id", UUID(as_uuid=True), primary_key=True),
+            sa.Column("vendor_id", UUID(as_uuid=True), sa.ForeignKey("vendor.id"), nullable=False),
+            sa.Column("name", sa.String(255), nullable=False),
+            sa.Column("sku", sa.String(100), nullable=True),
+            sa.Column("product_id", UUID(as_uuid=True), sa.ForeignKey("product.id"), nullable=True),
+            sa.Column("daily_rate", sa.Numeric(12, 2), server_default="0"),
+            sa.Column("deposit_amount", sa.Numeric(12, 2), server_default="0"),
+            sa.Column("status", sa.String(20), server_default="available"),
+            sa.Column("notes", sa.Text(), nullable=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        )
+        op.create_index("ix_rental_asset_vendor_id", "rental_asset", ["vendor_id"])
+
     if not insp.has_table("rental_booking"):
         op.create_table(
             "rental_booking",
@@ -94,6 +110,9 @@ def downgrade() -> None:
     if insp.has_table("rental_booking"):
         op.drop_index("ix_rental_booking_vendor", table_name="rental_booking")
         op.drop_table("rental_booking")
+    if insp.has_table("rental_asset"):
+        op.drop_index("ix_rental_asset_vendor_id", table_name="rental_asset")
+        op.drop_table("rental_asset")
     if _has_column(insp, "user", "is_2fa_enabled"):
         op.drop_column("user", "is_2fa_enabled")
     if _has_column(insp, "user", "totp_secret"):
