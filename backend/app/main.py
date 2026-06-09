@@ -18,6 +18,7 @@ from app.database import (
     close_redis,
     ensure_fiscal_year_schema,
     ensure_vendor_order_acceptance_columns,
+    ensure_vendor_external_domain_columns,
     ensure_product_uom_column,
     ensure_variant_pricing_columns,
     ensure_merchandising_tables,
@@ -57,6 +58,7 @@ CORS_ORIGINS = [
 async def lifespan(app: FastAPI):
     await ensure_fiscal_year_schema()
     await ensure_vendor_order_acceptance_columns()
+    await ensure_vendor_external_domain_columns()
     await ensure_product_uom_column()
     await ensure_variant_pricing_columns()
     await ensure_merchandising_tables()

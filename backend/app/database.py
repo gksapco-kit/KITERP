@@ -68,6 +68,36 @@ async def ensure_vendor_order_acceptance_columns() -> None:
         )
 
 
+async def ensure_vendor_external_domain_columns() -> None:
+    """
+    Ensure vendor.external_domain_* columns exist (ORM + dom001 migration).
+
+    Idempotent: safe when Alembic dom001_ext_domain was skipped (parallel branch from vf001).
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_enabled BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_scope VARCHAR(20) DEFAULT 'all'",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_name VARCHAR(255)",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_registrar VARCHAR(60)",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_reg_email VARCHAR(255)",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_holder VARCHAR(255)",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_expiry DATE",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_access_status VARCHAR(30) DEFAULT 'not_requested'",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_recovery_contact VARCHAR(255)",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_notes TEXT",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_access_requested_at TIMESTAMPTZ",
+        "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS external_domain_access_granted_at TIMESTAMPTZ",
+        "UPDATE vendor SET external_domain_enabled = FALSE WHERE external_domain_enabled IS NULL",
+        "UPDATE vendor SET external_domain_scope = 'all' WHERE external_domain_scope IS NULL",
+        "UPDATE vendor SET external_domain_access_status = 'not_requested' WHERE external_domain_access_status IS NULL",
+    ]
+    async with engine.begin() as conn:
+        for stmt in stmts:
+            await conn.execute(text(stmt))
+
+
 async def ensure_user_contact_not_globally_unique() -> None:
     """
     Drop global UNIQUE on user.email / user.phone so the same email or phone can
