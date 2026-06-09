@@ -88,7 +88,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$|https?://.*\.kiterp\.com",
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$|https?://.*\.kiterp\.com|https?://\d{1,3}(\.\d{1,3}){3}(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -211,7 +211,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    from app.services.email_service import sendgrid_api_key
+
+    sg_key = sendgrid_api_key()
+    smtp_host = (settings.SMTP_HOST or "").strip()
+    email_otp_ready = bool(sg_key) or bool(smtp_host and (settings.SMTP_PASSWORD or "").strip())
+    return {
+        "status": "healthy",
+        "email_otp_configured": email_otp_ready,
+    }
 
 
 @app.get("/")

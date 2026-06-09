@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { checkBackendReachable, getBackendHealthUrl } from '@/lib/apiHealth'
+import { resolveApiBaseUrl } from '@/lib/apiBase'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
 import { extractApiError, parseAmbiguousVendorLogin, parseRequires2fa, type AmbiguousVendorOption } from '@/lib/errorMessages'
 import type { AxiosError } from 'axios'
@@ -44,6 +45,20 @@ const schema = z.object({
 type LoginForm = z.infer<typeof schema>
 
 const SAVED_LOGIN_KEY = 'kiterp_vendor_saved_login'
+
+function getUnreachableApiMessage(): string {
+  if (import.meta.env.DEV) {
+    return 'Cannot sign in — the API on port 8000 is not reachable. Start Docker Desktop, then run: docker compose up -d postgres redis backend'
+  }
+  const healthUrl = getBackendHealthUrl()
+  return `Cannot sign in — the API is not reachable. Open ${healthUrl} (expect {"status":"healthy"}), then on the server run: docker compose -f docker-compose.prod.yml --env-file .env.config logs backend`
+}
+
+function isLocalDevHost(): boolean {
+  if (typeof window === 'undefined') return import.meta.env.DEV
+  const h = window.location.hostname
+  return h === 'localhost' || h === '127.0.0.1' || h === '[::1]'
+}
 
 function readSavedLogin(): string {
   if (typeof window === 'undefined') return ''
@@ -116,9 +131,7 @@ export default function Login() {
         status === 503 ||
         ax.code === 'ERR_NETWORK'
       if (backendUnreachable) {
-        toast.error(
-          'Cannot sign in — the API on port 8000 is not reachable. Start Docker Desktop, then run: docker compose up -d postgres redis backend (or .\\start-dev.ps1).',
-        )
+        toast.error(getUnreachableApiMessage())
         return
       }
       toast.error(extractApiError(err, 'Login failed — check your email/phone and password'))
@@ -192,22 +205,41 @@ export default function Login() {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-red-900 dark:text-red-100">API server is not reachable</p>
                 <p className="text-red-800/90 dark:text-red-200/90 text-xs mt-1">
-                  The vendor app cannot talk to the backend. Start the API (port <strong>8000</strong>), then
-                  use <em>Retry check</em> or refresh the page.
+                  {isLocalDevHost()
+                    ? <>The vendor app cannot talk to the backend. Start the API (port <strong>8000</strong>), then use <em>Retry check</em> or refresh the page.</>
+                    : <>The vendor app cannot reach the API through this site. Confirm the backend container is running, then use <em>Retry check</em>.</>}
                 </p>
+                {isLocalDevHost() ? (
                 <ol className="list-decimal pl-4 mt-2 space-y-0.5 text-xs text-red-800/90 dark:text-red-200/90">
                   <li>
                     From the repo root, run:{' '}
                     <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">docker compose up -d postgres redis backend</code>
                   </li>
                   <li>
-                    Or run <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">.\start-dev.ps1</code> to start backend + this UI.
+                    In separate terminals, run <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">npm run dev</code> in{' '}
+                    <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">vendor-web</code> (and other apps as needed).
                   </li>
                   <li>
-                    Open <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">http://localhost:8000/health</code> — you should
+                    Open <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">http://127.0.0.1:8000/health</code> — you should
                     see <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">{`{"status":"healthy"}`}</code>.
                   </li>
                 </ol>
+                ) : (
+                <ol className="list-decimal pl-4 mt-2 space-y-0.5 text-xs text-red-800/90 dark:text-red-200/90">
+                  <li>
+                    On the server:{' '}
+                    <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">docker compose -f docker-compose.prod.yml --env-file .env.config ps</code>
+                  </li>
+                  <li>
+                    Check backend logs:{' '}
+                    <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">docker compose -f docker-compose.prod.yml logs backend</code>
+                  </li>
+                  <li>
+                    API base used by this page:{' '}
+                    <code className="bg-red-100/80 dark:bg-red-950/80 px-1 rounded text-foreground">{resolveApiBaseUrl()}</code>
+                  </li>
+                </ol>
+                )}
                 <p className="text-xs text-red-700/80 dark:text-red-300/80 mt-1.5 break-all">
                   Health check URL used: {getBackendHealthUrl()}
                 </p>

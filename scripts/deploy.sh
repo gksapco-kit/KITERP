@@ -16,7 +16,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_FILE="docker-compose.prod.yml"
-COMPOSE="docker compose -f $COMPOSE_FILE"
 LOG_FILE="$PROJECT_DIR/deploy.log"
 
 RED='\033[0;31m'
@@ -32,8 +31,24 @@ cd "$PROJECT_DIR"
 echo "" >> "$LOG_FILE"
 log "=== Deploy started at $(date -u '+%Y-%m-%d %H:%M:%S UTC') ==="
 
-if [ ! -f .env ]; then
-    fail ".env file not found. Copy .env.example to .env and fill in values."
+# Prefer .env.config (production); fall back to .env for older setups.
+ENV_FILE=""
+if [ -f .env.config ]; then
+    ENV_FILE=".env.config"
+elif [ -f .env ]; then
+    ENV_FILE=".env"
+else
+    fail "No env file found. Copy .env.config.example to .env.config on this server and fill in values (including SENDGRID_API_KEY)."
+fi
+COMPOSE="docker compose --env-file $ENV_FILE -f $COMPOSE_FILE"
+log "Using env file: $ENV_FILE"
+
+# Warn if email OTP cannot send (common cause of "no OTP on prod").
+if ! grep -qE '^SENDGRID_API_KEY=SG\.' "$ENV_FILE" 2>/dev/null; then
+    if ! grep -qE '^SMTP_PASSWORD=SG\.' "$ENV_FILE" 2>/dev/null; then
+        warn "SENDGRID_API_KEY (or SMTP_PASSWORD=SG...) missing in $ENV_FILE — vendor signup email OTP will NOT send."
+        warn "Copy SENDGRID_API_KEY from your dev machine's backend/.env into $ENV_FILE on this server."
+    fi
 fi
 
 SKIP_MIGRATE=false

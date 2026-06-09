@@ -6,15 +6,32 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
  * embedded browsers, IPv6/localhost quirks, or env files copied from examples pointing at localhost:8000.
  * For dev against a remote API, set `vite.config.ts` `server.proxy['/api'].target` instead.
  */
+function isLoopbackHostname(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+}
+
 function resolveApiBaseUrl(): string {
   if (import.meta.env.DEV) {
     return '/api/v1'
   }
+  const fallback = '/api/v1'
   const fromEnv = import.meta.env.VITE_API_URL
-  if (typeof fromEnv === 'string' && fromEnv.trim()) {
-    return fromEnv.trim().replace(/\/$/, '')
+  const candidate =
+    typeof fromEnv === 'string' && fromEnv.trim()
+      ? fromEnv.trim().replace(/\/$/, '')
+      : fallback
+
+  if (typeof window === 'undefined') return candidate
+
+  if (isLoopbackHostname(window.location.hostname)) return candidate
+  if (candidate.startsWith('/')) return candidate
+
+  try {
+    if (isLoopbackHostname(new URL(candidate).hostname)) return fallback
+  } catch {
+    return fallback
   }
-  return 'http://127.0.0.1:8000/api/v1'
+  return candidate
 }
 
 export const API_URL = resolveApiBaseUrl()

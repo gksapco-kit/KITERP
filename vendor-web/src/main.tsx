@@ -9,7 +9,7 @@ import { ThemeSync } from './components/ThemeSync'
 import { RootErrorBoundary } from './components/RootErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
-import { normalizeLoopbackInUrl } from './lib/loopbackHost'
+import { resolveApiBaseUrl } from './lib/apiBase'
 import { DRAFT_BROWSER_PREVIEW_PATH } from './lib/storefrontPreviewUrl'
 import './styles/globals.css'
 
@@ -70,7 +70,7 @@ async function preflight() {
   if (isDraftPreviewPath(window.location.pathname)) return
   const token = localStorage.getItem('access_token')
   if (!token) return
-  const API = normalizeLoopbackInUrl(import.meta.env.VITE_API_URL || '/api/v1')
+  const API = resolveApiBaseUrl()
   const ac = new AbortController()
   const t = window.setTimeout(() => ac.abort(), 5000)
   try {
