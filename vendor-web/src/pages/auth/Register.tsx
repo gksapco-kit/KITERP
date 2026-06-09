@@ -176,6 +176,9 @@ export default function Register() {
   const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null)
   const [modalOtp, setModalOtp] = useState('')
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null)
+  const [otpSendError, setOtpSendError] = useState<string | null>(null)
+  const [otpVerifyError, setOtpVerifyError] = useState<string | null>(null)
+  const [formBannerError, setFormBannerError] = useState<string | null>(null)
   const [checkingContact, setCheckingContact] = useState(false)
 
   const closeOtpModal = useCallback(() => {
@@ -183,6 +186,8 @@ export default function Register() {
     setPendingSignup(null)
     setModalOtp('')
     setOtpSentTo(null)
+    setOtpSendError(null)
+    setOtpVerifyError(null)
     otpAutoSentRef.current = false
   }, [])
 
@@ -240,23 +245,29 @@ export default function Register() {
       return authApi.vendorSignupSendEmailOtp(target.trim())
     },
     onSuccess: (res, { channel, target }) => {
+      setOtpSendError(null)
       const normalizedTarget = target.trim().toLowerCase()
       setOtpSentTo(
         channel === 'email'
           ? normalizedTarget
           : res.to || maskPhoneTail(target),
       )
-      toast.success(
-        `Verification code sent to ${channel === 'email' ? normalizedTarget : res.to || target}`,
-      )
+      if (res.dev_hint) {
+        setModalOtp(res.dev_hint)
+        toast.message(`Dev mode: your code is ${res.dev_hint}`, { duration: 12_000 })
+      } else {
+        toast.success(
+          `Verification code sent to ${channel === 'email' ? normalizedTarget : res.to || target}`,
+        )
+      }
     },
     onError: (err: unknown) => {
       otpAutoSentRef.current = false
-      closeOtpModal()
       const msg =
         typeof (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail === 'string'
           ? (err as { response: { data: { detail: string } } }).response.data.detail
           : 'Could not send verification code'
+      setOtpSendError(msg)
       toast.error(msg)
     },
   })
@@ -284,6 +295,7 @@ export default function Register() {
   if (isAuthenticated) return <Navigate to="/" replace />
 
   const onSubmit = async (data: SignupForm) => {
+    setFormBannerError(null)
     const emailTrim = data.email.trim()
     const phoneTrim = data.phone.trim()
     const digits = phoneTrim.replace(/\D/g, '')
@@ -322,21 +334,10 @@ export default function Register() {
       setCheckingContact(false)
     }
 
-    if (phoneOk) {
-      setOtpChannel('phone')
-      setPendingSignup({
-        full_name: data.full_name,
-        business_name: data.business_name,
-        business_category: data.business_category,
-        email: emailOk ? emailTrim : undefined,
-        phone: phoneTrim,
-        password: data.password,
-      })
-      setOtpModalOpen(true)
-      return
-    }
-
+    // Prefer email OTP when both are valid (SendGrid); phone SMS needs Twilio.
     if (emailOk) {
+      setOtpSendError(null)
+      setOtpVerifyError(null)
       setOtpChannel('email')
       setPendingSignup({
         full_name: data.full_name,
@@ -349,24 +350,55 @@ export default function Register() {
       setOtpModalOpen(true)
       return
     }
+
+    if (phoneOk) {
+      setOtpSendError(null)
+      setOtpVerifyError(null)
+      setOtpChannel('phone')
+      setPendingSignup({
+        full_name: data.full_name,
+        business_name: data.business_name,
+        business_category: data.business_category,
+        email: undefined,
+        phone: phoneTrim,
+        password: data.password,
+      })
+      setOtpModalOpen(true)
+      return
+    }
   }
 
   const submitSignupWithOtp = () => {
     const otp = modalOtp.replace(/\D/g, '').slice(0, 6)
     if (!pendingSignup || otp.length !== 6) {
+      setOtpVerifyError('Enter the 6-digit code from your email or SMS')
       toast.error('Enter the 6-digit code')
       return
     }
-    signupMut.mutate({
-      full_name: pendingSignup.full_name,
-      business_name: pendingSignup.business_name,
-      business_category: pendingSignup.business_category,
-      email: pendingSignup.email,
-      phone: pendingSignup.phone,
-      phone_otp: otpChannel === 'phone' ? otp : undefined,
-      email_otp: otpChannel === 'email' ? otp : undefined,
-      password: pendingSignup.password,
-    })
+    setOtpVerifyError(null)
+    signupMut.mutate(
+      {
+        full_name: pendingSignup.full_name,
+        business_name: pendingSignup.business_name,
+        business_category: pendingSignup.business_category,
+        email: pendingSignup.email,
+        phone: pendingSignup.phone,
+        phone_otp: otpChannel === 'phone' ? otp : undefined,
+        email_otp: otpChannel === 'email' ? otp : undefined,
+        password: pendingSignup.password,
+      },
+      {
+        onError: (err: unknown) => {
+          const raw = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+          const msg =
+            typeof raw === 'string'
+              ? raw
+              : 'Sign up failed — check your details or try another email/phone'
+          setOtpVerifyError(msg)
+          if (!otpModalOpen) setFormBannerError(msg)
+        },
+      },
+    )
   }
 
   const fieldLabel = 'mb-0.5 block text-xs font-medium text-slate-700'
@@ -381,6 +413,12 @@ export default function Register() {
                   <h2 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Create your business</h2>
                   <p className="mt-0.5 text-xs text-slate-500">Fill in the details below to get started.</p>
                 </div>
+
+                {formBannerError ? (
+                  <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {formBannerError}
+                  </div>
+                ) : null}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
                   <div className={fieldRow}>
@@ -414,7 +452,7 @@ export default function Register() {
                   </div>
 
                   <p className="text-[11px] leading-snug text-slate-500">
-                    Email or phone required. Phone signups use OTP after submit.
+                    Email or phone required. We send a 6-digit code to your email (or SMS if email is omitted).
                   </p>
 
                   <div className={fieldRow}>
@@ -567,6 +605,16 @@ export default function Register() {
               </div>
             </div>
 
+            {otpSendError ? (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-left text-sm text-red-700">
+                <p>{otpSendError}</p>
+                <p className="mt-1.5 text-xs text-red-600/90">
+                  On production, set <code className="rounded bg-red-100 px-1">SENDGRID_API_KEY</code> in{' '}
+                  <code className="rounded bg-red-100 px-1">.env.config</code> on the server and redeploy the backend.
+                </p>
+              </div>
+            ) : null}
+
             {sendOtpMut.isPending ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-600">
                 <Loader2 className="w-5 h-5 animate-spin" style={{ color: SIGNUP_BRAND }} />
@@ -574,6 +622,11 @@ export default function Register() {
               </div>
             ) : (
               <>
+                {otpVerifyError ? (
+                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {otpVerifyError}
+                  </div>
+                ) : null}
                 <Input
                   inputMode="numeric"
                   autoComplete="one-time-code"
@@ -615,7 +668,12 @@ export default function Register() {
                     disabled={sendOtpMut.isPending}
                     onClick={() => {
                       const target = otpChannel === 'phone' ? pendingSignup?.phone : pendingSignup?.email
-                      if (target) sendOtpMut.mutate({ channel: otpChannel, target })
+                      if (target) {
+                        setOtpSendError(null)
+                        setOtpVerifyError(null)
+                        otpAutoSentRef.current = false
+                        sendOtpMut.mutate({ channel: otpChannel, target })
+                      }
                     }}
                   >
                     Resend code

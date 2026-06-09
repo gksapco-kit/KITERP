@@ -8,6 +8,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
+import json
 import secrets
 import logging
 import re
@@ -49,6 +50,77 @@ _email_verification_codes: dict[str, dict] = {}
 # Pre-signup phone OTP (digits-only key → { code, expires_at }); cleared after successful vendor-signup.
 _vendor_signup_phone_otp: dict[str, dict] = {}
 _vendor_signup_email_otp: dict[str, dict] = {}
+
+_VENDOR_SIGNUP_PHONE_OTP_PREFIX = "kiterp:vendor_signup:phone:"
+_VENDOR_SIGNUP_EMAIL_OTP_PREFIX = "kiterp:vendor_signup:email:"
+_VENDOR_SIGNUP_OTP_TTL_SEC = 600
+
+
+def _serialize_vendor_signup_otp_entry(entry: dict) -> str:
+    payload = dict(entry)
+    exp = payload.get("expires_at")
+    if isinstance(exp, datetime):
+        payload["expires_at"] = exp.isoformat()
+    return json.dumps(payload)
+
+
+def _deserialize_vendor_signup_otp_entry(raw: str) -> dict:
+    data = json.loads(raw)
+    exp = data.get("expires_at")
+    if isinstance(exp, str):
+        data["expires_at"] = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+    return data
+
+
+async def _vendor_signup_otp_set(channel: str, key: str, entry: dict) -> None:
+    """Store pre-signup OTP in Redis (prod multi-worker) and in-process fallback."""
+    from app.database import redis_client
+
+    prefix = _VENDOR_SIGNUP_PHONE_OTP_PREFIX if channel == "phone" else _VENDOR_SIGNUP_EMAIL_OTP_PREFIX
+    if redis_client:
+        try:
+            await redis_client.setex(
+                f"{prefix}{key}",
+                _VENDOR_SIGNUP_OTP_TTL_SEC,
+                _serialize_vendor_signup_otp_entry(entry),
+            )
+        except Exception as e:
+            logger.warning("Redis vendor-signup OTP set failed (%s): %s", channel, e)
+    if channel == "phone":
+        _vendor_signup_phone_otp[key] = entry
+    else:
+        _vendor_signup_email_otp[key] = entry
+
+
+async def _vendor_signup_otp_get(channel: str, key: str) -> dict | None:
+    from app.database import redis_client
+
+    prefix = _VENDOR_SIGNUP_PHONE_OTP_PREFIX if channel == "phone" else _VENDOR_SIGNUP_EMAIL_OTP_PREFIX
+    if redis_client:
+        try:
+            raw = await redis_client.get(f"{prefix}{key}")
+            if raw:
+                return _deserialize_vendor_signup_otp_entry(raw)
+        except Exception as e:
+            logger.warning("Redis vendor-signup OTP get failed (%s): %s", channel, e)
+    if channel == "phone":
+        return _vendor_signup_phone_otp.get(key)
+    return _vendor_signup_email_otp.get(key)
+
+
+async def _vendor_signup_otp_pop(channel: str, key: str) -> None:
+    from app.database import redis_client
+
+    prefix = _VENDOR_SIGNUP_PHONE_OTP_PREFIX if channel == "phone" else _VENDOR_SIGNUP_EMAIL_OTP_PREFIX
+    if redis_client:
+        try:
+            await redis_client.delete(f"{prefix}{key}")
+        except Exception as e:
+            logger.warning("Redis vendor-signup OTP delete failed (%s): %s", channel, e)
+    if channel == "phone":
+        _vendor_signup_phone_otp.pop(key, None)
+    else:
+        _vendor_signup_email_otp.pop(key, None)
 
 
 class RefreshTokenRequest(BaseModel):
@@ -1089,9 +1161,9 @@ async def vendor_signup_send_phone_otp(body: VendorSignupPhoneOtpSend, db: Async
         ),
     )
     if otp_result.via_verify:
-        _vendor_signup_phone_otp[key] = {"verify": True, "expires_at": expires}
+        await _vendor_signup_otp_set("phone", key, {"verify": True, "expires_at": expires})
     else:
-        _vendor_signup_phone_otp[key] = {"code": code, "expires_at": expires}
+        await _vendor_signup_otp_set("phone", key, {"code": code, "expires_at": expires})
     return {
         "sent": True,
         "channel": "phone",
@@ -1125,9 +1197,9 @@ async def vendor_signup_send_email_otp(body: VendorSignupEmailOtpSend, db: Async
         ),
     )
     if otp_result.via_verify and otp_result.sent:
-        _vendor_signup_email_otp[email] = {"verify": True, "expires_at": expires}
+        await _vendor_signup_otp_set("email", email, {"verify": True, "expires_at": expires})
     else:
-        _vendor_signup_email_otp[email] = {"code": code, "expires_at": expires}
+        await _vendor_signup_otp_set("email", email, {"code": code, "expires_at": expires})
     return {
         "sent": True,
         "channel": "email",
@@ -1159,12 +1231,12 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
                 detail="Enter the 6-digit OTP sent to your phone",
             )
         key = _vendor_signup_phone_key(phone)
-        entry = _vendor_signup_phone_otp.get(key)
+        entry = await _vendor_signup_otp_get("phone", key)
         if not entry:
             raise HTTPException(status_code=400, detail="Invalid or expired phone OTP")
         exp = entry.get("expires_at")
         if exp and exp < datetime.now(timezone.utc):
-            _vendor_signup_phone_otp.pop(key, None)
+            await _vendor_signup_otp_pop("phone", key)
             raise HTTPException(status_code=400, detail="Phone OTP has expired — request a new code")
         if entry.get("verify"):
             from app.services.phone_otp_service import PhoneOtpService
@@ -1174,7 +1246,7 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
                 raise HTTPException(status_code=400, detail="Invalid or expired phone OTP")
         elif entry.get("code") != otp:
             raise HTTPException(status_code=400, detail="Invalid or expired phone OTP")
-        _vendor_signup_phone_otp.pop(key, None)
+        await _vendor_signup_otp_pop("phone", key)
 
     if email and not phone:
         otp = (data.email_otp or "").strip()
@@ -1184,12 +1256,12 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
                 detail="Enter the 6-digit OTP sent to your email",
             )
         email_key = email.lower()
-        entry = _vendor_signup_email_otp.get(email_key)
+        entry = await _vendor_signup_otp_get("email", email_key)
         if not entry:
             raise HTTPException(status_code=400, detail="Invalid or expired email OTP")
         exp = entry.get("expires_at")
         if exp and exp < datetime.now(timezone.utc):
-            _vendor_signup_email_otp.pop(email_key, None)
+            await _vendor_signup_otp_pop("email", email_key)
             raise HTTPException(status_code=400, detail="Email OTP has expired — request a new code")
         if entry.get("verify"):
             from app.services.phone_otp_service import OtpService
@@ -1199,7 +1271,7 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
                 raise HTTPException(status_code=400, detail="Invalid or expired email OTP")
         elif entry.get("code") != otp:
             raise HTTPException(status_code=400, detail="Invalid or expired email OTP")
-        _vendor_signup_email_otp.pop(email_key, None)
+        await _vendor_signup_otp_pop("email", email_key)
 
     auth_service = AuthService(db)
 
