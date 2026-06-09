@@ -323,7 +323,7 @@ export default function Register() {
             : 'This email or phone is already registered'
       if (msg === 'Email already registered') {
         msg =
-          'This email is already registered. No verification code is sent. Use a different email, or ask your admin to delete the test account from Business Accounts.'
+          'This email is already registered. Sign in at /login, use a different email, delete the test account in Admin → Business Accounts, or register at /create-business if you used that flow first.'
       } else if (msg === 'Phone number already registered') {
         msg =
           'This phone number is already registered. No verification code is sent. Use a different number, or ask your admin to remove the old account.'

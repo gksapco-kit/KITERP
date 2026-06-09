@@ -263,17 +263,28 @@ function StepPill({
 export default function SignupWelcome() {
   const navigate = useNavigate()
   const location = useLocation()
-  const state = (location.state || {}) as SignupWelcomeState
+  const routeState = (location.state || {}) as SignupWelcomeState
+  const search = new URLSearchParams(location.search)
+  const state: SignupWelcomeState = {
+    fullName: routeState.fullName || search.get('fullName') || undefined,
+    businessName: routeState.businessName || search.get('businessName') || undefined,
+    businessCategory: routeState.businessCategory || search.get('businessCategory') || undefined,
+    vendorSlug: routeState.vendorSlug || search.get('vendorSlug') || undefined,
+    verificationHint: routeState.verificationHint,
+    launchStepsComplete: routeState.launchStepsComplete,
+    planName: routeState.planName,
+    offeringType: routeState.offeringType,
+  }
   const [showBlast, setShowBlast] = useState(true)
   const [showModal, setShowModal] = useState(false)
 
   const steps = useMemo(() => stepsWithCatalogHref(state.offeringType), [state.offeringType])
 
   useEffect(() => {
-    if (!state?.businessName && !state?.vendorSlug) {
+    if (!state.businessName && !state.vendorSlug) {
       navigate('/', { replace: true })
     }
-  }, [state?.businessName, state?.vendorSlug, navigate])
+  }, [state.businessName, state.vendorSlug, navigate])
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches

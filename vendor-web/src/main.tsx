@@ -50,15 +50,15 @@ function isDraftPreviewPath(pathname: string): boolean {
   const token = params.get('token')
   const refresh = params.get('refresh')
   if (token) {
-    localStorage.setItem('access_token', token)
-    if (refresh) localStorage.setItem('refresh_token', refresh)
-    const stored = localStorage.getItem('vendor-auth-storage')
-    try {
-      const parsed = stored ? JSON.parse(stored) : { state: {} }
-      parsed.state = { ...parsed.state, accessToken: token, refreshToken: refresh || parsed.state?.refreshToken, isAuthenticated: true }
-      localStorage.setItem('vendor-auth-storage', JSON.stringify(parsed))
-    } catch { /* ignore */ }
-    window.history.replaceState({}, '', window.location.pathname)
+    useAuthStore.getState().setTokens({
+      access_token: token,
+      refresh_token: refresh || '',
+      token_type: 'bearer',
+    })
+    params.delete('token')
+    params.delete('refresh')
+    const qs = params.toString()
+    window.history.replaceState({}, '', qs ? `${path}?${qs}` : path)
   }
 })()
 
@@ -82,8 +82,7 @@ async function preflight() {
       useAuthStore.getState().logout()
     }
   } catch {
-    // network error / timeout — clear to be safe (must sync Zustand; localStorage-only breaks /login)
-    useAuthStore.getState().logout()
+    // Network blip — keep tokens (signup handoff from /create-business must not bounce to login)
   } finally {
     clearTimeout(t)
   }

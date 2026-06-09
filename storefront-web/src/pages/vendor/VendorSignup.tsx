@@ -11,7 +11,7 @@ import { VendorSignupShell } from '@/components/auth/VendorSignupShell'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import { Loader2, Rocket, Eye, EyeOff, Check, Smartphone, Mail, X } from 'lucide-react'
 import axios from 'axios'
-import { vendorAppUrl } from '@/lib/appUrls'
+import { buildVendorWelcomeUrl, vendorAppUrl } from '@/lib/appUrls'
 import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
 
 // Same-origin `/api/v1` in dev (Vite proxies to backend); set `VITE_API_URL` if the API is elsewhere.
@@ -355,10 +355,14 @@ export default function VendorSignup() {
           },
         })
       } else {
-        const url = new URL(vendorAppUrl)
-        url.searchParams.set('token', result.access_token)
-        if (result.refresh_token) url.searchParams.set('refresh', result.refresh_token)
-        window.location.href = url.toString()
+        window.location.href = buildVendorWelcomeUrl({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+          vendor_slug: result.vendor_slug,
+          business_name: payload.business_name,
+          full_name: payload.full_name,
+          business_category: payload.business_category,
+        })
       }
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.detail) {
@@ -391,10 +395,17 @@ export default function VendorSignup() {
         phone: phoneOk ? phoneTrim : undefined,
       })
     } catch (err: unknown) {
-      const msg =
+      let msg =
         axios.isAxiosError(err) && typeof err.response?.data?.detail === 'string'
           ? err.response.data.detail
           : 'This email or phone is already registered'
+      if (msg === 'Email already registered') {
+        msg =
+          'This email is already registered. No verification code is sent. Use a different email, or ask your admin to delete the test account from Business Accounts.'
+      } else if (msg === 'Phone number already registered') {
+        msg =
+          'This phone number is already registered. No verification code is sent. Use a different number, or ask your admin to remove the old account.'
+      }
       toast.error(msg)
       return
     } finally {

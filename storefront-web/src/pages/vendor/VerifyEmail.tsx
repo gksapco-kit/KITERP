@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Store, Loader2, ShieldCheck, MailCheck, ArrowRight, CheckCircle2 } from 'lucide-react'
 import axios from 'axios'
-import { vendorAppUrl } from '@/lib/appUrls'
+import { buildVendorWelcomeUrl, vendorAppUrl } from '@/lib/appUrls'
 import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 
 const API_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '')
@@ -85,10 +85,11 @@ export default function VerifyEmail() {
 
   const handleGoToDashboard = () => {
     if (state?.access_token) {
-      const url = new URL(vendorAppUrl)
-      url.searchParams.set('token', state.access_token)
-      if (state.refresh_token) url.searchParams.set('refresh', state.refresh_token)
-      window.location.href = url.toString()
+      window.location.href = buildVendorWelcomeUrl({
+        access_token: state.access_token,
+        refresh_token: state.refresh_token,
+        vendor_slug: state.vendor_slug,
+      })
     } else {
       window.location.href = vendorAppUrl
     }
