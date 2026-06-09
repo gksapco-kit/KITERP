@@ -28,18 +28,28 @@ class AuthService:
         self.repo = UserRepository(db)
         self.vendor_repo = VendorRepository(db)
 
-    async def register(self, data: UserCreate) -> User:
-        if data.email and await self.repo.email_exists(data.email):
+    async def register(self, data: UserCreate, *, commit: bool = True) -> User:
+        from app.services.user_cleanup import (
+            remove_orphan_users_by_email,
+            remove_orphan_users_by_phone,
+        )
+
+        if data.email and await self.repo.email_blocks_vendor_signup(data.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
             )
 
-        if data.phone and await self.repo.phone_exists(data.phone):
+        if data.phone and await self.repo.phone_blocks_vendor_signup(data.phone):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Phone number already registered",
             )
+
+        if data.email:
+            await remove_orphan_users_by_email(self.db, data.email)
+        if data.phone:
+            await remove_orphan_users_by_phone(self.db, data.phone)
 
         email = str(data.email).strip().lower() if data.email else None
         phone = (data.phone or "").strip() or None
@@ -51,8 +61,11 @@ class AuthService:
         )
 
         self.db.add(user)
-        await self.db.commit()
-        await self.db.refresh(user)
+        if commit:
+            await self.db.commit()
+            await self.db.refresh(user)
+        else:
+            await self.db.flush()
         return user
 
     async def login(

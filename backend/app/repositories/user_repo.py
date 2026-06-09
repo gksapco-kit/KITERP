@@ -89,3 +89,26 @@ class UserRepository(BaseRepository[User]):
     async def phone_exists(self, phone: str) -> bool:
         users = await self.list_users_by_phone(phone)
         return len(users) > 0
+
+    async def email_blocks_vendor_signup(self, email: str) -> bool:
+        """True when email cannot be used for new vendor self-signup."""
+        from app.services.user_cleanup import vendor_membership_count
+
+        users = await self.list_users_by_email_ci(email)
+        for user in users:
+            if user.is_superuser or user.platform_staff_role:
+                return True
+            if await vendor_membership_count(self.db, user.id) > 0:
+                return True
+        return False
+
+    async def phone_blocks_vendor_signup(self, phone: str) -> bool:
+        from app.services.user_cleanup import vendor_membership_count
+
+        users = await self.list_users_by_phone(phone)
+        for user in users:
+            if user.is_superuser or user.platform_staff_role:
+                return True
+            if await vendor_membership_count(self.db, user.id) > 0:
+                return True
+        return False

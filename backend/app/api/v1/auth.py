@@ -1125,13 +1125,13 @@ async def vendor_signup_check_contact(body: VendorSignupContactCheck, db: AsyncS
             detail="Provide an email and/or phone to check",
         )
     repo = UserRepository(db)
-    if email and await repo.email_exists(email):
+    if email and await repo.email_blocks_vendor_signup(email):
         raise HTTPException(status_code=400, detail="Email already registered")
     if phone:
         key = _vendor_signup_phone_key(phone)
         if len(key) < 10:
             raise HTTPException(status_code=422, detail="Enter a valid phone number")
-        if await repo.phone_exists(phone):
+        if await repo.phone_blocks_vendor_signup(phone):
             raise HTTPException(status_code=400, detail="Phone number already registered")
     return {"available": True}
 
@@ -1142,7 +1142,7 @@ async def vendor_signup_send_phone_otp(body: VendorSignupPhoneOtpSend, db: Async
     phone = _require_valid_mobile(body.phone or "")
     key = _vendor_signup_phone_key(phone)
     repo = UserRepository(db)
-    if await repo.phone_exists(phone):
+    if await repo.phone_blocks_vendor_signup(phone):
         raise HTTPException(status_code=400, detail="Phone number already registered")
     code = f"{secrets.randbelow(900000) + 100000}"
     expires = datetime.now(timezone.utc) + timedelta(minutes=10)
@@ -1178,7 +1178,7 @@ async def vendor_signup_send_email_otp(body: VendorSignupEmailOtpSend, db: Async
     """Send OTP via email before vendor self-signup when using email as contact."""
     email = _require_valid_email(str(body.email))
     repo = UserRepository(db)
-    if await repo.email_exists(email):
+    if await repo.email_blocks_vendor_signup(email):
         raise HTTPException(status_code=400, detail="Email already registered")
     code = f"{secrets.randbelow(900000) + 100000}"
     expires = datetime.now(timezone.utc) + timedelta(minutes=10)
@@ -1281,7 +1281,7 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
         phone=phone,
         password=data.password,
     )
-    user = await auth_service.register(user_create)
+    user = await auth_service.register(user_create, commit=False)
     if phone:
         user.is_phone_verified = True
         db.add(user)

@@ -18,6 +18,7 @@ from app.schemas.vendor_document import DocumentType
 from app.schemas.bank_account import BankAccountCreate
 from app.repositories.vendor_repo import VendorRepository
 from app.services.file_service import FileService
+from app.services.user_cleanup import delete_user_if_orphan
 from app.core.events import event_emitter
 
 
@@ -396,10 +397,16 @@ class VendorService:
                 ),
             )
 
-        user_ids_result = await self.db.execute(
+        vu_ids_result = await self.db.execute(
             select(VendorUser.user_id).where(VendorUser.vendor_id == vendor_id),
         )
-        linked_user_ids = list({row[0] for row in user_ids_result.all()})
+        owner_ids_result = await self.db.execute(
+            select(VendorOwner.user_id).where(VendorOwner.vendor_id == vendor_id),
+        )
+        linked_user_ids = list(
+            {row[0] for row in vu_ids_result.all()}
+            | {row[0] for row in owner_ids_result.all()},
+        )
         business_name = vendor.business_name
 
         try:
@@ -416,14 +423,20 @@ class VendorService:
             ) from exc
 
         for uid in linked_user_ids:
-            remaining = await self.db.scalar(
-                select(func.count()).select_from(VendorUser).where(VendorUser.user_id == uid),
-            )
-            if remaining:
-                continue
             user = await self.db.get(User, uid)
-            if user and not user.is_superuser and not user.platform_staff_role:
-                await self.db.delete(user)
+            if not user:
+                continue
+            try:
+                await delete_user_if_orphan(self.db, user, force=True)
+            except IntegrityError:
+                await self.db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Business account was removed but the owner login could not be deleted "
+                        "(linked orders or platform data). Contact support to free this email."
+                    ),
+                )
 
         await self.db.commit()
 

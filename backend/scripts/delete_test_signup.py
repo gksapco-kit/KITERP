@@ -25,6 +25,7 @@ from app.database import AsyncSessionLocal
 from app.models.user import User
 from app.models.vendor_user import VendorUser
 from app.repositories.user_repo import UserRepository
+from app.services.user_cleanup import delete_user_if_orphan, remove_orphan_users_by_email, remove_orphan_users_by_phone
 from app.services.vendor_service import VendorService
 
 
@@ -45,6 +46,15 @@ async def run(email: str | None, phone: str | None, dry_run: bool) -> int:
 
         if not users:
             print("No users found for the given email/phone.")
+            if not dry_run:
+                removed = 0
+                if email:
+                    removed += await remove_orphan_users_by_email(db, email)
+                if phone:
+                    removed += await remove_orphan_users_by_phone(db, phone)
+                if removed:
+                    await db.commit()
+                    print(f"Removed {removed} orphan user row(s) with no vendor membership.")
             return 0
 
         admin = await db.scalar(select(User).where(User.is_superuser.is_(True)).limit(1))
@@ -90,10 +100,11 @@ async def run(email: str | None, phone: str | None, dry_run: bool) -> int:
             if dry_run:
                 print(f"  [dry-run] would delete user {user.id}")
             else:
-                await db.delete(user)
-                await db.flush()
-                deleted_users += 1
-                print(f"  Deleted user {user.id}")
+                if await delete_user_if_orphan(db, user, force=True):
+                    deleted_users += 1
+                    print(f"  Deleted user {user.id}")
+                else:
+                    print(f"  Could not delete user {user.id} (still linked or platform account).")
 
         if not dry_run:
             await db.commit()
