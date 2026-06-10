@@ -19,12 +19,6 @@ const SUPPORT_CHAT_URL = import.meta.env.VITE_SUPPORT_CHAT_URL as string | undef
 type Method = 'email' | 'phone'
 type Step = 'request' | 'code'
 
-function maskEmail(e: string) {
-  if (!e.includes('@')) return e
-  const [local, domain] = e.split('@')
-  return `${local[0]}${'*'.repeat(Math.max(1, local.length - 2))}${local.slice(-1)}@${domain}`
-}
-
 // ── Method toggle tab ─────────────────────────────────────────────────────
 function MethodTab({
   active, icon: Icon, label, onClick,
@@ -139,7 +133,7 @@ export default function ForgotPassword() {
         })
         setDevHint(res.data?.dev_hint ?? undefined)
         if (res.data?.dev_hint) setCode(res.data.dev_hint)
-        setMaskedTarget(maskEmail(email.trim().toLowerCase()))
+        setMaskedTarget(email.trim().toLowerCase())
         toast.success('Reset code sent — check your email')
       } else {
         const res = await apiClient.post('/auth/forgot-password-phone', {
@@ -192,9 +186,15 @@ export default function ForgotPassword() {
           <CardTitle className="text-xl">Reset Password</CardTitle>
         </div>
         <p className="text-sm text-gray-500">
-          {step === 'request'
-            ? 'Choose how to receive your 6-digit reset code.'
-            : `Enter the code sent to ${maskedTarget} and set a new password.`}
+          {step === 'request' ? (
+            'Choose how to receive your 6-digit reset code.'
+          ) : (
+            <>
+              Enter the code sent to{' '}
+              <span className="font-semibold text-gray-900">{maskedTarget}</span> and set a new
+              password.
+            </>
+          )}
         </p>
       </CardHeader>
 
@@ -339,7 +339,7 @@ export default function ForgotPassword() {
                 ))}
               </div>
               <p className="text-xs text-gray-400">
-                Sent to {maskedTarget}. Valid for 10 minutes.
+                Valid for 10 minutes.
               </p>
             </div>
 

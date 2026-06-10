@@ -21,11 +21,13 @@ function PasswordField({
   label,
   error,
   registration,
+  placeholder,
 }: {
   id: string
   label: string
   error?: string
   registration: UseFormRegisterReturn
+  placeholder?: string
 }) {
   const [show, setShow] = useState(false)
   return (
@@ -36,6 +38,7 @@ function PasswordField({
           id={id}
           type={show ? 'text' : 'password'}
           autoComplete="new-password"
+          placeholder={placeholder}
           {...registration}
           className="pr-10"
         />
@@ -290,6 +293,7 @@ export default function ForgotPassword() {
         <PasswordField
           id="newPassword"
           label="New password"
+          placeholder="Min. 8 characters"
           registration={verifyForm.register('newPassword')}
           error={verifyForm.formState.errors.newPassword?.message}
         />
@@ -297,6 +301,7 @@ export default function ForgotPassword() {
         <PasswordField
           id="confirmPassword"
           label="Confirm new password"
+          placeholder="Re-enter new password"
           registration={verifyForm.register('confirmPassword')}
           error={verifyForm.formState.errors.confirmPassword?.message}
         />
