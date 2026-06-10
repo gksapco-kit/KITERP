@@ -13,7 +13,7 @@ export function LandingFooter() {
               <span className="text-white font-bold">KITERP</span>
             </div>
             <p className="text-sm leading-relaxed">
-              Multi-vendor commerce, services, HR, and storefront builder — all on one platform.
+              Multi-vendor commerce, services, HR, and storefront builder — all on one KIT ERP platform.
             </p>
           </div>
           <div>

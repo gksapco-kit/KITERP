@@ -87,6 +87,15 @@ export default function Login() {
         )}
       </div>
 
+      <div className="flex justify-end">
+        <Link
+          to="/forgot-password"
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          Forgot password?
+        </Link>
+      </div>
+
       <Button
         type="submit"
         className="w-full"
@@ -107,13 +116,6 @@ export default function Login() {
             : 'Sign-in failed. Check email or phone and password, and that the API is running on port 8000.'}
         </p>
       )}
-
-      <p className="text-center text-sm text-gray-600">
-        Do not have an account?{' '}
-        <Link to="/register" className="font-medium text-primary hover:underline">
-          Sign up
-        </Link>
-      </p>
     </form>
   )
 }

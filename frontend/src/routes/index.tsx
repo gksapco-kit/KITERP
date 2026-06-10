@@ -9,6 +9,7 @@ import StorefrontLayout from '@/layouts/StorefrontLayout'
 // Auth Pages
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
+import ForgotPassword from '@/pages/auth/ForgotPassword'
 
 // Onboarding Pages
 import OnboardingBasic from '@/pages/onboarding/index'
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/login" replace /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
+      { path: 'forgot-password', element: <ForgotPassword /> },
     ],
   },
 

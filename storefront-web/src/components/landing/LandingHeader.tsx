@@ -39,7 +39,7 @@ export function LandingHeader() {
             href={VENDOR_SIGNUP_PATH}
             className="kiterp-btn-primary text-sm px-4 py-2 sm:px-5 sm:py-2.5"
           >
-            Try it free
+            Sign up
           </a>
           <a
             href={adminAppUrl}

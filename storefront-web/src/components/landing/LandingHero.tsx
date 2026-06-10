@@ -31,19 +31,13 @@ export function LandingHero({
   return (
     <section id="stores" className="relative kiterp-curve-bg overflow-hidden pt-10 pb-16 sm:pt-16 sm:pb-24">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center kiterp-reveal">
-        <h1 className="font-kiterp-script text-[2.35rem] sm:text-5xl lg:text-[3.4rem] leading-[1.08] text-[#1e3d34]">
-          Open your store &amp; run your business on{' '}
-          <span className="kiterp-highlight">one platform.</span>
+        <h1 className="font-kiterp-script text-[2rem] sm:text-5xl lg:text-[3.2rem] leading-[1.1] text-[#1e3d34]">
+          Run your business, team, and website on{' '}
+          <span className="kiterp-highlight">one KIT ERP platform.</span>
         </h1>
 
-        <p className="mt-5 font-kiterp-script text-2xl sm:text-3xl text-[#1e3d34]/90">
-          One login, every tool, yet{' '}
-          <span className="kiterp-underline">
-            affordable!
-            <svg viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden>
-              <path d="M2 8 C 50 2, 100 12, 198 4" stroke="#64C3A0" strokeWidth="5" fill="none" strokeLinecap="round" />
-            </svg>
-          </span>
+        <p className="mt-5 font-kiterp-script text-xl sm:text-2xl lg:text-3xl text-[#1e3d34]/90 max-w-3xl mx-auto">
+          One Login, Yet Affordable, Scalable, ROI-Driven, and User-Friendly.
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
@@ -63,7 +57,7 @@ export function LandingHero({
             <path d="M4 32 C 18 8, 30 28, 44 4" className="kiterp-scribble-arrow" />
           </svg>
           <p className="kiterp-hand-note text-[#3d9a7a]">
-            ₹280 / month for ALL apps
+            ₹0.00 / month for ALL apps
           </p>
         </div>
 

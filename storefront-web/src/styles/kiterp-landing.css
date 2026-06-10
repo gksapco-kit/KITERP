@@ -23,7 +23,8 @@
 
 .kiterp-highlight {
   position: relative;
-  display: inline-block;
+  display: inline;
+  white-space: nowrap;
   z-index: 0;
 }
 

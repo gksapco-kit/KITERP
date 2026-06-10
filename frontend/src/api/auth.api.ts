@@ -1,6 +1,18 @@
 import apiClient from './client'
 import type { User, UserCreate, Token } from '@/types/user'
 
+export interface ForgotPasswordResponse {
+  sent: boolean
+  to?: string | null
+  dev_hint?: string | null
+  expires_at?: string | null
+}
+
+export interface ResetPasswordResponse {
+  success: boolean
+  message: string
+}
+
 export const authApi = {
   register: async (data: UserCreate): Promise<User> => {
     const response = await apiClient.post('/auth/register', data)
@@ -28,6 +40,26 @@ export const authApi = {
 
   getMe: async (): Promise<User> => {
     const response = await apiClient.get('/auth/me')
+    return response.data
+  },
+
+  forgotPasswordEmail: async (email: string): Promise<ForgotPasswordResponse> => {
+    const response = await apiClient.post('/auth/forgot-password', { email })
+    return response.data
+  },
+
+  forgotPasswordPhone: async (phone: string): Promise<ForgotPasswordResponse> => {
+    const response = await apiClient.post('/auth/forgot-password-phone', { phone })
+    return response.data
+  },
+
+  resetPassword: async (payload: {
+    email?: string
+    phone?: string
+    code: string
+    new_password: string
+  }): Promise<ResetPasswordResponse> => {
+    const response = await apiClient.post('/auth/reset-password', payload)
     return response.data
   },
 }
