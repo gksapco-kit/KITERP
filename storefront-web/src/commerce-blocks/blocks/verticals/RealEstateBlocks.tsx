@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockProperties, type Property } from "@/commerce-blocks/mock/verticals";
+import { catalogGridClassName } from "@/lib/commerceCatalogLayout";
 
 const STATUS_LABEL: Record<Property["status"], { label: string; className: string }> = {
   "for-sale": { label: "For sale", className: "bg-secondary text-secondary-foreground" },
@@ -25,6 +26,8 @@ const STATUS_LABEL: Record<Property["status"], { label: string; className: strin
 interface PropertyListingProps {
   layout?: "grid" | "list" | "map";
   columns?: number;
+  gap?: number;
+  itemLimit?: number;
   showAgent?: boolean;
   cta?: string;
 }
@@ -32,15 +35,19 @@ interface PropertyListingProps {
 export function PropertyListing({
   layout = "grid",
   columns = 3,
+  gap = 20,
+  itemLimit,
   showAgent = true,
   cta = "View details",
 }: PropertyListingProps) {
+  const items = mockProperties.slice(0, itemLimit ?? mockProperties.length);
+
   if (layout === "list") {
     return (
       <div className="bg-background p-6">
         <Header />
-        <div className="space-y-3">
-          {mockProperties.map((p) => (
+        <div className="space-y-3" style={{ gap }}>
+          {items.map((p) => (
             <PropertyRow key={p.id} property={p} showAgent={showAgent} cta={cta} />
           ))}
         </div>
@@ -52,7 +59,7 @@ export function PropertyListing({
     return (
       <div className="bg-background p-6">
         <Header />
-        <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+        <div className="grid gap-4 lg:grid-cols-[1fr_360px]" style={{ gap }}>
           <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border bg-gradient-to-br from-emerald-100 via-sky-100 to-amber-100 lg:aspect-auto lg:min-h-[500px]">
             {/* Decorative map */}
             <div className="absolute inset-0 opacity-30">
@@ -60,7 +67,7 @@ export function PropertyListing({
               <div className="absolute left-[10%] top-[60%] h-1 w-[70%] -rotate-6 bg-foreground/40" />
               <div className="absolute left-[40%] top-[10%] h-[80%] w-1 rotate-6 bg-foreground/30" />
             </div>
-            {mockProperties.slice(0, 5).map((p, i) => (
+            {items.slice(0, 5).map((p, i) => (
               <button
                 key={p.id}
                 className="absolute flex -translate-x-1/2 -translate-y-full flex-col items-center"
@@ -77,7 +84,7 @@ export function PropertyListing({
             ))}
           </div>
           <div className="space-y-3 lg:max-h-[500px] lg:overflow-auto">
-            {mockProperties.slice(0, 4).map((p) => (
+            {items.slice(0, 4).map((p) => (
               <PropertyRow key={p.id} property={p} showAgent={false} cta="View" compact />
             ))}
           </div>
@@ -86,16 +93,11 @@ export function PropertyListing({
     );
   }
 
-  // grid
-  const cols =
-    columns === 2 ? "sm:grid-cols-2"
-    : columns === 4 ? "sm:grid-cols-2 lg:grid-cols-4"
-    : "sm:grid-cols-2 lg:grid-cols-3";
   return (
     <div className="bg-background p-6">
       <Header />
-      <div className={cn("grid grid-cols-1 gap-5", cols)}>
-        {mockProperties.map((p) => (
+      <div className={cn("grid grid-cols-1", catalogGridClassName(columns))} style={{ gap }}>
+        {items.map((p) => (
           <PropertyCard key={p.id} property={p} showAgent={showAgent} cta={cta} />
         ))}
       </div>

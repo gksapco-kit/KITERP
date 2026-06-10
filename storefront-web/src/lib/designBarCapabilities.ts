@@ -68,6 +68,7 @@ export const BLOCK_PRIMARY_IMAGE_FIELD: Record<string, string> = {
   image_block: 'image_url',
   video_embed: 'thumbnail_url',
   product_grid: 'cover_image_url',
+  product_detail: 'image_url',
   cta: 'bg_image_url',
 }
 

@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils'
+
 /** Shared grid layout helpers — keep edit-panel sliders in sync with canvas blocks. */
 
 export function sectionGridColumnClass(columns: number): string {
@@ -99,4 +101,19 @@ export function cardImageShapeClass(shape: ImageShape): string {
   if (shape === 'circle') return `${base} rounded-full aspect-square mx-auto`
   if (shape === 'square') return `${base} rounded-sm`
   return `${base} rounded-lg`
+}
+
+/** Clip wrapper for catalog / gallery tile photos. */
+export function catalogTileImageWrapperClass(shape: ImageShape): string {
+  if (shape === 'circle') return 'rounded-full overflow-hidden'
+  if (shape === 'square') return 'rounded-sm overflow-hidden'
+  return 'rounded-lg overflow-hidden'
+}
+
+/** Img class inside a shaped tile wrapper (gallery, product grid, categories). */
+export function catalogTileImageClass(shape: ImageShape): string {
+  return cn(
+    'object-cover transition-transform duration-300',
+    shape === 'circle' ? 'rounded-full' : '',
+  )
 }

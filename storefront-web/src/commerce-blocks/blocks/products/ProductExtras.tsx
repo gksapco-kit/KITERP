@@ -22,6 +22,7 @@ import {
 import { ProductCard } from "./ProductCard";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { cn } from "@/lib/utils";
+import { catalogGridClassName } from "@/lib/commerceCatalogLayout";
 
 /* ---------------- Product Reviews ---------------- */
 
@@ -304,21 +305,43 @@ interface RowProps {
   variant?: "crossSell" | "recentlyViewed";
   title?: string;
   showPrice?: boolean;
+  columns?: number;
+  gap?: number;
+  itemLimit?: number;
+  imageHeightPct?: number;
+  cardPadding?: number;
+  cardStyle?: string;
+  showTags?: boolean;
+  showCta?: boolean;
 }
 
-export function ProductRow({ variant = "crossSell", title, showPrice = true }: RowProps) {
+export function ProductRow({
+  variant = "crossSell",
+  title,
+  showPrice = true,
+  columns = 4,
+  gap = 16,
+  itemLimit = 4,
+  imageHeightPct,
+  cardPadding,
+  cardStyle,
+  showTags = false,
+  showCta = true,
+}: RowProps) {
   const data = variant === "crossSell" ? mockCrossSell : mockRecentlyViewed;
   const items = data.productIds
     .map((id) => mockProducts.find((p) => p.id === id))
     .filter(Boolean) as typeof mockProducts;
   const heading = title ?? data.title;
+  const limit = itemLimit ?? items.length;
+  const cardProps = { imageHeightPct, cardPadding, cardStyle, showCta };
 
   return (
     <section className="px-6 py-10">
       <h2 className="mb-6 text-2xl font-semibold tracking-tight">{heading}</h2>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        {items.slice(0, 4).map((p) => (
-          <ProductCard key={p.id} productId={p.id} showPrice={showPrice} showTags={false} />
+      <div className={cn("grid", catalogGridClassName(columns))} style={{ gap }}>
+        {items.slice(0, limit).map((p) => (
+          <ProductCard key={p.id} productId={p.id} showPrice={showPrice} showTags={showTags} {...cardProps} />
         ))}
       </div>
     </section>
@@ -329,12 +352,32 @@ export function ProductRow({ variant = "crossSell", title, showPrice = true }: R
 
 interface SearchProps {
   showSuggestions?: boolean;
+  columns?: number;
+  gap?: number;
+  itemLimit?: number;
+  imageHeightPct?: number;
+  cardPadding?: number;
+  cardStyle?: string;
+  showTags?: boolean;
+  showCta?: boolean;
 }
 
-export function SearchResults({ showSuggestions = true }: SearchProps) {
+export function SearchResults({
+  showSuggestions = true,
+  columns = 3,
+  gap = 16,
+  itemLimit,
+  imageHeightPct,
+  cardPadding,
+  cardStyle,
+  showTags = true,
+  showCta = true,
+}: SearchProps) {
   const items = mockSearchResults.productIds
     .map((id) => mockProducts.find((p) => p.id === id))
     .filter(Boolean) as typeof mockProducts;
+  const limit = itemLimit ?? items.length;
+  const cardProps = { imageHeightPct, cardPadding, cardStyle, showTags, showCta };
 
   return (
     <section className="px-6 py-10">
@@ -362,9 +405,9 @@ export function SearchResults({ showSuggestions = true }: SearchProps) {
           ))}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        {items.map((p) => (
-          <ProductCard key={p.id} productId={p.id} />
+      <div className={cn("grid", catalogGridClassName(columns))} style={{ gap }}>
+        {items.slice(0, limit).map((p) => (
+          <ProductCard key={p.id} productId={p.id} {...cardProps} />
         ))}
       </div>
     </section>
@@ -470,12 +513,32 @@ export function FiltersSidebar({ showActiveCount = true }: FiltersProps) {
 
 interface WishlistProps {
   layout?: "grid" | "list";
+  columns?: number;
+  gap?: number;
+  itemLimit?: number;
+  imageHeightPct?: number;
+  cardPadding?: number;
+  cardStyle?: string;
+  showTags?: boolean;
+  showCta?: boolean;
 }
 
-export function WishlistBlock({ layout = "grid" }: WishlistProps) {
+export function WishlistBlock({
+  layout = "grid",
+  columns = 3,
+  gap = 16,
+  itemLimit,
+  imageHeightPct,
+  cardPadding,
+  cardStyle,
+  showTags = true,
+  showCta = true,
+}: WishlistProps) {
   const items = mockWishlist.productIds
     .map((id) => mockProducts.find((p) => p.id === id))
     .filter(Boolean) as typeof mockProducts;
+  const visible = items.slice(0, itemLimit ?? items.length);
+  const cardProps = { imageHeightPct, cardPadding, cardStyle, showTags, showCta };
 
   return (
     <section className="px-6 py-10">
@@ -484,13 +547,13 @@ export function WishlistBlock({ layout = "grid" }: WishlistProps) {
           <Heart className="mr-2 inline h-5 w-5 fill-destructive text-destructive" />
           My wishlist
         </h2>
-        <span className="text-sm text-muted-foreground">{items.length} items</span>
+        <span className="text-sm text-muted-foreground">{visible.length} items</span>
       </div>
       {layout === "grid" ? (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          {items.map((p) => (
+        <div className={cn("grid", catalogGridClassName(columns))} style={{ gap }}>
+          {visible.map((p) => (
             <div key={p.id} className="relative">
-              <ProductCard productId={p.id} />
+              <ProductCard productId={p.id} {...cardProps} />
               <button className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 shadow-sm backdrop-blur hover:bg-background">
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -499,7 +562,7 @@ export function WishlistBlock({ layout = "grid" }: WishlistProps) {
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border">
-          {items.map((p) => (
+          {visible.map((p) => (
             <li key={p.id} className="flex items-center gap-4 p-4">
               <div className="h-16 w-16 overflow-hidden rounded-md bg-muted">
                 {p.image && <img src={p.image} alt={p.name} className="h-full w-full object-cover" />}
@@ -509,7 +572,7 @@ export function WishlistBlock({ layout = "grid" }: WishlistProps) {
                 <div className="text-xs text-muted-foreground">{p.category}</div>
               </div>
               <div className="font-semibold">{formatPrice(p.price, p.currency)}</div>
-              <Button size="sm">Add to cart</Button>
+              {showCta && <Button size="sm">Add to cart</Button>}
               <Button size="icon" variant="ghost">
                 <X className="h-4 w-4" />
               </Button>

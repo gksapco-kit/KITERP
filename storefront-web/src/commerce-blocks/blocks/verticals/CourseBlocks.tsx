@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockCourses, mockCourseDetail, type Course } from "@/commerce-blocks/mock/verticals";
+import { catalogGridClassName } from "@/lib/commerceCatalogLayout";
 
 const LEVEL_STYLE: Record<Course["level"], string> = {
   Beginner: "bg-success/15 text-success hover:bg-success/15",
@@ -23,6 +24,8 @@ const LEVEL_STYLE: Record<Course["level"], string> = {
 interface CourseCatalogProps {
   layout?: "grid" | "list";
   columns?: number;
+  gap?: number;
+  itemLimit?: number;
   showInstructor?: boolean;
   cta?: string;
 }
@@ -30,15 +33,19 @@ interface CourseCatalogProps {
 export function CourseCatalog({
   layout = "grid",
   columns = 3,
+  gap = 20,
+  itemLimit,
   showInstructor = true,
   cta = "Enroll",
 }: CourseCatalogProps) {
+  const items = mockCourses.slice(0, itemLimit ?? mockCourses.length);
+
   if (layout === "list") {
     return (
       <div className="bg-background p-6">
         <Header />
-        <div className="space-y-3">
-          {mockCourses.map((c) => (
+        <div className="space-y-3" style={{ gap }}>
+          {items.map((c) => (
             <div key={c.id} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-3 sm:flex-row">
               <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-md bg-muted sm:h-32 sm:w-48">
                 <img src={c.image} alt="" className="h-full w-full object-cover" />
@@ -78,16 +85,11 @@ export function CourseCatalog({
     );
   }
 
-  const cols =
-    columns === 2 ? "sm:grid-cols-2"
-    : columns === 4 ? "sm:grid-cols-2 lg:grid-cols-4"
-    : "sm:grid-cols-2 lg:grid-cols-3";
-
   return (
     <div className="bg-background p-6">
       <Header />
-      <div className={cn("grid grid-cols-1 gap-5", cols)}>
-        {mockCourses.map((c) => (
+      <div className={cn("grid grid-cols-1", catalogGridClassName(columns))} style={{ gap }}>
+        {items.map((c) => (
           <CourseCard key={c.id} c={c} showInstructor={showInstructor} cta={cta} />
         ))}
       </div>

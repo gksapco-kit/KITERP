@@ -45,6 +45,7 @@ from app.schemas.website import (
     AIGenerateSiteRequest, AIGenerateSiteResponse,
     SiteRedirectCreate, SiteRedirectUpdate, SiteRedirectOut,
     MediaOut,
+    MediaUpdateBody,
 )
 
 router = APIRouter(redirect_slashes=False)
@@ -1749,6 +1750,34 @@ async def save_external_url_as_media(
         raise
     except Exception as e:
         raise HTTPException(500, f"Failed to download image: {e}")
+
+
+@router.patch("/{site_id}/media/{media_id}", response_model=MediaOut)
+async def update_media(
+    site_id: str,
+    media_id: str,
+    body: MediaUpdateBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    vendor = await _get_vendor(db, user)
+    await _get_site(db, site_id, vendor.id)
+    filename = (body.filename or "").strip()
+    if not filename:
+        raise HTTPException(400, "filename is required")
+    if "/" in filename or "\\" in filename:
+        raise HTTPException(400, "filename cannot contain path separators")
+
+    result = await db.execute(
+        select(WebsiteMedia).where(WebsiteMedia.id == media_id, WebsiteMedia.site_id == site_id)
+    )
+    media = result.scalar_one_or_none()
+    if not media:
+        raise HTTPException(404, "Media not found")
+    media.filename = filename[:300]
+    await db.commit()
+    await db.refresh(media)
+    return media
 
 
 @router.delete("/{site_id}/media/{media_id}", status_code=204)

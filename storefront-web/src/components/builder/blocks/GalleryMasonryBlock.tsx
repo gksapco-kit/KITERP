@@ -3,17 +3,31 @@ import { ImageIcon, X } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
-import { columnsFromProps, sectionGridColumnClass, sectionItemGap } from '@/lib/sectionItemLayout'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
+import {
+  catalogTileImageClass,
+  catalogTileImageWrapperClass,
+  columnsFromProps,
+  imageShapeFromProps,
+  sectionGridColumnClass,
+  sectionItemGap,
+} from '@/lib/sectionItemLayout'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; branchCode?: string | null; blockId?: string }
 
 export default function GalleryMasonryBlock({ style, props, liveItems, blockId }: Props) {
+  const builderCanvas = useBuilderCanvas()
+  const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const [lightbox, setLightbox] = useState<string | null>(null)
   const title = (props.title as string) || 'Gallery'
   const layout = String(props.layout ?? 'grid')
   const columns = columnsFromProps(props, layout === 'featured' ? 'grid-3' : layout)
   const itemGap = sectionItemGap(props, 12)
+  const imageShape = imageShapeFromProps(props, 'rounded')
+  const tileWrap = catalogTileImageWrapperClass(imageShape)
+  const tileImg = catalogTileImageClass(imageShape)
   const propImages = Array.isArray(props.images)
     ? (props.images as { src?: string; alt?: string }[]).filter(img => img?.src)
     : []
@@ -34,15 +48,41 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
     )
   }
 
-  const Img = ({ url, alt, className }: { url: string; alt: string; className?: string }) => (
-    <img
-      src={imgUrl(url)}
-      alt={alt}
-      onClick={() => setLightbox(url)}
-      className={cn('w-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity', className)}
-      loading="lazy"
-    />
-  )
+  const Img = ({ url, alt, className, index }: { url: string; alt: string; className?: string; index: number }) => {
+    const resolved = imgUrl(url)
+    const shellClass = cn(
+      'relative w-full overflow-hidden',
+      tileWrap,
+      imageShape === 'circle' && 'aspect-square max-w-[min(100%,280px)] mx-auto',
+    )
+    if (isEditorCanvas) {
+      return (
+        <div className={cn(shellClass, className)}>
+          <BuilderSectionImage
+            blockId={blockId}
+            field="image_url"
+            arrayKey="images"
+            index={index}
+            itemField="src"
+            blockProps={props}
+            src={resolved}
+            alt={alt}
+            className={cn('absolute inset-0 h-full w-full', tileImg)}
+          />
+        </div>
+      )
+    }
+    return (
+      <div className={cn(shellClass, className)} onClick={() => setLightbox(url)}>
+        <img
+          src={resolved}
+          alt={alt}
+          className={cn('absolute inset-0 h-full w-full cursor-pointer hover:opacity-90', tileImg)}
+          loading="lazy"
+        />
+      </div>
+    )
+  }
 
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -51,15 +91,15 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
       )}
       {layout === 'featured' ? (
         <div className="grid grid-cols-3 grid-rows-2 max-w-5xl mx-auto min-h-[320px]" style={{ gap: itemGap }}>
-          <Img url={images[0].url} alt={images[0].alt} className="col-span-2 row-span-2 h-full min-h-[280px] rounded-xl" />
+          <Img url={images[0].url} alt={images[0].alt} index={0} className="col-span-2 row-span-2 h-full min-h-[280px] rounded-xl" />
           {images.slice(1, 3).map((img, i) => (
-            <Img key={i} url={img.url} alt={img.alt} className="h-full min-h-[130px]" />
+            <Img key={i} url={img.url} alt={img.alt} index={i + 1} className="h-full min-h-[130px]" />
           ))}
         </div>
       ) : layout === 'masonry' ? (
         <div className={cn('columns-2 sm:columns-3 gap-4 space-y-4 max-w-5xl mx-auto', columns >= 4 && 'lg:columns-4', columns >= 5 && 'lg:columns-5')} style={{ columnGap: itemGap }}>
           {images.map((img, i) => (
-            <Img key={i} url={img.url} alt={img.alt} className="break-inside-avoid mb-4" />
+            <Img key={i} url={img.url} alt={img.alt} index={i} className="break-inside-avoid mb-4" />
           ))}
         </div>
       ) : (
@@ -69,6 +109,7 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
               key={i}
               url={img.url}
               alt={img.alt}
+              index={i}
               className={columns <= 2 ? 'aspect-[4/3]' : 'aspect-square'}
             />
           ))}

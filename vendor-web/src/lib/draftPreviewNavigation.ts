@@ -1,9 +1,7 @@
 import { DRAFT_BROWSER_PREVIEW_PATH } from '@/lib/storefrontPreviewUrl'
+import { parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
 
 const PREVIEW_SESSION_TOKEN_KEY = 'kiterp:draft-preview-token'
-
-/** Paths that would hit vendor auth/commerce routes — keep user on draft preview instead. */
-const BLOCKED_PREVIEW_PATHS = ['/login', '/register', '/cart', '/checkout']
 
 export function rememberDraftPreviewToken(token: string): void {
   const t = token.trim()
@@ -33,15 +31,38 @@ export function buildDraftPreviewStorePath(previewToken: string, rawPath: string
   const pathname = (qIdx >= 0 ? clean.slice(0, qIdx) : clean).replace(/\/+$/, '') || '/'
   const queryString = qIdx >= 0 ? clean.slice(qIdx + 1) : ''
 
-  if (
-    BLOCKED_PREVIEW_PATHS.includes(pathname)
-    || pathname.startsWith('/account')
-  ) {
-    return `${DRAFT_BROWSER_PREVIEW_PATH}?token=${encodeURIComponent(token)}`
+  const embedRoute = parseStorefrontEmbedRoute(clean)
+  if (embedRoute) {
+    const params = new URLSearchParams()
+    params.set('token', token)
+    params.set('route', embedRoute.split('?')[0])
+    const embedQs = embedRoute.includes('?') ? embedRoute.slice(embedRoute.indexOf('?') + 1) : ''
+    if (embedQs) {
+      new URLSearchParams(embedQs).forEach((value, key) => {
+        params.set(key, value)
+      })
+    }
+    if (queryString) {
+      new URLSearchParams(queryString).forEach((value, key) => {
+        if (!params.has(key)) params.set(key, value)
+      })
+    }
+    return `${DRAFT_BROWSER_PREVIEW_PATH}?${params.toString()}`
   }
 
   const params = new URLSearchParams()
   params.set('token', token)
+
+  const catalog = parseCatalogStorePath(pathname)
+  if (catalog) {
+    params.set('route', catalog.slug ? `${catalog.kind}/${catalog.slug}` : catalog.kind)
+    if (queryString) {
+      new URLSearchParams(queryString).forEach((value, key) => {
+        params.set(key, value)
+      })
+    }
+    return `${DRAFT_BROWSER_PREVIEW_PATH}?${params.toString()}`
+  }
 
   if (pathname !== '/') {
     const pageSlug = pathname.replace(/^\/+/, '')

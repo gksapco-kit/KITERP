@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useAddToCart } from '@/hooks/useStore'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 
 interface Props {
   site: PublicSite
@@ -12,9 +13,10 @@ interface Props {
   props: Record<string, unknown>
   liveItems: LiveItem[]
   branchCode?: string | null
+  blockId?: string
 }
 
-export default function ProductDetailBlock({ site, style, props, liveItems }: Props) {
+export default function ProductDetailBlock({ site, style, props, liveItems, blockId }: Props) {
   const [qty, setQty] = useState(1)
   const [addedToCart, setAddedToCart] = useState(false)
   const { storePath } = useVendor()
@@ -51,7 +53,18 @@ export default function ProductDetailBlock({ site, style, props, liveItems }: Pr
         {/* Image */}
         <div>
           {imageUrl ? (
-            <img src={imageUrl} alt={title} className="w-full rounded-2xl shadow-lg object-cover aspect-square" loading="lazy" />
+            blockId ? (
+              <BuilderSectionImage
+                blockId={blockId}
+                field="image_url"
+                blockProps={props}
+                src={imageUrl}
+                alt={title}
+                className="w-full rounded-2xl shadow-lg object-cover aspect-square"
+              />
+            ) : (
+              <img src={imageUrl} alt={title} className="w-full rounded-2xl shadow-lg object-cover aspect-square" loading="lazy" />
+            )
           ) : (
             <div className="w-full aspect-square rounded-2xl bg-gray-100 flex items-center justify-center text-gray-300">
               <ShoppingCart className="w-16 h-16" />

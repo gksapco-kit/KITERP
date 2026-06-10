@@ -2,7 +2,8 @@ import { ImageIcon } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
-import { imgUrl } from '@/lib/utils'
+import { cn, imgUrl } from '@/lib/utils'
+import { imageShapeFromProps } from '@/lib/sectionItemLayout'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
@@ -23,6 +24,7 @@ export default function ImageBlock({ style, props, blockId }: Props) {
   const caption = (props.caption as string) || ''
   const title = (props.title as string) || ''
   const layout = String(props.layout ?? 'centered')
+  const imageShape = imageShapeFromProps(props)
   const cardRadius = borderRadiusPx(style)
   const mediaClip = props.media_clip
   const clipped = hasMediaClip(mediaClip)
@@ -46,8 +48,21 @@ export default function ImageBlock({ style, props, blockId }: Props) {
         blockProps={props}
         src={imageUrl}
         alt={caption || title || 'Image'}
-        className={`w-full ${layout === 'full' ? 'max-h-[480px]' : 'max-h-96'}`}
-        style={{ borderRadius: !clipped && layout !== 'full' ? cardRadius : layout === 'full' ? 0 : 0 }}
+        className={cn(
+          'w-full',
+          layout === 'full' ? 'max-h-[480px]' : 'max-h-96',
+          imageShape === 'circle' && 'aspect-square max-w-md mx-auto rounded-full object-cover',
+          imageShape === 'square' && 'rounded-sm',
+        )}
+        style={{
+          borderRadius: imageShape === 'circle' || clipped
+            ? undefined
+            : !clipped && layout !== 'full'
+              ? cardRadius
+              : layout === 'full'
+                ? 0
+                : 0,
+        }}
       />
     </MediaClipFrame>
   )

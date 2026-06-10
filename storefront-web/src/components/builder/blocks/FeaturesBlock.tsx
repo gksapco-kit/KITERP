@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { cn } from '@/lib/utils'
 import { imgUrl } from '@/lib/utils'
@@ -29,6 +30,42 @@ import {
 } from '@/lib/wellnessTemplateCopy'
 
 interface FeatureItem { icon?: string; title: string; desc?: string; description?: string; image_url?: string }
+
+function FeatureItemImage({
+  feature,
+  index,
+  blockId,
+  blockProps,
+  className,
+  style,
+}: {
+  feature: FeatureItem
+  index: number
+  blockId?: string
+  blockProps: Record<string, unknown>
+  className?: string
+  style?: CSSProperties
+}) {
+  if (!feature.image_url) return null
+  const src = imgUrl(feature.image_url)
+  if (blockId) {
+    return (
+      <BuilderSectionImage
+        blockId={blockId}
+        field="image_url"
+        arrayKey="features"
+        index={index}
+        itemField="image_url"
+        blockProps={blockProps}
+        src={src}
+        alt=""
+        className={className}
+        style={style}
+      />
+    )
+  }
+  return <img src={src} alt="" className={className} style={style} loading="lazy" />
+}
 
 interface Props {
   site: PublicSite
@@ -125,11 +162,12 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
                           style={{ backgroundColor: `${style.accent_color || '#E07A5F'}25` }}
                         />
                       )}
-                      <img
-                        src={imgUrl(imageSrc)}
-                        alt={featTitle}
+                      <FeatureItemImage
+                        feature={{ ...feature, image_url: imageSrc }}
+                        index={i}
+                        blockId={blockId}
+                        blockProps={props}
                         className={`relative z-10 ${imgClass}`}
-                        loading="lazy"
                       />
                     </div>
                   )}
@@ -190,7 +228,14 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
               style={{ padding: cardPad }}
             >
               {feature.image_url ? (
-                <img src={imgUrl(feature.image_url)} alt="" className={thumbnailShapeClass(imageShape)} style={{ width: iconBox, height: iconBox }} loading="lazy" />
+                <FeatureItemImage
+                  feature={feature}
+                  index={i}
+                  blockId={blockId}
+                  blockProps={props}
+                  className={thumbnailShapeClass(imageShape)}
+                  style={{ width: iconBox, height: iconBox }}
+                />
               ) : (
                 <div className={cn(iconBoxShapeClass(imageShape), 'flex items-center justify-center shrink-0 text-2xl')} style={{ width: iconBox, height: iconBox, backgroundColor: `${style.primary_color}15` }}>
                   {renderFeatureIcon(feature.icon, altIcons[i % altIcons.length])}
@@ -236,11 +281,12 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
           {features.map((feature, i) => (
             <div key={i} className={cn('builder-tile-card break-inside-avoid rounded-2xl border mb-6', surface.isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white')} style={{ padding: cardPad }}>
               {showImages && feature.image_url && (
-                <img
-                  src={imgUrl(feature.image_url)}
-                  alt=""
+                <FeatureItemImage
+                  feature={feature}
+                  index={i}
+                  blockId={blockId}
+                  blockProps={props}
                   className={cn(cardImageShapeClass(imageShape), 'h-32 mb-3', imageShape === 'circle' && 'max-w-[140px]')}
-                  loading="lazy"
                 />
               )}
               <h3 className="font-semibold mb-2">{sanitizeWellnessBodyCopy(feature.title)}</h3>
@@ -268,12 +314,13 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
             style={{ padding: cardPad }}
           >
             {showImages && feature.image_url && (
-              <img
-                src={imgUrl(feature.image_url)}
-                alt=""
+              <FeatureItemImage
+                feature={feature}
+                index={i}
+                blockId={blockId}
+                blockProps={props}
                 className={cn(cardImageShapeClass(imageShape), 'mb-4', imageShape === 'circle' && 'max-w-[180px]')}
                 style={{ height: imageShape === 'circle' ? iconBox : Math.round(itemSize * 0.55) }}
-                loading="lazy"
               />
             )}
             {!feature.image_url && (

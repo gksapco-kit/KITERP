@@ -1,6 +1,7 @@
 import { Quote, Star } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { cn } from '@/lib/utils'
 import { isLiveTestimonialsBound, isTemplateTestimonial } from '@/lib/testimonialPlaceholders'
@@ -21,11 +22,17 @@ function TestimonialCard({
   style,
   dark,
   compact,
+  blockId,
+  blockProps,
+  testimonialIndex,
 }: {
   item: LiveItem
   style: StyleConfig
   dark?: boolean
   compact?: boolean
+  blockId?: string
+  blockProps?: Record<string, unknown>
+  testimonialIndex?: number
 }) {
   return (
     <div className={cn(
@@ -45,7 +52,19 @@ function TestimonialCard({
         "{item.description}"
       </p>
       <div className="flex items-center gap-3">
-        {item.image_url ? (
+        {item.image_url && blockId && blockProps != null && testimonialIndex != null ? (
+          <BuilderSectionImage
+            blockId={blockId}
+            field="image_url"
+            arrayKey="testimonials"
+            index={testimonialIndex}
+            itemField="image_url"
+            blockProps={blockProps}
+            src={item.image_url}
+            alt={item.title}
+            className="w-10 h-10 rounded-full object-cover"
+          />
+        ) : item.image_url ? (
           <img src={item.image_url} alt={item.title} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
         ) : (
           <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: style.primary_color }}>
@@ -62,6 +81,7 @@ function TestimonialCard({
 }
 
 export default function TestimonialsBlock({ style, props, liveItems, blockId }: Props) {
+  const blockProps = props
   const title = (props.title as string) || 'What Our Customers Say'
   const sectionTitle = (className: string) => (
     (title || blockId) ? (
@@ -87,7 +107,9 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
           title: t.name,
           subtitle: [t.role, t.company].filter(Boolean).join(', ') || null,
           description: t.quote,
-          image_url: null,
+          image_url: (t as { image_url?: string; avatar_url?: string }).image_url
+            || (t as { avatar_url?: string }).avatar_url
+            || null,
           price: null,
           price_formatted: null,
           rating: t.rating ?? 5,
@@ -97,7 +119,7 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
 
   if (items.length === 0) {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
+      <section className="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
         <BlockEmptyPlaceholder
           style={style}
           title={title}
@@ -113,19 +135,21 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
   if (layout === 'centered') {
     const item = items[0]
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
+      <section className="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center" style={{ background: surface.background, color: surface.color }}>
         {sectionTitle('text-3xl font-bold mb-10')}
-        <TestimonialCard item={item} style={style} dark={dark} />
+        <TestimonialCard item={item} style={style} dark={dark} blockId={blockId} blockProps={blockProps} testimonialIndex={0} />
       </section>
     )
   }
 
   if (layout === 'list') {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+      <section className="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto" style={{ background: surface.background, color: surface.color }}>
         {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className="space-y-4" style={{ gap: itemGap }}>
-          {items.map(item => <TestimonialCard key={item.id} item={item} style={style} dark={dark} compact />)}
+          {items.map((item, i) => (
+            <TestimonialCard key={item.id} item={item} style={style} dark={dark} compact blockId={blockId} blockProps={blockProps} testimonialIndex={i} />
+          ))}
         </div>
       </section>
     )
@@ -133,12 +157,12 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
 
   if (layout === 'carousel') {
     return (
-      <section className="py-16 px-4" style={{ background: surface.background, color: surface.color }}>
+      <section className="px-4" style={{ background: surface.background, color: surface.color }}>
         {sectionTitle('text-3xl font-bold mb-8 text-center px-4')}
         <div className="flex overflow-x-auto pb-4 px-4 snap-x snap-mandatory" style={{ gap: itemGap }}>
           {items.map(item => (
             <div key={item.id} className="snap-start shrink-0 w-80">
-              <TestimonialCard item={item} style={style} dark={dark} />
+              <TestimonialCard item={item} style={style} dark={dark} blockId={blockId} blockProps={blockProps} testimonialIndex={items.indexOf(item)} />
             </div>
           ))}
         </div>
@@ -148,12 +172,12 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
 
   if (layout === 'masonry') {
     return (
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
+      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
         {sectionTitle('text-3xl font-bold mb-10 text-center')}
         <div className="columns-1 sm:columns-2 gap-6 space-y-6">
           {items.map(item => (
             <div key={item.id} className="break-inside-avoid mb-6">
-              <TestimonialCard item={item} style={style} dark={dark} />
+              <TestimonialCard item={item} style={style} dark={dark} blockId={blockId} blockProps={blockProps} testimonialIndex={items.indexOf(item)} />
             </div>
           ))}
         </div>
@@ -165,7 +189,9 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
     <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" style={{ background: surface.background, color: surface.color }}>
       {sectionTitle('text-3xl font-bold mb-10 text-center')}
       <div className={cn('grid grid-cols-1 sm:grid-cols-2', colClass)} style={{ gap: itemGap }}>
-        {items.map(item => <TestimonialCard key={item.id} item={item} style={style} dark={dark} />)}
+        {items.map((item, i) => (
+          <TestimonialCard key={item.id} item={item} style={style} dark={dark} blockId={blockId} blockProps={blockProps} testimonialIndex={i} />
+        ))}
       </div>
     </section>
   )

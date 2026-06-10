@@ -4,28 +4,42 @@ import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockServices } from "@/commerce-blocks/mock/services";
 import { cn } from "@/lib/utils";
+import { catalogGridClassName } from "@/lib/commerceCatalogLayout";
+import { cardStylePadding } from "@/lib/commerceCatalogLayout";
 
 interface ListProps {
   showFeatures?: boolean;
   showImage?: boolean;
+  showBookLink?: boolean;
+  showCta?: boolean;
   cta?: string;
   title?: string;
+  gap?: number;
+  cardPadding?: number;
+  itemLimit?: number;
 }
 
 export function ServiceList({
   showFeatures = true,
   showImage = true,
+  showBookLink = true,
+  showCta = true,
   cta = "Book now",
   title = "Our services",
+  gap = 16,
+  cardPadding = 20,
+  itemLimit,
 }: ListProps) {
+  const items = itemLimit ? mockServices.slice(0, itemLimit) : mockServices;
   return (
     <section className="px-6 py-10">
       {title && <h2 className="mb-6 text-2xl font-semibold tracking-tight">{title}</h2>}
-      <div className="space-y-4">
-        {mockServices.map((s) => (
+      <div className="space-y-4" style={{ gap }}>
+        {items.map((s) => (
           <article
             key={s.id}
-            className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 md:flex-row md:items-center"
+            className="flex flex-col gap-4 rounded-lg border border-border bg-card md:flex-row md:items-center"
+            style={{ padding: cardPadding }}
           >
             {showImage && s.image && (
               <div className="h-32 w-full overflow-hidden rounded-md bg-muted md:h-24 md:w-32 md:shrink-0">
@@ -64,7 +78,7 @@ export function ServiceList({
                 <div className="text-xs text-muted-foreground">starting from</div>
               </div>
               <Button>
-                {cta}
+                {(showBookLink && showCta) ? cta : 'View'}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -77,31 +91,44 @@ export function ServiceList({
 
 interface GridProps {
   columns?: number;
+  gap?: number;
+  itemLimit?: number;
+  cardPadding?: number;
+  cardStyle?: string;
   showFeatures?: boolean;
+  showBookLink?: boolean;
+  showCta?: boolean;
   cta?: string;
   title?: string;
 }
 
-const colsClass: Record<number, string> = {
-  2: "md:grid-cols-2",
-  3: "md:grid-cols-3",
-  4: "md:grid-cols-2 lg:grid-cols-4",
-};
-
 export function ServiceCardGrid({
   columns = 3,
+  gap = 16,
+  itemLimit,
+  cardPadding,
+  cardStyle,
   showFeatures = true,
+  showBookLink = true,
+  showCta = true,
   cta = "Learn more",
   title = "Services we offer",
 }: GridProps) {
+  const pad = cardStylePadding(cardStyle ?? "default", cardPadding);
+  const isMinimal = cardStyle === "minimal";
+  const items = itemLimit ? mockServices.slice(0, itemLimit) : mockServices;
   return (
     <section className="px-6 py-10">
       {title && <h2 className="mb-6 text-2xl font-semibold tracking-tight">{title}</h2>}
-      <div className={cn("grid gap-4 grid-cols-1", colsClass[columns] ?? colsClass[3])}>
-        {mockServices.map((s) => (
+      <div className={cn("grid", catalogGridClassName(columns, "services_cards"))} style={{ gap }}>
+        {items.map((s) => (
           <div
             key={s.id}
-            className="flex flex-col rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-md"
+            className={cn(
+              "flex flex-col rounded-lg border border-border bg-card transition-shadow hover:shadow-md",
+              isMinimal && "text-sm",
+            )}
+            style={{ padding: pad }}
           >
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
               {s.category}
@@ -123,7 +150,7 @@ export function ServiceCardGrid({
                 <div className="text-xs text-muted-foreground">{s.duration}</div>
               </div>
               <Button variant="outline" size="sm">
-                {cta}
+                {(showBookLink && showCta) ? cta : 'View'}
               </Button>
             </div>
           </div>

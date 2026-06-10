@@ -6,8 +6,36 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    scrollbar-gutter: stable;
+  /* Slim scrollbars everywhere (Firefox + WebKit). More specific utilities
+     like .scrollbar-none / .sidebar-scroll still override this. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 0;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 116, 139, 0.45);
+    border-radius: 9999px;
+    border: 0;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(100, 116, 139, 0.7);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  /* Kill the default up/down (and left/right) arrow buttons that waste space. */
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   :root {
@@ -1420,6 +1448,11 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   outline: 2px dashed hsl(var(--primary) / 0.55);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* Built-in section / card photos — inset highlight (not clipped like outline) */
+[data-builder-section-image-active="true"] {
+  z-index: 2;
 }
 
 .builder-canvas-text-field-in-layout[data-builder-text-active="true"] {

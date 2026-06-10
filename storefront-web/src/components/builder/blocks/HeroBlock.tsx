@@ -15,6 +15,7 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderContentGroup } from '@/components/builder/BuilderContentGroup'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 
 interface Props {
   site: PublicSite
@@ -35,6 +36,8 @@ function borderRadiusPx(style: StyleConfig): number {
 }
 
 export default function HeroBlock({ site, style, props, blockType, blockId }: Props) {
+  const canvas = useBuilderCanvas()
+  const isEditorCanvas = canvas?.isEditorCanvas && !!blockId
   const headline = sanitizeWellnessBodyCopy((props.headline as string) || site.name || 'Welcome')
   const headlineLine2 = sanitizeWellnessBodyCopy((props.headline_line2 as string) || '')
   const eyebrow = sanitizeWellnessBodyCopy((props.eyebrow as string) || '')
@@ -440,13 +443,24 @@ export default function HeroBlock({ site, style, props, blockType, blockId }: Pr
           ? { color: heroText, borderBottom: `1px solid ${style.text_color}18` }
           : {
               background: heroBg,
-              backgroundImage: heroBgImage,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
+              backgroundImage: isEditorCanvas && heroUsesImageBg ? undefined : heroBgImage,
+              backgroundSize: isEditorCanvas && heroUsesImageBg ? undefined : 'cover',
+              backgroundPosition: isEditorCanvas && heroUsesImageBg ? undefined : 'center',
               color: heroText,
             }
       }
     >
+      {isEditorCanvas && heroUsesImageBg && heroImageUrl ? (
+        <div className="absolute inset-0 z-0">
+          <BuilderSectionImage
+            blockId={blockId}
+            field="bg_image_url"
+            blockProps={props}
+            src={heroImageUrl}
+            className="absolute inset-0 h-full w-full"
+          />
+        </div>
+      ) : null}
       {heroUsesImageBg && bgStyle === 'gradient' && (
         <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: props.overlay === false ? 0.55 : 0.82 }} />
       )}

@@ -357,6 +357,7 @@ export function ColorIdentPickerRow({
   backgroundColor,
   onTextColorChange,
   onBackgroundColorChange,
+  showBackgroundPicker = true,
   size = 'compact',
   vertical = false,
   trailing,
@@ -366,6 +367,8 @@ export function ColorIdentPickerRow({
   backgroundColor: string
   onTextColorChange: (color: string) => void
   onBackgroundColorChange: (color: string) => void
+  /** Section background — use Edit panel → Design → Section colors instead. */
+  showBackgroundPicker?: boolean
   size?: ControlSize
   /** Stack T, B, and trailing controls in a narrow column. */
   vertical?: boolean
@@ -389,20 +392,22 @@ export function ColorIdentPickerRow({
           size={size}
           inRow
           orientation="vertical"
-          rowPosition="start"
+          rowPosition={showBackgroundPicker || trailing ? 'start' : 'single'}
           color={textColor}
           onChange={onTextColorChange}
         />
-        <ColorIdentPicker
-          letter="B"
-          title="Block background color"
-          size={size}
-          inRow
-          orientation="vertical"
-          rowPosition={trailing ? 'middle' : 'end'}
-          color={backgroundColor}
-          onChange={onBackgroundColorChange}
-        />
+        {showBackgroundPicker ? (
+          <ColorIdentPicker
+            letter="B"
+            title="Block background color"
+            size={size}
+            inRow
+            orientation="vertical"
+            rowPosition={trailing ? 'middle' : 'end'}
+            color={backgroundColor}
+            onChange={onBackgroundColorChange}
+          />
+        ) : null}
         {trailing ? (
           <div className={cn('relative flex min-h-0 flex-1 items-stretch justify-center', colW)}>
             {trailing}
@@ -422,19 +427,21 @@ export function ColorIdentPickerRow({
         title="Text color"
         size={size}
         inRow
-        rowPosition="start"
+        rowPosition={showBackgroundPicker || trailing ? 'start' : 'single'}
         color={textColor}
         onChange={onTextColorChange}
       />
-      <ColorIdentPicker
-        letter="B"
-        title="Block background color"
-        size={size}
-        inRow
-        rowPosition={trailing ? 'middle' : 'end'}
-        color={backgroundColor}
-        onChange={onBackgroundColorChange}
-      />
+      {showBackgroundPicker ? (
+        <ColorIdentPicker
+          letter="B"
+          title="Block background color"
+          size={size}
+          inRow
+          rowPosition={trailing ? 'middle' : 'end'}
+          color={backgroundColor}
+          onChange={onBackgroundColorChange}
+        />
+      ) : null}
       {trailing ? (
         <div className={cn('relative flex flex-1 min-w-0 items-stretch', rowH)}>
           {trailing}

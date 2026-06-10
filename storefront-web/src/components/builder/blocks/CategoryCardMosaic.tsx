@@ -1,6 +1,6 @@
-import { Fragment, useState, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, type CSSProperties, type ReactNode } from 'react'
 import type { StyleConfig } from '@/blocks/registry'
-import { imgUrl } from '@/lib/utils'
+import { CategoryEditorialImage } from '@/components/builder/CategoryEditorialImage'
 import { sanitizeWellnessCategoryTitle } from '@/lib/wellnessTemplateCopy'
 import {
   WELLNESS_BLOB_LAYOUTS,
@@ -26,6 +26,10 @@ interface Props {
   onCardClick?: (index: number) => void
   wrapCard?: (child: ReactNode, index: number) => ReactNode
   className?: string
+  blockId?: string
+  arrayKey?: string
+  itemField?: string
+  blockProps?: Record<string, unknown>
 }
 
 function blobStyle(
@@ -47,21 +51,32 @@ function MosaicImage({
   src,
   fallback,
   alt,
+  index,
+  blockId,
+  arrayKey,
+  itemField,
+  blockProps,
 }: {
   src: string
   fallback: string
   alt: string
+  index: number
+  blockId?: string
+  arrayKey?: string
+  itemField?: string
+  blockProps?: Record<string, unknown>
 }) {
-  const resolved = imgUrl(src) || fallback
-  const [current, setCurrent] = useState(resolved)
   return (
-    <img
-      src={current}
+    <CategoryEditorialImage
+      src={src}
+      fallback={fallback}
       alt={alt}
-      loading="lazy"
-      onError={() => {
-        if (current !== fallback) setCurrent(fallback)
-      }}
+      blockId={blockId}
+      arrayKey={arrayKey}
+      index={index}
+      itemField={itemField}
+      blockProps={blockProps}
+      className="absolute inset-0 h-full w-full object-cover"
     />
   )
 }
@@ -103,14 +118,25 @@ function VibrantBowlFrame({
   title,
   index,
   floatClass,
+  blockId,
+  arrayKey,
+  itemField,
+  blockProps,
 }: {
   img: string
   fallback: string
   title: string
   index: number
   floatClass: string
+  blockId?: string
+  arrayKey?: string
+  itemField?: string
+  blockProps?: Record<string, unknown>
 }) {
-  const canvas = WELLNESS_CARD_CANVAS_COLORS[index % WELLNESS_CARD_CANVAS_COLORS.length]
+  const tileBg = typeof blockProps?.tile_bg === 'string' && blockProps.tile_bg.trim()
+    ? blockProps.tile_bg.trim()
+    : null
+  const canvas = tileBg || WELLNESS_CARD_CANVAS_COLORS[index % WELLNESS_CARD_CANVAS_COLORS.length]
   const layout = WELLNESS_BLOB_LAYOUTS[index % WELLNESS_BLOB_LAYOUTS.length]
   const blobShapeA = WELLNESS_BLOB_SHAPES[index % WELLNESS_BLOB_SHAPES.length]
   const blobShapeB = WELLNESS_BLOB_SHAPES[(index + 3) % WELLNESS_BLOB_SHAPES.length]
@@ -127,7 +153,16 @@ function VibrantBowlFrame({
         style={{ top: inset, right: inset, bottom: inset, left: inset }}
       >
         <div className="wl-mosaic-bowl-ring" />
-        <MosaicImage src={img} fallback={fallback} alt={title} />
+        <MosaicImage
+          src={img}
+          fallback={fallback}
+          alt={title}
+          index={index}
+          blockId={blockId}
+          arrayKey={arrayKey}
+          itemField={itemField}
+          blockProps={blockProps}
+        />
       </div>
       <div
         className="wl-mosaic-doodle wl-float-slow"
@@ -154,6 +189,10 @@ export default function CategoryCardMosaic({
   onCardClick,
   wrapCard,
   className = '',
+  blockId,
+  arrayKey,
+  itemField,
+  blockProps,
 }: Props) {
   const textColor = style.text_color || '#182E20'
   const primaryColor = style.primary_color || textColor
@@ -178,6 +217,10 @@ export default function CategoryCardMosaic({
                 title={displayTitle}
                 index={i}
                 floatClass={floatClass}
+                blockId={blockId}
+                arrayKey={arrayKey}
+                itemField={itemField}
+                blockProps={blockProps}
               />
               <div className="wl-mosaic-label">
                 {renderTitle ? (

@@ -31,7 +31,10 @@ export default function CategoryCardsWellness({
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const textColor = style.text_color || '#182E20'
-  const bg = style.bg_color || '#F9F9F5'
+  const bg =
+    (blockProps?.bg_color_override as string | undefined)
+    || style.bg_color
+    || '#F9F9F5'
 
   return (
     <section className="py-16 sm:py-28 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: bg }}>
@@ -68,6 +71,10 @@ export default function CategoryCardsWellness({
         categories={categories}
         style={style}
         propImageByTitle={propImageByTitle}
+        blockId={blockId}
+        arrayKey="categories"
+        itemField="image_url"
+        blockProps={blockProps}
         renderTitle={(displayTitle, i) => (
           <CategoryCardTitle
             index={i}

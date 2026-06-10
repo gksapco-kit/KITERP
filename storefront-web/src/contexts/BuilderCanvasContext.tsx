@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
+import type { ActiveCanvasImageTarget } from '@/lib/canvasImageTarget'
 
 export interface BuilderCanvasContextValue {
   isEditorCanvas: boolean
@@ -7,11 +8,15 @@ export interface BuilderCanvasContextValue {
   activeTextField: string | null
   /** All selected fields (Shift/Ctrl/⌘+click). Empty when none. */
   activeTextFields: string[]
-  /** Selected built-in section image prop (image_url, bg_image_url, …). */
-  activeSectionImageField?: string | null
+  /** Selected section / card photos on the active block (Shift/Ctrl+click for multi). */
+  activeCanvasImageTarget?: ActiveCanvasImageTarget | null
   /** Block props for the active block — used to read image fit / focal while rendering. */
   blockPropsForImage?: Record<string, unknown> | null
-  onSectionImageActivate?: (blockId: string, field: string) => void
+  onSectionImageActivate?: (
+    blockId: string,
+    field: string,
+    opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
+  ) => void
   onTextFieldActivate?: (
     blockId: string,
     fieldKey: string,
@@ -24,6 +29,8 @@ export interface BuilderCanvasContextValue {
     blockId: string,
     patchesByField: Record<string, Record<string, unknown>>,
   ) => void
+  /** Intercept header / storefront links in the builder canvas. */
+  onNavigate?: (url: string) => void
 }
 
 const BuilderCanvasContext = createContext<BuilderCanvasContextValue | null>(null)

@@ -84,6 +84,7 @@ export default function StorefrontBrowserPreviewShell() {
     || (legacyTarget ? parseTokenFromLegacyTarget(legacyTarget) : null)
     || '').trim()
   const pageSlug = searchParams.get('page')?.trim() || null
+  const catalogRoute = searchParams.get('route')?.trim() || null
   const pending = searchParams.get(DRAFT_PREVIEW_PENDING_PARAM) === '1'
   const templateTarget = legacyTarget && isAllowedTemplateTarget(legacyTarget) ? legacyTarget : null
 
@@ -336,6 +337,7 @@ export default function StorefrontBrowserPreviewShell() {
           <DraftPreviewRenderer
             site={site}
             pageSlug={pageSlug}
+            catalogRoute={catalogRoute}
             vendorSlug={vendorSlug}
             previewToken={token}
           />

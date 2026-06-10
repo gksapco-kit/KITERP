@@ -55,6 +55,8 @@ export interface VendorContextType {
   error: string | null
   storePath: (path: string) => string
   displayFields: DisplayFields
+  /** True on vendor-web /preview/draft — show nav links at all breakpoints. */
+  previewShell?: boolean
 }
 
 export const VendorContext = createContext<VendorContextType>({

@@ -3,6 +3,19 @@ const LS_ITEMS = 'kiterp.vendor.sidebar.item-orders'
 /** Ordered `to` paths per section id (links may appear under any visible module). */
 const LS_PLACEMENTS_V2 = 'kiterp.vendor.sidebar.nav-placements-v2'
 
+/**
+ * Routes that must always appear under a given sidebar section.
+ * (Users who customized nav before a link was added often only had it under System Configuration.)
+ */
+export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
+  '/websites': 'my-kit',
+}
+
+/** When pinning, insert after this sibling route when it exists in that section. */
+const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
+  '/websites': '/workspace',
+}
+
 export type NavOrderScope = {
   userId: string
   roleKey: string
@@ -187,6 +200,22 @@ export function reconcileNavPlacements(
     if (sid) out[sid].push(to)
   }
 
+  for (const [to, homeId] of Object.entries(NAV_PINNED_SECTION_HOME)) {
+    if (!validTos.has(to)) continue
+    for (const sid of Object.keys(out)) {
+      out[sid] = out[sid].filter((t) => t !== to)
+    }
+    if (!out[homeId]) out[homeId] = []
+    if (out[homeId].includes(to)) continue
+    const after = NAV_PINNED_INSERT_AFTER[to]
+    const afterIdx = after ? out[homeId].indexOf(after) : -1
+    if (afterIdx >= 0) {
+      out[homeId].splice(afterIdx + 1, 0, to)
+    } else {
+      out[homeId].push(to)
+    }
+  }
+
   // Restaurant ops routes always live under the Restaurant section (avoids losing items after drag-and-drop).
   const restaurantOrder = [
     '/restaurant/floor',
@@ -208,6 +237,28 @@ export function reconcileNavPlacements(
   }
 
   return out
+}
+
+/** Render-time safety: inject pinned routes if placements still omit them. */
+export function ensurePinnedNavItemsInSection<T extends { to: string }>(
+  sectionId: string,
+  items: T[],
+  catalog: Map<string, T>,
+): T[] {
+  let next = items
+  for (const [to, homeId] of Object.entries(NAV_PINNED_SECTION_HOME)) {
+    if (sectionId !== homeId) continue
+    const item = catalog.get(to)
+    if (!item || next.some((i) => i.to === to)) continue
+    const after = NAV_PINNED_INSERT_AFTER[to]
+    const afterIdx = after ? next.findIndex((i) => i.to === after) : -1
+    if (afterIdx >= 0) {
+      next = [...next.slice(0, afterIdx + 1), item, ...next.slice(afterIdx + 1)]
+    } else {
+      next = [...next, item]
+    }
+  }
+  return next
 }
 
 /** Load v2 placements, or migrate from legacy per-section order (same-module only). */

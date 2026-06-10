@@ -98,6 +98,40 @@ export const MEDIA_CLIP_OPTIONS: MediaClipOption[] = [
   { id: 'blob', label: 'Blob', shortLabel: 'Blob', hint: 'Soft organic blob' },
 ]
 
+/** Grouped picker sections — keeps the shape library scannable in narrow panels. */
+export const MEDIA_CLIP_GROUPS: { label: string; ids: MediaClipId[] }[] = [
+  {
+    label: 'Standard',
+    ids: ['none', 'rounded', 'circle', 'oval', 'pill', 'squircle', 'bevel'],
+  },
+  {
+    label: 'Slants & ribbons',
+    ids: ['diagonal_r', 'diagonal_l', 'tilt', 'steep_r', 'steep_l', 'skew_box', 'banner'],
+  },
+  {
+    label: 'Polygons & stars',
+    ids: ['hexagon', 'octagon', 'pentagon', 'diamond', 'trapezoid_top', 'trapezoid_bottom', 'star5', 'star4'],
+  },
+  {
+    label: 'Arches & waves',
+    ids: ['arch', 'dome', 'wave', 'scallop', 'notch_top', 'notch_bottom'],
+  },
+  {
+    label: 'Pointers & badges',
+    ids: ['chevron', 'chevron_l', 'arrow', 'flag', 'shield', 'ticket', 'house'],
+  },
+  {
+    label: 'Organic',
+    ids: ['leaf', 'blob'],
+  },
+]
+
+const mediaClipOptionMap = new Map(MEDIA_CLIP_OPTIONS.map(o => [o.id, o]))
+
+export function mediaClipOptionsForIds(ids: MediaClipId[]): MediaClipOption[] {
+  return ids.map(id => mediaClipOptionMap.get(id)).filter((o): o is MediaClipOption => Boolean(o))
+}
+
 /** clip-path values — tuned for photos & 16:9 video. */
 export const MEDIA_CLIP_CSS: Record<Exclude<MediaClipId, 'none'>, string> = {
   diagonal_r: 'polygon(6% 0%, 100% 0%, 94% 100%, 0% 100%)',

@@ -1,6 +1,8 @@
 import { useMemo, type ComponentType, type CSSProperties } from 'react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { blocks as commerceBlocks } from '@/commerce-blocks/blocks/registry'
+import { extractCommerceCatalogLayout } from '@/lib/commerceCatalogLayout'
+import { buildCommerceBlockCssVars } from '@/lib/commerceBlockTheme'
 import { mockProducts, mockCategories } from '@/commerce-blocks/mock/products'
 import { mockServices } from '@/commerce-blocks/mock/services'
 import { mockTestimonials, mockTeam } from '@/commerce-blocks/mock/serviceExtras'
@@ -147,10 +149,20 @@ function hydrateLiveData(blockType: string, liveItems: LiveItem[]) {
   }
 }
 
-export default function CommerceLibraryBlock({ props, liveItems, blockType }: Props) {
+export default function CommerceLibraryBlock({ style, props, liveItems, blockType }: Props) {
+  const catalogLayout = useMemo(
+    () => extractCommerceCatalogLayout(props, blockType),
+    [props, blockType],
+  )
+
+  const limitedLiveItems = useMemo(
+    () => liveItems.slice(0, catalogLayout.itemLimit),
+    [liveItems, catalogLayout.itemLimit],
+  )
+
   useMemo(() => {
-    hydrateLiveData(blockType, liveItems)
-  }, [blockType, liveItems])
+    hydrateLiveData(blockType, limitedLiveItems)
+  }, [blockType, limitedLiveItems])
 
   const def = useMemo(() => commerceBlocks.find((b) => b.id === blockType), [blockType])
 
@@ -168,36 +180,31 @@ export default function CommerceLibraryBlock({ props, liveItems, blockType }: Pr
   const variant = def.variants.find((v) => v.id === variantId) || def.variants[0]
   const Component = variant.Component as ComponentType<Record<string, unknown>>
   const parsedProps = def.propsSchema.safeParse({ ...def.defaultProps, ...props })
-  const componentProps = parsedProps.success ? parsedProps.data : { ...def.defaultProps, ...props }
+  const componentProps = {
+    ...(parsedProps.success ? parsedProps.data : { ...def.defaultProps, ...props }),
+    columns: catalogLayout.columns,
+    gap: catalogLayout.gap,
+    imageHeightPct: catalogLayout.imageHeightPct,
+    cardPadding: catalogLayout.cardPadding,
+    itemLimit: catalogLayout.itemLimit,
+    cardStyle: catalogLayout.cardStyle,
+    showTags: catalogLayout.showTags,
+    showCta: catalogLayout.showCta,
+    showBookLink: catalogLayout.showBookLink,
+    showPrice: props.showPrice !== false,
+    showFeatures: props.showFeatures !== false,
+    title: (props.title as string | undefined) ?? undefined,
+  }
+
+  const themeVars = useMemo(
+    () => buildCommerceBlockCssVars(style, props),
+    [style, props],
+  )
 
   return (
     <div
       className="commerce-block bg-background text-foreground"
-      style={{
-        // Match the semantic token system shipped in commerce-blocks.zip.
-        '--background': '0 0% 100%',
-        '--foreground': '222 20% 12%',
-        '--card': '0 0% 100%',
-        '--card-foreground': '222 20% 12%',
-        '--primary': '222 47% 20%',
-        '--primary-foreground': '210 40% 98%',
-        '--secondary': '210 20% 96%',
-        '--secondary-foreground': '222 47% 15%',
-        '--muted': '210 20% 96%',
-        '--muted-foreground': '215 14% 45%',
-        '--accent': '210 20% 94%',
-        '--accent-foreground': '222 47% 15%',
-        '--destructive': '0 75% 55%',
-        '--destructive-foreground': '0 0% 100%',
-        '--success': '142 65% 38%',
-        '--success-foreground': '0 0% 100%',
-        '--warning': '38 92% 50%',
-        '--warning-foreground': '26 60% 12%',
-        '--border': '214 22% 90%',
-        '--input': '214 22% 90%',
-        '--ring': '222 47% 20%',
-        '--radius': '0.625rem',
-      } as CSSProperties}
+      style={themeVars as CSSProperties}
     >
       <Component {...componentProps} />
     </div>

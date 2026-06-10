@@ -125,6 +125,17 @@ const KEYWORD_HINTS: Record<string, string[]> = {
 
 export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
   {
+    kind: 'nav', id: 'website-builder',
+    label: 'Website Builder',
+    description: 'My Kit → Build and publish your store website',
+    section: 'My Kit', sectionId: 'my-kit',
+    to: '/websites',
+    keywords: [
+      'website', 'builder', 'storefront', 'publish', 'sections', 'pages', 'templates',
+      'edit website', 'go live', 'business front', 'online store',
+    ],
+  },
+  {
     kind: 'nav', id: 'settings-main',
     label: 'Settings',
     description: 'My Kit → Business Unit / Store settings',

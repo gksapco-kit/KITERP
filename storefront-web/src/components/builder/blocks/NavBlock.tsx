@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { MapPin, ChevronDown, Search, ShoppingBag, User } from 'lucide-react'
+import { MapPin, ChevronDown, Search, ShoppingBag, User, X } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
 import { imgUrl, cn } from '@/lib/utils'
 import { AnnouncementBar } from '@/kit/header/UnifiedNav'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,8 @@ import { storeApi, type StoreLocation } from '@/api/store'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
 import { resolveNavBlockShell } from '@/lib/navBlockLayout'
+import { sitePagesToNavLinks } from '@/lib/siteNavPages'
+import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 
 interface Props {
   site: PublicSite
@@ -45,12 +48,23 @@ export default function NavBlock({
   branchCode: branchFromBlocks,
   isEditorCanvas = false,
 }: Props) {
-  const { storePath, vendor } = useVendor()
+  const { storePath, vendor, previewShell } = useVendor()
+  const builderCanvas = useBuilderCanvas()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const { isAuthenticated } = useAuthStore()
   const { itemCount } = useCartStore()
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const navigateStorePath = (rawPath: string) => {
+    if (builderCanvas?.onNavigate) {
+      builderCanvas.onNavigate(rawPath)
+      return
+    }
+    navigate(storePath(rawPath))
+  }
 
   const [branches, setBranches] = useState<StoreLocation[]>([])
 
@@ -99,6 +113,11 @@ export default function NavBlock({
     let pageLinks: NavLinkItem[] = []
     if (navLinksSource === 'manual') {
       pageLinks = rawLinks.map(l => ({ label: l.label, href: storePath(l.url) }))
+    } else if (navLinksSource === 'site_pages') {
+      pageLinks = sitePagesToNavLinks(site, storePath, 20)
+      if (pageLinks.length === 0 && liveItems.length > 0) {
+        pageLinks = liveItems.map(item => ({ label: item.title, href: storePath(item.url || '/') }))
+      }
     } else if (liveItems.length > 0) {
       pageLinks = liveItems.map(item => ({ label: item.title, href: storePath(item.url || '/') }))
     } else if (rawLinks.length > 0) {
@@ -119,7 +138,9 @@ export default function NavBlock({
       )
     }
     return deduped
-  }, [showNavLinks, navLinksSource, rawLinks, liveItems, storePath])
+  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath])
+
+  const forceNavLinksVisible = isEditorCanvas || previewShell === true
 
   const showBranchPicker = branches.length > 1
   const primary = style.primary_color || '#64C3A0'
@@ -144,15 +165,19 @@ export default function NavBlock({
 
   const linksNode = kitLinks.length > 0 && (
     <nav className={cn(
-      'flex items-center gap-1 flex-wrap',
+      'flex items-center gap-1 flex-wrap min-w-0',
       shell.isCentered ? 'justify-center' : 'justify-center flex-1',
-      isEditorCanvas ? 'flex' : 'hidden md:flex',
+      forceNavLinksVisible ? 'flex' : 'hidden md:flex',
     )}>
       {kitLinks.map(link => (
         <Link
           key={link.href}
           to={link.href}
-          className={cn('rounded-md text-sm font-medium hover:opacity-80 transition-opacity', shell.isCompact ? 'px-2 py-1' : 'px-3 py-2')}
+          onClick={builderCanvas?.onNavigate ? (e) => {
+            e.preventDefault()
+            builderCanvas.onNavigate!(link.href)
+          } : undefined}
+          className={cn('rounded-md text-sm font-medium hover:opacity-80 transition-opacity whitespace-nowrap', shell.isCompact ? 'px-2 py-1' : 'px-3 py-2')}
           style={{ color: shell.navTextCol }}
         >
           {link.label}
@@ -161,27 +186,99 @@ export default function NavBlock({
     </nav>
   )
 
+  const submitSearch = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const q = searchQuery.trim()
+    if (!q) return
+    setSearchOpen(false)
+    navigateStorePath(`/products?search=${encodeURIComponent(q)}`)
+  }
+
   const actionsNode = (
     <div className="flex items-center gap-1 sm:gap-2 shrink-0">
       {showSearch && (
-        <button type="button" className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Search">
-          <Search className="w-5 h-5" />
-        </button>
+        searchOpen ? (
+          <form onSubmit={submitSearch} className="flex items-center gap-1">
+            <Input
+              autoFocus
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search products…"
+              className={cn('h-9 text-sm', shell.isCompact ? 'w-36' : 'w-44')}
+            />
+            <button
+              type="submit"
+              className="p-2 rounded-lg hover:opacity-70 transition-opacity"
+              style={{ color: shell.navTextCol }}
+              aria-label="Submit search"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSearchOpen(false); setSearchQuery('') }}
+              className="p-2 rounded-lg hover:opacity-70 transition-opacity"
+              style={{ color: shell.navTextCol }}
+              aria-label="Close search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="p-2 rounded-lg hover:opacity-70 transition-opacity"
+            style={{ color: shell.navTextCol }}
+            aria-label="Search"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+        )
       )}
       {showCart && (
-        <Link to={storePath('/cart')} className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: shell.navTextCol }} aria-label="Cart">
-          <ShoppingBag className="w-5 h-5" />
-          {itemCount() > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
-              {itemCount()}
-            </span>
-          )}
-        </Link>
+        builderCanvas?.onNavigate ? (
+          <button
+            type="button"
+            onClick={() => navigateStorePath('/cart')}
+            className="p-2 rounded-lg hover:opacity-70 transition-opacity relative"
+            style={{ color: shell.navTextCol }}
+            aria-label="Cart"
+          >
+            <ShoppingBag className="w-5 h-5" />
+            {itemCount() > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                {itemCount()}
+              </span>
+            )}
+          </button>
+        ) : (
+          <Link to={storePath('/cart')} className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: shell.navTextCol }} aria-label="Cart">
+            <ShoppingBag className="w-5 h-5" />
+            {itemCount() > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                {itemCount()}
+              </span>
+            )}
+          </Link>
+        )
       )}
       {showAccount && (
-        <Link to={storePath(isAuthenticated ? '/account' : '/login')} className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Account">
-          <User className="w-5 h-5" />
-        </Link>
+        builderCanvas?.onNavigate ? (
+          <button
+            type="button"
+            onClick={() => navigateStorePath(isAuthenticated ? '/account' : '/login')}
+            className="p-2 rounded-lg hover:opacity-70 transition-opacity"
+            style={{ color: shell.navTextCol }}
+            aria-label="Account"
+          >
+            <User className="w-5 h-5" />
+          </button>
+        ) : (
+          <Link to={storePath(isAuthenticated ? '/account' : '/login')} className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: shell.navTextCol }} aria-label="Account">
+            <User className="w-5 h-5" />
+          </Link>
+        )
       )}
       {showBranchPicker && !shell.isCentered && (
         <div className="hidden md:flex items-center shrink-0">

@@ -507,6 +507,19 @@ export function matchesSectionLayoutOption(
   return keys.every(key => String(currentProps[key] ?? '') === String(option.props[key]))
 }
 
+function scoreSectionLayoutOption(
+  currentProps: Record<string, unknown>,
+  option: SectionLayoutOption,
+): number {
+  const keys = Object.keys(option.props)
+  if (keys.length === 0) return 0
+  let score = 0
+  for (const key of keys) {
+    if (String(currentProps[key] ?? '') === String(option.props[key])) score++
+  }
+  return score
+}
+
 /** Best-matching layout option for highlighting the current selection in the picker. */
 export function findActiveSectionLayoutOption(
   currentProps: Record<string, unknown> | undefined,
@@ -516,12 +529,7 @@ export function findActiveSectionLayoutOption(
   let best: SectionLayoutOption | undefined
   let bestScore = -1
   for (const opt of options) {
-    const keys = Object.keys(opt.props)
-    if (keys.length === 0) continue
-    let score = 0
-    for (const key of keys) {
-      if (String(currentProps[key] ?? '') === String(opt.props[key])) score++
-    }
+    const score = scoreSectionLayoutOption(currentProps, opt)
     if (score > bestScore) {
       bestScore = score
       best = opt
@@ -531,13 +539,33 @@ export function findActiveSectionLayoutOption(
   return best
 }
 
+/** Closest preset for arrow cycling and panel labels when props only partially match. */
+export function findBestSectionLayoutOption(
+  currentProps: Record<string, unknown> | undefined,
+  options: SectionLayoutOption[],
+): SectionLayoutOption | undefined {
+  if (!currentProps || options.length === 0) return undefined
+  let best: SectionLayoutOption | undefined
+  let bestScore = -1
+  for (const opt of options) {
+    const score = scoreSectionLayoutOption(currentProps, opt)
+    if (score > bestScore) {
+      bestScore = score
+      best = opt
+    }
+  }
+  return bestScore > 0 ? best : undefined
+}
+
 export function findActiveLayoutIndex(
   currentProps: Record<string, unknown> | undefined,
   blockType: string,
 ): number {
   const options = getSectionLayoutOptions(blockType)
   if (!options.length) return 0
-  const active = findActiveSectionLayoutOption(currentProps, options)
+  const active =
+    findActiveSectionLayoutOption(currentProps, options)
+    ?? findBestSectionLayoutOption(currentProps, options)
   if (active) {
     const idx = options.findIndex(o => o.id === active.id)
     if (idx >= 0) return idx

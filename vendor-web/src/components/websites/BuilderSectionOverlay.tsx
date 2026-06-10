@@ -1,6 +1,40 @@
-import { type RefObject, useLayoutEffect, useState, type ReactNode } from 'react'
+import { type RefObject, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+
+const SECTION_PADDING_MAX = 320
+const SECTION_PADDING_STEP = 4
+
+/** Snap to slider step — used when drag ends. */
+function snapSectionPadding(px: number): number {
+  return Math.max(0, Math.min(SECTION_PADDING_MAX, Math.round(px / SECTION_PADDING_STEP) * SECTION_PADDING_STEP))
+}
+
+/** Smooth 1px steps while dragging (matches slider feel). */
+function clampDragPadding(px: number): number {
+  return Math.max(0, Math.min(SECTION_PADDING_MAX, Math.round(px)))
+}
+
+function findBlockEl(containerRef: RefObject<HTMLElement | null>, blockId: string): HTMLElement | null {
+  const root = containerRef.current
+  if (!root) return null
+  return root.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) as HTMLElement | null
+}
+
+function pointerInBlock(
+  clientY: number,
+  containerRef: RefObject<HTMLElement | null>,
+  blockId: string,
+): { pointerY: number; height: number } | null {
+  const root = containerRef.current
+  const el = findBlockEl(containerRef, blockId)
+  if (!root || !el) return null
+  const measured = measureBlockInRoot(el, root)
+  const rootRect = root.getBoundingClientRect()
+  const scaleY = root.offsetHeight > 0 ? rootRect.height / root.offsetHeight : 1
+  const pointerY = (clientY - rootRect.top) / scaleY - measured.top
+  return { pointerY, height: measured.height }
+}
 
 export interface BuilderSectionBox {
   top: number
@@ -163,6 +197,7 @@ export function BuilderSectionOverlay({
   containerRef,
   revision,
   selected,
+  imageSelected,
   saving,
   visible,
   dropBefore,
@@ -180,6 +215,8 @@ export function BuilderSectionOverlay({
   containerRef: RefObject<HTMLElement | null>
   revision?: string
   selected?: boolean
+  /** Section photo is the active target — soften full-section ring so the image highlight reads clearly. */
+  imageSelected?: boolean
   saving?: boolean
   visible?: boolean
   dropBefore?: boolean
@@ -206,7 +243,9 @@ export function BuilderSectionOverlay({
         selected
           ? saving
             ? 'ring-2 ring-inset ring-amber-400'
-            : 'ring-2 ring-inset ring-ring'
+            : imageSelected
+              ? 'ring-1 ring-inset ring-primary/30'
+              : 'ring-2 ring-inset ring-ring'
           : interactive && 'hover:ring-2 hover:ring-inset hover:ring-ring/60',
         dropBefore && 'border-t-4 border-primary',
         dropAfter && 'border-b-4 border-primary',
@@ -227,5 +266,254 @@ export function BuilderSectionOverlay({
     >
       {children}
     </div>
+  )
+}
+
+/** Drag top/bottom section edges to adjust padding_top / padding_bottom. */
+export function BuilderSectionPaddingHandles({
+  blockId,
+  containerRef,
+  scrollRootRef,
+  paddingTop,
+  paddingBottom,
+  canvasScale: _canvasScale,
+  suppressed,
+  onPaddingPreview,
+  onPaddingCommit,
+}: {
+  blockId: string
+  containerRef: RefObject<HTMLElement | null>
+  revision?: string
+  scrollRootRef?: RefObject<HTMLElement | null>
+  paddingTop: number
+  paddingBottom: number
+  canvasScale: number
+  /** Hide while a text or image field is the active target — avoids clashing resize handles. */
+  suppressed?: boolean
+  onPaddingPreview: (patch: { padding_top?: number; padding_bottom?: number }) => void
+  onPaddingCommit: (patch: { padding_top?: number; padding_bottom?: number }) => void
+}) {
+  // Box tracks ResizeObserver only — skip revision so padding ticks don't reset observers.
+  const box = useBuilderSectionBox(blockId, containerRef, undefined, scrollRootRef)
+  const [activeEdge, setActiveEdge] = useState<'top' | 'bottom' | null>(null)
+  const [dragLabel, setDragLabel] = useState<string | null>(null)
+  const dragRef = useRef<{
+    edge: 'top' | 'bottom'
+    startVal: number
+    lastVal: number
+    displayY: number
+    rafId: number | null
+    pendingPreview: { padding_top?: number; padding_bottom?: number } | null
+  } | null>(null)
+  const onPaddingPreviewRef = useRef(onPaddingPreview)
+  const onPaddingCommitRef = useRef(onPaddingCommit)
+  onPaddingPreviewRef.current = onPaddingPreview
+  onPaddingCommitRef.current = onPaddingCommit
+
+  if (!box || suppressed) return null
+
+  const liveTop = activeEdge === 'top' && dragRef.current
+    ? dragRef.current.lastVal
+    : clampDragPadding(paddingTop)
+  const liveBottom = activeEdge === 'bottom' && dragRef.current
+    ? dragRef.current.lastVal
+    : clampDragPadding(paddingBottom)
+  const topHandleY = activeEdge === 'top' && dragRef.current
+    ? dragRef.current.displayY
+    : liveTop
+  const bottomHandleY = activeEdge === 'bottom' && dragRef.current
+    ? dragRef.current.displayY
+    : box.height - liveBottom
+  const hideBottom = bottomHandleY <= topHandleY + 12
+
+  const flushPreview = () => {
+    const drag = dragRef.current
+    if (!drag?.pendingPreview) return
+    onPaddingPreviewRef.current(drag.pendingPreview)
+    drag.pendingPreview = null
+    drag.rafId = null
+  }
+
+  const scheduleDragFrame = (
+    patch: { padding_top?: number; padding_bottom?: number },
+    label: string,
+  ) => {
+    const drag = dragRef.current
+    if (!drag) return
+    drag.pendingPreview = patch
+    if (drag.rafId != null) return
+    drag.rafId = window.requestAnimationFrame(() => {
+      flushPreview()
+      setDragLabel(label)
+      const d = dragRef.current
+      if (d) d.rafId = null
+    })
+  }
+
+  const startDrag = (edge: 'top' | 'bottom', e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const hit = pointerInBlock(e.clientY, containerRef, blockId)
+    if (!hit) return
+
+    const startVal = clampDragPadding(edge === 'top' ? paddingTop : paddingBottom)
+    const startY = edge === 'top' ? startVal : hit.height - startVal
+
+    dragRef.current = {
+      edge,
+      startVal,
+      lastVal: startVal,
+      displayY: startY,
+      rafId: null,
+      pendingPreview: null,
+    }
+    setActiveEdge(edge)
+    setDragLabel(`${edge === 'top' ? 'Top' : 'Bottom'} padding: ${startVal}px`)
+    document.body.style.cursor = 'ns-resize'
+    document.body.style.userSelect = 'none'
+
+    const handleEl = e.currentTarget as HTMLElement
+    handleEl.setPointerCapture(e.pointerId)
+
+    const onMove = (ev: PointerEvent) => {
+      const drag = dragRef.current
+      if (!drag) return
+      const hitMove = pointerInBlock(ev.clientY, containerRef, blockId)
+      if (!hitMove) return
+      const { pointerY, height } = hitMove
+      const next = drag.edge === 'top'
+        ? clampDragPadding(pointerY)
+        : clampDragPadding(height - pointerY)
+      const displayY = drag.edge === 'top' ? next : height - next
+
+      if (next === drag.lastVal) return
+
+      drag.lastVal = next
+      drag.displayY = displayY
+      const label = `${drag.edge === 'top' ? 'Top' : 'Bottom'} padding: ${next}px`
+      scheduleDragFrame(
+        drag.edge === 'top' ? { padding_top: next } : { padding_bottom: next },
+        label,
+      )
+    }
+
+    const endDrag = (ev: PointerEvent) => {
+      const drag = dragRef.current
+      if (!drag) return
+
+      if (drag.rafId != null) {
+        window.cancelAnimationFrame(drag.rafId)
+        flushPreview()
+      }
+
+      const snapped = snapSectionPadding(drag.lastVal)
+      dragRef.current = null
+      setActiveEdge(null)
+      setDragLabel(null)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+
+      try {
+        handleEl.releasePointerCapture(ev.pointerId)
+      } catch { /* already released */ }
+
+      handleEl.removeEventListener('pointermove', onMove)
+      handleEl.removeEventListener('pointerup', endDrag)
+      handleEl.removeEventListener('pointercancel', endDrag)
+
+      if (snapped !== drag.startVal) {
+        onPaddingCommitRef.current(
+          drag.edge === 'top' ? { padding_top: snapped } : { padding_bottom: snapped },
+        )
+      } else if (drag.lastVal !== drag.startVal) {
+        // Dragged but landed on same 4px snap — still sync React state.
+        onPaddingPreviewRef.current(
+          drag.edge === 'top' ? { padding_top: snapped } : { padding_bottom: snapped },
+        )
+      }
+    }
+
+    handleEl.addEventListener('pointermove', onMove)
+    handleEl.addEventListener('pointerup', endDrag)
+    handleEl.addEventListener('pointercancel', endDrag)
+  }
+
+  const edges: Array<{ edge: 'top' | 'bottom'; y: number; value: number; label: string }> = [
+    { edge: 'top', y: topHandleY, value: liveTop, label: 'Section padding top' },
+    { edge: 'bottom', y: bottomHandleY, value: liveBottom, label: 'Section padding bottom' },
+  ]
+
+  return (
+    <>
+      {liveTop > 0 && (
+        <div
+          className="pointer-events-none absolute left-0 right-0 top-0 z-[58] bg-primary/10 border-b border-primary/35"
+          style={{ height: liveTop }}
+          aria-hidden
+        />
+      )}
+      {liveBottom > 0 && (
+        <div
+          className="pointer-events-none absolute left-0 right-0 bottom-0 z-[58] bg-primary/10 border-t border-primary/35"
+          style={{ height: liveBottom }}
+          aria-hidden
+        />
+      )}
+      {edges.map(({ edge, y, value, label }) => {
+        if (edge === 'bottom' && hideBottom) return null
+        const active = activeEdge === edge
+        return (
+          <div
+            key={edge}
+            className={cn(
+              'pointer-events-none absolute left-0 right-0 z-[60] touch-none select-none -translate-y-1/2',
+              active && 'z-[62]',
+            )}
+            style={{ top: y }}
+          >
+            <div
+              className={cn(
+                'absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2',
+                active ? 'bg-primary' : 'bg-primary/45',
+              )}
+              aria-hidden
+            />
+            <div
+              data-section-padding-handle
+              role="slider"
+              aria-label={label}
+              aria-valuemin={0}
+              aria-valuemax={SECTION_PADDING_MAX}
+              aria-valuenow={value}
+              title={`${edge === 'top' ? 'Space above content' : 'Space below content'} — drag to adjust (${value}px)`}
+              className="group/pad pointer-events-auto absolute left-1/2 top-1/2 flex h-8 w-full max-w-[min(100%,280px)] -translate-x-1/2 -translate-y-1/2 cursor-ns-resize items-center justify-center"
+              onPointerDown={e => startDrag(edge, e)}
+            >
+              <div
+                className={cn(
+                  'flex h-5 min-w-[4.5rem] px-2 items-center justify-center gap-1 rounded-full border-2 bg-white shadow-sm transition-all',
+                  active ? 'border-primary ring-2 ring-primary/25 scale-105' : 'border-ring group-hover/pad:border-primary/60',
+                )}
+              >
+                <span className="block h-0.5 w-3 rounded-full bg-primary/70 shrink-0" />
+                <span className="text-[9px] font-bold uppercase tracking-wide text-primary/80">
+                  {edge === 'top' ? '↑ space' : '↓ space'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+      {dragLabel && activeEdge && (
+        <div
+          className="pointer-events-none absolute left-1/2 z-[63] -translate-x-1/2 -translate-y-1/2 rounded-md bg-gray-900 px-2.5 py-1 text-[11px] font-mono text-white shadow-md"
+          style={{ top: activeEdge === 'top' ? topHandleY : bottomHandleY }}
+        >
+          {dragLabel}
+        </div>
+      )}
+    </>
   )
 }

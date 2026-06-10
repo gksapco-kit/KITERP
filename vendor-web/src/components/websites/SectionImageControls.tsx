@@ -12,7 +12,12 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { CanvasImageArraySlot } from '@storefront/lib/canvasImageTarget'
 import {
+  patchArrayItemImageStyle,
+  patchMultipleArrayItemImageStyles,
+  readArrayItemFromBlockProps,
+  readArrayItemImageStyleProps,
   readSectionImageFit,
   readSectionImageFocal,
   readSectionImageScale,
@@ -124,6 +129,8 @@ export function SectionImageControls({
   imageField,
   blockProps,
   blockType,
+  arraySlot,
+  arraySlots,
   onUpdate,
   onPickImage,
   onOpenLibrary,
@@ -131,27 +138,53 @@ export function SectionImageControls({
   imageField: string
   blockProps: Record<string, unknown>
   blockType: string
+  /** When set, zoom / pan / fit apply only to this card / gallery slot. */
+  arraySlot?: CanvasImageArraySlot | null
+  /** Multi-select — toolbar applies to every slot in the list. */
+  arraySlots?: CanvasImageArraySlot[]
   onUpdate: (patch: Record<string, unknown>) => void
   onPickImage?: () => void
   onOpenLibrary?: () => void
 }) {
-  const keys = sectionImageStyleKeys(imageField)
-  const fit = readSectionImageFit(imageField, blockProps)
-  const focal = readSectionImageFocal(imageField, blockProps)
-  const zoom = readSectionImageScale(imageField, blockProps)
+  const resolvedSlots = arraySlots?.length ? arraySlots : arraySlot ? [arraySlot] : []
+  const primarySlot = resolvedSlots[0]
+  const styleSource = primarySlot
+    ? readArrayItemImageStyleProps(
+        readArrayItemFromBlockProps(blockProps, primarySlot.arrayKey, primarySlot.index),
+        blockProps,
+        imageField,
+      )
+    : blockProps
+  const styleField = primarySlot ? 'image_url' : imageField
+  const keys = sectionImageStyleKeys(styleField)
+  const fit = readSectionImageFit(styleField, styleSource)
+  const focal = readSectionImageFocal(styleField, styleSource)
+  const zoom = readSectionImageScale(styleField, styleSource)
   const panelHeight = Number(blockProps.min_height) || 640
-  const showPanelHeight = blockType.includes('hero') && imageField === 'image_url'
+  const showPanelHeight = !primarySlot && blockType.includes('hero') && imageField === 'image_url'
 
-  const setFit = (next: SectionImageFit) => onUpdate({ [keys.fit]: next })
+  const applyPatch = (patch: Record<string, unknown>) => {
+    if (resolvedSlots.length > 1) {
+      onUpdate(patchMultipleArrayItemImageStyles(blockProps, resolvedSlots, patch))
+      return
+    }
+    if (primarySlot) {
+      onUpdate(patchArrayItemImageStyle(blockProps, primarySlot.arrayKey, primarySlot.index, patch))
+      return
+    }
+    onUpdate(patch)
+  }
+
+  const setFit = (next: SectionImageFit) => applyPatch({ [keys.fit]: next })
   const nudgeFocal = (dx: number, dy: number) => {
-    onUpdate({
+    applyPatch({
       [keys.focalX]: Math.min(100, Math.max(0, focal.x + dx)),
       [keys.focalY]: Math.min(100, Math.max(0, focal.y + dy)),
     })
   }
 
   const centerFocal = () => {
-    onUpdate({ [keys.focalX]: 50, [keys.focalY]: 50 })
+    applyPatch({ [keys.focalX]: 50, [keys.focalY]: 50 })
   }
 
   return (
@@ -160,7 +193,7 @@ export function SectionImageControls({
         <FocalPad onNudge={nudgeFocal} onCenter={centerFocal} />
         <ZoomStepper
           value={zoom}
-          onCommit={n => onUpdate({ [keys.scale]: n })}
+          onCommit={n => applyPatch({ [keys.scale]: n })}
         />
         <div className={visualSegmentTrack} role="group" aria-label="Image fit">
           {(['cover', 'contain', 'fill'] as const).map(mode => (

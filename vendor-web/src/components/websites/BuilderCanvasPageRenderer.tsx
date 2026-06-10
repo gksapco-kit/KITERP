@@ -11,19 +11,18 @@ export function BuilderCanvasPageRenderer({
   publicSite,
   blocks,
   pageId,
-  revision,
 }: {
   publicSite: PublicSite
   blocks: WebsiteBlock[]
   pageId: string | null
-  /** Bust layout when block props change without id changes. */
+  /** @deprecated Canvas reconciles via `blocks` — do not use as React key (causes remount jank). */
   revision?: string
 }) {
   const publicBlocks = blocks.map(websiteBlockToPublicBlock)
 
   return (
     <BlockRenderer
-      key={revision || pageId || publicSite.id}
+      key={pageId || publicSite.id}
       blocks={publicBlocks}
       site={publicSite}
       pageId={pageId}

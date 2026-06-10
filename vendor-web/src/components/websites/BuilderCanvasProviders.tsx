@@ -2,6 +2,7 @@ import { type ReactNode, useMemo } from 'react'
 import { VendorContext, type VendorContextType, type VendorData } from '@storefront/contexts/VendorContext'
 import { LiveDataFetchProvider, type LiveDataFetcher } from '@storefront/contexts/LiveDataFetchContext'
 import { BuilderCanvasContextProvider } from '@storefront/contexts/BuilderCanvasContext'
+import type { ActiveCanvasImageTarget } from '@storefront/lib/canvasImageTarget'
 import type { LiveResource } from '@storefront/blocks/registry'
 import { websiteApi } from '@/api/websites'
 
@@ -28,13 +29,14 @@ export function BuilderCanvasProviders({
   activeBlockId = null,
   activeTextField = null,
   activeTextFields = [],
-  activeSectionImageField = null,
+  activeCanvasImageTarget = null,
   blockPropsForImage = null,
   onSectionImageActivate,
   onTextFieldActivate,
   onTextFieldCommit,
   onTextFieldStylePatch,
   onTextFieldBatchStylePatch,
+  onNavigate,
   children,
 }: {
   siteId: string
@@ -43,9 +45,13 @@ export function BuilderCanvasProviders({
   activeBlockId?: string | null
   activeTextField?: string | null
   activeTextFields?: string[]
-  activeSectionImageField?: string | null
+  activeCanvasImageTarget?: ActiveCanvasImageTarget | null
   blockPropsForImage?: Record<string, unknown> | null
-  onSectionImageActivate?: (blockId: string, field: string) => void
+  onSectionImageActivate?: (
+    blockId: string,
+    field: string,
+    opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
+  ) => void
   onTextFieldActivate?: (
     blockId: string,
     fieldKey: string,
@@ -57,6 +63,7 @@ export function BuilderCanvasProviders({
     blockId: string,
     patchesByField: Record<string, Record<string, unknown>>,
   ) => void
+  onNavigate?: (url: string) => void
   children: ReactNode
 }) {
   const vendorValue = useMemo<VendorContextType>(() => {
@@ -98,24 +105,26 @@ export function BuilderCanvasProviders({
     activeBlockId,
     activeTextField,
     activeTextFields,
-    activeSectionImageField,
+    activeCanvasImageTarget,
     blockPropsForImage,
     onSectionImageActivate,
     onTextFieldActivate,
     onTextFieldCommit,
     onTextFieldStylePatch,
     onTextFieldBatchStylePatch,
+    onNavigate,
   }), [
     activeBlockId,
     activeTextField,
     activeTextFields,
-    activeSectionImageField,
+    activeCanvasImageTarget,
     blockPropsForImage,
     onSectionImageActivate,
     onTextFieldActivate,
     onTextFieldCommit,
     onTextFieldStylePatch,
     onTextFieldBatchStylePatch,
+    onNavigate,
   ])
 
   return (

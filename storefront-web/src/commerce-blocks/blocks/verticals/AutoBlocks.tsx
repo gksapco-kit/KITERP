@@ -16,6 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockVehicles, type Vehicle } from "@/commerce-blocks/mock/verticals";
+import { catalogGridClassName } from "@/lib/commerceCatalogLayout";
 
 const CONDITION_STYLE: Record<Vehicle["condition"], string> = {
   New: "bg-success/15 text-success hover:bg-success/15",
@@ -25,24 +26,31 @@ const CONDITION_STYLE: Record<Vehicle["condition"], string> = {
 
 interface AutoInventoryProps {
   layout?: "grid" | "list";
+  columns?: number;
+  gap?: number;
+  itemLimit?: number;
   showFilters?: boolean;
   cta?: string;
 }
 
 export function AutoInventory({
   layout = "grid",
+  columns = 3,
+  gap = 20,
+  itemLimit,
   showFilters = true,
   cta = "View vehicle",
 }: AutoInventoryProps) {
   const [maxPrice, setMaxPrice] = useState(90000);
   const filtered = mockVehicles.filter((v) => v.price <= maxPrice);
+  const items = filtered.slice(0, itemLimit ?? filtered.length);
 
   return (
     <div className="bg-background p-6">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">Available inventory</h2>
-          <p className="text-sm text-muted-foreground">{filtered.length} vehicles match your filters</p>
+          <p className="text-sm text-muted-foreground">{items.length} vehicles match your filters</p>
         </div>
         {showFilters && (
           <div className="flex w-full items-center gap-3 sm:w-72">
@@ -63,14 +71,14 @@ export function AutoInventory({
       </div>
 
       {layout === "list" ? (
-        <div className="space-y-3">
-          {filtered.map((v) => (
+        <div className="space-y-3" style={{ gap }}>
+          {items.map((v) => (
             <VehicleRow key={v.id} v={v} cta={cta} />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((v) => (
+        <div className={cn("grid grid-cols-1", catalogGridClassName(columns))} style={{ gap }}>
+          {items.map((v) => (
             <VehicleCard key={v.id} v={v} cta={cta} />
           ))}
         </div>

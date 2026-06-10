@@ -41,6 +41,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { shouldUseLocalStorefrontUrls } from '@/lib/storefrontPreviewUrl'
 import { CustomDomainVerifyPanel } from '@/components/websites/CustomDomainVerifyPanel'
 import { format } from 'date-fns'
+import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 
 const BUSINESS_PRESETS = [
   {
@@ -930,6 +931,7 @@ export default function WebsitesPage() {
   const { data: sites = [], isLoading } = useSiteList()
   const [createOpen, setCreateOpen] = useState(false)
   const [openingTemplateEditor, setOpeningTemplateEditor] = useState(false)
+  const [showSandboxSites, setShowSandboxSites] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -1011,6 +1013,9 @@ export default function WebsitesPage() {
     })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const mainSites = (sites as SiteListItem[]).filter(s => !isTemplateSandboxSite(s))
+  const sandboxSites = (sites as SiteListItem[]).filter(s => isTemplateSandboxSite(s))
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
@@ -1020,7 +1025,7 @@ export default function WebsitesPage() {
             <Globe className="w-6 h-6 text-primary" /> Website Builder
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Start from a ready-made store website, then fine-tune with the advanced builder
+            Create your store website in minutes — pick a style, edit text and photos, then publish
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1090,7 +1095,12 @@ export default function WebsitesPage() {
       {!isLoading && sites.length > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">{sites.length} website{sites.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-gray-500">
+              {mainSites.length} website{mainSites.length !== 1 ? 's' : ''}
+              {sandboxSites.length > 0 && !showSandboxSites && (
+                <span className="text-gray-400"> · {sandboxSites.length} template workshop hidden</span>
+              )}
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {/* Add new card */}
@@ -1104,10 +1114,37 @@ export default function WebsitesPage() {
               <div className="text-sm font-semibold">Add New Website</div>
             </button>
 
-            {sites.map(site => (
+            {mainSites.map(site => (
               <SiteCard key={site.id} site={site} />
             ))}
           </div>
+
+          {sandboxSites.length > 0 && (
+            <div className="mt-8 border border-dashed border-gray-200 rounded-2xl p-4 bg-gray-50/80">
+              <button
+                type="button"
+                onClick={() => setShowSandboxSites(v => !v)}
+                className="flex w-full items-center justify-between gap-3 text-left"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Template workshop</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Internal sandboxes for trying templates — not customer websites. {sandboxSites.length} site{sandboxSites.length !== 1 ? 's' : ''}.
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-primary shrink-0">
+                  {showSandboxSites ? 'Hide' : 'Show'}
+                </span>
+              </button>
+              {showSandboxSites && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mt-4">
+                  {sandboxSites.map(site => (
+                    <SiteCard key={site.id} site={site} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 

@@ -506,6 +506,10 @@ class AIMediaAdjustResponse(BaseModel):
 
 # ── Media ─────────────────────────────────────────────────────────────────────
 
+class MediaUpdateBody(BaseModel):
+    filename: str
+
+
 class MediaOut(BaseModel):
     id: str
     site_id: str

@@ -37,11 +37,15 @@ function normalizeFeaturesLayout(props: Record<string, unknown>): Record<string,
 
 function normalizeHeroLayout(props: Record<string, unknown>, blockType: string): Record<string, unknown> {
   const next = { ...props }
-  if (blockType === 'hero_split' || next.layout === 'split') {
-    next.layout = 'split'
-  }
   if (blockType === 'hero_minimal') {
     next.layout = 'minimal'
+  } else if (blockType === 'hero_split') {
+    const layout = String(next.layout ?? 'split')
+    if (layout !== 'stacked' && layout !== 'overlap') {
+      next.layout = 'split'
+    }
+  } else if (next.layout === 'split') {
+    next.layout = 'split'
   }
   if (next.bg_style === 'solid' && !next.bg_color) {
     next.bg_color = '#0f172a'

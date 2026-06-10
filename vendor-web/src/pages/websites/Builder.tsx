@@ -14,7 +14,7 @@ import {
   Undo2, Redo2, Plus, Trash2, Copy, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown,
   GripVertical, Settings2, Palette, Sparkles, Image as ImageIcon,
   FileText, Layers, Layout, Code, Globe, Search, X, Check,
-  Loader2, ChevronRight, MoreVertical, PanelLeft, PanelRight,
+  Loader2, ChevronRight, MoreVertical, MoreHorizontal, History, Lightbulb, PanelLeft, PanelRight,
   Wand2, AlertTriangle, Download, ExternalLink, RefreshCw,
   Bold, Italic, Link2,
   Maximize2, Minimize2, Move, Pencil, PlusCircle, Upload,
@@ -37,7 +37,6 @@ import {
   useAIGenerateSEO, useAISuggestBlocks,
   useRedirects, useCreateRedirect, useDeleteRedirect,
   useEnableHeadless, useDisableHeadless,
-  useSubmitLiveContact, useSubmitLiveNewsletter,
 } from '@/hooks/useWebsites'
 import type {
   WebsiteSite, WebsiteBlock, WebsitePage, BlockType, DeviceMode, BuilderPanel,
@@ -53,10 +52,13 @@ import { useMyVendor, useStores } from '@/hooks/useVendor'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { formatStoreCode } from '@/lib/verification'
-import CommerceLibraryPreview from '@/components/websites/CommerceLibraryPreview'
 import { BuilderCanvasProviders } from '@/components/websites/BuilderCanvasProviders'
+import { CanvasHScrollbar } from '@/components/websites/CanvasHScrollbar'
 import { BuilderCanvasPageRenderer, mergePageStyle } from '@/components/websites/BuilderCanvasPageRenderer'
-import { BuilderSectionOverlay } from '@/components/websites/BuilderSectionOverlay'
+import {
+  BuilderSectionOverlay,
+  BuilderSectionPaddingHandles,
+} from '@/components/websites/BuilderSectionOverlay'
 import {
   FontSizePxControl,
   FontFamilyControl,
@@ -142,14 +144,31 @@ import {
   sectionSupportsEdgeShapes,
   sectionSupportsMediaClip,
 } from '@storefront/lib/designBarCapabilities'
+import {
+  canvasImageArraySlots,
+  canvasImageStyleField,
+  toggleCanvasImageSlot,
+  type ActiveCanvasImageTarget,
+} from '@storefront/lib/canvasImageTarget'
 import { MediaDesignBarTools } from '@/components/websites/MediaDesignBarTools'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
+import {
+  BuilderWelcomePanel,
+  dismissBuilderWelcome,
+  readBuilderWelcomeDismissed,
+} from '@/components/websites/BuilderWelcomePanel'
+import {
+  BuilderSpacingCoachMark,
+  dismissBuilderSpacingTip,
+  readBuilderSpacingTipDismissed,
+} from '@/components/websites/BuilderSpacingCoachMark'
 import {
   SectionEditorRibbon,
   resolveSectionEditorTab,
   type SectionEditorTabId,
 } from '@/components/websites/SectionEditorRibbon'
+import { SectionPanelGroup } from '@/components/websites/SectionPanelGroup'
 import {
   applyCategoryImagesToBlockProps,
   blockSupportsGalleryCategory,
@@ -164,7 +183,7 @@ import {
   type BlockColorProps,
   type ThemeColors,
 } from '@/lib/blockColorOverrides'
-import { getSectionLayoutOptions, findActiveSectionLayoutOption, findActiveLayoutIndex, getCycledSectionLayoutOption } from '@/lib/sectionLayoutPresets'
+import { getSectionLayoutOptions, findActiveSectionLayoutOption, findBestSectionLayoutOption, findActiveLayoutIndex, getCycledSectionLayoutOption } from '@/lib/sectionLayoutPresets'
 import {
   BLOCK_AUTO_SOURCE,
   DATA_SOURCES,
@@ -176,8 +195,7 @@ import {
   type LayoutPickerDataSourceChoice,
 } from '@/lib/blockDataSources'
 import { mergeLayoutBlockProps } from '@/lib/layoutBlockProps'
-import { heroShouldUseFullBleedImage, heroUsesBackgroundImage, heroUsesSideImage, resolveBlockPrimaryImageField, resolveGradientCss } from '@/lib/heroLayoutUtils'
-import { resolveFooterTheme } from '@/lib/footerLayoutTheme'
+import { heroUsesBackgroundImage, heroUsesSideImage, resolveBlockPrimaryImageField } from '@/lib/heroLayoutUtils'
 import {
   buildVendorDraftPreviewUrl,
   navigateDraftPreviewTab,
@@ -189,39 +207,21 @@ import {
 } from '@/lib/storefrontPreviewUrl'
 import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
-import {
-  sanitizeWellnessBodyCopy,
-  sanitizeWellnessCtaLabel,
-  sanitizeWellnessCategoryTitle,
-  isTemplateMealFeaturesBlock,
-  productFocusedFeatureContent,
-  isTemplateTimelineBlock,
-  genericTimelineContent,
-  resolveWellnessFeatureImage,
-} from '@/lib/wellnessTemplateCopy'
+import { buildDraftPreviewCatalogUrl, parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
+import { recallDraftPreviewToken } from '@/lib/draftPreviewNavigation'
 import {
   isLiveTeamDataSource,
   shouldUseLiveTeam,
   liveItemToPropMember,
   teamPropMembers,
 } from '@/lib/teamGridContent'
-import {
-  isWellnessRetailContext,
-  resolveWellnessSiteProducts,
-} from '@storefront/lib/wellnessProductFilter'
 import { broadcastPreviewTabError, clearPendingPreviewTabError, clearPendingPreviewTabNavigate, pushDraftPreviewUpdate, rememberDraftPreviewSession } from '@/lib/draftPreviewSync'
 import {
   WELLNESS_CATEGORY_FALLBACK_IMAGES,
   WELLNESS_DEFAULT_CATEGORY_TITLES,
 } from '@storefront/lib/wellnessCategoryStyle'
-import {
-  IMAGE_SHAPE_OPTIONS,
-  cardImageShapeClass,
-  iconBoxFromItemSize,
-  thumbnailShapeClass,
-  type ImageShape,
-} from '@storefront/lib/sectionItemLayout'
-import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
+import { IMAGE_SHAPE_OPTIONS } from '@storefront/lib/sectionItemLayout'
+import { buildFieldStylesCss, fieldTextStyle, CONTENT_GROUP_FIELD_KEY, FIELD_OFFSET_STEP_PX, hasInlineHtml, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
 import { BUILDER_FONT_FAMILIES, ensureBuilderFontLoaded } from '@storefront/lib/builderFontFamilies'
 import {
   applyInlineTextSelectionStyle,
@@ -236,11 +236,9 @@ import {
   getSelectionFontSizePx,
   hasActiveInlineTextSelection,
   pinInlineTextSelectionBeforeToolbarAction,
-  rememberInlineTextSelection,
   restoreSavedInlineSelection,
 } from '@storefront/lib/builderInlineTextSelection'
 import { mergeBlockSectionStyles, readRawBlockStyleOverrides, resolveBreakpointStyleOverrides } from '@storefront/lib/blockStyleOverrides'
-import CategoryCardMosaic from '@storefront/components/builder/blocks/CategoryCardMosaic'
 
 // ── Block definitions catalog ─────────────────────────────────────────────────
 
@@ -338,15 +336,6 @@ const BLOCK_CATALOG: BlockDef[] = [
 ]
 
 
-const DEFAULT_EDITORIAL_CATEGORIES = WELLNESS_DEFAULT_CATEGORY_TITLES.map((title, i) => ({
-  title,
-  image_url: WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
-}))
-
-function categoryCardsFromProps(categories: unknown): { title: string; image_url?: string; subtitle?: string; count?: number }[] {
-  const list = Array.isArray(categories) ? categories.filter(c => c && typeof c === 'object') : []
-  return list.length > 0 ? list as { title: string; image_url?: string; subtitle?: string; count?: number }[] : DEFAULT_EDITORIAL_CATEGORIES
-}
 
 const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'product.grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Responsive product listing with grid, list, and carousel layouts.', category: 'ecommerce', defaultProps: { variant: 'default' } },
@@ -451,7 +440,7 @@ function getBlockCatalogDef(blockType: string): BlockDef | undefined {
 }
 
 const BLOCK_CATEGORIES = [
-  { id: 'all', label: 'All Blocks' },
+  { id: 'all', label: 'All Sections' },
   { id: 'structure', label: 'Structure' },
   { id: 'hero', label: 'Hero' },
   { id: 'content', label: 'Content' },
@@ -724,8 +713,8 @@ function useDraggablePopup(open: boolean) {
 function TextPromptPopup({
   open, anchor, title, subtitle, initialValue, placeholder, multiline, maxLength,
   helpText, minLength,
-  confirmLabel = 'Save', confirmOnly, destructive,
-  onSave, onClose,
+  confirmLabel = 'Save', secondaryLabel, confirmOnly, destructive,
+  onSave, onSecondary, onClose,
 }: {
   open: boolean
   anchor?: { x: number; y: number } | null
@@ -738,9 +727,11 @@ function TextPromptPopup({
   helpText?: string
   minLength?: number
   confirmLabel?: string
+  secondaryLabel?: string
   confirmOnly?: boolean
   destructive?: boolean
   onSave: (v: string) => void | Promise<void>
+  onSecondary?: () => void | Promise<void>
   onClose: () => void
 }) {
   const [val, setVal] = useState(initialValue || '')
@@ -757,6 +748,17 @@ function TextPromptPopup({
     setSubmitting(true)
     try {
       await onSave(val)
+      onClose()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const commitSecondary = async () => {
+    if (!onSecondary || submitting) return
+    setSubmitting(true)
+    try {
+      await onSecondary()
       onClose()
     } finally {
       setSubmitting(false)
@@ -843,6 +845,16 @@ function TextPromptPopup({
         </div>
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50">
           <button onClick={onClose} disabled={submitting} className="btn-cancel flex-1 py-2 rounded-lg text-xs font-medium text-gray-600 border border-[#ffc954] disabled:opacity-50">Cancel</button>
+          {secondaryLabel && onSecondary && (
+            <button
+              onClick={() => { void commitSecondary() }}
+              disabled={submitting}
+              className="flex-1 py-2 rounded-lg text-xs font-bold text-gray-700 border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+            >
+              {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {secondaryLabel}
+            </button>
+          )}
           <button
             onClick={() => { void commit() }}
             disabled={!canSubmit || submitting}
@@ -1503,233 +1515,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
   )
 }
 
-// ── Inline Editable Text ──────────────────────────────────────────────────────
 
-const InlineTextStyleContext = React.createContext<{
-  styleForKey: (key: string, base?: React.CSSProperties) => React.CSSProperties
-  onActivateKey: (key: string) => void
-} | null>(null)
-
-function inferInlineTextStyleKey(onCommit: (v: string) => void): string | null {
-  const src = Function.prototype.toString.call(onCommit)
-  const commit = src.match(/commitProp\(['"`]([^'"`]+)['"`]/)
-  if (commit?.[1]) return commit[1]
-  const edit = src.match(/editItem\(['"`]([^'"`]+)['"`]\s*,\s*(\d+)\s*,\s*['"`]([^'"`]+)['"`]/)
-  if (edit?.[1] != null && edit?.[2] != null && edit?.[3]) return `${edit[1]}[${edit[2]}].${edit[3]}`
-  return null
-}
-
-function hasInlineHtml(value: string): boolean {
-  return /<\/?[a-z][\s\S]*>/i.test(value)
-}
-
-function InlineEditableText({
-  value,
-  placeholder,
-  multiline = false,
-  editable = true,
-  as: Tag = 'span',
-  className,
-  style,
-  onCommit,
-  styleKey,
-  onActivate,
-  onContextMenu,
-}: {
-  value: string
-  placeholder?: string
-  multiline?: boolean
-  editable?: boolean
-  as?: keyof JSX.IntrinsicElements
-  className?: string
-  style?: React.CSSProperties
-  onCommit: (v: string) => void
-  styleKey?: string
-  onActivate?: () => void
-  onContextMenu?: (e: React.MouseEvent) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const ref = useRef<HTMLElement | null>(null)
-  const styleCtx = React.useContext(InlineTextStyleContext)
-  const inferredStyleKey = useMemo(() => styleKey || inferInlineTextStyleKey(onCommit), [styleKey, onCommit])
-  const resolvedStyle = inferredStyleKey && styleCtx
-    ? styleCtx.styleForKey(inferredStyleKey, style || {})
-    : style
-
-  useEffect(() => {
-    ensureInlineTextSelectionTracking()
-  }, [])
-
-  const displayWhenIdle = value || (editable ? (placeholder || 'Click to edit') : '')
-
-  const readValue = useCallback(() => {
-    const rawHtml = (ref.current?.innerHTML ?? '').trim()
-    const rawText = (ref.current?.innerText ?? '').trim()
-    return hasInlineHtml(rawHtml) ? rawHtml : rawText
-  }, [])
-
-  // Sync DOM from props only when not editing — avoids resetting caret during typing
-  useEffect(() => {
-    const el = ref.current
-    if (!el || editing) return
-    const rich = hasInlineHtml(displayWhenIdle)
-    if (rich) {
-      if (el.innerHTML !== displayWhenIdle) el.innerHTML = displayWhenIdle
-    } else if (el.textContent !== displayWhenIdle) {
-      el.textContent = displayWhenIdle
-    }
-  }, [displayWhenIdle, editing])
-
-  useEffect(() => {
-    if (editing && ref.current) ref.current.focus()
-  }, [editing])
-
-  // Persist partial-word styles (font size / color) applied from the design bar
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const onInlineCommit = () => {
-      const v = readValue()
-      if (v !== value) onCommit(v)
-    }
-    el.addEventListener('builder-inline-text-commit', onInlineCommit)
-    return () => el.removeEventListener('builder-inline-text-commit', onInlineCommit)
-  }, [value, onCommit, readValue])
-
-  const commit = () => {
-    const v = readValue()
-    if (v !== value) onCommit(v)
-    setEditing(false)
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') { (ref.current as HTMLElement)?.blur(); e.preventDefault() }
-    if (!multiline && e.key === 'Enter') { (ref.current as HTMLElement)?.blur(); e.preventDefault() }
-  }
-
-  const TagComponent = Tag as React.ElementType
-  return (
-    <TagComponent
-      ref={ref as any}
-      data-text-key={inferredStyleKey || undefined}
-      contentEditable={editing}
-      suppressContentEditableWarning
-      spellCheck={editing}
-      className={cn(
-        className,
-        editable && !editing && 'hover:outline hover:outline-1 hover:outline-ring/50 hover:outline-offset-2 cursor-text rounded',
-        editing && 'outline outline-2 outline-ring outline-offset-2 rounded bg-white/40 selection:bg-blue-500/25 selection:text-inherit'
-      )}
-      style={{
-        ...resolvedStyle,
-        cursor: editable ? (editing ? 'text' : 'text') : resolvedStyle?.cursor,
-        minWidth: editing ? 40 : undefined,
-      }}
-      onClick={(e: React.MouseEvent) => {
-        if (editing) { e.stopPropagation(); return }
-        if (editable) {
-          e.stopPropagation()
-          if (inferredStyleKey) styleCtx?.onActivateKey(inferredStyleKey)
-          onActivate?.()
-          setEditing(true)
-        }
-      }}
-      onMouseDown={(e: React.MouseEvent) => { if (editing) e.stopPropagation() }}
-      onMouseUp={() => rememberInlineTextSelection(ref.current, inferredStyleKey)}
-      onKeyUp={() => rememberInlineTextSelection(ref.current, inferredStyleKey)}
-      onSelect={() => rememberInlineTextSelection(ref.current, inferredStyleKey)}
-      onBlur={commit}
-      onKeyDown={handleKeyDown}
-      onContextMenu={onContextMenu}
-    />
-  )
-}
-
-// ── Item Menu Button ─────────────────────────────────────────────────────────
-// Small ⋯ dropdown for array items on the canvas (features, plans, faqs, …).
-// Provides Duplicate, Move up/down, Delete, plus caller-supplied extras.
-function ItemMenuButton({
-  onDuplicate,
-  onMoveUp,
-  onMoveDown,
-  onDelete,
-  extras,
-}: {
-  onDuplicate?: () => void
-  onMoveUp?: () => void
-  onMoveDown?: () => void
-  onDelete?: () => void
-  extras?: { label: string; onClick: () => void; icon?: React.ReactNode }[]
-}) {
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
-  }, [open])
-
-  const item = (
-    label: string,
-    onClick: (() => void) | undefined,
-    icon: React.ReactNode,
-    tone: 'default' | 'danger' = 'default',
-  ) => (
-    <button
-      key={label}
-      type="button"
-      disabled={!onClick}
-      onClick={e => {
-        e.stopPropagation()
-        if (onClick) { onClick(); setOpen(false) }
-      }}
-      className={cn(
-        'w-full flex items-center gap-2 px-2.5 py-1.5 text-xs rounded transition-colors text-left',
-        !onClick && 'opacity-40 cursor-not-allowed',
-        onClick && tone === 'danger' && 'hover:bg-red-50 text-red-600',
-        onClick && tone !== 'danger' && 'hover:bg-gray-100 text-gray-700',
-      )}
-    >
-      <span className="w-3.5 h-3.5 flex items-center justify-center shrink-0">{icon}</span>
-      <span>{label}</span>
-    </button>
-  )
-
-  return (
-    <div
-      ref={rootRef}
-      className="absolute top-1 right-1 z-20 opacity-0 group-hover/item:opacity-100 transition-opacity"
-      onClick={e => e.stopPropagation()}
-    >
-      <button
-        type="button"
-        title="Item actions"
-        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        className={cn(
-          'w-7 h-7 rounded-full flex items-center justify-center shadow-md border text-gray-700 transition-colors',
-          open ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-gray-50 border-gray-200',
-        )}
-      >
-        <MoreVertical className="w-3.5 h-3.5" />
-      </button>
-      {open && (
-        <div className="absolute top-8 right-0 w-44 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-30 max-h-[90vh] overflow-y-auto">
-          {item('Duplicate', onDuplicate, <Copy className="w-3 h-3" />)}
-          {item('Move up', onMoveUp, <ChevronUp className="w-3 h-3" />)}
-          {item('Move down', onMoveDown, <ChevronDown className="w-3 h-3" />)}
-          {extras && extras.length > 0 && <div className="my-1 border-t border-gray-100" />}
-          {extras?.map(ex => item(ex.label, ex.onClick, ex.icon ?? <Settings2 className="w-3 h-3" />))}
-          <div className="my-1 border-t border-gray-100" />
-          {item('Delete', onDelete, <Trash2 className="w-3 h-3" />, 'danger')}
-        </div>
-      )}
-    </div>
-  )
-}
 
 /** Page row actions in the Pages sidebar — always visible menu with labeled options. */
 function PageActionsMenu({
@@ -1906,63 +1692,6 @@ function DeletedPagesPanel({
   )
 }
 
-// ── Inline Editable Rich Text (HTML) ─────────────────────────────────────────
-// For blocks that store HTML content (e.g. rich_text). When editable, a single
-// click focuses the contenteditable area preserving formatting; commits the
-// resulting innerHTML on blur.
-function InlineEditableRichText({
-  html,
-  editable = true,
-  className,
-  style,
-  onCommit,
-}: {
-  html: string
-  editable?: boolean
-  className?: string
-  style?: React.CSSProperties
-  onCommit: (html: string) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const ref = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el || editing) return
-    if (el.innerHTML !== html) el.innerHTML = html
-  }, [html, editing])
-
-  useEffect(() => {
-    if (editing && ref.current) ref.current.focus()
-  }, [editing])
-
-  const commit = () => {
-    const next = ref.current?.innerHTML ?? ''
-    if (next !== html) onCommit(next)
-    setEditing(false)
-  }
-
-  return (
-    <div
-      ref={ref}
-      contentEditable={editing}
-      suppressContentEditableWarning
-      className={cn(
-        className,
-        editable && !editing && 'hover:outline hover:outline-1 hover:outline-ring/50 hover:outline-offset-2 rounded cursor-text',
-        editing && 'outline outline-2 outline-ring outline-offset-2 rounded bg-white/40'
-      )}
-      style={style}
-      onClick={(e) => {
-        if (editing) { e.stopPropagation(); return }
-        if (editable) { e.stopPropagation(); setEditing(true) }
-      }}
-      onMouseDown={(e) => { if (editing) e.stopPropagation() }}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === 'Escape') { (ref.current as HTMLElement)?.blur(); e.preventDefault() } }}
-    />
-  )
-}
 
 /** Clicks on builder popovers / overlay UI must not clear overlay selection. */
 const BUILDER_OVERLAY_UI_SELECTOR =
@@ -2897,7 +2626,6 @@ function BuilderSectionChromeToolbar({
   onMinimize,
   onTogglePin,
   positionClassName,
-  armedDeleteId,
   dsConnectedLabel,
   dsSuggestedLabel,
   onConnectSuggestedDataSource,
@@ -2917,7 +2645,6 @@ function BuilderSectionChromeToolbar({
   onMinimize: () => void
   onTogglePin: () => void
   positionClassName: string
-  armedDeleteId: string | null
   dsConnectedLabel: string | null
   dsSuggestedLabel: string | null
   onConnectSuggestedDataSource: () => void
@@ -2942,6 +2669,43 @@ function BuilderSectionChromeToolbar({
     <>
       <button
         type="button"
+        onClick={e => { e.stopPropagation(); onMinimize() }}
+        className={cn(iconBtn, 'hover:text-amber-300 shrink-0')}
+        title={
+          minimized && pinned
+            ? 'Close toolbar'
+            : minimized
+              ? 'Restore toolbar'
+              : 'Minimize to hover ball'
+        }
+      >
+        <X className="w-6 h-6" />
+      </button>
+      <div
+        role="button"
+        tabIndex={0}
+        onPointerDown={onReorderPointerDown}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+        title="Drag to move this section on the page (order only — not the same as changing style)"
+        className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
+      >
+        <GripVertical className="w-7 h-7 pointer-events-none" />
+      </div>
+      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('top') }} className={iconBtn} title="Move section to top of page">
+        <ChevronsUp className="w-7 h-7" />
+      </button>
+      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('up') }} className={iconBtn} title="Move section up on the page">
+        <ChevronUp className="w-7 h-7" />
+      </button>
+      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('down') }} className={iconBtn} title="Move section down on the page">
+        <ChevronDown className="w-7 h-7" />
+      </button>
+      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('bottom') }} className={iconBtn} title="Move section to bottom of page">
+        <ChevronsDown className="w-7 h-7" />
+      </button>
+      <button
+        type="button"
         onClick={e => {
           e.stopPropagation()
           if (dsSuggestedLabel && !dsConnectedLabel) onConnectSuggestedDataSource()
@@ -2962,18 +2726,6 @@ function BuilderSectionChromeToolbar({
           <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden />
         ) : null}
       </button>
-      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('top') }} className={iconBtn} title="Move to top">
-        <ChevronsUp className="w-7 h-7" />
-      </button>
-      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('up') }} className={iconBtn} title="Move up">
-        <ChevronUp className="w-7 h-7" />
-      </button>
-      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('down') }} className={iconBtn} title="Move down">
-        <ChevronDown className="w-7 h-7" />
-      </button>
-      <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('bottom') }} className={iconBtn} title="Move to bottom">
-        <ChevronsDown className="w-7 h-7" />
-      </button>
       {showLayout ? (
         <SectionLayoutControls
           block={block}
@@ -2989,16 +2741,10 @@ function BuilderSectionChromeToolbar({
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onDelete() }}
-        title={armedDeleteId === block.id ? 'Click again to confirm delete' : 'Delete block (click twice to confirm)'}
-        className={cn(
-          'flex items-center gap-1 rounded-md px-1.5 transition-all duration-200',
-          armedDeleteId === block.id
-            ? 'bg-red-500 text-white text-sm font-bold px-2.5 py-1 animate-pulse'
-            : cn(iconBtn, 'hover:text-red-400'),
-        )}
+        title="Delete section"
+        className={cn(iconBtn, 'hover:text-red-400')}
       >
         <Trash2 className="w-7 h-7" />
-        {armedDeleteId === block.id && 'Delete?'}
       </button>
       <button
         type="button"
@@ -3011,25 +2757,6 @@ function BuilderSectionChromeToolbar({
       >
         <Pin className={cn('w-5 h-5', pinned && 'fill-current')} />
       </button>
-      <button
-        type="button"
-        onClick={e => { e.stopPropagation(); onMinimize() }}
-        className={cn(iconBtn, 'hover:text-amber-300')}
-        title={minimized && pinned ? 'Restore full toolbar' : 'Minimize to hover ball'}
-      >
-        <X className="w-6 h-6" />
-      </button>
-      <div
-        role="button"
-        tabIndex={0}
-        onPointerDown={onReorderPointerDown}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
-        title="Drag to reorder section"
-        className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none"
-      >
-        <GripVertical className="w-7 h-7 pointer-events-none" />
-      </div>
     </>
   )
 
@@ -3043,7 +2770,7 @@ function BuilderSectionChromeToolbar({
         data-builder-overlay={block.id}
         data-builder-section-toolbar
         className={cn(
-          'absolute z-[75] pointer-events-auto',
+          'absolute z-[85] pointer-events-auto',
           stayOpen ? 'flex items-center gap-1.5' : 'group/section-chrome',
           positionClassName,
         )}
@@ -3079,7 +2806,7 @@ function BuilderSectionChromeToolbar({
     <div
       data-builder-overlay={block.id}
       data-builder-section-toolbar
-      className={cn(panelClass, 'absolute z-[75] pointer-events-auto transition-all', positionClassName)}
+      className={cn(panelClass, 'absolute z-[85] pointer-events-auto transition-all', positionClassName)}
       onClick={e => e.stopPropagation()}
     >
       {toolbarBody}
@@ -3087,45 +2814,6 @@ function BuilderSectionChromeToolbar({
   )
 }
 
-// ── Section shape dividers (Origins) ─────────────────────────────────────────
-
-const SHAPE_SVG_PATHS: Record<string, string> = {
-  wave:        'M0,32 C166,64 333,0 500,32 C666,64 833,0 1000,32 L1000,64 L0,64 Z',
-  wave_soft:   'M0,48 C250,0 750,64 1000,48 L1000,64 L0,64 Z',
-  curve:       'M0,64 Q500,0 1000,64 L1000,64 L0,64 Z',
-  curve_deep:  'M0,64 Q500,-32 1000,64 L1000,64 L0,64 Z',
-  slant:       'M0,64 L1000,0 L1000,64 Z',
-  slant_r:     'M0,0 L1000,64 L0,64 Z',
-  arrow_down:  'M0,0 L500,64 L1000,0 L1000,64 L0,64 Z',
-  arrow_up:    'M0,64 L500,0 L1000,64 Z',
-  zigzag:      'M0,32 L62,0 L125,32 L187,0 L250,32 L312,0 L375,32 L437,0 L500,32 L562,0 L625,32 L687,0 L750,32 L812,0 L875,32 L937,0 L1000,32 L1000,64 L0,64 Z',
-  triangle:    'M0,64 L500,0 L1000,64 Z',
-  tilt:        'M0,0 L1000,32 L1000,64 L0,64 Z',
-}
-
-function SectionShapeDivider({ shape, fillColor, position }: {
-  shape: string
-  fillColor: string
-  position: 'top' | 'bottom'
-}) {
-  const path = SHAPE_SVG_PATHS[shape]
-  if (!path) return null
-  return (
-    <div
-      className="absolute left-0 right-0 pointer-events-none overflow-hidden z-10"
-      style={{ height: 64, ...(position === 'bottom' ? { bottom: 0 } : { top: 0 }) }}
-    >
-      <svg
-        viewBox="0 0 1000 64"
-        preserveAspectRatio="none"
-        className="w-full h-full"
-        style={{ transform: position === 'top' ? 'scaleY(-1)' : undefined }}
-      >
-        <path d={path} fill={fillColor || '#ffffff'} />
-      </svg>
-    </div>
-  )
-}
 
 function buildNavLinksFromPages(pages: WebsitePage[]): { label: string; url: string }[] {
   const sorted = [...pages]
@@ -3198,14 +2886,6 @@ function normalizeSitePages(pages: WebsitePage[]): WebsitePage[] {
     out[0] = { ...out[0], is_homepage: true }
   }
   return out
-}
-
-function pageChipLabel(page: WebsitePage, pages: WebsitePage[]): string {
-  const dupTitle = pages.filter(p => p.title === page.title).length > 1
-  if (dupTitle) {
-    return page.is_homepage ? `${page.title} ★` : `${page.title} · /${page.slug}`
-  }
-  return page.is_homepage ? `${page.title} ★` : page.title
 }
 
 function isPersistedPageId(pageId: string): boolean {
@@ -3285,8 +2965,6 @@ function structureLayoutFingerprint(props: Record<string, unknown> | undefined):
     props.image_position,
     props.card_style,
     props.overlay,
-    props.padding_top,
-    props.padding_bottom,
   ].map(v => String(v ?? '')).join('|')
 }
 
@@ -3546,3800 +3224,7 @@ function applyStructureLayoutToAllPages(
   return next
 }
 
-// ── Canvas image display (upload via properties panel only) ───────────────────
 
-function CanvasEditableImage({
-  src,
-  alt = '',
-  className,
-  imgClassName = 'w-full h-full object-cover',
-  style,
-  fill,
-}: {
-  siteId?: string
-  src: string | null
-  alt?: string
-  className?: string
-  imgClassName?: string
-  style?: React.CSSProperties
-  /** Background layers are edited in the props panel — no canvas overlay. */
-  fill?: boolean
-  editable: boolean
-  onReplace: (url: string) => void
-  onFocus?: () => void
-}) {
-  if (fill) return null
-
-  return (
-    <div
-      className={cn('overflow-hidden bg-gray-100', className)}
-      style={style}
-      onClick={e => e.stopPropagation()}
-    >
-      {src
-        ? <img src={mediaUrl(src)} className={imgClassName} alt={alt} />
-        : (
-          <div className="w-full h-full min-h-[80px] flex items-center justify-center">
-            <ImageIcon className="w-6 h-6 text-gray-300" />
-          </div>
-        )}
-    </div>
-  )
-}
-
-// ── Block canvas preview renderer ─────────────────────────────────────────────
-
-function BlockPreview({
-  block, style, isSelected, isEditing,
-  onOverlayUpdate, onOverlaySelectionChange,
-  onOpenAiImageTools, onOpenMediaLibrary,
-  onPickLocalImage, onImageFileDrop,
-  onPropsUpdate, onEditLinkForOverlay, onOverlayContextMenu,
-  onEditPropLink, onRequestText, onNavigatePage,
-  activeTextField, onActiveTextFieldChange, sitePages,
-  pageBlocks, onCanvasImageFocus,
-}: {
-  block: WebsiteBlock
-  style: StyleConfig
-  isSelected: boolean
-  isEditing: boolean
-  sitePages?: WebsitePage[]
-  pageBlocks?: WebsiteBlock[]
-  onCanvasImageFocus?: (target: {
-    propField?: string
-    arrayKey?: string
-    index?: number
-    itemField?: string
-  }) => void
-  onOverlayUpdate?: (overlays: BlockOverlayItem[]) => void
-  onOverlaySelectionChange?: (selectedId: string | null) => void
-  onOpenAiImageTools?: () => void
-  onOpenMediaLibrary?: () => void
-  onPickLocalImage?: () => void
-  onImageFileDrop?: (file: File) => void
-  // In-block inline editing: commit a block prop update
-  onPropsUpdate?: (patch: BlockProps) => void
-  // Overlay link editor (per-overlay)
-  onEditLinkForOverlay?: (item: BlockOverlayItem, anchor: { x: number; y: number }) => void
-  onOverlayContextMenu?: (item: BlockOverlayItem, e: React.MouseEvent) => void
-  // Block-level prop link editor (opens LinkEditor to set cta_primary_url, etc.)
-  onEditPropLink?: (propKey: string, anchor: { x: number; y: number }) => void
-  // Builder-page navigation for links rendered inside the preview nav block.
-  onNavigatePage?: (url: string) => void
-  activeTextField?: string | null
-  onActiveTextFieldChange?: (key: string | null) => void
-  // Styled text prompt (replaces native prompt)
-  onRequestText?: (opts: {
-    title: string
-    subtitle?: string
-    placeholder?: string
-    initialValue?: string
-    multiline?: boolean
-    maxLength?: number
-    anchor?: { x: number; y: number } | null
-    onSave: (v: string) => void
-  }) => void
-}) {
-  // Inline edit commit helper — writes to block.props when user edits in-place
-  const commitProp = (key: string, value: unknown) => {
-    if (!onPropsUpdate) return
-    onPropsUpdate({ ...block.props, [key]: value } as BlockProps)
-  }
-
-  // Inline edit helper for array items — updates a single field within an array item
-  const editItem = (arrayKey: string, idx: number, field: string, value: unknown) => {
-    if (!onPropsUpdate) return
-    const arr = [...(((block.props as any)[arrayKey] as any[]) || [])]
-    arr[idx] = { ...arr[idx], [field]: value }
-    onPropsUpdate({ ...block.props, [arrayKey]: arr } as BlockProps)
-  }
-
-  // Remove an item from an array prop by index
-  const removeItem = (arrayKey: string, idx: number) => {
-    if (!onPropsUpdate) return
-    const arr = [...(((block.props as any)[arrayKey] as any[]) || [])]
-    arr.splice(idx, 1)
-    onPropsUpdate({ ...block.props, [arrayKey]: arr } as BlockProps)
-  }
-
-  // Append a new item to an array prop
-  const addItem = (arrayKey: string, template: any) => {
-    if (!onPropsUpdate) return
-    const arr = [...(((block.props as any)[arrayKey] as any[]) || [])]
-    arr.push(template)
-    onPropsUpdate({ ...block.props, [arrayKey]: arr } as BlockProps)
-  }
-
-  // Duplicate an existing item (inserts a deep copy right after it)
-  const duplicateItem = (arrayKey: string, idx: number) => {
-    if (!onPropsUpdate) return
-    const arr = [...(((block.props as any)[arrayKey] as any[]) || [])]
-    if (idx < 0 || idx >= arr.length) return
-    const copy = JSON.parse(JSON.stringify(arr[idx]))
-    arr.splice(idx + 1, 0, copy)
-    onPropsUpdate({ ...block.props, [arrayKey]: arr } as BlockProps)
-  }
-
-  // Move an item up/down in its array by swapping positions
-  const moveItem = (arrayKey: string, idx: number, direction: 'up' | 'down') => {
-    if (!onPropsUpdate) return
-    const arr = [...(((block.props as any)[arrayKey] as any[]) || [])]
-    const target = direction === 'up' ? idx - 1 : idx + 1
-    if (target < 0 || target >= arr.length) return
-    ;[arr[idx], arr[target]] = [arr[target], arr[idx]]
-    onPropsUpdate({ ...block.props, [arrayKey]: arr } as BlockProps)
-  }
-
-  // canEdit: true when the block is selected in editing mode with a commit handler
-  const canEdit = isEditing && !!onPropsUpdate
-
-  const fieldStyles = ((block.props as any)._field_styles || {}) as Record<string, Record<string, unknown>>
-  const styleForField = (key: string, base: React.CSSProperties = {}): React.CSSProperties => {
-    const styled = fieldTextStyle(block.props as Record<string, unknown>, key, base)
-    if (activeTextField === key && canEdit) {
-      return { ...styled, outline: '2px solid rgba(124,58,237,0.7)', outlineOffset: 3, borderRadius: 4 }
-    }
-    return styled
-  }
-
-  // Shorthand: render an InlineEditableText for a block prop as any HTML element
-  const IET = (
-    key: string,
-    as: keyof JSX.IntrinsicElements,
-    className: string,
-    style: React.CSSProperties,
-    placeholder: string,
-    multiline?: boolean,
-  ) => (
-    <InlineEditableText
-      value={((p as any)[key] ?? '') as string}
-      placeholder={placeholder}
-      multiline={multiline}
-      editable={canEdit}
-      as={as}
-      className={className}
-      style={styleForField(key, style)}
-      onCommit={v => commitProp(key, v)}
-      onActivate={() => onActiveTextFieldChange?.(key)}
-    />
-  )
-
-  // Floating delete button for a single array item. Positioned absolute at the
-  // top-right of the container it's placed in; appears on hover when canEdit.
-  const ItemActions = (arrayKey: string, idx: number, label = 'item') => {
-    if (!canEdit) return null
-    return (
-      <button
-        type="button"
-        title={`Delete ${label}`}
-        onClick={e => { e.stopPropagation(); removeItem(arrayKey, idx) }}
-        className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-lg flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity"
-      >
-        ×
-      </button>
-    )
-  }
-
-  // Inline "Add item" button rendered at the end of an array list. Uses the
-  // supplied template for the new item's initial shape.
-  const AddItemBtn = (arrayKey: string, template: any, label = 'Add item') => {
-    if (!canEdit) return null
-    return (
-      <button
-        type="button"
-        onClick={e => { e.stopPropagation(); addItem(arrayKey, template) }}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-primary/40 text-primary hover:border-primary hover:bg-accent text-xs font-medium transition-colors"
-      >
-        <Plus className="w-3.5 h-3.5" /> {label}
-      </button>
-    )
-  }
-
-  // Dropdown menu (⋯) positioned on the top-right of an array item. Offers
-  // Duplicate / Move up / Move down / Delete, plus any extra actions supplied
-  // by the caller (e.g. "Change icon" for features).
-  const ItemMenu = (
-    arrayKey: string,
-    idx: number,
-    total: number,
-    extras?: { label: string; onClick: () => void; icon?: React.ReactNode }[],
-  ) => {
-    if (!canEdit) return null
-    return <ItemMenuButton
-      onDuplicate={() => duplicateItem(arrayKey, idx)}
-      onMoveUp={idx > 0 ? () => moveItem(arrayKey, idx, 'up') : undefined}
-      onMoveDown={idx < total - 1 ? () => moveItem(arrayKey, idx, 'down') : undefined}
-      onDelete={() => removeItem(arrayKey, idx)}
-      extras={extras}
-    />
-  }
-
-  // CTA button with inline label editing + hover "🔗 Link" chip
-  const CTABtn = (
-    labelKey: string,
-    urlKey: string,
-    defaultLabel: string,
-    cls: string,
-    sty?: React.CSSProperties,
-  ) => {
-    const rawLabel = ((p as any)[labelKey] as string | undefined) || defaultLabel
-    const isLinked = !!((p as any)[urlKey])
-    return (
-      <div className="relative inline-flex group/ctabtn">
-        <button className={cls} style={sty}>
-          {canEdit
-            ? (
-              <InlineEditableText
-                value={rawLabel}
-                placeholder={defaultLabel}
-                editable
-                as="span"
-                style={styleForField(labelKey)}
-                onCommit={v => commitProp(labelKey, v)}
-                onActivate={() => onActiveTextFieldChange?.(labelKey)}
-              />
-            ) : rawLabel
-          }
-        </button>
-        {canEdit && onEditPropLink && (
-          <button
-            className={cn(
-              'absolute -top-5 left-0 px-1.5 py-0.5 rounded text-xs font-bold text-white opacity-0 group-hover/ctabtn:opacity-100 transition-opacity whitespace-nowrap z-20',
-              isLinked ? 'bg-emerald-500' : 'bg-gray-500',
-            )}
-            onMouseDown={e => {
-              e.stopPropagation()
-              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-              onEditPropLink(urlKey, { x: rect.left, y: rect.bottom + 4 })
-            }}
-          >
-            🔗 {isLinked ? 'Linked' : 'Link'}
-          </button>
-        )}
-      </div>
-    )
-  }
-  const p = block.props
-  const isTemplateBlock = !!(p as any)?._template_block
-  /** Site theme only — per-block `_template_style` is not merged so preview matches the live business front. */
-  const effectiveStyle: StyleConfig = style
-  const ds = (p as any)?.data_source
-  const dsType = normalizeSourceType(ds?.type)
-  const inferredDsType = dsType || (
-    {
-      product_grid: 'products',
-      menu_grid: 'products',
-      live_stock: 'products',
-      live_quote: 'products',
-      related_products: 'products',
-      product_detail: 'products',
-      cart_drawer: 'products',
-      category_cards: 'categories',
-      product_filters: 'categories',
-      services_cards: 'services',
-      services_list: 'services',
-      booking_widget: 'services',
-      booking_slot_picker: 'services',
-      testimonials: 'testimonials',
-      testimonials_grid: 'testimonials',
-      product_reviews: 'testimonials',
-      team_grid: 'team',
-      team_list: 'team',
-      stats: 'kpis',
-      contact_form: 'profile',
-      map_embed: 'profile',
-      about_split: 'profile',
-      social_links: 'profile',
-      footer: 'pages',
-      nav: 'pages',
-      gallery_masonry: 'media',
-      portfolio_grid: 'media',
-      trust_logos: 'customers',
-    } as Record<string, LiveResource>
-  )[block.block_type] || null
-  /** In the builder canvas, hide pulsing "Live · …" badges — editor hints, not part of the published page. */
-  const suppressLiveBadges = sitePages != null
-
-  // Resolve the site id from the URL so BlockPreview can hit /live/{resource}
-  const { siteId } = useParams<{ siteId: string }>()
-
-  const [liveItems, setLiveItems] = useState<LiveItem[]>([])
-  const [liveProfile, setLiveProfile] = useState<LiveItem | null>(null)
-  const [livePages, setLivePages] = useState<LiveItem[]>([])
-  const [liveKpis, setLiveKpis] = useState<LiveItem[]>([])
-  const [liveLoading, setLiveLoading] = useState(false)
-
-  // Unified live-data loader: binds any block to /live/{resource}
-  useEffect(() => {
-    if (!siteId || !inferredDsType || inferredDsType === 'external_api') return
-    let cancelled = false
-    setLiveLoading(true)
-    websiteApi.getLive(siteId, inferredDsType as LiveResource, { limit: ds?.limit || 12 })
-      .then(r => {
-        if (cancelled) return
-        const items = r.items || []
-        const filtered = ds?.selected_ids?.length
-          ? items.filter(x => ds.selected_ids.includes(x.id))
-          : items
-        if (inferredDsType === 'profile') {
-          setLiveProfile(filtered[0] || items[0] || null)
-        } else if (inferredDsType === 'pages') {
-          setLivePages(filtered)
-        } else if (inferredDsType === 'kpis') {
-          setLiveKpis(filtered)
-        } else {
-          setLiveItems(filtered)
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLiveLoading(false) })
-    return () => { cancelled = true }
-  }, [siteId, inferredDsType, ds?.limit, JSON.stringify(ds?.selected_ids)])
-
-  // Back-compat aliases used by existing block renderers below
-  const liveProducts = inferredDsType === 'products' ? liveItems : []
-  const liveServices = inferredDsType === 'services' ? liveItems : []
-  const liveTestimonials = inferredDsType === 'testimonials' ? liveItems : []
-  const liveTeam = inferredDsType === 'team' ? liveItems : []
-  const liveCategories = inferredDsType === 'categories' ? liveItems : []
-  const liveMedia = inferredDsType === 'media' ? liveItems : []
-  const liveCustomers = inferredDsType === 'customers' ? liveItems : []
-  const liveBookings = inferredDsType === 'bookings' ? liveItems : []
-
-  const { primary_color, accent_color, bg_color, text_color, font_heading, font_body, border_radius } = effectiveStyle
-  const radiusMap = { sharp: '0px', rounded: '12px', pill: '999px' }
-  const r = radiusMap[border_radius] || '12px'
-  /** Cards/sections must not use theme pill radius — it turns pricing/features into circles. */
-  const cardRadius = border_radius === 'pill' ? '16px' : border_radius === 'sharp' ? '0px' : '12px'
-  const btnRadius = border_radius === 'pill' ? '999px' : cardRadius
-
-  const resolvedBlockStyles = mergeBlockSectionStyles(
-    p as Record<string, unknown>,
-    resolveBreakpointStyleOverrides(readRawBlockStyleOverrides(block)),
-  )
-  const ptop = resolvedBlockStyles.paddingTop
-  const pbot = resolvedBlockStyles.paddingBottom
-  const blockShadow = (p as any).block_shadow as string | undefined
-  const gradientPreset = (p as any).gradient_preset as string | undefined
-
-  const overrideBg = resolvedBlockStyles.backgroundColor
-  const textColorOverride = resolvedBlockStyles.color || (p as any).text_color_override as string | undefined
-  const fontSizePxRaw = (p as any).font_size_px as number | undefined
-  const fontSizePx =
-    typeof fontSizePxRaw === 'number' && Number.isFinite(fontSizePxRaw) && fontSizePxRaw > 0
-      ? Math.round(Math.min(FONT_SIZE_PX_MAX, Math.max(FONT_SIZE_PX_MIN, fontSizePxRaw)))
-      : undefined
-  const textScale = (p as any).text_scale as number | undefined
-  const textTfRaw = (p as any).text_transform as string | undefined
-  const textTransformCss =
-    textTfRaw && ['uppercase', 'lowercase', 'capitalize'].includes(textTfRaw.toLowerCase())
-      ? textTfRaw.toLowerCase()
-      : undefined
-  const topShape = (p as any).top_shape as string | undefined
-  const bottomShape = (p as any).bottom_shape as string | undefined
-  const shapeColor = (p as any).shape_color as string | undefined
-
-  const minHeight = (p as any).min_height as number | undefined
-
-  const containerStyle: React.CSSProperties = {
-    fontFamily: font_body,
-    color: textColorOverride || block.style_overrides?.text_color as string || text_color,
-    backgroundColor: overrideBg || 'transparent',
-    paddingTop: ptop ? ptop + 'px' : undefined,
-    paddingBottom: pbot ? pbot + 'px' : undefined,
-    boxShadow: blockShadow && blockShadow !== 'none' ? blockShadow : undefined,
-    minHeight: minHeight ? `${minHeight}px` : undefined,
-    '--tile-bg': (p as any).tile_bg || effectiveStyle.surface_color || bg_color || '#ffffff',
-    '--tile-accent': (p as any).tile_accent || primary_color,
-    '--tile-text': (p as any).tile_text || text_color,
-    '--tile-border': (p as any).tile_border || `${primary_color}33`,
-  } as React.CSSProperties
-
-  if (!block.visible) {
-    return (
-      <div className="py-4 px-6 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-center text-sm text-gray-400">
-        Hidden block ({block.block_type})
-      </div>
-    )
-  }
-
-  type CanvasImageFocus =
-    | { propField: string }
-    | { arrayKey: string; index: number; itemField: string }
-
-  const focusCanvasImage = (target: CanvasImageFocus) => onCanvasImageFocus?.(target)
-
-  const canvasImg = (
-    src: string | null | undefined,
-    onReplace: (url: string) => void,
-    focus: CanvasImageFocus,
-    opts?: {
-      className?: string
-      imgClassName?: string
-      alt?: string
-      style?: React.CSSProperties
-      fill?: boolean
-    },
-  ) => (
-    <CanvasEditableImage
-      siteId={siteId}
-      src={src || null}
-      editable={canEdit}
-      onReplace={onReplace}
-      onFocus={() => focusCanvasImage(focus)}
-      className={opts?.className}
-      imgClassName={opts?.imgClassName}
-      alt={opts?.alt}
-      style={opts?.style}
-      fill={opts?.fill}
-    />
-  )
-
-  const renderBlock = () => {
-    if (block.block_type.includes('.')) {
-      return <CommerceLibraryPreview blockType={block.block_type} props={p as Record<string, unknown>} liveItems={liveItems} />
-    }
-
-    switch (block.block_type) {
-      case 'announcement_bar': {
-        const barColor = String((p as any).color || primary_color)
-        const barLight = barColor.toLowerCase() === '#f3f4f6'
-        const showClose = (p as any).show_close !== false
-        return (
-          <div
-            style={{ backgroundColor: barColor, color: barLight ? text_color : '#fff' }}
-            className="py-2.5 px-6 text-sm font-medium flex items-center justify-center gap-3 relative"
-          >
-            {IET('text', 'span', 'flex-1 text-center', {}, 'Special announcement — Double-click to edit')}
-            {showClose && <X className="w-4 h-4 shrink-0 opacity-70" aria-hidden />}
-          </div>
-        )
-      }
-
-      case 'marquee_strip': {
-        const raw = (p as any).items ?? (p as any).text ?? ''
-        const items = Array.isArray(raw)
-          ? raw.map((x: any) => String(x).trim()).filter(Boolean)
-          : String(raw).split(',').map(s => s.trim()).filter(Boolean)
-        return (
-          <div
-            className="overflow-hidden border-b py-4"
-            style={{ borderColor: `${text_color}18`, backgroundColor: bg_color }}
-          >
-            <div className="builder-marquee-track whitespace-nowrap" style={{ fontFamily: font_heading }}>
-              {items.length === 0 ? (
-                <span className="text-sm opacity-60 px-4">Add comma-separated items in Properties → text</span>
-              ) : (
-                Array.from({ length: 2 }).map((_, dup) => (
-                  <span key={dup} className="inline-flex items-center gap-10 mr-10 text-sm opacity-80">
-                    {items.map((item, j) => (
-                      <span key={`${dup}-${j}`} className="inline-flex items-center gap-4">
-                        <span>{item}</span>
-                        {j < items.length - 1 ? <span className="opacity-40">·</span> : null}
-                      </span>
-                    ))}
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-        )
-      }
-
-      case 'nav': {
-        const liveBrandLogo = (dsType === 'profile' && (liveProfile?.meta as any)?.logo_url) || null
-        const liveBrand = (dsType === 'profile' && (liveProfile?.meta as any)?.business_name) || null
-        const navLinksFromSitePages = sitePages?.length ? buildNavLinksFromPages(sitePages) : []
-        const navLinksFromLivePages = dsType === 'pages' && !navLinksFromSitePages.length
-          ? livePages.map(pg => ({ label: pg.title, url: pg.url || '/' }))
-          : []
-        const usesAutoPageNav = navLinksFromSitePages.length > 0 || navLinksFromLivePages.length > 0
-        const displayLinks = navLinksFromSitePages.length
-          ? navLinksFromSitePages
-          : navLinksFromLivePages.length
-            ? navLinksFromLivePages
-            : (p.nav_links as any[] || [{ label: 'Home' }, { label: 'About' }, { label: 'Contact' }])
-        const logoSrc = p.brand_logo || liveBrandLogo
-        const brandName = p.brand || liveBrand || 'Your Brand'
-        const navUrl = (link: any) => {
-          if (typeof link === 'string') return link.toLowerCase() === 'home' ? '/' : `/${link.toLowerCase().replace(/\s+/g, '-')}`
-          if (link.url) return String(link.url)
-          const label = String(link.label || '')
-          return label.toLowerCase() === 'home' ? '/' : `/${label.toLowerCase().replace(/\s+/g, '-')}`
-        }
-        // Nav background from layout preset or template
-        const navStyle = String((p as any).nav_style ?? 'white')
-        const navLayout = String((p as any).nav_layout ?? 'default')
-        const isNavCentered = navLayout === 'centered' || navStyle === 'centered' || navStyle === 'dark_centered'
-        const isNavGlass = !!(p as any).nav_glass || navStyle === 'glass'
-        const isNavElevated = !!(p as any).nav_elevated || navStyle === 'elevated'
-        const isNavCompact = !!(p as any).nav_compact || navStyle === 'compact'
-        const isNavAccentBorder = !!(p as any).nav_accent_border || navStyle === 'accent_border'
-        const isNavTransparentCta = !!(p as any).nav_cta_prominent || navStyle === 'transparent_cta'
-        const navBg = navStyle === 'transparent' || navStyle === 'transparent_cta'
-          ? 'transparent'
-          : String((p as any).nav_bg ?? '').trim()
-            || (effectiveStyle.nav_bg as string)
-            || (navStyle === 'dark' || navStyle === 'dark_centered' ? '#0f172a' : navStyle === 'brand' ? primary_color : '#ffffff')
-        const navIsDark = navStyle === 'dark' || navStyle === 'brand' || navStyle === 'dark_centered'
-          || (navBg !== 'transparent' && (() => {
-            const hex = navBg.replace('#', '')
-            if (hex.length < 6) return false
-            const r = parseInt(hex.substring(0, 2), 16) || 255
-            const g = parseInt(hex.substring(2, 4), 16) || 255
-            const b = parseInt(hex.substring(4, 6), 16) || 255
-            return r + g + b < 382
-          })())
-        const navTextCol = navIsDark ? 'rgba(255,255,255,0.85)' : '#4B5563'
-        const navBrandCol = navIsDark ? '#ffffff' : primary_color
-        const navBorderBottom = navStyle === 'transparent' || navStyle === 'transparent_cta'
-          ? 'none'
-          : isNavAccentBorder
-            ? `3px solid ${primary_color}`
-            : `1px solid ${navIsDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6'}`
-
-        const navLogoBlock = (
-          <div className="shrink-0 relative group/logo leading-tight">
-            <div className="font-bold text-base" style={{ fontFamily: font_heading, color: navBrandCol }}>
-            {logoSrc
-              ? (
-                <div className="relative inline-block">
-                  <img src={mediaUrl(logoSrc as string)} className={cn('object-contain', isNavCompact ? 'h-6' : 'h-8')} alt="logo" />
-                  {canEdit && (
-                    <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover/logo:opacity-100 transition-opacity bg-black/40 rounded">
-                      <label title="Replace logo" className="cursor-pointer p-1 bg-white/90 rounded text-xs font-bold text-gray-700 hover:bg-white flex items-center gap-0.5">
-                        <Upload className="w-3 h-3" />
-                        <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                          const file = e.target.files?.[0]; e.target.value = ''
-                          if (!file || !siteId) return
-                          try {
-                            const saved = await websiteApi.uploadMedia(siteId, file)
-                            commitProp('brand_logo', saved.original_url)
-                          } catch { toast.error('Upload failed') }
-                        }} />
-                      </label>
-                      <button type="button" aria-label="Close" title="Remove logo" onClick={e => { e.stopPropagation(); commitProp('brand_logo', '') }} className="p-1 bg-white/90 rounded text-xs font-bold text-red-600 hover:bg-white">
-              <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-              : (
-                <div className="flex items-center gap-2">
-                  <InlineEditableText value={brandName} placeholder="Your Brand" editable={canEdit} as="span" onCommit={v => commitProp('brand', v)} />
-                  {canEdit && (
-                    <label title="Upload logo" className="cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-0.5 text-xs font-bold whitespace-nowrap">
-                      <Upload className="w-3 h-3" /> Logo
-                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                        const file = e.target.files?.[0]; e.target.value = ''
-                        if (!file || !siteId) return
-                        try {
-                          const saved = await websiteApi.uploadMedia(siteId, file)
-                          commitProp('brand_logo', saved.original_url)
-                        } catch { toast.error('Upload failed') }
-                      }} />
-                    </label>
-                  )}
-                </div>
-              )
-            }
-            </div>
-            {(p as any).tagline ? (
-              <div className="text-xs uppercase tracking-[0.18em] opacity-70 mt-0.5" style={{ color: navTextCol }}>
-                <InlineEditableText
-                  value={String((p as any).tagline)}
-                  placeholder="Tagline"
-                  editable={canEdit}
-                  as="span"
-                  onCommit={v => commitProp('tagline' as any, v)}
-                />
-              </div>
-            ) : null}
-          </div>
-        )
-
-        const navLinksBlock = (
-          <div className={cn(
-            'flex items-center gap-4 flex-wrap',
-            isNavCentered ? 'justify-center' : 'flex-1 justify-center',
-          )}>
-            {displayLinks.slice(0, 8).map((l: any, i: number) => (
-              <div
-                key={i}
-                role="button"
-                tabIndex={0}
-                onClick={e => {
-                  e.stopPropagation()
-                  onNavigatePage?.(navUrl(l))
-                }}
-                onKeyDown={e => {
-                  if (e.key !== 'Enter' && e.key !== ' ') return
-                  e.preventDefault()
-                  e.stopPropagation()
-                  onNavigatePage?.(navUrl(l))
-                }}
-                className="relative group/line flex items-center gap-1 rounded px-1 py-0.5 hover:bg-accent transition-colors"
-                title={onNavigatePage ? `Open ${l.label || l}` : undefined}
-              >
-                <InlineEditableText
-                  value={l.label || l}
-                  placeholder="Nav Link"
-                  editable={canEdit && !usesAutoPageNav && !onNavigatePage}
-                  as="span"
-                  className="text-sm"
-                  style={{ color: navTextCol }}
-                  onCommit={v => {
-                    const links = [...(p.nav_links as any[] || [{ label: 'Home' }, { label: 'About' }, { label: 'Contact' }])]
-                    links[i] = { ...links[i], label: v }
-                    commitProp('nav_links', links)
-                  }}
-                />
-                {canEdit && !usesAutoPageNav && (
-                  <button type="button" title="Remove link"
-                    onClick={e => {
-                      e.stopPropagation()
-                      const links = [...(p.nav_links as any[] || [])]
-                      links.splice(i, 1)
-                      commitProp('nav_links', links)
-                    }}
-                    className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
-                  >×</button>
-                )}
-              </div>
-            ))}
-            {canEdit && !usesAutoPageNav && (
-              <button type="button"
-                onClick={e => {
-                  e.stopPropagation()
-                  const links = [...(p.nav_links as any[] || []), { label: 'New Link', url: '/' }]
-                  commitProp('nav_links', links)
-                }}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-primary hover:bg-accent border border-dashed border-primary/40"
-              ><Plus className="w-3 h-3" /> Link</button>
-            )}
-          </div>
-        )
-
-        const navActionsBlock = (
-          <div className="flex items-center gap-2 shrink-0">
-            {p.show_search && (
-              <button type="button" className="p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: navTextCol }} aria-label="Search">
-                <Search className="w-5 h-5" />
-              </button>
-            )}
-            {p.show_cart && (
-              <button type="button" className="p-2 rounded-lg hover:opacity-70 transition-opacity relative" style={{ color: navTextCol }} aria-label="Cart">
-                <ShoppingBag className="w-5 h-5" />
-              </button>
-            )}
-            {(p.cta_label || canEdit) && (
-              <button
-                style={{
-                  backgroundColor: isNavTransparentCta ? primary_color : primary_color,
-                  borderRadius: r,
-                  color: '#fff',
-                  boxShadow: isNavTransparentCta ? `0 4px 14px ${primary_color}66` : undefined,
-                }}
-                className={cn(
-                  'text-sm font-semibold whitespace-nowrap',
-                  isNavCompact ? 'px-3 py-1.5' : 'px-4 py-2',
-                  isNavTransparentCta && 'ring-2 ring-white/30',
-                )}
-              >
-                <InlineEditableText value={(p.cta_label as string) || ''} placeholder="CTA" editable={canEdit} as="span" onCommit={v => commitProp('cta_label', v)} />
-              </button>
-            )}
-          </div>
-        )
-
-        return (
-          <div
-            className={cn(
-              'relative gap-4',
-              isNavCentered ? 'flex flex-col items-center text-center' : 'flex items-center justify-between',
-              isNavCompact ? 'py-1.5 px-4' : 'py-3 px-6',
-              isNavElevated && 'mx-4 mt-2 rounded-xl shadow-lg',
-              isNavGlass && 'backdrop-blur-md',
-            )}
-            style={{
-              backgroundColor: navBg === 'transparent' ? undefined : navBg,
-              borderBottom: isNavElevated ? undefined : navBorderBottom,
-            }}
-          >
-            {isNavCentered ? (
-              <>
-                {navLogoBlock}
-                {navLinksBlock}
-                {navActionsBlock}
-              </>
-            ) : (
-              <>
-                {navLogoBlock}
-                {navLinksBlock}
-                {navActionsBlock}
-              </>
-            )}
-            {usesAutoPageNav && !suppressLiveBadges && (
-              <div className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Synced with site pages" />
-            )}
-          </div>
-        )
-      }
-
-      case 'hero':
-      case 'hero_split':
-      case 'hero_minimal': {
-        const heroProps = p as Record<string, unknown>
-        const isSplit = heroUsesSideImage(block.block_type, heroProps)
-        const isMinimal = block.block_type === 'hero_minimal' || p.bg_style === 'minimal'
-        const heroGrad = resolveGradientCss(
-          gradientPreset,
-          primary_color,
-          String(effectiveStyle.secondary_color || primary_color),
-        ) || ((p as any).gradient_from && (p as any).gradient_to
-          ? `linear-gradient(${(p as any).gradient_dir || '135deg'}, ${(p as any).gradient_from}, ${(p as any).gradient_to})`
-          : `linear-gradient(135deg, ${primary_color}, ${effectiveStyle.secondary_color})`)
-        const wantsBgImage = heroUsesBackgroundImage(block.block_type, heroProps)
-        const heroImageUrl = (wantsBgImage
-          ? (p.bg_image_url || ((p as any).bg_style === 'image' ? (p as any).image_url : undefined))
-          : undefined) as string | undefined
-        const sideImageUrl = (isSplit ? ((p as any).image_url || p.bg_image_url) : undefined) as string | undefined
-        const hasSideImage = isSplit && !!sideImageUrl
-        const hasBgImg = !!heroImageUrl
-        const heroUsesImageBg = heroShouldUseFullBleedImage(block.block_type, heroProps, hasBgImg)
-        const heroBg = heroUsesImageBg
-          ? undefined
-          : hasSideImage ? (effectiveStyle.surface_color || bg_color || '#ffffff')
-          : p.bg_style === 'gradient' ? heroGrad
-          : p.bg_style === 'dark' ? '#111827'
-          : p.bg_style === 'solid' ? ((p as any).bg_color || '#0f172a')
-          : p.bg_style === 'image' ? undefined
-          : isMinimal ? ((p as any).bg_color || bg_color)
-          : `linear-gradient(135deg, ${bg_color}, ${effectiveStyle.surface_color})`
-        const heroBgImage = heroUsesImageBg ? `url(${mediaUrl(heroImageUrl as string)})` : undefined
-        const isDark = heroUsesImageBg
-          || p.bg_style === 'gradient'
-          || p.bg_style === 'dark'
-          || p.bg_style === 'image'
-          || (p.bg_style === 'solid' && !isMinimal)
-        const heroText = isDark ? '#fff' : text_color
-        const heroSubText = isDark ? 'rgba(255,255,255,0.82)' : `${text_color}cc`
-        const headlineLine2 = (p as any).headline_line2 as string | undefined
-        const displayCopy = (value: string | undefined | null) =>
-          isEditing ? (value || '') : sanitizeWellnessBodyCopy(value || '')
-        const displayCta = (value: string | undefined | null) =>
-          isEditing ? (value || '') : sanitizeWellnessCtaLabel(value || '')
-        const eyebrowPlain = !!(p as any).eyebrow_plain
-        const squareCta = !!(p as any).cta_square || (effectiveStyle.border_radius as string) === 'none'
-        const ctaRadius = squareCta ? 0 : r
-        const ctaPadClass = squareCta ? 'px-7 h-12' : 'px-6 py-3'
-        const splitSideBySide = isSplit && hasSideImage && !heroUsesImageBg
-
-        return (
-          <div
-            style={{
-              ...(splitSideBySide
-                ? { color: heroText, borderBottom: `1px solid ${text_color}18`, position: 'relative' as const }
-                : {
-                    background: heroBg,
-                    backgroundImage: heroBgImage,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    color: heroText,
-                    position: 'relative',
-                  }),
-            }}
-            className={cn(
-              splitSideBySide
-                ? 'px-0 py-0 flex flex-col md:flex-row md:items-stretch'
-                : isSplit
-                  ? 'px-8 flex flex-col md:flex-row items-center gap-10 py-16'
-                  : 'px-8 py-24',
-            )}
-          >
-            {/* Overlay for image heroes */}
-            {heroUsesImageBg && p.bg_style === 'gradient' && (
-              <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: (p as any).overlay === false ? 0.55 : 0.82 }} />
-            )}
-            {heroUsesImageBg && p.bg_style === 'image' && (p as any).overlay !== false && (
-              <div className="absolute inset-0 bg-black/45 z-0" />
-            )}
-            {canEdit && (wantsBgImage || p.bg_style === 'image') && canvasImg(
-              heroImageUrl || null,
-              url => commitProp('bg_image_url', url),
-              { propField: 'bg_image_url' },
-              { fill: true },
-            )}
-            <div
-              className={cn(
-                'space-y-5 relative z-10',
-                splitSideBySide && 'flex-1 md:w-1/2 px-6 sm:px-12 py-16 lg:py-28 flex flex-col justify-center max-w-xl md:max-w-none',
-                isSplit && !splitSideBySide && 'flex-1 max-w-xl',
-                !isSplit && 'text-center max-w-3xl mx-auto',
-              )}
-              style={{
-                zIndex: 1,
-                ...(splitSideBySide ? { backgroundColor: effectiveStyle.surface_color || bg_color || '#ffffff' } : {}),
-              }}
-            >
-              {(p.eyebrow || isEditing) && (
-                eyebrowPlain ? (
-                  <InlineEditableText
-                    value={displayCopy(p.eyebrow)}
-                    placeholder="AUTUMN / WINTER"
-                    editable={isEditing}
-                    as="div"
-                    className="text-xs uppercase tracking-[0.3em] opacity-70 mb-2"
-                    style={{ color: heroText }}
-                    onCommit={v => commitProp('eyebrow', sanitizeWellnessBodyCopy(v))}
-                  />
-                ) : (
-                  <InlineEditableText
-                    value={p.eyebrow || ''}
-                    placeholder="EYEBROW LABEL"
-                    editable={isEditing}
-                    as="div"
-                    className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full"
-                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : `${accent_color}22`, color: isDark ? '#fff' : accent_color }}
-                    onCommit={v => commitProp('eyebrow', v)}
-                  />
-                )
-              )}
-              {headlineLine2 || (isEditing && isSplit) ? (
-                <h1
-                  className={cn(
-                    'font-semibold leading-[0.95] text-balance',
-                    isSplit
-                      ? (headlineLine2 || eyebrowPlain ? 'text-5xl sm:text-6xl lg:text-7xl' : 'text-4xl sm:text-5xl md:text-6xl')
-                      : 'text-3xl',
-                  )}
-                  style={{ fontFamily: font_heading, color: heroText }}
-                >
-                  <InlineEditableText
-                    value={displayCopy(p.headline)}
-                    placeholder="Quiet luxury,"
-                    editable={isEditing}
-                    as="span"
-                    className="block font-semibold"
-                    onCommit={v => commitProp('headline', sanitizeWellnessBodyCopy(v))}
-                  />
-                  <br />
-                  <em className="font-normal" style={{ fontStyle: 'italic', color: isDark ? 'rgba(255,255,255,0.95)' : accent_color }}>
-                    <InlineEditableText
-                      value={displayCopy(headlineLine2)}
-                      placeholder="built to last."
-                      editable={isEditing}
-                      as="span"
-                      onCommit={v => commitProp('headline_line2' as any, sanitizeWellnessBodyCopy(v))}
-                    />
-                  </em>
-                </h1>
-              ) : (
-                <InlineEditableText
-                  value={displayCopy(p.headline)}
-                  placeholder="Your Compelling Headline Here"
-                  editable={isEditing}
-                  as="h1"
-                  style={{ fontFamily: font_heading, color: heroText }}
-                  className="text-3xl font-extrabold leading-tight"
-                  onCommit={v => commitProp('headline', sanitizeWellnessTemplateCopy(v))}
-                />
-              )}
-              {(p.subtitle || isEditing) && p.subtitle !== p.headline && (
-                <InlineEditableText
-                  value={displayCopy(p.subtitle)}
-                  placeholder="Add a punchy subtitle that sells the value"
-                  editable={isEditing}
-                  multiline
-                  as="p"
-                  className={cn('text-base leading-relaxed max-w-lg text-pretty', isSplit && !isDark && 'opacity-80')}
-                  style={{ color: heroSubText, margin: isSplit ? undefined : '0 auto' }}
-                  onCommit={v => commitProp('subtitle', sanitizeWellnessBodyCopy(v))}
-                />
-              )}
-              <div className={cn('flex gap-3 flex-wrap pt-1 items-start', !isSplit && 'justify-center')}>
-                {(p.cta_primary || isEditing) && (
-                  <div className="relative group">
-                    <button
-                      style={{
-                        backgroundColor: isDark ? '#fff' : primary_color,
-                        color: isDark ? primary_color : '#fff',
-                        borderRadius: ctaRadius,
-                      }}
-                      className={cn('font-bold text-sm shadow-lg hover:opacity-90 transition-opacity', ctaPadClass)}
-                      onDoubleClick={e => {
-                        if (isEditing && onEditPropLink) {
-                          e.preventDefault(); e.stopPropagation()
-                          onEditPropLink('cta_primary', { x: e.clientX, y: e.clientY })
-                        }
-                      }}
-                    >
-                      <InlineEditableText
-                        value={p.cta_primary || ''}
-                        placeholder="Primary CTA"
-                        editable={isEditing}
-                        as="span"
-                        onCommit={v => commitProp('cta_primary', v)}
-                      />
-                    </button>
-                    {isEditing && onEditPropLink && (
-                      <button
-                        onClick={e => {
-                          e.stopPropagation()
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                          onEditPropLink('cta_primary', { x: rect.left, y: rect.bottom + 4 })
-                        }}
-                        className={cn(
-                          'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
-                          (p as any).cta_primary_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
-                        )}
-                        title={(p as any).cta_primary_url ? `Linked → ${(p as any).cta_primary_url}` : 'Connect link or product'}
-                      >
-                        🔗
-                      </button>
-                    )}
-                  </div>
-                )}
-                {(p.cta_secondary || isEditing) && p.cta_secondary !== p.cta_primary && (
-                  <div className="relative group">
-                    <button
-                      style={{
-                        border: `2px solid ${isDark ? 'rgba(255,255,255,0.5)' : `${text_color}99`}`,
-                        color: heroText,
-                        borderRadius: ctaRadius,
-                      }}
-                      className={cn('font-semibold text-sm bg-transparent hover:opacity-80 transition-opacity', ctaPadClass)}
-                      onDoubleClick={e => {
-                        if (isEditing && onEditPropLink) {
-                          e.preventDefault(); e.stopPropagation()
-                          onEditPropLink('cta_secondary', { x: e.clientX, y: e.clientY })
-                        }
-                      }}
-                    >
-                      <InlineEditableText
-                        value={displayCta(p.cta_secondary)}
-                        placeholder="Secondary CTA"
-                        editable={isEditing}
-                        as="span"
-                        onCommit={v => commitProp('cta_secondary', sanitizeWellnessCtaLabel(v))}
-                      />
-                    </button>
-                    {isEditing && onEditPropLink && (
-                      <button
-                        onClick={e => {
-                          e.stopPropagation()
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                          onEditPropLink('cta_secondary', { x: rect.left, y: rect.bottom + 4 })
-                        }}
-                        className={cn(
-                          'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
-                          (p as any).cta_secondary_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
-                        )}
-                        title={(p as any).cta_secondary_url ? `Linked → ${(p as any).cta_secondary_url}` : 'Connect link or product'}
-                      >
-                        🔗
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            {isSplit && (
-              <div
-                className={cn('relative z-10 w-full', splitSideBySide ? 'md:w-1/2 min-h-[420px] md:min-h-[640px]' : 'flex-1 md:w-auto')}
-                style={{ zIndex: 1, ...(splitSideBySide ? { backgroundColor: effectiveStyle.surface_color || '#f3f4f6' } : {}) }}
-              >
-                {(p.image_url || p.bg_image_url || canEdit) ? (
-                  canvasImg(
-                    ((p.image_url || p.bg_image_url) as string) || null,
-                    url => commitProp('image_url', url),
-                    { propField: 'image_url' },
-                    {
-                      className: cn(
-                        'w-full',
-                        splitSideBySide
-                          ? 'absolute inset-0 h-full min-h-[420px] md:min-h-[640px]'
-                          : cn('shadow-2xl', hasSideImage && !heroUsesImageBg ? 'rounded-none md:min-h-[420px] min-h-[260px]' : 'rounded-2xl'),
-                      ),
-                      imgClassName: cn(
-                        'w-full object-cover',
-                        splitSideBySide ? 'absolute inset-0 h-full' : '',
-                      ),
-                      style: splitSideBySide ? undefined : (hasSideImage && !heroUsesImageBg ? { maxHeight: '640px' } : { maxHeight: '340px', minHeight: '220px' }),
-                    },
-                  )
-                ) : null}
-                <div
-                  style={{
-                    borderRadius: splitSideBySide ? 0 : '16px',
-                    background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)',
-                    border: isDark ? '2px dashed rgba(255,255,255,0.3)' : '2px dashed rgba(0,0,0,0.12)',
-                    display: (p.image_url || p.bg_image_url) ? 'none' : (canEdit ? 'none' : 'flex'),
-                  }}
-                  className={cn(
-                    'items-center justify-center flex-col gap-2',
-                    splitSideBySide ? 'absolute inset-0 min-h-[420px] md:min-h-[640px]' : 'w-full h-56',
-                  )}
-                >
-                  <ImageIcon className={cn('w-8 h-8', isDark ? 'text-white/40' : 'text-gray-300')} />
-                  <span className={cn('text-sm font-medium', isDark ? 'text-white/50' : 'text-gray-400')}>Add image via Media tab</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      case 'features':
-      case 'features_alternating': {
-        const featLayout = String((p as any).layout ?? '')
-        const cols = Number((p as any).columns)
-          || (featLayout === 'grid-4' ? 4 : featLayout === 'grid-2' ? 2 : 3)
-        const featGap = (p as any).item_gap ?? 20
-        const isAlternating = block.block_type === 'features_alternating' || featLayout === 'stacked'
-        const isList = featLayout === 'list'
-        const imagePos = (p as any).image_position === 'right' ? 'right' : 'left'
-        const useMealReplacement = isAlternating && !isEditing && isTemplateMealFeaturesBlock(p as Record<string, unknown>)
-        const mealReplacement = useMealReplacement ? productFocusedFeatureContent((sitePages as any)?.site?.name || 'our store') : null
-        const feats = (useMealReplacement && mealReplacement
-          ? mealReplacement.features
-          : (p.features as any[] || [
-            { title: 'Feature One', desc: 'Description of this amazing feature.' },
-            { title: 'Feature Two', desc: 'Another key benefit of your product.' },
-            { title: 'Feature Three', desc: 'Why customers love working with you.' },
-          ])).slice(0, 9)
-        const icons = ['⚡', '🎯', '🚀', '💡', '🛡️', '🌟']
-        const featImageShape = String((p as any).image_shape ?? 'rounded') as ImageShape
-        const featThumbClass = thumbnailShapeClass(featImageShape)
-        const featCardImgClass = cardImageShapeClass(featImageShape)
-        const featThumbSize = iconBoxFromItemSize(Number((p as any).item_size ?? 160))
-        const featureCard = (f: any, i: number, listMode = false) => (
-          <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius, borderTop: listMode ? undefined : `3px solid ${primary_color}` }} className={cn('builder-tile-card p-5 space-y-2.5 shadow-sm relative group/item', !listMode && 'builder-tile-top-accent', listMode && 'flex gap-4 items-start border border-gray-100')}>
-            {ItemMenu('features', i, feats.length, [
-              { label: 'Change icon', icon: <Sparkles className="w-3 h-3" />, onClick: () => { if (!onRequestText) return; onRequestText({ title: 'Set feature icon', subtitle: 'Paste an emoji', placeholder: '⚡', initialValue: f.icon || '', onSave: v => editItem('features', i, 'icon', v) }) } },
-              { label: 'Set image URL', icon: <ImageIcon className="w-3 h-3" />, onClick: () => { if (!onRequestText) return; onRequestText({ title: 'Feature image', placeholder: 'https://…', initialValue: f.image_url || '', onSave: v => editItem('features', i, 'image_url', v || null) }) } },
-            ])}
-            {f.image_url || canEdit
-              ? canvasImg(
-                  f.image_url || null,
-                  url => editItem('features', i, 'image_url', url),
-                  { arrayKey: 'features', index: i, itemField: 'image_url' },
-                  {
-                    className: cn('mb-2', listMode ? 'shrink-0 mb-0' : 'w-full h-28'),
-                    style: listMode ? { width: featThumbSize, height: featThumbSize } : undefined,
-                    imgClassName: cn(
-                      listMode ? featThumbClass : featCardImgClass,
-                      'w-full h-full',
-                      listMode ? '' : 'h-28',
-                      !listMode && featImageShape === 'circle' && 'max-w-[140px] mx-auto aspect-square',
-                    ),
-                  },
-                )
-              : <div className={cn('text-2xl mb-1', listMode && 'shrink-0')}>{f.icon || icons[i % icons.length]}</div>}
-            <div className={listMode ? 'flex-1 min-w-0' : undefined}>
-              <InlineEditableText value={f.title || ''} placeholder={`Feature ${i + 1}`} editable={canEdit} as="h3"
-                className="font-bold text-sm" style={{ fontFamily: font_heading, color: text_color }}
-                onCommit={v => editItem('features', i, 'title', v)} />
-              <InlineEditableText value={f.desc || ''} placeholder="Describe this feature here." editable={canEdit} multiline as="p"
-                className="text-xs leading-relaxed" style={{ color: `${text_color}99` }}
-                onCommit={v => editItem('features', i, 'desc', v)} />
-            </div>
-          </div>
-        )
-        const altBgDark = isAlternating && (p as any).bg_style === 'dark'
-        const altHeaderColor = altBgDark ? '#f8fafc' : text_color
-        return (
-          <div className="py-14 px-8" style={{ backgroundColor: altBgDark ? '#0f172a' : bg_color }}>
-            {(p.eyebrow || canEdit) && (
-              <div className="text-center mb-3">
-                {IET('eyebrow', 'span', 'text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full', { backgroundColor: `${accent_color}22`, color: accent_color }, 'Eyebrow label')}
-              </div>
-            )}
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl sm:text-3xl font-bold text-center mb-3', { fontFamily: font_heading, color: altHeaderColor }, useMealReplacement && mealReplacement ? mealReplacement.title : 'Section Title')}
-            {(p.description || canEdit) && IET('description', 'p', 'text-center mb-10 max-w-xl mx-auto text-sm', { color: altBgDark ? 'rgba(248,250,252,0.7)' : `${text_color}99` }, 'Add a description…', true)}
-            {isAlternating ? (() => {
-              const altShape = String((p as any).image_shape ?? 'rounded')
-              const altUseIcons = !!(p as any).use_icons
-              const altShowNumbers = !!(p as any).show_numbers
-              const altIsCard = (p as any).card_style === 'card'
-              const altIsDark = (p as any).bg_style === 'dark'
-              const altIsFull = featLayout === 'full'
-              const altIsCompact = !!(p as any).compact
-              const altSectionText = altIsDark ? '#f8fafc' : text_color
-              const altSectionSub = altIsDark ? 'rgba(248,250,252,0.75)' : `${text_color}99`
-              const altRowGap = altIsCompact ? 'space-y-8 sm:space-y-10' : 'space-y-14 sm:space-y-20'
-              const altIcons = ['🥗', '🌿', '✨', '🍃', '🛡️', '🌟']
-              const altImgClass = altUseIcons
-                ? ''
-                : altShape === 'circle'
-                  ? cn(
-                      'object-cover rounded-full shadow-lg ring-4 ring-white/70 mx-auto lg:mx-0',
-                      altIsCompact ? 'w-40 h-40 sm:w-48 sm:h-48' : 'w-full max-w-xs sm:max-w-sm aspect-square',
-                    )
-                  : altShape === 'square'
-                    ? cn(
-                        'object-cover shadow-md w-full mx-auto lg:mx-0',
-                        altIsFull ? 'rounded-none aspect-[16/10] max-w-none' : altIsCompact ? 'aspect-square max-h-44 rounded-md' : 'aspect-square max-w-md rounded-lg',
-                      )
-                    : cn(
-                        'object-cover shadow-[0_20px_50px_-20px_rgba(39,72,50,0.25)] w-full mx-auto lg:max-w-none',
-                        altIsFull ? 'rounded-none aspect-[16/10]' : altIsCompact ? 'aspect-[4/3] max-h-48 rounded-xl' : 'aspect-[4/3] rounded-2xl',
-                      )
-              return (
-              <div className={cn(altRowGap, altIsFull ? 'max-w-none -mx-8' : 'max-w-5xl mx-auto')}>
-                {feats.map((f: any, i: number) => {
-                  const flip = altUseIcons
-                    ? i % 2 === 1
-                    : imagePos === 'right' ? i % 2 === 0 : i % 2 === 1
-                  const featImg = resolveWellnessFeatureImage(f, i)
-                  const featTitle = isEditing ? (f.title || '') : sanitizeWellnessBodyCopy(f.title || '')
-                  const featDesc = isEditing ? (f.desc || '') : sanitizeWellnessBodyCopy(f.desc || '')
-                  const row = (
-                    <div className={cn('flex flex-col gap-6 items-center lg:items-stretch', altIsCompact ? 'lg:gap-8' : 'lg:gap-12', flip ? 'lg:flex-row-reverse' : 'lg:flex-row')}>
-                      <div className={cn('w-full lg:flex-1 min-w-0 relative', altShape === 'circle' && 'flex justify-center lg:justify-start')}>
-                        {altShape === 'circle' && !altUseIcons && (
-                          <div className="absolute inset-4 rounded-full bg-primary/20 blur-2xl animate-pulse pointer-events-none" />
-                        )}
-                        {altUseIcons ? (
-                          <div className={cn(
-                            'rounded-full flex items-center justify-center text-3xl sm:text-4xl bg-primary/10 animate-pulse mx-auto lg:mx-0',
-                            altIsCompact ? 'w-20 h-20' : 'w-24 h-24 sm:w-28 sm:h-28',
-                          )}>
-                            {f.icon || altIcons[i % altIcons.length]}
-                          </div>
-                        ) : (
-                          canvasImg(
-                            featImg || null,
-                            url => editItem('features', i, 'image_url', url),
-                            { arrayKey: 'features', index: i, itemField: 'image_url' },
-                            { className: altImgClass, imgClassName: altImgClass, alt: featTitle || '' },
-                          )
-                        )}
-                      </div>
-                      <div className="w-full lg:flex-1 min-w-0 space-y-3 relative group/item text-center lg:text-left">
-                        {!canEdit ? null : ItemActions('features', i, 'feature')}
-                        {altShowNumbers && (
-                          <span className={cn(
-                            'inline-flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold mb-1',
-                            altIsDark ? 'bg-white/15 text-white' : 'bg-primary/15 text-primary',
-                          )}>
-                            {String(i + 1).padStart(2, '0')}
-                          </span>
-                        )}
-                        <InlineEditableText value={featTitle} placeholder={`Feature ${i + 1}`} editable={canEdit} as="h3"
-                          className="font-bold text-xl sm:text-2xl" style={{ fontFamily: font_heading, color: altSectionText }}
-                          onCommit={v => editItem('features', i, 'title', v)} />
-                        <InlineEditableText value={featDesc} placeholder="Describe this feature here." editable={canEdit} multiline as="p"
-                          className="text-sm sm:text-base leading-relaxed" style={{ color: altSectionSub }}
-                          onCommit={v => editItem('features', i, 'desc', v)} />
-                      </div>
-                    </div>
-                  )
-                  if (altIsCard) {
-                    return (
-                      <div key={i} className={cn('builder-tile-card rounded-2xl border p-5 sm:p-6', altIsDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-white shadow-sm')}>
-                        {row}
-                      </div>
-                    )
-                  }
-                  return row
-                })}
-              </div>
-              )
-            })() : isList ? (
-              <div className="space-y-3 max-w-3xl mx-auto">{feats.map((f, i) => featureCard(f, i, true))}</div>
-            ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: `${featGap}px` }}>
-              {feats.map((f: any, i: number) => featureCard(f, i))}
-            </div>
-            )}
-            {canEdit && (
-              <div className="mt-6 text-center">
-                {AddItemBtn('features', { title: 'New Feature', desc: 'Describe this feature.', icon: '⚡' }, 'Add feature')}
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      case 'stats':
-      case 'counters':
-      case 'impact_stats': {
-        const isLive = dsType === 'kpis' && liveKpis.length > 0
-        const hiddenIds = ((p as any).hidden_kpi_ids as string[] | undefined) || []
-        const liveStats = isLive
-          ? liveKpis
-              .filter(k => !hiddenIds.includes(k.id))
-              .map(k => ({ value: k.title, label: k.subtitle || k.id }))
-          : null
-        const statsItems: any[] = liveStats || (p.stats as any[] || [
-          { value: '10K+', label: 'Happy Customers' },
-          { value: '99%', label: 'Satisfaction Rate' },
-          { value: '24/7', label: 'Support' },
-          { value: '50+', label: 'Countries' },
-        ])
-        const statsCols = Number((p as any).columns) || statsItems.length
-        const gridCols = statsCols >= 4 ? 'grid-cols-2 lg:grid-cols-4' : statsCols === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'
-        const statsBgStyle = String((p as any).bg_style ?? 'light')
-        const statsBg = statsBgStyle === 'dark' ? '#0f172a'
-          : statsBgStyle === 'gradient' ? undefined
-          : effectiveStyle.surface_color || '#f9fafb'
-        const statsBgImage = (p as any).bg_image_url as string | undefined
-        return (
-          <section
-            className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative overflow-hidden"
-            style={{
-              backgroundColor: statsBg,
-              backgroundImage: statsBgStyle === 'gradient'
-                ? `linear-gradient(135deg, ${primary_color}22, ${effectiveStyle.secondary_color}33)`
-                : statsBgImage ? `url(${mediaUrl(statsBgImage)})` : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          >
-            {statsBgImage && statsBgStyle !== 'gradient' && <div className="absolute inset-0 bg-white/75" />}
-            <div className="relative z-10">
-            {!suppressLiveBadges && isLive && (
-              <div className="flex items-center justify-center gap-1.5 mb-4">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · your business data</span>
-              </div>
-            )}
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold mb-10 text-center', { fontFamily: font_heading, color: statsBgStyle === 'dark' ? '#f8fafc' : '#111827' }, 'By the Numbers')}
-            <div className={cn('grid gap-8 text-center', gridCols)}>
-              {statsItems.slice(0, statsCols).map((s: any, i: number) => (
-                <div key={i} className={cn('builder-tile-card p-6 rounded-2xl border relative group/item', statsBgStyle === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-gray-100')}>
-                  {!isLive && ItemActions('stats', i, 'stat')}
-                  <InlineEditableText value={s.value || ''} placeholder="99%" editable={canEdit && !isLive} as="div"
-                    className="text-4xl font-bold mb-2" style={{ fontFamily: font_heading, color: primary_color }}
-                    onCommit={v => editItem('stats', i, 'value', v)} />
-                  <InlineEditableText value={s.label || ''} placeholder="Metric label" editable={canEdit && !isLive} as="div"
-                    className="text-gray-500 text-sm font-medium"
-                    style={{}}
-                    onCommit={v => editItem('stats', i, 'label', v)} />
-                </div>
-              ))}
-            </div>
-            {!isLive && canEdit && (
-              <div className="mt-6 text-center">
-                {AddItemBtn('stats', { value: '100+', label: 'New Metric' }, 'Add stat')}
-              </div>
-            )}
-            {!isLive && dsType === 'kpis' && (
-              <p className="text-center text-gray-400 text-xs mt-4">Loading live KPIs…</p>
-            )}
-            </div>
-          </section>
-        )
-      }
-
-      case 'testimonials':
-      case 'testimonials_grid': {
-        const TEMPLATE_TESTI_NAMES = new Set(['Priya S.', 'Arjun M.', 'Sarah M.', 'James L.', 'Sarah J.', 'Mike R.', 'Sarah Johnson', 'Michael Chen'])
-        const isTemplateTesti = (t: any) => {
-          const name = String(t?.name || '').trim()
-          if (TEMPLATE_TESTI_NAMES.has(name)) return true
-          const quote = String(t?.quote || '').toLowerCase()
-          const role = String(t?.role || '').toLowerCase()
-          return role === 'subscriber' && quote.includes('meal subscription')
-        }
-        const liveBound = inferredDsType === 'testimonials' || !!(ds as any)?.auto
-        const testiLayout = String((p as any).layout ?? 'grid')
-        const testiCols = Number((p as any).columns) || (testiLayout === 'centered' ? 1 : 3)
-        const isCentered = testiLayout === 'centered'
-        const isMasonry = testiLayout === 'masonry'
-        const testiGridClass = testiCols === 2 ? 'grid grid-cols-1 sm:grid-cols-2 gap-6' : testiCols === 1 ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
-        const propTestis: any[] = Array.isArray(p.testimonials) ? (p.testimonials as any[]) : []
-        const manualTestis = propTestis.filter(t => !isTemplateTesti(t))
-        const hasManualTestis = manualTestis.length > 0
-        const useLiveTestis = liveTestimonials.length > 0 && (liveBound || propTestis.some(isTemplateTesti) || !hasManualTestis)
-        const testis: any[] = useLiveTestis
-          ? liveTestimonials.map(t => ({
-              name: t.title,
-              role: t.subtitle,
-              company: (t.meta as any)?.company,
-              quote: t.description,
-              rating: t.rating,
-              avatar_url: t.image_url,
-              _live: true,
-            }))
-          : hasManualTestis ? manualTestis : (liveBound || propTestis.some(isTemplateTesti)) ? [] : canEdit ? [
-              { quote: 'This product has completely transformed how we work. Highly recommended!', name: 'Sarah J.', role: 'CEO', rating: 5 },
-              { quote: 'Incredible quality and amazing support team. Worth every penny.', name: 'Mike R.', role: 'Designer', rating: 5 },
-            ] : []
-        return (
-          <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'What Our Customers Say')}
-            {!suppressLiveBadges && useLiveTestis && (
-              <div className="flex items-center justify-center gap-1.5 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · verified reviews (4★+)</span>
-              </div>
-            )}
-            <div className={cn(
-              isCentered ? 'max-w-2xl mx-auto text-center' : isMasonry ? cn('columns-1 gap-6 space-y-6', testiCols >= 2 && 'sm:columns-2') : testiGridClass,
-            )}>
-              {testis.slice(0, 6).map((t: any, i: number) => (
-                <div key={i} className={cn('builder-tile-card bg-white rounded-2xl border border-gray-100 p-6 relative group/item', isMasonry && 'break-inside-avoid mb-6', isCentered && i > 0 && 'hidden')}>
-                  {!t._live && ItemActions('testimonials', i, 'testimonial')}
-                  <Quote className="w-8 h-8 opacity-10 absolute top-4 right-4" style={{ color: primary_color }} />
-                  {!!t.rating && (
-                    <div className="flex gap-0.5 mb-3">
-                      {Array.from({ length: 5 }).map((_, si) => (
-                        <Star
-                          key={si}
-                          className={`w-4 h-4 ${si < Math.min(5, t.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <InlineEditableText value={t.quote || ''} placeholder="Customer testimonial quote…" editable={canEdit && !t._live} multiline as="p"
-                    className="text-gray-600 text-sm leading-relaxed mb-4"
-                    style={{}}
-                    onCommit={v => editItem('testimonials', i, 'quote', v)} />
-                  <div className="flex items-center gap-3">
-                    {(t.avatar_url || (canEdit && !t._live)) ? (
-                      <div className="w-10 h-10 shrink-0 relative rounded-full overflow-hidden">
-                        {canvasImg(
-                          t.avatar_url || null,
-                          url => editItem('testimonials', i, 'avatar_url', url),
-                          { arrayKey: 'testimonials', index: i, itemField: 'avatar_url' },
-                          { className: 'w-10 h-10', imgClassName: 'w-10 h-10 rounded-full object-cover', alt: t.name },
-                        )}
-                      </div>
-                    ) : (
-                        <div style={{ backgroundColor: primary_color, borderRadius: '50%' }} className="w-10 h-10 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                          {(t.name || '?')[0].toUpperCase()}
-                        </div>
-                      )}
-                    <div>
-                      <InlineEditableText value={t.name || ''} placeholder="Customer Name" editable={canEdit && !t._live} as="div"
-                        className="font-semibold text-gray-900 text-sm"
-                        style={{}}
-                        onCommit={v => editItem('testimonials', i, 'name', v)} />
-                      <InlineEditableText value={t.role || ''} placeholder="Role / Company" editable={canEdit && !t._live} as="div"
-                        className="text-xs text-gray-400"
-                        style={{}}
-                        onCommit={v => editItem('testimonials', i, 'role', v)} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {!useLiveTestis && canEdit && (
-              <div className="mt-6 text-center">
-                {AddItemBtn('testimonials', { quote: 'Great experience!', name: 'New Customer', role: 'Title', rating: 5 }, 'Add testimonial')}
-              </div>
-            )}
-            {(liveBound || dsType === 'testimonials' || propTestis.some(isTemplateTesti)) && !useLiveTestis && testis.length === 0 && (
-              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-                <Database className="w-3 h-3" /> No reviews yet — ask customers to leave one to see them here live.
-              </p>
-            )}
-          </div>
-        )
-      }
-
-      case 'pricing': {
-        const pricingCols = Number((p as any).columns) || 3
-        const showAnnualToggle = (p as any).show_annual_toggle !== false
-        const gridColsClass = pricingCols === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3 max-w-5xl'
-        return (
-          <div className="py-16 px-8">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-6', { fontFamily: font_heading }, 'Our Pricing')}
-            {showAnnualToggle && (
-              <div className="flex items-center justify-center gap-3 mb-10">
-                <span className="text-sm font-medium text-gray-700">Monthly</span>
-                <div className="w-11 h-6 rounded-full bg-gray-200 relative">
-                  <div className="absolute left-1 top-1 w-4 h-4 rounded-full bg-white shadow" />
-                </div>
-                <span className="text-sm text-gray-400">Annual</span>
-              </div>
-            )}
-            <div className={cn('grid grid-cols-1 gap-6 mx-auto', gridColsClass)}>
-              {(p.plans as any[] || []).slice(0, pricingCols).map((plan: any, i: number) => (
-                <div
-                  key={i}
-                  style={{ borderRadius: cardRadius, borderColor: plan.highlighted ? primary_color : '#e5e7eb', backgroundColor: plan.highlighted ? primary_color : bg_color, color: plan.highlighted ? '#fff' : text_color }}
-                  className={cn('builder-tile-card border-2 p-6 space-y-4 relative group/item flex flex-col', plan.highlighted && 'shadow-xl md:scale-105')}
-                >
-                  {ItemActions('plans', i, 'plan')}
-                  <InlineEditableText value={plan.name || ''} placeholder="Plan Name" editable={canEdit} as="div"
-                    className="font-bold text-lg" style={{ fontFamily: font_heading }}
-                    onCommit={v => editItem('plans', i, 'name', v)} />
-                  <div className="text-3xl font-extrabold">
-                    <InlineEditableText value={String(plan.price ?? '')} placeholder="$0" editable={canEdit} as="span"
-                      style={{}}
-                      onCommit={v => editItem('plans', i, 'price', v)} />
-                    {plan.period && <span className="text-base font-normal opacity-70">/{plan.period}</span>}
-                  </div>
-                  <ul className="space-y-2 text-sm">
-                    {(plan.features || []).slice(0, 10).map((f: string, fi: number) => (
-                      <li key={fi} className="flex items-center gap-2 relative group/line">
-                        <Check className="w-4 h-4 shrink-0 opacity-70" />
-                        <InlineEditableText value={f || ''} placeholder="Feature item" editable={canEdit} as="span"
-                          className="flex-1" style={{}}
-                          onCommit={v => {
-                            const feats = [...(plan.features || [])]
-                            feats[fi] = v
-                            editItem('plans', i, 'features', feats as any)
-                          }} />
-                        {canEdit && (
-                          <button type="button" title="Remove line"
-                            onClick={e => {
-                              e.stopPropagation()
-                              const feats = [...(plan.features || [])]
-                              feats.splice(fi, 1)
-                              editItem('plans', i, 'features', feats as any)
-                            }}
-                            className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
-                          >×</button>
-                        )}
-                      </li>
-                    ))}
-                    {canEdit && (
-                      <li>
-                        <button type="button"
-                          onClick={e => {
-                            e.stopPropagation()
-                            const feats = [...(plan.features || []), 'New feature']
-                            editItem('plans', i, 'features', feats as any)
-                          }}
-                          className="text-xs opacity-60 hover:opacity-100 inline-flex items-center gap-1 mt-1"
-                        ><Plus className="w-3 h-3" /> Add line</button>
-                      </li>
-                    )}
-                  </ul>
-                  <button
-                    style={{ borderRadius: btnRadius, backgroundColor: plan.highlighted ? '#fff' : primary_color, color: plan.highlighted ? primary_color : '#fff' }}
-                    className="w-full py-2.5 font-semibold text-sm mt-auto"
-                  >
-                    <InlineEditableText value={plan.cta || ''} placeholder="Get Started" editable={canEdit} as="span"
-                      style={{}}
-                      onCommit={v => editItem('plans', i, 'cta', v)} />
-                  </button>
-                </div>
-              ))}
-            </div>
-            {canEdit && (
-              <div className="mt-6 text-center">
-                {AddItemBtn('plans', { name: 'New Plan', price: '$0', period: 'mo', features: ['Feature one', 'Feature two'], cta: 'Choose' }, 'Add plan')}
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      case 'faq': {
-        const faqLayout = String((p as any).layout ?? 'accordion')
-        const isTwoCol = faqLayout === 'two-col'
-        const isList = faqLayout === 'list'
-        const isCompact = !!(p as any).compact
-        return (
-          <section className={cn('px-4 sm:px-6 lg:px-8 mx-auto', isCompact ? 'py-10' : 'py-16', isTwoCol ? 'max-w-5xl' : 'max-w-3xl')}>
-            {(p.title || canEdit) && IET('title', 'h2', cn('text-3xl font-bold text-gray-900 text-center', isCompact ? 'mb-6' : 'mb-10'), { fontFamily: font_heading, color: '#111827' }, 'Frequently Asked Questions')}
-            <div className={cn(isTwoCol ? 'grid md:grid-cols-2 gap-3' : isCompact ? 'space-y-2' : 'space-y-3')}>
-              {(p.faqs as any[] || []).map((faq: any, i: number) => (
-                isList ? (
-                  <div key={i} className={cn('builder-tile-card bg-white rounded-2xl border border-gray-100 relative group/item', isCompact ? 'px-4 py-3' : 'px-6 py-4')}>
-                    {ItemActions('faqs', i, 'question')}
-                    <InlineEditableText value={faq.question || ''} placeholder={`Question ${i + 1}`} editable={canEdit} as="div"
-                      className="font-semibold text-gray-900 text-sm mb-2" style={{}}
-                      onCommit={v => editItem('faqs', i, 'question', v)} />
-                    <InlineEditableText value={faq.answer || ''} placeholder="Answer…" editable={canEdit} multiline as="div"
-                      className="text-gray-600 text-sm leading-relaxed" style={{}}
-                      onCommit={v => editItem('faqs', i, 'answer', v)} />
-                  </div>
-                ) : (
-                <details key={i} className={cn('builder-tile-card group bg-white rounded-2xl border border-gray-100 overflow-hidden relative group/item', isCompact && 'text-sm')}>
-                  {ItemActions('faqs', i, 'question')}
-                  <summary className={cn('list-none cursor-pointer w-full flex items-center justify-between gap-3 text-left [&::-webkit-details-marker]:hidden', isCompact ? 'px-4 py-3' : 'px-6 py-4')}>
-                    <InlineEditableText value={faq.question || ''} placeholder={`Question ${i + 1}`} editable={canEdit} as="span"
-                      className="font-semibold text-gray-900 text-sm flex-1 min-w-0" style={{}}
-                      onCommit={v => editItem('faqs', i, 'question', v)} />
-                    <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 transition-transform group-open:rotate-180" />
-                  </summary>
-                  <div className="px-6 pb-4 text-gray-600 text-sm leading-relaxed border-t border-gray-50">
-                    <InlineEditableText value={faq.answer || ''} placeholder="Answer…" editable={canEdit} multiline as="div"
-                      className="pt-3" style={{}}
-                      onCommit={v => editItem('faqs', i, 'answer', v)} />
-                  </div>
-                </details>
-                )
-              ))}
-            </div>
-            {canEdit && (
-              <div className="mt-6 text-center">
-                {AddItemBtn('faqs', { question: 'New question?', answer: 'Answer goes here.' }, 'Add FAQ')}
-              </div>
-            )}
-          </section>
-        )
-      }
-
-      case 'cta': {
-        const ctaBgStyle = String((p as any).bg_style ?? 'gradient')
-        const ctaBgImage = (p as any).bg_image_url as string | undefined
-        const ctaUsesImageBg = !!ctaBgImage && (ctaBgStyle === 'image' || !!(p as any).overlay)
-        const ctaShellStyle: React.CSSProperties = ctaBgStyle === 'dark'
-          ? { background: '#0f172a', color: '#fff' }
-          : ctaBgStyle === 'light'
-            ? { background: effectiveStyle.surface_color || '#f9fafb', color: text_color }
-            : ctaUsesImageBg
-              ? { backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.55), rgba(0,0,0,0.45)), url(${mediaUrl(ctaBgImage)})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' }
-              : { background: `linear-gradient(135deg, ${primary_color}, ${effectiveStyle.secondary_color})`, color: '#fff' }
-        const ctaTextLight = ctaBgStyle !== 'light'
-        return (
-          <section className="py-16 px-4 sm:px-6 lg:px-8">
-            <div
-              className="max-w-4xl mx-auto text-center rounded-3xl p-12 relative overflow-hidden"
-              style={ctaShellStyle}
-            >
-              {canEdit && canvasImg(
-                ctaBgImage || null,
-                url => commitProp('bg_image_url', url),
-                { propField: 'bg_image_url' },
-                { fill: true },
-              )}
-              <div className="relative z-10">
-              <InlineEditableText
-                value={p.headline || ''}
-                placeholder="Ready to Get Started?"
-                editable={isEditing}
-                as="h2"
-                style={{ fontFamily: font_heading }}
-                className="text-3xl sm:text-4xl font-bold mb-4"
-                onCommit={v => commitProp('headline', v)}
-              />
-              <InlineEditableText
-                value={p.subtitle || ''}
-                placeholder="Join thousands of satisfied customers."
-                editable={isEditing}
-                multiline
-                as="p"
-                className="text-white/80 text-lg mb-8 max-w-xl mx-auto"
-                onCommit={v => commitProp('subtitle', v)}
-              />
-              <div className="inline-block relative group">
-                <button
-                  style={{ backgroundColor: ctaTextLight ? '#fff' : primary_color, color: ctaTextLight ? primary_color : '#fff', borderRadius: btnRadius }}
-                  className="px-8 py-4 font-bold text-base hover:bg-gray-50 transition-all hover:scale-105"
-                  onDoubleClick={e => {
-                    if (isEditing && onEditPropLink) {
-                      e.preventDefault(); e.stopPropagation()
-                      onEditPropLink('cta_label', { x: e.clientX, y: e.clientY })
-                    }
-                  }}
-                >
-                  <InlineEditableText
-                    value={p.cta_label || ''}
-                    placeholder="Get Started Free"
-                    editable={isEditing}
-                    as="span"
-                    onCommit={v => commitProp('cta_label', v)}
-                  />
-                </button>
-                {isEditing && onEditPropLink && (
-                  <button
-                    onClick={e => {
-                      e.stopPropagation()
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                      onEditPropLink('cta_label', { x: rect.left, y: rect.bottom + 4 })
-                    }}
-                    className={cn(
-                      'absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs shadow-md transition-opacity',
-                      (p as any).cta_url ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-white opacity-0 group-hover:opacity-100'
-                    )}
-                    title={(p as any).cta_url ? `Linked → ${(p as any).cta_url}` : 'Connect link or product'}
-                  >
-                    🔗
-                  </button>
-                )}
-              </div>
-              {p.show_credit_card_note && <p className={cn('text-xs mt-3', ctaTextLight ? 'text-white/60' : 'text-gray-500')}>No credit card required</p>}
-              </div>
-            </div>
-          </section>
-        )
-      }
-
-      case 'team_grid':
-      case 'team_list': {
-        const teamCols = (p as any).columns || 4
-        const teamGap = (p as any).item_gap ?? 24
-        const teamSize = (p as any).item_size ?? 160
-        const teamCardStyle = String((p as any).card_style ?? 'card')
-        const isMinimalTeam = teamCardStyle === 'minimal'
-        const avatarSize = Math.round(teamSize * (isMinimalTeam ? 0.45 : 0.55))
-        const propMembers = teamPropMembers(p as Record<string, unknown>)
-        const useLiveTeam = shouldUseLiveTeam(p as Record<string, unknown>, liveTeam)
-        const members: any[] = useLiveTeam
-          ? liveTeam.map(t => ({
-              name: t.title,
-              role: t.subtitle,
-              bio: t.description,
-              avatar_url: t.image_url,
-            }))
-          : propMembers.length > 0 ? propMembers : []
-        const colClass = teamCols <= 2 ? 'grid-cols-1 sm:grid-cols-2'
-          : teamCols === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-          : teamCols === 5 ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
-          : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
-        return (
-          <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-10 text-center', { fontFamily: font_heading, color: '#111827' }, 'Meet the Team')}
-            {!suppressLiveBadges && useLiveTeam && (
-              <div className="flex items-center justify-center gap-1.5 mb-3">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · your HR team</span>
-              </div>
-            )}
-            {(p.description || canEdit) && IET('description', 'p', 'text-center text-sm text-gray-500 mb-10 max-w-2xl mx-auto', {}, 'Meet the people behind the work.', true)}
-            <div className={cn('grid gap-6 mx-auto', colClass)} style={{ gap: `${teamGap}px`, maxWidth: '1000px' }}>
-              {members.map((m: any, i: number) => (
-                <div key={i} className={cn('text-center relative group/item', !isMinimalTeam && 'p-4 rounded-2xl border border-gray-100 bg-white shadow-sm', isMinimalTeam && 'p-2')}>
-                  {!useLiveTeam && ItemActions('members', i, 'member')}
-                  <div
-                    style={{
-                      width: avatarSize, height: avatarSize,
-                      borderRadius: '50%',
-                      backgroundColor: primary_color,
-                      margin: '0 auto 12px',
-                      overflow: 'hidden',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                    className="shadow-sm relative"
-                  >
-                    {(m.avatar_url || canEdit) && (
-                      <CanvasEditableImage
-                        siteId={siteId}
-                        src={m.avatar_url || null}
-                        editable={canEdit && !useLiveTeam}
-                        onReplace={url => editItem('members', i, 'avatar_url', url)}
-                        onFocus={() => focusCanvasImage({ arrayKey: 'members', index: i, itemField: 'avatar_url' })}
-                        className="absolute inset-0"
-                        imgClassName="w-full h-full object-cover"
-                        alt={m.name}
-                      />
-                    )}
-                    <div style={{ color: '#fff', fontWeight: 700, fontSize: avatarSize * 0.35, display: m.avatar_url ? 'none' : 'flex' }}>
-                      {(m.name || '?')[0].toUpperCase()}
-                    </div>
-                  </div>
-                  <InlineEditableText value={m.name || ''} placeholder="Name" editable={canEdit && !useLiveTeam} as="div"
-                    className="font-semibold text-gray-900 text-sm"
-                    style={{}}
-                    onCommit={v => editItem('members', i, 'name', v)} />
-                  <InlineEditableText value={m.role || ''} placeholder="Role / Title" editable={canEdit && !useLiveTeam} as="div"
-                    className="text-sm text-gray-400 mt-0.5"
-                    style={{}}
-                    onCommit={v => editItem('members', i, 'role', v)} />
-                  {(m.bio || canEdit) && (
-                    <InlineEditableText value={m.bio || ''} placeholder="Short bio…" editable={canEdit && !useLiveTeam} multiline as="div"
-                      className="text-xs mt-1.5 leading-relaxed text-gray-500 max-w-xs mx-auto"
-                      style={{}}
-                      onCommit={v => editItem('members', i, 'bio', v)} />
-                  )}
-                </div>
-              ))}
-            </div>
-            {!useLiveTeam && canEdit && (
-              <div className="mt-6 text-center">
-                {AddItemBtn('members', { name: 'New Member', role: 'Role', bio: 'Short bio.' }, 'Add member')}
-              </div>
-            )}
-          </section>
-        )
-      }
-
-      case 'newsletter': {
-        const nlLayout = String((p as any).layout ?? 'inline')
-        const nlCompact = !!(p as any).compact
-        const nlImage = (p as any).image_url as string | undefined
-        if (nlLayout === 'split') {
-          return (
-            <section className="py-0 px-0 flex flex-col md:flex-row min-h-[280px]">
-              <div className="md:w-2/5 bg-gray-100">
-                {nlImage ? <img src={mediaUrl(nlImage)} className="w-full h-full min-h-[200px] object-cover" alt="" /> : <div className="w-full h-full min-h-[200px] bg-gray-200" />}
-              </div>
-              <div className="flex-1 flex flex-col justify-center py-12 px-8 text-center md:text-left">
-                {IET('title', 'h2', 'text-2xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Stay in the Loop')}
-                {IET('subtitle', 'p', 'text-gray-500 mb-6', {}, 'Get the latest updates delivered to your inbox.')}
-                <div className="flex gap-2 max-w-md">
-                  <input className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm" placeholder="your@email.com" readOnly />
-                  {CTABtn('cta_label', 'cta_url', 'Subscribe', 'px-6 py-3 rounded-xl text-white font-semibold text-sm whitespace-nowrap', { backgroundColor: primary_color })}
-                </div>
-              </div>
-            </section>
-          )
-        }
-        if (nlLayout === 'card') {
-          return (
-            <section className="py-16 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: `${primary_color}08` }}>
-              <div className="max-w-lg mx-auto bg-white rounded-2xl border border-gray-100 shadow-lg p-8 text-center">
-                {IET('title', 'h2', 'text-2xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Stay in the Loop')}
-                {IET('subtitle', 'p', 'text-gray-500 mb-6', {}, 'Get the latest updates delivered to your inbox.')}
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm" placeholder="your@email.com" readOnly />
-                  {CTABtn('cta_label', 'cta_url', 'Subscribe', 'px-6 py-3 rounded-xl text-white font-semibold text-sm whitespace-nowrap', { backgroundColor: primary_color })}
-                </div>
-              </div>
-            </section>
-          )
-        }
-        return (
-          <section className={cn('px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden', nlCompact ? 'py-8' : 'py-16')} style={{ backgroundColor: `${primary_color}10` }}>
-            {nlImage && <img src={mediaUrl(nlImage)} className="absolute inset-0 w-full h-full object-cover opacity-15" alt="" />}
-            <div className={cn('mx-auto relative z-10', nlCompact ? 'max-w-lg' : 'max-w-xl')}>
-              {!nlCompact && (
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: primary_color }}>
-                  <Mail className="w-6 h-6 text-white" />
-                </div>
-              )}
-              {IET('title', 'h2', cn('font-bold text-gray-900 mb-2', nlCompact ? 'text-xl' : 'text-2xl'), { fontFamily: font_heading, color: '#111827' }, 'Stay in the Loop')}
-              {IET('subtitle', 'p', cn('text-gray-500 mb-6', nlCompact && 'mb-4 text-sm'), {}, 'Get the latest updates delivered to your inbox.')}
-              <div className={cn('flex gap-2 mx-auto', nlCompact ? 'max-w-md flex-row' : 'max-w-md')}>
-                <input className={cn('flex-1 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring', nlCompact ? 'py-2' : 'py-3')} placeholder="your@email.com" readOnly />
-                {CTABtn('cta_label', 'cta_url', 'Subscribe', cn('rounded-xl text-white font-semibold flex items-center gap-2 hover:opacity-90 whitespace-nowrap', nlCompact ? 'px-4 py-2 text-xs' : 'px-6 py-3 text-sm'), { backgroundColor: primary_color })}
-              </div>
-            </div>
-          </section>
-        )
-      }
-
-      case 'contact_form':
-      case 'map_contact': {
-        const pmeta: any = liveProfile?.meta || {}
-        const liveEmail = dsType === 'profile' ? (pmeta.email || pmeta.support_email) : null
-        const livePhone = dsType === 'profile' ? (pmeta.phone || pmeta.support_phone) : null
-        const liveAddr  = dsType === 'profile' ? pmeta.address : null
-        const emailVal = (p.email as string) || liveEmail || ''
-        const phoneVal = (p.phone as string) || livePhone || ''
-        const addrVal  = (p.address as string) || liveAddr || ''
-        const cfLayout = String((p as any).layout ?? 'split')
-        const cfFullPage = !!(p as any).full_page
-        const cfShowMap = !!(p as any).show_map
-        const bgImageUrl = (p as any).bg_image_url as string | undefined
-        const formFields: any[] = Array.isArray(p.form_fields) && (p.form_fields as any[]).length > 0
-          ? (p.form_fields as any[]).slice(0, 6)
-          : [
-              { name: 'name', type: 'text', placeholder: 'Your Name' },
-              { name: 'email', type: 'email', placeholder: 'your@email.com' },
-              { name: 'phone', type: 'tel', placeholder: '+1 234 567 8900' },
-              { name: 'message', type: 'textarea', placeholder: 'How can we help you?' },
-            ]
-        const formPanel = (
-          <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm space-y-4 max-h-[90vh] overflow-y-auto">
-            {formFields.map((f: any, i: number) => (
-              f.type === 'textarea'
-                ? (
-                  <div key={i}>
-                    {f.label && <label className="text-xs font-medium text-gray-700 block mb-1">{f.label}</label>}
-                    <textarea readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-ring" placeholder={f.placeholder || f.label} />
-                  </div>
-                )
-                : (
-                  <div key={i}>
-                    {f.label && <label className="text-xs font-medium text-gray-700 block mb-1">{f.label}</label>}
-                    <input readOnly className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder={f.placeholder || f.label} type={f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : 'text'} />
-                  </div>
-                )
-            ))}
-            <button type="button" style={{ backgroundColor: primary_color }} className="w-full py-3 rounded-xl text-white font-semibold text-sm hover:opacity-90 transition-opacity">
-              {canEdit
-                ? <InlineEditableText value={(p as any).submit_label as string || ''} placeholder="Send Message" editable as="span"
-                    style={{ color: '#fff' }} onCommit={v => commitProp('submit_label', v)} />
-                : ((p as any).submit_label || 'Send Message')}
-            </button>
-            {canEdit
-              ? <InlineEditableText value={(p as any).form_hint as string || ''} placeholder="Helper hint…" editable as="p" multiline
-                  className="text-xs text-gray-400 text-center" style={{}}
-                  onCommit={v => commitProp('form_hint', v)} />
-              : ((p as any).form_hint || <p className="text-xs text-gray-400 text-center">Messages from your published site are captured as CRM leads automatically.</p>)}
-          </div>
-        )
-        const contactDetails = (
-          <div className="space-y-4">
-            {(emailVal || canEdit) && (
-              <div className="flex items-center gap-3 text-gray-600 text-sm">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
-                  <Mail className="w-5 h-5" style={{ color: primary_color }} />
-                </div>
-                <span className="min-w-0 break-words">
-                  {canEdit && dsType !== 'profile'
-                    ? <InlineEditableText value={emailVal} placeholder="you@example.com" editable as="span" style={{}} onCommit={v => commitProp('email', v)} />
-                    : (emailVal || '—')}
-                </span>
-              </div>
-            )}
-            {(phoneVal || canEdit) && (
-              <div className="flex items-center gap-3 text-gray-600 text-sm">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
-                  <Phone className="w-5 h-5" style={{ color: primary_color }} />
-                </div>
-                <span>
-                  {canEdit && dsType !== 'profile'
-                    ? <InlineEditableText value={phoneVal} placeholder="+1 555 000 0000" editable as="span" style={{}} onCommit={v => commitProp('phone', v)} />
-                    : (phoneVal || '—')}
-                </span>
-              </div>
-            )}
-            {(addrVal || canEdit) && (
-              <div className="flex items-center gap-3 text-gray-600 text-sm">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
-                  <MapPin className="w-5 h-5" style={{ color: primary_color }} />
-                </div>
-                <span className="min-w-0">
-                  {canEdit && dsType !== 'profile'
-                    ? <InlineEditableText value={addrVal} placeholder="123 Main St, City" editable multiline as="span" style={{}} onCommit={v => commitProp('address', v)} />
-                    : (addrVal || '—')}
-                </span>
-              </div>
-            )}
-          </div>
-        )
-        const mapPanel = cfShowMap && (
-          <div className="h-48 sm:h-56 rounded-2xl border border-gray-200 overflow-hidden bg-gray-100 relative">
-            {bgImageUrl
-              ? <img src={mediaUrl(bgImageUrl)} className="w-full h-full object-cover" alt="" />
-              : (
-                <div className="w-full h-full flex items-center justify-center text-xs text-gray-500 bg-gray-50">
-                  <MapIcon className="w-5 h-5 mr-1 shrink-0" style={{ color: primary_color }} />
-                  {pmeta.city || 'Map area'}{pmeta.state ? `, ${pmeta.state}` : ''}
-                </div>
-              )
-            }
-          </div>
-        )
-        const sectionShellClass = cn(
-          'relative py-16 px-4 sm:px-6 lg:px-8',
-          cfFullPage ? 'max-w-3xl mx-auto' : 'max-w-6xl mx-auto',
-        )
-        return (
-          <section
-            className={sectionShellClass}
-            style={bgImageUrl && cfLayout === 'centered' ? {
-              backgroundImage: `linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.92)), url(${mediaUrl(bgImageUrl)})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            } : undefined}
-          >
-            {dsType === 'profile' && liveProfile && !suppressLiveBadges && (
-              <div className="flex items-center justify-center gap-1.5 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · synced with your vendor profile</span>
-              </div>
-            )}
-            {(p.title || canEdit) && (
-              <div className={cn('mb-8', cfLayout === 'centered' && 'text-center')}>
-                {IET('title', 'h2', cn('text-3xl font-bold text-gray-900', cfLayout === 'centered' && 'mx-auto'), { fontFamily: font_heading, color: '#111827' }, 'Get In Touch')}
-              </div>
-            )}
-            {cfLayout === 'centered' ? (
-              <div className="max-w-lg mx-auto">
-                {formPanel}
-              </div>
-            ) : cfLayout === 'stacked' ? (
-              <div className="max-w-2xl mx-auto space-y-6">
-                {formPanel}
-                {mapPanel}
-              </div>
-            ) : (
-              <div className="grid lg:grid-cols-2 gap-12 items-start">
-                <div>
-                  {contactDetails}
-                  {cfLayout === 'split' && bgImageUrl && (
-                    <div className="mt-8 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                      <img src={mediaUrl(bgImageUrl)} className="w-full h-48 object-cover" alt="" />
-                    </div>
-                  )}
-                </div>
-                {formPanel}
-              </div>
-            )}
-          </section>
-        )
-      }
-
-      case 'trust_logos':
-      case 'partner_logos': {
-        const isLive = dsType === 'customers' && liveCustomers.length > 0
-        const propLogos: any[] = Array.isArray((p as any).logos) ? (p as any).logos : []
-        const hasPropLogoImages = propLogos.some(l => !!l?.image_url)
-        const useLiveLogos = isLive && !hasPropLogoImages
-        const logos: any[] = useLiveLogos
-          ? liveCustomers.map(c => ({ name: c.subtitle || c.title, image_url: c.image_url }))
-          : propLogos.length > 0
-            ? propLogos
-            : ['ACME Corp', 'TechGiant', 'StartupXYZ', 'Enterprise Co', 'Global Inc'].map(n => ({ name: n }))
-        const logoLayout = String((p as any).layout ?? 'strip')
-        const logoGrayscale = (p as any).grayscale !== false
-        const logoCols = Number((p as any).columns) || 4
-        return (
-          <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-            {(p.title || canEdit) && IET('title', 'p', 'text-center text-sm font-semibold text-gray-400 uppercase tracking-widest mb-8', { color: '#9ca3af' }, 'Trusted By')}
-            <div className={cn(
-              logoLayout === 'grid'
-                ? cn('grid gap-6 items-center justify-items-center', logoCols >= 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3')
-                : 'flex flex-wrap justify-center gap-8 items-center',
-            )}>
-              {logos.slice(0, 8).map((l: any, i: number) => (
-                <div key={i} className="flex items-center gap-2">
-                  {(l.image_url || (canEdit && !useLiveLogos)) ? (
-                    canvasImg(
-                      l.image_url || null,
-                      url => editItem('logos', i, 'image_url', url),
-                      { arrayKey: 'logos', index: i, itemField: 'image_url' },
-                      {
-                        className: 'h-10 min-w-[40px]',
-                        imgClassName: cn('h-10 w-auto max-w-[120px] object-contain transition-all', logoGrayscale ? 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100' : 'opacity-90 hover:opacity-100'),
-                        alt: l.name || '',
-                      },
-                    )
-                  ) : <span className="text-gray-400 font-bold text-sm opacity-60">{l.name}</span>}
-                </div>
-              ))}
-            </div>
-            {!suppressLiveBadges && useLiveLogos && (
-              <p className="text-center text-xs text-emerald-600 mt-3 font-semibold">Live · your top customers</p>
-            )}
-          </section>
-        )
-      }
-
-      case 'footer': {
-        const footerTheme = resolveFooterTheme(p as Record<string, unknown>, {
-          text_color: text_color || '#111827',
-          bg_color: bg_color || '#ffffff',
-          surface_color: effectiveStyle.surface_color || '#f9fafb',
-          primary_color: primary_color || '#64C3A0',
-        })
-        const {
-          footerBg,
-          footerTitleColor,
-          footerLinkColor,
-          footerBorder,
-          layoutMode,
-          centered: footerCentered,
-          compact: footerCompact,
-          showNewsletter: footerShowNewsletter,
-        } = footerTheme
-        const pmeta: any = liveProfile?.meta || {}
-        const socialLinks: Record<string, string> = (p.social_links as any) || (dsType === 'profile' ? (pmeta.social_links || {}) : {})
-        const year = new Date().getFullYear()
-        const copyrightFromProfile = pmeta.business_name
-          ? `© ${year} ${pmeta.business_name}. All rights reserved.`
-          : ''
-        const copyright = ((p.copyright as string) || '').trim() || copyrightFromProfile
-        const liveNavLinks = sitePages?.length
-          ? buildNavLinksFromPages(sitePages).map((link, i) => ({ id: String(i), title: link.label, url: link.url }))
-          : dsType === 'pages' ? livePages : []
-        const hasLiveLinks = liveNavLinks.length > 0
-        const rawFooterCols = (p as any).footer_columns
-        const footerCols: { title: string; links: string[] }[] = Array.isArray(rawFooterCols) && rawFooterCols.length > 0
-          ? (rawFooterCols as any[]).map((c: any) => ({
-              title: String(c?.title ?? '').trim() || 'Column',
-              links: Array.isArray(c?.links) ? (c.links as unknown[]).map(x => String(x ?? '')) : [],
-            }))
-          : []
-        const hasFooterCols = footerCols.length > 0
-        const editColLinks = (cols: { title: string; links: string[] }[], colIdx: number, linkIdx: number, value: string) => {
-          if (!onPropsUpdate) return
-          const next = cols.map(c => ({ title: c.title, links: [...c.links] }))
-          next[colIdx].links[linkIdx] = value
-          onPropsUpdate({ ...block.props, footer_columns: next } as BlockProps)
-        }
-        const editColTitle = (cols: { title: string; links: string[] }[], colIdx: number, value: string) => {
-          if (!onPropsUpdate) return
-          const next = cols.map(c => ({ title: c.title, links: [...c.links] }))
-          next[colIdx].title = value
-          onPropsUpdate({ ...block.props, footer_columns: next } as BlockProps)
-        }
-        const removeColLink = (cols: { title: string; links: string[] }[], colIdx: number, linkIdx: number) => {
-          if (!onPropsUpdate) return
-          const next = cols.map(c => ({ title: c.title, links: [...c.links] }))
-          next[colIdx].links.splice(linkIdx, 1)
-          onPropsUpdate({ ...block.props, footer_columns: next } as BlockProps)
-        }
-        const addColLink = (cols: { title: string; links: string[] }[], colIdx: number) => {
-          if (!onPropsUpdate) return
-          const next = cols.map(c => ({ title: c.title, links: [...c.links] }))
-          next[colIdx].links.push('New link')
-          onPropsUpdate({ ...block.props, footer_columns: next } as BlockProps)
-        }
-        const removeCol = (cols: { title: string; links: string[] }[], colIdx: number) => {
-          if (!onPropsUpdate) return
-          const next = cols.filter((_, i) => i !== colIdx)
-          onPropsUpdate({ ...block.props, footer_columns: next } as BlockProps)
-        }
-        return (
-          <div
-            className={cn(
-              'border-t w-full text-sm',
-              footerCompact ? 'py-8' : 'py-12',
-              footerCentered ? 'px-4 text-center' : 'px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto',
-              layoutMode !== 'simple' ? 'mt-8' : 'mt-4',
-            )}
-            style={{ borderColor: footerBorder, backgroundColor: footerBg, color: footerLinkColor }}
-          >
-            {footerShowNewsletter && (
-              <div
-                className={cn(
-                  'mb-8 pb-8 flex flex-col sm:flex-row items-center justify-between gap-4',
-                  footerCentered && 'text-center sm:text-left',
-                )}
-                style={{ borderBottom: `1px solid ${footerBorder}` }}
-              >
-                <div>
-                  <div className="text-sm font-semibold" style={{ color: footerTitleColor }}>Stay in the loop</div>
-                  <div className="text-xs opacity-80 mt-0.5">Get updates and offers in your inbox.</div>
-                </div>
-                <div className="flex gap-2 w-full sm:w-auto max-w-md">
-                  <div className="flex-1 h-9 rounded-lg border bg-white/90" style={{ borderColor: footerBorder }} />
-                  <div className="h-9 px-4 rounded-lg flex items-center text-xs font-semibold text-white" style={{ backgroundColor: primary_color }}>Subscribe</div>
-                </div>
-              </div>
-            )}
-            {layoutMode === 'simple' ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-                  {(hasFooterCols ? footerCols.flatMap(c => c.links) : ['Home', 'About', 'Contact', 'Privacy']).slice(0, 6).map((link, i) => (
-                    <span key={i} className="text-sm opacity-90 cursor-pointer hover:opacity-100" style={{ color: footerLinkColor }}>
-                      {typeof link === 'string' ? link : String(link)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : footerCentered ? (
-              <div className="space-y-4 max-w-lg mx-auto">
-                <div className="text-lg font-bold" style={{ color: footerTitleColor }}>{pmeta.business_name || 'Your Brand'}</div>
-                {hasFooterCols && (
-                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-                    {footerCols.flatMap(c => c.links).slice(0, 8).map((link, i) => (
-                      <span key={i} className="text-sm opacity-90" style={{ color: footerLinkColor }}>{link}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (hasFooterCols || hasLiveLinks) && (
-              <div
-                className={cn(
-                  'grid grid-cols-2 gap-8',
-                  hasFooterCols
-                    ? (footerCols.length <= 2 ? 'md:grid-cols-2' : footerCols.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4')
-                    : 'md:grid-cols-4',
-                )}
-              >
-                {hasFooterCols ? (
-                  <>
-                    {footerCols.map((col, colIdx) => (
-                      <div key={colIdx} className="relative group/item">
-                        {canEdit && (
-                          <button type="button" title="Remove column"
-                            onClick={e => { e.stopPropagation(); removeCol(footerCols, colIdx) }}
-                            className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-lg flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity"
-                          >×</button>
-                        )}
-                        <InlineEditableText value={col.title || ''} placeholder="Column title" editable={canEdit} as="div"
-                          className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}
-                          onCommit={v => editColTitle(footerCols, colIdx, v)} />
-                        {col.links.map((l, linkIdx) => (
-                          <div key={linkIdx} className="relative group/line flex items-center gap-1 mb-2">
-                            <InlineEditableText value={l || ''} placeholder={`Link ${linkIdx + 1}`} editable={canEdit} as="div"
-                              className="text-sm opacity-90 flex-1 cursor-pointer hover:opacity-100 transition-opacity" style={{ color: footerLinkColor }}
-                              onCommit={v => editColLinks(footerCols, colIdx, linkIdx, v)} />
-                            {canEdit && (
-                              <button type="button" title="Remove link"
-                                onClick={e => { e.stopPropagation(); removeColLink(footerCols, colIdx, linkIdx) }}
-                                className="opacity-0 group-hover/line:opacity-100 transition-opacity w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
-                              >×</button>
-                            )}
-                          </div>
-                        ))}
-                        {canEdit && (
-                          <button type="button"
-                            onClick={e => { e.stopPropagation(); addColLink(footerCols, colIdx) }}
-                            className="text-xs inline-flex items-center gap-1 mt-1 opacity-70 hover:opacity-100"
-                            style={{ color: footerLinkColor }}
-                          ><Plus className="w-3 h-3" /> Add link</button>
-                        )}
-                      </div>
-                    ))}
-                    {canEdit && footerCols.length < 6 && (
-                      <div>
-                        <button type="button"
-                          onClick={e => {
-                            e.stopPropagation()
-                            const next = [...footerCols, { title: 'New Column', links: ['Link one'] }]
-                            onPropsUpdate?.({ ...block.props, footer_columns: next } as BlockProps)
-                          }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 border-dashed text-xs font-medium transition-colors"
-                          style={{ borderColor: footerBorder, color: footerLinkColor }}
-                        ><Plus className="w-3.5 h-3.5" /> Add column</button>
-                      </div>
-                    )}
-                  </>
-                ) : hasLiveLinks ? (
-                  <>
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Pages</div>
-                      {liveNavLinks.slice(0, 6).map(pg => (
-                        <div key={pg.id} className="text-sm mb-2 opacity-90 cursor-pointer hover:opacity-100" style={{ color: footerLinkColor }}>{pg.title}</div>
-                      ))}
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Contact</div>
-                      {pmeta.email && <div className="text-sm mb-2 opacity-90" style={{ color: footerLinkColor }}>{pmeta.email}</div>}
-                      {pmeta.phone && <div className="text-sm mb-2 opacity-90" style={{ color: footerLinkColor }}>{pmeta.phone}</div>}
-                      {pmeta.address && <div className="text-sm mb-2 opacity-90" style={{ color: footerLinkColor }}>{pmeta.address}</div>}
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Follow</div>
-                      {Object.entries(socialLinks).filter(([, url]) => !!url).slice(0, 5).map(([k]) => (
-                        <div key={k} className="text-sm mb-2 capitalize opacity-90 cursor-pointer hover:opacity-100" style={{ color: footerLinkColor }}>{k}</div>
-                      ))}
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.18em] opacity-70 mb-3" style={{ color: footerTitleColor }}>Legal</div>
-                      {['Terms', 'Privacy', 'Refund'].map(l => (
-                        <div key={l} className="text-sm mb-2 opacity-90 cursor-pointer hover:opacity-100" style={{ color: footerLinkColor }}>{l}</div>
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            )}
-            {!footerCentered && layoutMode !== 'simple' && !hasFooterCols && !hasLiveLinks && canEdit && (
-              <div className="mb-8 text-center text-sm opacity-90" style={{ color: footerLinkColor }}>
-                <p className="mb-3">This footer has no columns yet. Add <span className="font-semibold opacity-100" style={{ color: footerTitleColor }}>footer columns</span> in the properties panel, or use <span className="font-semibold opacity-100" style={{ color: footerTitleColor }}>Add column</span> below.</p>
-                <button type="button"
-                  onClick={e => {
-                    e.stopPropagation()
-                    onPropsUpdate?.({ ...block.props, footer_columns: [{ title: 'New Column', links: ['Link one'] }] } as BlockProps)
-                  }}
-                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-dashed text-xs font-medium"
-                  style={{ borderColor: footerBorder, color: footerTitleColor }}
-                ><Plus className="w-3.5 h-3.5" /> Add first column</button>
-              </div>
-            )}
-            <div
-              className={cn(
-                'text-xs text-center opacity-70',
-                (hasFooterCols || hasLiveLinks || copyright) ? 'mt-10 pt-6' : 'pt-2',
-              )}
-              style={
-                (hasFooterCols || hasLiveLinks || copyright)
-                  ? { borderTop: `1px solid ${footerBorder}`, color: footerLinkColor }
-                  : { color: footerLinkColor }
-              }
-            >
-              {canEdit
-                ? (
-                  <InlineEditableText
-                    value={copyright}
-                    placeholder="Copyright line"
-                    editable
-                    onCommit={v => commitProp('copyright', v)}
-                    as="span"
-                  />
-                )
-                : (copyright || null)}
-            </div>
-          </div>
-        )
-      }
-
-      case 'video_embed': {
-        const aspect = String((p as any).aspect_ratio ?? '16:9')
-        const aspectClass = aspect === '21:9' ? 'aspect-[21/9]' : aspect === '1:1' ? 'aspect-square max-w-lg mx-auto' : 'aspect-video'
-        const thumb = (p as any).thumbnail_url as string | undefined
-        return (
-          <div className="py-16 px-8">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-8', { fontFamily: font_heading }, 'Watch Our Story')}
-            <div className={cn('max-w-3xl mx-auto rounded-2xl overflow-hidden relative flex items-center justify-center bg-gray-900', aspectClass)}>
-              {thumb && <img src={mediaUrl(thumb)} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="" />}
-              <PlayCircle className="w-16 h-16 text-white opacity-90 relative z-10" />
-            </div>
-          </div>
-        )
-      }
-
-      case 'timeline': {
-        const tlLayout = String((p as any).layout ?? 'vertical')
-        const useTlReplacement = !isEditing && isTemplateTimelineBlock(p as Record<string, unknown>)
-        const tlReplacement = useTlReplacement ? genericTimelineContent('our store') : null
-        const tlItems: any[] = useTlReplacement && tlReplacement
-          ? tlReplacement.items
-          : ((p as any).items || [])
-        const tlItemBody = (item: any, i: number, compact = false) => (
-          <>
-            {ItemActions('items', i, 'milestone')}
-            <InlineEditableText value={isEditing ? (item.year || '') : sanitizeWellnessBodyCopy(item.year || '')} placeholder="Year" editable={canEdit} as="div"
-              className="text-xs text-gray-400 mb-1" style={{}}
-              onCommit={v => editItem('items', i, 'year', v)} />
-            <InlineEditableText value={isEditing ? (item.title || '') : sanitizeWellnessBodyCopy(item.title || '')} placeholder={`Milestone ${i + 1}`} editable={canEdit} as="div"
-              className={cn('font-semibold', compact ? 'text-sm' : 'text-sm')} style={{}}
-              onCommit={v => editItem('items', i, 'title', v)} />
-            <InlineEditableText value={isEditing ? (item.desc || '') : sanitizeWellnessBodyCopy(item.desc || '')} placeholder="Description…" editable={canEdit} multiline as="div"
-              className="text-xs text-gray-500" style={{}}
-              onCommit={v => editItem('items', i, 'desc', v)} />
-          </>
-        )
-        if (tlLayout === 'horizontal') {
-          return (
-            <div className="py-16 px-8 max-w-6xl mx-auto">
-              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, 'Our Journey')}
-              <div className="flex flex-wrap justify-center gap-8">
-                {tlItems.map((item: any, i: number) => (
-                  <div key={i} className="text-center max-w-[160px] relative group/item">
-                    <div style={{ backgroundColor: primary_color }} className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold mx-auto mb-3">{i + 1}</div>
-                    {tlItemBody(item, i, true)}
-                  </div>
-                ))}
-              </div>
-              {canEdit && (
-                <div className="mt-6 text-center">
-                  {AddItemBtn('items', { year: String(new Date().getFullYear()), title: 'New Milestone', desc: 'Describe the milestone.' }, 'Add milestone')}
-                </div>
-              )}
-            </div>
-          )
-        }
-        if (tlLayout === 'list') {
-          return (
-            <div className="py-16 px-8 max-w-2xl mx-auto">
-              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, 'Our Journey')}
-              <div className="divide-y divide-gray-100">
-                {tlItems.map((item: any, i: number) => (
-                  <div key={i} className="py-4 relative group/item">
-                    {tlItemBody(item, i, true)}
-                  </div>
-                ))}
-              </div>
-              {canEdit && (
-                <div className="mt-6 text-center">
-                  {AddItemBtn('items', { year: String(new Date().getFullYear()), title: 'New Milestone', desc: 'Describe the milestone.' }, 'Add milestone')}
-                </div>
-              )}
-            </div>
-          )
-        }
-        return (
-          <div className="py-16 px-8 max-w-2xl mx-auto">
-              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-10', { fontFamily: font_heading }, useTlReplacement && tlReplacement ? tlReplacement.title : 'Our Journey')}
-            <div className="space-y-6 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-px before:bg-gray-200">
-              {tlItems.map((item: any, i: number) => (
-                <div key={i} className="pl-10 relative group/item">
-                  <div style={{ backgroundColor: primary_color }} className="absolute left-0 top-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold">{i + 1}</div>
-                  {tlItemBody(item, i)}
-                </div>
-              ))}
-            </div>
-            {canEdit && (
-              <div className="mt-6 text-center">
-                {AddItemBtn('items', { year: String(new Date().getFullYear()), title: 'New Milestone', desc: 'Describe the milestone.' }, 'Add milestone')}
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      case 'divider':
-        return <div className="px-8 py-4"><hr style={{ borderColor: (p as any).color || '#e5e7eb' }} /></div>
-
-      case 'spacer':
-        return <div style={{ height: (p as any).height || 80 }} />
-
-      case 'rich_text': {
-        const rtLayout = String((p as any).layout ?? 'standard')
-        const rtMaxW = rtLayout === 'narrow' ? 'max-w-prose' : rtLayout === 'wide' ? 'max-w-6xl' : 'max-w-3xl'
-        return (
-          <div className={cn('py-12 px-8 mx-auto', rtMaxW)}>
-            <InlineEditableRichText
-              html={(p as any).content || '<p>Your rich text content goes here.</p>'}
-              editable={canEdit}
-              className="prose prose-sm max-w-none"
-              style={{ fontFamily: font_body, color: text_color }}
-              onCommit={v => commitProp('content', v)}
-            />
-          </div>
-        )
-      }
-
-      case 'image_block': {
-        const ibLayout = String((p as any).layout ?? 'centered')
-        const imgSrc = p.image_url as string | undefined
-        const imgEl = canvasImg(
-          imgSrc || null,
-          url => commitProp('image_url', url),
-          { propField: 'image_url' },
-          {
-            className: cn('w-full', ibLayout === 'full' ? 'max-h-[480px]' : 'max-h-96'),
-            imgClassName: cn('w-full object-cover', ibLayout === 'full' ? 'max-h-[480px]' : 'max-h-96'),
-            style: { borderRadius: ibLayout === 'full' ? 0 : cardRadius },
-          },
-        )
-        if (ibLayout === 'full') {
-          return <div className="py-0 px-0">{imgEl}</div>
-        }
-        if (ibLayout === 'split') {
-          return (
-            <div className="py-8 px-8 flex flex-col md:flex-row gap-8 items-center max-w-5xl mx-auto">
-              <div className="flex-1 w-full">{imgEl}</div>
-              <div className="flex-1 space-y-3">
-                {(p as any).caption && IET('caption', 'p', 'text-sm text-gray-600 leading-relaxed', {}, 'Image caption…')}
-                {IET('title', 'h3', 'text-xl font-bold', { fontFamily: font_heading, color: text_color }, 'Image story')}
-              </div>
-            </div>
-          )
-        }
-        return (
-          <div className={cn('py-8 px-8', ibLayout === 'centered' && 'max-w-3xl mx-auto')}>
-            {imgEl}
-            {!!(p as any).show_caption && ((p as any).caption || canEdit) && IET('caption', 'p', 'text-center text-xs text-gray-400 mt-2', {}, 'Image caption…')}
-          </div>
-        )
-      }
-
-      case 'about_split':
-      case 'about_timeline': {
-        const pmeta: any = liveProfile?.meta || {}
-        const isLive = dsType === 'profile' && !!liveProfile
-        const title = (p.title as string) || (isLive ? (pmeta.business_name || 'About Us') : 'About Us')
-        const desc  = (p.description as string) || (isLive ? (pmeta.description || '') : '') || 'Tell your story here.'
-        const img   = (p.image_url as string) || pmeta.banner_url || pmeta.logo_url || ''
-        const statement = (p as any).layout === 'statement' || (p as any).variant === 'centered'
-        const isOverlay = (p as any).layout === 'overlay'
-        if (isOverlay && img) {
-          return (
-            <div className="relative min-h-[420px] flex items-end py-16 px-8 overflow-hidden">
-              {img && <img src={mediaUrl(img)} className="absolute inset-0 w-full h-full object-cover pointer-events-none" alt={title} />}
-              {canvasImg(
-                img || null,
-                url => commitProp('image_url', url),
-                { propField: 'image_url' },
-                { fill: true },
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-              <div className="relative z-10 max-w-3xl text-white">
-                {IET('title', 'h2', 'text-3xl sm:text-4xl font-bold mb-4', { fontFamily: font_heading, color: '#fff' }, title)}
-                {IET('description', 'p', 'text-white/85 text-sm leading-relaxed max-w-xl', { color: '#fff' }, desc, true)}
-              </div>
-            </div>
-          )
-        }
-        if (statement) {
-          return (
-            <div className="border-t py-20 sm:py-24 px-6 max-w-4xl mx-auto text-center" style={{ borderColor: `${text_color}18`, backgroundColor: bg_color }}>
-              {(p.subtitle || canEdit) && (
-                <div className="text-xs uppercase tracking-[0.3em] opacity-70 mb-3" style={{ color: text_color }}>
-                  <InlineEditableText value={(p.subtitle as string) || ''} placeholder="Our craft" editable={canEdit} as="span" onCommit={v => commitProp('subtitle', v)} />
-                </div>
-              )}
-              {IET('title', 'h2', 'text-3xl sm:text-4xl md:text-5xl mb-6 text-balance', { fontFamily: font_heading, color: text_color }, title)}
-              {IET('description', 'p', 'opacity-80 max-w-2xl mx-auto text-pretty text-base leading-relaxed', { color: text_color }, desc, true)}
-              {!suppressLiveBadges && isLive && (
-                <div className="flex items-center justify-center gap-1.5 mt-6 text-xs text-emerald-600 font-semibold">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · synced with your vendor profile
-                </div>
-              )}
-            </div>
-          )
-        }
-        return (
-          <div className={cn('py-16 px-8 flex gap-12 items-center max-w-5xl mx-auto', (p as any).image_position === 'right' && 'flex-row-reverse')}>
-            <div style={{ borderRadius: cardRadius, backgroundColor: effectiveStyle.surface_color }} className="flex-1 h-64 overflow-hidden">
-              {canvasImg(
-                img || null,
-                url => commitProp('image_url', url),
-                { propField: 'image_url' },
-                { className: 'w-full h-64', imgClassName: 'w-full h-full object-cover', alt: title },
-              )}
-            </div>
-            <div className="flex-1 space-y-4">
-              {(p.eyebrow || canEdit) && IET('eyebrow', 'div', 'text-xs font-medium uppercase tracking-wide', { color: primary_color }, 'Our Story')}
-              {IET('title', 'h2', 'text-3xl font-bold', { fontFamily: font_heading }, 'About Us')}
-              {IET('description', 'p', 'text-gray-500 text-sm leading-relaxed', {}, 'Tell your story here.', true)}
-              {!suppressLiveBadges && isLive && (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live · synced with your vendor profile
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      }
-
-      case 'product_grid': {
-        const cols = p.columns || 4
-        const pgCardStyle = String((p as any).card_style ?? 'card')
-        const pgImgH = pgCardStyle === 'large' ? 'h-48' : 'h-36'
-        const isLiveBound = inferredDsType === 'products'
-        const isLive = isLiveBound && liveProducts.length > 0
-        const editorialPg = (p as any).layout === 'editorial'
-        const normalizeBuilderProduct = (item: LiveItem): LiveItem => {
-          const meta = (item.meta || {}) as Record<string, unknown>
-          const rawImg = item.image_url || (item as any).image || (meta.image_url as string)
-          const currency = String(meta.currency || 'INR')
-          let priceLabel = item.price_formatted
-          if (priceLabel?.startsWith('INR ')) {
-            const num = Number(priceLabel.replace('INR ', '').replace(/,/g, ''))
-            priceLabel = Number.isNaN(num) ? priceLabel : `₹${num.toLocaleString('en-IN')}`
-          } else if (!priceLabel && item.price != null) {
-            priceLabel = currency === 'INR' ? `₹${Number(item.price).toLocaleString('en-IN')}` : `${currency} ${item.price}`
-          }
-          return {
-            ...item,
-            image_url: rawImg ? mediaUrl(rawImg) : null,
-            subtitle: item.subtitle || (meta.brand as string) || null,
-            description: item.description || (meta.short_description as string) || null,
-            price_formatted: priceLabel,
-          }
-        }
-        const fallback: LiveItem[] = Array.from({ length: cols }).map((_, i) => ({
-          id: `ph-${i}`,
-          title: `Product ${i + 1}`,
-          subtitle: null,
-          description: null,
-          image_url: null,
-          price: null,
-          price_formatted: '₹999',
-          rating: null,
-          url: null,
-          meta: { is_featured: false },
-        }))
-        const wellnessPg = isWellnessRetailContext(
-          p as Record<string, unknown>,
-          effectiveStyle as Record<string, unknown>,
-          pageBlocks?.map(b => ({ block_type: b.block_type, props: b.props as Record<string, unknown> })),
-        )
-        const normalizedLive = liveProducts.map(normalizeBuilderProduct)
-        const displayProducts = wellnessPg
-          ? resolveWellnessSiteProducts(normalizedLive, 12)
-          : isLive
-            ? normalizedLive
-            : isLiveBound
-              ? []
-              : (isTemplateBlock && !editorialPg ? [] : fallback)
-        if (editorialPg) {
-          const gridCls = cols === 2 ? 'sm:grid-cols-2' : cols === 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4'
-          const useSpotlight = (p as any).featured_spotlight !== false && displayProducts.length >= 1
-          const featuredOne = useSpotlight ? displayProducts[0] : null
-          const gridList = useSpotlight ? displayProducts.slice(1) : displayProducts
-          return (
-            <div className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: effectiveStyle.surface_color }}>
-              <div className="flex items-end justify-between mb-10 gap-4">
-                {(p.title || canEdit) && IET('title', 'h2', 'text-3xl sm:text-4xl', { fontFamily: font_heading, color: text_color }, 'New arrivals')}
-                <span className="text-sm underline opacity-80" style={{ color: text_color }}>View all</span>
-              </div>
-              {!suppressLiveBadges && isLiveBound && (
-                <div className="flex items-center gap-1.5 mb-6">
-                  <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
-                  <span className={`text-xs font-semibold ${isLive ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {isLive ? 'Live · your product catalog' : 'No products in catalog yet — add products to replace placeholders'}
-                  </span>
-                </div>
-              )}
-              {featuredOne && (
-                <div
-                  className="border-y mb-16 sm:mb-20 -mx-6 sm:-mx-12 px-6 sm:px-12"
-                  style={{ borderColor: `${text_color}18`, backgroundColor: bg_color }}
-                >
-                  <div className="max-w-7xl mx-auto py-16 sm:py-20 grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
-                    <div className="aspect-[4/5] relative overflow-hidden bg-gray-100">
-                      {featuredOne.image_url
-                        ? <img src={mediaUrl(featuredOne.image_url)} className="absolute inset-0 w-full h-full object-cover" alt={featuredOne.title} />
-                        : <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-12 h-12 text-gray-300" /></div>}
-                    </div>
-                    <div>
-                      <span className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
-                        {(featuredOne.meta as any)?.is_category_showcase
-                          ? 'Category highlight'
-                          : `Featured${(featuredOne as any).brand != null && String((featuredOne as any).brand).trim() !== '' ? ` · ${(featuredOne as any).brand}` : ''}`}
-                      </span>
-                      <h3 className="text-3xl sm:text-4xl lg:text-5xl mt-3 mb-4 text-balance" style={{ fontFamily: font_heading, color: text_color }}>
-                        {featuredOne.title || 'Featured'}
-                      </h3>
-                      {featuredOne.meta?.rating != null && !(featuredOne.meta as any)?.is_category_showcase && (
-                        <div className="flex items-center gap-2 mb-6 text-sm opacity-80" style={{ color: text_color }}>
-                          <Star className="h-4 w-4 fill-current shrink-0" />
-                          <span>{String(featuredOne.meta.rating)}</span>
-                        </div>
-                      )}
-                      <p className="text-base opacity-80 mb-8 max-w-lg leading-relaxed" style={{ color: text_color }}>
-                        {(featuredOne as any).description || featuredOne.subtitle || 'Highlight a hero SKU — connect live catalog data to replace this placeholder.'}
-                      </p>
-                      {!(featuredOne.meta as any)?.is_category_showcase && (
-                        <div className="text-2xl mb-8" style={{ fontFamily: font_heading, color: text_color }}>
-                          {featuredOne.price_formatted || (featuredOne.price != null ? `₹${featuredOne.price}` : '—')}
-                        </div>
-                      )}
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          style={{ backgroundColor: primary_color, color: '#fff' }}
-                          className="h-12 px-8 text-xs font-bold uppercase tracking-[0.2em] rounded-none"
-                        >
-                          {(featuredOne.meta as any)?.is_category_showcase ? 'Shop category' : 'Add to cart'}
-                        </button>
-                        <button
-                          type="button"
-                          style={{ border: `1px solid ${text_color}99`, color: text_color }}
-                          className="h-12 w-12 rounded-none bg-transparent flex items-center justify-center"
-                          aria-label="Wishlist"
-                        >
-                          <Heart className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className={cn('grid gap-x-6 gap-y-12', gridCls)}>
-                {gridList.map((prod: any, i: number) => (
-                  <div key={prod?.id || i} className="group">
-                    <div className="aspect-[4/5] relative overflow-hidden mb-4 bg-gray-100">
-                      {prod?.image_url
-                        ? <img src={mediaUrl(prod.image_url)} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={prod?.title} />
-                        : <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>}
-                      {p.show_badges && prod?.meta?.is_featured && (
-                        <span style={{ backgroundColor: primary_color, color: '#fff' }} className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
-                      )}
-                      <div
-                        className="absolute bottom-3 left-3 right-3 h-10 text-xs uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-semibold"
-                        style={{ backgroundColor: text_color, color: bg_color }}
-                      >
-                        Quick add
-                      </div>
-                    </div>
-                    <div className="flex items-baseline justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm truncate" style={{ color: text_color }}>{prod?.title || `Product ${i + 1}`}</div>
-                        {prod?.subtitle && <div className="text-xs opacity-60 truncate">{prod.subtitle}</div>}
-                      </div>
-                      <span className="text-sm shrink-0" style={{ color: text_color }}>{prod?.price_formatted || (prod?.price != null ? `₹${prod.price}` : '₹999')}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {(isLive || isTemplateBlock) && liveProducts.length === 0 && !liveLoading && (
-                <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-                  <Database className="w-3 h-3" /> No products yet — add some in your catalog and they will appear here.
-                </p>
-              )}
-            </div>
-          )
-        }
-        return (
-          <div className="py-16 px-8" style={{ backgroundColor: effectiveStyle.surface_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-2', { fontFamily: font_heading }, 'Our Products')}
-            {!suppressLiveBadges && isLive && liveProducts.length > 0 && (
-              <div className="flex items-center justify-center gap-1.5 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · your product catalog</span>
-              </div>
-            )}
-            <div className={cn('grid gap-4 max-w-5xl mx-auto', cols === 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4')}>
-              {displayProducts.map((prod: any, i: number) => (
-                <div key={prod?.id || i} style={{ borderRadius: cardRadius, backgroundColor: bg_color }} className="builder-tile-card overflow-hidden shadow-sm">
-                  <div className={cn('bg-gray-100 relative overflow-hidden flex items-center justify-center', pgImgH)}>
-                    {prod?.image_url
-                      ? <img src={mediaUrl(prod.image_url)} className="w-full h-full object-cover" alt={prod.title} />
-                      : <ShoppingBag className="w-8 h-8 text-gray-300" />
-                    }
-                    {p.show_badges && prod?.meta?.is_featured && (
-                      <span style={{ backgroundColor: accent_color }} className="absolute top-2 left-2 text-xs text-white font-bold px-1.5 py-0.5 rounded">Featured</span>
-                    )}
-                    {p.show_badges && prod?.meta?.offer_label && (
-                      <span style={{ backgroundColor: '#ef4444' }} className="absolute top-2 right-2 text-xs text-white font-bold px-1.5 py-0.5 rounded">{prod.meta.offer_label}</span>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <div className="font-semibold text-xs truncate">{prod?.title || `Product ${i + 1}`}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{prod?.price_formatted || (prod?.price != null ? `₹${prod.price}` : '₹999')}</div>
-                    {prod?.meta?.stock_status === 'out_of_stock'
-                      ? <div className="text-xs text-red-500 font-semibold mt-1">Out of stock</div>
-                      : <button style={{ backgroundColor: primary_color, borderRadius: btnRadius, color: '#fff' }} className="mt-2 px-3 py-1.5 text-xs font-medium w-full">Add to Cart</button>
-                    }
-                  </div>
-                </div>
-              ))}
-            </div>
-            {(isLive || isTemplateBlock) && liveProducts.length === 0 && !liveLoading && (
-              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-                <Database className="w-3 h-3" /> No products yet — add some in your catalog and they'll appear here.
-              </p>
-            )}
-          </div>
-        )
-      }
-
-      case 'services_cards':
-      case 'services_list': {
-        const isLive = dsType === 'services' && liveServices.length > 0
-        const propFeats: any[] = Array.isArray(p.features) ? (p.features as any[]) : []
-        const hasPropImages = propFeats.some(f => !!f?.image_url)
-        const useLiveServices = isLive && !hasPropImages
-        const feats: any[] = useLiveServices
-          ? liveServices.map(s => ({
-              title: s.title,
-              desc: s.description || s.subtitle || '',
-              icon: 'Wrench',
-              price: s.price_formatted || (s.price != null ? `₹${s.price}` : null),
-              image_url: s.image_url,
-              duration: (s.meta as any)?.duration_minutes,
-            }))
-          : propFeats.length > 0 ? propFeats : []
-        const cols = p.columns || 3
-        const svcLayout = String((p as any).layout ?? 'grid')
-        const svcCardStyle = String((p as any).card_style ?? 'card')
-        const svcImageShape = String((p as any).image_shape ?? 'rounded') as ImageShape
-        const svcThumbClass = thumbnailShapeClass(svcImageShape)
-        const svcCardImgClass = cardImageShapeClass(svcImageShape)
-        const svcThumbSize = iconBoxFromItemSize(Number((p as any).item_size ?? 160))
-        const isCompactSvc = svcCardStyle === 'compact'
-        const isList = svcLayout === 'list'
-        return (
-          <div className="py-16 px-8">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-2', { fontFamily: font_heading, color: text_color }, 'Our Services')}
-            {!suppressLiveBadges && useLiveServices && (
-              <div className="flex items-center justify-center gap-1.5 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · your services catalog</span>
-              </div>
-            )}
-            <div className={cn(isList ? 'space-y-4 max-w-3xl mx-auto' : cn('grid gap-6', cols === 2 ? 'grid-cols-2' : cols === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'))}>
-              {feats.slice(0, 9).map((f: any, i: number) => (
-                <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('builder-tile-card space-y-3 relative group/item', isCompactSvc ? 'p-4' : 'p-6', isList && 'flex gap-4 items-start')}>
-                  {!useLiveServices && ItemActions('features', i, 'service')}
-                  {(f.image_url || canEdit) && canvasImg(
-                    f.image_url || null,
-                    url => editItem('features', i, 'image_url', url),
-                    { arrayKey: 'features', index: i, itemField: 'image_url' },
-                    {
-                      className: cn(isList ? 'shrink-0' : 'w-full h-28', !isList && svcImageShape === 'circle' && 'flex justify-center'),
-                      style: isList ? { width: svcThumbSize, height: svcThumbSize } : undefined,
-                      imgClassName: cn(
-                        isList ? svcThumbClass : svcCardImgClass,
-                        'w-full h-full',
-                        isList ? '' : 'h-28',
-                        !isList && svcImageShape === 'circle' && 'max-w-[140px] aspect-square',
-                      ),
-                      alt: f.title,
-                    },
-                  )}
-                  {!f.image_url && <div style={{ color: primary_color }} className={cn('text-2xl', isList && 'shrink-0')}>⚡</div>}
-                  <div className={isList ? 'flex-1 min-w-0' : undefined}>
-                    <InlineEditableText value={f.title || ''} placeholder={`Service ${i + 1}`} editable={canEdit && !useLiveServices} as="h3"
-                      className="font-bold text-base" style={{ fontFamily: font_heading }}
-                      onCommit={v => editItem('features', i, 'title', v)} />
-                    <InlineEditableText value={f.desc || ''} placeholder="Describe this service." editable={canEdit && !useLiveServices} multiline as="p"
-                      className="text-sm text-gray-500"
-                      style={{}}
-                      onCommit={v => editItem('features', i, 'desc', v)} />
-                    {f.duration && <div className="text-xs text-gray-400">{f.duration} min</div>}
-                    {f.price && <div style={{ color: primary_color }} className="text-xs font-bold">From {f.price}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {!useLiveServices && canEdit && (
-              <div className="mt-6 text-center">
-                {AddItemBtn('features', { title: 'New Service', desc: 'Describe this service.' }, 'Add service')}
-              </div>
-            )}
-            {dsType === 'services' && !useLiveServices && !hasPropImages && !liveLoading && (
-              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-                <Database className="w-3 h-3" /> No services yet — add some and they'll appear here live.
-              </p>
-            )}
-          </div>
-        )
-      }
-
-      case 'booking_widget': {
-        const isLive = dsType === 'services' && liveServices.length > 0
-        const bwLayout = String((p as any).layout ?? 'calendar')
-        const showCalendar = (p as any).show_calendar !== false
-        if (bwLayout === 'cta') {
-          return (
-            <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center">
-              {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-4', { fontFamily: font_heading, color: '#111827' }, 'Book a Session')}
-              {(p.subtitle || canEdit) && IET('subtitle', 'p', 'text-gray-500 mb-8', {}, 'Choose a time that works for you')}
-              {CTABtn('cta_label', 'cta_url', 'Book Now', 'inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold hover:opacity-90 transition-all', { backgroundColor: primary_color })}
-            </section>
-          )
-        }
-        if (bwLayout === 'inline') {
-          return (
-            <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
-              {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-gray-900 mb-4', { fontFamily: font_heading, color: '#111827' }, 'Book a Session')}
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input readOnly className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm" placeholder="Select date & time" />
-                {CTABtn('cta_label', 'cta_url', 'Book', 'px-6 py-3 rounded-xl text-white font-semibold text-sm whitespace-nowrap', { backgroundColor: primary_color })}
-              </div>
-            </section>
-          )
-        }
-        return (
-          <section className={cn('py-16 px-4 sm:px-6 lg:px-8 mx-auto', bwLayout === 'split' ? 'max-w-5xl' : 'max-w-4xl')}>
-            <div className={cn(bwLayout === 'split' && 'grid md:grid-cols-2 gap-10 items-start')}>
-              <div className={cn(bwLayout === 'split' ? 'text-left' : 'text-center mb-10')}>
-                {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-gray-900 mb-2', { fontFamily: font_heading, color: '#111827' }, 'Book a Session')}
-                {(p.subtitle || canEdit) && IET('subtitle', 'p', 'text-gray-500', {}, 'Choose a time that works for you')}
-              </div>
-              {!suppressLiveBadges && isLive && (
-                <div className={cn('flex items-center gap-1.5 mb-6', bwLayout !== 'split' && 'justify-center col-span-full')}>
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-emerald-600 font-semibold">Live · your services</span>
-                </div>
-              )}
-              {isLive ? (
-                <div className={cn('grid sm:grid-cols-2 gap-4', bwLayout === 'split' ? '' : 'col-span-full')}>
-                  {liveServices.slice(0, 6).map(s => (
-                    <div key={s.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-shadow text-left">
-                      <div className="font-semibold text-gray-900 mb-1">{s.title}</div>
-                      {(s.meta as any)?.duration_minutes && (
-                        <p className="text-xs text-gray-400 flex items-center gap-1 mb-2">
-                          <Clock className="w-3 h-3" />
-                          {Number((s.meta as any).duration_minutes)} min
-                        </p>
-                      )}
-                      {s.price_formatted && <p className="font-bold mb-3" style={{ color: primary_color }}>{s.price_formatted}</p>}
-                      <span className="text-sm font-semibold inline-flex items-center gap-1" style={{ color: primary_color }}>
-                        Book <ChevronRight className="w-3.5 h-3.5" />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : showCalendar ? (
-                <div className={cn('rounded-2xl border border-gray-200 bg-gray-50 p-6 min-h-[220px] flex items-center justify-center text-sm text-gray-500', bwLayout === 'split' ? '' : 'col-span-full')}>
-                  Calendar picker preview
-                </div>
-              ) : (
-                <div className={cn('text-center', bwLayout === 'split' ? '' : 'col-span-full')}>
-                  {CTABtn('cta_label', 'cta_url', 'Book Now', 'inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold hover:opacity-90 transition-all', { backgroundColor: primary_color })}
-                </div>
-              )}
-            </div>
-          </section>
-        )
-      }
-
-      case 'live_stock': {
-        const isLive = dsType === 'products' && liveProducts.length > 0
-        const showCount = (p.show_count as number) || 6
-        const stockItems: any[] = isLive
-          ? liveProducts.slice(0, showCount)
-          : Array.from({ length: showCount }).map((_, i) => ({
-              id: `ph-${i}`, title: `Product ${i + 1}`, image_url: null,
-              meta: { quantity: Math.floor(Math.random() * 200) + 10, stock_status: 'in_stock' },
-              price_formatted: '₹999',
-            }))
-        return (
-          <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-            {(p.title || canEdit) && IET('title', 'h3', 'text-xl font-bold text-gray-900 mb-4', { fontFamily: font_heading, color: '#111827' }, 'Live Inventory')}
-            {!suppressLiveBadges && (
-            <div className="flex items-center gap-1.5 mb-4">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-xs text-emerald-600 font-semibold">{isLive ? 'Live · your inventory' : 'Live preview (connect products for real stock)'}</span>
-            </div>
-            )}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-2 px-3 font-semibold text-gray-600">Product</th>
-                    <th className="text-right py-2 px-3 font-semibold text-gray-600">Price</th>
-                    <th className="text-center py-2 px-3 font-semibold text-gray-600">Stock</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockItems.map((item: any, i: number) => {
-                    const qty = item?.meta?.quantity
-                    const status = item?.meta?.stock_status
-                    return (
-                      <tr key={item.id || i} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2 px-3">
-                          <div className="font-medium text-gray-900 flex items-center gap-2 min-w-0">
-                            {item.image_url
-                              ? <img src={mediaUrl(item.image_url)} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
-                              : (
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
-                                  <Package className="w-4 h-4" style={{ color: primary_color }} />
-                                </div>
-                              )}
-                            <span className="truncate">{item.title}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 text-right font-semibold" style={{ color: primary_color }}>{item.price_formatted || '—'}</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full',
-                            status === 'out_of_stock' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600')}>
-                            {status === 'out_of_stock' ? 'Out' : qty != null ? `${qty} left` : 'In Stock'}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )
-      }
-
-      case 'order_status':
-        return (
-          <div className="py-16 px-8 text-center" style={{ backgroundColor: effectiveStyle.surface_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold mb-2', { fontFamily: font_heading, color: text_color }, 'Track Your Order')}
-            {((p as any).subtitle || canEdit) && IET('subtitle', 'p', 'text-sm text-gray-500 mb-6', {}, 'Enter your order number to see the latest status')}
-            <div className="max-w-sm mx-auto space-y-3">
-              <div className="flex gap-2">
-                <input
-                  readOnly
-                  placeholder={(p.placeholder as string) || 'Order number...'}
-                  style={{ borderRadius: r, borderColor: `${primary_color}44` }}
-                  className="flex-1 px-4 py-2.5 border text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <button style={{ backgroundColor: primary_color, borderRadius: r, color: '#fff' }} className="px-4 py-2.5 text-sm font-semibold">
-                  Track
-                </button>
-              </div>
-              <div style={{ borderRadius: cardRadius, border: `1px solid ${primary_color}22` }} className="p-4 bg-white shadow-sm text-left">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold text-gray-600">Order #12345</span>
-                  <span style={{ backgroundColor: `${primary_color}15`, color: primary_color }} className="text-xs font-bold px-2 py-0.5 rounded-full">In Transit</span>
-                </div>
-                {['Order Placed', 'Processing', 'Shipped', 'Delivered'].map((step, i) => (
-                  <div key={i} className="flex items-center gap-2 py-1">
-                    <div style={{ backgroundColor: i < 3 ? primary_color : '#e5e7eb', borderRadius: '50%' }} className="w-2 h-2 shrink-0" />
-                    <span className={`text-xs ${i < 3 ? 'text-gray-700 font-semibold' : 'text-gray-400'}`}>{step}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'live_quote':
-        return (
-          <div className="py-16 px-8 text-center" style={{ backgroundColor: effectiveStyle.surface_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold mb-2', { fontFamily: font_heading, color: text_color }, 'Get an Instant Quote')}
-            {((p as any).subtitle || canEdit) && IET('subtitle', 'p', 'text-sm text-gray-500 mb-6', {}, 'Select your requirements and get an instant quote')}
-            <div className="max-w-sm mx-auto space-y-3">
-              {['Service Type', 'Quantity', 'Delivery Window'].map(label => (
-                <div key={label} className="text-left space-y-1">
-                  <label className="text-xs font-medium text-gray-600">{label}</label>
-                  <select style={{ borderRadius: r }} className="w-full px-3 py-2 border border-gray-200 text-sm">
-                    <option>Select...</option>
-                  </select>
-                </div>
-              ))}
-              {CTABtn('cta_label', 'cta_url', 'Calculate Price', 'w-full py-3 text-sm font-bold mt-2', { backgroundColor: primary_color, borderRadius: r, color: '#fff' })}
-            </div>
-          </div>
-        )
-
-      case 'ab_test_block': {
-        const va = (p as any).variant_a || {}
-        return (
-          <div className="py-8 px-8 relative" style={{ backgroundColor: bg_color }}>
-            <div className="absolute top-2 right-2 flex gap-1">
-              <span className="text-xs bg-primary text-white px-2 py-0.5 rounded font-bold">A/B Test</span>
-              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">Variant A — {(p as any).split || 50}%</span>
-            </div>
-            <div className="text-center">
-              <h2 style={{ fontFamily: font_heading, color: text_color }} className="text-2xl font-bold mb-4">{va.headline || 'Variant A Headline'}</h2>
-              <button style={{ backgroundColor: primary_color, borderRadius: r, color: '#fff' }} className="px-6 py-2.5 text-sm font-semibold">
-                {va.cta || 'Click Here A'}
-              </button>
-            </div>
-          </div>
-        )
-      }
-
-      case 'personalization_block': {
-        return (
-          <div className="py-8 px-8 relative" style={{ backgroundColor: bg_color }}>
-            <div className="absolute top-2 right-2">
-              <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded font-bold">Personalized</span>
-            </div>
-            <div className="text-center space-y-2">
-              <p style={{ color: text_color }} className="text-sm font-semibold">{(p as any).default_content || 'Default message for all visitors'}</p>
-              <p className="text-xs text-gray-400">
-                Rule: <strong>{(p as any).rule || 'device'}</strong> — configure in Properties panel
-              </p>
-            </div>
-          </div>
-        )
-      }
-
-      case 'menu_grid':
-      case 'menu_list': {
-        // Live-data powered: group products by category. Falls back to manual items.
-        const isLiveProducts = dsType === 'products' && liveProducts.length > 0
-        const isLiveCategories = dsType === 'categories' && liveCategories.length > 0
-        const groups: { category: string; items: { title: string; price?: string | null; image_url?: string | null; desc?: string | null }[] }[] = []
-        if (isLiveProducts) {
-          const bucket: Record<string, any[]> = {}
-          for (const it of liveProducts) {
-            const cat = (it.meta as any)?.category || 'Menu'
-            bucket[cat] = bucket[cat] || []
-            bucket[cat].push({
-              title: it.title, price: it.price_formatted, image_url: it.image_url, desc: it.subtitle || it.description,
-            })
-          }
-          for (const [cat, items] of Object.entries(bucket)) groups.push({ category: cat, items })
-        } else if (isLiveCategories) {
-          for (const c of liveCategories) groups.push({ category: c.title, items: [{ title: c.subtitle || '', desc: '' }] })
-        } else if (!isTemplateBlock) {
-          for (const cat of ((p as any).categories as string[] || ['Starters', 'Mains', 'Desserts'])) {
-            groups.push({ category: cat, items: [{ title: 'Sample Item', price: '₹199', desc: 'Short description.' }] })
-          }
-        }
-        return (
-          <div className="py-16 px-8" style={{ backgroundColor: effectiveStyle.surface_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-4', { fontFamily: font_heading, color: text_color }, 'Our Menu')}
-            {!suppressLiveBadges && (isLiveProducts || isLiveCategories) && (
-              <div className="flex items-center justify-center gap-1.5 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · {isLiveProducts ? 'products by category' : 'your catalog categories'}</span>
-              </div>
-            )}
-            <div className="max-w-5xl mx-auto space-y-8">
-              {groups.slice(0, 6).map((g, gi) => (
-                <div key={gi}>
-                  <h3 className="font-bold text-sm uppercase tracking-wide mb-3" style={{ color: primary_color }}>{g.category}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {g.items.slice(0, 8).map((it, ii) => (
-                      <div key={ii} style={{ backgroundColor: bg_color, borderRadius: cardRadius }} className="builder-tile-card p-4 flex items-center gap-3 shadow-sm">
-                        {it.image_url
-                          ? <img src={mediaUrl(it.image_url)} alt={it.title} className="w-14 h-14 rounded object-cover shrink-0" />
-                          : <div style={{ backgroundColor: `${primary_color}15`, borderRadius: cardRadius }} className="w-14 h-14 shrink-0 flex items-center justify-center"><Package className="w-5 h-5" style={{ color: primary_color }} /></div>
-                        }
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="font-semibold text-sm truncate">{it.title}</div>
-                            {it.price && <div className="text-xs font-bold" style={{ color: primary_color }}>{it.price}</div>}
-                          </div>
-                          {it.desc && <div className="text-xs text-gray-500 line-clamp-2 mt-0.5">{it.desc}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {isTemplateBlock && groups.length === 0 && !liveLoading && (
-              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-                <Database className="w-3 h-3" /> No products available yet.
-              </p>
-            )}
-          </div>
-        )
-      }
-
-      case 'gallery_masonry':
-      case 'gallery_grid':
-      case 'image_gallery': {
-        const galleryLayout = String((p as any).layout ?? 'grid')
-        const gridCols = Number((p as any).columns) || (galleryLayout === 'featured' ? 3 : 4)
-        const imageShape = String((p as any).image_shape ?? 'square')
-        const shapeRadius = imageShape === 'circle' ? '50%' : imageShape === 'rounded' ? '16px' : '8px'
-        const shapeClass = imageShape === 'circle' ? 'aspect-square rounded-full' : imageShape === 'rounded' ? 'rounded-2xl' : ''
-        const propImages: { src?: string | null; alt?: string }[] = Array.isArray((p as any).images)
-          ? (p as any).images
-          : []
-        const hasPropImages = propImages.some(img => !!img?.src)
-        const isLive = !hasPropImages && (
-          (dsType === 'media' && liveMedia.length > 0)
-          || (dsType === 'products' && liveProducts.length > 0)
-        )
-        const images: { src: string | null; alt: string }[] = hasPropImages
-          ? propImages.map(img => ({ src: img.src ?? null, alt: img.alt || '' }))
-          : isLive
-            ? (dsType === 'media' && liveMedia.length > 0
-              ? liveMedia.map(m => ({ src: m.image_url || m.url, alt: m.title }))
-              : liveProducts.filter(x => !!x.image_url).map(x => ({ src: x.image_url, alt: x.title })))
-            : propImages.length > 0
-              ? propImages.map(img => ({ src: img.src ?? null, alt: img.alt || '' }))
-              : Array.from({ length: 8 }).map(() => ({ src: null as string | null, alt: '' }))
-        const cellRadius = shapeRadius
-        const replaceGalleryImage = (index: number, url: string) => {
-          if (!onPropsUpdate) return
-          let arr: { src?: string | null; alt?: string }[] = Array.isArray((p as any).images)
-            ? [...(p as any).images]
-            : []
-          if (!arr.some(item => !!item?.src)) {
-            arr = images.map(d => ({ src: d.src, alt: d.alt || '' }))
-          }
-          while (arr.length <= index) arr.push({ src: null, alt: '' })
-          arr[index] = { ...arr[index], src: url }
-          onPropsUpdate({ ...block.props, images: arr } as BlockProps)
-        }
-        const renderCell = (img: { src: string | null; alt: string }, i: number, className?: string) => (
-          <CanvasEditableImage
-            key={i}
-            siteId={siteId}
-            src={img.src}
-            alt={img.alt || ''}
-            className={cn(shapeClass, className)}
-            style={{ borderRadius: imageShape === 'circle' ? '50%' : cellRadius }}
-            editable={canEdit}
-            onReplace={url => replaceGalleryImage(i, url)}
-            onFocus={() => focusCanvasImage({ arrayKey: 'images', index: i, itemField: 'src' })}
-          />
-        )
-
-        return (
-          <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-4', { fontFamily: font_heading }, 'Gallery')}
-            {!suppressLiveBadges && isLive && (
-              <div className="flex items-center justify-center gap-1.5 mb-4">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · {dsType === 'media' ? 'your site media' : 'product images'}</span>
-              </div>
-            )}
-            {galleryLayout === 'featured' && images.length > 0 ? (
-              <div className="grid grid-cols-3 grid-rows-2 gap-2 max-w-5xl mx-auto min-h-[280px]">
-                {renderCell(images[0], 0, 'col-span-2 row-span-2 min-h-[240px]')}
-                {images.slice(1, 3).map((img, i) => renderCell(img, i + 1, 'min-h-[115px]'))}
-              </div>
-            ) : galleryLayout === 'masonry' ? (
-              <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 max-w-5xl mx-auto">
-                {images.slice(0, 12).map((img, i) => (
-                  <div key={i} className="break-inside-avoid mb-3">
-                    {renderCell(img, i, cn(i % 3 === 0 ? 'min-h-[180px]' : 'min-h-[120px]'))}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div
-                className="grid gap-2 max-w-5xl mx-auto"
-                style={{ gridTemplateColumns: `repeat(${Math.min(gridCols, 4)}, 1fr)` }}
-              >
-                {images.slice(0, gridCols <= 2 ? 6 : 12).map((img, i) => (
-                  renderCell(img, i, cn(
-                    gridCols <= 2 ? 'aspect-[4/3] min-h-[140px]' : 'aspect-square min-h-[100px]',
-                    imageShape === 'circle' && 'mx-auto max-w-[180px]',
-                  ))
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      case 'portfolio_grid': {
-        const portfolioLayout = String((p as any).layout ?? 'grid')
-        const filterable = !!(p as any).filterable
-        const imageShape = String((p as any).image_shape ?? 'square')
-        const shapeRadius = imageShape === 'circle' ? '50%' : imageShape === 'rounded' ? '16px' : '8px'
-        const propProjects: { title?: string; image_url?: string | null }[] = Array.isArray((p as any).projects)
-          ? (p as any).projects
-          : []
-        const hasPropImages = propProjects.some(it => !!it?.image_url)
-        const isLive = !hasPropImages && dsType === 'media' && liveMedia.length > 0
-        const items: { title: string; image_url: string | null }[] = hasPropImages
-          ? propProjects.map(it => ({ title: it.title || 'Project', image_url: it.image_url ?? null }))
-          : isLive
-            ? liveMedia.map(m => ({ title: m.title, image_url: m.image_url || m.url }))
-            : propProjects.length > 0
-              ? propProjects.map(it => ({ title: it.title || 'Project', image_url: it.image_url ?? null }))
-              : Array.from({ length: 6 }).map((_, i) => ({ title: `Project ${i + 1}`, image_url: null as string | null }))
-        const cols = (p as any).columns || 3
-        const cellRadius = shapeRadius
-        const renderProject = (it: { title: string; image_url: string | null }, i: number, className?: string) => (
-          <div
-            key={i}
-            style={{ borderRadius: cellRadius, backgroundColor: effectiveStyle.surface_color }}
-            className={cn('overflow-visible relative group', imageShape === 'circle' && 'aspect-square max-w-[200px] mx-auto', className)}
-          >
-            {canvasImg(
-              it.image_url,
-              url => editItem('projects', i, 'image_url', url),
-              { arrayKey: 'projects', index: i, itemField: 'image_url' },
-              {
-                className: cn('w-full h-full min-h-[120px]', imageShape === 'circle' && 'rounded-full'),
-                imgClassName: 'w-full h-full object-cover',
-                alt: it.title,
-                style: { borderRadius: cellRadius },
-              },
-            )}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end p-3">
-              <div className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">{it.title}</div>
-            </div>
-          </div>
-        )
-        return (
-          <div className="py-16 px-8">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-3xl font-bold text-center mb-4', { fontFamily: font_heading }, 'Our Portfolio')}
-            {filterable && (
-              <div className="flex justify-center gap-2 mb-6 flex-wrap">
-                {['All', 'Web', 'Brand', 'App'].map((tab, ti) => (
-                  <span
-                    key={tab}
-                    className={cn('px-3 py-1 text-xs font-medium rounded-full cursor-default', ti === 0 ? 'text-white' : 'bg-gray-100 text-gray-600')}
-                    style={ti === 0 ? { backgroundColor: primary_color } : undefined}
-                  >
-                    {tab}
-                  </span>
-                ))}
-              </div>
-            )}
-            {!suppressLiveBadges && isLive && (
-              <div className="flex items-center justify-center gap-1.5 mb-6">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · your site media library</span>
-              </div>
-            )}
-            {portfolioLayout === 'masonry' ? (
-              <div className="columns-2 sm:columns-3 gap-4 max-w-5xl mx-auto">
-                {items.slice(0, 9).map((it, i) => (
-                  <div key={i} className="break-inside-avoid mb-4">
-                    {renderProject(it, i, i % 3 === 0 ? 'min-h-[200px]' : 'min-h-[140px]')}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-4 max-w-5xl mx-auto" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-                {items.slice(0, cols * 2).map((it, i) => renderProject(it, i, 'aspect-[4/3]'))}
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      case 'category_cards': {
-        const isLive = inferredDsType === 'categories' && liveCategories.length > 0
-        const editorial = (p as any).layout === 'editorial'
-          && (p as any)._image_category_id !== 'wellness'
-        const propCats = categoryCardsFromProps((p as any).categories)
-        const propImageByTitle = new Map(
-          propCats.map(c => [String(c.title || '').toLowerCase(), c.image_url]),
-        )
-        const cats: any[] = isLive
-          ? liveCategories.map((c, i) => ({
-            title: c.title,
-            subtitle: c.subtitle,
-            count: (c.meta as any)?.count,
-            image_url:
-              (c.meta as any)?.image_url
-              || (c as any).image_url
-              || propImageByTitle.get(String(c.title || '').toLowerCase())
-              || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
-          }))
-          : propCats.map((c, i) => ({
-            ...c,
-            title: sanitizeWellnessCategoryTitle(c.title),
-            image_url: c.image_url || WELLNESS_CATEGORY_FALLBACK_IMAGES[i % WELLNESS_CATEGORY_FALLBACK_IMAGES.length],
-          }))
-        const cols = (p as any).columns || 3
-        const catLayout = String((p as any).layout ?? 'grid')
-        const isBanner = catLayout === 'banner'
-        const isWellness = catLayout === 'wellness'
-          || ((p as any)._image_category_id === 'wellness' && catLayout !== 'banner' && catLayout !== 'strip')
-        if (isWellness) {
-          const eyebrow = (p as any).eyebrow as string | undefined
-          return (
-            <div className="py-16 sm:py-24 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: bg_color }}>
-              <div className="flex items-end justify-between mb-12 sm:mb-16 gap-4 flex-wrap">
-                <div>
-                  {(eyebrow || canEdit) && (
-                    <div className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
-                      <InlineEditableText
-                        value={eyebrow || ''}
-                        placeholder="Explore"
-                        editable={canEdit}
-                        as="span"
-                        onCommit={v => commitProp('eyebrow' as any, v)}
-                      />
-                    </div>
-                  )}
-                  {(p.title || canEdit) && IET('title', 'h2', 'text-3xl sm:text-4xl md:text-5xl mt-2', { fontFamily: font_heading, color: text_color }, 'Shop by category')}
-                </div>
-                <span className="text-sm underline opacity-80 cursor-default" style={{ color: text_color }}>View all</span>
-              </div>
-              {!suppressLiveBadges && isLive && (
-                <div className="flex items-center gap-1.5 mb-6">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-emerald-600 font-semibold">Live · your catalog categories</span>
-                </div>
-              )}
-              <CategoryCardMosaic
-                categories={cats}
-                style={effectiveStyle}
-                propImageByTitle={propImageByTitle}
-                maxItems={12}
-                renderTitle={(catTitle) => (
-                  <h3 className="text-base sm:text-lg font-medium" style={{ fontFamily: font_heading, color: text_color }}>
-                    {catTitle}
-                  </h3>
-                )}
-              />
-            </div>
-          )
-        }
-        if (editorial) {
-          const eyebrow = (p as any).eyebrow as string | undefined
-          return (
-            <div className="py-16 sm:py-20 px-6 sm:px-12 max-w-7xl mx-auto" style={{ backgroundColor: bg_color }}>
-              <div className="flex items-end justify-between mb-10 gap-4 flex-wrap">
-                <div>
-                  {(eyebrow || canEdit) && (
-                    <div className="text-xs uppercase tracking-[0.3em] opacity-70" style={{ color: text_color }}>
-                      <InlineEditableText
-                        value={eyebrow || ''}
-                        placeholder="Shop by category"
-                        editable={canEdit}
-                        as="span"
-                        onCommit={v => commitProp('eyebrow' as any, v)}
-                      />
-                    </div>
-                  )}
-                  {(p.title || canEdit) && IET('title', 'h2', 'text-3xl sm:text-4xl md:text-5xl mt-2', { fontFamily: font_heading, color: text_color }, 'The edit')}
-                </div>
-                <span className="text-sm underline opacity-80 cursor-default" style={{ color: text_color }}>View all</span>
-              </div>
-              {!suppressLiveBadges && isLive && (
-                <div className="flex items-center gap-1.5 mb-4">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-emerald-600 font-semibold">Live · your catalog categories</span>
-                </div>
-              )}
-              <div className="grid md:grid-cols-3 gap-1">
-                {cats.slice(0, 9).map((c: any, i: number) => (
-                  <div key={i} className="group relative aspect-[4/5] overflow-hidden cursor-pointer" style={{ borderRadius: cardRadius }}>
-                    {c.image_url
-                      ? <img src={mediaUrl(c.image_url)} alt={c.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                      : <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900" />}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-6 text-white">
-                      <h3 className="text-2xl font-semibold" style={{ fontFamily: font_heading }}>{c.title}</h3>
-                      <span className="text-xs uppercase tracking-[0.2em] text-white/80">Shop now →</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        }
-        return (
-          <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-4', { fontFamily: font_heading, color: text_color }, 'Browse Categories')}
-            {!suppressLiveBadges && isLive && (
-              <div className="flex items-center justify-center gap-1.5 mb-4">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-600 font-semibold">Live · your catalog categories</span>
-              </div>
-            )}
-            <div className={cn('grid gap-4 max-w-5xl mx-auto', isBanner && 'grid-cols-1 sm:grid-cols-2')} style={!isBanner ? { gridTemplateColumns: `repeat(${cols}, 1fr)` } : undefined}>
-              {cats.slice(0, 9).map((c: any, i: number) => (
-                <div key={i} className={cn('overflow-hidden shadow-md relative group', isBanner ? 'aspect-[3/1]' : 'aspect-square')} style={{ borderRadius: cardRadius }}>
-                  {c.image_url
-                    ? <img src={mediaUrl(c.image_url)} className="absolute inset-0 w-full h-full object-cover" alt={c.title} />
-                    : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primary_color}, ${effectiveStyle.secondary_color})` }} />
-                  }
-                  <div className="absolute inset-0 bg-black/25 group-hover:bg-black/35 transition-colors" />
-                  <div className={cn('absolute inset-0 flex flex-col justify-end p-4 text-white', isBanner && 'justify-center items-start px-6')}>
-                    <div className="font-bold text-base">{c.title}</div>
-                    {c.count != null && <div className="text-xs opacity-80 mt-1">{c.count} items</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      }
-
-      case 'blog_grid':
-      case 'blog_featured':
-      case 'blog_list': {
-        const posts: any[] = (p.posts as any[] || []).length
-          ? (p.posts as any[])
-          : isTemplateBlock
-            ? []
-            : Array.from({ length: 3 }).map((_, i) => ({ title: `Post ${i + 1}`, excerpt: 'Short preview of the post content.', date: new Date().toDateString() }))
-        const cols = (p as any).columns || 3
-        const blogLayout = String((p as any).layout ?? 'grid')
-        const blogCardStyle = String((p as any).card_style ?? 'card')
-        const isList = blogLayout === 'list'
-        const isLargeBlog = blogCardStyle === 'large'
-        const isCompactBlog = blogCardStyle === 'compact'
-        const postCard = (post: any, i: number) => (
-          <div key={i} style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className={cn('builder-tile-card overflow-hidden shadow-sm', isList && 'flex gap-4 items-stretch')}>
-            <div className={cn('bg-gray-100 flex items-center justify-center shrink-0', isList ? 'w-32 h-28' : isLargeBlog ? 'h-48' : isCompactBlog ? 'h-24' : 'h-32')}>
-              {post.image_url
-                ? <img src={mediaUrl(post.image_url)} className="w-full h-full object-cover" alt={post.title} />
-                : <FileText className="w-8 h-8 text-gray-300" />
-              }
-            </div>
-            <div className={cn('flex-1 min-w-0', isCompactBlog ? 'p-3' : 'p-4')}>
-              <div className="text-xs text-gray-400 mb-1">{post.date || ''}</div>
-              <div className="font-semibold text-sm mb-1 line-clamp-2">{post.title}</div>
-              <div className="text-xs text-gray-500 line-clamp-2">{post.excerpt}</div>
-            </div>
-          </div>
-        )
-        return (
-          <div className="py-14 px-8" style={{ backgroundColor: bg_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-8', { fontFamily: font_heading, color: text_color }, 'Latest Articles')}
-            {isList ? (
-              <div className="space-y-4 max-w-3xl mx-auto">{posts.slice(0, 6).map(postCard)}</div>
-            ) : (
-              <div className="grid gap-5 max-w-5xl mx-auto" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-                {posts.slice(0, 6).map(postCard)}
-              </div>
-            )}
-            {isTemplateBlock ? (
-              <p className="text-center text-xs text-gray-400 mt-4">
-                Once you mark a page as page type <b>"blog"</b> in the editor, it will show up here.
-              </p>
-            ) : (
-              <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-                <Database className="w-3 h-3" /> Edit posts in the Properties panel or connect a CMS via External API
-              </p>
-            )}
-          </div>
-        )
-      }
-
-      case 'map_embed': {
-        const pmeta: any = liveProfile?.meta || {}
-        const lat = (p.map_lat as number | undefined) ?? pmeta.latitude
-        const lng = (p.map_lng as number | undefined) ?? pmeta.longitude
-        const addr = (p.address as string) || pmeta.address || ''
-        const hasMapLocation = !!addr || (!!lat && !!lng)
-        const mapSrc = lat && lng
-          ? `https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng) - 0.01},${Number(lat) - 0.01},${Number(lng) + 0.01},${Number(lat) + 0.01}&layer=mapnik&marker=${lat},${lng}`
-          : addr
-            ? `https://www.google.com/maps?q=${encodeURIComponent(addr)}&output=embed`
-            : null
-        return (
-          <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary_color}15` }}>
-                <MapPin className="w-5 h-5" style={{ color: primary_color }} />
-              </div>
-              {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-gray-900', { fontFamily: font_heading, color: '#111827' }, 'Find Us')}
-            </div>
-            {!!addr && <p className="text-gray-500 mb-6 flex items-center gap-2 text-sm"><MapPin className="w-4 h-4 shrink-0" />{addr}</p>}
-            {mapSrc ? (
-              <div className="w-full h-80 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
-                <iframe
-                  src={mapSrc}
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="Map preview"
-                />
-              </div>
-            ) : (
-              <div className="w-full h-80 rounded-2xl bg-gray-100 flex flex-col items-center justify-center text-gray-400 px-4 text-center">
-                <MapPin className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Add an address to show the map</p>
-                {dsType === 'profile' && liveProfile && !hasMapLocation && !suppressLiveBadges && (
-                  <p className="text-xs text-emerald-600 font-semibold mt-2 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                    Set address in your vendor profile
-                  </p>
-                )}
-              </div>
-            )}
-            {dsType === 'profile' && liveProfile && hasMapLocation && mapSrc && !suppressLiveBadges && (
-              <p className="text-center text-xs text-emerald-600 font-semibold mt-3 flex items-center justify-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                Live from your vendor profile
-              </p>
-            )}
-          </section>
-        )
-      }
-
-      case 'social_links': {
-        const pmeta: any = liveProfile?.meta || {}
-        const links: Record<string, string> = (p.links as any) || (p.social_links as any) || (dsType === 'profile' ? (pmeta.social_links || {}) : {})
-        const entries = Object.entries(links).filter(([, url]) => !!url)
-        const display = entries.length ? entries : [['twitter', '#'], ['instagram', '#'], ['linkedin', '#']] as [string, string][]
-        const socialLayout = String((p as any).layout ?? 'labeled')
-        const linkIcon = (k: string) => <Globe className="w-4 h-4 shrink-0" />
-        return (
-          <section className="py-12 px-4 sm:px-6 lg:px-8 text-center">
-            {(p.title || canEdit) && IET('title', 'h3', 'text-lg font-semibold text-gray-700 mb-4', { color: '#374151' }, 'Follow Us')}
-            {socialLayout === 'row' ? (
-              <div className="flex justify-center gap-3 flex-wrap">
-                {display.map(([k, url], i) => (
-                  <a
-                    key={i}
-                    href={url || '#'}
-                    title={k}
-                    className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 hover:border-primary/40 transition-colors text-gray-600 hover:text-primary"
-                    onClick={e => { if (url === '#') e.preventDefault() }}
-                  >
-                    {linkIcon(k)}
-                  </a>
-                ))}
-              </div>
-            ) : socialLayout === 'grid' ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-w-sm mx-auto">
-                {display.map(([k, url], i) => (
-                  <a
-                    key={i}
-                    href={url || '#'}
-                    className="inline-flex flex-col items-center gap-1.5 p-3 rounded-xl border border-gray-200 hover:border-primary/40 transition-colors text-xs font-medium text-gray-600 hover:text-primary"
-                    onClick={e => { if (url === '#') e.preventDefault() }}
-                  >
-                    {linkIcon(k)}
-                    <span className="capitalize truncate max-w-full">{k.replace(/_/g, ' ')}</span>
-                  </a>
-                ))}
-              </div>
-            ) : (
-            <div className="flex justify-center gap-3 flex-wrap">
-              {display.map(([k, url], i) => (
-                <a
-                  key={i}
-                  href={url || '#'}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-primary/40 transition-colors text-sm font-medium text-gray-600 hover:text-primary"
-                  onClick={e => { if (url === '#') e.preventDefault() }}
-                >
-                  {linkIcon(k)}
-                  <span className="capitalize">{k.replace(/_/g, ' ')}</span>
-                </a>
-              ))}
-            </div>
-            )}
-            {!suppressLiveBadges && entries.length > 0 && dsType === 'profile' && (
-              <p className="text-center text-xs text-emerald-600 mt-3 font-semibold">Live · from your vendor profile</p>
-            )}
-          </section>
-        )
-      }
-
-      case 'countdown': {
-        const target = (p as any).target_date ? new Date((p as any).target_date) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        const diff = Math.max(0, target.getTime() - Date.now())
-        const days = Math.floor(diff / 86400000)
-        const hours = Math.floor((diff % 86400000) / 3600000)
-        const mins = Math.floor((diff % 3600000) / 60000)
-        const secs = Math.floor((diff % 60000) / 1000)
-        return (
-          <div className="py-16 px-8 text-center" style={{ backgroundColor: primary_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-white mb-8', {}, 'Offer Ends In')}
-            <div className="flex items-center justify-center gap-6">
-              {[{ v: days, l: 'Days' }, { v: hours, l: 'Hours' }, { v: mins, l: 'Mins' }, { v: secs, l: 'Secs' }].map(({ v, l }) => (
-                <div key={l} className="flex flex-col items-center">
-                  <div className="text-4xl font-black text-white bg-white/20 rounded-xl w-16 h-16 flex items-center justify-center">{String(v).padStart(2, '0')}</div>
-                  <div className="text-xs text-white/70 mt-1 uppercase tracking-widest">{l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      }
-
-      case 'coupon_banner':
-        return (
-          <div className="py-6 px-8" style={{ background: `linear-gradient(135deg, ${primary_color}15, ${accent_color}15)`, borderTop: `3px dashed ${accent_color}` }}>
-            <div className="flex items-center justify-between flex-wrap gap-4 max-w-3xl mx-auto">
-              <div>
-                {(p.title || canEdit) && IET('title', 'p', 'font-bold text-base', { color: text_color }, 'Use code SAVE10 for 10% off!')}
-              </div>
-              <div style={{ backgroundColor: accent_color, borderRadius: r }} className="px-4 py-2 text-sm font-black text-white tracking-widest cursor-pointer">
-                {IET('code', 'span', '', {}, 'SAVE10')}
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'payment_methods_strip':
-        return (
-          <div className="py-6 px-8 text-center" style={{ backgroundColor: effectiveStyle.surface_color }}>
-            {(p.title || canEdit) && IET('title', 'p', 'text-xs font-medium text-gray-400 uppercase tracking-widest mb-3', {}, 'Secure Payments')}
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              {(['Visa', 'MC', 'UPI', 'GPay', 'COD'] as string[]).map((m: string) => (
-                <div key={m} className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-gray-500 bg-white">{m}</div>
-              ))}
-            </div>
-          </div>
-        )
-
-      case 'search_bar':
-        return (
-          <div className="py-8 px-8">
-            <div className="max-w-xl mx-auto flex gap-2">
-              <div className="flex-1 h-11 border-2 rounded-xl px-4 flex items-center text-sm text-gray-400" style={{ borderColor: `${primary_color}40` }}>
-                {IET('placeholder', 'span', '', {}, 'Search products & services…')}
-              </div>
-              <div style={{ backgroundColor: primary_color, borderRadius: r }} className="px-5 h-11 flex items-center text-white text-sm font-semibold">
-                Search
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'cookie_consent':
-        return (
-          <div className="mx-4 mb-4 rounded-xl border border-gray-200 bg-white shadow-lg px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-xs text-gray-500 flex-1">
-              {IET('message', 'span', '', {}, 'We use cookies to improve your experience.')}
-            </p>
-            <div className="flex gap-2">
-              <div className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 cursor-pointer">Decline</div>
-              <div style={{ backgroundColor: primary_color, borderRadius: r }} className="px-3 py-1.5 text-xs text-white font-semibold cursor-pointer">Accept</div>
-            </div>
-          </div>
-        )
-
-      case 'product_detail':
-        return (
-          <div className="py-12 px-8 max-w-4xl mx-auto">
-            <div className="grid grid-cols-2 gap-8 items-start">
-              <div style={{ borderRadius: cardRadius, backgroundColor: effectiveStyle.surface_color }} className="aspect-square flex items-center justify-center">
-                <ShoppingBag className="w-16 h-16 text-gray-200" />
-              </div>
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold" style={{ fontFamily: font_heading }}>Product Name</h2>
-                <div className="text-2xl font-black" style={{ color: primary_color }}>₹999</div>
-                <p className="text-sm text-gray-500">Product description goes here. Add this block to a product page.</p>
-                <div className="flex gap-2">
-                  <div style={{ backgroundColor: primary_color, borderRadius: r }} className="flex-1 h-11 flex items-center justify-center text-white font-semibold text-sm">Add to Cart</div>
-                </div>
-                {!suppressLiveBadges && (
-                <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Live · connected to your product catalog
-                </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'checkout_form':
-        return (
-          <div className="py-12 px-8 max-w-xl mx-auto">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-xl font-bold mb-6 text-center', { fontFamily: font_heading }, 'Checkout')}
-            <div className="space-y-3">
-              {['Full Name', 'Email Address', 'Phone Number', 'Delivery Address'].map(f => (
-                <div key={f} className="h-11 border border-gray-200 rounded-lg px-4 flex items-center text-sm text-gray-400">{f}</div>
-              ))}
-              <div style={{ backgroundColor: primary_color, borderRadius: r }} className="h-12 flex items-center justify-center text-white font-bold text-sm">Place Order</div>
-            </div>
-          </div>
-        )
-
-      case 'product_reviews': {
-        const reviews = (liveTestimonials || []).slice(0, 3).map((t: any) => ({
-          name: t.title || 'Customer', rating: t.rating || 5, text: t.description || ''
-        }))
-        const display = reviews.length ? reviews : [
-          { name: 'Happy Customer', rating: 5, text: 'Excellent quality and fast delivery!' },
-          { name: 'Verified Buyer', rating: 4, text: 'Great product, highly recommended.' },
-        ]
-        return (
-          <div className="py-12 px-8" style={{ backgroundColor: effectiveStyle.surface_color }}>
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold text-center mb-6', { fontFamily: font_heading }, 'Customer Reviews')}
-            <div className="space-y-4 max-w-2xl mx-auto">
-              {display.map((r: any, i: number) => (
-                <div key={i} className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm max-h-[90vh] overflow-y-auto">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div style={{ backgroundColor: primary_color }} className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold">{r.name[0]}</div>
-                    <div>
-                      <div className="text-sm font-semibold">{r.name}</div>
-                      <div className="flex">{Array.from({ length: 5 }).map((_, s) => (
-                        <span key={s} style={{ color: s < r.rating ? accent_color : '#d1d5db' }} className="text-xs">★</span>
-                      ))}</div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500">{r.text || 'Great product!'}</p>
-                </div>
-              ))}
-            </div>
-            {!suppressLiveBadges && reviews.length > 0 && <p className="text-center text-xs text-emerald-600 mt-4 font-semibold">Live · from your verified reviews</p>}
-          </div>
-        )
-      }
-
-      case 'booking_slot_picker':
-        return (
-          <div className="py-12 px-8 max-w-xl mx-auto text-center">
-            {(p.title || canEdit) && IET('title', 'h2', 'text-2xl font-bold mb-2', { fontFamily: font_heading }, 'Book an Appointment')}
-            {(p.subtitle || canEdit) && IET('subtitle', 'p', 'text-sm text-gray-400 mb-8', {}, 'Select a service and choose your preferred time')}
-            <div className="space-y-4">
-              <div className="border border-gray-200 rounded-xl p-4 text-left">
-                <div className="text-xs font-medium text-gray-400 uppercase mb-2">1. Select Service</div>
-                <div className="h-10 bg-gray-50 rounded-lg border border-gray-200 flex items-center px-3 text-sm text-gray-400">Choose a service…</div>
-              </div>
-              <div className="border border-gray-200 rounded-xl p-4 text-left">
-                <div className="text-xs font-medium text-gray-400 uppercase mb-2">2. Pick a Date</div>
-                <div className="grid grid-cols-7 gap-1">{Array.from({ length: 7 }).map((_, i) => (
-                  <div key={i} className="text-xs text-center py-1.5 rounded cursor-pointer hover:bg-accent" style={i === 2 ? { backgroundColor: primary_color, color: '#fff', borderRadius: r } : { color: text_color }}>{i + 15}</div>
-                ))}</div>
-              </div>
-              <div style={{ backgroundColor: primary_color, borderRadius: r }} className="h-11 flex items-center justify-center text-white font-semibold text-sm">
-                {IET('cta_label', 'span', '', {}, 'Confirm Booking')}
-              </div>
-            </div>
-            {!suppressLiveBadges && (
-            <div className="flex items-center justify-center gap-1 mt-4 text-xs text-emerald-600 font-semibold">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Live · connects to your services
-            </div>
-            )}
-          </div>
-        )
-
-      case 'offer_banner':
-      case 'promo_strip': {
-        const bannerBg = (p.bg_color as string) || primary_color
-        const bannerTextColor = (p.text_color as string) || '#ffffff'
-        const bannerSubtext = (p.subtitle as string) || (p.discount as string) || (p.code ? `Code: ${p.code}` : '') || ''
-        return (
-          <div style={{ backgroundColor: bannerBg, color: bannerTextColor }} className="py-4 px-8 text-center">
-            <div className="font-bold text-base" style={{ fontFamily: font_heading }}>
-              {IET('headline', 'span', '', {}, (p.headline as string) || '🎉 Special Offer — Limited Time')}
-            </div>
-            {bannerSubtext && (
-              <div className="text-sm mt-0.5 opacity-90">{bannerSubtext}</div>
-            )}
-          </div>
-        )
-      }
-
-      case 'demo_video': {
-        const videoUrl = (p.video_url || p.src || p.embed_url) as string | undefined
-        return (
-          <div className="py-12 px-8 text-center">
-            {(p.title || p.headline) && (
-              <h2 className="text-xl font-bold mb-4" style={{ fontFamily: font_heading, color: text_color }}>
-                {IET('title', 'span', '', {}, (p.title || p.headline) as string)}
-              </h2>
-            )}
-            <div className="aspect-video max-w-3xl mx-auto rounded-xl overflow-hidden bg-gray-900 flex items-center justify-center" style={{ borderRadius: r }}>
-              {videoUrl
-                ? <iframe src={videoUrl} className="w-full h-full" allow="autoplay; fullscreen" title="video" />
-                : <div className="text-white/60 text-4xl">▶</div>
-              }
-            </div>
-          </div>
-        )
-      }
-
-      case 'html_embed': {
-        const html = (p.html as string) || ''
-        return (
-          <div className="py-6 px-8">
-            {html
-              ? <div dangerouslySetInnerHTML={{ __html: html }} />
-              : <div className="py-8 text-center text-gray-400 border-2 border-dashed border-gray-200 rounded-lg" style={{ borderRadius: r }}>
-                  <div className="text-2xl mb-1">{'</>'}</div>
-                  <div className="text-sm font-medium">HTML Embed — add your HTML in the properties panel</div>
-                </div>
-            }
-          </div>
-        )
-      }
-
-      default:
-        return (
-          <div style={{ backgroundColor: effectiveStyle.surface_color, borderRadius: cardRadius }} className="py-12 px-8 text-center text-gray-500 mx-8">
-            <div className="text-2xl mb-2">🧩</div>
-            <div className="font-semibold text-sm">{catalogBlockLabel(block)}</div>
-            <div className="text-xs text-gray-400 mt-1">Edit this section in the properties panel</div>
-          </div>
-        )
-    }
-  }
-
-  const hasShape = (topShape && topShape !== 'none') || (bottomShape && bottomShape !== 'none')
-  const overlays: BlockOverlayItem[] = ((p as any).overlays as BlockOverlayItem[]) || []
-  const overlayBlockBg = overrideBg
-    || (p as any).bg_color_override as string | undefined
-    || bg_color
-    || effectiveStyle.surface_color
-    || '#ffffff'
-  const needsRelative = hasShape || overlays.length > 0 || isEditing
-  const bid = `b${block.id.replace(/-/g, '')}`
-  const blockColorProps = p as BlockColorProps
-  const blockThemeColors: ThemeColors = {
-    primary_color,
-    text_color,
-    surface_color: effectiveStyle.surface_color || bg_color,
-    bg_color,
-  }
-  const blockColorCss = buildBlockColorStyleCss('data-bid', bid, blockColorProps, blockThemeColors, {
-    bgOverrideAppliesToContent: true,
-  })
-  const fieldStyleCss = buildFieldStylesCss('data-bid', bid, block.props as Record<string, unknown>)
-  const inlineTextStyleValue = useMemo(() => ({
-    styleForKey: styleForField,
-    onActivateKey: (key: string) => onActiveTextFieldChange?.(key),
-  }), [styleForField, onActiveTextFieldChange])
-
-  return (
-    <InlineTextStyleContext.Provider value={inlineTextStyleValue}>
-      <div
-        data-bid={bid}
-        style={{ ...containerStyle, position: needsRelative ? 'relative' : undefined }}
-        className="w-full"
-      >
-        {/* Inject CSS overrides so text color, px/em size, and case work despite Tailwind specificity */}
-        {(textColorOverride || fontSizePx || textScale || textTransformCss || fieldStyleCss || blockColorCss) && (
-          <style>{`
-            [data-bid="${bid}"] {
-              ${textTransformCss ? `text-transform: ${textTransformCss} !important;` : ''}
-            }
-            [data-bid="${bid}"] h1,
-            [data-bid="${bid}"] h2,
-            [data-bid="${bid}"] h3,
-            [data-bid="${bid}"] h4,
-            [data-bid="${bid}"] p,
-            [data-bid="${bid}"] li,
-            [data-bid="${bid}"] blockquote {
-              ${fontSizePx ? `font-size: ${fontSizePx}px !important;` : textScale ? `font-size: ${textScale}em !important;` : ''}
-            }
-            ${overrideBg && !blockColorProps.bg_color_override ? `
-              [data-bid="${bid}"] .builder-block-content > * {
-                background-color: ${overrideBg} !important;
-                background-image: none !important;
-              }
-            ` : ''}
-            ${blockColorCss}
-            ${fieldStyleCss}
-          `}</style>
-        )}
-        {topShape && topShape !== 'none' && (
-          <SectionShapeDivider shape={topShape} fillColor={shapeColor || '#ffffff'} position="top" />
-        )}
-        <div className="builder-block-content">
-          {renderBlock()}
-        </div>
-        {/* Overlay elements (draggable within block) */}
-        <BlockOverlayCanvas
-          overlays={overlays}
-          isEditing={isEditing && !!onOverlayUpdate}
-          blockBackgroundColor={overlayBlockBg}
-          onUpdate={onOverlayUpdate}
-          onOverlaySelectionChange={onOverlaySelectionChange}
-          onOpenAiImageTools={onOpenAiImageTools}
-          onOpenMediaLibrary={onOpenMediaLibrary}
-          onPickLocalImage={onPickLocalImage}
-          onImageFileDrop={onImageFileDrop}
-          onEditLinkForOverlay={onEditLinkForOverlay}
-          onOverlayContextMenu={onOverlayContextMenu}
-          onRequestText={onRequestText}
-        />
-        {bottomShape && bottomShape !== 'none' && (
-          <SectionShapeDivider shape={bottomShape} fillColor={shapeColor || '#ffffff'} position="bottom" />
-        )}
-      </div>
-    </InlineTextStyleContext.Provider>
-  )
-}
 
 // ── Gradient & Shadow presets ─────────────────────────────────────────────────
 
@@ -7478,8 +3363,391 @@ const IMAGE_SHAPE_BLOCK_TYPES = new Set([
   'team_grid',
   'gallery_masonry',
   'gallery',
+  'gallery_grid',
+  'image_gallery',
   'portfolio_grid',
+  'category_cards',
+  'product_grid',
+  'menu_grid',
+  'related_products',
+  'blog_grid',
+  'blog_featured',
+  'blog_list',
+  'testimonials',
+  'testimonials_grid',
+  'image_block',
 ])
+
+/** Product/service catalog blocks with shared Grid & spacing controls on the Layout tab. */
+interface CatalogGridBlockConfig {
+  columnMin: number
+  defaultColumns: number
+  itemCountLabel: string
+  itemCountKeys: string[]
+  showColumns: boolean
+  showImageHeight: boolean
+  showCardStyle: boolean
+  showProductToggles: boolean
+  showServiceToggles: boolean
+}
+
+const CATALOG_GRID_BLOCK_CONFIG: Record<string, CatalogGridBlockConfig> = {
+  product_grid: {
+    columnMin: 2, defaultColumns: 4, itemCountLabel: 'Products shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  menu_grid: {
+    columnMin: 1, defaultColumns: 2, itemCountLabel: 'Items shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  related_products: {
+    columnMin: 2, defaultColumns: 4, itemCountLabel: 'Products shown', itemCountKeys: ['show_count', 'count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  category_cards: {
+    columnMin: 2, defaultColumns: 3, itemCountLabel: 'Categories shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: false, showServiceToggles: false,
+  },
+  services_cards: {
+    columnMin: 2, defaultColumns: 3, itemCountLabel: 'Services shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: false, showServiceToggles: true,
+  },
+  services_list: {
+    columnMin: 1, defaultColumns: 1, itemCountLabel: 'Services shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: false, showServiceToggles: true,
+  },
+  recently_viewed: {
+    columnMin: 2, defaultColumns: 6, itemCountLabel: 'Items shown', itemCountKeys: ['max', 'show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: false, showServiceToggles: false,
+  },
+  live_stock: {
+    columnMin: 2, defaultColumns: 4, itemCountLabel: 'Products shown', itemCountKeys: ['show_count'],
+    showColumns: false, showImageHeight: false, showCardStyle: false, showProductToggles: false, showServiceToggles: false,
+  },
+  // Commerce kit — product blocks
+  'product.grid': {
+    columnMin: 2, defaultColumns: 4, itemCountLabel: 'Products shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  'product.carousel': {
+    columnMin: 2, defaultColumns: 4, itemCountLabel: 'Products shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  'product.categories': {
+    columnMin: 2, defaultColumns: 4, itemCountLabel: 'Categories shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: false, showProductToggles: false, showServiceToggles: false,
+  },
+  'product.crossSell': {
+    columnMin: 2, defaultColumns: 4, itemCountLabel: 'Products shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  'product.recentlyViewed': {
+    columnMin: 2, defaultColumns: 6, itemCountLabel: 'Items shown', itemCountKeys: ['show_count', 'max'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  'product.search': {
+    columnMin: 2, defaultColumns: 3, itemCountLabel: 'Results shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  'product.wishlist': {
+    columnMin: 2, defaultColumns: 3, itemCountLabel: 'Items shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
+  },
+  // Commerce kit — service blocks
+  'service.list': {
+    columnMin: 1, defaultColumns: 1, itemCountLabel: 'Services shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: false, showServiceToggles: true,
+  },
+  'service.grid': {
+    columnMin: 2, defaultColumns: 3, itemCountLabel: 'Services shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: false, showServiceToggles: true,
+  },
+  // Commerce kit — vertical listing blocks
+  'vertical.propertyListing': {
+    columnMin: 2, defaultColumns: 3, itemCountLabel: 'Listings shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+  },
+  'vertical.autoInventory': {
+    columnMin: 2, defaultColumns: 3, itemCountLabel: 'Vehicles shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+  },
+  'vertical.eventListing': {
+    columnMin: 2, defaultColumns: 4, itemCountLabel: 'Events shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+  },
+  'vertical.courseCatalog': {
+    columnMin: 2, defaultColumns: 3, itemCountLabel: 'Courses shown', itemCountKeys: ['show_count'],
+    showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
+  },
+}
+
+const CATALOG_GRID_BLOCK_TYPES = new Set(Object.keys(CATALOG_GRID_BLOCK_CONFIG))
+
+function getCatalogGridBlockConfig(blockType: string): CatalogGridBlockConfig {
+  return CATALOG_GRID_BLOCK_CONFIG[blockType] ?? CATALOG_GRID_BLOCK_CONFIG.product_grid
+}
+
+const CATALOG_GRID_COLUMN_MAX = 12
+
+function catalogColumnOptionsFor(blockType: string): number[] {
+  const min = getCatalogGridBlockConfig(blockType).columnMin
+  return Array.from({ length: CATALOG_GRID_COLUMN_MAX - min + 1 }, (_, i) => min + i)
+}
+
+const CATALOG_GRID_NUM_INPUT =
+  'w-[4.5rem] shrink-0 px-2 py-1.5 border border-gray-300 rounded-md text-xs font-mono text-center bg-white text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30'
+
+const CATALOG_CARD_STYLE_OPTIONS = [
+  { id: 'default', label: 'Standard' },
+  { id: 'compact', label: 'Compact' },
+  { id: 'minimal', label: 'Minimal' },
+] as const
+
+function CatalogGridScrollRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5 -mx-0.5 px-0.5">
+      {children}
+    </div>
+  )
+}
+
+function CatalogGridChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors whitespace-nowrap',
+        active
+          ? 'bg-primary text-white border-primary shadow-sm'
+          : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function CatalogGridSliderField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  suffix,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  suffix?: string
+  onChange: (n: number) => void
+}) {
+  const clamp = (n: number) => Math.min(max, Math.max(min, n))
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-gray-600">{label}</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={e => onChange(clamp(Number(e.target.value) || min))}
+            className={CATALOG_GRID_NUM_INPUT}
+          />
+          {suffix ? <span className="text-xs text-gray-500 w-4">{suffix}</span> : null}
+        </div>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={e => onChange(clamp(Number(e.target.value)))}
+        className="w-full accent-primary h-2 rounded-full cursor-pointer"
+      />
+    </div>
+  )
+}
+
+function CatalogGridLayoutControls({
+  blockType,
+  props: p,
+  onUpdate,
+  onPreview,
+}: {
+  blockType: string
+  props: Record<string, unknown>
+  onUpdate: (props: Partial<BlockProps>) => void
+  onPreview: (props: Partial<BlockProps>) => void
+}) {
+  const patch = (next: Record<string, unknown>) => {
+    onPreview(next as Partial<BlockProps>)
+    onUpdate(next as Partial<BlockProps>)
+  }
+
+  const config = getCatalogGridBlockConfig(blockType)
+  const colMin = config.columnMin
+  const colMax = CATALOG_GRID_COLUMN_MAX
+  const columns = Math.min(colMax, Math.max(colMin, Number(p.columns ?? config.defaultColumns) || colMin))
+  const gap = Math.min(80, Math.max(0, Number(p.item_gap ?? 24) || 0))
+  const imageHeightPct = Math.min(100, Math.max(40, Number(p.image_height_pct ?? 100) || 100))
+  const cardPadding = Math.min(32, Math.max(4, Number(p.card_padding ?? 16) || 16))
+  const showCount = Math.min(50, Math.max(1, Number(
+    config.itemCountKeys.map(k => p[k]).find(v => v != null && v !== '') ?? 12,
+  ) || 12))
+  const cardStyle = String(p.card_style ?? 'default')
+  const showStock = p.show_stock !== false
+  const showAddButton = p.show_add_button !== false
+  const showBookLink = p.show_book_link !== false && p.show_add_button !== false
+  const showBadges = p.show_badges !== false
+  const columnOptions = catalogColumnOptionsFor(blockType)
+  const dataSource = (p.data_source && typeof p.data_source === 'object')
+    ? (p.data_source as Record<string, unknown>)
+    : undefined
+
+  const patchShowCount = (n: number) => {
+    const nextDs = dataSource?.type
+      ? { ...dataSource, limit: n }
+      : dataSource
+    const countPatch: Record<string, unknown> = { show_count: n }
+    for (const key of config.itemCountKeys) {
+      countPatch[key] = n
+    }
+    patch(nextDs ? { ...countPatch, data_source: nextDs } : countPatch)
+  }
+
+  return (
+    <div className="bg-gray-50 rounded-xl p-3 space-y-4 border border-gray-100">
+      {config.showColumns && (
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-gray-600">Columns</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <input
+              type="number"
+              min={colMin}
+              max={colMax}
+              step={1}
+              value={columns}
+              onChange={e => patch({ columns: Math.min(colMax, Math.max(colMin, Number(e.target.value) || colMin)) })}
+              className={CATALOG_GRID_NUM_INPUT}
+            />
+          </div>
+        </div>
+        <CatalogGridScrollRow>
+          {columnOptions.map(n => (
+            <CatalogGridChip key={n} active={columns === n} onClick={() => patch({ columns: n })}>
+              {n}
+            </CatalogGridChip>
+          ))}
+        </CatalogGridScrollRow>
+        <p className="text-[11px] text-gray-400 leading-snug">
+          Swipe for more column counts. More columns = narrower cards.
+        </p>
+      </div>
+      )}
+
+      {config.showImageHeight && (
+      <CatalogGridSliderField
+        label="Image height"
+        value={imageHeightPct}
+        min={40}
+        max={100}
+        step={2}
+        suffix="%"
+        onChange={n => patch({ image_height_pct: n })}
+      />
+      )}
+
+      <CatalogGridSliderField
+        label="Card padding"
+        value={cardPadding}
+        min={4}
+        max={32}
+        step={2}
+        suffix="px"
+        onChange={n => patch({ card_padding: n })}
+      />
+
+      <CatalogGridSliderField
+        label="Gap between cards"
+        value={gap}
+        min={0}
+        max={80}
+        step={4}
+        suffix="px"
+        onChange={n => patch({ item_gap: n })}
+      />
+
+      <CatalogGridSliderField
+        label={config.itemCountLabel}
+        value={showCount}
+        min={1}
+        max={50}
+        step={1}
+        onChange={patchShowCount}
+      />
+
+      {config.showCardStyle && (
+      <div className="space-y-1.5">
+        <span className="text-xs font-medium text-gray-600 block">Card style</span>
+        <CatalogGridScrollRow>
+          {CATALOG_CARD_STYLE_OPTIONS.map(opt => (
+            <CatalogGridChip
+              key={opt.id}
+              active={cardStyle === opt.id}
+              onClick={() => patch({ card_style: opt.id, compact: opt.id === 'compact' })}
+            >
+              {opt.label}
+            </CatalogGridChip>
+          ))}
+        </CatalogGridScrollRow>
+      </div>
+      )}
+
+      {(config.showProductToggles || config.showServiceToggles) && (
+      <div className="space-y-1.5">
+        <span className="text-xs font-medium text-gray-600 block">Display options</span>
+        <CatalogGridScrollRow>
+          {config.showProductToggles && (
+            <>
+              <CatalogGridChip active={showBadges} onClick={() => patch({ show_badges: !showBadges })}>
+                Badges
+              </CatalogGridChip>
+              <CatalogGridChip active={showStock} onClick={() => patch({ show_stock: !showStock })}>
+                Stock label
+              </CatalogGridChip>
+              <CatalogGridChip active={showAddButton} onClick={() => patch({ show_add_button: !showAddButton })}>
+                Add button
+              </CatalogGridChip>
+            </>
+          )}
+          {config.showServiceToggles && (
+            <CatalogGridChip active={showBookLink} onClick={() => patch({ show_book_link: !showBookLink })}>
+              Book link
+            </CatalogGridChip>
+          )}
+        </CatalogGridScrollRow>
+      </div>
+      )}
+    </div>
+  )
+}
 
 // ── Inline Media Picker ───────────────────────────────────────────────────────
 
@@ -7943,37 +4211,43 @@ function PropsCollapsible({
   children: React.ReactNode
 }) {
   return (
-    <details className="group rounded-lg border border-gray-100 overflow-hidden">
+    <details
+      className={cn(
+        'group rounded-lg border overflow-hidden transition-colors',
+        accent
+          ? 'border-primary/30 bg-primary/5 shadow-sm'
+          : 'border-gray-200 bg-white shadow-sm hover:border-gray-300',
+      )}
+    >
       <summary
         className={cn(
-          'list-none cursor-pointer flex items-center justify-between gap-2 px-2.5 py-2 transition-colors [&::-webkit-details-marker]:hidden',
-          accent ? 'bg-primary/10 hover:bg-primary/15' : 'hover:bg-gray-50',
+          'list-none cursor-pointer flex items-center gap-2 px-3 py-2.5 transition-colors [&::-webkit-details-marker]:hidden',
+          accent ? 'hover:bg-primary/10' : 'hover:bg-gray-50/80',
         )}
       >
-        <div className="min-w-0 flex-1 flex items-baseline gap-2">
+        <span
+          className={cn(
+            'text-xs font-semibold shrink-0',
+            accent ? 'text-primary' : 'text-gray-800',
+          )}
+        >
+          {title}
+        </span>
+        <div className="flex-1 min-w-0" />
+        {preview && (
           <span
             className={cn(
-              'text-xs shrink-0',
-              accent ? 'font-bold uppercase text-primary' : 'font-medium text-gray-700',
+              'shrink-0 max-w-[45%] truncate rounded-full px-2 py-0.5 text-[10px] font-medium',
+              preview === 'Empty'
+                ? 'bg-gray-50 text-gray-300 italic'
+                : accent
+                  ? 'bg-primary/15 text-primary'
+                  : 'bg-gray-100 text-gray-500',
             )}
           >
-            {title}
+            {preview}
           </span>
-          {preview && (
-            <span
-              className={cn(
-                'text-xs truncate',
-                preview === 'Empty'
-                  ? 'italic text-gray-300'
-                  : accent
-                    ? 'text-primary/70'
-                    : 'text-gray-400',
-              )}
-            >
-              {preview}
-            </span>
-          )}
-        </div>
+        )}
         <ChevronDown
           className={cn(
             'w-3.5 h-3.5 shrink-0 transition-transform group-open:rotate-180',
@@ -7981,7 +4255,7 @@ function PropsCollapsible({
           )}
         />
       </summary>
-      <div className="px-2.5 pb-2.5 pt-2 border-t border-gray-100 space-y-2">
+      <div className="px-3 pb-3 pt-2 border-t border-gray-100 bg-gray-50/40 space-y-2">
         {children}
       </div>
     </details>
@@ -8384,6 +4658,7 @@ function SectionLayoutControls({
   if (layoutOptions.length === 0) return null
 
   const activeLayout = findActiveSectionLayoutOption(currentProps, layoutOptions)
+    ?? findBestSectionLayoutOption(currentProps, layoutOptions)
     ?? layoutOptions[findActiveLayoutIndex(currentProps, block.block_type)]
   const activeIdx = findActiveLayoutIndex(currentProps, block.block_type)
   const canCycle = layoutOptions.length > 1
@@ -8395,7 +4670,7 @@ function SectionLayoutControls({
           type="button"
           disabled={!canCycle}
           onClick={e => { e.stopPropagation(); onCycleLayout('prev') }}
-          title="Previous layout"
+          title="Previous style — same section, different look (does not move it on the page)"
           className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-7 h-7" />
@@ -8403,7 +4678,7 @@ function SectionLayoutControls({
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onOpenLayoutPicker() }}
-          title={`Choose layout — ${activeLayout?.label || 'Current'}`}
+          title={`Change section style — ${activeLayout?.label || 'Current'} (not page position)`}
           className="px-2 py-1.5 text-gray-300 hover:text-white border-x border-gray-700/80"
         >
           <Layout className="w-7 h-7" />
@@ -8412,7 +4687,7 @@ function SectionLayoutControls({
           type="button"
           disabled={!canCycle}
           onClick={e => { e.stopPropagation(); onCycleLayout('next') }}
-          title="Next layout"
+          title="Next style — same section, different look (does not move it on the page)"
           className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronRight className="w-7 h-7" />
@@ -8444,7 +4719,7 @@ function SectionLayoutControls({
           type="button"
           disabled={!canCycle}
           onClick={() => onCycleLayout('prev')}
-          title="Previous layout"
+          title="Previous style (same section, different look)"
           className={cn(
             'shrink-0 p-2 rounded-lg border transition-colors',
             canCycle
@@ -8459,13 +4734,13 @@ function SectionLayoutControls({
           onClick={onOpenLayoutPicker}
           className="flex-1 min-w-0 py-2 px-3 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
         >
-          Choose layout
+          Change style
         </button>
         <button
           type="button"
           disabled={!canCycle}
           onClick={() => onCycleLayout('next')}
-          title="Next layout"
+          title="Next style (same section, different look)"
           className={cn(
             'shrink-0 p-2 rounded-lg border transition-colors',
             canCycle
@@ -8477,7 +4752,9 @@ function SectionLayoutControls({
         </button>
       </div>
       <p className="text-[11px] text-gray-400 leading-snug">
-        Use arrows to preview layouts quickly, or open the gallery to compare all {layoutOptions.length} designs.
+        <strong className="font-semibold text-gray-600">Change style</strong> picks a different look for this section.
+        <strong className="font-semibold text-gray-600"> Move ↑↓</strong> on the floating toolbar changes where it sits on the page.
+        {layoutOptions.length > 1 ? ` ${layoutOptions.length} styles available.` : ''}
       </p>
     </div>
   )
@@ -8524,6 +4801,7 @@ function PropsEditor({
   const [subColumns, setSubColumns] = useState<number>((p as any).columns ?? itemSchema?.fields.length ?? 3)
   const [subGap, setSubGap] = useState<number>((p as any).item_gap ?? 24)
   const [subItemSize, setSubItemSize] = useState<number>((p as any).item_size ?? 160)
+  const isCatalogGridBlock = CATALOG_GRID_BLOCK_TYPES.has(block.block_type)
   const [teamLiveItems, setTeamLiveItems] = useState<LiveItem[]>([])
 
   useEffect(() => {
@@ -8561,7 +4839,7 @@ function PropsEditor({
     </div>
   ) : isTeamBlock && isLiveTeamDataSource(p as Record<string, unknown>) && teamLiveItems.length > 0 ? (
     <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-600 leading-snug">
-      Using your custom member list. Disconnect Team in the Data tab to pull from People again.
+      Using your custom member list. Disconnect Team in the Store data tab to pull from People again.
     </div>
   ) : undefined
 
@@ -8782,6 +5060,61 @@ function PropsEditor({
     setEditorTab(prev => resolveSectionEditorTab(ribbonTabs, prev))
   }, [block.id, ribbonTabs])
 
+  const sectionBgOverride = (p as any).bg_color_override as string | undefined
+  const sectionTextOverride = (p as any).text_color_override as string | undefined
+  const sectionBgFallback = themeColors.bg_color || '#ffffff'
+  const sectionTextFallback = themeColors.text_color || '#111827'
+
+  const sectionColorField = (
+    key: 'bg_color_override' | 'text_color_override',
+    label: string,
+    fallback: string,
+    override: string | undefined,
+  ) => (
+    <div key={key} className="flex items-center gap-2">
+      <input
+        type="color"
+        value={override || fallback}
+        onChange={e => {
+          onPreview({ [key]: e.target.value } as any)
+          onUpdate({ [key]: e.target.value } as any)
+        }}
+        className="w-9 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
+      />
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium text-gray-700">{label}</div>
+        <div className="text-xs text-gray-400 font-mono truncate">
+          {override || 'Page default'}
+        </div>
+      </div>
+      {override != null && override !== '' && (
+        <button
+          type="button"
+          onClick={() => {
+            onPreview({ [key]: null } as any)
+            onUpdate({ [key]: null } as any)
+          }}
+          className="text-[10px] text-gray-400 hover:text-red-500 shrink-0"
+          title="Use page default"
+        >
+          Reset
+        </button>
+      )}
+    </div>
+  )
+
+  const sectionColorsPanel = (
+    <SectionPanelGroup
+      title="Section colors"
+      description="Overrides this section only. Page Edit sets the page default."
+    >
+      <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50/60 p-2.5">
+        {sectionColorField('bg_color_override', 'Section background', sectionBgFallback, sectionBgOverride)}
+        {sectionColorField('text_color_override', 'Section text', sectionTextFallback, sectionTextOverride)}
+      </div>
+    </SectionPanelGroup>
+  )
+
   const imageShapePicker = hasImageShape && (
     <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -8823,6 +5156,7 @@ function PropsEditor({
   const mediaClipPicker = hasMediaClip && (
     <MediaClipPicker
       value={(p as any).media_clip}
+      embedded
       onChange={clip => {
         onPreview({ media_clip: clip } as any)
         onUpdate({ media_clip: clip } as any)
@@ -8830,16 +5164,29 @@ function PropsEditor({
     />
   )
 
+  const mediaClipPanel = hasMediaClip && (
+    <SectionPanelGroup
+      title="Media clip frames"
+      description="Crop photos and video with angled or organic shapes. Hover a tile for the full name."
+    >
+      {mediaClipPicker}
+    </SectionPanelGroup>
+  )
+
   return (
     <div className="flex flex-col min-h-0">
       <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white">
         <p className="text-xs font-bold text-gray-900 truncate">{block.label || block.block_type}</p>
-        <p className="text-[10px] text-gray-400">Press E or use Edit text in the design bar</p>
+        <p className="text-[10px] text-gray-400">Section settings — colors, layout, and content</p>
+      </div>
+
+      <div className="shrink-0 px-3 pt-3 pb-3 border-b border-gray-200 bg-gray-50/40">
+        {sectionColorsPanel}
       </div>
 
       <SectionEditorRibbon tabs={ribbonTabs} active={editorTab} onChange={setEditorTab} />
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+      <div className="flex-1 overflow-y-auto p-3 space-y-4 min-h-0 bg-gray-50/30">
         {editorTab === 'content' && (
           <>
       {commonFields}
@@ -9030,9 +5377,27 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      {itemSchema && (
+      {itemSchema && !isCatalogGridBlock && (
         <PropsCollapsible title="Grid & spacing" preview={`${subColumns} col · ${subGap}px gap`}>
           {renderSubItemEditor('layout')}
+        </PropsCollapsible>
+      )}
+
+      {isCatalogGridBlock && (
+        <PropsCollapsible
+          title="Grid & spacing"
+          preview={`${(() => {
+            const cfg = getCatalogGridBlockConfig(block.block_type)
+            const cols = Math.min(CATALOG_GRID_COLUMN_MAX, Math.max(cfg.columnMin, Number((p as any).columns ?? cfg.defaultColumns) || cfg.defaultColumns))
+            return cfg.showColumns ? `${cols} col · ${Number((p as any).image_height_pct ?? 100)}% img` : `${Number((p as any).show_count ?? 12)} items`
+          })()}`}
+        >
+          <CatalogGridLayoutControls
+            blockType={block.block_type}
+            props={p as Record<string, unknown>}
+            onUpdate={onUpdate}
+            onPreview={onPreview}
+          />
         </PropsCollapsible>
       )}
 
@@ -9063,6 +5428,11 @@ function PropsEditor({
               <input
                 type="range" min={0} max={320} step={4}
                 value={val}
+                onInput={e => {
+                  const n = Number((e.target as HTMLInputElement).value)
+                  set(n)
+                  onPreview({ [key]: n } as any)
+                }}
                 onChange={e => {
                   const n = Number(e.target.value)
                   set(n)
@@ -9134,119 +5504,126 @@ function PropsEditor({
 
         {editorTab === 'design' && (
           <>
-      {mediaClipPicker}
-      {bgStyleField && (
-        <PropsCollapsible title="Background Style" preview={String(p.bg_style || '')}>
-          {bgStyleField}
-        </PropsCollapsible>
-      )}
-      {gradientField && (
-        <PropsCollapsible title="Gradient Preset" preview={(p as any).gradient_preset ? 'Custom' : 'Default'}>
-          {gradientField}
-        </PropsCollapsible>
-      )}
-
-      <PropsCollapsible
-        title="Block Shadow"
-        preview={SHADOW_PRESETS.find(sh => sh.value === ((p as any).block_shadow ?? 'none'))?.label || 'None'}
+      <SectionPanelGroup
+        title="Section appearance"
+        description="Background treatment, shadow, and typography for this block."
       >
-        <div className="grid grid-cols-4 gap-1">
-          {SHADOW_PRESETS.map(sh => (
-            <button
-              key={sh.label}
-              onClick={() => {
-                onPreview({ block_shadow: sh.value } as any)
-                onUpdate({ block_shadow: sh.value } as any)
-              }}
-              title={sh.label}
-              className={cn(
-                'py-2 rounded-lg border text-xs font-bold transition-all text-center',
-                ((p as any).block_shadow ?? 'none') === sh.value ? 'border-primary bg-accent text-primary' : 'border-gray-200 text-gray-500 hover:border-primary/40'
-              )}
-              style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
-            >
-              {sh.label}
-            </button>
-          ))}
-        </div>
-      </PropsCollapsible>
-
-      <PropsCollapsible
-        title="Text & sizing"
-        preview={
-          typeof (p as any).font_size_px === 'number' && (p as any).font_size_px > 0
-            ? `${Math.round((p as any).font_size_px)}px`
-            : 'Auto'
-        }
-      >
-        <TypographyCompositionFields
-          fontSizePx={(p as any).font_size_px as number | undefined}
-          onFontSizeChange={px => onUpdate({ font_size_px: px, text_scale: null } as any)}
-          textCaseId={currentTextCaseMenuId(p as any)}
-          onTextCaseSelect={id => {
-            const patch = buildTextCasePropsPatch(p as Record<string, unknown>, id)
-            onUpdate(patch as any)
-            if (id === 'sentence' || id === 'toggle') {
-              toast.success(id === 'sentence' ? 'Sentence case applied' : 'Toggle case applied')
+        <div className="space-y-2">
+          {bgStyleField && (
+            <PropsCollapsible title="Background style" preview={String(p.bg_style || 'minimal')}>
+              {bgStyleField}
+            </PropsCollapsible>
+          )}
+          {gradientField && (
+            <PropsCollapsible title="Gradient preset" preview={(p as any).gradient_preset ? 'Custom' : 'Default'}>
+              {gradientField}
+            </PropsCollapsible>
+          )}
+          <PropsCollapsible
+            title="Block shadow"
+            preview={SHADOW_PRESETS.find(sh => sh.value === ((p as any).block_shadow ?? 'none'))?.label || 'None'}
+          >
+            <div className="grid grid-cols-4 gap-1.5">
+              {SHADOW_PRESETS.map(sh => (
+                <button
+                  key={sh.label}
+                  onClick={() => {
+                    onPreview({ block_shadow: sh.value } as any)
+                    onUpdate({ block_shadow: sh.value } as any)
+                  }}
+                  title={sh.label}
+                  className={cn(
+                    'py-2 rounded-lg border text-xs font-bold transition-all text-center bg-white',
+                    ((p as any).block_shadow ?? 'none') === sh.value
+                      ? 'border-primary bg-accent text-primary'
+                      : 'border-gray-200 text-gray-500 hover:border-primary/40',
+                  )}
+                  style={{ boxShadow: sh.value === 'none' ? undefined : sh.value }}
+                >
+                  {sh.label}
+                </button>
+              ))}
+            </div>
+          </PropsCollapsible>
+          <PropsCollapsible
+            title="Text & sizing"
+            preview={
+              typeof (p as any).font_size_px === 'number' && (p as any).font_size_px > 0
+                ? `${Math.round((p as any).font_size_px)}px`
+                : 'Auto'
             }
-          }}
-          textAlign={(p as any).text_align as string | undefined}
-          verticalAlign={(p as any).vertical_align as string | undefined}
-          textWrap={(p as any).text_wrap as boolean | undefined}
-          onTextAlignChange={align => onUpdate({ text_align: align } as any)}
-          onVerticalAlignChange={align => onUpdate({ vertical_align: align } as any)}
-          onTextWrapChange={wrap => onUpdate({ text_wrap: wrap } as any)}
-        />
-      </PropsCollapsible>
+          >
+            <TypographyCompositionFields
+              fontSizePx={(p as any).font_size_px as number | undefined}
+              onFontSizeChange={px => onUpdate({ font_size_px: px, text_scale: null } as any)}
+              textCaseId={currentTextCaseMenuId(p as any)}
+              onTextCaseSelect={id => {
+                const patch = buildTextCasePropsPatch(p as Record<string, unknown>, id)
+                onUpdate(patch as any)
+                if (id === 'sentence' || id === 'toggle') {
+                  toast.success(id === 'sentence' ? 'Sentence case applied' : 'Toggle case applied')
+                }
+              }}
+              textAlign={(p as any).text_align as string | undefined}
+              verticalAlign={(p as any).vertical_align as string | undefined}
+              textWrap={(p as any).text_wrap as boolean | undefined}
+              onTextAlignChange={align => onUpdate({ text_align: align } as any)}
+              onVerticalAlignChange={align => onUpdate({ vertical_align: align } as any)}
+              onTextWrapChange={wrap => onUpdate({ text_wrap: wrap } as any)}
+            />
+          </PropsCollapsible>
+        </div>
+      </SectionPanelGroup>
 
       {showTileColors && (
-      <PropsCollapsible
-        title="Card colors"
-        preview={hasTileColorOverrides(p as BlockColorProps) ? 'Custom' : 'Theme default'}
-      >
-        <p className="text-xs text-gray-500 mb-2">Override card/tile colors inside this section. Section text and background use the toolbar above the canvas.</p>
-        <div className="grid grid-cols-2 gap-2">
-          {([
-            { key: 'tile_bg' as const, label: 'Card background', hint: 'Tile / card fill' },
-            { key: 'tile_accent' as const, label: 'Accent', hint: 'Highlights & top bar' },
-            { key: 'tile_text' as const, label: 'Card text', hint: 'Titles & body in cards' },
-            { key: 'tile_border' as const, label: 'Border', hint: 'Card outline' },
-          ]).map(({ key, label, hint }) => (
-            <div key={key} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
-              <input type="color"
-                value={tileColorSwatch((p as any)[key], tileSwatchDefaults[key])}
-                onChange={e => onUpdate({ [key]: e.target.value } as any)}
-                className="w-7 h-7 rounded border border-gray-200 cursor-pointer p-0.5 shrink-0"
-              />
-              <div className="min-w-0">
-                <div className="text-xs font-medium text-gray-700">{label}</div>
-                <div className="text-xs text-gray-400 truncate">{hint}</div>
+        <SectionPanelGroup
+          title="Card colors"
+          description="Tint tiles and cards inside this section — not the section backdrop."
+        >
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { key: 'tile_bg' as const, label: 'Card background', hint: 'Tile / card fill' },
+              { key: 'tile_accent' as const, label: 'Accent', hint: 'Highlights & top bar' },
+              { key: 'tile_text' as const, label: 'Card text', hint: 'Titles & body in cards' },
+              { key: 'tile_border' as const, label: 'Border', hint: 'Card outline' },
+            ] as const).map(({ key, label, hint }) => (
+              <div key={key} className="flex items-center gap-2 p-2.5 bg-gray-50/80 rounded-lg border border-gray-100">
+                <input type="color"
+                  value={tileColorSwatch((p as any)[key], tileSwatchDefaults[key])}
+                  onChange={e => onUpdate({ [key]: e.target.value } as any)}
+                  className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-gray-700">{label}</div>
+                  <div className="text-[10px] text-gray-400 truncate">{hint}</div>
+                </div>
+                {(p as any)[key] && (
+                  <button
+                    type="button"
+                    onClick={() => onUpdate({ [key]: null } as any)}
+                    className="text-[10px] text-red-400 hover:text-red-600 shrink-0"
+                  >✕</button>
+                )}
               </div>
-              {(p as any)[key] && (
-                <button
-                  type="button"
-                  onClick={() => onUpdate({ [key]: null } as any)}
-                  className="text-[10px] text-red-400 hover:text-red-600 shrink-0"
-                >✕</button>
-              )}
-            </div>
-          ))}
-        </div>
-        {hasTileColorOverrides(p as BlockColorProps) && (
-          <button
-            type="button"
-            onClick={() => onUpdate({ tile_bg: null, tile_accent: null, tile_text: null, tile_border: null } as any)}
-            className="mt-2 text-xs text-red-400 hover:text-red-600"
-          >Clear all card colors</button>
-        )}
-      </PropsCollapsible>
+            ))}
+          </div>
+          {hasTileColorOverrides(p as BlockColorProps) && (
+            <button
+              type="button"
+              onClick={() => onUpdate({ tile_bg: null, tile_accent: null, tile_text: null, tile_border: null } as any)}
+              className="mt-2 text-xs text-red-400 hover:text-red-600"
+            >Clear all card colors</button>
+          )}
+        </SectionPanelGroup>
       )}
+
+      {mediaClipPanel}
           </>
         )}
 
         {editorTab === 'media' && (
           <>
-      {mediaClipPicker}
+      {mediaClipPanel ?? mediaClipPicker}
       {heroImageField}
       {bgImageField}
       {imageUrlField}
@@ -9379,7 +5756,6 @@ const SITE_THEME_PRESETS = [
 function PagePanel({
   pages,
   activePageId,
-  onSelectPage,
   siteStyle,
   onPageStyleChange,
   onClearPageStyle,
@@ -9393,7 +5769,6 @@ function PagePanel({
 }: {
   pages: WebsitePage[]
   activePageId: string | null
-  onSelectPage: (pageId: string) => void
   siteStyle: StyleConfig
   onPageStyleChange: (pageId: string, patch: PageStyleOverrides) => void
   onClearPageStyle: (pageId: string) => void
@@ -9446,38 +5821,6 @@ function PagePanel({
 
   return (
     <div className="p-4 space-y-5">
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Pages</div>
-        <div className="flex gap-1.5 overflow-x-auto hide-scrollbar rounded-lg border border-gray-100 p-1.5">
-          {pages.map(page => {
-            const selected = page.id === activePageId
-            const customized = !!(siteStyle.page_styles?.[page.id] && Object.keys(siteStyle.page_styles[page.id]).length > 0)
-            return (
-              <button
-                key={page.id}
-                type="button"
-                title={page.is_homepage ? `${page.title} (homepage · /${page.slug})` : `/${page.slug}`}
-                onClick={() => onSelectPage(page.id)}
-                className={cn(
-                  'shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors',
-                  selected
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-                )}
-              >
-                {pageChipLabel(page, pages)}
-                {customized && (
-                  <span
-                    className={cn('w-1.5 h-1.5 rounded-full shrink-0', selected ? 'bg-white/80' : 'bg-primary')}
-                    title="Custom page style"
-                  />
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
       {!activePage ? (
         <p className="text-xs text-gray-400 text-center py-6">Select a page to edit its appearance.</p>
       ) : (
@@ -9546,14 +5889,16 @@ function PagePanel({
             </div>
           )}
 
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Page colors</div>
-            <div className="space-y-2">
+          <SectionPanelGroup
+            title="Page colors"
+            description="Defaults for every section on this page unless a section overrides them."
+          >
+            <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50/60 p-2.5">
               {colorField('bg_color', 'Background', siteStyle.bg_color)}
               {colorField('surface_color', 'Surface / cards', siteStyle.surface_color)}
               {colorField('text_color', 'Text', siteStyle.text_color)}
             </div>
-          </div>
+          </SectionPanelGroup>
 
           <div>
             <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Typography</div>
@@ -10058,7 +6403,8 @@ function DataSourcePanel({
     return (
       <div className="flex flex-col items-center justify-center h-48 p-6 text-center text-gray-400">
         <Database className="w-10 h-10 mb-3 opacity-30" />
-        <p className="text-sm font-medium">Select a block to connect data</p>
+        <p className="text-sm font-medium">Select a section on the page</p>
+        <p className="text-xs mt-1">Then link it to your products, services, or other store content.</p>
       </div>
     )
   }
@@ -10072,11 +6418,14 @@ function DataSourcePanel({
 
   return (
     <div className="p-4 space-y-4">
+      <div className="rounded-xl border border-primary/20 bg-accent/40 px-3 py-2.5 text-[11px] text-gray-600 leading-snug">
+        <strong className="font-semibold text-gray-800">Store data</strong> pulls real products, services, and reviews into this section automatically — so your site stays up to date without re-typing everything.
+      </div>
       <div className="flex items-center gap-2 mb-1">
         <Database className="w-4 h-4 text-primary/80" />
-        <span className="text-xs font-bold text-gray-700">Data Connections</span>
+        <span className="text-xs font-bold text-gray-700">Connect to your store</span>
       </div>
-      <p className="text-xs text-gray-400">Connect <strong>{block.label || block.block_type}</strong> to your live catalog or an external link.</p>
+      <p className="text-xs text-gray-400">Link <strong>{block.label || block.block_type}</strong> to live catalog data or an external feed.</p>
 
       {/* Auto-connect CTA (if block has a suggested source and isn't already connected) */}
       {BLOCK_AUTO_SOURCE[block.block_type as string] && !ds?.type && (
@@ -10107,7 +6456,7 @@ function DataSourcePanel({
       {/* Recommended sources */}
       {recommended.length > 0 && (
         <div>
-          <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Recommended for this block</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Recommended for this section</div>
           <div className="space-y-1.5">
             {recommended.map(source => {
               const SourceIcon = DATA_SOURCE_ICONS[source.id] || Database
@@ -10362,7 +6711,7 @@ const CANVAS_DESIGN_WIDTH: Record<DeviceMode, number> = {
 const DEVICE_SWITCHER: { mode: DeviceMode; Icon: typeof Monitor; label: string; num: string; sizeLabel: string }[] = [
   { mode: 'desktop', Icon: Monitor, label: 'Desktop', num: '1', sizeLabel: '1440px' },
   { mode: 'tablet', Icon: Tablet, label: 'Tablet', num: '2', sizeLabel: '768px' },
-  { mode: 'mobile', Icon: Smartphone, label: 'Mobile', num: '3', sizeLabel: '390px' },
+  { mode: 'mobile', Icon: Smartphone, label: 'Phone', num: '3', sizeLabel: '390px phone' },
 ]
 const CANVAS_ZOOM_MIN = 0.25
 const CANVAS_ZOOM_MAX = 3
@@ -10383,7 +6732,7 @@ function BuilderShortcutKbd({ children, className }: { children: React.ReactNode
   )
 }
 
-function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, floating = false, docked = false }: {
+function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOverlay, activeTextField, activeTextFields = [], onActivateTextField, onEditText, onEscapeDismiss, onUndo, onRedo, canUndo, canRedo, formatPaintActive, formatPaintSticky, onFormatPaintStart, onFormatPaintCancel, selectedOverlayId, canvasImageField, canvasImageSlots, onSectionImagePick, onSectionImageLibrary, onFocusPrimaryImage, onSelectOverlay, blockBackgroundColor, onOverlayPickImage, onOverlayOpenLibrary, onOverlaySetImageUrl, onOverlayEditText, onOverlayEditDescription, floating = false, docked = false }: {
   block: WebsiteBlock
   onUpdate: (p: Partial<BlockProps>) => void
   onInsertAfter: (type: string) => void
@@ -10396,6 +6745,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   selectedOverlayId?: string | null
   /** Built-in section image field (image_url, bg_image_url) when clicked on canvas. */
   canvasImageField?: string | null
+  /** Card / gallery slots selected — toolbar applies to all when length > 1. */
+  canvasImageSlots?: { arrayKey: string; index: number; itemField: string }[]
   onSectionImagePick?: () => void
   onSectionImageLibrary?: () => void
   onFocusPrimaryImage?: () => void
@@ -10466,7 +6817,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     }
   }, [activeTextField, block.id])
 
-  // Keep the active tab when switching sections (General / Visual / Media). = ((p as any).overlays as BlockOverlayItem[]) || []
+  const overlays = ((p as Record<string, unknown>).overlays as BlockOverlayItem[]) || []
+  // Keep the active tab when switching sections (General / Visual / Media).
   const selectedOverlay = selectedOverlayId
     ? overlays.find(o => o.id === selectedOverlayId) ?? null
     : null
@@ -10751,7 +7103,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         onFormatPaintStart?.(fromSelection, sticky)
         toast.success(
           sticky
-            ? `Format copied (${formatPaintStyleSummary(fromSelection)}). Click text to apply — Esc to stop.`
+            ? `Formatting copied (${formatPaintStyleSummary(fromSelection)}). Click text to apply.`
             : `Format copied (${formatPaintStyleSummary(fromSelection)}). Click one text field to apply.`,
         )
         return
@@ -10768,7 +7120,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         onFormatPaintStart?.(fromCaret, sticky)
         toast.success(
           sticky
-            ? `Format copied (${formatPaintStyleSummary(fromCaret)}). Click text to apply — Esc to stop.`
+            ? `Formatting copied (${formatPaintStyleSummary(fromCaret)}). Click text to apply.`
             : `Format copied (${formatPaintStyleSummary(fromCaret)}). Click one text field to apply.`,
         )
         return
@@ -10786,7 +7138,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         onFormatPaintStart?.(fromSpan, sticky)
         toast.success(
           sticky
-            ? `Format copied (${formatPaintStyleSummary(fromSpan)}). Click text fields to apply — Esc to stop.`
+            ? `Formatting copied (${formatPaintStyleSummary(fromSpan)}). Click text to apply.`
             : `Format copied (${formatPaintStyleSummary(fromSpan)}). Click one text field to apply.`,
         )
         return
@@ -10812,7 +7164,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     onFormatPaintStart?.(style, sticky)
     toast.success(
       sticky
-        ? `Format copied (${formatPaintStyleSummary(style)}). Click text fields to apply — Esc to stop.`
+        ? `Formatting copied (${formatPaintStyleSummary(style)}). Click text to apply.`
         : `Format copied (${formatPaintStyleSummary(style)}). Click one text field to apply.`,
     )
   }
@@ -10971,7 +7323,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             type="button"
             title={
               formatPaintActive
-                ? 'Format painter active — click text to apply (Esc to cancel)'
+                ? 'Copy formatting active — click text to apply'
                 : 'Format painter — copy this text style. Click once: apply once. Double-click: apply to multiple fields.'
             }
             onMouseDown={e => {
@@ -11137,6 +7489,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             backgroundColor={(p as any).bg_color_override || '#ffffff'}
             onTextColorChange={c => updateTextStyle({ text_color_override: c })}
             onBackgroundColorChange={c => onUpdate({ bg_color_override: c } as any)}
+            showBackgroundPicker={false}
             trailing={
               <>
                 <button
@@ -11295,10 +7648,15 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       ) : canvasImageField ? (
         <div className="flex shrink-0 flex-col self-center rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
           <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
-            Section image
+            {canvasImageSlots && canvasImageSlots.length > 1
+              ? `${canvasImageSlots.length} card images`
+              : canvasImageSlots?.length
+                ? 'Card image'
+                : 'Section image'}
           </div>
           <SectionImageControls
             imageField={canvasImageField}
+            arraySlots={canvasImageSlots}
             blockProps={p as Record<string, unknown>}
             blockType={String(block.block_type)}
             onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
@@ -11442,10 +7800,15 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       {designBarTab === 'visual' && canvasImageField && !selectedOverlay ? (
         <div className="flex shrink-0 flex-col self-center rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
           <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
-            Section image
+            {canvasImageSlots && canvasImageSlots.length > 1
+              ? `${canvasImageSlots.length} card images`
+              : canvasImageSlots?.length
+                ? 'Card image'
+                : 'Section image'}
           </div>
           <SectionImageControls
             imageField={canvasImageField}
+            arraySlots={canvasImageSlots}
             blockProps={p as Record<string, unknown>}
             blockType={String(block.block_type)}
             onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
@@ -11544,6 +7907,14 @@ export default function WebsiteBuilder() {
       return next
     })
   }, [])
+  const unpinSectionToolbar = useCallback((blockId: string) => {
+    setPinnedSectionToolbars(prev => {
+      if (!prev.has(blockId)) return prev
+      const next = new Set(prev)
+      next.delete(blockId)
+      return next
+    })
+  }, [])
   const togglePinSectionToolbar = useCallback((blockId: string) => {
     setPinnedSectionToolbars(prev => {
       const next = new Set(prev)
@@ -11591,6 +7962,16 @@ export default function WebsiteBuilder() {
   const [applyPickerStep, setApplyPickerStep] = useState<'root' | 'units'>('root')
   const [appliedStoreIds, setAppliedStoreIds] = useState<string[]>([])
   const applyPopoverRef = useRef<HTMLDivElement>(null)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [changeHistoryOpen, setChangeHistoryOpen] = useState(false)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
+  // Bottom page bar: Excel-style windowing + overflow menu
+  const [pageWindowStart, setPageWindowStart] = useState(0)
+  const [pageMenuOpen, setPageMenuOpen] = useState(false)
+  const pageOverflowRef = useRef<HTMLDivElement>(null)
+  const pageTabsViewportRef = useRef<HTMLDivElement>(null)
+  /** How many tabs (from pageWindowStart) actually fit on screen — measured. */
+  const [visibleTabCount, setVisibleTabCount] = useState(99)
   const [clearingTemplateSandbox, setClearingTemplateSandbox] = useState(false)
   const [resettingCanvasFromServer, setResettingCanvasFromServer] = useState(false)
   const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'data' | 'seo'>('props')
@@ -11598,12 +7979,23 @@ export default function WebsiteBuilder() {
   const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
   const [sectionSearch, setSectionSearch] = useState('')
   const [sectionCategory, setSectionCategory] = useState('all')
+  const [builderWelcomeDismissed, setBuilderWelcomeDismissed] = useState(() => readBuilderWelcomeDismissed())
+  const [builderSpacingTipDismissed, setBuilderSpacingTipDismissed] = useState(() => readBuilderSpacingTipDismissed())
+
+  const restoreBuilderCoachMarks = useCallback(() => {
+    setBuilderWelcomeDismissed(false)
+    setBuilderSpacingTipDismissed(false)
+    setLeftPanel('blocks')
+    setLeftCollapsed(false)
+  }, [])
   const [sectionLayoutPicker, setSectionLayoutPicker] = useState<{
     def: BlockDef
     insertAtIdx: number
     targetBlockId?: string
     /** When set, the new section replaces this block at the same position (not append). */
     replaceBlockId?: string
+    /** When true, always insert a new section — never apply layout to an existing block of the same type. */
+    insertOnly?: boolean
   } | null>(null)
   const [expandedSectionPages, setExpandedSectionPages] = useState<Set<string>>(() => new Set())
   const [sidebarDraggedPageId, setSidebarDraggedPageId] = useState<string | null>(null)
@@ -11619,6 +8011,7 @@ export default function WebsiteBuilder() {
   const isSavingRef = useRef(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('synced')
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
   const [saveFlash, setSaveFlash] = useState(false)       // brief green flash on success
   const [styleDirty, setStyleDirty] = useState(false)     // unsaved style changes
   const [blocksDirty, setBlocksDirty] = useState(false)   // unsaved block props / reorder
@@ -11631,26 +8024,17 @@ export default function WebsiteBuilder() {
   const [trashLoading, setTrashLoading] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [storePopover, setStorePopover] = useState(false)
-  // ── Block delete confirmation ("arm then confirm") ─────────────────────────
-  // First click sets armedDeleteId; a second click within 2s confirms deletion.
-  const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null)
-  const armedDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // ── Block-level saving indicator ───────────────────────────────────────────
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
   /** Selected in-canvas image overlay (for AI / Media apply). */
   const [overlayImageTarget, setOverlayImageTarget] = useState<{ blockId: string; overlayId: string } | null>(null)
   const overlayImageTargetRef = useRef<{ blockId: string; overlayId: string } | null>(null)
+  const skipCanvasImageClearRef = useRef(false)
   const selectedBlockIdRef = useRef<string | null>(null)
   useEffect(() => { overlayImageTargetRef.current = overlayImageTarget }, [overlayImageTarget])
   useEffect(() => { selectedBlockIdRef.current = selectedBlockId }, [selectedBlockId])
-  /** Selected canvas image slot (for Media panel apply). */
-  const [canvasImageTarget, setCanvasImageTarget] = useState<{
-    blockId: string
-    propField?: string
-    arrayKey?: string
-    index?: number
-    itemField?: string
-  } | null>(null)
+  /** Selected canvas image slot(s) — Shift/Ctrl+click for multi (Media + design bar). */
+  const [canvasImageTarget, setCanvasImageTarget] = useState<ActiveCanvasImageTarget | null>(null)
   const overlayImageUploadRef = useRef<HTMLInputElement>(null)
 
   // ── Link editor (opened from CTA buttons / overlay buttons) ────────────────
@@ -11680,12 +8064,14 @@ export default function WebsiteBuilder() {
         multiline?: boolean
         maxLength?: number
         confirmLabel?: string
+        secondaryLabel?: string
         helpText?: string
         minLength?: number
         confirmOnly?: boolean
         destructive?: boolean
         anchor?: { x: number; y: number } | null
         onSave: (v: string) => void | Promise<void>
+        onSecondary?: () => void | Promise<void>
       }
   >(null)
 
@@ -11697,27 +8083,49 @@ export default function WebsiteBuilder() {
     multiline?: boolean
     maxLength?: number
     confirmLabel?: string
+    secondaryLabel?: string
     helpText?: string
     minLength?: number
     confirmOnly?: boolean
     destructive?: boolean
     anchor?: { x: number; y: number } | null
     onSave: (v: string) => void | Promise<void>
+    onSecondary?: () => void | Promise<void>
   }) => setTextPrompt(opts), [])
 
   // ── UNDO / REDO ────────────────────────────────────────────────────────────
   const historyStack = useRef<Record<string, WebsiteBlock[]>[]>([])
   const historyIndex = useRef(-1)
+  /** Timestamp for each history snapshot (parallel to historyStack). */
+  const historyMeta = useRef<number[]>([])
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+  /** Bumped whenever history changes so the Change history panel re-renders. */
+  const [historyVersion, setHistoryVersion] = useState(0)
 
   const pushHistory = useCallback((blocks: Record<string, WebsiteBlock[]>) => {
     // Trim forward history
     historyStack.current = historyStack.current.slice(0, historyIndex.current + 1)
+    historyMeta.current = historyMeta.current.slice(0, historyIndex.current + 1)
     historyStack.current.push(JSON.parse(JSON.stringify(blocks)))
+    historyMeta.current.push(Date.now())
     historyIndex.current = historyStack.current.length - 1
     setCanUndo(historyIndex.current > 0)
     setCanRedo(false)
+    setHistoryVersion(v => v + 1)
+  }, [])
+
+  /** Jump the canvas to a specific history snapshot (used by Change history). */
+  const restoreHistoryTo = useCallback((index: number) => {
+    if (index < 0 || index >= historyStack.current.length) return
+    const snapshot = historyStack.current[index]
+    if (!snapshot) return
+    historyIndex.current = index
+    setLocalBlocks(JSON.parse(JSON.stringify(snapshot)))
+    setBlocksDirty(true)
+    setCanUndo(historyIndex.current > 0)
+    setCanRedo(historyIndex.current < historyStack.current.length - 1)
+    setHistoryVersion(v => v + 1)
   }, [])
 
   const localBlocksRef = useRef<Record<string, WebsiteBlock[]>>({})
@@ -11745,6 +8153,7 @@ export default function WebsiteBuilder() {
       setBlocksDirty(true)
       setCanUndo(historyIndex.current > 0)
       setCanRedo(true)
+      setHistoryVersion(v => v + 1)
     }
   }, [])
 
@@ -11757,6 +8166,7 @@ export default function WebsiteBuilder() {
       setBlocksDirty(true)
       setCanUndo(true)
       setCanRedo(historyIndex.current < historyStack.current.length - 1)
+      setHistoryVersion(v => v + 1)
     }
   }, [])
   const [localStyle, setLocalStyle] = useState<StyleConfig>(DEFAULT_STYLE)
@@ -11883,6 +8293,27 @@ export default function WebsiteBuilder() {
     return () => document.removeEventListener('mousedown', onDocMouseDown)
   }, [applyPopoverOpen])
 
+  useEffect(() => {
+    if (!moreMenuOpen) return
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (moreMenuRef.current?.contains(e.target as Node)) return
+      setMoreMenuOpen(false)
+      setChangeHistoryOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [moreMenuOpen])
+
+  useEffect(() => {
+    if (!pageMenuOpen) return
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (pageOverflowRef.current?.contains(e.target as Node)) return
+      setPageMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [pageMenuOpen])
+
   // Track pages locally too (for adds/deletes without refresh)
   const [localPages, setLocalPages] = useState<WebsitePage[]>([])
   const localPagesRef = useRef<WebsitePage[]>([])
@@ -11901,9 +8332,11 @@ export default function WebsiteBuilder() {
     setActiveTextTarget(null)
     setBlocksDirty(false)
     historyStack.current = []
+    historyMeta.current = []
     historyIndex.current = -1
     setCanUndo(false)
     setCanRedo(false)
+    setHistoryVersion(v => v + 1)
     setLocalStyle({ ...DEFAULT_STYLE })
   }, [siteId])
 
@@ -11936,7 +8369,9 @@ export default function WebsiteBuilder() {
     blocksDirtyRef.current = false
     styleDirtyRef.current = false
     historyStack.current = [JSON.parse(JSON.stringify(syncNavLinksInBlockMap(normalized, nextSite.pages)))]
+    historyMeta.current = [Date.now()]
     historyIndex.current = 0
+    setHistoryVersion(v => v + 1)
     setCanUndo(false)
     setCanRedo(false)
   }, [])
@@ -12136,9 +8571,11 @@ export default function WebsiteBuilder() {
             ),
           )),
         ]
+        historyMeta.current = [Date.now()]
         historyIndex.current = 0
         setCanUndo(false)
         setCanRedo(false)
+        setHistoryVersion(v => v + 1)
       }
       const ids = new Set(site.pages.map(p => p.id))
       setActivePageId(cur => {
@@ -12216,6 +8653,7 @@ export default function WebsiteBuilder() {
     handleUndo,
     handleRedo,
     handleDeleteBlock: (_id: string) => {},
+    confirmDeleteBlock: (_id: string, _opts?: { pageId?: string }) => {},
     handleDuplicateBlock: (_id: string) => {},
     handleMoveBlock: (_id: string, _dir: 'up' | 'down' | 'top' | 'bottom') => {},
   })
@@ -12226,7 +8664,7 @@ export default function WebsiteBuilder() {
       const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target as HTMLElement)?.isContentEditable
       if (isInput) return
 
-      const { handleDeleteBlock: del, handleDuplicateBlock: dup, handleMoveBlock: move } = kbHandlersRef.current
+      const { handleDuplicateBlock: dup, handleMoveBlock: move } = kbHandlersRef.current
       const ctrl = e.ctrlKey || e.metaKey
       if (ctrl && e.key === 'z') { e.preventDefault(); handleUndo(); return }
       if (ctrl && (e.key === 'y' || e.key === 'Z')) { e.preventDefault(); handleRedo(); return }
@@ -12242,8 +8680,7 @@ export default function WebsiteBuilder() {
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockId) {
         e.preventDefault()
-        // Del key arms the confirmation; pressing again within 2.5s confirms.
-        del(selectedBlockId)
+        kbHandlersRef.current.confirmDeleteBlock(selectedBlockId)
         return
       }
       const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
@@ -12290,8 +8727,50 @@ export default function WebsiteBuilder() {
 
   const builderVendorSlug = myVendor?.slug?.trim() || site?.subdomain?.trim() || ''
 
+  const openCatalogPreviewFromBuilder = useCallback(async (url: string) => {
+    if (!siteId || !site) return
+    let previewToken = recallDraftPreviewToken()
+    if (!previewToken) {
+      clearPendingPreviewTabNavigate()
+      clearPendingPreviewTabError()
+      prepareDraftPreviewTab()
+      try {
+        const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle)
+        const { preview_token } = await websiteApi.createBuilderPreview(siteId, {
+          payload,
+          label: 'Preview',
+        })
+        rememberDraftPreviewSession(siteId, preview_token)
+        previewToken = preview_token
+      } catch (err) {
+        toast.error(extractApiError(err, 'Could not open preview'))
+        broadcastPreviewTabError(extractApiError(err, 'Preview failed'))
+        return
+      }
+    }
+    const pageSlug = activePage?.slug
+    const catalogPreviewUrl = buildDraftPreviewCatalogUrl(previewToken, url, pageSlug)
+    if (!catalogPreviewUrl) return
+    const delivered = navigateDraftPreviewTab(catalogPreviewUrl)
+    if (delivered) {
+      toast.success('Product / service detail opened in preview')
+    } else {
+      window.open(catalogPreviewUrl, '_blank', 'noopener,noreferrer')
+      toast.success('Preview opened in a new tab')
+    }
+  }, [siteId, site, localPages, localBlocks, localStyle, activePage?.slug])
+
   const handleNavigateBuilderPage = useCallback((url: string) => {
-    const cleanUrl = (url || '/').split('?')[0].split('#')[0]
+    const raw = (url || '/').trim()
+    const pathOnly = raw.split('?')[0].split('#')[0]
+    const normalized = pathOnly.startsWith('/') ? raw : `/${raw}`
+
+    if (parseStorefrontEmbedRoute(normalized) || parseCatalogStorePath(pathOnly)) {
+      void openCatalogPreviewFromBuilder(normalized)
+      return
+    }
+
+    const cleanUrl = pathOnly
     const slug = cleanUrl === '/' ? '' : cleanUrl.replace(/^\/+|\/+$/g, '')
     const target = localPages.find(p => (
       (p.is_homepage && (cleanUrl === '/' || slug === 'home')) ||
@@ -12301,9 +8780,9 @@ export default function WebsiteBuilder() {
       setActivePageId(target.id)
       setSelectedBlockId(null)
     } else {
-      toast.info(`No builder page found for "${url}". Add it from the Pages panel or update the nav link.`)
+      toast.info(`No builder page found for "${pathOnly}". Add it from the Pages panel or update the nav link.`)
     }
-  }, [localPages])
+  }, [localPages, openCatalogPreviewFromBuilder])
 
   const handleCanvasTextFieldActivate = useCallback((
     blockId: string,
@@ -12324,7 +8803,7 @@ export default function WebsiteBuilder() {
     const fieldKey = resolveCanvasFieldKeyFromTarget(e.target)
     const isFieldClick = isCanvasFieldClickTarget(e.target)
 
-    if (target.closest('[data-overlay-root],[data-overlay-toolbar],[data-builder-section-image]')) return
+    if (target.closest('[data-overlay-root],[data-overlay-toolbar],[data-builder-section-image],[data-builder-section-toolbar],[data-section-padding-handle],[data-section-min-height-handle]')) return
     if (target.closest('[contenteditable="true"], [data-builder-inline-edit-target="true"]')) return
 
     const blockRoot = target.closest('[data-block-id]') as HTMLElement | null
@@ -12342,8 +8821,6 @@ export default function WebsiteBuilder() {
     }
 
     if (isFieldClick) return
-
-    if (target.closest('.pointer-events-auto')) return
 
     if ((e.target as HTMLElement).closest('a, button, input, textarea, select, label, [role="button"]')) return
 
@@ -12424,6 +8901,35 @@ export default function WebsiteBuilder() {
     [localPages],
   )
 
+  // Keep the bottom page-bar window valid as pages are added/removed.
+  useEffect(() => {
+    setPageWindowStart(prev => Math.min(prev, Math.max(0, sortedSitePages.length - 1)))
+  }, [sortedSitePages.length])
+
+  // Measure how many page tabs fit so the "…" menu only lists what's off-screen.
+  useLayoutEffect(() => {
+    const el = pageTabsViewportRef.current
+    if (!el) return
+    const measure = () => {
+      const tabs = Array.from(el.children) as HTMLElement[]
+      if (tabs.length === 0) {
+        setVisibleTabCount(0)
+        return
+      }
+      const right = el.getBoundingClientRect().right
+      let count = 0
+      for (const tab of tabs) {
+        if (tab.getBoundingClientRect().right <= right + 1) count += 1
+        else break
+      }
+      setVisibleTabCount(Math.max(1, count))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [sortedSitePages, pageWindowStart, leftWidth, rightWidth, leftCollapsed, rightCollapsed])
+
   const pageSectionGroups = useMemo(() => (
     sortedSitePages.map(page => {
       const blocks = (localBlocks[page.id] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
@@ -12494,6 +9000,21 @@ export default function WebsiteBuilder() {
     return !!overlays.find(o => o.id === overlayImageTarget.overlayId && o.type === 'image')
   }, [selectedBlock, overlayImageTarget])
 
+  const mediaApplyTargetDescription = useMemo(() => {
+    if (!selectedBlockId || !selectedBlock) return null
+    if (applyToImageLayer) return 'image layer on canvas'
+    if (canvasImageTarget?.blockId === selectedBlockId) {
+      const slots = canvasImageTarget.slots
+      if (slots.length > 1) return `${slots.length} selected photos`
+      const slot = slots[0]
+      if (slot?.arrayKey != null && slot.index != null) {
+        return `photo slot ${slot.index + 1}`
+      }
+      return 'section photo'
+    }
+    return selectedBlock.label || selectedBlock.block_type.replace(/_/g, ' ')
+  }, [selectedBlockId, selectedBlock, applyToImageLayer, canvasImageTarget])
+
   const onOverlayLayerPicked = useCallback((overlayId: string | null, blockId?: string | null) => {
     const bid = blockId ?? selectedBlockId
     if (!bid) {
@@ -12511,14 +9032,23 @@ export default function WebsiteBuilder() {
     }
   }, [selectedBlockId])
 
-  const handleSectionImageActivate = useCallback((blockId: string, field: string) => {
+  const handleSectionImageActivate = useCallback((
+    blockId: string,
+    field: string,
+    opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
+  ) => {
+    skipCanvasImageClearRef.current = true
     if (blockId !== selectedBlockId) setSelectedBlockId(blockId)
     setOverlayImageTarget(null)
     setActiveTextTarget(null)
-    setCanvasImageTarget({ blockId, propField: field })
+    setCanvasImageTarget(prev => toggleCanvasImageSlot(prev, blockId, field, opts))
   }, [selectedBlockId])
 
   useEffect(() => {
+    if (skipCanvasImageClearRef.current) {
+      skipCanvasImageClearRef.current = false
+      return
+    }
     setCanvasImageTarget(null)
   }, [selectedBlockId])
 
@@ -12937,12 +9467,26 @@ export default function WebsiteBuilder() {
     }
   }, [activePageId, siteId, site, pushHistory, layoutThemeFallback, scrollCanvasToBlock, applyLayoutToBlock, commitLocalBlocks, queryClient])
 
-  const openSectionLayoutPicker = useCallback((def: BlockDef, insertAtIdx = -1, targetBlockId?: string) => {
+  const openSectionLayoutPicker = useCallback((
+    def: BlockDef,
+    insertAtIdx = -1,
+    targetBlockId?: string,
+    options?: { insertOnly?: boolean; replaceBlockId?: string },
+  ) => {
+    const explicitReplaceId = options?.replaceBlockId
+    const insertOnly = options?.insertOnly === true || (insertAtIdx >= 0 && !explicitReplaceId)
     let resolvedTargetId = targetBlockId
     let resolvedInsertIdx = insertAtIdx
-    let replaceBlockId: string | undefined
+    let replaceBlockId: string | undefined = explicitReplaceId
 
-    if (activePageId && selectedBlockId) {
+    if (explicitReplaceId && activePageId) {
+      const pageBlocks = (localBlocksRef.current[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+      const replaceIdx = pageBlocks.findIndex(b => b.id === explicitReplaceId)
+      if (replaceIdx >= 0) resolvedInsertIdx = replaceIdx
+      resolvedTargetId = undefined
+    }
+
+    if (activePageId && selectedBlockId && !insertOnly && !explicitReplaceId) {
       const pageBlocks = (localBlocksRef.current[activePageId] || []).slice().sort((a, b) => a.sort_order - b.sort_order)
       const selectedIdx = pageBlocks.findIndex(b => b.id === selectedBlockId)
       const selected = selectedIdx >= 0 ? pageBlocks[selectedIdx] : undefined
@@ -12963,7 +9507,7 @@ export default function WebsiteBuilder() {
       }
     }
 
-    if (!resolvedTargetId && GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)) {
+    if (!resolvedTargetId && !insertOnly && GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)) {
       resolvedTargetId = findStructureBlockInMap(localBlocksRef.current, localPagesRef.current, def.type)?.block.id
     }
     setSectionLayoutPicker({
@@ -12971,6 +9515,7 @@ export default function WebsiteBuilder() {
       insertAtIdx: resolvedInsertIdx,
       targetBlockId: resolvedTargetId,
       replaceBlockId,
+      insertOnly,
     })
   }, [activePageId, selectedBlockId])
 
@@ -13014,8 +9559,7 @@ export default function WebsiteBuilder() {
     if (!option) return
     const categoryId = (block.props as Record<string, unknown>)?._image_category_id as string | undefined
       || suggestImageCategoryForBlock(def.category, site)
-    const applied = await applyLayoutToBlock(block.id, def, option.props as Partial<BlockProps>, categoryId)
-    if (applied) toast.success(`Layout: ${option.label}`)
+    await applyLayoutToBlock(block.id, def, option.props as Partial<BlockProps>, categoryId)
   }, [applyLayoutToBlock, site])
 
   const handleSelectSectionLayout = useCallback(async (
@@ -13024,8 +9568,13 @@ export default function WebsiteBuilder() {
     dataSourceChoice: LayoutPickerDataSourceChoice,
   ) => {
     if (!sectionLayoutPicker) return
-    const { def, insertAtIdx, targetBlockId, replaceBlockId } = sectionLayoutPicker
+    const { def, insertAtIdx, targetBlockId, replaceBlockId, insertOnly } = sectionLayoutPicker
     setSectionLayoutPicker(null)
+
+    if (replaceBlockId) {
+      await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId, dataSourceChoice)
+      return
+    }
 
     if (Object.keys(propsOverride).length === 0) {
       await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId, dataSourceChoice)
@@ -13038,24 +9587,26 @@ export default function WebsiteBuilder() {
       ? findStructureBlockInMap(localBlocksRef.current, pages, def.type, targetBlockId)
       : undefined
 
-    let applyTargetId = targetBlockId
-    if (!applyTargetId && activePageId && selectedBlockId) {
-      const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
-      if (selected?.block_type === def.type) applyTargetId = selectedBlockId
-    }
-    if (!applyTargetId && structureHit) applyTargetId = structureHit.block.id
+    if (!insertOnly) {
+      let applyTargetId = targetBlockId
+      if (!applyTargetId && activePageId && selectedBlockId) {
+        const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
+        if (selected?.block_type === def.type) applyTargetId = selectedBlockId
+      }
+      if (!applyTargetId && structureHit) applyTargetId = structureHit.block.id
 
-    if (applyTargetId) {
-      const applied = await applyLayoutToBlock(applyTargetId, def, propsOverride, imageCategoryId, dataSourceChoice)
-      if (applied) return
-    }
-
-    // Re-use the selected block on this page when changing layout (avoid duplicate "added" blocks).
-    if (!applyTargetId && activePageId && selectedBlockId) {
-      const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
-      if (selected?.block_type === def.type) {
-        const applied = await applyLayoutToBlock(selected.id, def, propsOverride, imageCategoryId, dataSourceChoice)
+      if (applyTargetId) {
+        const applied = await applyLayoutToBlock(applyTargetId, def, propsOverride, imageCategoryId, dataSourceChoice)
         if (applied) return
+      }
+
+      // Re-use the selected block on this page when changing layout (avoid duplicate "added" blocks).
+      if (!applyTargetId && activePageId && selectedBlockId) {
+        const selected = (localBlocksRef.current[activePageId] || []).find(b => b.id === selectedBlockId)
+        if (selected?.block_type === def.type) {
+          const applied = await applyLayoutToBlock(selected.id, def, propsOverride, imageCategoryId, dataSourceChoice)
+          if (applied) return
+        }
       }
     }
 
@@ -13300,7 +9851,7 @@ export default function WebsiteBuilder() {
 
   builderEscapeUiRef.current = {
     formatPaintActive: Boolean(formatPaintBrush),
-    armedDeleteActive: Boolean(armedDeleteId),
+    armedDeleteActive: false,
     overlayImageActive: Boolean(overlayImageTarget),
     canvasImageActive: Boolean(canvasImageTarget),
     applyPopoverOpen,
@@ -13311,7 +9862,7 @@ export default function WebsiteBuilder() {
 
   builderEscapeActionsRef.current = {
     clearFormatPaint: () => setFormatPaintBrush(null),
-    clearArmedDelete: () => setArmedDeleteId(null),
+    clearArmedDelete: () => {},
     clearOverlayImage: () => setOverlayImageTarget(null),
     clearCanvasImage: () => setCanvasImageTarget(null),
     closeApplyPopover: () => {
@@ -13431,25 +9982,28 @@ export default function WebsiteBuilder() {
 
     // 2) Canvas image target (clicked image on preview)
     if (canvasImageTarget && canvasImageTarget.blockId === blockId) {
-      if (canvasImageTarget.propField) {
-        handleUpdateBlockProps(blockId, { [canvasImageTarget.propField]: url } as Partial<BlockProps>)
-        toast.success('Image updated')
+      const arraySlots = canvasImageArraySlots(canvasImageTarget, blockId)
+      if (arraySlots.length > 0) {
+        const { arrayKey, itemField } = arraySlots[0]
+        const arr = [...(((block.props as Record<string, unknown>)[arrayKey] as unknown[]) || [])]
+        for (const slot of arraySlots) {
+          while (arr.length <= slot.index) arr.push({ [itemField]: null })
+          arr[slot.index] = {
+            ...(arr[slot.index] as Record<string, unknown>),
+            [itemField]: url,
+          }
+        }
+        handleUpdateBlockProps(blockId, { [arrayKey]: arr } as Partial<BlockProps>)
+        toast.success(
+          arraySlots.length > 1
+            ? `Image applied to ${arraySlots.length} photos`
+            : 'Image updated',
+        )
         return
       }
-      if (
-        canvasImageTarget.arrayKey != null
-        && canvasImageTarget.itemField
-        && canvasImageTarget.index != null
-      ) {
-        const arr = [...(((block.props as Record<string, unknown>)[canvasImageTarget.arrayKey] as unknown[]) || [])]
-        while (arr.length <= canvasImageTarget.index) {
-          arr.push({ [canvasImageTarget.itemField]: null })
-        }
-        const updated = arr.map((item, idx) =>
-          idx === canvasImageTarget.index
-            ? { ...item as Record<string, unknown>, [canvasImageTarget.itemField!]: url }
-            : item)
-        handleUpdateBlockProps(blockId, { [canvasImageTarget.arrayKey]: updated } as Partial<BlockProps>)
+      const propSlot = canvasImageTarget.slots.find(s => s.propField)
+      if (propSlot?.propField) {
+        handleUpdateBlockProps(blockId, { [propSlot.propField]: url } as Partial<BlockProps>)
         toast.success('Image updated')
         return
       }
@@ -13458,29 +10012,33 @@ export default function WebsiteBuilder() {
     // 3) Array-item blocks (testimonials, team, features, gallery, etc.)
     const arrayCfg = BLOCK_ARRAY_IMAGE[block.block_type]
     if (arrayCfg) {
-      const targetIdx = (
+      const selectedSlots = (
         canvasImageTarget
         && canvasImageTarget.blockId === blockId
-        && canvasImageTarget.arrayKey === arrayCfg.arrayKey
-        && canvasImageTarget.index != null
       )
-        ? canvasImageTarget.index
-        : 0
+        ? canvasImageArraySlots(canvasImageTarget, blockId).filter(s => s.arrayKey === arrayCfg.arrayKey)
+        : []
+      const targetIndices = new Set(
+        selectedSlots.length > 0 ? selectedSlots.map(s => s.index) : [0],
+      )
+      const maxTargetIdx = Math.max(...targetIndices, 0)
       let arr: Record<string, unknown>[] = ((block.props as Record<string, unknown>)[arrayCfg.arrayKey] as Record<string, unknown>[] | undefined) || []
       if (arr.length > 0) {
-        while (arr.length <= targetIdx) {
+        while (arr.length <= maxTargetIdx) {
           const filler: Record<string, any> = { [arrayCfg.itemField]: null }
           if (arrayCfg.defaultTitle) filler.title = arrayCfg.defaultTitle
           if (arrayCfg.itemField === 'avatar_url') filler.name = arrayCfg.defaultTitle || 'Person'
           arr.push(filler)
         }
         const updated = arr.map((item, idx) =>
-          idx === targetIdx ? { ...item, [arrayCfg.itemField]: url } : item)
+          targetIndices.has(idx) ? { ...item, [arrayCfg.itemField]: url } : item)
         handleUpdateBlockProps(blockId, { [arrayCfg.arrayKey]: updated } as Partial<BlockProps>)
         toast.success(
-          targetIdx > 0 || canvasImageTarget
-            ? `Image applied to slot ${targetIdx + 1}`
-            : `Image applied to first item. Click an image on the canvas to target another slot.`,
+          targetIndices.size > 1
+            ? `Image applied to ${targetIndices.size} slots`
+            : targetIndices.has(0) && targetIndices.size === 1 && !canvasImageTarget
+              ? `Image applied to first item. Click an image on the canvas to target another slot.`
+              : `Image applied to slot ${maxTargetIdx + 1}`,
         )
       } else {
         // No items yet — create one with the image
@@ -13605,12 +10163,13 @@ export default function WebsiteBuilder() {
     if (file) await uploadImageFileToSelection(file)
   }, [uploadImageFileToSelection])
 
-  // Delete block — optimistic. Canvas uses arm-then-confirm; sidebar/context use force.
+  // Delete block — optimistic; callers show a confirmation dialog before invoking with force.
   const handleDeleteBlock = useCallback(async (
     blockId: string,
     options?: { pageId?: string; force?: boolean },
   ) => {
-    const force = options?.force === true
+    if (options?.force !== true) return
+
     const pages = localPagesRef.current
     const prev = localBlocksRef.current
 
@@ -13630,16 +10189,6 @@ export default function WebsiteBuilder() {
     const target = pageBlocks.find(b => b.id === blockId)
       ?? pages.flatMap(p => prev[p.id] || []).find(b => b.id === blockId)
     if (!target) return
-
-    if (!force && armedDeleteId !== blockId) {
-      if (armedDeleteTimer.current) clearTimeout(armedDeleteTimer.current)
-      setArmedDeleteId(blockId)
-      armedDeleteTimer.current = setTimeout(() => setArmedDeleteId(null), 2500)
-      return
-    }
-
-    if (armedDeleteTimer.current) clearTimeout(armedDeleteTimer.current)
-    setArmedDeleteId(null)
 
     const wasDirtyBeforeDelete = blocksDirtyRef.current
     const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(target.block_type)
@@ -13693,7 +10242,43 @@ export default function WebsiteBuilder() {
       blocksDirtyRef.current = true
       toast.error('Delete failed — try again')
     }
-  }, [activePageId, siteId, site, selectedBlockId, armedDeleteId, commitLocalBlocks, pushHistory, queryClient])
+  }, [activePageId, siteId, site, selectedBlockId, commitLocalBlocks, pushHistory, queryClient])
+
+  const confirmDeleteBlock = useCallback((
+    blockId: string,
+    options?: { pageId?: string },
+  ) => {
+    const pages = localPagesRef.current
+    const prev = localBlocksRef.current
+    let pageId = options?.pageId ?? activePageId ?? undefined
+    if (!pageId) {
+      for (const page of pages) {
+        if ((prev[page.id] || []).some(b => b.id === blockId)) {
+          pageId = page.id
+          break
+        }
+      }
+    }
+    const target = pageId
+      ? (prev[pageId] || []).find(b => b.id === blockId)
+      : pages.flatMap(p => prev[p.id] || []).find(b => b.id === blockId)
+    if (!target) return
+
+    const label = catalogBlockLabel(target)
+    const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(target.block_type)
+    openTextPrompt({
+      title: `Delete ${label}?`,
+      subtitle: isStructure
+        ? 'This site-wide section (nav, footer, or announcement bar) will be removed from every page. You can undo with Ctrl+Z.'
+        : 'This section will be removed from the page. You can undo with Ctrl+Z.',
+      confirmLabel: 'Delete',
+      confirmOnly: true,
+      destructive: true,
+      onSave: async () => {
+        await handleDeleteBlock(blockId, { pageId, force: true })
+      },
+    })
+  }, [activePageId, openTextPrompt, handleDeleteBlock])
 
   // Duplicate block — optimistic
   const handleDuplicateBlock = useCallback(async (blockId: string) => {
@@ -13930,7 +10515,7 @@ export default function WebsiteBuilder() {
       },
       ...(getSectionLayoutOptions(block.block_type).length > 0 ? [{
         id: 'layout',
-        label: 'Change layout',
+        label: 'Change section style',
         icon: Layout,
         onSelect: () => openLayoutPickerForBlock(block),
       }] : []),
@@ -13963,14 +10548,14 @@ export default function WebsiteBuilder() {
       { id: 'div2', label: '', divider: true },
       {
         id: 'up',
-        label: 'Move up',
+        label: 'Move section up on page',
         icon: ChevronUp,
         shortcut: '↑',
         onSelect: () => handleMoveBlock(block.id, 'up'),
       },
       {
         id: 'down',
-        label: 'Move down',
+        label: 'Move section down on page',
         icon: ChevronDown,
         shortcut: '↓',
         onSelect: () => handleMoveBlock(block.id, 'down'),
@@ -13984,7 +10569,7 @@ export default function WebsiteBuilder() {
       },
       {
         id: 'toggle',
-        label: block.visible === false ? 'Show block' : 'Hide block',
+        label: block.visible === false ? 'Show section' : 'Hide section',
         icon: block.visible === false ? Eye : EyeOff,
         onSelect: () => handleUpdateBlockProps(block.id, { visible: !(block.visible !== false) } as any),
       },
@@ -13995,11 +10580,11 @@ export default function WebsiteBuilder() {
         icon: Trash2,
         shortcut: 'Del',
         danger: true,
-        onSelect: () => handleDeleteBlock(block.id, { force: true }),
+        onSelect: () => confirmDeleteBlock(block.id),
       },
     ]
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
-  }, [handleUpdateBlockProps, handleDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock])
+  }, [handleUpdateBlockProps, confirmDeleteBlock, handleDuplicateBlock, openInlineTextEditForBlock, openLayoutPickerForBlock])
 
   const handleCanvasBlockContextMenuCapture = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -14516,17 +11101,52 @@ export default function WebsiteBuilder() {
   }, [activePageId, activeBlocks, selectedBlockId, openSectionLayoutPicker])
 
   // "Add Section" panel: always INSERT a new section (after the selected block,
-  // or at the end) — never replace the current selection. Passing an explicit
-  // insert index (>= 0) bypasses the replace path in openSectionLayoutPicker.
+  // or at the end). Confirm when the page already has that section type.
   const handleAddSectionFromPanel = useCallback((def: BlockDef) => {
     if (!activePageId) return
     const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
     const insertIdx = currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
-    openSectionLayoutPicker(def, insertIdx)
-  }, [activePageId, activeBlocks, selectedBlockId, openSectionLayoutPicker])
+
+    const proceed = () => {
+      openSectionLayoutPicker(def, insertIdx, undefined, { insertOnly: true })
+    }
+
+    const replace = () => {
+      const replaceId = (selectedSameType && selectedBlockId)
+        ? selectedBlockId
+        : activeBlocks.find(b => b.block_type === def.type)?.id
+      if (!replaceId) return
+      const replaceIdx = activeBlocks.findIndex(b => b.id === replaceId)
+      openSectionLayoutPicker(def, replaceIdx >= 0 ? replaceIdx : 0, undefined, { replaceBlockId: replaceId })
+    }
+
+    const isStructure = GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
+    const existingCount = activeBlocks.filter(b => b.block_type === def.type).length
+    const selectedSameType = selectedBlockId
+      ? activeBlocks.find(b => b.id === selectedBlockId)?.block_type === def.type
+      : false
+
+    if (!isStructure && (existingCount > 0 || selectedSameType)) {
+      openTextPrompt({
+        title: `Add another ${def.label}?`,
+        subtitle: existingCount > 0
+          ? `This page already has ${existingCount} ${def.label} section${existingCount > 1 ? 's' : ''}. Add another below, or replace one with a new layout.`
+          : `You already have a ${def.label} section selected. Add another below it, or replace it with a new layout.`,
+        confirmLabel: 'Add section',
+        secondaryLabel: 'Replace',
+        confirmOnly: true,
+        onSecondary: async () => { replace() },
+        onSave: async () => { proceed() },
+      })
+      return
+    }
+
+    proceed()
+  }, [activePageId, activeBlocks, selectedBlockId, openSectionLayoutPicker, openTextPrompt])
 
   // Keep keyboard-shortcut ref in sync with latest handlers (avoids TDZ on init)
   kbHandlersRef.current.handleDeleteBlock = handleDeleteBlock
+  kbHandlersRef.current.confirmDeleteBlock = confirmDeleteBlock
   kbHandlersRef.current.handleDuplicateBlock = handleDuplicateBlock
   kbHandlersRef.current.handleMoveBlock = handleMoveBlock
 
@@ -14729,14 +11349,41 @@ export default function WebsiteBuilder() {
   const handleSaveCanvasRef = useRef(handleSaveCanvas)
   useEffect(() => { handleSaveCanvasRef.current = handleSaveCanvas }, [handleSaveCanvas])
 
+  const autoSaveStorageKey = siteId ? `wb-autosave-enabled-${siteId}` : null
+
+  useEffect(() => {
+    if (!autoSaveStorageKey) return
+    const stored = localStorage.getItem(autoSaveStorageKey)
+    setAutoSaveEnabled(stored !== '0')
+  }, [autoSaveStorageKey])
+
+  const toggleAutoSave = useCallback(() => {
+    setAutoSaveEnabled(prev => {
+      const next = !prev
+      if (autoSaveStorageKey) {
+        localStorage.setItem(autoSaveStorageKey, next ? '1' : '0')
+      }
+      if (!next && autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = null
+      }
+      toast.success(next ? 'Auto-save turned on' : 'Auto-save turned off — use Save draft')
+      return next
+    })
+  }, [autoSaveStorageKey])
+
   // Debounced auto-save when canvas or style changes
   useEffect(() => {
-    if (!siteId || (!blocksDirty && !styleDirty)) {
+    if (!siteId || !autoSaveEnabled || (!blocksDirty && !styleDirty)) {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current)
         autoSaveTimerRef.current = null
       }
-      setAutoSaveStatus('synced')
+      if (!autoSaveEnabled && (blocksDirty || styleDirty)) {
+        setAutoSaveStatus('pending')
+      } else if (!blocksDirty && !styleDirty) {
+        setAutoSaveStatus('synced')
+      }
       return
     }
 
@@ -14755,7 +11402,7 @@ export default function WebsiteBuilder() {
         autoSaveTimerRef.current = null
       }
     }
-  }, [blocksDirty, styleDirty, siteId])
+  }, [blocksDirty, styleDirty, siteId, autoSaveEnabled])
 
   // Keep open browser preview in sync while editing (before auto-save completes).
   useEffect(() => {
@@ -14834,6 +11481,13 @@ export default function WebsiteBuilder() {
   const isCanvasSaved = !hasSaveChanges && !isSaving
 
   const autoSaveStatusLabel = useMemo(() => {
+    if (!autoSaveEnabled) {
+      if (hasSaveChanges) return 'Auto-save off — unsaved'
+      if (lastSavedAt) {
+        return `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      }
+      return 'Auto-save off'
+    }
     if (autoSaveStatus === 'pending') return 'Unsaved changes…'
     if (autoSaveStatus === 'saving' || isSaving) return 'Auto-saving…'
     if (autoSaveStatus === 'error') return 'Auto-save failed'
@@ -14841,7 +11495,7 @@ export default function WebsiteBuilder() {
       return `Auto-saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     }
     return 'Auto-save on'
-  }, [autoSaveStatus, isSaving, lastSavedAt])
+  }, [autoSaveEnabled, autoSaveStatus, hasSaveChanges, isSaving, lastSavedAt])
 
   const openApplyOptions = useCallback(() => {
     setApplyPickerStep('root')
@@ -15183,6 +11837,16 @@ export default function WebsiteBuilder() {
     Math.min(CANVAS_ZOOM_MAX, Math.max(CANVAS_ZOOM_MIN, Math.round(z * 100) / 100))
   ), [])
 
+  /** Editable zoom field: null when not editing, otherwise the in-progress text. */
+  const [zoomInputDraft, setZoomInputDraft] = useState<string | null>(null)
+  const commitZoomInput = useCallback((raw: string) => {
+    const pct = parseInt(raw.replace(/[^0-9]/g, ''), 10)
+    if (Number.isFinite(pct) && pct > 0 && canvasFitScale > 0) {
+      setCanvasZoom(clampCanvasZoom((pct / 100) / canvasFitScale))
+    }
+    setZoomInputDraft(null)
+  }, [canvasFitScale, clampCanvasZoom])
+
   useEffect(() => {
     setCanvasZoom(1)
   }, [device])
@@ -15253,6 +11917,39 @@ export default function WebsiteBuilder() {
     }
     prevCanvasZoomRef.current = canvasZoom
   }, [canvasZoom, scaledCanvasWidth])
+
+  // The canvas uses overflow-x:hidden (no native horizontal bar), so translate
+  // horizontal trackpad swipes / shift+wheel into programmatic horizontal scroll.
+  // Vertical wheel still scrolls natively (overflow-y:auto).
+  useEffect(() => {
+    const main = canvasMainRef.current
+    if (!main) return
+    const onWheel = (e: WheelEvent) => {
+      // Ctrl/Cmd + wheel = zoom (trackpad pinch dispatches ctrlKey wheel events).
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        setCanvasZoom(z => clampCanvasZoom(z - e.deltaY * 0.01))
+        return
+      }
+      const maxScrollLeft = main.scrollWidth - main.clientWidth
+      if (maxScrollLeft <= 0) return
+      // Horizontal intent: trackpad deltaX, or Shift + vertical wheel.
+      const horizontal =
+        Math.abs(e.deltaX) > Math.abs(e.deltaY)
+          ? e.deltaX
+          : e.shiftKey
+            ? e.deltaY
+            : 0
+      if (horizontal === 0) return
+      const next = Math.max(0, Math.min(maxScrollLeft, main.scrollLeft + horizontal))
+      if (next !== main.scrollLeft) {
+        main.scrollLeft = next
+        e.preventDefault()
+      }
+    }
+    main.addEventListener('wheel', onWheel, { passive: false })
+    return () => main.removeEventListener('wheel', onWheel)
+  }, [clampCanvasZoom])
 
   if (isLoading) {
     return (
@@ -15327,11 +12024,13 @@ export default function WebsiteBuilder() {
           multiline={textPrompt.multiline}
           maxLength={textPrompt.maxLength}
           confirmLabel={textPrompt.confirmLabel}
+          secondaryLabel={textPrompt.secondaryLabel}
           helpText={textPrompt.helpText}
           minLength={textPrompt.minLength}
           confirmOnly={textPrompt.confirmOnly}
           destructive={textPrompt.destructive}
           onSave={async (v) => { await textPrompt.onSave(v) }}
+          onSecondary={textPrompt.onSecondary ? async () => { await textPrompt.onSecondary!() } : undefined}
           onClose={() => setTextPrompt(null)}
         />
       )}
@@ -15378,492 +12077,556 @@ export default function WebsiteBuilder() {
             )}
           </div>
 
-          {/* Auto-save status */}
-          <div
-            className="flex items-center gap-1.5 shrink-0 px-2 sm:px-2.5 py-1 rounded-lg bg-gray-800/80 border border-gray-700/80 max-w-[min(220px,42vw)]"
-            title={
-              autoSaveStatus === 'error'
-                ? 'Auto-save failed — use Save to retry'
-                : `Changes auto-save after ${AUTO_SAVE_DELAY_MS / 1000}s of inactivity`
-            }
-          >
-            {autoSaveStatus === 'saving' || isSaving ? (
-              <Loader2 className="w-3 h-3 shrink-0 animate-spin text-primary" />
-            ) : autoSaveStatus === 'error' ? (
-              <AlertTriangle className="w-3 h-3 shrink-0 text-amber-400" />
-            ) : autoSaveStatus === 'pending' ? (
-              <span className="w-2 h-2 shrink-0 rounded-full bg-amber-400 animate-pulse" />
-            ) : (
-              <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
-            )}
-            <span className={cn(
-              'text-[10px] sm:text-[11px] font-medium leading-none truncate antialiased',
-              autoSaveStatus === 'error' ? 'text-amber-300' : autoSaveStatus === 'pending' ? 'text-amber-200' : 'text-gray-400',
-            )}>
-              {autoSaveStatusLabel}
-            </span>
-          </div>
-
-          {/* Undo / Redo */}
-          <div className="flex items-center gap-1 shrink-0 ml-auto">
-            <button
-              type="button"
-              onClick={handleUndo}
-              disabled={!canUndo}
-              title="Undo (Ctrl+Z)"
-              className={cn(
-                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors',
-                BUILDER_CRISP_LABEL,
-                canUndo
-                  ? 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800'
-                  : 'border-gray-700/60 text-gray-500/50 cursor-not-allowed bg-gray-800/60',
-              )}
+          {/* Draft save cluster: status on top, toggle + save below */}
+          <div className="flex shrink-0 flex-col gap-1">
+            <div
+              className="flex max-w-[min(220px,40vw)] items-center gap-1.5"
+              title={
+                !autoSaveEnabled
+                  ? 'Auto-save is off — use Save to keep changes'
+                  : autoSaveStatus === 'error'
+                    ? 'Auto-save failed — use Save to retry'
+                    : `Changes auto-save after ${AUTO_SAVE_DELAY_MS / 1000}s of inactivity`
+              }
             >
-              <Undo2 className="w-3.5 h-3.5 shrink-0" />
-              Undo
-            </button>
-            <button
-              type="button"
-              onClick={handleRedo}
-              disabled={!canRedo}
-              title="Redo (Ctrl+Y)"
-              className={cn(
-                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors',
-                BUILDER_CRISP_LABEL,
-                canRedo
-                  ? 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800'
-                  : 'border-gray-700/60 text-gray-500/50 cursor-not-allowed bg-gray-800/60',
+              {autoSaveStatus === 'saving' || isSaving ? (
+                <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" />
+              ) : autoSaveStatus === 'error' ? (
+                <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" />
+              ) : autoSaveStatus === 'pending' || (hasSaveChanges && !autoSaveEnabled) ? (
+                <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-400" />
+              ) : (
+                <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" />
               )}
-            >
-              <Redo2 className="w-3.5 h-3.5 shrink-0" />
-              Redo
-            </button>
-          </div>
+              <span className={cn(
+                'truncate text-[10px] font-medium leading-none antialiased sm:text-[11px]',
+                autoSaveStatus === 'error' ? 'text-amber-300' : (autoSaveStatus === 'pending' || (hasSaveChanges && !autoSaveEnabled)) ? 'text-amber-200' : 'text-gray-400',
+              )}>
+                {autoSaveStatusLabel}
+              </span>
+            </div>
 
-          {/* Device switcher */}
-          <div className="flex items-center bg-gray-800 rounded-lg p-1 shrink-0">
-            {DEVICE_SWITCHER.map(({ mode, Icon, label, num, sizeLabel }) => (
+            <div className="flex shrink-0 items-center gap-1.5">
               <button
-                key={mode}
-                onClick={() => setDevice(mode)}
-                title={`${label} preview (${sizeLabel})`}
-                aria-label={`${label} preview`}
+                type="button"
+                onClick={toggleAutoSave}
+                title={autoSaveEnabled ? 'Turn auto-save off' : 'Turn auto-save on'}
+                aria-pressed={autoSaveEnabled}
+                aria-label={autoSaveEnabled ? 'Auto-save on' : 'Auto-save off'}
                 className={cn(
-                  'group relative p-1.5 rounded transition-colors',
-                  device === mode ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-white',
+                  'relative inline-flex h-7 w-[3.35rem] shrink-0 items-center rounded-full border border-white/80 bg-gray-900/40 transition-colors hover:border-white',
                 )}
               >
-                <Icon className="w-4 h-4" />
-                <span className="pointer-events-none absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-950 px-0.5 text-[9px] font-bold leading-none text-white opacity-0 shadow ring-1 ring-white/20 transition-opacity group-hover:opacity-100">
-                  {num}
+                <span
+                  className={cn(
+                    'absolute top-1/2 h-[1.125rem] w-[1.125rem] -translate-y-1/2 rounded-full bg-white shadow-sm transition-all duration-200 ease-out',
+                    autoSaveEnabled ? 'right-1' : 'left-1',
+                  )}
+                />
+                <span className={cn(
+                  'relative z-10 w-full text-[10px] font-semibold tracking-wide text-white',
+                  autoSaveEnabled ? 'pl-2 pr-5 text-left' : 'pl-5 pr-2 text-right',
+                )}>
+                  {autoSaveEnabled ? 'On' : 'Off'}
                 </span>
               </button>
-            ))}
-          </div>
-            </div>
-          </div>
 
-          <div className="relative z-30 flex shrink-0 items-center gap-2 border-l border-gray-800/80 bg-gray-900 px-3 sm:pr-5 py-2 shadow-[-10px_0_14px_-10px_rgba(0,0,0,0.65)]">
-          <button
-            type="button"
-            disabled={openingBrowserPreview}
-            onClick={() => void handleOpenBrowserPreview()}
-            title="Preview your draft in the browser (same host as this tab, vendor-web only)"
-            className={cn(
-              STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS,
-              openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-accent/95',
-            )}
-          >
-            {openingBrowserPreview ? (
-              <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-primary" />
-            ) : (
-              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-            )}
-            Preview in Browser
-          </button>
-
-          {/* Save — only actionable when there are unsaved changes */}
-          <div className="relative flex flex-col items-center shrink-0">
-            <button
-              type="button"
-              onClick={hasSaveChanges ? () => void handleSaveCanvas() : undefined}
-              disabled={isSaving || !hasSaveChanges}
-              title={
-                hasSaveChanges
-                  ? 'Save your draft (does not publish to customers — use Publish store for that)'
-                  : lastSavedAt
-                    ? `Draft saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                    : 'Draft saved — publish when ready for customers to see it'
-              }
-              className={cn(
-                'relative inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-white transition-colors duration-200 select-none',
-                BUILDER_CRISP_LABEL,
-                saveFlash
-                  ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30'
-                  : hasSaveChanges
-                    ? 'bg-gradient-to-r from-primary to-emerald-700 hover:from-primary/90 hover:to-emerald-800 shadow-md shadow-primary/30 ring-2 ring-amber-400/50'
-                    : 'bg-emerald-600 text-white ring-2 ring-emerald-300/40 cursor-default',
-                isSaving && 'opacity-80 cursor-not-allowed',
-              )}
-            >
-              {isSaving ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : saveFlash || isCanvasSaved ? (
-                <Check className="w-3.5 h-3.5" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
-              {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Draft saved' : 'Save draft'}
-              {hasSaveChanges && !isSaving && !saveFlash && (
-                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 border-2 border-gray-900 animate-pulse" />
-              )}
-            </button>
-          </div>
-
-          {/* Publish — saves canvas + pushes live to customer storefront */}
-          <div className="relative shrink-0" ref={applyPopoverRef}>
-            <button
-              type="button"
-              disabled={isApplyingToStore || applyingTemplateInline}
-              onClick={handleApplyButtonClick}
-              title={
-                isSiteApplied
-                  ? 'Your store is live — click to publish latest changes again'
-                  : 'Save and publish this design so customers can see it on your store'
-              }
-              className={cn(
-                'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-colors shadow-sm',
-                BUILDER_CRISP_LABEL,
-                isApplyingToStore
-                  ? 'bg-emerald-600 opacity-70 cursor-wait text-white'
-                  : isSiteApplied
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white ring-2 ring-emerald-300/50'
-                    : 'bg-emerald-500 hover:bg-emerald-400 text-white ring-2 ring-emerald-400/40',
-              )}
-            >
-              {isApplyingToStore ? (
-                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Publishing…</>
-              ) : (
-                <><Check className="w-3.5 h-3.5" /> {isSiteApplied ? 'Live on store' : 'Publish store'}</>
-              )}
-            </button>
-
-            {applyPopoverOpen && hasMultipleBusinessUnits && (
-              <div className="absolute right-0 top-full z-[300] mt-1.5 w-72 rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl overflow-hidden">
-                {applyPickerStep === 'root' ? (
-                  <div className="p-2 space-y-1">
-                    <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                      {isSiteApplied ? 'Apply again' : 'Choose scope'}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => void handleApplyAllBusinessUnits()}
-                      className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
-                    >
-                      Apply for all {BUSINESS_UNIT_STORE_LABEL}s
-                      <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
-                        {businessUnits.length} units
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setApplyPickerStep('units')}
-                      className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors"
-                    >
-                      Choose single {BUSINESS_UNIT_STORE_LABEL}
-                      <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
-                        Pick one store to apply to
-                      </span>
-                    </button>
-                    {isSiteApplied && appliedStoreIds.length > 0 && (
-                      <p className="px-2 pt-1 text-[10px] text-gray-400 leading-snug">
-                        Currently applied to{' '}
-                        {businessUnits.filter(s => appliedStoreIds.includes(s.id)).map(s => s.name).join(', ') || 'selected units'}
-                      </p>
-                    )}
-                  </div>
+              <button
+                type="button"
+                onClick={hasSaveChanges ? () => void handleSaveCanvas() : undefined}
+                disabled={isSaving || !hasSaveChanges}
+                title={
+                  hasSaveChanges
+                    ? 'Save draft (does not publish to customers)'
+                    : lastSavedAt
+                      ? `Draft saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                      : 'Draft saved'
+                }
+                aria-label={isSaving ? 'Saving draft' : hasSaveChanges ? 'Save draft' : 'Draft saved'}
+                className={cn(
+                  'relative inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors',
+                  hasSaveChanges && !isSaving
+                    ? 'border-amber-400/50 bg-amber-500/20 text-amber-100 hover:bg-amber-500/30'
+                    : saveFlash
+                      ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+                      : 'border-gray-600/80 bg-gray-800/60 text-gray-400',
+                  (isSaving || !hasSaveChanges) && !saveFlash && 'cursor-default opacity-70',
+                )}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                ) : saveFlash || isCanvasSaved ? (
+                  <Check className="h-3.5 w-3.5 shrink-0 stroke-[1.75]" />
                 ) : (
-                  <div className="p-2 space-y-1 max-h-64 overflow-y-auto">
-                    <button
-                      type="button"
-                      onClick={() => setApplyPickerStep('root')}
-                      className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" /> Back
-                    </button>
-                    <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                      Select {BUSINESS_UNIT_STORE_LABEL}
+                  <Save className="h-3.5 w-3.5 shrink-0 stroke-[1.75]" />
+                )}
+                {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Saved' : 'Save'}
+                {hasSaveChanges && !isSaving && !saveFlash && (
+                  <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title="Undo (Ctrl+Z)"
+                aria-label="Undo"
+                className={cn(
+                  'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
+                  canUndo
+                    ? 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800'
+                    : 'border-gray-700/60 text-gray-500/50 cursor-not-allowed bg-gray-800/60',
+                )}
+              >
+                <Undo2 className="w-3.5 h-3.5 shrink-0" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                disabled={!canRedo}
+                title="Redo (Ctrl+Y)"
+                aria-label="Redo"
+                className={cn(
+                  'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
+                  canRedo
+                    ? 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800'
+                    : 'border-gray-700/60 text-gray-500/50 cursor-not-allowed bg-gray-800/60',
+                )}
+              >
+                <Redo2 className="w-3.5 h-3.5 shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  !siteId
+                  || resettingCanvasFromServer
+                  || applyingTemplateInline
+                  || clearingTemplateSandbox
+                }
+                onClick={() => { void handleResetCanvasFromServer() }}
+                title="Reset to last saved site from the server (discards unsaved canvas and style changes)"
+                className={cn(
+                  'inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors',
+                  siteId && !resettingCanvasFromServer && !applyingTemplateInline && !clearingTemplateSandbox
+                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700/70 bg-gray-800/50'
+                    : 'border-gray-600 text-gray-500 cursor-not-allowed bg-gray-800/50',
+                )}
+              >
+                {resettingCanvasFromServer ? (
+                  <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-3 h-3 shrink-0" />
+                )}
+                Reset
+              </button>
+
+              <button
+                type="button"
+                aria-label="Deselect section"
+                aria-hidden={!selectedBlockId}
+                tabIndex={selectedBlockId ? 0 : -1}
+                onClick={() => setSelectedBlockId(null)}
+                className={cn(
+                  'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold leading-none antialiased text-gray-300 bg-gray-700/60 hover:bg-gray-700 transition-colors',
+                  !selectedBlockId && 'invisible pointer-events-none',
+                )}
+              >
+                <X className="w-3 h-3 shrink-0" /> Deselect
+                <BuilderShortcutKbd className="border-gray-600 bg-gray-800 text-gray-400 shadow-none">Esc</BuilderShortcutKbd>
+              </button>
+
+              <div className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-lg border border-gray-600 bg-gray-900/50 px-1">
+                <button
+                  type="button"
+                  title="Zoom out"
+                  disabled={canvasZoom <= CANVAS_ZOOM_MIN}
+                  onClick={() => setCanvasZoom(z => clampCanvasZoom(z - CANVAS_ZOOM_STEP))}
+                  className="p-1 rounded hover:bg-gray-700 text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <div className="flex shrink-0 items-center">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label="Zoom percentage"
+                    title="Type a zoom %, then press Enter"
+                    value={zoomInputDraft ?? String(Math.round(effectiveCanvasScale * 100))}
+                    onChange={e => setZoomInputDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                    onFocus={e => {
+                      setZoomInputDraft(String(Math.round(effectiveCanvasScale * 100)))
+                      requestAnimationFrame(() => e.target.select())
+                    }}
+                    onBlur={e => commitZoomInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); commitZoomInput((e.target as HTMLInputElement).value) }
+                      if (e.key === 'Escape') { e.preventDefault(); setZoomInputDraft(null); (e.target as HTMLInputElement).blur() }
+                    }}
+                    className="w-8 shrink-0 bg-transparent text-center text-[12px] font-semibold leading-none tabular-nums text-gray-200 outline-none antialiased"
+                  />
+                  <span className="text-[12px] font-semibold leading-none text-gray-400">%</span>
+                </div>
+                <button
+                  type="button"
+                  title="Zoom in"
+                  disabled={canvasZoom >= CANVAS_ZOOM_MAX}
+                  onClick={() => setCanvasZoom(z => clampCanvasZoom(z + CANVAS_ZOOM_STEP))}
+                  className="p-1 rounded hover:bg-gray-700 text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Reset zoom to fit width"
+                  onClick={() => {
+                    setCanvasZoom(1)
+                    const main = canvasMainRef.current
+                    if (main) main.scrollLeft = 0
+                  }}
+                  aria-hidden={canvasZoom === 1}
+                  tabIndex={canvasZoom === 1 ? -1 : 0}
+                  className={cn(
+                    'ml-0.5 shrink-0 rounded border-l border-gray-600 pl-1.5 pr-1 text-[11px] font-semibold leading-none text-primary hover:bg-gray-700 antialiased',
+                    canvasZoom === 1 && 'invisible pointer-events-none',
+                  )}
+                >
+                  Fit
+                </button>
+              </div>
+
+              <div className="flex items-center bg-gray-900/80 rounded-lg p-0.5 shrink-0 border border-gray-700/80" title="Preview size on different screens">
+                {DEVICE_SWITCHER.map(({ mode, Icon, label, sizeLabel }) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setDevice(mode)}
+                    title={mode === 'mobile' ? `Phone view (${sizeLabel})` : `${label} view (${sizeLabel})`}
+                    aria-label={mode === 'mobile' ? 'Phone view' : `${label} view`}
+                    className={cn(
+                      'flex flex-col items-center px-1.5 py-1 rounded transition-colors min-w-[2.5rem]',
+                      device === mode ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/60',
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="text-[8px] font-semibold leading-none mt-0.5">{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                disabled={openingBrowserPreview}
+                onClick={() => void handleOpenBrowserPreview()}
+                title="Preview your draft in the browser (same host as this tab, vendor-web only)"
+                className={cn(
+                  STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS,
+                  'py-1 text-[11px] sm:text-[12px]',
+                  openingBrowserPreview && 'opacity-70 cursor-wait hover:bg-accent/95',
+                )}
+              >
+                {openingBrowserPreview ? (
+                  <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-primary" />
+                ) : (
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                )}
+                Preview
+              </button>
+
+              {/* More: publish, view store, history, tips, copy template */}
+              <div className="relative shrink-0" ref={moreMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => { setMoreMenuOpen(v => !v); setChangeHistoryOpen(false) }}
+                  title="More — publish, view store, change history, tips"
+                  aria-haspopup="menu"
+                  aria-expanded={moreMenuOpen}
+                  className={cn(
+                    'inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors sm:text-[12px]',
+                    moreMenuOpen
+                      ? 'border-primary/50 bg-primary/15 text-primary'
+                      : 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800',
+                  )}
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5 shrink-0" />
+                  More
+                  <ChevronDown className={cn('h-3 w-3 shrink-0 transition-transform', moreMenuOpen && 'rotate-180')} />
+                </button>
+
+                {moreMenuOpen && (
+                  <div className="absolute right-0 top-full z-[300] mt-1.5 w-72 rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl">
+                    <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                      Publish &amp; share
                     </p>
-                    {businessUnits.map(unit => (
+
+                    {/* Publish store (with multi-unit picker) */}
+                    <div className="relative" ref={applyPopoverRef}>
                       <button
-                        key={unit.id}
                         type="button"
-                        onClick={() => handleApplySingleBusinessUnit(unit.id)}
-                        className={cn(
-                          'w-full text-left px-3 py-2 rounded-lg text-xs transition-colors',
-                          appliedStoreIds.includes(unit.id)
-                            ? 'bg-emerald-50 text-emerald-800 font-semibold hover:bg-emerald-100'
-                            : 'hover:bg-gray-50 font-medium text-gray-700',
-                        )}
+                        disabled={isApplyingToStore || applyingTemplateInline}
+                        onClick={handleApplyButtonClick}
+                        title={
+                          isSiteApplied
+                            ? 'Your store is live — publish latest changes again'
+                            : 'Save and publish this design so customers can see it on your store'
+                        }
+                        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-wait disabled:opacity-60"
                       >
-                        <span className="block truncate">{unit.name}</span>
-                        <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
-                          {formatStoreCode(unit)}
+                        {isApplyingToStore ? (
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-600" />
+                        ) : (
+                          <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                        )}
+                        <span className="flex-1">
+                          {isApplyingToStore ? 'Publishing…' : isSiteApplied ? 'Live on store' : 'Publish store'}
+                          <span className="block text-[10px] font-normal text-gray-400">
+                            Make this design live for customers
+                          </span>
                         </span>
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
 
-          {/* View Store / Test Link */}
-          <div className="relative shrink-0">
-            <button
-              onClick={handleViewStore}
-              title={siteTestUrl ?? 'Set a subdomain to get a test link'}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-500 text-white transition-colors shadow-sm', BUILDER_CRISP_LABEL)}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              {siteTestUrl ? 'View Store' : 'Get Link'}
-            </button>
+                      {applyPopoverOpen && hasMultipleBusinessUnits && (
+                        <div className="absolute right-0 top-full z-[320] mt-1 w-72 rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl overflow-hidden">
+                          {applyPickerStep === 'root' ? (
+                            <div className="p-2 space-y-1">
+                              <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                                {isSiteApplied ? 'Apply again' : 'Choose scope'}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => void handleApplyAllBusinessUnits()}
+                                className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
+                              >
+                                Apply for all {BUSINESS_UNIT_STORE_LABEL}s
+                                <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
+                                  {businessUnits.length} units
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setApplyPickerStep('units')}
+                                className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors"
+                              >
+                                Choose single {BUSINESS_UNIT_STORE_LABEL}
+                                <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
+                                  Pick one store to apply to
+                                </span>
+                              </button>
+                              {isSiteApplied && appliedStoreIds.length > 0 && (
+                                <p className="px-2 pt-1 text-[10px] text-gray-400 leading-snug">
+                                  Currently applied to{' '}
+                                  {businessUnits.filter(s => appliedStoreIds.includes(s.id)).map(s => s.name).join(', ') || 'selected units'}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="p-2 space-y-1 max-h-64 overflow-y-auto">
+                              <button
+                                type="button"
+                                onClick={() => setApplyPickerStep('root')}
+                                className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800"
+                              >
+                                <ChevronLeft className="w-3.5 h-3.5" /> Back
+                              </button>
+                              <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                                Select {BUSINESS_UNIT_STORE_LABEL}
+                              </p>
+                              {businessUnits.map(unit => (
+                                <button
+                                  key={unit.id}
+                                  type="button"
+                                  onClick={() => handleApplySingleBusinessUnit(unit.id)}
+                                  className={cn(
+                                    'w-full text-left px-3 py-2 rounded-lg text-xs transition-colors',
+                                    appliedStoreIds.includes(unit.id)
+                                      ? 'bg-emerald-50 text-emerald-800 font-semibold hover:bg-emerald-100'
+                                      : 'hover:bg-gray-50 font-medium text-gray-700',
+                                  )}
+                                >
+                                  <span className="block truncate">{unit.name}</span>
+                                  <span className="block text-[10px] font-normal text-gray-400 mt-0.5">
+                                    {formatStoreCode(unit)}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
-          {storePopover && siteTestUrl && (
-            <>
-              <div className="fixed inset-0 z-[250]" onClick={() => setStorePopover(false)} />
-              <div className="absolute right-0 top-full z-[300] mt-1.5 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-200 w-80 p-4 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
-                    {site.is_published ? '✅ Live URL' : '🔒 Preview URL (not live)'}
-                  </div>
-                  {site.is_published && (
-                    <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">PUBLISHED</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3">
-                  <Globe className="w-3.5 h-3.5 text-primary/80 shrink-0" />
-                  <span className="text-xs text-primary font-mono truncate flex-1">{siteTestUrl}</span>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(siteTestUrl).catch(() => {})
-                      toast.success('Link copied to clipboard!')
-                      setStorePopover(false)
-                    }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    <Copy className="w-3.5 h-3.5" /> Copy URL
-                  </button>
-                  <button
-                    onClick={() => { window.open(siteTestUrl, '_blank'); setStorePopover(false) }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary hover:bg-blue-500 text-white text-xs font-medium transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" /> Open ↗
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-          </div>
-        </div>
+                    {/* View store / get link (with store popover) */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={handleViewStore}
+                        title={siteTestUrl ?? 'Set a subdomain to get a test link'}
+                        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                      >
+                        <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="flex-1">
+                          {siteTestUrl ? 'View store' : 'Get link'}
+                          <span className="block text-[10px] font-normal text-gray-400">
+                            {siteTestUrl ? 'Open or copy your store link' : 'Set a subdomain to get a link'}
+                          </span>
+                        </span>
+                      </button>
 
-        {/* Row 2: Page tabs + canvas controls */}
-        <div className="relative z-10 flex items-center gap-2 px-3 sm:px-5 min-h-10 py-1.5 bg-gray-800/60 overflow-hidden">
-          <div className="flex items-center gap-1 min-w-0 flex-1 overflow-x-auto hide-scrollbar">
-            {sortedSitePages.map(page => (
-              <button
-                key={page.id}
-                onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
-                className={cn(
-                  'flex items-center gap-1.5 px-3.5 py-1 rounded-full whitespace-nowrap transition-colors antialiased subpixel-antialiased',
-                  BUILDER_CRISP_LABEL,
-                  activePageId === page.id
-                    ? 'bg-primary text-white shadow-sm shadow-primary/40'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700/70 font-medium',
-                )}
-              >
-                <FileText className="w-3 h-3 shrink-0" />
-                {page.title}
-                {page.is_homepage && (
-                  <span className={cn('text-[10px] rounded px-1 font-semibold leading-none antialiased', activePageId === page.id ? 'bg-white/20 text-white' : 'bg-gray-700 text-gray-400')}>
-                    Home
-                  </span>
-                )}
-              </button>
-            ))}
-            <button
-              onClick={handleAddPage}
-              className={cn('flex items-center gap-1 px-2.5 py-1 rounded-full text-gray-500 hover:bg-gray-700/70 hover:text-gray-300 transition-colors antialiased shrink-0', BUILDER_CRISP_LABEL, 'font-medium')}
-            >
-              <Plus className="w-3 h-3" /> Add Page
-            </button>
-          </div>
+                      {storePopover && siteTestUrl && (
+                        <div className="absolute right-0 top-full z-[320] mt-1 w-80 rounded-xl border border-gray-200 bg-white text-gray-800 shadow-2xl p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                              {site.is_published ? '✅ Live URL' : '🔒 Preview URL (not live)'}
+                            </div>
+                            {site.is_published && (
+                              <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">PUBLISHED</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3">
+                            <Globe className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+                            <span className="text-xs text-primary font-mono truncate flex-1">{siteTestUrl}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(siteTestUrl).catch(() => {})
+                                toast.success('Link copied to clipboard!')
+                                setStorePopover(false)
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
+                            >
+                              <Copy className="w-3.5 h-3.5" /> Copy URL
+                            </button>
+                            <button
+                              onClick={() => { window.open(siteTestUrl, '_blank'); setStorePopover(false) }}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" /> Open ↗
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-          <div className="flex items-center gap-2 flex-nowrap shrink-0 pl-2 border-l border-gray-700/80">
-            <span className="hidden lg:inline text-gray-500 tabular-nums whitespace-nowrap text-[12px] leading-none">
-              {activeBlocks.length} block{activeBlocks.length !== 1 ? 's' : ''}
-            </span>
-            {(() => {
-              const connectable = activeBlocks.filter(b => BLOCK_AUTO_SOURCE[b.block_type as string])
-              const connected = connectable.filter(b => normalizeSourceType((b.props as any)?.data_source?.type))
-              const disconnected = connectable.filter(b => !normalizeSourceType((b.props as any)?.data_source?.type))
-              if (connectable.length === 0) return null
-              return (
-                <>
-                  <span className="hidden lg:inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300 text-[11px] font-semibold leading-none tabular-nums whitespace-nowrap border border-emerald-700/40">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    {connected.length}/{connectable.length}
-                  </span>
-                  {disconnected.length > 0 && (
+                    <div className="my-1 border-t border-gray-100" />
+                    <p className="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                      Tools
+                    </p>
+
+                    {/* Change history (restore previous edits) */}
                     <button
-                      onClick={() => {
-                        disconnected.forEach(b => {
-                          const src = BLOCK_AUTO_SOURCE[b.block_type as string]
-                          if (src) handleUpdateBlockProps(b.id, { data_source: { type: src, auto: true } } as any)
-                        })
-                        toast.success(`Connected ${disconnected.length} section${disconnected.length !== 1 ? 's' : ''} to your store data`)
-                      }}
-                      className={cn('hidden xl:inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded bg-primary/90 text-white hover:bg-primary transition-colors shadow-sm', BUILDER_CRISP_LABEL)}
-                      title="Auto-connect remaining sections to your catalog"
+                      type="button"
+                      onClick={() => setChangeHistoryOpen(v => !v)}
+                      aria-expanded={changeHistoryOpen}
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                     >
-                      <Zap className="w-2.5 h-2.5" />
-                      Connect {disconnected.length}
+                      <History className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="flex-1">
+                        Change history
+                        <span className="block text-[10px] font-normal text-gray-400">
+                          Restore a previous version of this session
+                        </span>
+                      </span>
+                      <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform', changeHistoryOpen && 'rotate-180')} />
                     </button>
-                  )}
-                </>
-              )
-            })()}
-            <div className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-gray-600 bg-gray-900/50 px-1 py-0.5">
-              <button
-                type="button"
-                title="Zoom out"
-                disabled={canvasZoom <= CANVAS_ZOOM_MIN}
-                onClick={() => setCanvasZoom(z => clampCanvasZoom(z - CANVAS_ZOOM_STEP))}
-                className="p-1 rounded hover:bg-gray-700 text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <span className="w-10 shrink-0 text-center text-[12px] font-semibold leading-none tabular-nums text-gray-200 antialiased">
-                {Math.round(effectiveCanvasScale * 100)}%
-              </span>
-              <button
-                type="button"
-                title="Zoom in"
-                disabled={canvasZoom >= CANVAS_ZOOM_MAX}
-                onClick={() => setCanvasZoom(z => clampCanvasZoom(z + CANVAS_ZOOM_STEP))}
-                className="p-1 rounded hover:bg-gray-700 text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-              <select
-                className="h-7 w-[4.5rem] shrink-0 cursor-pointer rounded border-0 border-l border-gray-600 bg-transparent pl-1.5 text-[11px] font-semibold leading-none text-gray-400 outline-none antialiased"
-                value={(() => {
-                  const pct = Math.round(canvasZoom * 100)
-                  const presets = [50, 75, 100, 125, 150, 175, 200, 250, 300]
-                  return presets.includes(pct) ? String(pct) : ''
-                })()}
-                onChange={e => {
-                  const v = Number(e.target.value)
-                  if (v > 0) setCanvasZoom(clampCanvasZoom(v / 100))
-                }}
-                title="Zoom presets"
-              >
-                <option value="" disabled={Math.round(canvasZoom * 100) !== 100}>Zoom</option>
-                {[50, 75, 100, 125, 150, 175, 200, 250, 300].map(pct => (
-                  <option key={pct} value={pct}>{pct}%</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                title="Reset zoom to fit width"
-                onClick={() => {
-                  setCanvasZoom(1)
-                  const main = canvasMainRef.current
-                  if (main) main.scrollLeft = 0
-                }}
-                aria-hidden={canvasZoom === 1}
-                tabIndex={canvasZoom === 1 ? -1 : 0}
-                className={cn(
-                  'ml-0.5 w-7 shrink-0 px-1 py-0.5 rounded text-[11px] font-semibold leading-none text-primary hover:bg-gray-700 antialiased',
-                  canvasZoom === 1 && 'invisible pointer-events-none',
+
+                    {changeHistoryOpen && (
+                      <div className="max-h-60 overflow-y-auto border-t border-gray-100 bg-gray-50/60" data-history-version={historyVersion}>
+                        {historyStack.current.length === 0 ? (
+                          <p className="px-3 py-4 text-center text-[11px] text-gray-400">
+                            No changes recorded yet. Edits you make will appear here.
+                          </p>
+                        ) : (
+                          historyStack.current.map((_, i) => {
+                            const idx = historyStack.current.length - 1 - i
+                            const ts = historyMeta.current[idx]
+                            const isCurrent = idx === historyIndex.current
+                            const label = idx === 0
+                              ? 'Opened'
+                              : idx === historyStack.current.length - 1
+                                ? 'Latest edit'
+                                : `Edit ${idx}`
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                disabled={isCurrent}
+                                onClick={() => { restoreHistoryTo(idx); setChangeHistoryOpen(false); setMoreMenuOpen(false) }}
+                                className={cn(
+                                  'flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors',
+                                  isCurrent ? 'cursor-default bg-primary/5' : 'hover:bg-white',
+                                )}
+                              >
+                                <span className={cn(
+                                  'h-1.5 w-1.5 shrink-0 rounded-full',
+                                  isCurrent ? 'bg-primary' : 'bg-gray-300',
+                                )} />
+                                <span className="flex-1 min-w-0">
+                                  <span className="block truncate text-[11px] font-semibold text-gray-700">
+                                    {label}
+                                    {isCurrent && <span className="ml-1.5 text-[9px] font-bold uppercase text-primary">Current</span>}
+                                  </span>
+                                  <span className="block text-[10px] font-normal text-gray-400">
+                                    {ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `Step ${idx + 1}`}
+                                  </span>
+                                </span>
+                                {!isCurrent && (
+                                  <span className="shrink-0 text-[10px] font-semibold text-primary">Restore</span>
+                                )}
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show tips again */}
+                    <button
+                      type="button"
+                      onClick={() => { restoreBuilderCoachMarks(); setMoreMenuOpen(false) }}
+                      title="Show the builder tips and coach marks again"
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      <Lightbulb className="h-4 w-4 shrink-0 text-amber-500" />
+                      <span className="flex-1">
+                        Show tips
+                        <span className="block text-[10px] font-normal text-gray-400">
+                          Replay the builder coach marks
+                        </span>
+                      </span>
+                    </button>
+
+                    {/* Copy template JSON */}
+                    <button
+                      type="button"
+                      disabled={
+                        !siteId
+                        || applyingTemplateInline
+                        || clearingTemplateSandbox
+                        || resettingCanvasFromServer
+                      }
+                      onClick={() => { void handleCopyTemplateJson(); setMoreMenuOpen(false) }}
+                      title="Copy site JSON (current canvas and style). Use Import elsewhere or keep as backup."
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <ClipboardCopy className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="flex-1">
+                        Copy template
+                        <span className="block text-[10px] font-normal text-gray-400">
+                          Copy this site's JSON to the clipboard
+                        </span>
+                      </span>
+                    </button>
+                  </div>
                 )}
-              >
-                Fit
-              </button>
+              </div>
             </div>
-            <span
-              className="hidden xl:inline shrink-0 text-gray-500 text-[11px] tabular-nums whitespace-nowrap"
-              title={`Design canvas ${designWidthPx}px wide · ${Math.round(effectiveCanvasScale * 100)}% of design size (fit + zoom)`}
-            >
-              {designWidthPx}px
-              <span className="text-primary/90 font-medium"> · {Math.round(effectiveCanvasScale * 100)}%</span>
-            </span>
-            <button
-              type="button"
-              disabled={
-                !siteId
-                || applyingTemplateInline
-                || clearingTemplateSandbox
-                || resettingCanvasFromServer
-              }
-              onClick={() => { void handleCopyTemplateJson() }}
-              title="Copy site JSON (current canvas and style). Use Import elsewhere or keep as backup."
-              className={cn(
-                'hidden sm:inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded-lg border transition-colors',
-                BUILDER_CRISP_LABEL,
-                siteId && !applyingTemplateInline && !clearingTemplateSandbox && !resettingCanvasFromServer
-                  ? 'border-primary/40 text-primary bg-primary/10 hover:bg-primary/20'
-                  : 'border-gray-600 text-gray-500 cursor-not-allowed bg-gray-800/50',
-              )}
-            >
-              <ClipboardCopy className="w-3 h-3 shrink-0" /> Copy template
-            </button>
-            <button
-              type="button"
-              disabled={
-                !siteId
-                || resettingCanvasFromServer
-                || applyingTemplateInline
-                || clearingTemplateSandbox
-              }
-              onClick={() => { void handleResetCanvasFromServer() }}
-              title="Reset to last saved site from the server (discards unsaved canvas and style changes)"
-              className={cn(
-                'hidden sm:inline-flex shrink-0 items-center gap-1 px-2 py-1 rounded-lg border transition-colors',
-                BUILDER_CRISP_LABEL,
-                siteId && !resettingCanvasFromServer && !applyingTemplateInline && !clearingTemplateSandbox
-                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700/70 bg-gray-800/50'
-                  : 'border-gray-600 text-gray-500 cursor-not-allowed bg-gray-800/50',
-              )}
-            >
-              {resettingCanvasFromServer ? (
-                <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
-              ) : (
-                <RotateCcw className="w-3 h-3 shrink-0" />
-              )}
-              Reset
-            </button>
-            <button
-              type="button"
-              aria-label="Deselect block"
-              aria-hidden={!selectedBlockId}
-              tabIndex={selectedBlockId ? 0 : -1}
-              onClick={() => setSelectedBlockId(null)}
-              className={cn(
-                'inline-flex shrink-0 items-center gap-1.5 px-2 py-1 rounded text-gray-300 bg-gray-700/60 hover:bg-gray-700 transition-colors',
-                BUILDER_CRISP_LABEL,
-                'font-medium',
-                !selectedBlockId && 'invisible pointer-events-none',
-              )}
-            >
-              <X className="w-3 h-3 shrink-0" /> Deselect
-              <BuilderShortcutKbd className="border-gray-600 bg-gray-800 text-gray-400 shadow-none">Esc</BuilderShortcutKbd>
-            </button>
+          </div>
+            </div>
           </div>
         </div>
+
       </header>
 
       {/* ── Main Layout ──────────────────────────────────────────────── */}
@@ -15875,8 +12638,16 @@ export default function WebsiteBuilder() {
           style={leftCollapsed ? undefined : { width: leftWidth }}
         >
           {leftCollapsed ? (
-            <button onClick={() => setLeftCollapsed(false)} className="flex-1 flex items-center justify-center hover:bg-gray-50 text-gray-400 hover:text-gray-600">
+            <button
+              type="button"
+              onClick={() => setLeftCollapsed(false)}
+              title="Open panel — Sections, Pages, Templates, Media, Site"
+              className="flex-1 flex flex-col items-center justify-center gap-2 py-3 hover:bg-gray-50 text-gray-400 hover:text-gray-600"
+            >
               <PanelLeft className="w-4 h-4" />
+              <span className="text-[9px] font-semibold writing-mode-vertical text-center leading-tight px-0.5" style={{ writingMode: 'vertical-rl' }}>
+                Sections
+              </span>
             </button>
           ) : (
             <>
@@ -15906,6 +12677,17 @@ export default function WebsiteBuilder() {
                   <ChevronLeft className="w-3 h-3" />
                 </button>
               </div>
+
+              <BuilderWelcomePanel
+                dismissed={builderWelcomeDismissed}
+                onDismiss={() => {
+                  dismissBuilderWelcome()
+                  setBuilderWelcomeDismissed(true)
+                }}
+                onRestore={() => {
+                  restoreBuilderCoachMarks()
+                }}
+              />
 
               {/* Template edit mode banner */}
               {isTemplateMode && (
@@ -15947,7 +12729,7 @@ export default function WebsiteBuilder() {
                           value={sectionCategory}
                           onChange={e => setSectionCategory(e.target.value)}
                           className="w-full appearance-none pl-3 pr-8 py-2 text-xs border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-                          aria-label="Filter block category"
+                          aria-label="Filter section category"
                         >
                           {BLOCK_CATEGORIES.map(cat => (
                             <option key={cat.id} value={cat.id}>{cat.label}</option>
@@ -15962,7 +12744,11 @@ export default function WebsiteBuilder() {
                         <p className="text-xs font-medium text-gray-400 uppercase tracking-wide px-1 mb-2">
                           Add Section{sectionSearchLower || sectionCategory !== 'all' ? ` · ${filteredCatalogBlocks.length}` : ''}
                         </p>
-                        <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">Click a section to add it after the selected block (or at the end). Use the layout icon on a block to switch its style, or right-click a block to replace it.</p>
+                        <p className="text-[11px] text-gray-400 px-1 mb-2 leading-snug">
+                          Click to add a section after your selection (or at the end).
+                          <strong className="font-medium text-gray-500"> Move ↑↓</strong> reorders on the page;
+                          <strong className="font-medium text-gray-500"> style icon</strong> changes how it looks.
+                        </p>
                         <div className="space-y-0.5">
                           {filteredCatalogBlocks.map(def => (
                             <button
@@ -15981,7 +12767,7 @@ export default function WebsiteBuilder() {
                             </button>
                           ))}
                           {filteredCatalogBlocks.length === 0 && (
-                            <p className="text-xs text-gray-400 text-center py-3 px-1">No blocks match your search or filter.</p>
+                            <p className="text-xs text-gray-400 text-center py-3 px-1">No sections match your search or filter.</p>
                           )}
                         </div>
                       </div>
@@ -16121,7 +12907,7 @@ export default function WebsiteBuilder() {
                                       <button type="button" onClick={() => handleMoveBlockOnPage(page.id, block.id, 'down')} className="p-0.5 hover:bg-gray-100 rounded" title="Move down">
                                         <ChevronDown className="w-3 h-3 text-gray-400" />
                                       </button>
-                                      <button type="button" onClick={() => handleDeleteBlock(block.id, { pageId: page.id, force: true })} className="p-0.5 hover:bg-red-50 rounded" title="Remove section">
+                                      <button type="button" onClick={() => confirmDeleteBlock(block.id, { pageId: page.id })} className="p-0.5 hover:bg-red-50 rounded" title="Remove section">
                                         <Trash2 className="w-3 h-3 text-red-400" />
                                       </button>
                                     </div>
@@ -16147,7 +12933,7 @@ export default function WebsiteBuilder() {
                                       onClick={openSectionsPanel}
                                       className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-primary rounded-lg hover:opacity-90 transition-opacity shadow-sm"
                                     >
-                                      Browse all blocks
+                                      Browse all sections
                                     </button>
                                     <button
                                       type="button"
@@ -16328,6 +13114,7 @@ export default function WebsiteBuilder() {
                     siteId={siteId!}
                     selectedBlock={selectedBlock}
                     applyToImageLayer={applyToImageLayer}
+                    applyTargetDescription={mediaApplyTargetDescription}
                     onApplyUrl={applyMediaUrlToSelection}
                   />
                 )}
@@ -16344,7 +13131,7 @@ export default function WebsiteBuilder() {
         {/* ── LEFT RESIZE HANDLE ──────────────────────────────────────── */}
         {!leftCollapsed && (
           <div
-            className="w-1 shrink-0 bg-transparent hover:bg-primary/50 active:bg-accent cursor-col-resize transition-colors group relative z-20"
+            className="w-px shrink-0 bg-transparent hover:bg-gray-500 active:bg-gray-600 cursor-col-resize transition-colors group relative z-20"
             onMouseDown={e => {
               e.preventDefault()
               isResizingLeft.current = true
@@ -16353,12 +13140,20 @@ export default function WebsiteBuilder() {
             }}
             title="Drag to resize panel"
           >
-            <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-primary/50/30" />
+            <div className="absolute inset-y-0 -left-1 -right-1" />
           </div>
         )}
 
         {/* ── CANVAS ──────────────────────────────────────────────────── */}
         <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-gray-100">
+          <BuilderSpacingCoachMark
+            visible={Boolean(selectedBlockId)}
+            dismissed={builderSpacingTipDismissed}
+            onDismiss={() => {
+              dismissBuilderSpacingTip()
+              setBuilderSpacingTipDismissed(true)
+            }}
+          />
           {selectedBlockId && (() => {
             const block = activeBlocks.find(b => b.id === selectedBlockId)
             if (!block) return null
@@ -16372,17 +13167,25 @@ export default function WebsiteBuilder() {
                 <div className="flex items-center justify-between gap-2 px-3 py-1 bg-accent/40 border-b border-primary/10">
                   <span className="text-[11px] font-medium text-primary/90 truncate">
                     {formatPaintBrush
-                      ? `Format painter — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · multi-apply' : ''} · Esc to cancel`
+                      ? `Copy formatting — click text to apply (${formatPaintStyleSummary(formatPaintBrush.style)})${formatPaintBrush.sticky ? ' · apply to several' : ''}`
                       : overlayImageTarget?.blockId === block.id && overlayImageTarget.overlayId
-                        ? `Layer selected — General: move, size & zoom · Visual: style · Esc to deselect`
-                        : canvasImageTarget?.blockId === block.id && canvasImageTarget.propField
-                          ? `Section image selected — General: zoom, pan, fit & height · Esc to deselect`
+                        ? 'Decorative layer selected — use the toolbar below to move, resize, or style it'
+                        : canvasImageTarget?.blockId === block.id && canvasImageStyleField(canvasImageTarget, block.id)
+                          ? (() => {
+                              const slots = canvasImageArraySlots(canvasImageTarget, block.id)
+                              if (slots.length > 1) {
+                                return `${slots.length} photos selected — toolbar changes apply to all`
+                              }
+                              return slots.length
+                                ? 'Photo selected — zoom and crop in General / Visual, or replace in Media'
+                                : 'Section photo selected — adjust zoom, position, or height in the toolbar below'
+                            })()
                           : multiFieldSelectionOnBlock
-                          ? `${selectedCount} fields selected — Shift/Ctrl+click to add/remove · toolbar applies to all`
-                          : `${catalogBlockLabel(block)} selected — Shift/Ctrl+click multi-select · E to edit · Esc to dismiss`}
+                          ? `${selectedCount} text areas selected — toolbar applies to all`
+                          : `${catalogBlockLabel(block)} selected — double-click text to edit, or use the toolbar below`}
                   </span>
                   <span className="hidden sm:inline text-[10px] text-gray-400 shrink-0">
-                    Esc — close · ← General · → Media · Visual — layers &amp; effects
+                    Toolbar tabs: General · Media · Visual
                   </span>
                 </div>
                 <BlockDesignBar
@@ -16392,9 +13195,8 @@ export default function WebsiteBuilder() {
                   onInsertAfter={type => handleAddBlockAfter(type)}
                   onOpenLinkEditorForOverlay={(item, anchor) => openLinkEditorForOverlay(block.id, item, anchor)}
                   selectedOverlayId={overlayImageTarget?.blockId === block.id ? overlayImageTarget.overlayId : null}
-                  canvasImageField={
-                    canvasImageTarget?.blockId === block.id ? canvasImageTarget.propField ?? null : null
-                  }
+                  canvasImageField={canvasImageStyleField(canvasImageTarget, block.id)}
+                  canvasImageSlots={canvasImageArraySlots(canvasImageTarget, block.id)}
                   onSectionImagePick={openOverlayImageFilePicker}
                   onSectionImageLibrary={openMediaFromCanvas}
                   onFocusPrimaryImage={(() => {
@@ -16434,7 +13236,7 @@ export default function WebsiteBuilder() {
           {/* Scrollable canvas preview */}
           <div
             ref={canvasMainRef}
-            className="flex-1 min-h-0 overflow-auto"
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
             onDragOver={handleCanvasDragOver}
             onDrop={handleDropOnCanvas}
           >
@@ -16482,14 +13284,14 @@ export default function WebsiteBuilder() {
                   <div className="text-center max-w-md">
                     <Layout className="w-12 h-12 mx-auto mb-3 text-primary/40" />
                     <p className="text-sm text-gray-500 font-medium">This page has no sections yet</p>
-                    <p className="text-xs text-gray-400 mt-1">Pick a block from the catalog or drag one here</p>
+                    <p className="text-xs text-gray-400 mt-1">Pick a section from the catalog or drag one here</p>
                     <div className="flex flex-col items-center gap-2 mt-5">
                       <button
                         type="button"
                         onClick={openSectionsPanel}
                         className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
                       >
-                        Browse all blocks
+                        Browse all sections
                       </button>
                       <button
                         type="button"
@@ -16507,15 +13309,14 @@ export default function WebsiteBuilder() {
                   siteId={siteId!}
                   vendorSlug={builderVendorSlug || 'preview'}
                   siteName={site?.name}
+                  onNavigate={handleNavigateBuilderPage}
                   activeBlockId={selectedBlockId}
-                  activeSectionImageField={
-                    canvasImageTarget?.blockId === selectedBlockId ? canvasImageTarget.propField ?? null : null
-                  }
-                  blockPropsForImage={
-                    selectedBlockId
-                      ? ((activeBlocks.find(b => b.id === selectedBlockId)?.props ?? null) as Record<string, unknown> | null)
-                      : null
-                  }
+                  activeCanvasImageTarget={canvasImageTarget}
+                  blockPropsForImage={(() => {
+                    const imageBlockId = canvasImageTarget?.blockId ?? selectedBlockId
+                    if (!imageBlockId) return null
+                    return (activeBlocks.find(b => b.id === imageBlockId)?.props ?? null) as Record<string, unknown> | null
+                  })()}
                   onSectionImageActivate={handleSectionImageActivate}
                   activeTextField={primaryTextFieldKey(activeTextTarget)}
                   activeTextFields={activeTextTarget?.fieldKeys ?? []}
@@ -16550,6 +13351,10 @@ export default function WebsiteBuilder() {
                         scrollRootRef={canvasMainRef}
                         revision={canvasBlocksRevision}
                         selected={selectedBlockId === block.id}
+                        imageSelected={
+                          selectedBlockId === block.id
+                          && Boolean(canvasImageStyleField(canvasImageTarget, block.id))
+                        }
                         saving={savingBlockId === block.id}
                         visible={block.visible !== false}
                         dropBefore={dropTarget?.idx === idx && dropTarget.before}
@@ -16567,6 +13372,11 @@ export default function WebsiteBuilder() {
                           minimized={minimizedSectionToolbars.has(block.id)}
                           pinned={pinnedSectionToolbars.has(block.id)}
                           onMinimize={() => {
+                            if (pinnedSectionToolbars.has(block.id)) {
+                              unpinSectionToolbar(block.id)
+                              minimizeSectionToolbar(block.id)
+                              return
+                            }
                             if (minimizedSectionToolbars.has(block.id)) {
                               expandSectionToolbar(block.id)
                             } else {
@@ -16580,7 +13390,6 @@ export default function WebsiteBuilder() {
                               ? 'opacity-100'
                               : 'opacity-0 group-hover:opacity-100',
                           )}
-                          armedDeleteId={armedDeleteId}
                           dsConnectedLabel={(() => {
                             const rawDs = (block.props as Record<string, unknown>)?.data_source
                             const dsType = normalizeSourceType((rawDs as { type?: string })?.type)
@@ -16606,7 +13415,7 @@ export default function WebsiteBuilder() {
                           }}
                           onMoveBlock={dir => handleMoveBlock(block.id, dir)}
                           onDuplicate={() => handleDuplicateBlock(block.id)}
-                          onDelete={() => handleDeleteBlock(block.id)}
+                          onDelete={() => confirmDeleteBlock(block.id)}
                           onReorderPointerDown={e => handleBlockReorderPointerDown(e, idx)}
                           onOpenLayoutPicker={() => openLayoutPickerForBlock(block)}
                           onCycleLayout={dir => { void cycleBlockLayout(block, dir) }}
@@ -16670,17 +13479,40 @@ export default function WebsiteBuilder() {
                         />
 
                         {selectedBlockId === block.id && (
+                          <BuilderSectionPaddingHandles
+                            blockId={block.id}
+                            containerRef={builderPageRootRef}
+                            scrollRootRef={canvasMainRef}
+                            revision={canvasBlocksRevision}
+                            paddingTop={Number((block.props as Record<string, unknown>).padding_top ?? 0)}
+                            paddingBottom={Number((block.props as Record<string, unknown>).padding_bottom ?? 0)}
+                            canvasScale={effectiveCanvasScale}
+                            suppressed={
+                              Boolean(canvasImageStyleField(canvasImageTarget, block.id))
+                              || activeTextTarget?.blockId === block.id
+                            }
+                            onPaddingPreview={patch => handlePreviewBlockProps(block.id, patch as BlockProps)}
+                            onPaddingCommit={patch => handleUpdateBlockProps(block.id, patch as BlockProps)}
+                          />
+                        )}
+
+                        {selectedBlockId === block.id
+                          && Number((block.props as Record<string, unknown>).min_height ?? 0) > 0
+                          && !canvasImageStyleField(canvasImageTarget, block.id)
+                          && activeTextTarget?.blockId !== block.id && (
                           <div
-                            title="Drag to resize section height"
-                            className="absolute bottom-0 left-0 right-0 h-3 z-[77] flex items-center justify-center cursor-ns-resize group/resize hover:bg-primary/10 transition-colors pointer-events-auto"
+                            data-section-min-height-handle
+                            title="Minimum section height (not padding) — drag or clear in Layout → More"
+                            className="absolute bottom-1 right-2 z-[55] flex h-4 w-4 items-center justify-center rounded border-2 border-amber-400 bg-white shadow-sm cursor-ns-resize pointer-events-auto hover:bg-amber-50"
                             onMouseDown={e => {
                               e.preventDefault()
                               e.stopPropagation()
                               const startY = e.clientY
                               const startH = (block.props as Record<string, unknown>).min_height as number || 0
+                              const scale = effectiveCanvasScale > 0 ? effectiveCanvasScale : 1
                               document.body.style.cursor = 'ns-resize'
                               const onMove = (mv: MouseEvent) => {
-                                const newH = Math.max(0, startH + (mv.clientY - startY))
+                                const newH = Math.max(0, startH + (mv.clientY - startY) / scale)
                                 handleUpdateBlockProps(block.id, { min_height: Math.round(newH) } as BlockProps)
                               }
                               const onUp = () => {
@@ -16692,7 +13524,7 @@ export default function WebsiteBuilder() {
                               document.addEventListener('mouseup', onUp)
                             }}
                           >
-                            <div className="w-12 h-1 rounded-full bg-primary/50/60 group-hover/resize:bg-accent group-hover/resize:w-20 transition-all" />
+                            <span className="block h-0.5 w-2 rounded-full bg-ring/70" />
                           </div>
                         )}
                       </BuilderSectionOverlay>
@@ -16730,12 +13562,151 @@ export default function WebsiteBuilder() {
             </div>
           </div>
           </div>
+
+          {/* Bottom page bar — Excel-style: arrows page through tabs, "…" lists what's off-screen */}
+          {(() => {
+            const hiddenPages = sortedSitePages.filter(
+              (_, idx) => idx < pageWindowStart || idx >= pageWindowStart + visibleTabCount,
+            )
+            const canPageLeft = pageWindowStart > 0
+            const canPageRight = pageWindowStart + visibleTabCount < sortedSitePages.length
+            const showNav = canPageLeft || canPageRight || hiddenPages.length > 0
+            return (
+              <div className="shrink-0 z-10 flex items-center gap-1.5 border-t border-gray-200 bg-white px-3 py-1.5">
+                {showNav && (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setPageWindowStart(i => Math.max(0, i - 1))}
+                      disabled={!canPageLeft}
+                      title="Show previous pages"
+                      aria-label="Show previous pages"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPageWindowStart(i => Math.min(sortedSitePages.length - 1, i + 1))}
+                      disabled={!canPageRight}
+                      title="Show more pages"
+                      aria-label="Show more pages"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                <div ref={pageTabsViewportRef} className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                  {sortedSitePages.slice(pageWindowStart).map(page => {
+                    const isActive = page.id === activePageId
+                    return (
+                      <button
+                        key={page.id}
+                        type="button"
+                        onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
+                        title={page.is_homepage ? `${page.title} (home page)` : page.title}
+                        className={cn(
+                          'inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold leading-none transition-colors',
+                          isActive
+                            ? 'border-primary/50 bg-primary/10 text-primary'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+                        )}
+                      >
+                        <FileText className={cn('h-3.5 w-3.5 shrink-0', isActive ? 'text-primary' : 'text-gray-400')} />
+                        <span className="max-w-[140px] truncate">{page.title}</span>
+                        {page.is_homepage && (
+                          <span className={cn(
+                            'shrink-0 rounded px-1 text-[9px] font-bold leading-none',
+                            isActive ? 'bg-primary/20 text-primary' : 'bg-gray-100 text-gray-500',
+                          )}>
+                            Home
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {hiddenPages.length > 0 && (
+                  <div className="relative shrink-0" ref={pageOverflowRef}>
+                    <button
+                      type="button"
+                      onClick={() => setPageMenuOpen(v => !v)}
+                      title={`${hiddenPages.length} more page${hiddenPages.length === 1 ? '' : 's'}`}
+                      aria-label="More pages"
+                      aria-haspopup="menu"
+                      aria-expanded={pageMenuOpen}
+                      className={cn(
+                        'inline-flex h-6 items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-semibold leading-none transition-colors',
+                        pageMenuOpen ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700',
+                      )}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                      {hiddenPages.length}
+                    </button>
+
+                    {pageMenuOpen && (
+                      <div className="absolute bottom-full right-0 z-[300] mb-1.5 max-h-72 w-56 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 text-gray-800 shadow-2xl">
+                        <p className="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                          More pages ({hiddenPages.length})
+                        </p>
+                        {hiddenPages.map(page => {
+                          const idx = sortedSitePages.findIndex(p => p.id === page.id)
+                          const isActive = page.id === activePageId
+                          return (
+                            <button
+                              key={page.id}
+                              type="button"
+                              onClick={() => {
+                                setActivePageId(page.id)
+                                setSelectedBlockId(null)
+                                setPageWindowStart(idx)
+                                setPageMenuOpen(false)
+                              }}
+                              className={cn(
+                                'flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium transition-colors',
+                                isActive ? 'bg-primary/5 text-primary' : 'text-gray-700 hover:bg-gray-50',
+                              )}
+                            >
+                              <FileText className={cn('h-3.5 w-3.5 shrink-0', isActive ? 'text-primary' : 'text-gray-400')} />
+                              <span className="flex-1 truncate">{page.title}</span>
+                              {page.is_homepage && (
+                                <span className="shrink-0 rounded bg-gray-100 px-1 text-[9px] font-bold leading-none text-gray-500">Home</span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleAddPage}
+                  title="Create a new page"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-dashed border-gray-300 px-2.5 py-1 text-[11px] font-semibold leading-none text-gray-500 transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+                >
+                  <Plus className="h-3.5 w-3.5 shrink-0" /> Create Page
+                </button>
+
+                {/* Horizontal scrollbar for panning the zoomed canvas (~3in wide) */}
+                <CanvasHScrollbar
+                  targetRef={canvasMainRef}
+                  refreshKey={`${scaledCanvasWidth}-${device}`}
+                  className="ml-1.5 w-[288px] shrink-0 border-l border-gray-300 pl-1.5"
+                />
+              </div>
+            )
+          })()}
         </main>
 
         {/* ── RIGHT RESIZE HANDLE ─────────────────────────────────────── */}
         {!rightCollapsed && (
           <div
-            className="w-1 shrink-0 bg-transparent hover:bg-primary/50 active:bg-accent cursor-col-resize transition-colors group relative z-20"
+            className="w-px shrink-0 bg-transparent hover:bg-gray-500 active:bg-gray-600 cursor-col-resize transition-colors group relative z-20"
             onMouseDown={e => {
               e.preventDefault()
               isResizingRight.current = true
@@ -16744,7 +13715,7 @@ export default function WebsiteBuilder() {
             }}
             title="Drag to resize panel"
           >
-            <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-primary/50/30" />
+            <div className="absolute inset-y-0 -left-1 -right-1" />
           </div>
         )}
 
@@ -16765,18 +13736,18 @@ export default function WebsiteBuilder() {
                   <ChevronRight className="w-3 h-3" />
                 </button>
                 {([
-                  { id: 'props' as const, icon: Settings2, label: 'Edit' },
-                  { id: 'page' as const, icon: FileText, label: 'Page' },
-                  { id: 'style' as const, icon: Palette, label: 'Style' },
-                  { id: 'seo' as const, icon: Search, label: 'SEO' },
-                  { id: 'data' as const, icon: Database, label: 'Data' },
-                ] as const).map(({ id, icon: Icon, label }) => (
+                  { id: 'props' as const, icon: Settings2, label: 'Section Edit', hint: 'Text, colors, and layout for the selected section' },
+                  { id: 'page' as const, icon: FileText, label: 'Page Edit', hint: 'Page-wide colors and fonts (switch pages in the left Pages panel)' },
+                  { id: 'style' as const, icon: Palette, label: 'Style', hint: 'Site fonts and colors' },
+                  { id: 'seo' as const, icon: Search, label: 'Search', hint: 'How your page appears in Google and when shared' },
+                  { id: 'data' as const, icon: Database, label: 'Store data', hint: 'Connect sections to products, services, and catalog' },
+                ] as const).map(({ id, icon: Icon, label, hint }) => (
                   <button
                     key={id}
                     onClick={() => setRightPanel(id)}
-                    title={label}
+                    title={hint}
                     className={cn(
-                      'min-w-[3.25rem] shrink-0 py-2 px-1 flex flex-col items-center gap-0.5 transition-colors antialiased subpixel-antialiased',
+                      'min-w-[4.25rem] shrink-0 py-2 px-1 flex flex-col items-center gap-0.5 transition-colors antialiased subpixel-antialiased',
                       rightPanel === id ? 'text-primary border-b-2 border-primary bg-accent' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50',
                     )}
                   >
@@ -16810,8 +13781,8 @@ export default function WebsiteBuilder() {
                     <div className="p-4 space-y-4">
                       <div className="text-center py-8">
                         <MousePointerIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                        <p className="text-sm font-semibold text-gray-700">Select a block to edit</p>
-                        <p className="text-xs text-gray-400 mt-1">Click any block on the canvas to see its settings here.</p>
+                        <p className="text-sm font-semibold text-gray-700">Select a section on the canvas</p>
+                        <p className="text-xs text-gray-400 mt-1">Section colors, layout, and content appear in Section Edit.</p>
                       </div>
                     </div>
                   )
@@ -16821,11 +13792,6 @@ export default function WebsiteBuilder() {
                   <PagePanel
                     pages={sortedSitePages}
                     activePageId={activePageId}
-                    onSelectPage={pageId => {
-                      setActivePageId(pageId)
-                      setSelectedBlockId(null)
-                      setActiveTextTarget(null)
-                    }}
                     siteStyle={localStyle}
                     onPageStyleChange={handlePageStyleChange}
                     onClearPageStyle={handleClearPageStyle}
@@ -16874,14 +13840,13 @@ export default function WebsiteBuilder() {
                         )}
                         {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Saved' : 'Save canvas & styles'}
                       </button>
-                      {lastSavedAt && (
-                        <p className="text-xs text-gray-400 text-center mt-1.5">
-                          Auto-saved {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      )}
-                      {!lastSavedAt && (
-                        <p className="text-xs text-gray-400 text-center mt-1.5">Auto-save enabled</p>
-                      )}
+                      <p className="mt-1.5 text-center text-xs text-gray-400">
+                        {autoSaveEnabled
+                          ? (lastSavedAt
+                            ? `Auto-saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                            : 'Auto-save enabled')
+                          : 'Auto-save off — use Save draft in the toolbar'}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -16907,7 +13872,7 @@ export default function WebsiteBuilder() {
                               ),
                             }
                           })
-                          toast.success('SEO saved!')
+                          toast.success('Search settings saved!')
                         })
                         .catch(() => toast.error('Save failed'))
                     }}
@@ -16917,7 +13882,7 @@ export default function WebsiteBuilder() {
                           queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
                             old ? { ...old, ...data, ...updated } : old,
                           )
-                          toast.success('Site SEO saved!')
+                          toast.success('Site search settings saved!')
                         })
                         .catch(() => toast.error('Save failed'))
                     }}
@@ -17458,11 +14423,15 @@ function SEOPanel({
 
   return (
     <div className="p-4 space-y-4">
+      <div className="rounded-xl border border-sky-100 bg-sky-50/80 px-3 py-2.5 text-[11px] text-gray-600 leading-snug">
+        <strong className="font-semibold text-gray-800">Search listing</strong> controls the title and short description people see in Google and when your link is shared on social media.
+      </div>
+
       {/* Tab switcher */}
       <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
         {(['page', 'site'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} className={cn('flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors', tab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
-            {t === 'page' ? '📄 This Page' : '🌐 Site-wide'}
+            {t === 'page' ? '📄 This page' : '🌐 Whole site'}
           </button>
         ))}
       </div>
@@ -17476,7 +14445,7 @@ function SEOPanel({
             className="w-full py-2 bg-gradient-to-r from-primary to-info text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
           >
             {aiSEO.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            Generate SEO with AI
+            Write search text with AI
           </button>
 
           {/* AI result preview */}
@@ -17497,7 +14466,7 @@ function SEOPanel({
 
           <div className="space-y-1">
             <div className="flex justify-between">
-              <label className="text-xs font-medium text-gray-700">SEO Title</label>
+              <label className="text-xs font-medium text-gray-700">Title in Google results</label>
               <span className={cn('text-xs', titleLen > 60 ? 'text-red-500' : titleLen > 50 ? 'text-amber-500' : 'text-gray-400')}>{titleLen}/60</span>
             </div>
             <input value={seoTitle} onChange={e => setSeoTitle(e.target.value)} placeholder={`${activePage.title} | ${site.name}`} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
@@ -17505,14 +14474,14 @@ function SEOPanel({
 
           <div className="space-y-1">
             <div className="flex justify-between">
-              <label className="text-xs font-medium text-gray-700">Meta Description</label>
+              <label className="text-xs font-medium text-gray-700">Short summary for Google</label>
               <span className={cn('text-xs', descLen > 160 ? 'text-red-500' : descLen > 140 ? 'text-amber-500' : 'text-gray-400')}>{descLen}/160</span>
             </div>
             <textarea value={seoDesc} onChange={e => setSeoDesc(e.target.value)} placeholder="Describe this page in 150-160 characters..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">OG / Social Image URL</label>
+            <label className="text-xs font-medium text-gray-700">Share image (social media preview)</label>
             <input value={ogImage} onChange={e => setOgImage(e.target.value)} placeholder="https://... or /uploads/..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
             {ogImage && <img src={mediaUrl(ogImage)} className="w-full h-20 object-cover rounded-xl border border-gray-100 mt-1" alt="OG preview" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
           </div>
@@ -17529,17 +14498,17 @@ function SEOPanel({
             onClick={() => onSavePage({ seo_title: seoTitle, seo_description: seoDesc, og_image_url: ogImage })}
             className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
           >
-            <Save className="w-3.5 h-3.5" /> Save Page SEO
+            <Save className="w-3.5 h-3.5" /> Save search settings
           </button>
 
-          {/* AI Block Suggestions */}
+          {/* AI section suggestions */}
           <div className="border-t border-gray-100 pt-3 space-y-2">
             <div className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-primary/80" /> AI Layout Suggestions
+              <Zap className="w-3.5 h-3.5 text-primary/80" /> AI section ideas
             </div>
             <button onClick={handleSuggestBlocks} disabled={suggestBlocks.isPending} className="w-full py-2 border border-primary/30 text-primary text-xs font-medium rounded-xl hover:bg-accent flex items-center justify-center gap-2">
               {suggestBlocks.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              Suggest Blocks for this Page
+              Suggest sections for this page
             </button>
             {suggestResult && (
               <div className="space-y-1.5">
@@ -17564,11 +14533,11 @@ function SEOPanel({
       {tab === 'site' && (
         <div className="space-y-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Site SEO Title</label>
+            <label className="text-xs font-medium text-gray-700">Default title in Google</label>
             <input value={siteTitle} onChange={e => setSiteTitle(e.target.value)} placeholder={site.name} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Site Meta Description</label>
+            <label className="text-xs font-medium text-gray-700">Default summary for Google</label>
             <textarea value={siteDesc} onChange={e => setSiteDesc(e.target.value)} placeholder="Overall site description for search engines..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div className="space-y-1">
@@ -17579,7 +14548,7 @@ function SEOPanel({
             onClick={() => onSaveSite({ seo_title: siteTitle, seo_description: siteDesc, seo_keywords: siteKw })}
             className="w-full py-2 bg-gray-800 text-white text-xs font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
           >
-            <Save className="w-3.5 h-3.5" /> Save Site SEO
+            <Save className="w-3.5 h-3.5" /> Save site search settings
           </button>
         </div>
       )}

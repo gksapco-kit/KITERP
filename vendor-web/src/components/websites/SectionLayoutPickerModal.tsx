@@ -336,7 +336,7 @@ export function SectionLayoutPickerModal({
         >
           <div className="flex items-center justify-between px-4 sm:px-5 py-4 bg-gray-900 text-white shrink-0">
             <div>
-              <h2 id="section-layout-picker-title" className="text-lg font-bold">Choose layout</h2>
+              <h2 id="section-layout-picker-title" className="text-lg font-bold">Choose section style</h2>
               <p className="text-sm text-gray-400 mt-0.5">
                 {blockSupportsGalleryCategory(def.type)
                   ? 'Preview uses images from your selected category'

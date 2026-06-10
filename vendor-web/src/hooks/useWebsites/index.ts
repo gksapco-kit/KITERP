@@ -214,6 +214,15 @@ export function useUploadMedia(siteId: string) {
   })
 }
 
+export function useUpdateMedia(siteId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ mediaId, filename }: { mediaId: string; filename: string }) =>
+      websiteApi.updateMedia(siteId, mediaId, { filename }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['websites', siteId, 'media'] }),
+  })
+}
+
 export function useDeleteMedia(siteId: string) {
   const qc = useQueryClient()
   return useMutation({

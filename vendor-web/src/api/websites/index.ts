@@ -165,6 +165,8 @@ export const websiteApi = {
   },
   saveExternalUrl: (siteId: string, url: string, label?: string) =>
     apiClient.post<WebsiteMedia>(`${base}/${siteId}/media/save-url`, { url, label }).then(r => r.data),
+  updateMedia: (siteId: string, mediaId: string, data: { filename: string }) =>
+    apiClient.patch<WebsiteMedia>(`${base}/${siteId}/media/${mediaId}`, data).then(r => r.data),
   deleteMedia: (siteId: string, mediaId: string) =>
     apiClient.delete(`${base}/${siteId}/media/${mediaId}`),
 

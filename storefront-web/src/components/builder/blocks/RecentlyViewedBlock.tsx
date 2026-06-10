@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { getRecent } from '@/lib/recentlyViewed'
+import { useVendor } from '@/contexts/VendorContext'
+import {
+  CATALOG_GRID_COL_CLASS,
+  clampCatalogColumns,
+  readCatalogCardLayout,
+} from '@/lib/catalogCardLayout'
 
 interface Props {
   site: PublicSite
@@ -16,7 +23,10 @@ interface Props {
  * don't ship an empty section.
  */
 export default function RecentlyViewedBlock({ style, props }: Props) {
-  const max = Number(props.max ?? 6) || 6
+  const { storePath } = useVendor()
+  const max = Math.min(50, Math.max(1, Number(props.max ?? props.show_count ?? 6) || 6))
+  const columns = clampCatalogColumns(props.columns, 6, 'recently_viewed')
+  const cardLayout = readCatalogCardLayout(props, 'recently_viewed', { defaultColumns: 6 })
   const [items, setItems] = useState<LiveItem[]>([])
 
   useEffect(() => {
@@ -35,32 +45,42 @@ export default function RecentlyViewedBlock({ style, props }: Props) {
       >
         {title}
       </h2>
-      <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 list-none p-0">
+      <ul
+        className={`grid list-none p-0 ${CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[6]}`}
+        style={{ gap: cardLayout.itemGap }}
+      >
         {items.map(item => (
           <li key={item.id || item.title} className="group">
-            <a href={item.url || '#'} className="block">
+            <Link to={item.url ? storePath(item.url) : storePath('/products')} className="block">
               <div
-                className="aspect-square overflow-hidden rounded-xl bg-gray-100 mb-2 border border-gray-200/60 group-hover:border-gray-300 transition-colors"
-                style={{ borderRadius: style.border_radius === 'rounded-full' ? '9999px' : undefined }}
+                className={`relative w-full overflow-hidden bg-gray-100 mb-2 border border-gray-200/60 group-hover:border-gray-300 transition-colors ${cardLayout.cardRadius}`}
+                style={{ paddingBottom: `${cardLayout.imageHeightPct}%` }}
               >
                 {item.image_url ? (
                   <img
                     src={item.image_url}
                     alt={item.title}
                     loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No image</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400">No image</div>
                 )}
               </div>
-              <p className="text-sm font-medium line-clamp-2 mb-1" style={{ color: style.text_color }}>
-                {item.title}
-              </p>
-              {item.price_formatted && (
-                <p className="text-xs text-gray-500">{item.price_formatted}</p>
-              )}
-            </a>
+              <div style={{ padding: Math.max(0, cardLayout.cardPadding - 8) }}>
+                <p
+                  className={`font-medium line-clamp-2 mb-1 ${cardLayout.isMinimalCard ? 'text-xs' : 'text-sm'}`}
+                  style={{ color: style.text_color }}
+                >
+                  {item.title}
+                </p>
+                {item.price_formatted && (
+                  <p className={`text-gray-500 ${cardLayout.isMinimalCard ? 'text-[10px]' : 'text-xs'}`}>
+                    {item.price_formatted}
+                  </p>
+                )}
+              </div>
+            </Link>
           </li>
         ))}
       </ul>

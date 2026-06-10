@@ -3,6 +3,7 @@ import { imgUrl } from '@/lib/utils'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
+import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 
 interface Props {
   site: PublicSite
@@ -60,7 +61,14 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
         <div>
           {imageUrl ? (
             <MediaClipFrame clip={mediaClip} className="w-full aspect-video shadow-lg">
-              <img src={imageUrl} alt={title} className={`w-full h-full object-cover ${!clipped ? 'rounded-2xl' : ''}`} loading="lazy" />
+              <BuilderSectionImage
+                blockId={blockId}
+                field="image_url"
+                blockProps={props}
+                src={imageUrl}
+                alt={title}
+                className={`w-full h-full object-cover ${!clipped ? 'rounded-2xl' : ''}`}
+              />
             </MediaClipFrame>
           ) : (
             <div className="w-full aspect-video rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${style.primary_color}10` }}>

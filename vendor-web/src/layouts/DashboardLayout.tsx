@@ -179,6 +179,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
+  ensurePinnedNavItemsInSection,
   loadSectionIds,
   saveSectionIds,
   clearSavedNavOrder,
@@ -443,6 +444,7 @@ const allSections: NavSection[] = [
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/relationship-manager', icon: UsersRound, label: 'Relationship Manager', alwaysShow: true },
       { to: '/workspace', icon: LayoutGrid, label: 'Workspace Apps', alwaysShow: true },
+      { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/settings', icon: Settings, label: BUSINESS_UNIT_STORE_SETTINGS_LINK, alwaysShow: true },
     ],
   },
@@ -635,7 +637,6 @@ const allSections: NavSection[] = [
     icon: Settings2,
     items: [
       { to: '/business-front', icon: Monitor, label: 'Business Front', alwaysShow: true },
-      { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
       { to: '/template', icon: Palette, label: 'Store Template', alwaysShow: true },
       { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
@@ -1705,7 +1706,7 @@ export default function DashboardLayout() {
       } else {
         list.push(...s.items)
       }
-      m.set(s.id, list)
+      m.set(s.id, ensurePinnedNavItemsInSection(s.id, list, byTo))
     }
     return m
   }, [displaySections, itemPlacements])
@@ -1863,6 +1864,15 @@ export default function DashboardLayout() {
     if (node) sectionScrollAnchors.current.set(sectionId, node)
     else sectionScrollAnchors.current.delete(sectionId)
   }, [])
+
+  /** Keep My Kit open on website routes so Website Builder stays visible in the sidebar. */
+  useEffect(() => {
+    if (!location.pathname.startsWith('/websites')) return
+    setCollapsedSections((prev) => {
+      if (prev['My Kit'] === false) return prev
+      return { ...prev, 'My Kit': false }
+    })
+  }, [location.pathname])
 
   const toggleSection = useCallback((title: string, sectionId: string) => {
     setCollapsedSections((prev) => {
