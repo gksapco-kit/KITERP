@@ -24,6 +24,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatFormFieldError } from '@/lib/formFieldErrors'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
+import { extractAuthApiDetail } from '@/lib/otpAuth'
 import { VENDOR_REGISTER_DRAFT_KEY, clearVendorRegisterDraft } from '@/lib/vendorRegisterDraft'
 
 const DRAFT_VERSION = 1
@@ -261,12 +262,9 @@ export default function Register() {
         )
       }
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, { channel }) => {
       otpAutoSentRef.current = false
-      const msg =
-        typeof (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail === 'string'
-          ? (err as { response: { data: { detail: string } } }).response.data.detail
-          : 'Could not send verification code'
+      const msg = extractAuthApiDetail(err, 'Could not send verification code', channel)
       setOtpSendError(msg)
       toast.error(msg)
     },
@@ -314,13 +312,7 @@ export default function Register() {
         phone: phoneOk ? phoneTrim : undefined,
       })
     } catch (err: unknown) {
-      const raw = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-      let msg =
-        typeof raw === 'string'
-          ? raw
-          : Array.isArray(raw) && raw[0] && typeof (raw[0] as { msg?: string }).msg === 'string'
-            ? (raw[0] as { msg: string }).msg
-            : 'This email or phone is already registered'
+      let msg = extractAuthApiDetail(err, 'This email or phone is already registered')
       if (msg === 'Email already registered') {
         msg =
           'This email is already registered. Sign in at /login, use a different email, delete the test account in Admin → Business Accounts, or register at /create-business if you used that flow first.'

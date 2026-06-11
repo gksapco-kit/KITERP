@@ -11,6 +11,12 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import apiClient from '@/api/client'
+import {
+  NOT_REGISTERED_EMAIL,
+  NOT_REGISTERED_PHONE,
+  extractAuthApiDetail,
+  resetCodeWasIssued,
+} from '@/lib/otpAuth'
 import { cn } from '@/lib/utils'
 
 const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE as string | undefined
@@ -128,27 +134,41 @@ export default function ForgotPassword() {
     setLoading(true)
     try {
       if (method === 'email') {
+        const emailVal = email.trim().toLowerCase()
         const res = await apiClient.post('/auth/forgot-password', {
-          email: email.trim().toLowerCase(),
+          email: emailVal,
         })
+        if (!resetCodeWasIssued(res.data)) {
+          setError(NOT_REGISTERED_EMAIL)
+          toast.error(NOT_REGISTERED_EMAIL)
+          return
+        }
         setDevHint(res.data?.dev_hint ?? undefined)
         if (res.data?.dev_hint) setCode(res.data.dev_hint)
-        setMaskedTarget(email.trim().toLowerCase())
+        setMaskedTarget(emailVal)
         toast.success('Reset code sent — check your email')
+        setStep('code')
       } else {
-        const res = await apiClient.post('/auth/forgot-password-phone', {
-          phone: phone.trim(),
-        })
+        const phoneVal = phone.trim()
+        const res = await apiClient.post('/auth/forgot-password-phone', { phone: phoneVal })
+        if (!resetCodeWasIssued(res.data)) {
+          setError(NOT_REGISTERED_PHONE)
+          toast.error(NOT_REGISTERED_PHONE)
+          return
+        }
         setDevHint(res.data?.dev_hint ?? undefined)
         if (res.data?.dev_hint) setCode(res.data.dev_hint)
-        setMaskedTarget(res.data?.to || phone)
+        setMaskedTarget(phoneVal)
         toast.success('Reset OTP sent to your phone')
+        setStep('code')
       }
-      setStep('code')
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Could not send reset code')
+    } catch (err: unknown) {
+      const message = extractAuthApiDetail(err, 'Could not send reset code', method)
+      setError(message)
+      toast.error(message)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   // ── Step 2: verify + set new password ─────────────────────────────
@@ -170,8 +190,8 @@ export default function ForgotPassword() {
       })
       toast.success('Password reset successfully — please sign in')
       navigate('/login')
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Invalid or expired code')
+    } catch (err: unknown) {
+      setError(extractAuthApiDetail(err, 'Invalid or expired code', method))
     }
     setLoading(false)
   }

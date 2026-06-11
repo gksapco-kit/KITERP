@@ -49,17 +49,19 @@ async def _send_phone_verification_otp(user: User, *, purpose: str) -> dict:
         user.verification_code = TWILIO_VERIFY_MARKER if dispatch.verify_marker else dispatch.stored_code
         return {"otp": None, "sms_sent": True, "email_sent": False}
 
-    if not otp_svc.is_sms_configured and settings.DEBUG:
-        otp = _generate_otp()
+    if settings.DEBUG:
+        otp = dispatch.stored_code or _generate_otp()
         user.verification_code = otp
         return {"otp": otp, "sms_sent": False, "email_sent": False}
 
-    raise HTTPException(
-        status_code=503,
-        detail=dispatch.result.user_message(
-            fallback="Could not send SMS to this number. Check the number and try again.",
-        ),
-    )
+    if otp_svc.is_sms_configured:
+        raise HTTPException(
+            status_code=503,
+            detail=dispatch.result.user_message(
+                fallback="Could not send SMS to this number. Check the number and try again.",
+            ),
+        )
+    raise HTTPException(status_code=503, detail="SMS service is not configured. Contact support.")
 
 
 async def _send_email_verification_otp(user: User, *, purpose: str) -> dict:
@@ -78,17 +80,19 @@ async def _send_email_verification_otp(user: User, *, purpose: str) -> dict:
         )
         return {"otp": None, "sms_sent": False, "email_sent": True}
 
-    if not otp_svc.is_email_configured and settings.DEBUG:
-        otp = _generate_otp()
+    if settings.DEBUG:
+        otp = dispatch.stored_code or _generate_otp()
         user.verification_code = otp
         return {"otp": otp, "sms_sent": False, "email_sent": False}
 
-    raise HTTPException(
-        status_code=503,
-        detail=dispatch.result.user_message(
-            fallback="Could not send verification email. Check the address and try again.",
-        ),
-    )
+    if otp_svc.is_email_configured:
+        raise HTTPException(
+            status_code=503,
+            detail=dispatch.result.user_message(
+                fallback="Could not send verification email. Check the address and try again.",
+            ),
+        )
+    raise HTTPException(status_code=503, detail="Email service is not configured. Contact support.")
 
 
 router = APIRouter()

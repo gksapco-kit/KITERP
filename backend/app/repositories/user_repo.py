@@ -1,4 +1,5 @@
 # app/repositories/user_repo.py
+import re
 from typing import List, Optional
 from uuid import UUID
 
@@ -21,11 +22,57 @@ class UserRepository(BaseRepository[User]):
         result = await self.db.execute(select(User).where(sqlfunc.lower(User.email) == norm))
         return list(result.scalars().all())
 
-    async def list_users_by_phone(self, phone: str) -> List[User]:
-        if not phone:
+    def _phone_digit_key(self, phone: str) -> str:
+        return re.sub(r"\D", "", phone or "")
+
+    def _phone_lookup_variants(self, phone: str) -> List[str]:
+        from app.services.sms_service import normalize_e164
+
+        raw = (phone or "").strip()
+        if not raw:
             return []
-        result = await self.db.execute(select(User).where(User.phone == phone))
+        normalized = normalize_e164(raw)
+        digits = self._phone_digit_key(normalized or raw)
+        variants: List[str] = []
+        if normalized:
+            variants.append(normalized)
+        if digits:
+            variants.append(digits)
+            variants.append(f"+{digits}")
+        # de-dupe while preserving order
+        seen: set[str] = set()
+        out: List[str] = []
+        for v in variants:
+            if v and v not in seen:
+                seen.add(v)
+                out.append(v)
+        return out
+
+    async def list_users_by_phone(self, phone: str) -> List[User]:
+        if not phone or not str(phone).strip():
+            return []
+        variants = self._phone_lookup_variants(phone)
+        if variants:
+            result = await self.db.execute(select(User).where(User.phone.in_(variants)))
+            users = list(result.scalars().all())
+            if users:
+                return users
+        digits = self._phone_digit_key(phone)
+        if len(digits) < 7:
+            return []
+        result = await self.db.execute(
+            select(User).where(
+                User.phone.isnot(None),
+                sqlfunc.regexp_replace(User.phone, r"[^0-9]", "", "g") == digits,
+            ),
+        )
         return list(result.scalars().all())
+
+    async def phone_exists_in_db(self, phone: str) -> bool:
+        return len(await self.list_users_by_phone(phone)) > 0
+
+    async def email_exists_in_db(self, email: str) -> bool:
+        return len(await self.list_users_by_email_ci(email)) > 0
 
     async def get_user_with_email_for_vendor(self, vendor_id: UUID, email: str) -> Optional[User]:
         """A user who already has a vendor_user row on this vendor with this email (case-insensitive)."""

@@ -12,6 +12,7 @@ import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER } from '@/components/auth/signupTheme'
 import { Loader2, Rocket, Eye, EyeOff, Check, Smartphone, Mail, X } from 'lucide-react'
 import axios from 'axios'
 import { buildVendorWelcomeUrl, vendorAppUrl } from '@/lib/appUrls'
+import { extractAuthApiDetail } from '@/lib/otpAuth'
 import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
 
 // Same-origin `/api/v1` in dev (Vite proxies to backend); set `VITE_API_URL` if the API is elsewhere.
@@ -301,10 +302,7 @@ export default function VendorSignup() {
         await sendOtp(otpChannel, target)
       } catch (err: unknown) {
         otpAutoSentRef.current = false
-        const msg =
-          axios.isAxiosError(err) && typeof err.response?.data?.detail === 'string'
-            ? err.response.data.detail
-            : 'Could not send verification code'
+        const msg = extractAuthApiDetail(err, 'Could not send verification code', otpChannel)
         setOtpSendError(msg)
         toast.error(msg)
       } finally {
@@ -395,10 +393,7 @@ export default function VendorSignup() {
         phone: phoneOk ? phoneTrim : undefined,
       })
     } catch (err: unknown) {
-      let msg =
-        axios.isAxiosError(err) && typeof err.response?.data?.detail === 'string'
-          ? err.response.data.detail
-          : 'This email or phone is already registered'
+      let msg = extractAuthApiDetail(err, 'This email or phone is already registered')
       if (msg === 'Email already registered') {
         msg =
           'This email is already registered. No verification code is sent. Use a different email, or ask your admin to delete the test account from Business Accounts.'

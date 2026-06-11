@@ -580,30 +580,28 @@ async def forgot_password(
 ):
     """Request a 6-digit password-reset code to the supplied email.
 
-    Always returns 200 so we don't leak whether an email is registered.
     In dev mode (no SMTP), the code is returned in ``dev_hint``.
     """
     from datetime import datetime, timedelta, timezone
-    result = await db.execute(select(User).where(User.email == payload.email.lower()))
-    user = result.scalar_one_or_none()
+    from app.repositories.user_repo import UserRepository
+
+    email = _require_valid_email(str(payload.email))
+    repo = UserRepository(db)
+    users = await repo.list_users_by_email_ci(email)
+    user = users[0] if users else None
 
     if not user:
-        return {"sent": True, "dev_hint": None, "to": _mask_email(payload.email.lower())}
+        raise HTTPException(
+            status_code=400,
+            detail="This email is not registered. Check the address or create a business account first.",
+        )
 
     expires = datetime.now(timezone.utc) + timedelta(seconds=600)
-    email = payload.email.lower()
     from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_EMAIL_MARKER, generate_otp_code
 
     otp_svc = OtpService()
     dispatch = await otp_svc.send_and_store_code(email, channel="email", purpose="password reset")
     if not dispatch.result.sent:
-        if otp_svc.is_email_configured:
-            raise HTTPException(
-                status_code=503,
-                detail=dispatch.result.user_message(
-                    fallback="Could not send verification email. Check the address and try again.",
-                ),
-            )
         if settings.DEBUG:
             code = generate_otp_code()
             user.verification_code = code
@@ -611,7 +609,14 @@ async def forgot_password(
             db.add(user)
             await db.commit()
             logger.info("[forgot-password-email:dev] email=%s code=%s", email, code)
-            return {"sent": True, "to": _mask_email(email), "dev_hint": code}
+            return {"sent": True, "to": email, "dev_hint": code}
+        if otp_svc.is_email_configured:
+            raise HTTPException(
+                status_code=503,
+                detail=dispatch.result.user_message(
+                    fallback="Could not send verification email. Check the address and try again.",
+                ),
+            )
         raise HTTPException(status_code=503, detail="Email service is not configured. Contact support.")
 
     user.verification_code = (
@@ -620,7 +625,50 @@ async def forgot_password(
     user.verification_code_expires_at = expires
     db.add(user)
     await db.commit()
-    return {"sent": True, "to": _mask_email(email), "expires_at": expires.isoformat()}
+    return {"sent": True, "to": email, "expires_at": expires.isoformat()}
+
+
+@router.post("/forgot-password/check-email")
+async def forgot_password_check_email(
+    payload: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify the email exists in the database before sending a reset code."""
+    from app.repositories.user_repo import UserRepository
+
+    email = _require_valid_email(str(payload.email))
+    repo = UserRepository(db)
+    if not await repo.email_exists_in_db(email):
+        raise HTTPException(
+            status_code=400,
+            detail="This email is not registered. Check the address or create a business account first.",
+        )
+    return {"registered": True}
+
+
+@router.post("/forgot-password/check-phone")
+async def forgot_password_check_phone(
+    payload: ForgotPasswordPhoneRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify the phone exists in the database before sending a reset OTP."""
+    from app.repositories.user_repo import UserRepository
+    from app.services.sms_service import normalize_e164
+
+    phone = normalize_e164(payload.phone or "")
+    key = _vendor_signup_phone_key(phone)
+    if len(key) < 10:
+        raise HTTPException(
+            status_code=422,
+            detail="Enter a valid phone number with country code",
+        )
+    repo = UserRepository(db)
+    if not await repo.phone_exists_in_db(phone):
+        raise HTTPException(
+            status_code=400,
+            detail="This phone number is not registered. Check the number or create a business account first.",
+        )
+    return {"registered": True}
 
 
 @router.post("/forgot-password-phone")
@@ -628,24 +676,40 @@ async def forgot_password_phone(
     payload: ForgotPasswordPhoneRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Request a 6-digit password-reset code via SMS. Always returns 200 (no account enumeration)."""
+    """Request a 6-digit password-reset code via SMS."""
+    from app.repositories.user_repo import UserRepository
     from app.services.phone_otp_service import OtpService, TWILIO_VERIFY_MARKER, generate_otp_code
     from app.services.sms_service import normalize_e164
 
     phone = normalize_e164(payload.phone or "")
     key = _vendor_signup_phone_key(phone)
     if len(key) < 10:
-        return {"sent": True, "to": None, "dev_hint": None}
+        raise HTTPException(
+            status_code=422,
+            detail="Enter a valid phone number with country code",
+        )
 
-    result = await db.execute(select(User).where(User.phone == phone))
-    user = result.scalar_one_or_none()
+    repo = UserRepository(db)
+    users = await repo.list_users_by_phone(phone)
+    user = users[0] if users else None
     if not user:
-        return {"sent": True, "to": _mask_phone(phone), "dev_hint": None}
+        raise HTTPException(
+            status_code=400,
+            detail="This phone number is not registered. Check the number or create a business account first.",
+        )
 
     expires = datetime.now(timezone.utc) + timedelta(seconds=600)
     otp_svc = OtpService()
     dispatch = await otp_svc.send_and_store_code(phone, channel="sms", purpose="password reset")
     if not dispatch.result.sent:
+        if settings.DEBUG:
+            code = dispatch.stored_code or generate_otp_code()
+            user.verification_code = code
+            user.verification_code_expires_at = expires
+            db.add(user)
+            await db.commit()
+            logger.info("[forgot-password-phone:dev] phone_suffix=%s code=%s", phone[-4:], code)
+            return {"sent": True, "to": _mask_phone(phone), "dev_hint": code}
         if otp_svc.is_sms_configured:
             raise HTTPException(
                 status_code=503,
@@ -653,14 +717,6 @@ async def forgot_password_phone(
                     fallback="Could not send SMS to this number. Check the number and try again.",
                 ),
             )
-        if settings.DEBUG:
-            code = dispatch.result.stored_code or generate_otp_code()
-            user.verification_code = code
-            user.verification_code_expires_at = expires
-            db.add(user)
-            await db.commit()
-            logger.info("[forgot-password-phone:dev] phone_suffix=%s code=%s", phone[-4:], code)
-            return {"sent": True, "to": _mask_phone(phone), "dev_hint": code}
         raise HTTPException(status_code=503, detail="SMS service is not configured. Contact support.")
 
     if dispatch.verify_marker:
@@ -696,9 +752,11 @@ async def reset_password(
         result = await db.execute(select(User).where(User.email == payload.email.lower()))
         user = result.scalar_one_or_none()
     elif payload.phone:
+        from app.repositories.user_repo import UserRepository
+
         phone = normalize_e164(payload.phone)
-        result = await db.execute(select(User).where(User.phone == phone))
-        user = result.scalar_one_or_none()
+        users = await UserRepository(db).list_users_by_phone(phone)
+        user = users[0] if users else None
 
     if not user or not user.verification_code:
         raise HTTPException(status_code=400, detail="Invalid or expired reset code")
@@ -1072,16 +1130,24 @@ def _otp_sms_extra_fields(
     phone: str,
     sms_error: "str | None" = None,
 ) -> dict:
-    """Build response extras after an OTP SMS attempt. Never leaks dev_hint when Twilio is configured."""
-    if sms_sent:
-        return {}
-    if sms_configured:
-        detail = sms_error or "Could not send SMS to this number. Check the number and try again."
-        raise HTTPException(status_code=503, detail=detail)
-    if settings.DEBUG:
-        logger.info("[%s] phone_suffix=%s code=%s", log_tag, phone[-4:], code)
-        return {"dev_hint": code}
-    raise HTTPException(status_code=503, detail="SMS service is not configured. Contact support.")
+    """Build response extras after an OTP SMS attempt."""
+    from app.services.otp_dispatch_helpers import otp_send_extra_fields
+    from app.services.phone_otp_service import OtpSendResult
+
+    return otp_send_extra_fields(
+        OtpSendResult(
+            sent=sms_sent,
+            channel="phone",
+            twilio_message=sms_error,
+        ),
+        code=code,
+        log_tag=log_tag,
+        destination=phone,
+        channel="sms",
+        configured=sms_configured,
+        not_configured_detail="SMS service is not configured. Contact support.",
+        send_error_fallback="Could not send SMS to this number. Check the number and try again.",
+    )
 
 
 def _otp_email_extra_fields(
@@ -1093,16 +1159,24 @@ def _otp_email_extra_fields(
     email: str,
     email_error: "str | None" = None,
 ) -> dict:
-    """Build response extras after an OTP email attempt. Never leaks dev_hint when email is configured."""
-    if email_sent:
-        return {}
-    if email_configured:
-        detail = email_error or "Could not send verification email. Check the address and try again."
-        raise HTTPException(status_code=503, detail=detail)
-    if settings.DEBUG:
-        logger.info("[%s] email=%s code=%s", log_tag, email, code)
-        return {"dev_hint": code}
-    raise HTTPException(status_code=503, detail="Email service is not configured. Contact support.")
+    """Build response extras after an OTP email attempt."""
+    from app.services.otp_dispatch_helpers import otp_send_extra_fields
+    from app.services.phone_otp_service import OtpSendResult
+
+    return otp_send_extra_fields(
+        OtpSendResult(
+            sent=email_sent,
+            channel="email",
+            twilio_message=email_error,
+        ),
+        code=code,
+        log_tag=log_tag,
+        destination=email,
+        channel="email",
+        configured=email_configured,
+        not_configured_detail="Email service is not configured. Contact support.",
+        send_error_fallback="Could not send verification email. Check the address and try again.",
+    )
 
 
 def _require_valid_email(email: str) -> str:

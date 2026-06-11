@@ -408,8 +408,8 @@ export default function BookingDetail() {
                             } else {
                               toast.message('OTP generated — SMS could not be sent')
                             }
-                          } catch {
-                            toast.error('Could not send completion OTP')
+                          } catch (err) {
+                            toast.error(extractApiError(err, 'Could not send completion OTP'))
                           } finally {
                             setOtpSending(false)
                           }

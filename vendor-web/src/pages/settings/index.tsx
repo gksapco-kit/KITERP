@@ -23,6 +23,7 @@ import {
   Link2, AlertCircle, BadgeCheck, Mail, Star,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { companyTypeLabel } from '@/data/companyTypes'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
@@ -2383,10 +2384,17 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       try {
         const res = await vendorApi.sendDomainDeactivationOtp()
         setOtpTo(res.to)
-        setOtpDevHint(res.dev_hint ?? '')
+        const hint = res.dev_hint ?? ''
+        setOtpDevHint(hint)
+        if (hint) {
+          setOtpCode(hint)
+          toast.message(`Dev mode: your code is ${hint}`, { duration: 12_000 })
+        }
         setOtpSent(true)
-      } catch {
-        toast.error('Could not send verification code — try again')
+      } catch (err) {
+        const msg = extractApiError(err, 'Could not send verification code')
+        setOtpError(msg)
+        toast.error(msg)
       }
       setOtpLoading(false)
     } else {
@@ -2406,8 +2414,8 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       setAccessStatus('revoked')
       setShowOtpModal(false)
       toast.success('External domain deactivated — your KIT ERP link is now primary')
-    } catch (err: any) {
-      setOtpError(err?.response?.data?.detail ?? 'Invalid code — try again')
+    } catch (err) {
+      setOtpError(extractApiError(err, 'Invalid code — try again'))
     }
     setOtpLoading(false)
   }

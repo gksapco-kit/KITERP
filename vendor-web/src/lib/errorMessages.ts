@@ -8,6 +8,9 @@ import { toast } from 'sonner'
 function _sanitiseDetail(detail: string): string {
   const d = detail.toLowerCase()
 
+  if (detail === 'Not Found') {
+    return 'Not found — check your details or contact support if this persists'
+  }
   if (d.includes('not-null constraint') || d.includes('notnullviolation') || d.includes('null value in column')) {
     const col = detail.match(/null value in column "(\w+)"/)
     const field = col ? col[1].replace(/_/g, ' ') : 'a required field'

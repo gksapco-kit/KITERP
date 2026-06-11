@@ -50,6 +50,11 @@ class OtpSendResult:
                 "open your Verify Service (VA...) → Email tab → select your SendGrid integration (kiterp), "
                 "then Save. The integration alone is not enough — it must be linked to the service."
             )
+        if self.twilio_code == 60205:
+            return (
+                "Twilio Verify SMS channel is disabled. In Twilio Console → Verify → Services → "
+                "open your Verify Service (VA...) → SMS tab → enable SMS, then Save."
+            )
         if self.twilio_message and settings.DEBUG:
             return f"{fallback} (Twilio: {self.twilio_message})"
         return fallback
@@ -182,14 +187,30 @@ class OtpService:
                     re.sub(r"(^.).+(@.+$)", r"\1***\2", to),
                 )
             if self.uses_verify:
-                return await self._send_via_verify(to, channel="email")
+                verify_result = await self._send_via_verify(to, channel="email")
+                if verify_result.sent:
+                    return verify_result
+                if self.uses_app_email:
+                    log.warning(
+                        "Twilio Verify email failed for %s: %s",
+                        re.sub(r"(^.).+(@.+$)", r"\1***\2", to),
+                        verify_result.twilio_message,
+                    )
+                return verify_result
             return OtpSendResult(sent=False, channel="email", twilio_message="Email delivery not configured")
 
         to = normalize_e164(to)
         if not is_valid_e164(to):
             return OtpSendResult(sent=False, channel="phone", twilio_message="Invalid phone number")
         if self.uses_verify:
-            return await self._send_via_verify(to, channel="sms")
+            verify_result = await self._send_via_verify(to, channel="sms")
+            if verify_result.sent:
+                return verify_result
+            log.warning(
+                "Twilio Verify SMS failed for %s: %s — trying direct SMS fallback",
+                to[-4:].rjust(len(to), "*"),
+                verify_result.twilio_message,
+            )
         if self.uses_sms:
             sms_result = await self.sms.send_otp(to, code, purpose=purpose)
             return OtpSendResult(

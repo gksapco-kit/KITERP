@@ -299,18 +299,23 @@ async def send_completion_otp(
 
     if dispatch.result.sent:
         booking.completion_otp = TWILIO_VERIFY_MARKER if dispatch.verify_marker else dispatch.stored_code
-    elif not otp_svc.is_sms_configured and settings.DEBUG:
+    elif settings.DEBUG:
         booking.completion_otp = otp
-    else:
+    elif otp_svc.is_sms_configured:
         raise HTTPException(
             status_code=503,
             detail=dispatch.result.user_message(
                 fallback="Could not send SMS to customer. Check the phone number and try again.",
             ),
         )
+    else:
+        raise HTTPException(status_code=503, detail="SMS service is not configured. Contact support.")
 
     await db.commit()
-    payload: dict = {"sent": dispatch.result.sent, "expires_in_minutes": 15}
+    payload: dict = {
+        "sent": dispatch.result.sent or settings.DEBUG,
+        "expires_in_minutes": 15,
+    }
     if not dispatch.result.sent and settings.DEBUG:
         payload["dev_hint"] = otp
     return payload

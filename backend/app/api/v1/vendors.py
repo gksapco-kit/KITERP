@@ -378,16 +378,16 @@ async def send_domain_deactivation_otp(
             )
             to = phone
             sent = True
-        elif not settings.DEBUG:
+        elif settings.DEBUG:
+            current_user.verification_code = f"domain-off:{code}"
+            extra["dev_hint"] = code
+        else:
             raise HTTPException(
                 status_code=503,
                 detail=dispatch.result.user_message(
                     fallback="Could not send verification SMS. Check your phone number and try again.",
                 ),
             )
-        else:
-            current_user.verification_code = f"domain-off:{code}"
-            extra["dev_hint"] = code
     elif current_user.email and otp_svc.is_email_configured:
         dispatch = await otp_svc.send_and_store_code(
             current_user.email.lower(),

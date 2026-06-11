@@ -44,7 +44,9 @@ export const authApi = {
   },
 
   forgotPasswordEmail: async (email: string): Promise<ForgotPasswordResponse> => {
-    const response = await apiClient.post('/auth/forgot-password', { email })
+    const response = await apiClient.post('/auth/forgot-password', {
+      email: email.trim().toLowerCase(),
+    })
     return response.data
   },
 

@@ -12,6 +12,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authApi } from '@/api/auth.api'
+import {
+  NOT_REGISTERED_EMAIL,
+  NOT_REGISTERED_PHONE,
+  extractAuthApiDetail,
+  resetCodeWasIssued,
+} from '@/lib/otpAuth'
 
 const OTP_LENGTH = 6
 
@@ -127,12 +133,10 @@ const PHONE_RE = /^\+?\d{7,15}$/
 type Channel = 'email' | 'phone'
 type Step = 'request' | 'verify'
 
-function apiError(err: unknown, fallback: string): string {
+function apiError(err: unknown, fallback: string, channel?: Channel): string {
   const ax = err as AxiosError<{ detail?: unknown }>
-  const detail = ax?.response?.data?.detail
-  if (typeof detail === 'string' && detail.trim()) return detail
   if (!ax?.response) return 'Cannot reach the API. Is the backend running on port 8000?'
-  return fallback
+  return extractAuthApiDetail(err, fallback, channel)
 }
 
 const requestSchema = z
@@ -183,6 +187,7 @@ export default function ForgotPassword() {
   const [devHint, setDevHint] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [codeError, setCodeError] = useState<string | null>(null)
+  const [requestError, setRequestError] = useState<string | null>(null)
 
   const requestForm = useForm<RequestForm>({
     resolver: zodResolver(requestSchema),
@@ -205,13 +210,22 @@ export default function ForgotPassword() {
     setSending(true)
     setDevHint(null)
     setCodeError(null)
+    setRequestError(null)
     const trimmed = data.contact.trim()
+    const emailNorm = trimmed.toLowerCase()
     try {
+      const phoneNorm = trimmed.replace(/\s/g, '')
       const res =
         data.channel === 'email'
-          ? await authApi.forgotPasswordEmail(trimmed)
-          : await authApi.forgotPasswordPhone(trimmed.replace(/\s/g, ''))
-      setContact(data.channel === 'email' ? trimmed : trimmed.replace(/\s/g, ''))
+          ? await authApi.forgotPasswordEmail(emailNorm)
+          : await authApi.forgotPasswordPhone(phoneNorm)
+      if (!resetCodeWasIssued(res)) {
+        const msg = data.channel === 'email' ? NOT_REGISTERED_EMAIL : NOT_REGISTERED_PHONE
+        setRequestError(msg)
+        toast.error(msg)
+        return
+      }
+      setContact(data.channel === 'email' ? emailNorm : phoneNorm)
       setStep('verify')
       if (res.dev_hint) {
         setDevHint(res.dev_hint)
@@ -221,12 +235,14 @@ export default function ForgotPassword() {
         setCode('')
         toast.success(
           data.channel === 'email'
-            ? `If that email is registered, a 6-digit code was sent to ${res.to ?? 'it'}.`
-            : `If that number is registered, a 6-digit code was sent to ${res.to ?? 'it'}.`,
+            ? `A 6-digit code was sent to ${res.to ?? trimmed}.`
+            : `A 6-digit code was sent to ${trimmed.replace(/\s/g, '')}.`,
         )
       }
     } catch (err) {
-      toast.error(apiError(err, 'Could not send the reset code. Try again.'))
+      const msg = apiError(err, 'Could not send the reset code. Try again.', data.channel)
+      setRequestError(msg)
+      toast.error(msg)
     } finally {
       setSending(false)
     }
@@ -260,8 +276,8 @@ export default function ForgotPassword() {
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-gray-900">Enter code & new password</h2>
           <p className="text-sm text-gray-600">
-            We sent a 6-digit code to your {channel === 'email' ? 'email' : 'phone'}{' '}
-            <span className="font-medium">{contact}</span>.
+            Enter the code sent to{' '}
+            <span className="font-semibold text-gray-900">{contact}</span> and set a new password.
           </p>
         </div>
 
@@ -348,6 +364,12 @@ export default function ForgotPassword() {
           We&apos;ll send a 6-digit verification code to confirm it&apos;s you.
         </p>
       </div>
+
+      {requestError && (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+          {requestError}
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1">
         <button
