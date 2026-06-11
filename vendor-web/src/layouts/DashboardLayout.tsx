@@ -1,7 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useViewportAnchoredPanel } from '@/hooks/useViewportAnchoredPanel'
-import ResponsiveViewportBadge from '@/components/dev/ResponsiveViewportBadge'
 import { createPortal } from 'react-dom'
 import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
@@ -3368,7 +3367,6 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
-      <ResponsiveViewportBadge />
     </div>
   )
 }

@@ -153,6 +153,8 @@ import {
 import { MediaDesignBarTools } from '@/components/websites/MediaDesignBarTools'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { SectionLayoutPickerModal } from '@/components/websites/SectionLayoutPickerModal'
+import { BuilderTipsButton } from '@/components/websites/BuilderTipsButton'
+import { BuilderCommandPalette, type CommandPaletteBlockDef } from '@/components/websites/BuilderCommandPalette'
 import {
   BuilderWelcomePanel,
   dismissBuilderWelcome,
@@ -240,7 +242,7 @@ import {
 } from '@storefront/lib/builderInlineTextSelection'
 import { mergeBlockSectionStyles, readRawBlockStyleOverrides, resolveBreakpointStyleOverrides } from '@storefront/lib/blockStyleOverrides'
 
-// ── Block definitions catalog ─────────────────────────────────────────────────
+// ?? Block definitions catalog ?????????????????????????????????????????????????
 
 interface BlockDef {
   type: BlockType
@@ -255,7 +257,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   // Structure
   { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Home', url: '/' }, { label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Shop now' } },
   { type: 'footer', label: 'Footer', icon: Layout, desc: 'Site footer with links and copyright', category: 'structure', defaultProps: {
-    copyright: '© 2026 My Store. All rights reserved.',
+    copyright: '? 2026 My Store. All rights reserved.',
     show_legal: true,
     footer_columns: [
       { title: 'Shop', links: ['All products', 'Categories', 'Offers'] },
@@ -264,20 +266,20 @@ const BLOCK_CATALOG: BlockDef[] = [
       { title: 'Legal', links: ['Terms', 'Privacy', 'Refund policy'] },
     ],
   } },
-  { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: 'Free delivery on orders over ₹499 — shop our latest arrivals today.', color: '#274832', show_close: true } },
+  { type: 'announcement_bar', label: 'Announcement Bar', icon: Hash, desc: 'Top banner for promotions', category: 'structure', defaultProps: { text: 'Free delivery on orders over ?499 ? shop our latest arrivals today.', color: '#274832', show_close: true } },
   { type: 'marquee_strip', label: 'Marquee strip', icon: Type, desc: 'Scrolling one-line highlights (e.g. shipping, craft)', category: 'structure', defaultProps: { text: 'Free shipping,Easy returns,Fresh daily,Handpicked quality,Secure checkout,Local & trusted' } },
   // Hero
-  { type: 'hero', label: 'Hero — Centered', icon: Square, desc: 'Full-width hero with CTA buttons', category: 'hero', defaultProps: { headline: 'Welcome to Our Store', subtitle: 'Thoughtfully chosen products and friendly service — everything you need in one place.', bg_style: 'gradient', cta_primary: 'Shop now', cta_secondary: 'Learn more', layout: 'centered' } },
-  { type: 'hero_split', label: 'Hero — Split', icon: Columns, desc: 'Left text, right image hero', category: 'hero', defaultProps: { headline: 'Discover what we offer', headline_line2: 'made for everyday life', subtitle: 'Browse our collection — quality you can see, service you can trust.', bg_style: 'minimal', cta_primary: 'Shop bestsellers', cta_secondary: 'Browse categories', layout: 'split', eyebrow: 'Welcome', eyebrow_plain: true } },
-  { type: 'hero_minimal', label: 'Hero — Minimal', icon: Type, desc: 'Clean, text-focused hero', category: 'hero', defaultProps: { headline: 'Simple. Beautiful. Yours.', subtitle: 'A clean start for your brand — edit this headline to match your store.', bg_style: 'minimal', cta_primary: 'Get started', layout: 'minimal' } },
+  { type: 'hero', label: 'Hero ? Centered', icon: Square, desc: 'Full-width hero with CTA buttons', category: 'hero', defaultProps: { headline: 'Welcome to Our Store', subtitle: 'Thoughtfully chosen products and friendly service ? everything you need in one place.', bg_style: 'gradient', cta_primary: 'Shop now', cta_secondary: 'Learn more', layout: 'centered' } },
+  { type: 'hero_split', label: 'Hero ? Split', icon: Columns, desc: 'Left text, right image hero', category: 'hero', defaultProps: { headline: 'Discover what we offer', headline_line2: 'made for everyday life', subtitle: 'Browse our collection ? quality you can see, service you can trust.', bg_style: 'minimal', cta_primary: 'Shop bestsellers', cta_secondary: 'Browse categories', layout: 'split', eyebrow: 'Welcome', eyebrow_plain: true } },
+  { type: 'hero_minimal', label: 'Hero ? Minimal', icon: Type, desc: 'Clean, text-focused hero', category: 'hero', defaultProps: { headline: 'Simple. Beautiful. Yours.', subtitle: 'A clean start for your brand ? edit this headline to match your store.', bg_style: 'minimal', cta_primary: 'Get started', layout: 'minimal' } },
   // Content
   { type: 'features', label: 'Features Grid', icon: Columns, desc: 'Feature cards in a grid', category: 'content', defaultProps: { title: 'Why shop with us', layout: 'grid-3', features: [{ icon: 'Truck', title: 'Fast delivery', desc: 'Quick, reliable shipping to your door' }, { icon: 'Shield', title: 'Secure checkout', desc: 'Safe payments and protected orders' }, { icon: 'Heart', title: 'Quality guaranteed', desc: 'Handpicked products we stand behind' }] } },
-  { type: 'features_alternating', label: 'Features — Alternating', icon: List, desc: 'Alternating image/text sections', category: 'content', defaultProps: { title: 'Why Choose Us', layout: 'stacked', image_position: 'left', features: [{ title: 'Fresh & quality', desc: 'We source carefully so every order meets our standards.', image_url: '' }, { title: 'Friendly support', desc: 'Questions? Our team is happy to help before and after you buy.', image_url: '' }] } },
-  { type: 'stats', label: 'Stats / Numbers', icon: BarChart3, desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'Trusted by our community', stats: [{ value: '2K+', label: 'Happy customers' }, { value: '500+', label: 'Products' }, { value: '4.8★', label: 'Average rating' }, { value: '24/7', label: 'Online ordering' }] } },
-  { type: 'testimonials', label: 'Testimonials', icon: Quote, desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What our customers say', testimonials: [{ name: 'Priya Sharma', role: 'Regular customer', company: '', quote: 'Great quality and fast delivery — I order every week!', rating: 5 }, { name: 'James Wilson', role: 'Local buyer', company: '', quote: 'Easy to shop and the team was very helpful.', rating: 5 }] } },
+  { type: 'features_alternating', label: 'Features ? Alternating', icon: List, desc: 'Alternating image/text sections', category: 'content', defaultProps: { title: 'Why Choose Us', layout: 'stacked', image_position: 'left', features: [{ title: 'Fresh & quality', desc: 'We source carefully so every order meets our standards.', image_url: '' }, { title: 'Friendly support', desc: 'Questions? Our team is happy to help before and after you buy.', image_url: '' }] } },
+  { type: 'stats', label: 'Stats / Numbers', icon: BarChart3, desc: 'Key metrics and achievements', category: 'content', defaultProps: { title: 'Trusted by our community', stats: [{ value: '2K+', label: 'Happy customers' }, { value: '500+', label: 'Products' }, { value: '4.8?', label: 'Average rating' }, { value: '24/7', label: 'Online ordering' }] } },
+  { type: 'testimonials', label: 'Testimonials', icon: Quote, desc: 'Customer reviews and quotes', category: 'social', defaultProps: { title: 'What our customers say', testimonials: [{ name: 'Priya Sharma', role: 'Regular customer', company: '', quote: 'Great quality and fast delivery ? I order every week!', rating: 5 }, { name: 'James Wilson', role: 'Local buyer', company: '', quote: 'Easy to shop and the team was very helpful.', rating: 5 }] } },
   { type: 'team_grid', label: 'Team Grid', icon: Users, desc: 'Meet the team cards', category: 'about', defaultProps: { title: 'Meet our team', columns: 4, members: [{ name: 'Alex Morgan', role: 'Store owner', bio: 'Passionate about great products and service.' }, { name: 'Sam Rivera', role: 'Customer care', bio: 'Here to help with orders and questions.' }] } },
   { type: 'pricing', label: 'Pricing Table', icon: Hash, desc: 'Pricing plans comparison', category: 'conversion', defaultProps: { title: 'Our packages', show_annual_toggle: false, plans: [{ name: 'Starter', price: 299, period: 'order', features: ['Curated selection', 'Standard delivery', 'Email support'], cta: 'Order now' }, { name: 'Popular', price: 599, period: 'order', features: ['Best value bundle', 'Priority delivery', 'Phone support', 'Gift wrap'], highlighted: true, cta: 'Order now' }, { name: 'Premium', price: 999, period: 'order', features: ['Full collection access', 'Same-day delivery', 'Dedicated support', 'Custom requests'], cta: 'Contact us' }] } },
-  { type: 'faq', label: 'FAQ / Accordion', icon: MessageSquare, desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Common questions', faqs: [{ question: 'How do I place an order?', answer: 'Browse our products, add items to your cart, and checkout securely online.' }, { question: 'What are your delivery times?', answer: 'Most orders arrive within 2–5 business days. Local delivery may be faster.' }, { question: 'Can I return an item?', answer: 'Yes — unused items can be returned within 14 days. Contact us to start a return.' }] } },
+  { type: 'faq', label: 'FAQ / Accordion', icon: MessageSquare, desc: 'Frequently asked questions', category: 'content', defaultProps: { title: 'Common questions', faqs: [{ question: 'How do I place an order?', answer: 'Browse our products, add items to your cart, and checkout securely online.' }, { question: 'What are your delivery times?', answer: 'Most orders arrive within 2?5 business days. Local delivery may be faster.' }, { question: 'Can I return an item?', answer: 'Yes ? unused items can be returned within 14 days. Contact us to start a return.' }] } },
   { type: 'cta', label: 'Call to Action', icon: Zap, desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to shop?', subtitle: 'Browse our collection and find something you will love today.', cta_label: 'Start shopping', cta_url: '/products' } },
   { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get in touch', layout: 'split', full_page: false, email: '', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'How can we help?' }] } },
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
@@ -295,7 +297,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'social_links', label: 'Social Links', icon: Globe, desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: 'https://twitter.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' } } },
   { type: 'countdown', label: 'Countdown Timer', icon: Clock, desc: 'Countdown to a date/event', category: 'conversion', get defaultProps() { return { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } } },
   { type: 'product_grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true } },
-  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Animated wellness mosaic — circles, squares & portraits', category: 'ecommerce', defaultProps: {
+  { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Animated wellness mosaic ? circles, squares & portraits', category: 'ecommerce', defaultProps: {
     title: 'Shop by category',
     eyebrow: 'Explore',
     layout: 'wellness',
@@ -321,7 +323,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'ab_test_block', label: 'A/B Test Block', icon: ToggleLeft, desc: 'Show variant A or B to split-test content', category: 'advanced', defaultProps: { variant_a: { headline: 'Version A Headline', cta: 'Click Here A' }, variant_b: { headline: 'Version B Headline', cta: 'Click Here B' }, split: 50 } },
   { type: 'personalization_block', label: 'Personalization Block', icon: Users, desc: 'Show different content by device / location / referral', category: 'advanced', defaultProps: { default_content: 'Default message for all visitors', mobile_content: 'Tap to get started on mobile!', rule: 'device' } },
 
-  // Commerce — P1 business front blocks (must mirror business front BlockRenderer)
+  // Commerce ? P1 business front blocks (must mirror business front BlockRenderer)
   { type: 'product_detail', label: 'Product Detail', icon: ShoppingBag, desc: 'Gallery, variants, and add-to-cart for a single product', category: 'ecommerce', defaultProps: { show_variants: true, show_reviews: true } },
   { type: 'cart_drawer', label: 'Cart Drawer', icon: ShoppingCart, desc: 'Slide-out cart panel with upsells', category: 'erp', defaultProps: { title: 'Your Cart', show_upsells: true } },
   { type: 'checkout_form', label: 'Checkout Form', icon: ShoppingCart, desc: 'Address, shipping, payment fields', category: 'erp', defaultProps: { allow_cod: true, show_tip: false } },
@@ -404,28 +406,28 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
 BLOCK_CATALOG.push(...COMMERCE_LIBRARY_BLOCKS)
 
 
-// ── Block mini-preview thumbnails (emoji shorthand) ───────────────────────────
+// ?? Block mini-preview thumbnails (emoji shorthand) ???????????????????????????
 const BLOCK_THUMBNAILS: Record<string, string> = {
-  nav: '🔝', footer: '⬇️', announcement_bar: '📢', marquee_strip: '💬',
-  hero: '🎯', hero_split: '↔️', hero_minimal: '✨',
-  features: '⚡', features_alternating: '🔄',
-  stats: '📊', testimonials: '💬', team_grid: '👥',
-  pricing: '💳', faq: '❓', cta: '🚀',
-  contact_form: '✉️', portfolio_grid: '🖼️', gallery_masonry: '🗃️',
-  blog_grid: '📝', newsletter: '📧', video_embed: '▶️',
-  map_embed: '🗺️', trust_logos: '🏅', timeline: '📅',
-  rich_text: '📄', image_block: '🖼️', divider: '──', spacer: '↕️',
-  social_links: '🔗', countdown: '⏱️',
-  product_grid: '🛍️', menu_grid: '🍽️', about_split: '🏢',
-  services_cards: '🎯', html_embed: '💻',
-  live_stock: '📦', order_status: '🚚', live_quote: '💬',
-  booking_widget: '📅', ab_test_block: '🧪', personalization_block: '🎭',
-  coupon_banner: '🏷️', payment_methods_strip: '💳',
-  search_bar: '🔍', cookie_consent: '🍪',
-  product_detail: '🛒', checkout_form: '💳', product_reviews: '⭐',
-  booking_slot_picker: '🗓️',
-  cart_drawer: '🛒', product_filters: '🧰',
-  related_products: '🛍️', recently_viewed: '⏪',
+  nav: '??', footer: '??', announcement_bar: '??', marquee_strip: '??',
+  hero: '??', hero_split: '??', hero_minimal: '?',
+  features: '?', features_alternating: '??',
+  stats: '??', testimonials: '??', team_grid: '??',
+  pricing: '??', faq: '?', cta: '??',
+  contact_form: '??', portfolio_grid: '???', gallery_masonry: '???',
+  blog_grid: '??', newsletter: '??', video_embed: '??',
+  map_embed: '???', trust_logos: '??', timeline: '??',
+  rich_text: '??', image_block: '???', divider: '??', spacer: '??',
+  social_links: '??', countdown: '??',
+  product_grid: '???', menu_grid: '???', about_split: '??',
+  services_cards: '??', html_embed: '??',
+  live_stock: '??', order_status: '??', live_quote: '??',
+  booking_widget: '??', ab_test_block: '??', personalization_block: '??',
+  coupon_banner: '???', payment_methods_strip: '??',
+  search_bar: '??', cookie_consent: '??',
+  product_detail: '??', checkout_form: '??', product_reviews: '?',
+  booking_slot_picker: '???',
+  cart_drawer: '??', product_filters: '??',
+  related_products: '???', recently_viewed: '?',
 }
 
 function catalogBlockLabel(block: { block_type: string; label?: string | null }): string {
@@ -481,7 +483,7 @@ function mergePageStyleConfig(siteStyle: StyleConfig, pageId: string | null | un
   return mergePageStyle(siteStyle, pageId)
 }
 
-/** Export shape matches `GET /vendors/me/websites/:id/export` — paste into `/import` or keep as backup. */
+/** Export shape matches `GET /vendors/me/websites/:id/export` ? paste into `/import` or keep as backup. */
 function buildLocalSiteExport(
   site: WebsiteSite | undefined,
   localPages: WebsitePage[],
@@ -536,7 +538,7 @@ function buildPublicSitePayloadFromLocal(
 
 const FONTS = [...BUILDER_FONT_FAMILIES]
 
-// ── In-block overlay element system ──────────────────────────────────────────
+// ?? In-block overlay element system ??????????????????????????????????????????
 
 export type OverlayLinkType =
   | 'none'
@@ -585,7 +587,7 @@ export interface BlockOverlayItem {
   href?: string
   linkType?: OverlayLinkType
   linkTarget?: string            // resolved target (slug / page id / email)
-  linkLabel?: string             // human-readable label (e.g. "Espresso · ₹180")
+  linkLabel?: string             // human-readable label (e.g. "Espresso ? ?180")
   openInNewTab?: boolean
   fontSize?: number
   fontWeight?: string
@@ -657,7 +659,7 @@ const OVERLAY_HANDLE_POS: Record<string, React.CSSProperties> = {
   nw: { top: -5, left: -5 },
 }
 
-// ── Draggable popup hook ──────────────────────────────────────────────────────
+// ?? Draggable popup hook ??????????????????????????????????????????????????????
 // Attach `headerMouseDown` to any header element and `ref` to the popup root.
 // Click-and-drag the header to reposition the popup anywhere on screen.
 // Clicks on buttons / inputs inside the header are ignored so close/X still works.
@@ -706,7 +708,7 @@ function useDraggablePopup(open: boolean) {
   return { ref, pos, headerMouseDown }
 }
 
-// ── Reusable Text Prompt Popup ────────────────────────────────────────────────
+// ?? Reusable Text Prompt Popup ????????????????????????????????????????????????
 // A small styled replacement for window.prompt(). Used for quick edits of text,
 // descriptions, alt-text, image URLs, etc., without jarring browser dialogs.
 
@@ -874,7 +876,7 @@ function TextPromptPopup({
   )
 }
 
-// ── Reusable Link Editor Popup ────────────────────────────────────────────────
+// ?? Reusable Link Editor Popup ????????????????????????????????????????????????
 // Used both for in-block overlay buttons and for hero-level CTA buttons.
 // Supports raw URL, internal page, live product/service/booking/contact, mailto/tel.
 
@@ -890,7 +892,7 @@ interface LinkTypeMeta {
   label: string
   desc: string
   icon: React.ElementType
-  // Resource type (when applicable) — used to fetch a live picker list
+  // Resource type (when applicable) ? used to fetch a live picker list
   resource?: LiveResource
   // Predefined route for portal / built-in pages
   route?: string
@@ -922,8 +924,8 @@ const LINK_TYPES: LinkTypeMeta[] = [
 
   // Stores / branches (linked via ?branch={code} on the current business front)
   { id: 'store',         label: 'Store / branch',   desc: 'Switch to a specific outlet',  icon: StoreIcon,  group: 'stores', resource: 'stores', note: 'Link this button to one of your physical outlets. Visitors get ?branch={code} appended so inventory, prices and contact info follow that branch.' },
-  { id: 'store_locator', label: 'All stores',       desc: 'Store locator — lists every branch', icon: MapPin, group: 'stores', route: '/stores',   note: 'Opens the store-locator page showing every active outlet. Use this for "Find a store near you" type buttons.' },
-  { id: 'stores_multi',  label: 'Selected stores',  desc: 'Pick several branches at once', icon: Layers,   group: 'stores', resource: 'stores', note: 'Link to a curated set of outlets. Visitors land on the locator filtered to just the branches you picked (?branch=code1,code2…).' },
+  { id: 'store_locator', label: 'All stores',       desc: 'Store locator ? lists every branch', icon: MapPin, group: 'stores', route: '/stores',   note: 'Opens the store-locator page showing every active outlet. Use this for "Find a store near you" type buttons.' },
+  { id: 'stores_multi',  label: 'Selected stores',  desc: 'Pick several branches at once', icon: Layers,   group: 'stores', resource: 'stores', note: 'Link to a curated set of outlets. Visitors land on the locator filtered to just the branches you picked (?branch=code1,code2?).' },
 
   // Live actions
   { id: 'booking',  label: 'Book now',       desc: 'Open booking widget',          icon: Clock,       group: 'actions', route: '/booking',       note: 'Opens the booking flow (requires a Booking block somewhere on this site).' },
@@ -1057,7 +1059,7 @@ function LinkEditorPopup({
     return item.url || `/${type}s/${item.id}`
   }
 
-  // Code token used to identify a store in multi-select / ?branch=… params
+  // Code token used to identify a store in multi-select / ?branch=? params
   const storeCode = (item: LiveItem): string =>
     String((item.meta as any)?.code || item.id)
 
@@ -1186,7 +1188,7 @@ function LinkEditorPopup({
             </div>
           )}
 
-          {/* ── Stores multi-select — compact dropdown + chips UI ───────── */}
+          {/* ?? Stores multi-select ? compact dropdown + chips UI ????????? */}
           {type === 'stores_multi' && (
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wide text-gray-400 block">
@@ -1218,18 +1220,18 @@ function LinkEditorPopup({
               ) : (
                 <div className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400">
                   <StoreIcon className="w-3.5 h-3.5 opacity-40" />
-                  No branches selected yet — pick from the dropdown below
+                  No branches selected yet ? pick from the dropdown below
                 </div>
               )}
 
-              {/* Dropdown selector — styled like the screenshot */}
+              {/* Dropdown selector ? styled like the screenshot */}
               {loading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="w-4 h-4 animate-spin text-primary/80" />
                 </div>
               ) : pickableList.length === 0 ? (
                 <div className="text-xs text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">
-                  No stores found — add a branch in Settings first.
+                  No stores found ? add a branch in Settings first.
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -1238,7 +1240,7 @@ function LinkEditorPopup({
                     <input
                       value={pickerSearch}
                       onChange={e => setPickerSearch(e.target.value)}
-                      placeholder="Search stores…"
+                      placeholder="Search stores?"
                       className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-white"
                     />
                   </div>
@@ -1303,7 +1305,7 @@ function LinkEditorPopup({
             </div>
           )}
 
-          {/* ── Standard live picker (non-stores_multi types) ─────────── */}
+          {/* ?? Standard live picker (non-stores_multi types) ??????????? */}
           {resource && type !== 'stores_multi' && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -1316,7 +1318,7 @@ function LinkEditorPopup({
                     <input
                       value={pickerSearch}
                       onChange={e => setPickerSearch(e.target.value)}
-                      placeholder="Search…"
+                      placeholder="Search?"
                       className="pl-6 pr-2 py-1 border border-gray-200 rounded-md text-xs w-32 focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
@@ -1410,7 +1412,7 @@ function LinkEditorPopup({
         {/* Footer */}
         <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50 shrink-0">
           <div className="flex-1 text-xs text-gray-500 truncate font-mono">
-            {type === 'none' ? 'No link' : (target || currentMeta?.route || '—')}
+            {type === 'none' ? 'No link' : (target || currentMeta?.route || '?')}
           </div>
           <button onClick={onClose} className="btn-cancel px-3 py-2 rounded-lg text-xs font-medium text-gray-600 border border-[#ffc954]">Cancel</button>
           <button onClick={save} className="px-4 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary/90 flex items-center gap-1.5">
@@ -1422,7 +1424,7 @@ function LinkEditorPopup({
   )
 }
 
-// ── Context Menu ──────────────────────────────────────────────────────────────
+// ?? Context Menu ??????????????????????????????????????????????????????????????
 // A lightweight portal-free menu that can be opened anywhere in the builder
 // (canvas block, overlay element). Actions are provided by the caller.
 
@@ -1517,7 +1519,7 @@ function ContextMenu({ open, x, y, actions, onClose }: {
 
 
 
-/** Page row actions in the Pages sidebar — always visible menu with labeled options. */
+/** Page row actions in the Pages sidebar ? always visible menu with labeled options. */
 function PageActionsMenu({
   page,
   pageCount,
@@ -1581,7 +1583,7 @@ function PageActionsMenu({
     <div ref={rootRef} className="relative shrink-0" onClick={e => e.stopPropagation()}>
       <button
         type="button"
-        title={`Page actions — ${page.title}`}
+        title={`Page actions ? ${page.title}`}
         aria-label={`Page actions for ${page.title}`}
         aria-expanded={open}
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
@@ -1597,7 +1599,7 @@ function PageActionsMenu({
       </button>
       {open && (
         <div className="absolute top-full right-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-40">
-          {!page.is_homepage && menuItem('Set as homepage', onSetHomepage, <span className="text-sm leading-none">🏠</span>)}
+          {!page.is_homepage && menuItem('Set as homepage', onSetHomepage, <span className="text-sm leading-none">??</span>)}
           {menuItem('Duplicate page', onDuplicate, <Copy className="w-3.5 h-3.5" />)}
           <div className="my-1 border-t border-gray-100" />
           {menuItem('Move to trash', canDelete ? onDelete : undefined, <Trash2 className="w-3.5 h-3.5" />, 'danger')}
@@ -1610,7 +1612,7 @@ function PageActionsMenu({
   )
 }
 
-/** Trashed pages — recoverable for 7 days before permanent removal. */
+/** Trashed pages ? recoverable for 7 days before permanent removal. */
 function DeletedPagesPanel({
   items,
   onRestore,
@@ -1656,12 +1658,12 @@ function DeletedPagesPanel({
       </p>
       {loading && items.length === 0 && (
         <p className="text-[10px] text-gray-500 flex items-center gap-1.5">
-          <Loader2 className="w-3 h-3 animate-spin" /> Loading deleted pages…
+          <Loader2 className="w-3 h-3 animate-spin" /> Loading deleted pages?
         </p>
       )}
       {!loading && items.length === 0 && (
         <p className="text-[10px] text-gray-500 leading-snug">
-          No deleted pages right now. Use <strong>Move to trash</strong> above to remove a page — it will appear here.
+          No deleted pages right now. Use <strong>Move to trash</strong> above to remove a page ? it will appear here.
         </p>
       )}
       {items.length > 0 && (
@@ -1697,10 +1699,10 @@ function DeletedPagesPanel({
 const BUILDER_OVERLAY_UI_SELECTOR =
   '[data-overlay-root],[data-overlay-toolbar],[data-builder-section-image],[data-builder-section-toolbar],[data-builder-floating-ui],[data-block-design-bar],[data-block-design-bar-dropdown]'
 
-/** Fixed width — layout never reflows when link state or labels change. */
+/** Fixed width ? layout never reflows when link state or labels change. */
 const OVERLAY_TOOLBAR_WIDTH_PX = 320
 
-/** Shared classes — light default, `dark:` when dashboard theme is dark (html.dark). */
+/** Shared classes ? light default, `dark:` when dashboard theme is dark (html.dark). */
 const overlayToolbarUi = {
   panel:
     'border-gray-200 bg-white/95 text-gray-900 shadow-lg dark:border-gray-600/90 dark:bg-gray-900/95 dark:text-gray-100',
@@ -1857,7 +1859,7 @@ function OverlayToolbarNumberInput({
           'h-8 w-full min-w-0 rounded-md border text-center text-xs font-semibold focus:outline-none focus:ring-2',
           overlayToolbarUi.input,
         )}
-        title={`${label} (px) — press Enter to apply`}
+        title={`${label} (px) ? press Enter to apply`}
       />
     </OverlayToolbarField>
   )
@@ -1878,7 +1880,7 @@ function OverlayEditToolbar({
 }: {
   item: BlockOverlayItem
   onUpdate: (u: Partial<BlockOverlayItem>) => void
-  /** Block/section background — used for “No fill” preview hint in toolbar. */
+  /** Block/section background ? used for ?No fill? preview hint in toolbar. */
   blockBackgroundColor?: string
   onEditLink?: (anchor: { x: number; y: number }) => void
   onRequestText?: (opts: {
@@ -2140,7 +2142,7 @@ function OverlayEditToolbar({
               )}
               title={
                 isLinked
-                  ? `Linked: ${item.linkType} — ${item.linkLabel || item.linkTarget}`
+                  ? `Linked: ${item.linkType} ? ${item.linkLabel || item.linkTarget}`
                   : 'Add link'
               }
             >
@@ -2327,12 +2329,12 @@ function OverlayElement({
           <div
             data-overlay-content
             style={{ ...commonStyle, backgroundColor: resolveOverlayBackground(item, '#64C3A0'), display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
-            title={item.description || (hasLink ? `Link → ${item.linkLabel || item.linkTarget}` : 'Click to edit')}
+            title={item.description || (hasLink ? `Link ? ${item.linkLabel || item.linkTarget}` : 'Click to edit')}
           >
             <span style={{ fontSize: item.fontSize || 14, fontWeight: item.fontWeight || 'bold', color: item.color || '#ffffff' }}>
               {item.text || 'Button'}
             </span>
-            {/* Link badge hidden while selected — toolbar shows Linked / Add link instead */}
+            {/* Link badge hidden while selected ? toolbar shows Linked / Add link instead */}
             {hasLink && !isSelected && (
               <span
                 className="pointer-events-none absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] text-white shadow-sm"
@@ -2450,7 +2452,7 @@ function OverlayElement({
               }}
             />
           ))}
-          {/* Delete — kept inside the box so it stays above the block design bar */}
+          {/* Delete ? kept inside the box so it stays above the block design bar */}
           <button
             type="button"
             data-overlay-delete
@@ -2532,7 +2534,7 @@ function BlockOverlayCanvas({
     setSelected(null)
   }, [overlays, onUpdate, setSelected])
 
-  // Click outside overlay / toolbar / builder popups → clear selection
+  // Click outside overlay / toolbar / builder popups ? clear selection
   useEffect(() => {
     if (!isEditing || !selectedId) return
     const onPointerDown = (e: PointerEvent) => {
@@ -2572,7 +2574,7 @@ function BlockOverlayCanvas({
       ref={containerRef}
       style={{
         position: 'absolute', inset: 0, zIndex: 78,
-        // Container itself never blocks clicks — lets them pass through to the
+        // Container itself never blocks clicks ? lets them pass through to the
         // underlying inline-editable text. Each overlay item re-enables pointer
         // events on itself so it's still interactive.
         pointerEvents: 'none',
@@ -2616,7 +2618,7 @@ function BlockOverlayCanvas({
   )
 }
 
-/** Floating section chrome (reorder, duplicate, delete) — can minimize to a hover ball. */
+/** Floating section chrome (reorder, duplicate, delete) ? can minimize to a hover ball. */
 function BuilderSectionChromeToolbar({
   block,
   blockIdx,
@@ -2660,7 +2662,7 @@ function BuilderSectionChromeToolbar({
   const iconBtn = 'p-1.5 text-gray-400 hover:text-white transition-colors'
 
   const dataSourceTitle = dsConnectedLabel
-    ? `Connected to ${dsConnectedLabel} — click to edit`
+    ? `Connected to ${dsConnectedLabel} ? click to edit`
     : dsSuggestedLabel
       ? `Connect to ${dsSuggestedLabel}`
       : 'Data source'
@@ -2687,7 +2689,7 @@ function BuilderSectionChromeToolbar({
         onPointerDown={onReorderPointerDown}
         onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
-        title="Drag to move this section on the page (order only — not the same as changing style)"
+        title="Drag to move this section on the page (order only ? not the same as changing style)"
         className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
       >
         <GripVertical className="w-7 h-7 pointer-events-none" />
@@ -2753,7 +2755,7 @@ function BuilderSectionChromeToolbar({
           iconBtn,
           pinned && 'text-primary bg-primary/15 ring-1 ring-primary/40 rounded-md hover:text-primary',
         )}
-        title={pinned ? 'Unpin — collapse to hover ball' : 'Pin toolbar open'}
+        title={pinned ? 'Unpin ? collapse to hover ball' : 'Pin toolbar open'}
       >
         <Pin className={cn('w-5 h-5', pinned && 'fill-current')} />
       </button>
@@ -2779,7 +2781,7 @@ function BuilderSectionChromeToolbar({
         {!stayOpen ? (
           <div
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-gray-950/95 text-gray-300 shadow-lg shadow-black/30 backdrop-blur ring-1 ring-white/10 transition-all hover:scale-110 hover:text-white hover:ring-primary/40"
-            title="Section tools — hover to expand"
+            title="Section tools ? hover to expand"
           >
             <GripVertical className="h-4 w-4" />
           </div>
@@ -2862,7 +2864,7 @@ function uniquePageSlug(base: string, pages: WebsitePage[]): string {
   return `${slugBase}-${n}`
 }
 
-/** One homepage, unique slugs — fixes duplicate Home tabs after generate/merge. */
+/** One homepage, unique slugs ? fixes duplicate Home tabs after generate/merge. */
 function normalizeSitePages(pages: WebsitePage[]): WebsitePage[] {
   const sorted = [...pages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   let hasHomepage = false
@@ -3226,7 +3228,7 @@ function applyStructureLayoutToAllPages(
 
 
 
-// ── Gradient & Shadow presets ─────────────────────────────────────────────────
+// ?? Gradient & Shadow presets ?????????????????????????????????????????????????
 
 const GRADIENT_PRESETS = [
   { label: 'Mint Spice',  value: 'linear-gradient(135deg,#64C3A0,#13624A)' },
@@ -3249,7 +3251,7 @@ const GRADIENT_PRESETS = [
 
 // SHADOW_PRESETS imported from @/lib/builderVisualPresets
 
-// ── Sub-item schema registry ─────────────────────────────────────────────────
+// ?? Sub-item schema registry ?????????????????????????????????????????????????
 
 type ItemFieldType = 'text' | 'textarea' | 'image' | 'number' | 'boolean' | 'emoji' | 'select'
 interface ItemField { key: string; label: string; type: ItemFieldType; options?: string[] }
@@ -3268,7 +3270,7 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   features: {
     arrayKey: 'features', itemLabel: 'Feature',
-    defaultItem: { title: 'New Feature', desc: 'Description', icon: '✨', image_url: '' },
+    defaultItem: { title: 'New Feature', desc: 'Description', icon: '?', image_url: '' },
     fields: [
       { key: 'image_url', label: 'Image',       type: 'image' },
       { key: 'icon',      label: 'Icon Emoji',  type: 'emoji' },
@@ -3278,7 +3280,7 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   services_cards: {
     arrayKey: 'features', itemLabel: 'Service',
-    defaultItem: { title: 'New Service', desc: 'Description', icon: '🛠️', image_url: '' },
+    defaultItem: { title: 'New Service', desc: 'Description', icon: '???', image_url: '' },
     fields: [
       { key: 'image_url', label: 'Image',       type: 'image' },
       { key: 'icon',      label: 'Icon Emoji',  type: 'emoji' },
@@ -3424,7 +3426,7 @@ const CATALOG_GRID_BLOCK_CONFIG: Record<string, CatalogGridBlockConfig> = {
     columnMin: 2, defaultColumns: 4, itemCountLabel: 'Products shown', itemCountKeys: ['show_count'],
     showColumns: false, showImageHeight: false, showCardStyle: false, showProductToggles: false, showServiceToggles: false,
   },
-  // Commerce kit — product blocks
+  // Commerce kit ? product blocks
   'product.grid': {
     columnMin: 2, defaultColumns: 4, itemCountLabel: 'Products shown', itemCountKeys: ['show_count'],
     showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
@@ -3453,7 +3455,7 @@ const CATALOG_GRID_BLOCK_CONFIG: Record<string, CatalogGridBlockConfig> = {
     columnMin: 2, defaultColumns: 3, itemCountLabel: 'Items shown', itemCountKeys: ['show_count'],
     showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: true, showServiceToggles: false,
   },
-  // Commerce kit — service blocks
+  // Commerce kit ? service blocks
   'service.list': {
     columnMin: 1, defaultColumns: 1, itemCountLabel: 'Services shown', itemCountKeys: ['show_count'],
     showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: false, showServiceToggles: true,
@@ -3462,7 +3464,7 @@ const CATALOG_GRID_BLOCK_CONFIG: Record<string, CatalogGridBlockConfig> = {
     columnMin: 2, defaultColumns: 3, itemCountLabel: 'Services shown', itemCountKeys: ['show_count'],
     showColumns: true, showImageHeight: true, showCardStyle: true, showProductToggles: false, showServiceToggles: true,
   },
-  // Commerce kit — vertical listing blocks
+  // Commerce kit ? vertical listing blocks
   'vertical.propertyListing': {
     columnMin: 2, defaultColumns: 3, itemCountLabel: 'Listings shown', itemCountKeys: ['show_count'],
     showColumns: true, showImageHeight: false, showCardStyle: false, showProductToggles: true, showServiceToggles: false,
@@ -3749,7 +3751,7 @@ function CatalogGridLayoutControls({
   )
 }
 
-// ── Inline Media Picker ───────────────────────────────────────────────────────
+// ?? Inline Media Picker ???????????????????????????????????????????????????????
 
 function InlineMediaPicker({
   siteId, value, onChange, label = 'Image',
@@ -3838,7 +3840,7 @@ function InlineMediaPicker({
       {panel === 'library' && (
         <div className="rounded-xl border border-gray-200 bg-white p-2 space-y-2">
           {mediaList.length === 0 ? (
-            <p className="py-3 text-center text-xs text-gray-400">No media yet — use Upload above first.</p>
+            <p className="py-3 text-center text-xs text-gray-400">No media yet ? use Upload above first.</p>
           ) : (
             <div className="grid grid-cols-4 gap-1.5 max-h-44 overflow-y-auto">
               {mediaList.map(m => {
@@ -3890,7 +3892,7 @@ function InlineMediaPicker({
   )
 }
 
-// ── Sub-item Editor ───────────────────────────────────────────────────────────
+// ?? Sub-item Editor ???????????????????????????????????????????????????????????
 
 function SubItemEditor({
   schema, items, siteId, onUpdate, onPreview,
@@ -4020,7 +4022,7 @@ function SubItemEditor({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-            {schema.itemLabel}s ({items.length}){readOnly ? ' · from People' : ''}
+            {schema.itemLabel}s ({items.length}){readOnly ? ' ? from People' : ''}
           </span>
           {!readOnly && (
           <button
@@ -4142,7 +4144,7 @@ function SubItemEditor({
                       <div key={field.key} className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
                         <div className="flex gap-1.5 flex-wrap">
-                          {['✨','⚡','🚀','🎯','💡','🛡️','🔥','💎','🌟','🎨','🔧','📱','🌍','❤️','🏆'].map(e => (
+                          {['?','?','??','??','??','???','??','??','??','??','??','??','??','??','??'].map(e => (
                             <button key={e}
                               disabled={readOnly}
                               onClick={() => !readOnly && updateItem(idx, { [field.key]: e })}
@@ -4197,7 +4199,7 @@ function SubItemEditor({
   )
 }
 
-// ── Props Editor ──────────────────────────────────────────────────────────────
+// ?? Props Editor ??????????????????????????????????????????????????????????????
 
 function PropsCollapsible({
   title,
@@ -4262,7 +4264,7 @@ function PropsCollapsible({
   )
 }
 
-// ── Stable InputRow component (outside PropsEditor to avoid remount on re-render) ──
+// ?? Stable InputRow component (outside PropsEditor to avoid remount on re-render) ??
 interface InputRowProps {
   blockId: string
   fieldKey: string
@@ -4284,7 +4286,7 @@ function PropsInputRow({
   const isEditingRef = useRef(false)
 
   // Sync external changes (block switch, AI overwrite, undo) into local state,
-  // but never while the user is actively typing — otherwise a stale server
+  // but never while the user is actively typing ? otherwise a stale server
   // value echo would wipe out their in-progress keystrokes.
   useEffect(() => {
     if (isEditingRef.current) return
@@ -4358,9 +4360,9 @@ function PropsInputRow({
   )
 }
 
-// ── Block Quick Presets (see @/lib/sectionLayoutPresets) ───────────────────────
+// ?? Block Quick Presets (see @/lib/sectionLayoutPresets) ???????????????????????
 
-// ── P3.4 Per-breakpoint block style overrides ─────────────────────────────────
+// ?? P3.4 Per-breakpoint block style overrides ?????????????????????????????????
 type Breakpoint = 'desktop' | 'tablet' | 'mobile'
 
 interface BreakpointStyleOverrides {
@@ -4409,7 +4411,7 @@ function BlockBreakpointStyles({
               onClick={() => setBp(b)}
               className={cn('px-2 py-1 font-medium transition-colors', bp === b ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50')}
             >
-              {b === 'desktop' ? '🖥' : b === 'tablet' ? '📱' : '📲'}
+              {b === 'desktop' ? '??' : b === 'tablet' ? '??' : '??'}
             </button>
           ))}
         </div>
@@ -4449,14 +4451,14 @@ function BlockBreakpointStyles({
         <button
           onClick={() => onChange({ ...styleOverrides, [bp]: {} })}
           className="text-xs text-red-400 hover:text-red-600"
-        >✕ Reset {bp} styles</button>
+        >? Reset {bp} styles</button>
       )}
     </PropsCollapsible>
   )
 }
 
 
-// ── P3.2 Branch Visibility Selector ──────────────────────────────────────────
+// ?? P3.2 Branch Visibility Selector ??????????????????????????????????????????
 function BranchVisibilitySelector({
   visibleBranches,
   onChange,
@@ -4549,7 +4551,7 @@ function BlockImagePickerField({
           <div className="flex items-center gap-1.5">
             {label ? <label className="text-xs font-medium text-gray-600 flex-1">{label}</label> : <div className="flex-1" />}
             {currentUrl && (
-              <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
+              <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">? Clear</button>
             )}
           </div>
         )}
@@ -4571,7 +4573,7 @@ function BlockImagePickerField({
         <div className="flex items-center gap-1.5">
           {label ? <label className="text-xs font-medium text-gray-600 flex-1">{label}</label> : <div className="flex-1" />}
           {currentUrl && (
-            <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
+            <button type="button" onClick={() => onUpdate({ [fieldKey]: '' })} className="text-xs text-red-400 hover:text-red-600">? Clear</button>
           )}
         </div>
       )}
@@ -4630,7 +4632,7 @@ function BlockImagePickerField({
         key={`${blockId}-${fieldKey}`}
         defaultValue={currentUrl || ''}
         onBlur={e => { onUpdate({ [fieldKey]: e.target.value }); setImgOk(true) }}
-        placeholder="Paste image URL…"
+        placeholder="Paste image URL?"
         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring font-mono"
       />
       {hint && <p className="text-xs text-gray-400">{hint}</p>}
@@ -4639,7 +4641,7 @@ function BlockImagePickerField({
 }
 
 
-// ── Section layout controls (Edit panel + toolbar) ───────────────────────────
+// ?? Section layout controls (Edit panel + toolbar) ???????????????????????????
 
 function SectionLayoutControls({
   block,
@@ -4670,7 +4672,7 @@ function SectionLayoutControls({
           type="button"
           disabled={!canCycle}
           onClick={e => { e.stopPropagation(); onCycleLayout('prev') }}
-          title="Previous style — same section, different look (does not move it on the page)"
+          title="Previous style ? same section, different look (does not move it on the page)"
           className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-7 h-7" />
@@ -4678,7 +4680,7 @@ function SectionLayoutControls({
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onOpenLayoutPicker() }}
-          title={`Change section style — ${activeLayout?.label || 'Current'} (not page position)`}
+          title={`Change section style ? ${activeLayout?.label || 'Current'} (not page position)`}
           className="px-2 py-1.5 text-gray-300 hover:text-white border-x border-gray-700/80"
         >
           <Layout className="w-7 h-7" />
@@ -4687,7 +4689,7 @@ function SectionLayoutControls({
           type="button"
           disabled={!canCycle}
           onClick={e => { e.stopPropagation(); onCycleLayout('next') }}
-          title="Next style — same section, different look (does not move it on the page)"
+          title="Next style ? same section, different look (does not move it on the page)"
           className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronRight className="w-7 h-7" />
@@ -4753,7 +4755,7 @@ function SectionLayoutControls({
       </div>
       <p className="text-[11px] text-gray-400 leading-snug">
         <strong className="font-semibold text-gray-600">Change style</strong> picks a different look for this section.
-        <strong className="font-semibold text-gray-600"> Move ↑↓</strong> on the floating toolbar changes where it sits on the page.
+        <strong className="font-semibold text-gray-600"> Move ??</strong> on the floating toolbar changes where it sits on the page.
         {layoutOptions.length > 1 ? ` ${layoutOptions.length} styles available.` : ''}
       </p>
     </div>
@@ -4784,7 +4786,7 @@ function PropsEditor({
     tile_border: `${themeColors.primary_color}33`,
   }
 
-  // Spacing sliders — read from block.props (where onUpdate writes)
+  // Spacing sliders ? read from block.props (where onUpdate writes)
   const [paddingTop, setPaddingTop] = useState<number>((p as any).padding_top ?? 0)
   const [paddingBottom, setPaddingBottom] = useState<number>((p as any).padding_bottom ?? 0)
 
@@ -4880,7 +4882,7 @@ function PropsEditor({
     />
   ) : null
 
-  // ── InputRow — render helper that inlines PropsInputRow ───────────────
+  // ?? InputRow ? render helper that inlines PropsInputRow ???????????????
   // CRITICAL: this is NOT a React component. Declaring a component inside
   // PropsEditor would create a fresh component type on every render, forcing
   // React to unmount PropsInputRow on every keystroke (breaks typing / focus).
@@ -4910,23 +4912,23 @@ function PropsEditor({
     />
   )
 
-  // ── Fields ──────────────────────────────────────────────────────────────
+  // ?? Fields ??????????????????????????????????????????????????????????????
   const commonFields = (
     <div className="space-y-2">
-      {p.headline    !== undefined && inputRow({ label: 'Headline',      fieldKey: 'headline',      placeholder: 'Your compelling headline…' })}
-      {p.subtitle    !== undefined && inputRow({ label: 'Subtitle',      fieldKey: 'subtitle',      multiline: true, placeholder: 'Expand your headline here…' })}
-      {p.title       !== undefined && inputRow({ label: 'Title',         fieldKey: 'title',         placeholder: 'Section title…' })}
-      {p.description !== undefined && inputRow({ label: 'Description',   fieldKey: 'description',   multiline: true, placeholder: 'Describe this section…' })}
+      {p.headline    !== undefined && inputRow({ label: 'Headline',      fieldKey: 'headline',      placeholder: 'Your compelling headline?' })}
+      {p.subtitle    !== undefined && inputRow({ label: 'Subtitle',      fieldKey: 'subtitle',      multiline: true, placeholder: 'Expand your headline here?' })}
+      {p.title       !== undefined && inputRow({ label: 'Title',         fieldKey: 'title',         placeholder: 'Section title?' })}
+      {p.description !== undefined && inputRow({ label: 'Description',   fieldKey: 'description',   multiline: true, placeholder: 'Describe this section?' })}
       {p.eyebrow     !== undefined && inputRow({ label: 'Eyebrow',       fieldKey: 'eyebrow',       placeholder: 'TAGLINE' })}
       {p.cta_primary !== undefined && inputRow({ label: 'Primary CTA',   fieldKey: 'cta_primary',   placeholder: 'Get Started' })}
-      {p.cta_primary !== undefined && inputRow({ label: '↳ Primary link', fieldKey: 'cta_primary_url',   placeholder: '/signup or /products/my-product' })}
+      {p.cta_primary !== undefined && inputRow({ label: '? Primary link', fieldKey: 'cta_primary_url',   placeholder: '/signup or /products/my-product' })}
       {p.cta_secondary!== undefined && inputRow({ label: 'Secondary CTA',fieldKey: 'cta_secondary', placeholder: 'Learn More' })}
-      {p.cta_secondary!== undefined && inputRow({ label: '↳ Secondary link', fieldKey: 'cta_secondary_url', placeholder: '/about or https://...' })}
+      {p.cta_secondary!== undefined && inputRow({ label: '? Secondary link', fieldKey: 'cta_secondary_url', placeholder: '/about or https://...' })}
       {p.cta_label   !== undefined && inputRow({ label: 'CTA Label',     fieldKey: 'cta_label',     placeholder: 'Click Here' })}
-      {p.cta_label   !== undefined && inputRow({ label: '↳ CTA link',    fieldKey: 'cta_url',       placeholder: '/signup or /contact' })}
+      {p.cta_label   !== undefined && inputRow({ label: '? CTA link',    fieldKey: 'cta_url',       placeholder: '/signup or /contact' })}
       {p.brand       !== undefined && inputRow({ label: 'Brand Name',    fieldKey: 'brand',         placeholder: 'Your Brand' })}
-      {p.text        !== undefined && inputRow({ label: 'Text',          fieldKey: 'text',          multiline: true, placeholder: 'Enter text…' })}
-      {p.copyright   !== undefined && inputRow({ label: 'Copyright',     fieldKey: 'copyright',     placeholder: '© 2026 Your Company' })}
+      {p.text        !== undefined && inputRow({ label: 'Text',          fieldKey: 'text',          multiline: true, placeholder: 'Enter text?' })}
+      {p.copyright   !== undefined && inputRow({ label: 'Copyright',     fieldKey: 'copyright',     placeholder: '? 2026 Your Company' })}
     </div>
   )
 
@@ -4985,7 +4987,7 @@ function PropsEditor({
           onChange={e => onUpdate({ gradient_dir: e.target.value } as any)}
           className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
         >
-          {[['135deg','↘ Diagonal'],['to right','→ Horizontal'],['to bottom','↓ Vertical'],['to top right','↗ Top-Right'],['circle at center','◉ Radial']].map(([v,l]) => (
+          {[['135deg','? Diagonal'],['to right','? Horizontal'],['to bottom','? Vertical'],['to top right','? Top-Right'],['circle at center','? Radial']].map(([v,l]) => (
             <option key={v} value={v}>{l}</option>
           ))}
         </select>
@@ -5010,7 +5012,7 @@ function PropsEditor({
     </PropsCollapsible>
   )
 
-  // One image control per section — match canvas wiring (heroLayoutUtils).
+  // One image control per section ? match canvas wiring (heroLayoutUtils).
   const blockProps = p as Record<string, unknown>
   const isHeroBlock = ['hero', 'hero_split', 'hero_minimal'].includes(block.block_type)
   const usesSideImage = isHeroBlock && heroUsesSideImage(block.block_type, blockProps)
@@ -5177,7 +5179,7 @@ function PropsEditor({
     <div className="flex flex-col min-h-0">
       <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white">
         <p className="text-xs font-bold text-gray-900 truncate">{block.label || block.block_type}</p>
-        <p className="text-[10px] text-gray-400">Section settings — colors, layout, and content</p>
+        <p className="text-[10px] text-gray-400">Section settings ? colors, layout, and content</p>
       </div>
 
       <div className="shrink-0 px-3 pt-3 pb-3 border-b border-gray-200 bg-gray-50/40">
@@ -5220,7 +5222,7 @@ function PropsEditor({
       )}
 
       {block.block_type === 'nav' && (
-        <PropsCollapsible title="Header elements" preview="Logo · links · actions">
+        <PropsCollapsible title="Header elements" preview="Logo ? links ? actions">
           {[
             { key: 'show_nav_links', label: 'Show page links' },
             { key: 'show_search', label: 'Show search' },
@@ -5337,7 +5339,7 @@ function PropsEditor({
                     </div>
                   ))}
               </div>
-              <p className="text-xs text-gray-400">Pages with “In nav” appear automatically. Toggle visibility in the Pages panel.</p>
+              <p className="text-xs text-gray-400">Pages with ?In nav? appear automatically. Toggle visibility in the Pages panel.</p>
             </>
           ) : onAddPage ? (
             <button
@@ -5378,7 +5380,7 @@ function PropsEditor({
       )}
 
       {itemSchema && !isCatalogGridBlock && (
-        <PropsCollapsible title="Grid & spacing" preview={`${subColumns} col · ${subGap}px gap`}>
+        <PropsCollapsible title="Grid & spacing" preview={`${subColumns} col ? ${subGap}px gap`}>
           {renderSubItemEditor('layout')}
         </PropsCollapsible>
       )}
@@ -5389,7 +5391,7 @@ function PropsEditor({
           preview={`${(() => {
             const cfg = getCatalogGridBlockConfig(block.block_type)
             const cols = Math.min(CATALOG_GRID_COLUMN_MAX, Math.max(cfg.columnMin, Number((p as any).columns ?? cfg.defaultColumns) || cfg.defaultColumns))
-            return cfg.showColumns ? `${cols} col · ${Number((p as any).image_height_pct ?? 100)}% img` : `${Number((p as any).show_count ?? 12)} items`
+            return cfg.showColumns ? `${cols} col ? ${Number((p as any).image_height_pct ?? 100)}% img` : `${Number((p as any).show_count ?? 12)} items`
           })()}`}
         >
           <CatalogGridLayoutControls
@@ -5401,7 +5403,7 @@ function PropsEditor({
         </PropsCollapsible>
       )}
 
-      <PropsCollapsible title="Section Spacing" preview={`↑${paddingTop}px ↓${paddingBottom}px`}>
+      <PropsCollapsible title="Section Spacing" preview={`?${paddingTop}px ?${paddingBottom}px`}>
         {([
           { label: 'Padding Top', key: 'padding_top', val: paddingTop, set: setPaddingTop },
           { label: 'Padding Bottom', key: 'padding_bottom', val: paddingBottom, set: setPaddingBottom },
@@ -5455,7 +5457,7 @@ function PropsEditor({
         preview={[
           (p as any).top_shape && (p as any).top_shape !== 'none' ? `Top: ${(p as any).top_shape}` : null,
           (p as any).bottom_shape && (p as any).bottom_shape !== 'none' ? `Bottom: ${(p as any).bottom_shape}` : null,
-        ].filter(Boolean).join(' · ') || 'None'}
+        ].filter(Boolean).join(' ? ') || 'None'}
       >
           <div>
             <div className="text-xs font-medium text-gray-500 mb-1.5">Top Edge Shape</div>
@@ -5578,7 +5580,7 @@ function PropsEditor({
       {showTileColors && (
         <SectionPanelGroup
           title="Card colors"
-          description="Tint tiles and cards inside this section — not the section backdrop."
+          description="Tint tiles and cards inside this section ? not the section backdrop."
         >
           <div className="grid grid-cols-2 gap-2">
             {([
@@ -5602,7 +5604,7 @@ function PropsEditor({
                     type="button"
                     onClick={() => onUpdate({ [key]: null } as any)}
                     className="text-[10px] text-red-400 hover:text-red-600 shrink-0"
-                  >✕</button>
+                  >?</button>
                 )}
               </div>
             ))}
@@ -5716,7 +5718,7 @@ function PropsEditor({
   )
 }
 
-// ── Style Panel ───────────────────────────────────────────────────────────────
+// ?? Style Panel ???????????????????????????????????????????????????????????????
 
 const SITE_THEME_PRESETS = [
   {
@@ -5850,7 +5852,7 @@ function PagePanel({
                     onClick={() => onSetHomepage(activePage)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-[11px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    <span className="text-sm leading-none">🏠</span>
+                    <span className="text-sm leading-none">??</span>
                     Set as homepage
                   </button>
                 )}
@@ -6131,7 +6133,7 @@ function StylePanel({
               onChange={e => onChange({ gradient_dir: e.target.value } as any)}
               className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
             >
-              {[['135deg','↘ Diagonal'],['to right','→ Horizontal'],['to bottom','↓ Vertical'],['to top right','↗ Top-Right']].map(([v,l]) => (
+              {[['135deg','? Diagonal'],['to right','? Horizontal'],['to bottom','? Vertical'],['to top right','? Top-Right']].map(([v,l]) => (
                 <option key={v} value={v}>{l}</option>
               ))}
             </select>
@@ -6145,7 +6147,7 @@ function StylePanel({
           <button
             onClick={() => onChange({ site_gradient: '' } as any)}
             className="mt-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
-          >✕ Remove gradient</button>
+          >? Remove gradient</button>
         )}
       </div>
 
@@ -6220,7 +6222,7 @@ function StylePanel({
         </div>
       </div>
 
-      {/* P3.9 Brand Kit — Typography Scale */}
+      {/* P3.9 Brand Kit ? Typography Scale */}
       <div>
         <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Typography Scale</div>
         <div className="space-y-2">
@@ -6298,7 +6300,7 @@ function StylePanel({
   )
 }
 
-// ── Data Source Panel ─────────────────────────────────────────────────────────
+// ?? Data Source Panel ?????????????????????????????????????????????????????????
 
 const DATA_SOURCE_ICONS: Record<string, React.ElementType> = {
   products: Package,
@@ -6419,7 +6421,7 @@ function DataSourcePanel({
   return (
     <div className="p-4 space-y-4">
       <div className="rounded-xl border border-primary/20 bg-accent/40 px-3 py-2.5 text-[11px] text-gray-600 leading-snug">
-        <strong className="font-semibold text-gray-800">Store data</strong> pulls real products, services, and reviews into this section automatically — so your site stays up to date without re-typing everything.
+        <strong className="font-semibold text-gray-800">Store data</strong> pulls real products, services, and reviews into this section automatically ? so your site stays up to date without re-typing everything.
       </div>
       <div className="flex items-center gap-2 mb-1">
         <Database className="w-4 h-4 text-primary/80" />
@@ -6589,7 +6591,7 @@ function DataSourcePanel({
                     <div className="font-medium text-gray-700 truncate">{item.title}</div>
                     {item.subtitle && <div className="text-xs text-gray-400 truncate">{item.subtitle}</div>}
                   </div>
-                  {item.rating != null && <div className="text-xs text-amber-500">{'★'.repeat(Math.min(5, item.rating))}</div>}
+                  {item.rating != null && <div className="text-xs text-amber-500">{'?'.repeat(Math.min(5, item.rating))}</div>}
                 </div>
               ))}
               {liveItems.length === 0 && <p className="text-xs text-center text-gray-400 py-3">No items yet.</p>}
@@ -6645,7 +6647,7 @@ function DataSourcePanel({
                   placeholder="Value"
                   className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs"
                 />
-                <button onClick={() => setApiHeaders(prev => prev.filter((_, j) => j !== i))} className="text-red-400 px-1">×</button>
+                <button onClick={() => setApiHeaders(prev => prev.filter((_, j) => j !== i))} className="text-red-400 px-1">?</button>
               </div>
             ))}
           </div>
@@ -6681,7 +6683,7 @@ function DataSourcePanel({
               <div className="max-h-32 overflow-y-auto border border-gray-100 rounded-lg p-2 space-y-1">
                 {preview.map((item, i) => (
                   <div key={i} className="text-xs text-gray-600 font-mono bg-gray-50 rounded px-2 py-1 truncate">
-                    {JSON.stringify(item).slice(0, 80)}…
+                    {JSON.stringify(item).slice(0, 80)}?
                   </div>
                 ))}
               </div>
@@ -6693,9 +6695,9 @@ function DataSourcePanel({
   )
 }
 
-// ── Block Design Bar (inline canvas floating toolbar) ─────────────────────────
+// ?? Block Design Bar (inline canvas floating toolbar) ?????????????????????????
 
-// ── Typography toolbar: font scale + text case (canvas bar & properties panel) ─
+// ?? Typography toolbar: font scale + text case (canvas bar & properties panel) ?
 const FONT_SCALE_STEPS: [string, number][] = [
   ['XS', 0.75], ['S', 0.875], ['M', 1], ['L', 1.125], ['XL', 1.25], ['2X', 1.5],
 ]
@@ -6745,7 +6747,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   selectedOverlayId?: string | null
   /** Built-in section image field (image_url, bg_image_url) when clicked on canvas. */
   canvasImageField?: string | null
-  /** Card / gallery slots selected — toolbar applies to all when length > 1. */
+  /** Card / gallery slots selected ? toolbar applies to all when length > 1. */
   canvasImageSlots?: { arrayKey: string; index: number; itemField: string }[]
   onSectionImagePick?: () => void
   onSectionImageLibrary?: () => void
@@ -6851,7 +6853,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       if (isInput) return
       if (multiFieldSelection) return
       if (activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY) return
-      // Layer or section image selected on General — arrow keys adjust, not switch tabs
+      // Layer or section image selected on General ? arrow keys adjust, not switch tabs
       if ((selectedOverlay || canvasImageField) && designBarTab === 'general') return
       e.preventDefault()
       const idx = DESIGN_BAR_TABS.indexOf(designBarTab)
@@ -7088,7 +7090,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         : null
 
     if (!fieldKey && !activeTextField) {
-      toast.info('Click a text field on the canvas first — headline, subtitle, or button label.')
+      toast.info('Click a text field on the canvas first ? headline, subtitle, or button label.')
       return
     }
 
@@ -7158,7 +7160,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     })
 
     if (!hasFormatPaintStyle(style)) {
-      toast.info('No formatting to copy — select text or apply font, color, or alignment from the toolbar first.')
+      toast.info('No formatting to copy ? select text or apply font, color, or alignment from the toolbar first.')
       return
     }
     onFormatPaintStart?.(style, sticky)
@@ -7227,7 +7229,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
 
   const runTextClipboard = (action: 'cut' | 'copy' | 'paste') => {
     if (!runCanvasTextClipboardAction(action, block.id, activeTextField ?? null)) {
-      toast.info('Click a text field on the canvas first — headline, subtitle, or button label.')
+      toast.info('Click a text field on the canvas first ? headline, subtitle, or button label.')
     }
   }
 
@@ -7323,8 +7325,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             type="button"
             title={
               formatPaintActive
-                ? 'Copy formatting active — click text to apply'
-                : 'Format painter — copy this text style. Click once: apply once. Double-click: apply to multiple fields.'
+                ? 'Copy formatting active ? click text to apply'
+                : 'Format painter ? copy this text style. Click once: apply once. Double-click: apply to multiple fields.'
             }
             onMouseDown={e => {
               pinInlineTextSelectionBeforeToolbarAction()
@@ -7619,7 +7621,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
                   }}
                   onInsertLineBreak={() => {
                     if (!insertActiveCanvasLineBreak(block.id, activeTextField ?? null)) {
-                      toast.info('Click a headline or subtitle on the canvas first, then use Insert line break — or press Enter while typing.')
+                      toast.info('Click a headline or subtitle on the canvas first, then use Insert line break ? or press Enter while typing.')
                       return
                     }
                     setShowLineSpacing(false)
@@ -7635,7 +7637,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
       {selectedOverlay ? (
         <div className="flex shrink-0 flex-col self-center overflow-hidden rounded-md border border-gray-200 bg-white px-0.5 py-0.5">
           <div className="border-b border-gray-200 px-1.5 py-px text-center text-[7px] font-bold uppercase tracking-wide text-primary/80">
-            Layer — position & size
+            Layer ? position & size
           </div>
           <OverlayTransformControls
             item={selectedOverlay}
@@ -7687,7 +7689,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             ? 'All content position'
             : transformScope === 'field'
               ? 'Field position'
-              : 'Position — choose All or 1×'
+              : 'Position ? choose All or 1?'
         }
         offsetX={
           transformScope === 'group'
@@ -7864,7 +7866,7 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
   )
 }
 
-// ── Main Builder ──────────────────────────────────────────────────────────────
+// ?? Main Builder ??????????????????????????????????????????????????????????????
 
 const AUTO_SAVE_DELAY_MS = 2500
 
@@ -7949,7 +7951,7 @@ export default function WebsiteBuilder() {
     return () => el.removeAttribute('data-builder-inline-edit-target')
   }, [inlineTextEdit?.blockId])
   const [device, setDevice] = useState<DeviceMode>('desktop')
-  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates' | 'media' | 'settings'>(() => {
+  const [leftPanel, setLeftPanel] = useState<'blocks' | 'pages' | 'templates' | 'media' | 'settings' | 'seo'>(() => {
     const sp = new URLSearchParams(window.location.search)
     if (sp.get('templateMode') === 'true') return 'templates'
     return 'blocks'
@@ -7965,16 +7967,24 @@ export default function WebsiteBuilder() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const [changeHistoryOpen, setChangeHistoryOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement>(null)
+  const [deviceDropdownOpen, setDeviceDropdownOpen] = useState(false)
+  const deviceDropdownRef = useRef<HTMLDivElement>(null)
+  const [customDeviceWidths, setCustomDeviceWidths] = useState<Record<DeviceMode, number>>({
+    desktop: CANVAS_DESIGN_WIDTH.desktop,
+    tablet: CANVAS_DESIGN_WIDTH.tablet,
+    mobile: CANVAS_DESIGN_WIDTH.mobile,
+  })
+  const [deviceWidthDraft, setDeviceWidthDraft] = useState<string | null>(null)
   // Bottom page bar: Excel-style windowing + overflow menu
   const [pageWindowStart, setPageWindowStart] = useState(0)
   const [pageMenuOpen, setPageMenuOpen] = useState(false)
   const pageOverflowRef = useRef<HTMLDivElement>(null)
   const pageTabsViewportRef = useRef<HTMLDivElement>(null)
-  /** How many tabs (from pageWindowStart) actually fit on screen — measured. */
+  /** How many tabs (from pageWindowStart) actually fit on screen ? measured. */
   const [visibleTabCount, setVisibleTabCount] = useState(99)
   const [clearingTemplateSandbox, setClearingTemplateSandbox] = useState(false)
   const [resettingCanvasFromServer, setResettingCanvasFromServer] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'data' | 'seo'>('props')
+  const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'data'>('props')
   const [sidebarDraggedIdx, setSidebarDraggedIdx] = useState<number | null>(null)
   const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
   const [sectionSearch, setSectionSearch] = useState('')
@@ -7994,7 +8004,7 @@ export default function WebsiteBuilder() {
     targetBlockId?: string
     /** When set, the new section replaces this block at the same position (not append). */
     replaceBlockId?: string
-    /** When true, always insert a new section — never apply layout to an existing block of the same type. */
+    /** When true, always insert a new section ? never apply layout to an existing block of the same type. */
     insertOnly?: boolean
   } | null>(null)
   const [expandedSectionPages, setExpandedSectionPages] = useState<Set<string>>(() => new Set())
@@ -8016,7 +8026,7 @@ export default function WebsiteBuilder() {
   const [styleDirty, setStyleDirty] = useState(false)     // unsaved style changes
   const [blocksDirty, setBlocksDirty] = useState(false)   // unsaved block props / reorder
   const blocksDirtyRef = useRef(false)   // mirror for use inside useEffect([site]) without dependency
-  /** After an immediate layout save, skip server→local block hydration briefly so refetches cannot revert the canvas. */
+  /** After an immediate layout save, skip server?local block hydration briefly so refetches cannot revert the canvas. */
   const skipServerHydrateRef = useRef(0)
   const styleDirtyRef = useRef(false)    // mirror for style dirty flag
   const [openingBrowserPreview, setOpeningBrowserPreview] = useState(false)
@@ -8024,7 +8034,7 @@ export default function WebsiteBuilder() {
   const [trashLoading, setTrashLoading] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [storePopover, setStorePopover] = useState(false)
-  // ── Block-level saving indicator ───────────────────────────────────────────
+  // ?? Block-level saving indicator ???????????????????????????????????????????
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null)
   /** Selected in-canvas image overlay (for AI / Media apply). */
   const [overlayImageTarget, setOverlayImageTarget] = useState<{ blockId: string; overlayId: string } | null>(null)
@@ -8033,11 +8043,11 @@ export default function WebsiteBuilder() {
   const selectedBlockIdRef = useRef<string | null>(null)
   useEffect(() => { overlayImageTargetRef.current = overlayImageTarget }, [overlayImageTarget])
   useEffect(() => { selectedBlockIdRef.current = selectedBlockId }, [selectedBlockId])
-  /** Selected canvas image slot(s) — Shift/Ctrl+click for multi (Media + design bar). */
+  /** Selected canvas image slot(s) ? Shift/Ctrl+click for multi (Media + design bar). */
   const [canvasImageTarget, setCanvasImageTarget] = useState<ActiveCanvasImageTarget | null>(null)
   const overlayImageUploadRef = useRef<HTMLInputElement>(null)
 
-  // ── Link editor (opened from CTA buttons / overlay buttons) ────────────────
+  // ?? Link editor (opened from CTA buttons / overlay buttons) ????????????????
   const [linkEditor, setLinkEditor] = useState<
     | null
     | {
@@ -8047,13 +8057,13 @@ export default function WebsiteBuilder() {
       }
   >(null)
 
-  // ── Context menu (right-click block / overlay) ─────────────────────────────
+  // ?? Context menu (right-click block / overlay) ?????????????????????????????
   const [contextMenu, setContextMenu] = useState<
     | null
     | { x: number; y: number; actions: ContextMenuAction[] }
   >(null)
 
-  // ── Styled text prompt (replaces all native window.prompt calls) ───────────
+  // ?? Styled text prompt (replaces all native window.prompt calls) ???????????
   const [textPrompt, setTextPrompt] = useState<
     | null
     | {
@@ -8093,7 +8103,7 @@ export default function WebsiteBuilder() {
     onSecondary?: () => void | Promise<void>
   }) => setTextPrompt(opts), [])
 
-  // ── UNDO / REDO ────────────────────────────────────────────────────────────
+  // ?? UNDO / REDO ????????????????????????????????????????????????????????????
   const historyStack = useRef<Record<string, WebsiteBlock[]>[]>([])
   const historyIndex = useRef(-1)
   /** Timestamp for each history snapshot (parallel to historyStack). */
@@ -8244,8 +8254,8 @@ export default function WebsiteBuilder() {
     }
   }, [])
 
-  // ── LOCAL BLOCK STATE (optimistic, real-time) ─────────────────────────────
-  // Keyed by pageId → array of blocks. Updated immediately on every action.
+  // ?? LOCAL BLOCK STATE (optimistic, real-time) ?????????????????????????????
+  // Keyed by pageId ? array of blocks. Updated immediately on every action.
   const [localBlocks, setLocalBlocks] = useState<Record<string, WebsiteBlock[]>>({})
   // Keep ref in sync so callbacks that close over it always see the latest state.
   useEffect(() => {
@@ -8303,6 +8313,17 @@ export default function WebsiteBuilder() {
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
   }, [moreMenuOpen])
+
+  useEffect(() => {
+    if (!deviceDropdownOpen) return
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (deviceDropdownRef.current?.contains(e.target as Node)) return
+      setDeviceDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [deviceDropdownOpen])
+
 
   useEffect(() => {
     if (!pageMenuOpen) return
@@ -8376,7 +8397,7 @@ export default function WebsiteBuilder() {
     setCanRedo(false)
   }, [])
 
-  /** After trash/restore — refresh pages + blocks without wiping undo history. */
+  /** After trash/restore ? refresh pages + blocks without wiping undo history. */
   const syncEditorPagesFromSite = useCallback((fresh: WebsiteSite, focusPageId?: string | null) => {
     const normalized = normalizeSitePages(fresh.pages)
     localPagesRef.current = normalized
@@ -8397,14 +8418,14 @@ export default function WebsiteBuilder() {
     return normalized
   }, [queryClient, siteId])
 
-  /** Load a template onto the canvas — no publish, user edits first then clicks Apply in toolbar. */
+  /** Load a template onto the canvas ? no publish, user edits first then clicks Apply in toolbar. */
   const handleApplySelectedTemplate = useCallback(async (templateId: string) => {
     if (!siteId) return
     setApplyingTemplateInline(true)
     try {
       const next = await websiteApi.applyTemplate(siteId, templateId)
       queryClient.setQueryData(['websites', siteId], next)
-      // Must hydrate locally — site sync effect skips blocks when blocksDirty is true,
+      // Must hydrate locally ? site sync effect skips blocks when blocksDirty is true,
       // but pages still update, which leaves the canvas empty (0 blocks) with new tabs.
       hydrateEditorFromSite(next)
       setStyleDirty(false)
@@ -8415,8 +8436,8 @@ export default function WebsiteBuilder() {
       const blockCount = next.pages.reduce((n, p) => n + (p.blocks?.length ?? 0), 0)
       toast.success(
         blockCount > 0
-          ? `Template loaded (${blockCount} blocks) — edit then Apply to go live.`
-          : 'Template loaded (pages only) — add blocks from the left panel.',
+          ? `Template loaded (${blockCount} blocks) ? edit then Apply to go live.`
+          : 'Template loaded (pages only) ? add blocks from the left panel.',
       )
       setTemplatePanelSelectedId(templateId)
     } catch {
@@ -8427,7 +8448,7 @@ export default function WebsiteBuilder() {
     }
   }, [siteId, queryClient, hydrateEditorFromSite])
 
-  // handleApplyToStore is defined after handleSaveCanvas — see below
+  // handleApplyToStore is defined after handleSaveCanvas ? see below
 
   const handleClearTemplateSandbox = useCallback(async () => {
     if (!siteId || !isTemplateMode) return
@@ -8449,7 +8470,7 @@ export default function WebsiteBuilder() {
           blocksDirtyRef.current = false
           styleDirtyRef.current = false
           await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
-          toast.success('Cleared — blank site')
+          toast.success('Cleared ? blank site')
         } catch {
           toast.error('Could not clear site')
         } finally {
@@ -8463,7 +8484,7 @@ export default function WebsiteBuilder() {
     try {
       const payload = buildLocalSiteExport(site, localPages, localBlocks, localStyle)
       await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
-      toast.success('Site JSON copied — compatible with Import, or save as a backup.')
+      toast.success('Site JSON copied ? compatible with Import, or save as a backup.')
     } catch {
       toast.error('Could not copy to clipboard')
     }
@@ -8474,9 +8495,14 @@ export default function WebsiteBuilder() {
     openTextPrompt({
       title: 'Reset canvas?',
       subtitle: 'Unsaved canvas and style changes will be lost. This reloads the last saved version from the server.',
-      confirmLabel: 'Reset',
+      confirmLabel: 'Reset to server',
+      secondaryLabel: 'Restore a version',
       confirmOnly: true,
       destructive: true,
+      onSecondary: async () => {
+        setMoreMenuOpen(true)
+        setChangeHistoryOpen(true)
+      },
       onSave: async () => {
         setResettingCanvasFromServer(true)
         try {
@@ -8497,8 +8523,8 @@ export default function WebsiteBuilder() {
     })
   }, [siteId, queryClient, hydrateEditorFromSite, openTextPrompt])
 
-  // Sync from server → local. After AI/template replace, page IDs change; drop stale keys and fix active tab.
-  // Guard: skip overwriting localBlocks/localStyle when the user has unsaved edits — a background
+  // Sync from server ? local. After AI/template replace, page IDs change; drop stale keys and fix active tab.
+  // Guard: skip overwriting localBlocks/localStyle when the user has unsaved edits ? a background
   // refetch (e.g. on window-focus) must not silently discard in-flight changes.
   // Exception: when server page IDs no longer match local keys (template/AI replace), always resync blocks.
   useEffect(() => {
@@ -8618,7 +8644,7 @@ export default function WebsiteBuilder() {
     return () => { cancelled = true }
   }, [isTemplateMode, siteId, prefillParam, expectBlankParam, queryClient, setSearchParams])
 
-  // ── PANEL RESIZE HANDLERS ──────────────────────────────────────────────────
+  // ?? PANEL RESIZE HANDLERS ??????????????????????????????????????????????????
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (isResizingLeft.current) {
@@ -8646,7 +8672,7 @@ export default function WebsiteBuilder() {
     }
   }, [])
 
-  // ── KEYBOARD SHORTCUTS ─────────────────────────────────────────────────────
+  // ?? KEYBOARD SHORTCUTS ?????????????????????????????????????????????????????
   // Use a stable ref so the keydown listener doesn't need to re-register every
   // render and never hits the temporal dead-zone of handlers defined later.
   const kbHandlersRef = useRef({
@@ -8666,6 +8692,7 @@ export default function WebsiteBuilder() {
 
       const { handleDuplicateBlock: dup, handleMoveBlock: move } = kbHandlersRef.current
       const ctrl = e.ctrlKey || e.metaKey
+      if (ctrl && e.key === 'k') { e.preventDefault(); setCommandPaletteOpen(v => !v); return }
       if (ctrl && e.key === 'z') { e.preventDefault(); handleUndo(); return }
       if (ctrl && (e.key === 'y' || e.key === 'Z')) { e.preventDefault(); handleRedo(); return }
       if (ctrl && e.key === 'd') {
@@ -8691,7 +8718,7 @@ export default function WebsiteBuilder() {
         const fieldPosition = activeTextTarget?.blockId === selectedBlockId
           && editableFieldKeys(activeTextTarget).length > 0
         if (heroPosition || fieldPosition) {
-          // FieldPositionNudge listens in capture phase — skip section reorder.
+          // FieldPositionNudge listens in capture phase ? skip section reorder.
           return
         }
       }
@@ -8820,7 +8847,24 @@ export default function WebsiteBuilder() {
       }
     }
 
-    if (isFieldClick) return
+    if (isFieldClick) {
+      const additive = e.shiftKey || e.metaKey || e.ctrlKey
+      // First click selects the whole section (so the padding handles show); only
+      // drill into the text field once its section is already selected. This keeps
+      // a single click on a section consistent with the Escape hierarchy
+      // (text target -> section). Additive (shift/?/ctrl) clicks still drill in so
+      // multi-field selection keeps working.
+      if (selectedBlockId === id || additive) return
+      e.preventDefault()
+      e.stopPropagation()
+      setSelectedBlockId(id)
+      setOverlayImageTarget(null)
+      setCanvasImageTarget(null)
+      setActiveTextTarget(null)
+      setRightPanel('props')
+      setRightCollapsed(false)
+      return
+    }
 
     if ((e.target as HTMLElement).closest('a, button, input, textarea, select, label, [role="button"]')) return
 
@@ -8830,7 +8874,7 @@ export default function WebsiteBuilder() {
     setActiveTextTarget(null)
     setRightPanel('props')
     setRightCollapsed(false)
-  }, [formatPaintBrush])
+  }, [formatPaintBrush, selectedBlockId])
 
   const handleCanvasBlockHover = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -8906,7 +8950,7 @@ export default function WebsiteBuilder() {
     setPageWindowStart(prev => Math.min(prev, Math.max(0, sortedSitePages.length - 1)))
   }, [sortedSitePages.length])
 
-  // Measure how many page tabs fit so the "…" menu only lists what's off-screen.
+  // Measure how many page tabs fit so the "?" menu only lists what's off-screen.
   useLayoutEffect(() => {
     const el = pageTabsViewportRef.current
     if (!el) return
@@ -9037,6 +9081,18 @@ export default function WebsiteBuilder() {
     field: string,
     opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
   ) => {
+    // First click on an unselected section selects the section itself (so the
+    // padding handles show); the image is only entered once its section is already
+    // selected. Mirrors the text-field behaviour and the Escape hierarchy.
+    if (selectedBlockId !== blockId && !opts?.additive) {
+      setSelectedBlockId(blockId)
+      setOverlayImageTarget(null)
+      setCanvasImageTarget(null)
+      setActiveTextTarget(null)
+      setRightPanel('props')
+      setRightCollapsed(false)
+      return
+    }
     skipCanvasImageClearRef.current = true
     if (blockId !== selectedBlockId) setSelectedBlockId(blockId)
     setOverlayImageTarget(null)
@@ -9057,7 +9113,7 @@ export default function WebsiteBuilder() {
     setLeftPanel('media')
   }, [])
 
-  // ── BLOCK OPERATIONS (all optimistic) ────────────────────────────────────
+  // ?? BLOCK OPERATIONS (all optimistic) ????????????????????????????????????
 
 
   const persistStructureLayoutNow = useCallback(async (
@@ -9273,7 +9329,7 @@ export default function WebsiteBuilder() {
       setBlocksDirty(true)
       blocksDirtyRef.current = true
       setAutoSaveStatus('error')
-      toast.error('Layout shown on canvas — save failed, click Save to retry')
+      toast.error('Layout shown on canvas ? save failed, click Save to retry')
     } finally {
       setSavingBlockId(null)
     }
@@ -9446,14 +9502,14 @@ export default function WebsiteBuilder() {
         try {
           await websiteApi.deleteBlock(siteId!, activePageId, replacedBlockId)
         } catch {
-          toast.error('New section saved — could not remove the old section; delete it manually.')
+          toast.error('New section saved ? could not remove the old section; delete it manually.')
         }
       }
       toast.success(
         replacedBlockId
           ? `${def.label} replaced selected section`
           : isStructure && pages.length > 1
-            ? `${def.label} added — synced to all pages`
+            ? `${def.label} added ? synced to all pages`
             : `${def.label} added`,
       )
     } catch {
@@ -9618,7 +9674,7 @@ export default function WebsiteBuilder() {
     await handleAddBlock(def, insertAtIdx, propsOverride, imageCategoryId, replaceBlockId, dataSourceChoice)
   }, [sectionLayoutPicker, handleAddBlock, applyLayoutToBlock, activePageId, selectedBlockId])
 
-  // Preview-only update — instant canvas update, no API call (used while typing)
+  // Preview-only update ? instant canvas update, no API call (used while typing)
   const handlePreviewBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
     const pages = localPagesRef.current
     const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
@@ -9635,7 +9691,7 @@ export default function WebsiteBuilder() {
     })
   }, [activePageId])
 
-  // Update block props — immediate UI; server sync on explicit Save
+  // Update block props ? immediate UI; server sync on explicit Save
   const handleUpdateBlockProps = useCallback((blockId: string, propsUpdate: Partial<BlockProps>) => {
     const pages = localPagesRef.current
     const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
@@ -9899,7 +9955,7 @@ export default function WebsiteBuilder() {
     return () => root.removeEventListener('builder-inline-text-commit', onInlineCommit)
   }, [handleUpdateBlockProps, activePageId, canvasBlocksRevision])
 
-  // ── Image / media apply ───────────────────────────────────────────────────
+  // ?? Image / media apply ???????????????????????????????????????????????????
   // Top-level image field for simple blocks
   const BLOCK_IMAGE_FIELD: Record<string, string> = {
     hero: 'bg_image_url', hero_split: 'bg_image_url', hero_minimal: 'bg_image_url',
@@ -10041,7 +10097,7 @@ export default function WebsiteBuilder() {
               : `Image applied to slot ${maxTargetIdx + 1}`,
         )
       } else {
-        // No items yet — create one with the image
+        // No items yet ? create one with the image
         const newItem: Record<string, unknown> = { [arrayCfg.itemField]: url }
         if (arrayCfg.defaultTitle) newItem.title = arrayCfg.defaultTitle
         if (arrayCfg.itemField === 'avatar_url') newItem.name = arrayCfg.defaultTitle || 'Person'
@@ -10052,7 +10108,7 @@ export default function WebsiteBuilder() {
       return
     }
 
-    // 4) Simple top-level field (hero split → image_url, full-bleed hero → bg_image_url, etc.)
+    // 4) Simple top-level field (hero split ? image_url, full-bleed hero ? bg_image_url, etc.)
     const field = resolveBlockPrimaryImageField(
       block.block_type,
       (block.props ?? {}) as Record<string, unknown>,
@@ -10065,7 +10121,7 @@ export default function WebsiteBuilder() {
   const uploadImageFileToSelection = useCallback(async (file: File) => {
     if (!siteId) return
     if (!file.type.startsWith('image/')) {
-      toast.error('Please use an image file (JPG, PNG, WebP, …)')
+      toast.error('Please use an image file (JPG, PNG, WebP, ?)')
       return
     }
     if (!selectedBlockIdRef.current) {
@@ -10082,7 +10138,7 @@ export default function WebsiteBuilder() {
         overlayTarget: capturedOverlayTarget,
       })
     } catch {
-      toast.error('Upload failed — try a smaller file or check your connection')
+      toast.error('Upload failed ? try a smaller file or check your connection')
     }
   }, [siteId, overlayLayerUpload, applyMediaUrlToSelection])
 
@@ -10097,7 +10153,7 @@ export default function WebsiteBuilder() {
     if (!item) return
     openTextPrompt({
       title: 'Set image URL',
-      placeholder: 'https://…/image.jpg',
+      placeholder: 'https://?/image.jpg',
       initialValue: item.src || '',
       onSave: v => {
         if (!v) return
@@ -10163,7 +10219,7 @@ export default function WebsiteBuilder() {
     if (file) await uploadImageFileToSelection(file)
   }, [uploadImageFileToSelection])
 
-  // Delete block — optimistic; callers show a confirmation dialog before invoking with force.
+  // Delete block ? optimistic; callers show a confirmation dialog before invoking with force.
   const handleDeleteBlock = useCallback(async (
     blockId: string,
     options?: { pageId?: string; force?: boolean },
@@ -10234,13 +10290,13 @@ export default function WebsiteBuilder() {
         setBlocksDirty(false)
         blocksDirtyRef.current = false
       }
-      toast.success(isStructure ? `${target.label || target.block_type} removed from all pages` : 'Section deleted — Ctrl+Z to undo')
+      toast.success(isStructure ? `${target.label || target.block_type} removed from all pages` : 'Section deleted ? Ctrl+Z to undo')
     } catch {
       commitLocalBlocks(backup)
       pushHistory(backup)
       setBlocksDirty(true)
       blocksDirtyRef.current = true
-      toast.error('Delete failed — try again')
+      toast.error('Delete failed ? try again')
     }
   }, [activePageId, siteId, site, selectedBlockId, commitLocalBlocks, pushHistory, queryClient])
 
@@ -10280,7 +10336,7 @@ export default function WebsiteBuilder() {
     })
   }, [activePageId, openTextPrompt, handleDeleteBlock])
 
-  // Duplicate block — optimistic
+  // Duplicate block ? optimistic
   const handleDuplicateBlock = useCallback(async (blockId: string) => {
     const pages = localPagesRef.current
     const blocksMap = localBlocksRef.current
@@ -10325,7 +10381,7 @@ export default function WebsiteBuilder() {
     }
   }, [activePageId, siteId])
 
-  // ── Open link editor for a block prop (e.g. hero cta_primary) ──────────────
+  // ?? Open link editor for a block prop (e.g. hero cta_primary) ??????????????
   const openLinkEditorForProp = useCallback((blockId: string, propKey: string, anchor: { x: number; y: number }) => {
     const pages = localPagesRef.current
     const blocksMap = localBlocksRef.current
@@ -10375,7 +10431,7 @@ export default function WebsiteBuilder() {
     })
   }, [activePageId, handleUpdateBlockProps])
 
-  // ── Open link editor for an overlay item (button / text / image / badge) ───
+  // ?? Open link editor for an overlay item (button / text / image / badge) ???
   const openLinkEditorForOverlay = useCallback((blockId: string, item: BlockOverlayItem, anchor: { x: number; y: number }) => {
     const pages = localPagesRef.current
     const pageId = findPageIdForBlock(localBlocksRef.current, pages, blockId, activePageId)
@@ -10410,7 +10466,7 @@ export default function WebsiteBuilder() {
     })
   }, [activePageId, handleUpdateBlockProps])
 
-  // ── Context menus ────────────────────────────────────────────────────────
+  // ?? Context menus ????????????????????????????????????????????????????????
   // Opened via right-click on either a canvas block or an overlay element.
 
   // Primary text field for each block type (used by "Edit content" context menu action)
@@ -10499,7 +10555,7 @@ export default function WebsiteBuilder() {
       },
       {
         id: 'edit',
-        label: 'Edit text…',
+        label: 'Edit text?',
         icon: Pencil,
         shortcut: 'E',
         onSelect: () => {
@@ -10521,12 +10577,12 @@ export default function WebsiteBuilder() {
       }] : []),
       dsType ? {
         id: 'data',
-        label: `Connected → ${dsLabel}`,
+        label: `Connected ? ${dsLabel}`,
         icon: Database,
         onSelect: () => { setRightPanel('data'); setRightCollapsed(false) },
       } : (suggested ? {
         id: 'connect',
-        label: `⚡ Connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`,
+        label: `? Connect to ${DATA_SOURCES.find(s => s.id === suggested)?.label}`,
         icon: Plug,
         onSelect: () => {
           handleUpdateBlockProps(block.id, { data_source: { type: suggested, auto: true } } as any)
@@ -10534,7 +10590,7 @@ export default function WebsiteBuilder() {
         },
       } : {
         id: 'data-picker',
-        label: 'Connect to live data…',
+        label: 'Connect to live data?',
         icon: Database,
         onSelect: () => { setRightPanel('data'); setRightCollapsed(false) },
       }),
@@ -10550,14 +10606,14 @@ export default function WebsiteBuilder() {
         id: 'up',
         label: 'Move section up on page',
         icon: ChevronUp,
-        shortcut: '↑',
+        shortcut: '?',
         onSelect: () => handleMoveBlock(block.id, 'up'),
       },
       {
         id: 'down',
         label: 'Move section down on page',
         icon: ChevronDown,
-        shortcut: '↓',
+        shortcut: '?',
         onSelect: () => handleMoveBlock(block.id, 'down'),
       },
       {
@@ -10632,12 +10688,12 @@ export default function WebsiteBuilder() {
     const actions: ContextMenuAction[] = [
       ...(item.type === 'text' || item.type === 'button' || item.type === 'badge' ? [{
         id: 'edit-text',
-        label: 'Edit text…',
+        label: 'Edit text?',
         icon: Pencil,
         onSelect: () => {
           openTextPrompt({
             title: `Edit ${item.type} text`,
-            placeholder: item.type === 'button' ? 'e.g. Book Now' : item.type === 'badge' ? 'e.g. NEW' : 'Type your text…',
+            placeholder: item.type === 'button' ? 'e.g. Book Now' : item.type === 'badge' ? 'e.g. NEW' : 'Type your text?',
             initialValue: item.text || '',
             multiline: item.type === 'text',
             anchor: { x: e.clientX, y: e.clientY },
@@ -10660,7 +10716,7 @@ export default function WebsiteBuilder() {
       }] : []),
       ...((item.type === 'button' || item.type === 'badge') ? [{
         id: 'describe',
-        label: item.description ? 'Edit description…' : 'Add description…',
+        label: item.description ? 'Edit description?' : 'Add description?',
         icon: FileText,
         onSelect: () => {
           openTextPrompt({
@@ -10685,7 +10741,7 @@ export default function WebsiteBuilder() {
       ...(item.type === 'image' ? [
         {
           id: 'upload-img',
-          label: 'Upload image…',
+          label: 'Upload image?',
           icon: Upload,
           onSelect: () => {
             onOverlayLayerPicked(item.id, blockId)
@@ -10694,7 +10750,7 @@ export default function WebsiteBuilder() {
         },
         {
           id: 'library-img',
-          label: 'Choose from library…',
+          label: 'Choose from library?',
           icon: ImageIcon,
           onSelect: () => {
             onOverlayLayerPicked(item.id, blockId)
@@ -10703,13 +10759,13 @@ export default function WebsiteBuilder() {
         },
         {
           id: 'replace-img',
-          label: 'Replace image…',
+          label: 'Replace image?',
           icon: Link2,
           onSelect: () => {
             openTextPrompt({
               title: 'Replace image',
               subtitle: 'Paste a direct image URL.',
-              placeholder: 'https://…/image.jpg',
+              placeholder: 'https://?/image.jpg',
               initialValue: item.src || '',
               anchor: { x: e.clientX, y: e.clientY },
               onSave: v => {
@@ -10792,7 +10848,7 @@ export default function WebsiteBuilder() {
     setContextMenu({ x: e.clientX, y: e.clientY, actions })
   }, [activePageId, localBlocks, handleUpdateBlockProps, openLinkEditorForOverlay, openTextPrompt, openOverlayImageFilePicker, openMediaFromCanvas, onOverlayLayerPicked, overlayImageTarget])
 
-  // Reorder — local only until Save (same as block prop edits)
+  // Reorder ? local only until Save (same as block prop edits)
   const applyReorderForPage = useCallback((pageId: string, reordered: WebsiteBlock[]) => {
     if (!pageId) return
     pushHistory(JSON.parse(JSON.stringify(localBlocksRef.current)))
@@ -10931,7 +10987,7 @@ export default function WebsiteBuilder() {
     document.addEventListener('pointercancel', onUp)
   }, [applyReorder, clearBlockDragState, findBlockDropTargetFromPointer, reorderBlocksByIndex, startDragAutoScrollLoop, updateDropTargetFromPointer])
 
-  // Drag handlers (HTML5 — used for new blocks from the left panel catalog)
+  // Drag handlers (HTML5 ? used for new blocks from the left panel catalog)
   const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = draggingNewBlock ? 'copy' : 'move'
@@ -11000,7 +11056,7 @@ export default function WebsiteBuilder() {
     clearBlockDragState()
   }, [draggingNewBlock, activeBlocks, handleAddBlock, applyReorder, clearBlockDragState, shouldOpenLayoutPickerForBlock, openSectionLayoutPicker])
 
-  // Move block up/down/top/bottom — optimistic (content blocks stay between nav and footer)
+  // Move block up/down/top/bottom ? optimistic (content blocks stay between nav and footer)
   const handleMoveBlock = useCallback((blockId: string, dir: 'up' | 'down' | 'top' | 'bottom') => {
     const pageId = activePageId
     if (!pageId) return
@@ -11340,7 +11396,7 @@ export default function WebsiteBuilder() {
       }
     } catch {
       setAutoSaveStatus('error')
-      toast.error(opts?.silent ? 'Auto-save failed — check your connection' : 'Save failed — check your connection')
+      toast.error(opts?.silent ? 'Auto-save failed ? check your connection' : 'Save failed ? check your connection')
     }
     setIsSaving(false)
     isSavingRef.current = false
@@ -11367,7 +11423,7 @@ export default function WebsiteBuilder() {
         clearTimeout(autoSaveTimerRef.current)
         autoSaveTimerRef.current = null
       }
-      toast.success(next ? 'Auto-save turned on' : 'Auto-save turned off — use Save draft')
+      toast.success(next ? 'Auto-save turned on' : 'Auto-save turned off ? use Save draft')
       return next
     })
   }, [autoSaveStorageKey])
@@ -11431,7 +11487,7 @@ export default function WebsiteBuilder() {
       businessUnits.length === 1 ? [businessUnits[0].id] : businessUnits.map(s => s.id)
     )
     try {
-      // Only persist if there are pending local changes — avoids redundant API
+      // Only persist if there are pending local changes ? avoids redundant API
       // calls when the user clicks Apply immediately after loading a template.
       if (blocksDirty || styleDirty) {
         await persistAllPagesToServer()
@@ -11464,7 +11520,7 @@ export default function WebsiteBuilder() {
         : appliedNames.length === businessUnits.length && businessUnits.length > 1
           ? `all ${appliedNames.length} ${BUSINESS_UNIT_STORE_LABEL}s`
           : appliedNames.join(', ')
-      toast.success(`✅ Applied — live on ${scopeLabel} with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`)
+      toast.success(`? Applied ? live on ${scopeLabel} with ${localPages.length} page${localPages.length !== 1 ? 's' : ''}.`)
     } catch (err) {
       toast.error(extractApiError(err, 'Apply to store'))
       console.error('[Apply to Store]', err)

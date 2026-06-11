@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { HelpCircle, MapPin, X } from 'lucide-react'
+import { BookOpen, HelpCircle, Mail, MapPin, MessageCircle, X } from 'lucide-react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { cn } from '@/lib/utils'
 import { resetAllBuilderCoachMarks } from '@/lib/builderCoachMarks'
@@ -96,7 +96,41 @@ export function BuilderTipsButton({
               </li>
             ))}
           </ul>
+          {/* Quick-access action buttons */}
           <div className="px-3 py-2.5 border-t border-gray-100 bg-gray-50 space-y-2">
+            {/* Help docs + Contact + Chat row */}
+            <div className="grid grid-cols-3 gap-1.5">
+              <a
+                href="https://help.kiterp.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5 text-center text-[10px] font-semibold text-gray-700 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+              >
+                <BookOpen className="h-4 w-4 text-primary" />
+                Help docs
+              </a>
+              <a
+                href="mailto:support@kiterp.com"
+                className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5 text-center text-[10px] font-semibold text-gray-700 transition-colors hover:border-blue-400/40 hover:bg-blue-50 hover:text-blue-600"
+              >
+                <Mail className="h-4 w-4 text-blue-500" />
+                Contact
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof (window as any).$crisp !== 'undefined') {
+                    ;(window as any).$crisp.push(['do', 'chat:open'])
+                  }
+                  setOpen(false)
+                }}
+                className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5 text-center text-[10px] font-semibold text-gray-700 transition-colors hover:border-emerald-400/40 hover:bg-emerald-50 hover:text-emerald-600"
+              >
+                <MessageCircle className="h-4 w-4 text-emerald-500" />
+                Chat
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => {
@@ -123,18 +157,17 @@ export function BuilderTipsButton({
         ref={buttonRef}
         type="button"
         onClick={() => setOpen(v => !v)}
-        title="Where to find builder tips and onboarding"
+        title="Help & tips — where to find everything in the builder"
         aria-expanded={open}
         className={cn(
-          'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors text-[11px] font-semibold shadow-sm shrink-0',
+          'inline-flex items-center justify-center rounded-lg border transition-colors shrink-0',
           open
             ? 'border-primary/50 bg-primary/20 text-white'
-            : 'border-amber-400/50 text-amber-100 hover:text-white hover:bg-amber-500/20 bg-amber-500/10 ring-1 ring-amber-400/30',
+            : 'border-gray-600 bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700',
           className,
         )}
       >
         <HelpCircle className="w-3.5 h-3.5 shrink-0" />
-        Tips
       </button>
       {menu}
     </>

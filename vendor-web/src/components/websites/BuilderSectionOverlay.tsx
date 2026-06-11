@@ -269,6 +269,25 @@ export function BuilderSectionOverlay({
   )
 }
 
+type SectionScreenFrame = {
+  top: number
+  left: number
+  width: number
+  height: number
+  scaleY: number
+}
+
+function measureBlockScreenFrame(
+  containerRef: RefObject<HTMLElement | null>,
+  blockId: string,
+): SectionScreenFrame | null {
+  const el = findBlockEl(containerRef, blockId)
+  if (!el) return null
+  const rect = el.getBoundingClientRect()
+  const scaleY = el.offsetHeight > 0 ? rect.height / el.offsetHeight : 1
+  return { top: rect.top, left: rect.left, width: rect.width, height: rect.height, scaleY }
+}
+
 /** Drag top/bottom section edges to adjust padding_top / padding_bottom. */
 export function BuilderSectionPaddingHandles({
   blockId,
@@ -295,13 +314,27 @@ export function BuilderSectionPaddingHandles({
 }) {
   // Box tracks ResizeObserver only — skip revision so padding ticks don't reset observers.
   const box = useBuilderSectionBox(blockId, containerRef, undefined, scrollRootRef)
+  const hasBox = box != null
+  const [screenFrame, setScreenFrame] = useState<SectionScreenFrame | null>(null)
+  // Visible canvas bounds — pills live in a body portal (not clipped by the scroll
+  // container's overflow), so we clip them manually to avoid floating over the
+  // docked toolbar above the canvas or out the bottom.
+  const [clip, setClip] = useState<{ top: number; bottom: number } | null>(null)
   const [activeEdge, setActiveEdge] = useState<'top' | 'bottom' | null>(null)
   const [dragLabel, setDragLabel] = useState<string | null>(null)
   const dragRef = useRef<{
     edge: 'top' | 'bottom'
     startVal: number
+    startHeight: number
     lastVal: number
     displayY: number
+    // Screen geometry frozen at drag start — the block's screen top and canvas
+    // scale don't change during a vertical padding drag, so re-reading them live
+    // only adds reflow lag that makes the handles/tooltip shimmer.
+    startTop: number
+    startScaleY: number
+    startLeft: number
+    startWidth: number
     rafId: number | null
     pendingPreview: { padding_top?: number; padding_bottom?: number } | null
   } | null>(null)
@@ -310,21 +343,92 @@ export function BuilderSectionPaddingHandles({
   onPaddingPreviewRef.current = onPaddingPreview
   onPaddingCommitRef.current = onPaddingCommit
 
+  useLayoutEffect(() => {
+    if (!hasBox || suppressed) {
+      setScreenFrame(null)
+      return
+    }
+
+    const update = () => {
+      setScreenFrame(measureBlockScreenFrame(containerRef, blockId))
+      const sr = scrollRootRef?.current
+      if (sr) {
+        const r = sr.getBoundingClientRect()
+        setClip({ top: r.top, bottom: r.bottom })
+      } else {
+        setClip(null)
+      }
+    }
+
+    update()
+    const el = findBlockEl(containerRef, blockId)
+    const root = containerRef.current
+    if (!el || !root) return
+
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    ro.observe(root)
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    const scrollRoot = scrollRootRef?.current
+    scrollRoot?.addEventListener('scroll', update, { passive: true })
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+      scrollRoot?.removeEventListener('scroll', update)
+    }
+    // Deps are intentionally stable: padding ticks and the drag label change every
+    // frame during a drag — keeping them out avoids tearing down / rebuilding the
+    // observer on each tick. Live size changes are picked up by the ResizeObserver.
+  }, [blockId, hasBox, suppressed, containerRef, scrollRootRef])
+
   if (!box || suppressed) return null
 
-  const liveTop = activeEdge === 'top' && dragRef.current
-    ? dragRef.current.lastVal
+  const drag = dragRef.current
+  const dragging = drag != null && activeEdge != null
+
+  const liveTop = activeEdge === 'top' && drag
+    ? drag.lastVal
     : clampDragPadding(paddingTop)
-  const liveBottom = activeEdge === 'bottom' && dragRef.current
-    ? dragRef.current.lastVal
+  const liveBottom = activeEdge === 'bottom' && drag
+    ? drag.lastVal
     : clampDragPadding(paddingBottom)
-  const topHandleY = activeEdge === 'top' && dragRef.current
-    ? dragRef.current.displayY
-    : liveTop
-  const bottomHandleY = activeEdge === 'bottom' && dragRef.current
-    ? dragRef.current.displayY
-    : box.height - liveBottom
-  const hideBottom = bottomHandleY <= topHandleY + 12
+
+  // Section height is derived from the drag ref so it stays in lockstep with the
+  // pointer instead of trailing the (one-frame-lagged) ResizeObserver. Content is
+  // top-anchored: a top drag pushes the content seam down, a bottom drag keeps the
+  // seam fixed (displayY) and grows the section below it by the new bottom padding.
+  const liveHeight = dragging
+    ? activeEdge === 'top'
+      ? drag!.startHeight + (drag!.displayY - drag!.startVal)
+      : drag!.displayY + drag!.lastVal
+    : box.height
+
+  const topHandleY = activeEdge === 'top' && drag ? drag.displayY : liveTop
+  const bottomHandleY = activeEdge === 'bottom' && drag
+    ? drag.displayY
+    : liveHeight - liveBottom
+  const hideBottom = liveHeight < 16 || bottomHandleY - topHandleY < 4
+
+  // While dragging, position against the frozen screen frame captured at drag
+  // start; only fall back to the live (ResizeObserver) measurement when idle.
+  const frameTop = dragging ? drag!.startTop : screenFrame?.top ?? null
+  const frameScaleY = dragging ? drag!.startScaleY : screenFrame?.scaleY ?? null
+  const frameLeft = dragging ? drag!.startLeft : screenFrame?.left ?? null
+  const frameWidth = dragging ? drag!.startWidth : screenFrame?.width ?? null
+  const hasFrame =
+    frameTop != null && frameScaleY != null && frameLeft != null && frameWidth != null
+
+  const topHandleScreenY = hasFrame ? frameTop! + topHandleY * frameScaleY! : null
+  const bottomHandleScreenY = hasFrame ? frameTop! + bottomHandleY * frameScaleY! : null
+
+  // Only show a handle/tooltip when its seam is inside the visible canvas. The pad
+  // keeps the pill from poking past the edge (it's centred on the seam).
+  const CLIP_PAD = 10
+  const withinClip = (y: number | null): boolean =>
+    y != null && (!clip || (y >= clip.top + CLIP_PAD && y <= clip.bottom - CLIP_PAD))
 
   const flushPreview = () => {
     const drag = dragRef.current
@@ -358,14 +462,20 @@ export function BuilderSectionPaddingHandles({
     const hit = pointerInBlock(e.clientY, containerRef, blockId)
     if (!hit) return
 
+    const frame = measureBlockScreenFrame(containerRef, blockId)
     const startVal = clampDragPadding(edge === 'top' ? paddingTop : paddingBottom)
     const startY = edge === 'top' ? startVal : hit.height - startVal
 
     dragRef.current = {
       edge,
       startVal,
+      startHeight: hit.height,
       lastVal: startVal,
       displayY: startY,
+      startTop: frame?.top ?? screenFrame?.top ?? 0,
+      startScaleY: frame?.scaleY ?? screenFrame?.scaleY ?? 1,
+      startLeft: frame?.left ?? screenFrame?.left ?? 0,
+      startWidth: frame?.width ?? screenFrame?.width ?? 0,
       rafId: null,
       pendingPreview: null,
     }
@@ -382,11 +492,23 @@ export function BuilderSectionPaddingHandles({
       if (!drag) return
       const hitMove = pointerInBlock(ev.clientY, containerRef, blockId)
       if (!hitMove) return
-      const { pointerY, height } = hitMove
+      const { pointerY } = hitMove
+      // Bottom edge must use the height captured at drag start, NOT the live
+      // height. Growing the bottom padding grows the section, which would feed
+      // back into `height - pointerY` and make the boundary run away from the
+      // pointer. The top edge is anchored to the (stable) block top, so it is
+      // left untouched.
       const next = drag.edge === 'top'
         ? clampDragPadding(pointerY)
-        : clampDragPadding(height - pointerY)
-      const displayY = drag.edge === 'top' ? next : height - next
+        : clampDragPadding(drag.startHeight - pointerY)
+      // Handle position: the top handle sits at the content seam, which moves
+      // down as top padding grows, so it tracks `next`. The bottom content seam
+      // stays fixed (content is top-anchored; only the section's outer edge
+      // grows), so pin the bottom handle to that constant seam. This keeps it
+      // aligned with the rendered padding band instead of drifting/overlapping.
+      const displayY = drag.edge === 'top'
+        ? next
+        : drag.startHeight - drag.startVal
 
       if (next === drag.lastVal) return
 
@@ -440,79 +562,128 @@ export function BuilderSectionPaddingHandles({
     handleEl.addEventListener('pointercancel', endDrag)
   }
 
-  const edges: Array<{ edge: 'top' | 'bottom'; y: number; value: number; label: string }> = [
-    { edge: 'top', y: topHandleY, value: liveTop, label: 'Section padding top' },
-    { edge: 'bottom', y: bottomHandleY, value: liveBottom, label: 'Section padding bottom' },
+  const edges: Array<{
+    edge: 'top' | 'bottom'
+    screenY: number | null
+    value: number
+    label: string
+  }> = [
+    { edge: 'top', screenY: topHandleScreenY, value: liveTop, label: 'Section padding top' },
+    { edge: 'bottom', screenY: bottomHandleScreenY, value: liveBottom, label: 'Section padding bottom' },
   ]
+
+  const renderHandlePill = (
+    edge: 'top' | 'bottom',
+    screenY: number,
+    value: number,
+    label: string,
+  ) => {
+    const active = activeEdge === edge
+    return (
+      <div
+        key={edge}
+        className={cn(
+          'fixed touch-none select-none pointer-events-none',
+          active ? 'z-[99992]' : 'z-[99990]',
+        )}
+        style={{
+          top: screenY,
+          left: frameLeft!,
+          width: frameWidth!,
+          transform: 'translateY(-50%)',
+        }}
+      >
+        <div
+          data-section-padding-handle
+          role="slider"
+          aria-label={label}
+          aria-valuemin={0}
+          aria-valuemax={SECTION_PADDING_MAX}
+          aria-valuenow={value}
+          title={`${edge === 'top' ? 'Space above content' : 'Space below content'} — drag to adjust (${value}px)`}
+          className="group/pad pointer-events-auto absolute left-1/2 top-1/2 flex h-6 w-full max-w-[min(100%,200px)] -translate-x-1/2 -translate-y-1/2 cursor-ns-resize items-center justify-center"
+          onPointerDown={e => startDrag(edge, e)}
+        >
+          <div
+            className={cn(
+              'flex h-3.5 px-1.5 items-center justify-center gap-0.5 rounded-full border bg-white shadow-sm transition-all',
+              active
+                ? 'border-primary ring-1 ring-primary/25 scale-105 shadow'
+                : 'border-ring group-hover/pad:border-primary/60 group-hover/pad:shadow',
+            )}
+          >
+            <span className="block h-px w-2 rounded-full bg-primary/70 shrink-0" />
+            <span className="text-[7px] font-bold uppercase tracking-wide text-primary/80 whitespace-nowrap">
+              {edge === 'top' ? '↑ space' : '↓ space'}
+            </span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
       {liveTop > 0 && (
         <div
-          className="pointer-events-none absolute left-0 right-0 top-0 z-[58] bg-primary/10 border-b border-primary/35"
+          className="pointer-events-none absolute left-0 right-0 top-0 z-[58] bg-primary/10"
           style={{ height: liveTop }}
           aria-hidden
         />
       )}
       {liveBottom > 0 && (
         <div
-          className="pointer-events-none absolute left-0 right-0 bottom-0 z-[58] bg-primary/10 border-t border-primary/35"
-          style={{ height: liveBottom }}
+          className="pointer-events-none absolute left-0 right-0 z-[58] bg-primary/10"
+          // Anchor from the (stable) content seam rather than `bottom-0`: the box's
+          // bottom is ResizeObserver-driven and lags a frame behind the live drag,
+          // which makes the bottom band shimmer while dragging the bottom edge.
+          style={{ top: Math.max(0, liveHeight - liveBottom), height: liveBottom }}
           aria-hidden
         />
       )}
-      {edges.map(({ edge, y, value, label }) => {
-        if (edge === 'bottom' && hideBottom) return null
-        const active = activeEdge === edge
-        return (
-          <div
-            key={edge}
-            className={cn(
-              'pointer-events-none absolute left-0 right-0 z-[60] touch-none select-none -translate-y-1/2',
-              active && 'z-[62]',
-            )}
-            style={{ top: y }}
-          >
-            <div
-              className={cn(
-                'absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2',
-                active ? 'bg-primary' : 'bg-primary/45',
-              )}
-              aria-hidden
-            />
-            <div
-              data-section-padding-handle
-              role="slider"
-              aria-label={label}
-              aria-valuemin={0}
-              aria-valuemax={SECTION_PADDING_MAX}
-              aria-valuenow={value}
-              title={`${edge === 'top' ? 'Space above content' : 'Space below content'} — drag to adjust (${value}px)`}
-              className="group/pad pointer-events-auto absolute left-1/2 top-1/2 flex h-8 w-full max-w-[min(100%,280px)] -translate-x-1/2 -translate-y-1/2 cursor-ns-resize items-center justify-center"
-              onPointerDown={e => startDrag(edge, e)}
-            >
-              <div
-                className={cn(
-                  'flex h-5 min-w-[4.5rem] px-2 items-center justify-center gap-1 rounded-full border-2 bg-white shadow-sm transition-all',
-                  active ? 'border-primary ring-2 ring-primary/25 scale-105' : 'border-ring group-hover/pad:border-primary/60',
-                )}
-              >
-                <span className="block h-0.5 w-3 rounded-full bg-primary/70 shrink-0" />
-                <span className="text-[9px] font-bold uppercase tracking-wide text-primary/80">
-                  {edge === 'top' ? '↑ space' : '↓ space'}
-                </span>
-              </div>
-            </div>
-          </div>
-        )
-      })}
-      {dragLabel && activeEdge && (
+
+      {/* Seam guide lines live in-canvas (below the section toolbar's z-85) so they
+          render behind the floating toolbars instead of a body portal painting over
+          them. The grabbable pill stays in the portal. */}
+      <div
+        className={cn(
+          'pointer-events-none absolute left-0 right-0 z-[59] h-[2px] -translate-y-1/2',
+          activeEdge === 'top' ? 'bg-primary' : 'bg-primary/45',
+        )}
+        style={{ top: topHandleY }}
+        aria-hidden
+      />
+      {!hideBottom && (
         <div
-          className="pointer-events-none absolute left-1/2 z-[63] -translate-x-1/2 -translate-y-1/2 rounded-md bg-gray-900 px-2.5 py-1 text-[11px] font-mono text-white shadow-md"
-          style={{ top: activeEdge === 'top' ? topHandleY : bottomHandleY }}
-        >
-          {dragLabel}
-        </div>
+          className={cn(
+            'pointer-events-none absolute left-0 right-0 z-[59] h-[2px] -translate-y-1/2',
+            activeEdge === 'bottom' ? 'bg-primary' : 'bg-primary/45',
+          )}
+          style={{ top: bottomHandleY }}
+          aria-hidden
+        />
+      )}
+
+      {hasFrame && createPortal(
+        <>
+          {edges.map(({ edge, screenY, value, label }) => {
+            if (edge === 'bottom' && hideBottom) return null
+            if (!withinClip(screenY)) return null
+            return renderHandlePill(edge, screenY!, value, label)
+          })}
+          {dragLabel && activeEdge && withinClip(activeEdge === 'top' ? topHandleScreenY : bottomHandleScreenY) && (
+            <div
+              className="pointer-events-none fixed left-1/2 z-[99993] -translate-x-1/2 -translate-y-1/2 rounded-md bg-gray-900 px-2.5 py-1 text-[11px] font-mono text-white shadow-md"
+              style={{
+                top: activeEdge === 'top' ? topHandleScreenY! : bottomHandleScreenY!,
+                left: frameLeft! + frameWidth! / 2,
+              }}
+            >
+              {dragLabel}
+            </div>
+          )}
+        </>,
+        document.body,
       )}
     </>
   )
