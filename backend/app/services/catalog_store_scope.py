@@ -109,10 +109,13 @@ async def resolve_store_id(
         except ValueError:
             raise HTTPException(400, "Invalid store_id")
         row = await db.execute(
-            select(Store.id).where(Store.vendor_id == vendor_id, Store.id == sid, Store.is_active == True)
+            select(Store.id, Store.is_open).where(Store.vendor_id == vendor_id, Store.id == sid, Store.is_active == True)
         )
-        if not row.scalar_one_or_none():
+        result_row = row.one_or_none()
+        if not result_row:
             raise HTTPException(404, "Business unit not found")
+        if result_row[1] is False:
+            raise HTTPException(422, "This business unit is currently closed")
         return sid
     if branch:
         filters = [Store.code == branch]
@@ -121,14 +124,16 @@ async def resolve_store_id(
         except ValueError:
             pass
         row = await db.execute(
-            select(Store.id).where(
+            select(Store.id, Store.is_open).where(
                 Store.vendor_id == vendor_id,
                 Store.is_active == True,
                 or_(*filters),
             )
         )
-        sid = row.scalar_one_or_none()
-        if not sid:
+        result_row = row.one_or_none()
+        if not result_row:
             raise HTTPException(404, "Business unit not found")
-        return sid
+        if result_row[1] is False:
+            raise HTTPException(422, "This business unit is currently closed")
+        return result_row[0]
     return None

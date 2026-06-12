@@ -8,6 +8,7 @@ import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInf
 import { useAuthStore } from '@/stores/authStore'
 import { useGuestCartStore } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
+import { useBranch } from '@/contexts/BranchContext'
 import { storeApi } from '@/api/store'
 import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
 import type { Address, Cart, Customer, PaymentSelection, ShippingMethod } from '@/checkout/types'
@@ -44,6 +45,7 @@ export function useStoreBridgeCheckout() {
   const { storePath } = useVendor()
   const { customer, isAuthenticated, setTokens, setCustomer } = useAuthStore()
   const { vendorSlug } = useVendor()
+  const { branchCode, isBranchClosed } = useBranch()
   const clearGuestCart = useGuestCartStore(s => s.clear)
   const isGuest = !isAuthenticated
   const { data: cart } = useCart()
@@ -276,6 +278,10 @@ export function useStoreBridgeCheckout() {
     },
 
     placeOrder: async (): Promise<{ ok: boolean; orderId?: string; error?: string }> => {
+      if (isBranchClosed) {
+        return { ok: false, error: 'This store is currently closed. Please check back later or choose another location.' }
+      }
+
       const paymentMethod = checkoutToPayment(payment)
       const shippingPayload = {
         street_address: resolvedAddress?.line1 ?? '',
@@ -312,6 +318,7 @@ export function useStoreBridgeCheckout() {
             shipping_method_id: shippingMethodId,
             notes: notes || undefined,
             coupon_code: couponCode ?? undefined,
+            branch_code: branchCode ?? undefined,
           })
           if (result.access_token && result.refresh_token) {
             setTokens({ access_token: result.access_token, refresh_token: result.refresh_token, token_type: 'bearer' })
@@ -326,6 +333,7 @@ export function useStoreBridgeCheckout() {
             shipping_method_id: shippingMethodId,
             notes: notes || undefined,
             coupon_code: couponCode ?? undefined,
+            branch_code: branchCode ?? undefined,
           })
           orderId = order.id
         }
@@ -345,6 +353,7 @@ export function useStoreBridgeCheckout() {
     checkoutMutation, navigate, storePath, removeItem, updateItem,
     completeOnlinePayment, refreshPreview, isGuest, customerInfo,
     cartItemsPayload, setTokens, setCustomer, clearGuestCart, vendorSlug,
+    branchCode, isBranchClosed,
   ])
 
   return {
@@ -365,6 +374,7 @@ export function useStoreBridgeCheckout() {
       giftMessage,
       isPlacing: checkoutMutation.isPending || previewLoading,
       error: previewError,
+      isBranchClosed,
     },
     actions,
   }

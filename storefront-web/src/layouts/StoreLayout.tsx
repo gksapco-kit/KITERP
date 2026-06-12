@@ -18,6 +18,8 @@ import { useState, useRef, useEffect } from 'react'
 import CrmChatWidget from '@/components/CrmChatWidget'
 import { CustomerNotificationsBell } from '@/components/CustomerNotificationsBell'
 import { useJourneyBeacon } from '@/hooks/useJourneyBeacon'
+import { BranchProvider, useBranch } from '@/contexts/BranchContext'
+import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
@@ -396,7 +398,8 @@ function StoreContent() {
   const { pathname } = useLocation()
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
   const { builderSite } = useBuilderSite()
-  const { vendor, isLoading, error, storePath } = useVendor()
+  const { vendor, isLoading, error } = useVendor()
+  const { storePath } = useBranch()
   const { isAuthenticated, customer } = useAuthStore()
   const { itemCount } = useCartStore()
   const logout = useCustomerLogout()
@@ -527,6 +530,8 @@ function StoreContent() {
       <UnifiedNav
         logo={logoNode}
         logoHomeTo={storePath('/')}
+        afterLogo={<StoreBranchPicker className="hidden sm:inline-flex" />}
+        sheetExtra={<StoreBranchPicker className="w-full max-w-none" compact />}
         links={kitLinks}
         extraTray={isAuthenticated ? <CustomerNotificationsBell storePath={storePath} /> : undefined}
         showSearch={showSearch}
@@ -614,7 +619,9 @@ export default function StoreLayout() {
     <VendorProvider>
       <ThemeProvider>
         <BuilderSiteProvider>
-          <StoreContent />
+          <BranchProvider>
+            <StoreContent />
+          </BranchProvider>
         </BuilderSiteProvider>
       </ThemeProvider>
     </VendorProvider>

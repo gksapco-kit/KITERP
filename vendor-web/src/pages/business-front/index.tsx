@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Globe, Layout, SlidersHorizontal,
@@ -14,6 +14,7 @@ import { buildCustomerStoreLink, customerLinkForStore, resolveStorefrontLinkMode
 import { openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import { WebsiteStorefrontCard } from '@/components/websites/WebsiteStorefrontCard'
+import { StoreThemeCustomizerDialog } from '@/components/websites/StoreThemeCustomizerDialog'
 import {
   resolveMainStorefrontTemplateLabel,
   resolveSiteAppliedTemplateLabel,
@@ -53,6 +54,7 @@ type BuilderDraftCardModel = {
 }
 
 export default function BusinessFrontHubPage() {
+  const [themeCustomizerOpen, setThemeCustomizerOpen] = useState(false)
   const vendor = useVendorStore(s => s.vendor)
   const { data: sites = [] } = useSiteList()
   const { data: websiteTemplates = [] } = useWebsiteTemplates()
@@ -72,18 +74,8 @@ export default function BusinessFrontHubPage() {
     presetsData?.presets ?? [],
     sites,
   )
+  const publishedSite = sites.find(s => s.is_published)
   const mainSites = (sites as SiteListItem[]).filter(s => !isTemplateSandboxSite(s))
-  // Match the live storefront's selection (backend _resolve_site_by_subdomain):
-  // the most-recently-published site, not just the first/most-recently-created one.
-  // Otherwise "Open builder" can open a different site than the one serving the live store.
-  const publishedSite = mainSites
-    .filter(s => s.is_published)
-    .slice()
-    .sort((a, b) => {
-      const at = a.published_at ? Date.parse(a.published_at) : 0
-      const bt = b.published_at ? Date.parse(b.published_at) : 0
-      return bt - at
-    })[0]
 
   const commonLiveUrl = buildCustomerStoreLink(vendor?.slug)
   const linkMode = resolveStorefrontLinkMode(vendor?.settings)
@@ -298,6 +290,7 @@ export default function BusinessFrontHubPage() {
               builderTo={card.builderTo}
               liveUrl={card.liveUrl}
               live={card.live}
+              onChangeTheme={() => setThemeCustomizerOpen(true)}
               templateName={card.templateName}
               templateThumbnail={card.templateThumbnail}
             />
@@ -338,6 +331,11 @@ export default function BusinessFrontHubPage() {
           </section>
         </>
       ) : null}
+
+      <StoreThemeCustomizerDialog
+        open={themeCustomizerOpen}
+        onClose={() => setThemeCustomizerOpen(false)}
+      />
     </div>
   )
 }

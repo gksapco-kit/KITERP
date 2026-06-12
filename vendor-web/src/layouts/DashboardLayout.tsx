@@ -1127,6 +1127,12 @@ export default function DashboardLayout() {
     onSuccess: () => { void refetchStores() },
   })
 
+  const toggleStoreOpenMutation = useMutation({
+    mutationFn: ({ id, is_open }: { id: string; is_open: boolean }) =>
+      vendorApi.updateStore(id, { is_open }),
+    onSuccess: () => { void refetchStores() },
+  })
+
   const openStorePicker = () => {
     setStorePickerOpen((v) => {
       const next = !v
@@ -2015,6 +2021,7 @@ export default function DashboardLayout() {
               const isFav = favouriteStoreId === s.id
               const isDefault = (s as any).is_default === true
               const isSelected = selectedStore?.id === s.id
+              const isOpen = (s as any).is_open !== false
               return (
                 <div
                   key={s.id}
@@ -2038,9 +2045,12 @@ export default function DashboardLayout() {
                       <BusinessUnitLogoThumb
                         store={s}
                         vendor={vendor}
-                        className="h-7 w-7 rounded-md bg-muted"
+                        className={cn('h-7 w-7 rounded-md bg-muted', !isOpen && 'opacity-50')}
                         iconClassName="h-3.5 w-3.5 text-muted-foreground"
                       />
+                      {!isOpen && !isFav && (
+                        <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-card" />
+                      )}
                       {isFav && (
                         <Star className="absolute -right-1 -top-1 h-3 w-3 fill-amber-400 text-amber-400" />
                       )}
@@ -2059,8 +2069,26 @@ export default function DashboardLayout() {
                     {isSelected && <Check className="h-4 w-4 shrink-0 text-primary" />}
                   </button>
 
-                  {/* Favourite + Default action buttons */}
+                  {/* Open/Closed toggle + Favourite + Default action buttons */}
                   <div className="flex shrink-0 items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    {/* Open / Closed toggle */}
+                    <button
+                      type="button"
+                      title={isOpen ? 'Mark as Closed (hides from website)' : 'Mark as Open'}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleStoreOpenMutation.mutate({ id: s.id, is_open: !isOpen })
+                      }}
+                      disabled={toggleStoreOpenMutation.isPending}
+                      className={cn(
+                        'flex h-6 items-center justify-center rounded-md px-1.5 text-[10px] font-semibold transition-colors',
+                        isOpen
+                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : 'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-900/30 dark:text-rose-400',
+                      )}
+                    >
+                      {isOpen ? 'Open' : 'Closed'}
+                    </button>
                     <button
                       type="button"
                       title={isFav ? 'Remove favourite' : 'Set as favourite (auto-selects on login)'}

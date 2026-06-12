@@ -373,7 +373,6 @@ async def list_sites(
             applied_template_name=tpl_name,
             website_store_scope=sc.get("website_store_scope"),
             website_store_id=sc.get("website_store_id"),
-            published_at=s.published_at,
             created_at=s.created_at, updated_at=s.updated_at,
         ))
     return out

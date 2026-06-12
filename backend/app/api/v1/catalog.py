@@ -260,7 +260,7 @@ async def list_public_stores(
 
     result = await db.execute(
         select(Store)
-        .where(Store.vendor_id == vendor_id, Store.is_active == True)
+        .where(Store.vendor_id == vendor_id, Store.is_active == True, Store.is_open == True)
         .order_by(Store.is_default.desc(), Store.name)
     )
     stores = result.scalars().all()
@@ -275,6 +275,7 @@ async def list_public_stores(
             "email": s.email,
             "address": s.address or {},
             "is_default": s.is_default,
+            "is_open": s.is_open if s.is_open is not None else True,
             "settings": s.settings or {},
         }
 

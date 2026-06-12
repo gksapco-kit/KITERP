@@ -19,6 +19,8 @@ import {
   heroPhotoOverlay,
   textOnSolid,
 } from './heroContrast'
+import { HeroBannerCarousel } from './HeroBannerCarousel'
+import { resolveHeroBackgroundUrls } from './heroBanners'
 
 export function HeroSection({
   props,
@@ -48,15 +50,25 @@ export function HeroSection({
   const hh = heroHeightClass(theme.hero_height)
   const br = radiusClass(theme.button_radius)
 
+  const heroBackgroundUrls = resolveHeroBackgroundUrls({
+    explicitUrl: str(props.bg_image_url as string, ''),
+    themeHeroUrl: theme.hero_image_url,
+    vendor,
+  })
+
   const kit = editorialKitHero(builderTemplateId, props)
+
+  const editorialHeroFallback = heroBackgroundUrls[0]
+    ? imgUrl(heroBackgroundUrls[0])
+    : ''
 
   if (kit === 'atelier') {
     const kicker = str(props.editorial_kicker as string, 'Spring Edit · Vol 04')
     const h1 = str(props.headline, theme.hero_title) || 'Quiet objects for loud seasons.'
     const sub = str(props.subtitle, theme.hero_subtitle) || 'A small collection of garments and homewares, made by hand in studios we know by name.'
     const accent = str(props.accent_phrase as string, 'loud')
-    const heroImgRaw = str(props.bg_image_url as string, '') || theme.hero_image_url || vendor?.banner_url || ''
-    const heroImg = heroImgRaw ? imgUrl(heroImgRaw) : '/storefront-ui/retail-hero.jpg'
+    const heroImg = editorialHeroFallback || '/storefront-ui/retail-hero.jpg'
+    const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     return (
       <section className="bg-retail-bg text-retail-ink px-4 sm:px-6 lg:px-10 pt-7 sm:pt-10 pb-10 sm:pb-16 overflow-x-hidden">
         <div className="mx-auto max-w-7xl">
@@ -66,7 +78,11 @@ export function HeroSection({
           */}
           <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:items-center xl:gap-x-6 2xl:gap-x-8">
             <div className="order-2 xl:order-1 xl:col-span-6 relative aspect-[4/3] max-h-[min(34dvh,200px)] w-full overflow-hidden rounded-2xl grain sm:aspect-[16/10] sm:max-h-[min(38dvh,260px)] md:max-h-[min(40dvh,300px)] sm:rounded-3xl xl:aspect-[4/3] xl:max-h-[min(48vh,420px)] xl:w-full">
-              <img src={heroImg} alt="" className="h-full w-full object-cover object-center" />
+              {useCarousel ? (
+                <HeroBannerCarousel urls={heroBackgroundUrls} />
+              ) : (
+                <img src={heroImg} alt="" className="h-full w-full object-cover object-center" />
+              )}
             </div>
             <div className="order-1 flex min-w-0 flex-col justify-between gap-6 xl:order-2 xl:col-span-6 xl:gap-8 xl:pl-1">
               <div className="min-w-0 space-y-4 sm:space-y-5">
@@ -99,14 +115,18 @@ export function HeroSection({
     const raw = str(props.headline, theme.hero_title) || 'Seasonal,\nquietly seasonal.'
     const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean)
     const accent = str(props.accent_phrase as string, 'seasonal')
-    const heroImgRaw = str(props.bg_image_url as string, '') || theme.hero_image_url || vendor?.banner_url || ''
-    const heroImg = heroImgRaw ? imgUrl(heroImgRaw) : '/storefront-ui/restaurant-hero.jpg'
+    const heroImg = editorialHeroFallback || '/storefront-ui/restaurant-hero.jpg'
+    const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     const line1 = lines[0] || 'Seasonal,'
     const line2 = lines.slice(1).join(' ') || 'quietly seasonal.'
     return (
       <section className="relative min-h-[min(38dvh,280px)] h-[min(58dvh,480px)] max-h-[min(90dvh,720px)] overflow-x-hidden bg-resto-bg sm:min-h-[360px] sm:h-[min(72dvh,620px)] sm:max-h-none md:h-[88vh] md:min-h-[520px] lg:min-h-[560px]">
         <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-          <img src={heroImg} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-70" />
+          {useCarousel ? (
+            <HeroBannerCarousel urls={heroBackgroundUrls} imageClassName="absolute inset-0 h-full w-full object-cover object-center opacity-70" />
+          ) : (
+            <img src={heroImg} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-70" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-b from-resto-bg/40 via-transparent to-resto-bg" />
         </div>
         <div className="relative z-[1] h-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 flex flex-col justify-end py-10 sm:py-0 sm:pb-20 pb-14 min-h-0 min-w-0 w-full">
@@ -137,8 +157,8 @@ export function HeroSection({
     const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean)
     const accent = str(props.accent_phrase as string, 'Patient')
     const sub = str(props.subtitle, theme.hero_subtitle) || 'A 90-bed independent hospital built around the unhurried appointment. Same-day bookings across 14 specialties.'
-    const heroImgRaw = str(props.bg_image_url as string, '') || theme.hero_image_url || vendor?.banner_url || ''
-    const heroImg = heroImgRaw ? imgUrl(heroImgRaw) : '/storefront-ui/hospital-hero.jpg'
+    const heroImg = editorialHeroFallback || '/storefront-ui/hospital-hero.jpg'
+    const useCarousel = heroBackgroundUrls.length > 1 && !str(props.bg_image_url as string, '') && !theme.hero_image_url
     const lineTail = lines[2] || lines.slice(2).join(' ')
 
     return (
@@ -174,7 +194,11 @@ export function HeroSection({
               </div>
             </div>
             <div className="order-2 relative aspect-[4/3] max-h-[min(38dvh,220px)] w-full overflow-hidden rounded-2xl grain sm:aspect-[16/10] sm:max-h-[min(42dvh,280px)] md:max-h-[min(44dvh,320px)] sm:rounded-3xl xl:order-2 xl:col-span-6 xl:aspect-[4/3] xl:max-h-[min(52vh,480px)] xl:mx-auto xl:w-full">
-              <img src={heroImg} alt="" className="h-full w-full object-cover object-center" />
+              {useCarousel ? (
+                <HeroBannerCarousel urls={heroBackgroundUrls} />
+              ) : (
+                <img src={heroImg} alt="" className="h-full w-full object-cover object-center" />
+              )}
             </div>
           </div>
         </div>
@@ -228,14 +252,14 @@ export function HeroSection({
         : theme.hero_height === 'tall'
           ? 'min-h-[min(44dvh,280px)] sm:min-h-[400px] md:min-h-[520px] lg:min-h-[600px]'
           : 'min-h-[min(40dvh,240px)] sm:min-h-[320px] md:min-h-[420px]'
-    const bgUrl = str(props.bg_image_url as string, '') || theme.hero_image_url || vendor?.banner_url || ''
+    const bgUrl = heroBackgroundUrls[0] ?? ''
     const primaryBtnBg = c.primary
     const primaryBtnFg = textOnSolid(primaryBtnBg)
     return (
       <section className={`relative overflow-hidden ${minHeightClass} flex items-center`}>
         {bgUrl ? (
           <>
-            <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+            <HeroBannerCarousel urls={heroBackgroundUrls} />
             <div className="absolute inset-0" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
           </>
         ) : (
@@ -292,13 +316,13 @@ export function HeroSection({
     )
   }
 
-  const bgUrl = theme.hero_image_url || vendor?.banner_url || ''
+  const bgUrl = heroBackgroundUrls[0] ?? ''
   const accentBtnFg = textOnSolid(c.accent)
   return (
     <section className="relative overflow-hidden" style={{ background: heroBrandGradient(c.primary, c.secondary) }}>
       {bgUrl && (
         <div className="absolute inset-0">
-          <img src={imgUrl(bgUrl)} alt="" className="h-full w-full object-cover object-center" />
+          <HeroBannerCarousel urls={heroBackgroundUrls} />
           <div className="absolute inset-0" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
         </div>
       )}

@@ -6,6 +6,7 @@ const API_URL = getStorefrontApiBaseUrl()
 // ── In-memory vendor context (set by VendorContext on resolve) ──
 let _vendorSlug: string | null = null
 let _vendorId: string | null = null
+let _branchQuery: string | null = null
 
 export function setVendorContext(slug: string, id: string) {
   _vendorSlug = slug
@@ -17,6 +18,11 @@ export function setVendorContext(slug: string, id: string) {
 
 export function getVendorSlug(): string | null {
   return _vendorSlug || localStorage.getItem('vendor_slug')
+}
+
+/** Active ?branch= filter for catalog API calls (products, services, stock). */
+export function setBranchQueryParam(branch: string | null) {
+  _branchQuery = branch?.trim() || null
 }
 
 export const apiClient = axios.create({ baseURL: API_URL, headers: { 'Content-Type': 'application/json' }, timeout: 15000 })
@@ -47,6 +53,13 @@ apiClient.interceptors.request.use((config) => {
   const vendorId = _vendorId || localStorage.getItem('vendor_id')
   if (vendorId) {
     config.headers['X-Vendor-Id'] = vendorId
+  }
+
+  if (_branchQuery && typeof config.url === 'string' && config.url.startsWith('/catalog/')) {
+    const params = (config.params && typeof config.params === 'object' ? config.params : {}) as Record<string, unknown>
+    if (params.branch == null && params.store_id == null) {
+      config.params = { ...params, branch: _branchQuery }
+    }
   }
 
   return config

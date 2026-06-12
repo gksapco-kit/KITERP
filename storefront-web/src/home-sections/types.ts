@@ -28,4 +28,5 @@ export type HomeSectionVendor = {
   business_name?: string | null
   description?: string | null
   banner_url?: string | null
+  theme_config?: Record<string, unknown>
 } | null

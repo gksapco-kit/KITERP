@@ -24,6 +24,7 @@ class Store(Base):
     manager_id = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
 
     is_active = Column(Boolean, default=True)
+    is_open = Column(Boolean, default=True)   # operational open/closed toggle
     is_default = Column(Boolean, default=False)
     settings = Column(JSONB, default={})  # custom per-store config
 

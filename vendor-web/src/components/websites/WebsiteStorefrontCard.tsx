@@ -14,6 +14,8 @@ type Props = {
   /** When set, shows Preview instead of View live store (Website Builder drafts). */
   previewSiteId?: string
   onPreview?: (siteId: string) => void | Promise<void>
+  /** When set, primary action opens theme customizer instead of the website builder. */
+  onChangeTheme?: () => void
   templateName?: string | null
   templateThumbnail?: string | null
   className?: string
@@ -28,6 +30,7 @@ export function WebsiteStorefrontCard({
   draft,
   previewSiteId,
   onPreview,
+  onChangeTheme,
   templateName,
   templateThumbnail,
   className,
@@ -151,13 +154,24 @@ export function WebsiteStorefrontCard({
           ) : (
             <span />
           )}
-          <Button
-            size="sm"
-            asChild
-            className={cn('h-8 px-2 text-[11px]', (!liveUrl || isBuilderDraft) && !previewSiteId && 'col-span-2')}
-          >
-            <Link to={builderTo}>Open builder</Link>
-          </Button>
+          {onChangeTheme ? (
+            <Button
+              size="sm"
+              type="button"
+              onClick={onChangeTheme}
+              className={cn('h-8 px-2 text-[11px]', (!liveUrl || isBuilderDraft) && !previewSiteId && 'col-span-2')}
+            >
+              Change Theme
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              asChild
+              className={cn('h-8 px-2 text-[11px]', (!liveUrl || isBuilderDraft) && !previewSiteId && 'col-span-2')}
+            >
+              <Link to={builderTo}>Open builder</Link>
+            </Button>
+          )}
         </div>
       </div>
     </div>

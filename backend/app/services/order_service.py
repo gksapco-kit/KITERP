@@ -24,6 +24,7 @@ from app.services.invoice_service import InvoiceService
 from app.services.checkout_service import CheckoutService
 from app.services.coupon_service import CouponService
 from app.repositories.vendor_repo import VendorRepository
+from app.models.store import Store
 
 log = logging.getLogger(__name__)
 
@@ -68,6 +69,32 @@ class OrderService:
         )
         self.db.add(entry)
 
+    async def _check_branch_open(self, vendor_id: UUID, branch_code: str | None) -> None:
+        """Raise 422 if the specified branch exists but is currently closed."""
+        if not branch_code:
+            return
+        from sqlalchemy import or_
+        filters = [Store.code == branch_code]
+        try:
+            filters.append(Store.id == UUID(branch_code))
+        except (ValueError, AttributeError):
+            pass
+        row = await self.db.execute(
+            select(Store.is_open, Store.is_active).where(
+                Store.vendor_id == vendor_id,
+                or_(*filters),
+            )
+        )
+        result = row.one_or_none()
+        if result is None:
+            return  # unknown branch — let catalog layer handle it
+        is_open, is_active = result
+        if not is_active or is_open is False:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="This business unit is currently closed. Orders cannot be placed.",
+            )
+
     async def checkout(
         self,
         vendor_id: UUID,
@@ -77,6 +104,8 @@ class OrderService:
         items_override: list[dict] | None = None,
         clear_cart: bool = True,
     ) -> Order:
+        await self._check_branch_open(vendor_id, getattr(data, "branch_code", None))
+
         cart = None
         if items_override is not None:
             items = items_override
@@ -253,6 +282,8 @@ class OrderService:
         return order
 
     async def guest_checkout(self, vendor_id: UUID, data: GuestCheckoutRequest) -> Order:
+        await self._check_branch_open(vendor_id, getattr(data, "branch_code", None))
+
         customer_svc = CustomerService(self.db)
         customer = await customer_svc.get_or_create_guest(
             vendor_id,

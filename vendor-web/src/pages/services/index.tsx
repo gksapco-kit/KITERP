@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useServices, useDeleteService, useCategories } from '@/hooks/useVendor'
+import { useVendorStore } from '@/stores/vendorStore'
 import { formatCurrency, mediaUrl } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -143,6 +144,7 @@ function MoreMenu({ service, onDelete }: {
 
 export default function Services() {
   const navigate = useNavigate()
+  const selectedStore = useVendorStore(s => s.selectedStore)
   const [page, setPage] = useState(1)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -166,6 +168,7 @@ export default function Services() {
     search: search || undefined,
     status: status || undefined,
     category: category || undefined,
+    store_id: selectedStore?.id || undefined,
   })
   const deleteService = useDeleteService()
 

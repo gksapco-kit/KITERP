@@ -12,7 +12,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import type { StoreCategory } from '@/types'
-import { useVendor } from '@/contexts/VendorContext'
+import { useBranch } from '@/contexts/BranchContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import StarRating from '@/components/StarRating'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -63,7 +63,7 @@ function flattenCats(cats: StoreCategory[], prefix = ''): { name: string; label:
 }
 
 export default function ProductList() {
-  const { storePath } = useVendor()
+  const { storePath } = useBranch()
   const theme = useTheme()
   const addToCart = useAddToCart()
   const cardStyle = theme.card_style || 'default'

@@ -8,7 +8,7 @@ import {
   Search, SlidersHorizontal, X, ChevronDown,
 } from 'lucide-react'
 import type { StoreCategory } from '@/types'
-import { useVendor } from '@/contexts/VendorContext'
+import { useBranch } from '@/contexts/BranchContext'
 import { ServiceCardGrid } from '@/kit/services/ServiceBlocks'
 import { EmptyBookings } from '@/kit/states/StateScreens'
 import { TableSkeleton } from '@/kit/states/StateScreens'
@@ -59,7 +59,7 @@ function flattenCats(cats: StoreCategory[], prefix = ''): { name: string; label:
 }
 
 export default function ServiceList() {
-  const { storePath } = useVendor()
+  const { storePath } = useBranch()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')

@@ -41,6 +41,7 @@ export interface StoreLocation {
     pincode?: string
   }
   is_default: boolean
+  is_open?: boolean
   settings?: Record<string, string>
 }
 
@@ -189,6 +190,7 @@ export const storeApi = {
     shipping_method_id?: string
     notes?: string
     coupon_code?: string
+    branch_code?: string
   }) => {
     const res = await apiClient.post('/store/orders/guest-checkout', data)
     return res.data
@@ -268,6 +270,7 @@ export const storeApi = {
     shipping_method_id?: string
     notes?: string
     coupon_code?: string
+    branch_code?: string
   }): Promise<Order> => {
     const res = await apiClient.post('/store/orders/checkout', data); return res.data
   },

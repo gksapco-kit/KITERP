@@ -63,6 +63,7 @@ def _store_to_dict(s: Store, include_staff: bool = False) -> dict:
         "address": s.address or {},
         "manager_id": str(s.manager_id) if s.manager_id else None,
         "is_active": s.is_active,
+        "is_open": s.is_open if s.is_open is not None else True,
         "is_default": s.is_default,
         "settings": s.settings or {},
         "created_at": s.created_at.isoformat() if s.created_at else None,
@@ -116,6 +117,7 @@ class StoreUpdate(BaseModel):
     address: Optional[AddressSchema] = None
     manager_id: Optional[str] = None
     is_active: Optional[bool] = None
+    is_open: Optional[bool] = None
     is_default: Optional[bool] = None
     settings: Optional[dict] = None
 

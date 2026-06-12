@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useProducts, useServices } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
+import { useBranch } from '@/contexts/BranchContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, imgUrl } from '@/lib/utils'
@@ -786,7 +787,8 @@ function StoreLocatorSection({
 // MAIN HOME COMPONENT
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Home() {
-  const { vendor, storePath } = useVendor()
+  const { vendor } = useVendor()
+  const { storePath } = useBranch()
   const theme = useTheme()
   const { isAuthenticated } = useAuthStore()
   const { data: products, isLoading: productsLoading } = useProducts({ page: 1, size: 8 })

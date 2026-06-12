@@ -62,6 +62,7 @@ class CheckoutRequest(BaseModel):
     shipping_method_id: str = "free"
     notes: Optional[str] = Field(None, max_length=500)
     coupon_code: Optional[str] = Field(None, max_length=50)
+    branch_code: Optional[str] = Field(None, max_length=100)
 
 
 class GuestCustomerInfo(BaseModel):
@@ -87,6 +88,7 @@ class GuestCheckoutRequest(BaseModel):
     shipping_method_id: str = "free"
     notes: Optional[str] = Field(None, max_length=500)
     coupon_code: Optional[str] = Field(None, max_length=50)
+    branch_code: Optional[str] = Field(None, max_length=100)
 
 
 class QuoteRequest(BaseModel):

@@ -121,6 +121,7 @@ export interface StoreRecord {
   address: StoreAddress
   manager_id?: string
   is_active: boolean
+  is_open: boolean
   is_default: boolean
   settings: Record<string, unknown>
   inventory_count?: number

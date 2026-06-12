@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useProducts, useDeleteProduct, useCategoryTree } from '@/hooks/useVendor'
+import { useVendorStore } from '@/stores/vendorStore'
 import { flattenCategoryTree, filterCategoryTree } from '@/lib/categoryHierarchy'
 import { formatCurrency, formatDate, mediaUrl } from '@/lib/utils'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -129,6 +130,7 @@ function MoreMenu({ product, onDelete }: { product: Product; onDelete: () => voi
 
 export default function Products() {
   const navigate = useNavigate()
+  const selectedStore = useVendorStore(s => s.selectedStore)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
@@ -155,6 +157,7 @@ export default function Products() {
     search: search || undefined,
     status: status || undefined,
     category: categoryRoot || undefined,
+    store_id: selectedStore?.id || undefined,
   })
   const deleteProduct = useDeleteProduct()
 
