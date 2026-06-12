@@ -481,7 +481,7 @@ export default function VendorSignup() {
 
   return (
     <>
-    <VendorSignupShell homeHref={VENDOR_SIGNUP_PATH} signInHref={`${vendorAppUrl}/login`}>
+    <VendorSignupShell signInHref={`${vendorAppUrl}/login`}>
               <div className="w-full rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm md:p-4">
                 <div className="mb-2">
                   <h2 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Create your business</h2>

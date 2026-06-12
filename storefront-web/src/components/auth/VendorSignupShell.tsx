@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { Store } from 'lucide-react'
-import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 import { VendorSignupMarketingPanel } from './VendorSignupMarketingPanel'
 import { SIGNUP_BRAND, SIGNUP_BRAND_HOVER, SIGNUP_BRAND_LIGHT } from './signupTheme'
 
@@ -13,7 +12,7 @@ type VendorSignupShellProps = {
 export function VendorSignupShell({
   children,
   signInHref,
-  homeHref = VENDOR_SIGNUP_PATH,
+  homeHref = '/',
 }: VendorSignupShellProps) {
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -35,7 +34,7 @@ export function VendorSignupShell({
       <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-white">
         <header className="shrink-0 border-b border-slate-100 px-4 py-2 sm:px-5">
           <div className="mx-auto flex max-w-xl items-center justify-between md:max-w-lg xl:max-w-xl">
-            <a href={homeHref} className="flex items-center gap-2 md:hidden">
+            <a href={homeHref} className="flex items-center gap-2 transition-opacity hover:opacity-80 md:hidden">
               <Store className="h-5 w-5" style={{ color: SIGNUP_BRAND }} aria-hidden />
               <span className="text-base font-bold text-slate-900">KITERP</span>
             </a>

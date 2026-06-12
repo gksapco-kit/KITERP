@@ -399,7 +399,7 @@ export default function Register() {
 
   return (
     <>
-    <VendorSignupShell homeHref="/register" signInHref="/login">
+    <VendorSignupShell signInHref="/login">
               <div className="w-full rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm md:p-4">
                 <div className="mb-2">
                   <h2 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Create your business</h2>

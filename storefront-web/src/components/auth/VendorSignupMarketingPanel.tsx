@@ -1,5 +1,4 @@
 import { Rocket, Users, BarChart3, ShieldCheck, Store } from 'lucide-react'
-import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 import { SIGNUP_BRAND, SIGNUP_BRAND_MUTED } from './signupTheme'
 
 const FEATURES = [
@@ -15,13 +14,13 @@ type VendorSignupMarketingPanelProps = {
 }
 
 export function VendorSignupMarketingPanel({
-  homeHref = VENDOR_SIGNUP_PATH,
+  homeHref = '/',
   showLogo = true,
 }: VendorSignupMarketingPanelProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {showLogo ? (
-        <a href={homeHref} className="mb-4 inline-flex shrink-0 items-center gap-2 self-start xl:mb-5">
+        <a href={homeHref} className="mb-4 inline-flex shrink-0 items-center gap-2 self-start transition-opacity hover:opacity-80 xl:mb-5">
           <Store className="h-5 w-5 xl:h-6 xl:w-6" style={{ color: SIGNUP_BRAND }} aria-hidden />
           <span className="text-base font-bold tracking-tight text-slate-900 xl:text-lg">KITERP</span>
         </a>

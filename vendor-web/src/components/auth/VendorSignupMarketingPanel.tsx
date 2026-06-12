@@ -1,6 +1,6 @@
 import { Rocket, Users, BarChart3, ShieldCheck, Store } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { SIGNUP_BRAND, SIGNUP_BRAND_MUTED } from './signupTheme'
+import { marketingHomeUrl } from '@/lib/appUrls'
 
 const FEATURES = [
   { icon: Rocket, title: 'Quick Setup', desc: 'Live in under 5 minutes.' },
@@ -15,16 +15,16 @@ type VendorSignupMarketingPanelProps = {
 }
 
 export function VendorSignupMarketingPanel({
-  homeHref = '/register',
+  homeHref = marketingHomeUrl(),
   showLogo = true,
 }: VendorSignupMarketingPanelProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {showLogo ? (
-        <Link to={homeHref} className="mb-4 inline-flex shrink-0 items-center gap-2 self-start xl:mb-5">
+        <a href={homeHref} className="mb-4 inline-flex shrink-0 items-center gap-2 self-start transition-opacity hover:opacity-80 xl:mb-5">
           <Store className="h-5 w-5 xl:h-6 xl:w-6" style={{ color: SIGNUP_BRAND }} aria-hidden />
           <span className="text-base font-bold tracking-tight text-slate-900 xl:text-lg">KITERP</span>
-        </Link>
+        </a>
       ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col justify-center">

@@ -55,6 +55,8 @@ export const vendorKeys = {
   hrDepartments: () => [...vendorKeys.all, 'hr-departments'] as const,
   hrDesignations: () => [...vendorKeys.all, 'hr-designations'] as const,
   hrEmployees: (params?: Record<string, unknown>) => [...vendorKeys.all, 'hr-employees', params] as const,
+  /** Prefix for invalidating all employee list queries (any filter params). */
+  hrEmployeesRoot: () => [...vendorKeys.all, 'hr-employees'] as const,
   hrEmployee: (id: string) => [...vendorKeys.all, 'hr-employee', id] as const,
   hrAttendance: (params?: Record<string, unknown>) => [...vendorKeys.all, 'hr-attendance', params] as const,
   hrAttendanceReport: (month: number, year: number) => [...vendorKeys.all, 'hr-att-report', month, year] as const,
@@ -556,7 +558,7 @@ export function useInviteTeamMember() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor', 'team'] })
       qc.invalidateQueries({ queryKey: ['hr', 'eligible-for-access'] })
-      qc.invalidateQueries({ queryKey: vendorKeys.hrEmployees() })
+      qc.invalidateQueries({ queryKey: vendorKeys.hrEmployeesRoot() })
     },
     onError: apiError('Could not invite team member — email may already be in use'),
   })
@@ -1394,7 +1396,7 @@ export function useCreateHREmployee() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.hrCreateEmployee(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.hrEmployees() }); toast.success('Employee profile created') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.hrEmployeesRoot() }); toast.success('Employee profile created') },
     onError: apiError('Could not create employee'),
   })
 }
@@ -1404,7 +1406,7 @@ export function useUpdateHREmployee() {
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.hrUpdateEmployee(id, data),
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: vendorKeys.hrEmployee(vars.id) })
-      qc.invalidateQueries({ queryKey: vendorKeys.hrEmployees() })
+      qc.invalidateQueries({ queryKey: vendorKeys.hrEmployeesRoot() })
       qc.invalidateQueries({ queryKey: ['vendor', 'team'] })
       toast.success('Employee updated')
     },
