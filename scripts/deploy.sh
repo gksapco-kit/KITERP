@@ -73,6 +73,14 @@ fi
 log "Pulling latest code from git..."
 git pull origin main 2>&1 | tee -a "$LOG_FILE"
 
+# Small EC2 instances often run out of space during multi-image builds.
+AVAIL_KB=$(df -Pk /var/lib/docker 2>/dev/null | awk 'NR==2 {print $4}' || df -Pk / | awk 'NR==2 {print $4}')
+if [ -n "$AVAIL_KB" ] && [ "$AVAIL_KB" -lt 3145728 ]; then
+    warn "Low disk (<3GB free: ${AVAIL_KB}KB). Pruning Docker builder cache and unused images..."
+    docker builder prune -af 2>&1 | tee -a "$LOG_FILE" || true
+    docker image prune -af 2>&1 | tee -a "$LOG_FILE" || true
+fi
+
 # Build images
 log "Building Docker images..."
 $COMPOSE build 2>&1 | tee -a "$LOG_FILE"
