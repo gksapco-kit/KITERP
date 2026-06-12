@@ -208,17 +208,24 @@
 
 .kiterp-mosaic-shape {
   overflow: hidden;
-  background: var(--kiterp-mint-soft);
+  background: #7ec4a8;
+  animation: mosaic-morph-a 20s ease-in-out infinite;
+  animation-delay: var(--mosaic-morph-delay, 0s);
+  will-change: border-radius;
 }
+
+.kiterp-morph-v0 { animation-name: mosaic-morph-a; }
+.kiterp-morph-v1 { animation-name: mosaic-morph-b; }
+.kiterp-morph-v2 { animation-name: mosaic-morph-c; }
 
 /* Tiles pop in one by one, then a single highlight travels through them. */
 .kiterp-mosaic-cell {
   opacity: 0;
   transform: scale(0.6);
   animation:
-    mosaic-pop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-    mosaic-highlight var(--mosaic-cycle, 5.6s) ease-in-out infinite;
-  animation-delay: var(--mosaic-delay, 0s), calc(var(--mosaic-hl, 0s) + 0.6s);
+    mosaic-pop 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    mosaic-highlight var(--mosaic-cycle, 14.85s) ease-in-out infinite;
+  animation-delay: var(--mosaic-delay, 0s), calc(var(--mosaic-hl, 0s) + 1s);
   will-change: transform, opacity, filter;
 }
 
@@ -227,21 +234,67 @@
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* Brief bright "spotlight" moment; staggered delays make it travel one by one. */
+@keyframes mosaic-morph-a {
+  0%, 100% { border-radius: 1.25rem; }
+  9% { border-radius: 50%; }
+  18% { border-radius: 0 50% 50% 50%; }
+  27% { border-radius: 50% 0 50% 50%; }
+  36% { border-radius: 50% 50% 0 50%; }
+  45% { border-radius: 50% 50% 50% 0; }
+  54% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  63% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  72% { border-radius: 50% 50% 50% 50% / 68% 32% 68% 32%; }
+  81% { border-radius: 35% 65% 65% 35% / 55% 45% 55% 45%; }
+  90% { border-radius: 0.35rem 2rem 0.35rem 2rem; }
+}
+
+@keyframes mosaic-morph-b {
+  0%, 100% { border-radius: 50%; }
+  9% { border-radius: 50% 50% 0 50%; }
+  18% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  27% { border-radius: 1.25rem; }
+  36% { border-radius: 50% 50% 50% 0; }
+  45% { border-radius: 50% 50% 50% 50% / 68% 32% 68% 32%; }
+  54% { border-radius: 50% 0 50% 50%; }
+  63% { border-radius: 35% 65% 65% 35% / 55% 45% 55% 45%; }
+  72% { border-radius: 0 50% 50% 50%; }
+  81% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  90% { border-radius: 2rem 0.35rem 2rem 0.35rem; }
+}
+
+@keyframes mosaic-morph-c {
+  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  9% { border-radius: 50% 50% 50% 0; }
+  18% { border-radius: 1.25rem; }
+  27% { border-radius: 50% 50% 50% 50% / 68% 32% 68% 32%; }
+  36% { border-radius: 50% 0 50% 50%; }
+  45% { border-radius: 50%; }
+  54% { border-radius: 0 50% 50% 50%; }
+  63% { border-radius: 35% 65% 65% 35% / 55% 45% 55% 45%; }
+  72% { border-radius: 50% 50% 0 50%; }
+  81% { border-radius: 0.35rem 2rem 0.35rem 2rem; }
+  90% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+}
+
+/* Gentle spotlight — keep tiles fully visible on white background. */
 @keyframes mosaic-highlight {
-  0%, 12%, 100% {
-    opacity: 0.55;
-    transform: scale(0.95);
-    filter: saturate(0.85);
-  }
-  4% {
+  0%, 20%, 100% {
     opacity: 1;
-    transform: scale(1.12);
-    filter: saturate(1.2) drop-shadow(0 6px 16px rgba(100, 195, 160, 0.55));
+    transform: scale(0.98);
+    filter: saturate(0.92);
+  }
+  8%, 14% {
+    opacity: 1;
+    transform: scale(1.08);
+    filter: saturate(1.12) drop-shadow(0 6px 16px rgba(100, 195, 160, 0.45));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .kiterp-mosaic-shape {
+    animation: none;
+  }
+
   .kiterp-mosaic-cell {
     opacity: 1;
     transform: none;
@@ -251,21 +304,29 @@
 
 /* Fade the mosaic out in the center so the headline sits in clear space. */
 .kiterp-mosaic-fullmask {
-  -webkit-mask-image: radial-gradient(ellipse 46% 58% at 50% 50%, transparent 0%, transparent 28%, #000 64%);
-  mask-image: radial-gradient(ellipse 46% 58% at 50% 50%, transparent 0%, transparent 28%, #000 64%);
+  -webkit-mask-image: radial-gradient(ellipse 48% 72% at 50% 50%, transparent 0%, transparent 22%, #000 62%);
+  mask-image: radial-gradient(ellipse 48% 72% at 50% 50%, transparent 0%, transparent 22%, #000 62%);
 }
 
 .kiterp-mosaic-fullmask-sm {
-  -webkit-mask-image: radial-gradient(ellipse 62% 46% at 50% 50%, transparent 0%, transparent 26%, #000 60%);
-  mask-image: radial-gradient(ellipse 62% 46% at 50% 50%, transparent 0%, transparent 26%, #000 60%);
+  -webkit-mask-image: radial-gradient(ellipse 64% 58% at 50% 50%, transparent 0%, transparent 24%, #000 58%);
+  mask-image: radial-gradient(ellipse 64% 58% at 50% 50%, transparent 0%, transparent 24%, #000 58%);
 }
 
 .kiterp-mosaic-shape.leaf-tl {
   border-radius: 0 50% 50% 50%;
 }
 
+.kiterp-mosaic-shape.leaf-tr {
+  border-radius: 50% 50% 0 50%;
+}
+
 .kiterp-mosaic-shape.leaf-br {
   border-radius: 50% 0 50% 50%;
+}
+
+.kiterp-mosaic-shape.leaf-bl {
+  border-radius: 50% 50% 50% 0;
 }
 
 .kiterp-mosaic-shape.circle {
@@ -276,12 +337,24 @@
   border-radius: 1.25rem;
 }
 
+.kiterp-mosaic-shape.blob {
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+}
+
+.kiterp-mosaic-shape.pill {
+  border-radius: 50% 50% 50% 50% / 68% 32% 68% 32%;
+}
+
+.kiterp-mosaic-shape.squircle {
+  border-radius: 35% 65% 65% 35% / 55% 45% 55% 45%;
+}
+
 .kiterp-mosaic-shape.plum {
   background: var(--kiterp-primary);
 }
 
 .kiterp-mosaic-shape.gray {
-  background: #c5e8d8;
+  background: #94cbb3;
 }
 
 .kiterp-curve-bg {

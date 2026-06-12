@@ -2,12 +2,12 @@ import { MOSAIC_AVATARS } from './landingData'
 
 type MosaicCell = {
   kind: 'avatar' | 'shape'
-  shape?: 'rounded' | 'circle' | 'leaf-tl' | 'leaf-br'
+  shape?: 'rounded' | 'circle' | 'leaf-tl' | 'leaf-tr' | 'leaf-br' | 'leaf-bl' | 'blob' | 'pill' | 'squircle'
   tone?: 'plum' | 'gray'
   avatarIdx?: number
 }
 
-const SHAPES = ['rounded', 'circle', 'leaf-tl', 'leaf-br'] as const
+const SHAPES = ['rounded', 'circle', 'leaf-tl', 'leaf-tr', 'leaf-br', 'leaf-bl', 'blob', 'pill', 'squircle'] as const
 const TONES = ['gray', 'plum'] as const
 
 /** Deterministic mosaic of tiles, seeded so layouts differ. */
@@ -28,9 +28,14 @@ function makeGrid(seed: number, count: number): MosaicCell[] {
   return cells
 }
 
-const HL_STEP = 0.12
-const DESKTOP_GRID = makeGrid(0, 33)
-const MOBILE_GRID = makeGrid(2, 18)
+const DESKTOP_COLS = 11
+const DESKTOP_ROWS = 5
+const MOBILE_COLS = 6
+const MOBILE_ROWS = 5
+
+const HL_STEP = 0.45
+const DESKTOP_GRID = makeGrid(0, DESKTOP_COLS * DESKTOP_ROWS)
+const MOBILE_GRID = makeGrid(2, MOBILE_COLS * MOBILE_ROWS)
 const DESKTOP_CYCLE_S = DESKTOP_GRID.length * HL_STEP
 const MOBILE_CYCLE_S = MOBILE_GRID.length * HL_STEP
 const DESKTOP_CYCLE = `${DESKTOP_CYCLE_S.toFixed(2)}s`
@@ -49,9 +54,14 @@ function makeDelays(count: number, cycleSeconds: number): number[] {
 const DESKTOP_DELAYS = makeDelays(DESKTOP_GRID.length, DESKTOP_CYCLE_S)
 const MOBILE_DELAYS = makeDelays(MOBILE_GRID.length, MOBILE_CYCLE_S)
 
-function MosaicCellView({ cell }: { cell: MosaicCell }) {
+function MosaicCellView({ cell, morphVariant }: { cell: MosaicCell; morphVariant: number }) {
   const shape = cell.shape ?? 'rounded'
-  const classes = ['kiterp-mosaic-shape w-full h-full', shape, cell.tone].filter(Boolean).join(' ')
+  const classes = [
+    'kiterp-mosaic-shape w-full h-full',
+    shape,
+    cell.tone,
+    `kiterp-morph-v${morphVariant % 3}`,
+  ].filter(Boolean).join(' ')
 
   if (cell.kind === 'shape') {
     return <div className={classes} />
@@ -86,12 +96,13 @@ function MosaicGrid({
           key={i}
           className="kiterp-mosaic-cell aspect-square"
           style={{
-            ['--mosaic-delay' as string]: `${i * 0.05}s`,
+            ['--mosaic-delay' as string]: `${(i * 0.08).toFixed(2)}s`,
+            ['--mosaic-morph-delay' as string]: `${(delays[i] * 0.35).toFixed(2)}s`,
             ['--mosaic-hl' as string]: `${delays[i]}s`,
             ['--mosaic-cycle' as string]: cycle,
           }}
         >
-          <MosaicCellView cell={cell} />
+          <MosaicCellView cell={cell} morphVariant={i % 3} />
         </div>
       ))}
     </div>
@@ -100,7 +111,7 @@ function MosaicGrid({
 
 export function CommunityMosaicSection() {
   return (
-    <section id="community" className="relative py-16 sm:py-24 bg-[#eef9f4] overflow-hidden scroll-mt-24">
+    <section id="community" className="relative py-16 sm:py-24 bg-white overflow-hidden scroll-mt-24">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="relative">
           {/* Decorative hand-drawn arrows */}
@@ -130,7 +141,7 @@ export function CommunityMosaicSection() {
           {/* Centered headline floating over the mosaic */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
             <div className="text-center">
-              <p className="font-kiterp-script text-3xl sm:text-5xl text-[#1e3d34] leading-tight drop-shadow-[0_2px_10px_rgba(238,249,244,0.9)]">
+              <p className="font-kiterp-script text-3xl sm:text-5xl text-[#1e3d34] leading-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.95)]">
                 Join <span className="text-[#64C3A0]">happy</span> vendors
               </p>
               <p className="mt-2 text-gray-700 text-sm sm:text-lg font-medium">
