@@ -1,17 +1,5 @@
 /** Theme preset ids from GET /vendors/me/template/presets (vendor_template.TEMPLATE_PRESETS). */
-export type LegacyThemePresetId =
-  | 'retail'
-  | 'service'
-  | 'hybrid'
-  | 'restaurant'
-  | 'electronics'
-  | 'fashion'
-  | 'clinic'
-  | 'grocery'
-  | 'jewellery'
-  | 'laundry'
-  | 'medicine'
-  | 'food'
+export type LegacyThemePresetId = 'light' | 'dark'
 
 export interface ThemePresetSummary {
   id: string
@@ -31,12 +19,18 @@ export interface BusinessFrontActiveTemplate {
   siteId?: string
 }
 
-const DEFAULT_PRESET_ID: LegacyThemePresetId = 'hybrid'
-const DEFAULT_PRESET_NAME = 'Hybrid Store'
+const DEFAULT_PRESET_ID: LegacyThemePresetId = 'light'
+const DEFAULT_PRESET_NAME = 'Light'
+
+function normalizePresetId(themeTemplateId: string | undefined): LegacyThemePresetId {
+  const id = themeTemplateId?.trim()
+  if (id === 'light' || id === 'dark') return id
+  return DEFAULT_PRESET_ID
+}
 
 /**
  * Mirrors storefront HomeOrBuilder: when no published wb_site exists, the live home
- * uses legacy Home.tsx + theme_config.template (default hybrid).
+ * uses legacy Home.tsx + theme_config.template (default light).
  */
 export function resolveBusinessFrontActiveTemplate(
   themeTemplateId: string | undefined,
@@ -55,7 +49,7 @@ export function resolveBusinessFrontActiveTemplate(
     }
   }
 
-  const presetId = (themeTemplateId?.trim() || DEFAULT_PRESET_ID) as LegacyThemePresetId
+  const presetId = normalizePresetId(themeTemplateId)
   const preset = presets.find(p => p.id === presetId)
   return {
     kind: 'legacy_preset',

@@ -47,7 +47,6 @@ import InvoiceDetail from '@/pages/invoices/InvoiceDetail'
 import InvoiceTemplatesPage from '@/pages/invoices/InvoiceTemplates'
 import CouponsPage from '@/pages/coupons/index'
 import ReportsPage from '@/pages/reports/index'
-import TemplatePage from '@/pages/template/index'
 import PlansPage from '@/pages/plans/index'
 import BookingsPage from '@/pages/bookings/index'
 import BookingDetail from '@/pages/bookings/BookingDetail'
@@ -297,7 +296,7 @@ export const router = createBrowserRouter([
       { path: 'memos', element: <CreditDebitMemos /> },
       { path: 'coupons', element: <CouponsPage /> },
       { path: 'reports', element: <ReportsPage /> },
-      { path: 'template', element: <TemplatePage /> },
+      { path: 'template', element: <Navigate to="/websites/templates?customize=1" replace /> },
       { path: 'business-front', element: <BusinessFrontHubPage /> },
       { path: 'storefront-builder', element: <Navigate to="/business-front" replace /> },
       { path: 'blog', element: <BlogManagerPage /> },

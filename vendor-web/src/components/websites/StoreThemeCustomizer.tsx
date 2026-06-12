@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,9 +11,9 @@ import { resolveBusinessFrontActiveTemplate } from '@/lib/businessFrontActiveTem
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { toast } from 'sonner'
 import {
-  Loader2, Palette, Layout, Type, Eye, Check, Sparkles,
+  Loader2, Palette, Type, Eye, Check, Sparkles,
   ShoppingBag, Wrench, Star, Truck, ChevronRight, Monitor,
-  ToggleLeft, ToggleRight, Save, FileText, Columns, AlignCenter,
+  ToggleLeft, ToggleRight, Save,
   SlidersHorizontal, Image,
 } from 'lucide-react'
 
@@ -46,27 +45,6 @@ interface ThemeConfig {
   custom_announcement: string
 }
 
-const PAGE_TEMPLATES = [
-  {
-    id: 'classic',
-    name: 'Classic',
-    description: 'Two-column layout with image gallery and product details side by side',
-    icon: Layout,
-  },
-  {
-    id: 'modern',
-    name: 'Modern',
-    description: 'Three-column layout with sticky gallery, tabbed content, and buy box',
-    icon: Columns,
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    description: 'Clean single-column centered layout with large imagery',
-    icon: AlignCenter,
-  },
-]
-
 const FONTS = [
   { id: 'Inter', name: 'Inter', style: 'font-sans' },
   { id: 'Poppins', name: 'Poppins', style: 'font-sans' },
@@ -86,11 +64,11 @@ const SECTION_LABELS: Record<string, { label: string; description: string }> = {
   cta: { label: 'Call to Action', description: 'Bottom CTA banner' },
 }
 
-export default function TemplatePage() {
+export function StoreThemeCustomizer({ embedded = false }: { embedded?: boolean }) {
   const qc = useQueryClient()
   const vendor = useVendorStore((s) => s.vendor)
   const { data: sites = [] } = useSiteList()
-  const [activeTab, setActiveTab] = useState<'template' | 'colors' | 'layout' | 'sections' | 'content'>('template')
+  const [activeTab, setActiveTab] = useState<'colors' | 'layout' | 'sections' | 'content'>('colors')
 
   const { data: config, isLoading } = useQuery<ThemeConfig>({
     queryKey: ['template-config'],
@@ -105,7 +83,7 @@ export default function TemplatePage() {
   const [draft, setDraft] = useState<ThemeConfig | null>(null)
 
   useEffect(() => {
-    if (config && !draft) setDraft(config)
+    if (config) setDraft(config)
   }, [config])
 
   const saveMutation = useMutation({
@@ -118,16 +96,7 @@ export default function TemplatePage() {
     onError: () => toast.error('Could not save template — check your customization settings'),
   })
 
-  const applyPreset = useMutation({
-    mutationFn: (presetId: string) => vendorApi.applyTemplatePreset(presetId),
-    onSuccess: (res) => {
-      setDraft(res)
-      qc.invalidateQueries({ queryKey: ['template-config'] })
-      toast.success('Preset applied!')
-    },
-  })
-
-  if (isLoading || !draft) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+  if (isLoading || !draft) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
 
   const presets = presetsData?.presets || []
   const activeFront = resolveBusinessFrontActiveTemplate(draft.template, presets, sites)
@@ -137,7 +106,6 @@ export default function TemplatePage() {
   const toggleSection = (key: string) => setDraft({ ...draft, sections: { ...draft.sections, [key]: !draft.sections[key] } })
 
   const tabs = [
-    { id: 'template' as const, label: 'Templates', icon: Layout },
     { id: 'colors' as const, label: 'Colors & Fonts', icon: Palette },
     { id: 'layout' as const, label: 'Layout & Style', icon: SlidersHorizontal },
     { id: 'sections' as const, label: 'Sections', icon: Eye },
@@ -145,42 +113,53 @@ export default function TemplatePage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Store Template</h1>
-          <p className="text-sm text-gray-500 mt-1">Customize your business front appearance</p>
-          <p className="text-sm mt-2">
+    <section id="store-theme-customizer" className="space-y-6">
+      {!embedded ? (
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-extrabold text-gray-900">Customize store theme</h2>
+            <p className="text-sm text-gray-600 mt-1 max-w-2xl">
+              Colors, fonts, header, and homepage sections for the classic business front.
+              {activeFront.kind === 'website_builder'
+                ? ' Your published Website Builder site controls the home page; these settings still apply to catalog pages.'
+                : ' Pick the default layout above, then fine-tune here.'}
+            </p>
+            <p className="text-sm mt-2">
+              <span className="font-medium text-gray-800">Live on store: </span>
+              <span className="text-primary font-semibold">{activeFront.name}</span>
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {storeUrl && (
+              <Button variant="outline" asChild>
+                <a href={storeUrl} target="_blank" rel="noopener noreferrer">View live store</a>
+              </Button>
+            )}
+            <Button onClick={() => saveMutation.mutate(draft)} disabled={saveMutation.isPending} className="gap-2">
+              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save changes
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1">
+          <p className="text-sm text-gray-600">
             <span className="font-medium text-gray-800">Live on store: </span>
             <span className="text-primary font-semibold">{activeFront.name}</span>
-            {activeFront.kind === 'legacy_preset' && (
-              <span className="text-gray-500"> (default layout — no published Website Builder site)</span>
-            )}
-            {activeFront.kind === 'website_builder' && (
-              <span className="text-gray-500"> (Website Builder — unpublish to use presets below)</span>
-            )}
           </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/websites/templates">All templates</Link>
-          </Button>
-          {storeUrl && (
-            <Button variant="outline" asChild>
-              <a href={storeUrl} target="_blank" rel="noopener noreferrer">View live store</a>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {storeUrl && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={storeUrl} target="_blank" rel="noopener noreferrer">View live store</a>
+              </Button>
+            )}
+            <Button size="sm" onClick={() => saveMutation.mutate(draft)} disabled={saveMutation.isPending} className="gap-2">
+              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save changes
             </Button>
-          )}
-          <Button onClick={() => saveMutation.mutate(draft)} disabled={saveMutation.isPending} className="gap-2">
-            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save Changes
-          </Button>
+          </div>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-        <p className="font-semibold text-gray-900">What customers see today</p>
-        <p className="text-gray-600 mt-1">{activeFront.description}</p>
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 bg-gray-100 rounded-xl p-1">
@@ -195,141 +174,6 @@ export default function TemplatePage() {
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* Editor panel */}
         <div className="xl:col-span-2 space-y-5">
-          {/* Templates tab */}
-          {activeTab === 'template' && (
-            <div className="space-y-6">
-              {/* Product Detail Page Template */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="w-4 h-4" /> Product Page Template
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {PAGE_TEMPLATES.map((tpl) => {
-                    const isActive = (draft.product_detail_template || 'classic') === tpl.id
-                    return (
-                      <button key={tpl.id} onClick={() => updateDraft({ product_detail_template: tpl.id })}
-                        className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
-                          isActive ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                            isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'
-                          }`}>
-                            <tpl.icon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm text-gray-900 flex items-center gap-2">
-                              {tpl.name}
-                              {isActive && <Check className="w-4 h-4 text-blue-600" />}
-                            </h3>
-                            <p className="text-xs text-gray-500 mt-0.5">{tpl.description}</p>
-                          </div>
-                        </div>
-                        {/* Mini wireframe preview */}
-                        <div className="mt-3 rounded-lg border bg-white p-2 h-20 flex items-center">
-                          {tpl.id === 'classic' && (
-                            <div className="flex gap-2 w-full h-full">
-                              <div className="w-1/2 bg-gray-100 rounded" />
-                              <div className="w-1/2 space-y-1.5 py-1">
-                                <div className="h-2 w-3/4 bg-gray-200 rounded" />
-                                <div className="h-1.5 w-1/2 bg-gray-100 rounded" />
-                                <div className="h-2.5 w-1/3 bg-blue-100 rounded" />
-                                <div className="flex gap-1 mt-auto">
-                                  <div className="h-3 flex-1 bg-amber-100 rounded" />
-                                  <div className="h-3 flex-1 bg-gray-100 rounded" />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {tpl.id === 'modern' && (
-                            <div className="flex gap-2 w-full h-full">
-                              <div className="w-5/12 bg-gray-100 rounded" />
-                              <div className="w-4/12 space-y-1.5 py-1">
-                                <div className="h-2 w-3/4 bg-gray-200 rounded" />
-                                <div className="h-1.5 w-full bg-gray-100 rounded" />
-                                <div className="flex gap-1 mt-1">
-                                  <div className="h-2 flex-1 bg-gray-200 rounded text-[6px] text-center" />
-                                  <div className="h-2 flex-1 bg-gray-100 rounded text-[6px] text-center" />
-                                  <div className="h-2 flex-1 bg-gray-100 rounded text-[6px] text-center" />
-                                </div>
-                                <div className="h-4 w-full bg-gray-50 rounded border border-dashed border-gray-200" />
-                              </div>
-                              <div className="w-3/12 space-y-1 py-1">
-                                <div className="h-2.5 w-full bg-blue-100 rounded" />
-                                <div className="h-1.5 w-2/3 bg-gray-100 rounded" />
-                                <div className="flex-1" />
-                                <div className="h-3 w-full bg-amber-100 rounded" />
-                                <div className="h-3 w-full bg-gray-100 rounded" />
-                              </div>
-                            </div>
-                          )}
-                          {tpl.id === 'minimal' && (
-                            <div className="w-full h-full flex flex-col items-center justify-center gap-1">
-                              <div className="w-1/2 h-8 bg-gray-100 rounded" />
-                              <div className="h-1.5 w-1/3 bg-gray-200 rounded" />
-                              <div className="h-1.5 w-1/4 bg-blue-100 rounded" />
-                              <div className="flex gap-1">
-                                <div className="h-2.5 w-16 bg-gray-900 rounded-full" />
-                                <div className="h-2.5 w-12 bg-gray-100 rounded-full border" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </CardContent>
-              </Card>
-
-              {/* Store Theme Presets */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" /> Store theme presets
-                  </CardTitle>
-                  <p className="text-xs text-gray-500 font-normal mt-1">
-                    Quick apply — same presets as on{' '}
-                    <Link to="/websites/templates" className="text-primary font-medium hover:underline">Website Templates</Link>.
-                    The checked preset matches your saved theme when no Website Builder site is published.
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {presets.map((preset) => {
-                    const isSaved = draft.template === preset.id
-                    const isLive =
-                      activeFront.kind === 'legacy_preset' && activeFront.id === preset.id
-                    return (
-                    <button key={preset.id} onClick={() => applyPreset.mutate(preset.id)}
-                      className={`w-full text-left rounded-xl border-2 p-4 transition-all ${isSaved ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
-                            {preset.name}
-                            {isSaved && <Check className="w-4 h-4 text-blue-600" />}
-                            {isLive && (
-                              <span className="text-[10px] uppercase font-bold bg-primary text-white px-2 py-0.5 rounded-full">
-                                Live on store
-                              </span>
-                            )}
-                          </h3>
-                          <p className="text-xs text-gray-500 mt-0.5">{preset.description}</p>
-                        </div>
-                        <div className="flex gap-1">
-                          {Object.values(preset.colors).slice(0, 3).map((c, i) => (
-                            <div key={i} className="w-5 h-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: c }} />
-                          ))}
-                        </div>
-                      </div>
-                    </button>
-                    )
-                  })}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
           {/* Colors & Fonts tab */}
           {activeTab === 'colors' && (
             <div className="space-y-5">
@@ -716,29 +560,53 @@ export default function TemplatePage() {
                 const br = draft.button_radius === 'sharp' ? 'rounded-none' : draft.button_radius === 'pill' ? 'rounded-full' : 'rounded-lg'
                 const isDark = draft.hero_style === 'dark'
                 const isGrad = draft.hero_style === 'gradient'
+                const isImage = draft.hero_style === 'image'
+                const onPhoto = isImage || isGrad
+                const titleColor = isDark || onPhoto ? '#ffffff' : draft.colors.primary
+                const subtitleColor = isDark || onPhoto ? 'rgba(255,255,255,0.85)' : '#6b7280'
+                const heroBg = isGrad
+                  ? `linear-gradient(135deg, ${draft.colors.primary}, ${draft.colors.secondary})`
+                  : isDark
+                    ? 'linear-gradient(135deg, #0f0a1e, #1e1b4b)'
+                    : isImage
+                      ? `linear-gradient(105deg, ${draft.colors.secondary}e8 0%, ${draft.colors.primary}cc 38%, rgba(15,23,42,0.72) 100%)`
+                      : '#ffffff'
                 return (
-                  <div className={`${heroPy} px-4 text-center relative overflow-hidden`} style={{
-                    background: isGrad ? `linear-gradient(135deg, ${draft.colors.primary}, ${draft.colors.secondary})`
-                      : isDark ? 'linear-gradient(135deg, #0f0a1e, #1e1b4b)'
-                      : draft.hero_style === 'minimal' ? '#ffffff' : `${draft.colors.primary}15`,
-                  }}>
-                    <h2 className="text-base font-bold" style={{
-                      fontFamily: draft.font,
-                      color: (isGrad || isDark) ? '#ffffff' : draft.colors.primary,
-                    }}>
-                      {draft.hero_title || `Welcome to ${vendor?.display_name || 'Store'}`}
-                    </h2>
-                    <p className="text-xs mt-1" style={{
-                      color: (isGrad || isDark) ? 'rgba(255,255,255,0.75)' : '#6b7280',
-                    }}>
-                      {draft.hero_subtitle || 'Quality products and services'}
-                    </p>
-                    <div className="mt-3 flex justify-center gap-2">
-                      <div className={`px-2.5 py-1 text-xs font-medium text-white ${br}`} style={{ backgroundColor: draft.colors.accent }}>Shop Now</div>
-                      <div className={`px-2.5 py-1 text-xs font-medium border ${br}`} style={{
-                        borderColor: (isGrad || isDark) ? 'rgba(255,255,255,0.4)' : draft.colors.primary,
-                        color: (isGrad || isDark) ? '#ffffff' : draft.colors.primary,
-                      }}>Services</div>
+                  <div
+                    className={`${heroPy} px-4 relative overflow-hidden text-center`}
+                    style={{ background: heroBg }}
+                  >
+                    <div className="mx-auto max-w-[90%]">
+                      <h2 className="text-base font-bold drop-shadow-sm" style={{
+                        fontFamily: draft.font,
+                        color: titleColor,
+                      }}>
+                        {draft.hero_title || `Welcome to ${vendor?.display_name || 'Store'}`}
+                      </h2>
+                      <p className="text-xs mt-1 drop-shadow-sm" style={{ color: subtitleColor }}>
+                        {draft.hero_subtitle || 'Quality products and services'}
+                      </p>
+                      <div className="mt-3 flex gap-2 justify-center">
+                      <div
+                        className={`px-2.5 py-1 text-xs font-medium ${br}`}
+                        style={{
+                          backgroundColor: isDark || onPhoto ? draft.colors.accent : draft.colors.primary,
+                          color: isDark || onPhoto ? '#0f172a' : '#ffffff',
+                        }}
+                      >
+                        Shop Now
+                      </div>
+                      <div
+                        className={`px-2.5 py-1 text-xs font-medium border-2 ${br}`}
+                        style={{
+                          borderColor: isDark || onPhoto ? 'rgba(255,255,255,0.75)' : draft.colors.primary,
+                          color: isDark || onPhoto ? '#ffffff' : draft.colors.primary,
+                          backgroundColor: isDark || onPhoto ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        }}
+                      >
+                        Services
+                      </div>
+                    </div>
                     </div>
                   </div>
                 )
@@ -816,11 +684,16 @@ export default function TemplatePage() {
               {/* CTA */}
               {draft.sections.cta && (
                 <div className="mx-4 mb-4 rounded-xl p-4 text-center text-white" style={{
-                  background: `linear-gradient(135deg, ${draft.colors.primary}, ${draft.colors.secondary})`,
+                  background: `linear-gradient(135deg, ${draft.colors.secondary} 0%, ${draft.colors.primary} 50%, ${draft.colors.secondary}e8 100%)`,
                 }}>
                   <p className="text-sm font-bold">Ready to get started?</p>
-                  <div className="mt-2 inline-block px-3 py-1 text-xs font-bold rounded-lg" style={{ backgroundColor: draft.colors.accent, color: '#1e293b' }}>
-                    Browse Products
+                  <div className="mt-3 flex justify-center gap-2">
+                    <div className="px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm" style={{ backgroundColor: '#ffffff', color: draft.colors.secondary }}>
+                      Browse Products
+                    </div>
+                    <div className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-white text-white">
+                      Create Account
+                    </div>
                   </div>
                 </div>
               )}
@@ -828,6 +701,6 @@ export default function TemplatePage() {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

@@ -127,6 +127,7 @@ class VendorUpdate(BaseModel):
     # External domain access
     external_domain_enabled: Optional[bool] = None
     external_domain_scope: Optional[str] = Field(None, pattern=r'^(all|per_unit)$')
+    external_domain_dns_mode: Optional[str] = Field(None, pattern=r'^(kit_assisted|self_managed)$')
     external_domain_name: Optional[str] = Field(None, max_length=255)
     external_domain_registrar: Optional[str] = Field(None, max_length=60)
     external_domain_reg_email: Optional[str] = Field(None, max_length=255)
@@ -185,6 +186,7 @@ class VendorResponse(BaseModel):
     # External domain access fields
     external_domain_enabled: Optional[bool] = False
     external_domain_scope: Optional[str] = 'all'
+    external_domain_dns_mode: Optional[str] = 'kit_assisted'
     external_domain_name: Optional[str] = None
     external_domain_registrar: Optional[str] = None
     external_domain_reg_email: Optional[str] = None

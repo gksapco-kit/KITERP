@@ -61,7 +61,7 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
   const allDays = Array.from({ length: 7 }, (_, i) => i)
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200/80 p-6">
+    <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 shadow-sm">
       <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-sm">
         <Calendar className={`w-4 h-4 ${themeUi.iconPrimary}`} /> Weekly Availability
       </h3>
@@ -75,7 +75,7 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
               className={`rounded-xl p-2.5 text-center text-xs transition-all ${
                 isOpen
                   ? themeUi.gradientDayOpen
-                  : 'bg-gray-50 border border-gray-100 text-gray-300'
+                  : 'bg-gray-50 border-2 border-gray-200 text-gray-500'
               }`}>
               <p className="font-bold text-xs">{label}</p>
               {isOpen ? (
@@ -128,37 +128,51 @@ function PlanSelector({
 
           return (
             <button key={plan.id} type="button" onClick={() => onSelect(plan.id)}
-              className={`relative w-full p-4 rounded-xl border-2 text-left transition-all duration-200 ${
+              className={`w-full p-4 sm:p-5 rounded-xl border-2 text-left transition-all duration-200 ${
                 isSelected
-                  ? `${themeUi.planSelected} ${themeUi.shadowPrimarySoft}`
-                  : `border-gray-200 ${themeUi.planHover} hover:bg-gray-50/50 bg-white`
+                  ? 'border-[color:var(--color-secondary)] bg-white shadow-md ring-1 ring-[color:var(--color-secondary)]/20'
+                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50/80 bg-white'
               }`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-bold truncate ${isSelected ? themeUi.textOnPrimaryMuted : 'text-gray-900'}`}>{plan.name}</p>
-                  <p className={`text-xs mt-0.5 ${isSelected ? themeUi.textSecondaryTone : 'text-gray-500'}`}>
-                    {intervalLabel[vInterval] || vInterval}
-                    {vPriceType === 'per_unit' && ` · per ${UOM_LABELS[plan.uom] || plan.uom || 'unit'}`}
-                  </p>
-                  {plan.description && (
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">{plan.description}</p>
-                  )}
+              <div className="flex items-start gap-3">
+                <div
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                    isSelected
+                      ? 'border-[color:var(--color-secondary)] bg-[color:var(--color-secondary)]'
+                      : 'border-gray-300 bg-white'
+                  }`}
+                  aria-hidden
+                >
+                  {isSelected ? <CheckCircle className="w-3.5 h-3.5 text-white" strokeWidth={2.5} /> : null}
                 </div>
-                <div className="text-right shrink-0">
-                  {plan.price != null ? (
-                    <>
-                      <p className={`text-lg font-extrabold ${isSelected ? themeUi.textPrimaryStrong : 'text-gray-900'}`}>
-                        {formatCurrency(plan.price, currency)}
+                <div className="flex flex-1 items-start justify-between gap-4 min-w-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-bold text-gray-900 truncate">{plan.name}</p>
+                    <p className="text-sm mt-0.5 text-gray-600">
+                      {intervalLabel[vInterval] || vInterval}
+                      {vPriceType === 'per_unit' && ` · per ${UOM_LABELS[plan.uom] || plan.uom || 'unit'}`}
+                    </p>
+                    {plan.description && (
+                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{plan.description}</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0 min-w-[5rem] pl-2">
+                    {plan.price != null ? (
+                      <>
+                        <p className="text-xl font-extrabold text-gray-900">
+                          {formatCurrency(plan.price, currency)}
+                        </p>
+                        <p className="text-sm text-gray-500">{vShort}</p>
+                      </>
+                    ) : (
+                      <p className="text-base font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                        Quote
                       </p>
-                      <p className="text-xs text-gray-400">{vShort}</p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-amber-600 font-medium">Quote</p>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
               {(hasTrial || hasSetup || plan.duration_minutes) && (
-                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                <div className="flex flex-wrap gap-1.5 mt-3 ml-8">
                   {hasTrial && (
                     <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                       {plan.subscription_trial_days}d free trial
@@ -174,11 +188,6 @@ function PlanSelector({
                       <Clock className="w-2.5 h-2.5" />{plan.duration_minutes}m
                     </span>
                   ) : null}
-                </div>
-              )}
-              {isSelected && (
-                <div className="absolute top-3 right-3">
-                  <CheckCircle className={`w-5 h-5 ${themeUi.iconPrimary}`} />
                 </div>
               )}
             </button>
@@ -755,7 +764,7 @@ export default function ServiceDetail() {
 
         {/* Right — Sidebar */}
         <div className="lg:col-span-4 min-w-0">
-          <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-7 sticky top-4 space-y-6 shadow-sm ring-1 ring-black/[0.03] max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 sm:p-7 sticky top-4 space-y-6 shadow-md max-h-[90vh] overflow-y-auto">
             {/* Mode toggle — shown when vendor enabled both booking & subscription */}
             {hasBothModes && (
               <div className="flex rounded-xl bg-gray-100/90 p-1 gap-1 ring-1 ring-gray-200/70">

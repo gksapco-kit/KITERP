@@ -3,6 +3,7 @@ import type { StoreRecord } from '@/api/vendor'
 import { cn } from '@/lib/utils'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { resolveBrandingImageUrl } from '@/components/common/MediaUploadPickerModal'
+import { resolveBrandingMode } from '@/lib/brandingMode'
 
 type Props = {
   store?: StoreRecord | null
@@ -18,10 +19,11 @@ type Props = {
 
 export function resolveBusinessUnitLogoUrl(
   store?: StoreRecord | null,
-  vendor?: { logo_url?: string; banner_url?: string } | null,
+  vendor?: { logo_url?: string; banner_url?: string; settings?: Record<string, unknown> | null } | null,
   options?: { preferVendorLogo?: boolean; vendorLogoUrl?: string | null },
 ): string {
-  const visual = store ? getBusinessUnitVisual(store, vendor) : null
+  const mode = resolveBrandingMode(vendor?.settings)
+  const visual = store ? getBusinessUnitVisual(store, vendor, mode) : null
   const vendorLogo = resolveBrandingImageUrl(options?.vendorLogoUrl ?? vendor?.logo_url)
 
   // Per-unit logo always wins when this branch has its own branding configured.
@@ -45,7 +47,8 @@ export function BusinessUnitLogoThumb({
   fallbackIcon: FallbackIcon,
   fallbackGradientClass,
 }: Props) {
-  const visual = store ? getBusinessUnitVisual(store, vendor) : null
+  const mode = resolveBrandingMode((vendor as { settings?: Record<string, unknown> | null } | null)?.settings)
+  const visual = store ? getBusinessUnitVisual(store, vendor, mode) : null
   const Icon = FallbackIcon ?? visual?.Icon ?? Store
   const logoUrl = resolveBusinessUnitLogoUrl(store, vendor, { preferVendorLogo, vendorLogoUrl })
 

@@ -39,6 +39,7 @@ import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableS
 import { companyTypeLabel } from '@/data/companyTypes'
 import { useVendorStore } from '@/stores/vendorStore'
 import { shouldUseLocalStorefrontUrls } from '@/lib/storefrontPreviewUrl'
+import { resolveSiteStoreLink } from '@/lib/liveStorefrontUrl'
 import { CustomDomainVerifyPanel } from '@/components/websites/CustomDomainVerifyPanel'
 import { format } from 'date-fns'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
@@ -657,9 +658,10 @@ function CreateSiteModal({
   )
 }
 
-function SiteCard({ site }: { site: SiteListItem }) {
+function SiteCard({ site, stores }: { site: SiteListItem; stores: { id: string; code?: string | null }[] }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const vendor = useVendorStore(s => s.vendor)
   const deleteSite = useDeleteSite()
   const publishSite = usePublishSite(site.id)
   const unpublishSite = useUnpublishSite(site.id)
@@ -672,13 +674,7 @@ function SiteCard({ site }: { site: SiteListItem }) {
     site.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
   )
 
-  const testUrl = site.custom_domain
-    ? `https://${site.custom_domain}`
-    : site.subdomain
-    ? (shouldUseLocalStorefrontUrls()
-        ? `${window.location.protocol}//${window.location.hostname}:3002/store/${site.subdomain}`
-        : `https://${site.subdomain}.kiterp.com`)
-    : null
+  const testUrl = resolveSiteStoreLink(vendor?.slug, site, stores)
 
   const handleCopy = async () => {
     if (!testUrl) return
@@ -916,12 +912,28 @@ function SiteCard({ site }: { site: SiteListItem }) {
         </div>
 
         {/* CTA */}
-        <Button
-          className="w-full mt-3 bg-primary hover:bg-primary/90 text-white text-sm"
-          onClick={() => navigate(`/websites/${site.id}`)}
-        >
-          <Edit3 className="w-3.5 h-3.5 mr-2" /> Open Builder
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {testUrl && (
+            <Button
+              variant="outline"
+              className="flex-1 min-w-[8.5rem] text-sm"
+              asChild
+            >
+              <a href={testUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-3.5 h-3.5 mr-2" /> View live store
+              </a>
+            </Button>
+          )}
+          <Button
+            className={cn(
+              'text-sm bg-primary hover:bg-primary/90 text-white',
+              testUrl ? 'flex-1 min-w-[8.5rem]' : 'w-full',
+            )}
+            onClick={() => navigate(`/websites/${site.id}`)}
+          >
+            <Edit3 className="w-3.5 h-3.5 mr-2" /> Open in builder
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -929,6 +941,8 @@ function SiteCard({ site }: { site: SiteListItem }) {
 
 export default function WebsitesPage() {
   const { data: sites = [], isLoading } = useSiteList()
+  const { data: storesData } = useStores({ limit: 200 })
+  const stores = storesData?.stores ?? []
   const [createOpen, setCreateOpen] = useState(false)
   const [openingTemplateEditor, setOpeningTemplateEditor] = useState(false)
   const [showSandboxSites, setShowSandboxSites] = useState(false)
@@ -1102,7 +1116,7 @@ export default function WebsitesPage() {
               )}
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* Add new card */}
             <button
               onClick={() => setCreateOpen(true)}
@@ -1115,7 +1129,7 @@ export default function WebsitesPage() {
             </button>
 
             {mainSites.map(site => (
-              <SiteCard key={site.id} site={site} />
+              <SiteCard key={site.id} site={site} stores={stores} />
             ))}
           </div>
 
@@ -1137,9 +1151,9 @@ export default function WebsitesPage() {
                 </span>
               </button>
               {showSandboxSites && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
                   {sandboxSites.map(site => (
-                    <SiteCard key={site.id} site={site} />
+                    <SiteCard key={site.id} site={site} stores={stores} />
                   ))}
                 </div>
               )}

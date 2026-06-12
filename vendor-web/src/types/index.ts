@@ -130,6 +130,18 @@ export interface Vendor {
   social_links?: Record<string, string>
   settings?: Record<string, unknown>
   theme_config?: Record<string, unknown>
+  // External domain & DNS configuration
+  external_domain_enabled?: boolean
+  external_domain_scope?: 'all' | 'per_unit'
+  external_domain_dns_mode?: 'kit_assisted' | 'self_managed'
+  external_domain_name?: string
+  external_domain_registrar?: string
+  external_domain_reg_email?: string
+  external_domain_holder?: string
+  external_domain_expiry?: string
+  external_domain_access_status?: 'not_requested' | 'pending' | 'active' | 'revoked'
+  external_domain_recovery_contact?: string
+  external_domain_notes?: string
   status: string
   verification_status: string
   verified_at?: string

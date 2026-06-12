@@ -175,6 +175,7 @@ export function isExternalDomainSectionDirty(
   state: {
     enabled: boolean
     domainScope: 'all' | 'per_unit'
+    dnsMode: 'kit_assisted' | 'self_managed'
     domainName: string
     registrar: string
     regEmail: string
@@ -190,6 +191,7 @@ export function isExternalDomainSectionDirty(
   const v = vendor as Vendor & {
     external_domain_enabled?: boolean
     external_domain_scope?: string
+    external_domain_dns_mode?: string
     external_domain_name?: string
     external_domain_registrar?: string
     external_domain_reg_email?: string
@@ -204,6 +206,7 @@ export function isExternalDomainSectionDirty(
   return (
     state.enabled !== forcedEnabled ||
     state.domainScope !== (v.external_domain_scope === 'per_unit' ? 'per_unit' : 'all') ||
+    state.dnsMode !== (v.external_domain_dns_mode === 'self_managed' ? 'self_managed' : 'kit_assisted') ||
     normStr(state.domainName) !== normStr(v.external_domain_name) ||
     normStr(state.registrar) !== normStr(v.external_domain_registrar) ||
     normStr(state.regEmail) !== normStr(v.external_domain_reg_email) ||

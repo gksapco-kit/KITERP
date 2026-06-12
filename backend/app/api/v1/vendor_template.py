@@ -1,166 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from uuid import UUID
 
 from app.database import get_db
 from app.api.deps import get_current_active_user, resolve_dashboard_vendor
 from app.middleware.vendor_dashboard_context import get_preferred_vendor_id_from_context
 from app.models.user import User
 from app.models.vendor import Vendor
+from app.services.storefront_theme_config import (
+    DEFAULT_THEME,
+    TEMPLATE_PRESETS,
+    normalize_theme_config,
+    theme_config_needs_migration,
+)
 from pydantic import BaseModel
-from typing import Any, Optional, Dict, List
+from typing import Optional, Dict
 
 router = APIRouter()
-
-TEMPLATE_PRESETS = {
-    "retail": {
-        "id": "retail",
-        "name": "Retail Store",
-        "description": "Clean grid layout optimized for product catalogs",
-        "hero_style": "gradient",
-        "product_layout": "grid-4",
-        "colors": {"primary": "#2563eb", "secondary": "#1e40af", "accent": "#f59e0b", "background": "#f9fafb"},
-        "font": "Inter",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": True, "featured_services": False, "offers_banner": True, "testimonials": False, "cta": True},
-    },
-    "service": {
-        "id": "service",
-        "name": "Service Business",
-        "description": "Service-first layout with booking and portfolio focus",
-        "hero_style": "image",
-        "product_layout": "grid-3",
-        "colors": {"primary": "#64C3A0", "secondary": "#13624A", "accent": "#10b981", "background": "#f3fbf7"},
-        "font": "Poppins",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": False, "featured_services": True, "offers_banner": False, "testimonials": True, "cta": True},
-    },
-    "hybrid": {
-        "id": "hybrid",
-        "name": "Hybrid Store",
-        "description": "Balanced layout for both products and services",
-        "hero_style": "gradient",
-        "product_layout": "grid-4",
-        "colors": {"primary": "#0891b2", "secondary": "#155e75", "accent": "#f97316", "background": "#f0fdfa"},
-        "font": "Inter",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": True, "featured_services": True, "offers_banner": True, "testimonials": True, "cta": True},
-    },
-    "restaurant": {
-        "id": "restaurant",
-        "name": "Restaurant / Food",
-        "description": "Menu-style layout with appetizing visuals",
-        "hero_style": "image",
-        "product_layout": "grid-3",
-        "colors": {"primary": "#dc2626", "secondary": "#991b1b", "accent": "#facc15", "background": "#fef2f2"},
-        "font": "DM Sans",
-        "sections": {"hero": True, "trust_badges": False, "featured_products": True, "featured_services": False, "offers_banner": True, "testimonials": True, "cta": True},
-    },
-    "electronics": {
-        "id": "electronics",
-        "name": "Electronics / Repair",
-        "description": "Tech-focused layout with specs and services",
-        "hero_style": "gradient",
-        "product_layout": "grid-4",
-        "colors": {"primary": "#1d4ed8", "secondary": "#1e3a5f", "accent": "#22d3ee", "background": "#f0f9ff"},
-        "font": "Space Grotesk",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": True, "featured_services": True, "offers_banner": True, "testimonials": False, "cta": True},
-    },
-    "fashion": {
-        "id": "fashion",
-        "name": "Fashion & Apparel",
-        "description": "Stylish lookbook layout with large imagery and elegant typography",
-        "hero_style": "image",
-        "product_layout": "grid-3",
-        "colors": {"primary": "#be185d", "secondary": "#9d174d", "accent": "#fbbf24", "background": "#fdf2f8"},
-        "font": "Playfair Display",
-        "sections": {"hero": True, "trust_badges": False, "featured_products": True, "featured_services": False, "offers_banner": True, "testimonials": True, "cta": True},
-    },
-    "clinic": {
-        "id": "clinic",
-        "name": "Clinic / Healthcare",
-        "description": "Professional healthcare layout with appointment booking focus",
-        "hero_style": "gradient",
-        "product_layout": "grid-3",
-        "colors": {"primary": "#0d9488", "secondary": "#0f766e", "accent": "#06b6d4", "background": "#f0fdfa"},
-        "font": "Nunito",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": False, "featured_services": True, "offers_banner": False, "testimonials": True, "cta": True},
-    },
-    "grocery": {
-        "id": "grocery",
-        "name": "Grocery & Supermarket",
-        "description": "Dense product grid optimized for large catalogs with quick-add",
-        "hero_style": "gradient",
-        "product_layout": "grid-4",
-        "colors": {"primary": "#16a34a", "secondary": "#15803d", "accent": "#f97316", "background": "#f0fdf4"},
-        "font": "Roboto",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": True, "featured_services": False, "offers_banner": True, "testimonials": False, "cta": True},
-    },
-    "jewellery": {
-        "id": "jewellery",
-        "name": "Jewellery & Luxury",
-        "description": "Premium layout with rich gold accents and elegant presentation",
-        "hero_style": "image",
-        "product_layout": "grid-3",
-        "colors": {"primary": "#92400e", "secondary": "#78350f", "accent": "#d4a017", "background": "#fffbeb"},
-        "font": "Cormorant Garamond",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": True, "featured_services": False, "offers_banner": True, "testimonials": True, "cta": True},
-    },
-    "laundry": {
-        "id": "laundry",
-        "name": "Laundry & Dry Cleaning",
-        "description": "Service-oriented layout with pricing tiers and pickup scheduling",
-        "hero_style": "gradient",
-        "product_layout": "grid-3",
-        "colors": {"primary": "#2563eb", "secondary": "#1d4ed8", "accent": "#14b8a6", "background": "#eff6ff"},
-        "font": "Quicksand",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": False, "featured_services": True, "offers_banner": True, "testimonials": True, "cta": True},
-    },
-    "medicine": {
-        "id": "medicine",
-        "name": "Pharmacy & Medicine",
-        "description": "Clean medical layout with category-based product browsing",
-        "hero_style": "gradient",
-        "product_layout": "grid-4",
-        "colors": {"primary": "#059669", "secondary": "#047857", "accent": "#3b82f6", "background": "#ecfdf5"},
-        "font": "Source Sans Pro",
-        "sections": {"hero": True, "trust_badges": True, "featured_products": True, "featured_services": False, "offers_banner": True, "testimonials": False, "cta": True},
-    },
-    "food": {
-        "id": "food",
-        "name": "Food & Bakery",
-        "description": "Warm, appetizing layout for bakeries, cafes, and food businesses",
-        "hero_style": "image",
-        "product_layout": "grid-3",
-        "colors": {"primary": "#ea580c", "secondary": "#c2410c", "accent": "#eab308", "background": "#fff7ed"},
-        "font": "Nunito Sans",
-        "sections": {"hero": True, "trust_badges": False, "featured_products": True, "featured_services": False, "offers_banner": True, "testimonials": True, "cta": True},
-    },
-}
-
-DEFAULT_THEME = {
-    "template": "hybrid",
-    "colors": {"primary": "#2563eb", "secondary": "#1e40af", "accent": "#f59e0b", "background": "#f9fafb"},
-    "font": "Inter",
-    "font_body": "Inter",
-    "hero_style": "gradient",
-    "hero_title": "",
-    "hero_subtitle": "",
-    "hero_height": "medium",
-    "hero_image_url": "",
-    "product_layout": "grid-4",
-    "product_detail_template": "classic",
-    "card_style": "default",
-    "button_radius": "rounded",
-    "header_style": "classic",
-    "sticky_header": True,
-    "show_search": True,
-    "footer_style": "standard",
-    "sections": {
-        "hero": True, "trust_badges": True, "featured_products": True,
-        "featured_services": True, "offers_banner": True, "testimonials": False, "cta": True,
-    },
-    "custom_announcement": "",
-}
 
 
 class TemplateConfigUpdate(BaseModel):
@@ -196,10 +52,20 @@ async def list_presets():
 
 
 @router.get("")
-async def get_template_config(vendor: Vendor = Depends(_get_vendor)):
-    config = vendor.theme_config or {}
-    merged = {**DEFAULT_THEME, **config}
-    return JSONResponse(content=merged)
+async def get_template_config(
+    vendor: Vendor = Depends(_get_vendor),
+    db: AsyncSession = Depends(get_db),
+):
+    raw = vendor.theme_config or {}
+    if theme_config_needs_migration(raw):
+        normalized = normalize_theme_config(raw)
+        vendor.theme_config = normalized
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(vendor, "theme_config")
+        await db.commit()
+        await db.refresh(vendor)
+        return JSONResponse(content=normalized)
+    return JSONResponse(content=normalize_theme_config(raw))
 
 
 @router.put("")
@@ -208,7 +74,10 @@ async def update_template_config(data: TemplateConfigUpdate, vendor: Vendor = De
 
     updates = data.model_dump(exclude_unset=True)
 
-    if "template" in updates and updates["template"] in TEMPLATE_PRESETS:
+    if "template" in updates:
+        tid = updates["template"]
+        if tid not in TEMPLATE_PRESETS:
+            updates["template"] = "light"
         preset = TEMPLATE_PRESETS[updates["template"]]
         current["template"] = updates["template"]
         if "colors" not in updates:
@@ -236,8 +105,7 @@ async def update_template_config(data: TemplateConfigUpdate, vendor: Vendor = De
     await db.commit()
     await db.refresh(vendor)
 
-    merged = {**DEFAULT_THEME, **vendor.theme_config}
-    return JSONResponse(content=merged)
+    return JSONResponse(content=normalize_theme_config(vendor.theme_config))
 
 
 @router.post("/apply-preset/{preset_id}")
@@ -260,5 +128,4 @@ async def apply_preset(preset_id: str, vendor: Vendor = Depends(_get_vendor), db
     await db.commit()
     await db.refresh(vendor)
 
-    merged = {**DEFAULT_THEME, **vendor.theme_config}
-    return JSONResponse(content=merged)
+    return JSONResponse(content=normalize_theme_config(vendor.theme_config))

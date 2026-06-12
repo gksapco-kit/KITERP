@@ -20,6 +20,7 @@ from app.api.v1.vendor_services import _service_to_dict
 from app.repositories.review_repo import ReviewRepository
 from app.utils.geo import haversine_km
 from app.utils.vendor_storefront import vendor_live_on_storefront
+from app.services.storefront_theme_config import normalize_theme_config, theme_config_needs_migration
 
 router = APIRouter()
 
@@ -206,6 +207,18 @@ async def get_vendor_by_slug(
             detail="Vendor not found",
         )
 
+    raw_theme = vendor.theme_config or {}
+    if theme_config_needs_migration(raw_theme):
+        normalized_theme = normalize_theme_config(raw_theme)
+        vendor.theme_config = normalized_theme
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(vendor, "theme_config")
+        await db.commit()
+        await db.refresh(vendor)
+        theme_payload = normalized_theme
+    else:
+        theme_payload = normalize_theme_config(raw_theme)
+
     return {
         "id": str(vendor.id),
         "business_name": vendor.business_name,
@@ -214,7 +227,7 @@ async def get_vendor_by_slug(
         "description": vendor.description,
         "logo_url": vendor.logo_url,
         "banner_url": vendor.banner_url,
-        "theme_config": vendor.theme_config or {},
+        "theme_config": theme_payload,
         "primary_email": vendor.primary_email,
         "primary_phone": vendor.primary_phone,
         "support_email": vendor.support_email,

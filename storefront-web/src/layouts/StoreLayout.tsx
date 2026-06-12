@@ -180,33 +180,56 @@ function MobileMenu({ menuOpen, navLinks, storePath, isAuthenticated, logout, se
 
 // ── Footer variants ───────────────────────────────────────────────────────────
 
+function footerSurface(theme: ReturnType<typeof useTheme>) {
+  const isLight = theme.template !== 'dark'
+  return {
+    isLight,
+    style: { backgroundColor: isLight ? theme.colors.background : theme.colors.secondary },
+    rootClass: isLight ? 'text-gray-700 border-t border-gray-200' : 'text-gray-300',
+    titleClass: isLight ? 'text-gray-900' : 'text-white',
+    linkClass: isLight ? 'hover:text-gray-900 transition-colors' : 'hover:text-white transition-colors',
+    mutedClass: isLight ? 'text-gray-600' : 'text-gray-300',
+    borderClass: isLight ? 'border-gray-200' : 'border-white/10',
+    iconClass: isLight ? 'text-gray-400' : 'text-white/60',
+    socialClass: isLight
+      ? 'p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-gray-600'
+      : 'p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors',
+    backToTopClass: isLight
+      ? 'bg-gray-50 hover:bg-gray-100 border-b border-gray-200 text-gray-700'
+      : 'bg-white/5 hover:bg-white/10 border-b border-white/10',
+    brandLinkStyle: { color: theme.colors.primary },
+  }
+}
+
 function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p: string) => string; theme: ReturnType<typeof useTheme> }) {
+  const surface = footerSurface(theme)
   return (
-    <footer style={{ backgroundColor: theme.colors.secondary }} className="text-white/80 mt-auto">
+    <footer style={surface.style} className={cn('mt-auto', surface.rootClass)}>
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
         <div className="flex items-center gap-3">
           {vendor?.logo_url ? (
             <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-7 rounded object-contain" />
           ) : (
-            <Store className="w-5 h-5 text-white/60" />
+            <Store className={cn('w-5 h-5', surface.iconClass)} />
           )}
-          <span className="font-semibold text-white">{vendor?.display_name}</span>
+          <span className={cn('font-semibold', surface.titleClass)}>{vendor?.display_name}</span>
         </div>
-        <div className="flex items-center gap-4 text-white/60 text-xs">
-          <Link to={storePath('/products')} className="hover:text-white transition-colors">Products</Link>
-          <Link to={storePath('/services')} className="hover:text-white transition-colors">Services</Link>
-          <Link to={storePath('/policies')} className="hover:text-white transition-colors">Policies</Link>
-          <Link to={storePath('/account')} className="hover:text-white transition-colors">Account</Link>
+        <div className={cn('flex items-center gap-4 text-xs', surface.mutedClass)}>
+          <Link to={storePath('/products')} className={surface.linkClass}>Products</Link>
+          <Link to={storePath('/services')} className={surface.linkClass}>Services</Link>
+          <Link to={storePath('/policies')} className={surface.linkClass}>Policies</Link>
+          <Link to={storePath('/account')} className={surface.linkClass}>Account</Link>
         </div>
-        <p className="text-white/40 text-xs">&copy; {new Date().getFullYear()} {vendor?.display_name}</p>
+        <p className={cn('text-xs', surface.mutedClass)}>&copy; {new Date().getFullYear()} {vendor?.display_name}</p>
       </div>
     </footer>
   )
 }
 
 function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: (p: string) => string; theme: ReturnType<typeof useTheme> }) {
+  const surface = footerSurface(theme)
   return (
-    <footer style={{ backgroundColor: theme.colors.secondary }} className="text-gray-300 mt-auto">
+    <footer style={surface.style} className={cn('mt-auto', surface.rootClass)}>
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 py-10">
           <div>
@@ -214,31 +237,31 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
               {vendor?.logo_url ? (
                 <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-8 rounded object-contain" />
               ) : (
-                <Store className="w-6 h-6 text-white/60" />
+                <Store className={cn('w-6 h-6', surface.iconClass)} />
               )}
-              <span className="font-bold text-white text-base">{vendor?.display_name}</span>
+              <span className={cn('font-bold text-base', surface.titleClass)}>{vendor?.display_name}</span>
             </div>
-            {vendor?.description && <p className="text-sm text-gray-400 leading-relaxed line-clamp-3">{vendor.description}</p>}
+            {vendor?.description && <p className={cn('text-sm leading-relaxed line-clamp-3', surface.mutedClass)}>{vendor.description}</p>}
             {vendor?.social_links && (
               <div className="flex gap-2 mt-4">
-                {vendor.social_links.facebook && <a href={vendor.social_links.facebook} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Facebook className="w-4 h-4" /></a>}
-                {vendor.social_links.instagram && <a href={vendor.social_links.instagram} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Instagram className="w-4 h-4" /></a>}
-                {vendor.social_links.twitter && <a href={vendor.social_links.twitter} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Twitter className="w-4 h-4" /></a>}
-                {vendor.social_links.youtube && <a href={vendor.social_links.youtube} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Youtube className="w-4 h-4" /></a>}
+                {vendor.social_links.facebook && <a href={vendor.social_links.facebook} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Facebook className="w-4 h-4" /></a>}
+                {vendor.social_links.instagram && <a href={vendor.social_links.instagram} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Instagram className="w-4 h-4" /></a>}
+                {vendor.social_links.twitter && <a href={vendor.social_links.twitter} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Twitter className="w-4 h-4" /></a>}
+                {vendor.social_links.youtube && <a href={vendor.social_links.youtube} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Youtube className="w-4 h-4" /></a>}
               </div>
             )}
           </div>
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Shop</h4>
+            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Shop</h4>
             <div className="space-y-2.5 text-sm">
-              <Link to={storePath('/')} className="block hover:text-white transition-colors">Home</Link>
-              <Link to={storePath('/products')} className="block hover:text-white transition-colors">All Products</Link>
-              <Link to={storePath('/services')} className="block hover:text-white transition-colors">All Services</Link>
-              <Link to={storePath('/policies')} className="block hover:text-white transition-colors">Store Policies</Link>
+              <Link to={storePath('/')} className={cn('block', surface.linkClass)}>Home</Link>
+              <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
+              <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
+              <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Contact</h4>
+            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Contact</h4>
             <div className="space-y-2.5 text-sm">
               {vendor?.primary_phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" />{vendor.primary_phone}</p>}
               {vendor?.primary_email && <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 shrink-0" />{vendor.primary_email}</p>}
@@ -250,9 +273,9 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
             </div>
           </div>
         </div>
-        <div className="border-t border-white/10 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
+        <div className={cn('border-t py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs', surface.borderClass, surface.mutedClass)}>
           <p>&copy; {new Date().getFullYear()} {vendor?.display_name}. All rights reserved.</p>
-          <p>Powered by <Link to="/" className="text-blue-400 hover:underline">KITERP</Link></p>
+          <p>Powered by <Link to="/" className="hover:underline font-medium" style={surface.brandLinkStyle}>KITERP</Link></p>
         </div>
       </div>
     </footer>
@@ -260,34 +283,35 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
 }
 
 function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: string) => string; theme: ReturnType<typeof useTheme> }) {
+  const surface = footerSurface(theme)
   return (
-    <footer style={{ backgroundColor: theme.colors.secondary }} className="text-gray-300 mt-auto">
+    <footer style={surface.style} className={cn('mt-auto', surface.rootClass)}>
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
         <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 transition-colors py-3 text-sm border-b border-white/10">
+          className={cn('w-full flex items-center justify-center gap-2 transition-colors py-3 text-sm', surface.backToTopClass)}>
           <ArrowUp className="w-4 h-4" /> Back to top
         </button>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-10">
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Get to Know Us</h4>
+            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Get to Know Us</h4>
             <div className="space-y-2.5 text-sm">
-              <Link to={storePath('/')} className="block hover:text-white transition-colors">About {vendor?.display_name}</Link>
-              <Link to={storePath('/products')} className="block hover:text-white transition-colors">All Products</Link>
-              <Link to={storePath('/services')} className="block hover:text-white transition-colors">All Services</Link>
-              <Link to={storePath('/policies')} className="block hover:text-white transition-colors">Store Policies</Link>
+              <Link to={storePath('/')} className={cn('block', surface.linkClass)}>About {vendor?.display_name}</Link>
+              <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
+              <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
+              <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Your Account</h4>
+            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Your Account</h4>
             <div className="space-y-2.5 text-sm">
-              <Link to={storePath('/account')} className="block hover:text-white transition-colors">My Profile</Link>
-              <Link to={storePath('/account/orders')} className="block hover:text-white transition-colors">Your Orders</Link>
-              <Link to={storePath('/account/bookings')} className="block hover:text-white transition-colors">My Bookings</Link>
-              <Link to={storePath('/cart')} className="block hover:text-white transition-colors">Cart</Link>
+              <Link to={storePath('/account')} className={cn('block', surface.linkClass)}>My Profile</Link>
+              <Link to={storePath('/account/orders')} className={cn('block', surface.linkClass)}>Your Orders</Link>
+              <Link to={storePath('/account/bookings')} className={cn('block', surface.linkClass)}>My Bookings</Link>
+              <Link to={storePath('/cart')} className={cn('block', surface.linkClass)}>Cart</Link>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Contact Us</h4>
+            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Contact Us</h4>
             <div className="space-y-2.5 text-sm">
               {vendor?.primary_phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 shrink-0" />{vendor.primary_phone}</p>}
               {vendor?.support_phone && vendor.support_phone !== vendor.primary_phone && (
@@ -326,11 +350,11 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
                   <span>{[vendor.street_address, vendor.city, vendor.state, vendor.postal_code].filter(Boolean).join(', ')}</span>
                 </p>
               )}
-              {vendor?.gstin && <p className="text-xs text-gray-500">GSTIN: {vendor.gstin}</p>}
+              {vendor?.gstin && <p className={cn('text-xs', surface.mutedClass)}>GSTIN: {vendor.gstin}</p>}
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-white text-sm mb-4">Business Hours</h4>
+            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Business Hours</h4>
             <div className="space-y-1 text-xs">
               {vendor?.business_hours && Object.keys(vendor.business_hours).length > 0 ? (
                 Object.entries(vendor.business_hours).map(([day, hours]) => (
@@ -340,26 +364,26 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
                   </div>
                 ))
               ) : (
-                <p className="text-gray-400 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Contact us for hours</p>
+                <p className={cn('flex items-center gap-1.5', surface.mutedClass)}><Clock className="w-3.5 h-3.5" />Contact us for hours</p>
               )}
             </div>
             {vendor?.social_links && Object.keys(vendor.social_links).length > 0 && (
               <div className="mt-5">
-                <h4 className="font-semibold text-white text-sm mb-2.5">Follow Us</h4>
+                <h4 className={cn('font-semibold text-sm mb-2.5', surface.titleClass)}>Follow Us</h4>
                 <div className="flex gap-2 flex-wrap">
-                  {vendor.social_links.facebook && <a href={vendor.social_links.facebook} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Facebook className="w-4 h-4" /></a>}
-                  {vendor.social_links.instagram && <a href={vendor.social_links.instagram} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Instagram className="w-4 h-4" /></a>}
-                  {vendor.social_links.twitter && <a href={vendor.social_links.twitter} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Twitter className="w-4 h-4" /></a>}
-                  {vendor.social_links.youtube && <a href={vendor.social_links.youtube} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Youtube className="w-4 h-4" /></a>}
-                  {vendor.social_links.website && <a href={vendor.social_links.website} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"><Globe className="w-4 h-4" /></a>}
+                  {vendor.social_links.facebook && <a href={vendor.social_links.facebook} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Facebook className="w-4 h-4" /></a>}
+                  {vendor.social_links.instagram && <a href={vendor.social_links.instagram} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Instagram className="w-4 h-4" /></a>}
+                  {vendor.social_links.twitter && <a href={vendor.social_links.twitter} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Twitter className="w-4 h-4" /></a>}
+                  {vendor.social_links.youtube && <a href={vendor.social_links.youtube} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Youtube className="w-4 h-4" /></a>}
+                  {vendor.social_links.website && <a href={vendor.social_links.website} target="_blank" rel="noopener noreferrer" className={surface.socialClass}><Globe className="w-4 h-4" /></a>}
                 </div>
               </div>
             )}
           </div>
         </div>
-        <div className="border-t border-white/10 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
+        <div className={cn('border-t py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs', surface.borderClass, surface.mutedClass)}>
           <p>&copy; {new Date().getFullYear()} {vendor?.display_name}. All rights reserved.</p>
-          <p>Powered by <Link to="/" className="text-blue-400 hover:underline">KITERP</Link></p>
+          <p>Powered by <Link to="/" className="hover:underline font-medium" style={surface.brandLinkStyle}>KITERP</Link></p>
         </div>
       </div>
     </footer>

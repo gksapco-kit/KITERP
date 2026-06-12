@@ -2,6 +2,7 @@ import type { StoreRecord } from '@/api/vendor'
 import { cn } from '@/lib/utils'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { useVendorStore } from '@/stores/vendorStore'
+import { resolveBrandingMode } from '@/lib/brandingMode'
 
 type Props = {
   store: StoreRecord
@@ -12,7 +13,8 @@ type Props = {
 
 export function BusinessUnitVisualHero({ store, variant = 'card', className }: Props) {
   const { vendor } = useVendorStore()
-  const visual = getBusinessUnitVisual(store, vendor)
+  const brandingMode = resolveBrandingMode(vendor?.settings)
+  const visual = getBusinessUnitVisual(store, vendor, brandingMode)
   const { Icon } = visual
   const isCard = variant === 'card'
   const bannerH = isCard ? 'h-6' : 'h-36'

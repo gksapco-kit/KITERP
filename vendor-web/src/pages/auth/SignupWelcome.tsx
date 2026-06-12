@@ -29,22 +29,20 @@ const LAUNCH_STEPS: LaunchStep[] = [
     id: 'account',
     label: 'Account',
     description: 'Login, profile, and verification.',
+    nextHref: '/settings',
+  },
+  {
+    id: 'website-dashboard',
+    label: 'Website dashboard',
+    description: 'Overview of your live storefront and website tools.',
     nextHref: '/business-front',
   },
   {
-    id: 'business front',
-    label: 'Business front',
-    description: 'Branding and your public store URL.',
-    nextHref: '/storefront-builder',
-  },
-  {
-    id: 'business front',
-    label: 'Business Front',
-    description: 'Template, branding, and pages for your public store URL.',
+    id: 'website-builder',
+    label: 'Website builder',
+    description: 'Design pages and publish your public store.',
     nextHref: '/websites',
-
   },
-  
   {
     id: 'catalog',
     label: 'Catalog',

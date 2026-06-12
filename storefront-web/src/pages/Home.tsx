@@ -6,6 +6,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, imgUrl } from '@/lib/utils'
+import { linkOnLight, textOnSolid } from '@/lib/themeColors'
 import {
   ArrowRight, ShoppingBag, Wrench, Loader2, Star, Truck, ShieldCheck,
   RefreshCw, Headphones, Clock, ChevronRight, Quote, MapPin, Phone,
@@ -36,13 +37,13 @@ function TrustBadgesSection({ props, colors }: { props: SectionProps; colors: Re
     { icon: Headphones, text: str(props.badge_4, '24/7 Support') },
   ]
   return (
-    <div className="bg-white border-b">
+    <div className="bg-white border-b border-gray-200">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-5">
           {badges.map((b) => (
-            <div key={b.text} className="flex items-center gap-2 justify-center text-sm text-gray-600">
-              <b.icon className="w-4 h-4" style={{ color: colors.primary }} />
-              <span className="font-medium">{b.text}</span>
+            <div key={b.text} className="flex items-center gap-2.5 justify-center rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-3 text-base text-gray-700">
+              <b.icon className="w-5 h-5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
+              <span className="font-semibold">{b.text}</span>
             </div>
           ))}
         </div>
@@ -56,9 +57,9 @@ function OffersBannerSection({ props, colors, storePath }: { props: SectionProps
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-8">
       <div className="rounded-xl p-5 text-center" style={{ background: `linear-gradient(135deg, ${colors.accent}15, ${colors.primary}15)`, border: `1px dashed ${colors.accent}` }}>
         <p className="text-lg font-bold" style={{ color: colors.accent }}>{str(props.headline, 'Special Offers')}</p>
-        <p className="text-sm text-gray-500 mt-1">{str(props.subtitle, 'Check out our latest deals and discounts')}</p>
+        <p className="text-sm text-gray-600 mt-1">{str(props.subtitle, 'Check out our latest deals and discounts')}</p>
         <Link to={storePath('/products')}>
-          <Button size="sm" className="mt-3 text-white" style={{ backgroundColor: colors.accent }}>View Offers <ArrowRight className="w-4 h-4 ml-1" /></Button>
+          <Button size="sm" className="mt-3" style={{ backgroundColor: colors.accent, color: textOnSolid(colors.accent) }}>View Offers <ArrowRight className="w-4 h-4 ml-1" /></Button>
         </Link>
       </div>
     </div>
@@ -120,9 +121,9 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{str(props.title, 'Featured Products')}</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Discover our top picks for you</p>
+          <p className="text-sm text-gray-600 mt-0.5">Discover our top picks for you</p>
         </div>
-        <Link to={storePath('/products')} className="text-sm font-medium flex items-center gap-1 hover:underline" style={{ color: c.primary }}>
+        <Link to={storePath('/products')} className="text-sm font-medium flex items-center gap-1 hover:underline" style={{ color: linkOnLight(c.primary, c.secondary) }}>
           See all <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
@@ -137,7 +138,7 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
         <div className={`grid gap-4 sm:gap-6 ${gridClass}`}>
           {products.items.map((p: any) => (
             <Link key={p.id} to={storePath(`/products/${p.slug}`)}
-              className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-200 overflow-hidden max-h-[90vh] overflow-y-auto">
+              className="group bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-200 overflow-hidden shadow-sm">
               <div className="aspect-square bg-gray-50 overflow-hidden relative">
                 {p.images?.[0] ? (
                   <img src={imgUrl(p.images[0].url)} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -150,8 +151,8 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
                   </span>
                 )}
               </div>
-              <div className="p-3 sm:p-4">
-                <h3 className="text-sm font-medium text-gray-900 line-clamp-2">{p.name}</h3>
+              <div className="p-4 sm:p-5">
+                <h3 className="text-base font-semibold text-gray-900 line-clamp-2">{p.name}</h3>
                 {(p.avg_rating ?? 0) > 0 && (
                   <div className="mt-1"><StarRating rating={p.avg_rating!} size="sm" showValue reviewCount={p.review_count} /></div>
                 )}
@@ -198,50 +199,50 @@ function FeaturedServicesSection({ props, theme, storePath, services }: {
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{str(props.title, 'Our Services')}</h2>
             {show('subtitle') && (
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-sm text-gray-600 mt-0.5">
                 {str(props.subtitle as string, 'Professional services tailored for you')}
               </p>
             )}
           </div>
-          <Link to={storePath('/services')} className="text-sm font-medium flex items-center gap-1 hover:underline" style={{ color: c.primary }}>
+          <Link to={storePath('/services')} className="text-sm font-medium flex items-center gap-1 hover:underline" style={{ color: linkOnLight(c.primary, c.secondary) }}>
             See all <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {services.items.map((s: any) => (
             <Link key={s.id} to={storePath(`/services/${s.slug}`)}
-              className="group flex gap-4 rounded-xl p-4 border hover:shadow-md transition-all" style={{ backgroundColor: theme.colors.background }}>
+              className="group flex gap-4 rounded-xl p-5 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all shadow-sm" style={{ backgroundColor: theme.colors.background }}>
               {show('card_image') && (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-white border overflow-hidden shrink-0">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-lg bg-white border-2 border-gray-200 overflow-hidden shrink-0">
                   {(s.image_url || s.gallery?.[0]) ? (
                     <img src={imgUrl(s.image_url || s.gallery?.[0])} alt={s.name} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center"><Wrench className="w-8 h-8" style={{ color: c.primary + '40' }} /></div>
+                    <div className="w-full h-full flex items-center justify-center"><Wrench className="w-8 h-8" style={{ color: linkOnLight(c.primary, c.secondary) + '99' }} /></div>
                   )}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900">{s.name}</h3>
+                <h3 className="text-base font-bold text-gray-900">{s.name}</h3>
                 {show('card_rating') && (s.avg_rating ?? 0) > 0 && (
-                  <div className="mt-0.5"><StarRating rating={s.avg_rating!} size="sm" showValue reviewCount={s.review_count} /></div>
+                  <div className="mt-1"><StarRating rating={s.avg_rating!} size="sm" showValue reviewCount={s.review_count} /></div>
                 )}
                 {show('card_description') && (
-                  <p className="text-sm text-gray-500 line-clamp-2 mt-1">{s.description}</p>
+                  <p className="text-base text-gray-600 line-clamp-2 mt-1.5">{s.description}</p>
                 )}
                 {(show('card_price') || show('card_duration')) && (
-                  <div className="mt-2 flex items-center gap-3">
+                  <div className="mt-3 flex items-center gap-3 flex-wrap">
                     {show('card_price') && (
                       s.price
-                        ? <span className="text-sm font-bold" style={{ color: c.primary }}>{formatCurrency(s.price)}</span>
-                        : <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">Get Quote</span>
+                        ? <span className="text-base font-bold" style={{ color: linkOnLight(c.primary, c.secondary) }}>{formatCurrency(s.price)}</span>
+                        : <span className="text-sm font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">Get Quote</span>
                     )}
                     {show('card_duration') && s.duration_minutes && (
-                      <span className="text-xs text-gray-500 flex items-center gap-0.5"><Clock className="w-3 h-3" /> {s.duration_minutes} min</span>
+                      <span className="text-sm text-gray-600 flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {s.duration_minutes} min</span>
                     )}
                   </div>
                 )}
               </div>
-              <ChevronRight className="w-5 h-5 text-gray-300 self-center shrink-0" />
+              <ChevronRight className="w-5 h-5 text-gray-400 self-center shrink-0" />
             </Link>
           ))}
         </div>
@@ -261,11 +262,11 @@ function TestimonialsSection({ props, colors }: { props: SectionProps; colors: R
       <h2 className="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-8">{str(props.title, 'What Our Customers Say')}</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {reviews.map((t, i) => (
-          <div key={i} className="bg-white rounded-xl border p-6">
-            <Quote className="w-8 h-8 mb-3" style={{ color: colors.accent + '60' }} />
-            <p className="text-sm text-gray-600 italic">"{t.text}"</p>
+          <div key={i} className="bg-white rounded-xl border-2 border-gray-200 p-6 shadow-sm">
+            <Quote className="w-7 h-7 mb-4 text-gray-300" aria-hidden />
+            <p className="text-base text-gray-700 leading-relaxed">"{t.text}"</p>
             <div className="mt-4 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: colors.primary }}>{t.name[0]}</div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: colors.primary, color: textOnSolid(colors.primary) }}>{t.name[0]}</div>
               <div>
                 <p className="text-sm font-medium text-gray-900">{t.name}</p>
                 <div className="flex">
@@ -298,7 +299,7 @@ function AboutUsSection({ props, colors, vendor }: { props: SectionProps; colors
               { icon: Star, label: 'Avg Rating', value: '4.8â˜…' },
             ].map((s) => (
               <div key={s.label} className="bg-white rounded-xl p-4 border">
-                <s.icon className="w-6 h-6 mx-auto mb-2" style={{ color: colors.primary }} />
+                <s.icon className="w-6 h-6 mx-auto mb-2" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                 <p className="text-xl font-bold text-gray-900">{s.value}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
               </div>
@@ -320,7 +321,7 @@ function ContactMapSection({ props, colors, vendor }: { props: SectionProps; col
           <div className="space-y-4">
             {address && (
               <div className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
-                <MapPin className="w-5 h-5 mt-0.5 shrink-0" style={{ color: colors.primary }} />
+                <MapPin className="w-5 h-5 mt-0.5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Address</p>
                   <p className="text-gray-800 mt-0.5">{address}</p>
@@ -329,7 +330,7 @@ function ContactMapSection({ props, colors, vendor }: { props: SectionProps; col
             )}
             {vendor?.primary_phone && (
               <div className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
-                <Phone className="w-5 h-5 mt-0.5 shrink-0" style={{ color: colors.primary }} />
+                <Phone className="w-5 h-5 mt-0.5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</p>
                   <a href={`tel:${vendor.primary_phone}`} className="text-gray-800 hover:underline mt-0.5">{vendor.primary_phone}</a>
@@ -338,7 +339,7 @@ function ContactMapSection({ props, colors, vendor }: { props: SectionProps; col
             )}
             {vendor?.primary_email && (
               <div className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
-                <Mail className="w-5 h-5 mt-0.5 shrink-0" style={{ color: colors.primary }} />
+                <Mail className="w-5 h-5 mt-0.5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</p>
                   <a href={`mailto:${vendor.primary_email}`} className="text-gray-800 hover:underline mt-0.5">{vendor.primary_email}</a>
@@ -376,7 +377,7 @@ function NewsletterSection({ props, colors }: { props: SectionProps; colors: Ret
     <section className="py-12" style={{ background: `linear-gradient(135deg, ${colors.primary}08, ${colors.accent}08)` }}>
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-xl mx-auto text-center">
-          <Mail className="w-10 h-10 mx-auto mb-4" style={{ color: colors.primary }} />
+          <Mail className="w-10 h-10 mx-auto mb-4" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{str(props.headline, 'Stay in the loop')}</h2>
           <p className="text-gray-500 mt-2">{str(props.subtitle, 'Get exclusive deals first')}</p>
           {done ? (
@@ -389,7 +390,7 @@ function NewsletterSection({ props, colors }: { props: SectionProps; colors: Ret
                 className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2"
                 style={{ ['--tw-ring-color' as string]: colors.primary }}
               />
-              <Button type="submit" className="text-white shrink-0" style={{ backgroundColor: colors.primary }}>
+              <Button type="submit" className="shrink-0" style={{ backgroundColor: colors.primary, color: textOnSolid(colors.primary) }}>
                 <Send className="w-4 h-4 mr-1" /> Subscribe
               </Button>
             </form>
@@ -404,11 +405,11 @@ function JobBoardSection({ props, colors }: { props: SectionProps; colors: Retur
   return (
     <section className="py-10 bg-white">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <Briefcase className="w-10 h-10 mx-auto mb-4" style={{ color: colors.primary }} />
+        <Briefcase className="w-10 h-10 mx-auto mb-4" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{str(props.title, 'Join Our Team')}</h2>
         <p className="text-gray-500 mt-2">We're always looking for talented people.</p>
         <a href="/careers" target="_blank" rel="noopener noreferrer">
-          <Button className="mt-6 text-white gap-2" style={{ backgroundColor: colors.primary }}>
+          <Button className="mt-6 gap-2" style={{ backgroundColor: colors.primary, color: textOnSolid(colors.primary) }}>
             <ExternalLink className="w-4 h-4" /> View Open Positions
           </Button>
         </a>
@@ -435,12 +436,12 @@ function ESSLoginSection({
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-sm mx-auto rounded-2xl border p-6 text-center shadow-sm" style={{ borderColor: colors.primary + '30', background: colors.primary + '06' }}>
           <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ backgroundColor: colors.primary }}>
-            <Users className="w-7 h-7 text-white" />
+            <Users className="w-7 h-7" style={{ color: textOnSolid(colors.primary) }} />
           </div>
           <h3 className="text-lg font-bold text-gray-900">{str(props.headline, 'Employee Portal')}</h3>
-          <p className="text-sm text-gray-500 mt-1">{str(props.subtitle, 'Access your self-service dashboard')}</p>
+          <p className="text-sm text-gray-600 mt-1">{str(props.subtitle, 'Access your self-service dashboard')}</p>
           <Link to={loginHref}>
-            <Button className="mt-4 w-full text-white" style={{ backgroundColor: colors.primary }}>
+            <Button className="mt-4 w-full" style={{ backgroundColor: colors.primary, color: textOnSolid(colors.primary) }}>
               Employee Login
             </Button>
           </Link>
@@ -458,22 +459,37 @@ function CTABannerSection({ props, colors, storePath, isAuthenticated, buttonRad
   buttonRadius?: string
 }) {
   const br = radiusClass(buttonRadius)
+  const primaryLabel = str(props.cta_primary, 'Browse Products')
+  const secondaryLabel = str(props.cta_secondary, 'Create Account')
   return (
     <section className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <div className="rounded-2xl p-8 sm:p-12 text-white text-center" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}>
+      <div
+        className="rounded-2xl p-8 sm:p-12 text-white text-center shadow-md"
+        style={{ background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.primary} 50%, ${colors.secondary}e8 100%)` }}
+      >
         <h2 className="text-2xl sm:text-3xl font-bold">{str(props.headline, 'Ready to get started?')}</h2>
-        <p className="mt-2 max-w-md mx-auto" style={{ color: 'rgba(255,255,255,0.8)' }}>
+        <p className="mt-3 max-w-md mx-auto text-base text-white/95">
           {str(props.subtitle, 'Sign up today and enjoy exclusive deals, fast delivery, and more.')}
         </p>
-        <div className="mt-6 flex justify-center gap-3 flex-wrap">
+        <div className="mt-8 flex justify-center gap-4 flex-wrap">
           <Link to={storePath('/products')}>
-            <Button size="lg" className={`font-bold ${br}`} style={{ backgroundColor: colors.accent, color: '#1e293b' }}>
-              {str(props.cta_primary, 'Browse Products')}
+            <Button
+              size="lg"
+              className={`h-12 px-8 text-base font-bold shadow-md border-0 ${br}`}
+              style={{ backgroundColor: '#ffffff', color: linkOnLight(colors.primary, colors.secondary) }}
+            >
+              {primaryLabel}
             </Button>
           </Link>
           {!isAuthenticated && (
             <Link to={storePath('/register')}>
-              <Button size="lg" variant="outline" className={`border-white/50 text-white hover:bg-white/10 ${br}`}>Create Account</Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className={`h-12 px-8 text-base font-semibold border-2 border-white bg-white/10 text-white hover:bg-white/20 ${br}`}
+              >
+                {secondaryLabel}
+              </Button>
             </Link>
           )}
         </div>
@@ -492,7 +508,7 @@ function CategoryShowcaseSection({ props, colors, storePath }: { props: SectionP
           <Link key={cat} to={storePath('/products')}
             className="group rounded-xl border p-6 text-center hover:shadow-md transition-all cursor-pointer"
             style={{ borderColor: colors.primary + '20', background: colors.primary + '06' }}>
-            <ShoppingBag className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" style={{ color: colors.primary }} />
+            <ShoppingBag className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
             <p className="text-sm font-semibold text-gray-800">{cat}</p>
           </Link>
         ))}
@@ -597,7 +613,7 @@ function StoreLocatorSection({
     return (
       <section className="py-12 bg-white">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: colors.primary }} />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
         </div>
       </section>
     )
@@ -613,14 +629,14 @@ function StoreLocatorSection({
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
             {branches.length > 0 && (
-              <p className="text-sm text-gray-500 mt-1">{branches.length} location{branches.length !== 1 ? 's' : ''} available</p>
+              <p className="text-sm text-gray-600 mt-1">{branches.length} location{branches.length !== 1 ? 's' : ''} available</p>
             )}
           </div>
           {geoEnabled && (
             <button
               onClick={requestGeo}
               className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-colors hover:bg-gray-50"
-              style={{ borderColor: colors.primary + '50', color: colors.primary }}
+              style={{ borderColor: linkOnLight(colors.primary, colors.secondary) + '50', color: linkOnLight(colors.primary, colors.secondary) }}
             >
               <Navigation className="w-4 h-4" />
               {userPos ? 'Location detected' : geoError ?? 'Find nearest store'}
@@ -638,7 +654,7 @@ function StoreLocatorSection({
                 className="text-sm px-4 py-1.5 rounded-full border font-medium transition-colors"
                 style={
                   activeCity === city
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary, color: '#fff' }
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary, color: textOnSolid(colors.primary) }
                     : { borderColor: '#e5e7eb', color: '#374151' }
                 }
               >
@@ -667,23 +683,23 @@ function StoreLocatorSection({
                   style={isHighlighted ? { borderColor: colors.primary, boxShadow: `0 0 0 2px ${colors.primary}30` } : undefined}
                 >
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: colors.primary + '15' }}>
-                    <MapPin className="w-5 h-5" style={{ color: colors.primary }} />
+                    <MapPin className="w-5 h-5" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-gray-900">{store.name}</p>
                       {store.is_default && (
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '15', color: colors.primary }}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '15', color: linkOnLight(colors.primary, colors.secondary) }}>
                           Main
                         </span>
                       )}
                       {isHighlighted && (
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: colors.primary }}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary, color: textOnSolid(colors.primary) }}>
                           Your store
                         </span>
                       )}
                     </div>
-                    {addr && <p className="text-sm text-gray-500 mt-0.5 truncate">{addr}</p>}
+                    {addr && <p className="text-sm text-gray-600 mt-0.5 truncate">{addr}</p>}
                     <div className="flex flex-wrap gap-4 mt-2">
                       {store.phone && (
                         <a href={`tel:${store.phone}`} className="flex items-center gap-1 text-xs text-gray-600 hover:underline">
@@ -710,29 +726,29 @@ function StoreLocatorSection({
               >
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: colors.primary + '15' }}>
-                    <MapPin className="w-5 h-5" style={{ color: colors.primary }} />
+                    <MapPin className="w-5 h-5" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-gray-900">{store.name}</p>
                       {store.is_default && (
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '15', color: colors.primary }}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '15', color: linkOnLight(colors.primary, colors.secondary) }}>
                           Main
                         </span>
                       )}
                       {isHighlighted && (
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: colors.primary }}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.primary, color: textOnSolid(colors.primary) }}>
                           Your store
                         </span>
                       )}
                     </div>
-                    {store.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{store.description}</p>}
+                    {store.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{store.description}</p>}
                   </div>
                 </div>
 
                 {addr && (
                   <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-400" />
+                    <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-500" />
                     <span>{addr}</span>
                   </div>
                 )}
@@ -740,12 +756,12 @@ function StoreLocatorSection({
                 <div className="flex flex-col gap-1.5">
                   {store.phone && (
                     <a href={`tel:${store.phone}`} className="flex items-center gap-2 text-sm text-gray-600 hover:underline">
-                      <Phone className="w-3.5 h-3.5 text-gray-400" />{store.phone}
+                      <Phone className="w-3.5 h-3.5 text-gray-500" />{store.phone}
                     </a>
                   )}
                   {store.email && (
                     <a href={`mailto:${store.email}`} className="flex items-center gap-2 text-sm text-gray-600 hover:underline">
-                      <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <Mail className="w-3.5 h-3.5 text-gray-500 shrink-0" />
                       <span className="truncate">{store.email}</span>
                     </a>
                   )}
@@ -757,7 +773,7 @@ function StoreLocatorSection({
 
         {/* "Show all" prompt if capped */}
         {limit > 0 && branches.length > limit && filterMode !== 'city' && (
-          <p className="text-center text-sm text-gray-400 mt-6">
+          <p className="text-center text-sm text-gray-500 mt-6">
             Showing {displayed.length} of {branches.length} locations
           </p>
         )}
@@ -793,7 +809,7 @@ export default function Home() {
   ].filter(Boolean) as HomeSection[]
 
   return (
-    <div style={{ fontFamily: theme.font, backgroundColor: c.background }}>
+    <div className="text-gray-900" style={{ fontFamily: theme.font_body || theme.font, backgroundColor: c.background }}>
       {sectionsToRender.map((section, idx) => {
         const p = section.props || {}
         const renderId = section.id.replace(/_copy$/, '')

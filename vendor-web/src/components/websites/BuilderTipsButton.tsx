@@ -11,7 +11,7 @@ const TIPS = [
   { area: 'Canvas', text: 'Click a section to select it; green ↑/↓ space handles adjust spacing.' },
   { area: 'Device icons', text: 'Desktop / Tablet / Phone — preview each screen size.' },
   { area: 'Right panel', text: 'Section Edit, Search (Google), Store data (catalog link).' },
-  { area: 'My Kit menu', text: 'Website Builder is in the sidebar under My Kit.' },
+  { area: 'Website Management menu', text: 'Website Builder is in the sidebar under Website Management.' },
 ] as const
 
 const MENU_WIDTH = 320

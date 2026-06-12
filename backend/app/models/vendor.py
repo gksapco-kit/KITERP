@@ -60,6 +60,9 @@ class Vendor(Base):
     # External domain & delegated registrar access
     external_domain_enabled = Column(Boolean, default=False, nullable=False)
     external_domain_scope = Column(String(20), default='all', nullable=False)   # all | per_unit
+    # How DNS is configured: kit_assisted (grant KIT ERP delegated registrar access)
+    # or self_managed (vendor adds the DNS records themselves).
+    external_domain_dns_mode = Column(String(20), default='kit_assisted', nullable=False)
     external_domain_name = Column(String(255), nullable=True)
     external_domain_registrar = Column(String(60), nullable=True)
     external_domain_reg_email = Column(String(255), nullable=True)

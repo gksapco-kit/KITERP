@@ -58,7 +58,7 @@ export function SmartLoginInput({
         ) : null}
         <button
           type="button"
-          className="inline-flex shrink-0 items-center gap-1 text-xs text-amber-600 hover:underline"
+          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[color:var(--color-secondary)] hover:underline"
           onClick={handleToggle}
         >
           {isPhone ? (
@@ -90,7 +90,7 @@ export function SmartLoginInput({
               value={value}
               onChange={e => onChange(e.target.value)}
               placeholder="you@example.com or +919876543210"
-              className={`pl-9 h-11 ${error ? 'border-red-400' : ''}`}
+              className={`pl-9 h-11 border-gray-300 ${error ? 'border-red-400' : ''}`}
             />
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}

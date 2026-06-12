@@ -46,7 +46,7 @@ export default function StarRating({
         <span className={`${textSizes[size]} font-medium text-gray-700`}>{rating.toFixed(1)}</span>
       )}
       {reviewCount !== undefined && (
-        <span className={`${textSizes[size]} text-gray-400`}>
+        <span className={`${textSizes[size]} text-gray-500`}>
           ({reviewCount})
         </span>
       )}

@@ -13,15 +13,32 @@ import { useBusinessUnitScopeLabel, type BusinessUnitScopeMode } from '@/hooks/u
 import StoresPage from '@/pages/stores'
 import { StoresListToolbar } from '@/components/business-units/StoresListToolbar'
 import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
+import { StorefrontLinkModeToggle } from '@/components/business-units/StorefrontLinkModeToggle'
+import { BusinessUnitDetailNav } from '@/components/business-units/BusinessUnitDetailNav'
 import { vendorApi } from '@/api/vendor'
+import {
+  resolveStorefrontLinkMode,
+  STOREFRONT_LINK_MODE_KEY,
+  type StorefrontLinkMode,
+} from '@/lib/liveStorefrontUrl'
+import {
+  resolveBrandingMode,
+  BRANDING_MODE_KEY,
+  type BrandingMode,
+} from '@/lib/brandingMode'
+import { BrandingModeToggle } from '@/components/business-units/BrandingModeToggle'
 import {
   Save, Loader2, Store, MapPin, FileText, Globe,
   Clock, ChevronDown, ChevronUp, Building2, Phone,
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
   ChevronRight, Check,
   Info, CheckCircle2, Landmark, HelpCircle, Lock, Building, Plus,
-  Link2, AlertCircle, BadgeCheck, Mail, Star,
+  Link2, AlertCircle, BadgeCheck, Mail, Star, Server, ListChecks, ShieldCheck,
 } from 'lucide-react'
+import {
+  buildSelfManagedDnsRecords,
+  type ExternalDomainDnsMode,
+} from '@/lib/externalDomainDns'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
@@ -231,6 +248,32 @@ function SettingsPageBody() {
   const [searchParams] = useSearchParams()
   const updateVendor = useUpdateVendor()
   const { hasDirty, hasDirtyRef, discardAll, formResetKey } = useSettingsDirtyContext()
+
+  const storefrontLinkMode = resolveStorefrontLinkMode(vendor?.settings)
+  const handleSetStorefrontLinkMode = useCallback(
+    (mode: StorefrontLinkMode) => {
+      const current = useVendorStore.getState().vendor
+      if (!current) return
+      if (resolveStorefrontLinkMode(current.settings) === mode) return
+      updateVendor.mutate({
+        settings: { ...(current.settings ?? {}), [STOREFRONT_LINK_MODE_KEY]: mode },
+      })
+    },
+    [updateVendor],
+  )
+
+  const brandingMode = resolveBrandingMode(vendor?.settings)
+  const handleSetBrandingMode = useCallback(
+    (mode: BrandingMode) => {
+      const current = useVendorStore.getState().vendor
+      if (!current) return
+      if (resolveBrandingMode(current.settings) === mode) return
+      updateVendor.mutate({
+        settings: { ...(current.settings ?? {}), [BRANDING_MODE_KEY]: mode },
+      })
+    },
+    [updateVendor],
+  )
 
   // Deep-link: /settings?section=order-acceptance opens that accordion automatically
   const VALID_SECTIONS: Section[] = ['profile', 'contact', 'address', 'tax', 'hours-availability', 'order-acceptance', 'external-domain']
@@ -481,24 +524,50 @@ function SettingsPageBody() {
           aria-labelledby="settings-units-heading"
           className="rounded-xl border border-border bg-muted/20 shadow-sm"
         >
-          <header className="border-b border-border bg-card/90 px-4 py-2.5">
-            <h2
-              id="settings-units-heading"
-              className="flex min-w-0 flex-wrap items-center gap-2"
-            >
-              <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-primary">
-                Step 1 · Units
-              </span>
-              <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-                {allBusinessUnitsMode
-                  ? 'All business units'
-                  : activeStoreRecord?.name ?? scopeHeading}
-              </span>
-            </h2>
+          <header className="flex flex-col gap-2 border-b border-border bg-card/90 px-4 py-2.5 lg:flex-row lg:items-start lg:justify-between">
             {allBusinessUnitsMode ? (
-              <p className="mt-1 text-xs text-foreground/70">
-                Pick a unit to scope settings, or add a new branch.
-              </p>
+              <div className="min-w-0">
+                <h2
+                  id="settings-units-heading"
+                  className="flex min-w-0 flex-wrap items-center gap-2"
+                >
+                  <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-primary">
+                    Step 1 · Units
+                  </span>
+                  <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                    All business units
+                  </span>
+                </h2>
+                <p className="mt-1 text-xs text-foreground/70">
+                  Pick a unit to scope settings, or add a new branch.
+                </p>
+              </div>
+            ) : activeStoreRecord ? (
+              <BusinessUnitDetailNav
+                className="w-full"
+                stores={stores}
+                activeStore={activeStoreRecord}
+                storefrontLinkMode={storefrontLinkMode}
+                onBack={() => confirmIfDirty(() => setSelectedStore(null))}
+                onSelectStore={(store) =>
+                  confirmIfDirty(() =>
+                    setSelectedStore({
+                      id: store.id,
+                      name: store.name,
+                      code: store.code,
+                      description: store.description,
+                    }),
+                  )
+                }
+              />
+            ) : null}
+
+            {allBusinessUnitsMode && stores.length > 0 ? (
+              <StorefrontLinkModeToggle
+                mode={storefrontLinkMode}
+                pending={updateVendor.isPending}
+                onConfirm={handleSetStorefrontLinkMode}
+              />
             ) : null}
           </header>
           <div className="p-4">
@@ -511,24 +580,11 @@ function SettingsPageBody() {
               />
             ) : (
               activeStoreRecord && (
-                <div className="space-y-3">
-                  {stores.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={() => confirmIfDirty(() => setSelectedStore(null))}
-                    >
-                      ← Back to all units
-                    </Button>
-                  )}
-                  <BusinessUnitDetailPanel
-                    key={activeStoreRecord.id}
-                    store={activeStoreRecord}
-                    embeddedInSettings
-                  />
-                </div>
+                <BusinessUnitDetailPanel
+                  key={activeStoreRecord.id}
+                  store={activeStoreRecord}
+                  embeddedInSettings
+                />
               )
             )}
           </div>
@@ -539,21 +595,49 @@ function SettingsPageBody() {
         aria-labelledby="settings-config-heading"
         className="rounded-xl border border-border bg-card shadow-sm"
       >
-        <header className="border-b border-border bg-muted/30 px-4 py-2.5">
-          <h2
-            id="settings-config-heading"
-            className="flex min-w-0 flex-wrap items-center gap-2"
-          >
-            {showUnitsZone ? (
-              <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-primary">
-                Step 2 · Configuration
-              </span>
-            ) : null}
-            <span className="min-w-0 truncate text-sm font-semibold text-foreground">{scopeLabel}</span>
-          </h2>
-          <p className="mt-1 text-xs text-foreground/70">
-            Profile, Contact, Addresses, Tax, Hours, Online Orders, and Domain.
-          </p>
+        <header className="flex items-center gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <h2
+              id="settings-config-heading"
+              className="flex min-w-0 flex-wrap items-center gap-2"
+            >
+              {showUnitsZone ? (
+                <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-primary">
+                  Step 2 · Configuration
+                </span>
+              ) : null}
+              <span className="min-w-0 truncate text-sm font-semibold text-foreground">{scopeLabel}</span>
+            </h2>
+            <p className="mt-1 text-xs text-foreground/70">
+              Profile, Contact, Addresses, Tax, Hours, Online Orders, and Domain.
+            </p>
+          </div>
+
+          {/* Right side: branding toggle (all-units) or badge (single BU) */}
+          {allBusinessUnitsMode && stores.length > 0 ? (
+            <BrandingModeToggle
+              mode={brandingMode}
+              pending={updateVendor.isPending}
+              onConfirm={handleSetBrandingMode}
+            />
+          ) : showUnitsZone && !allBusinessUnitsMode ? (() => {
+            const badge = brandingMode === 'shared'
+              ? { label: 'Common Branding for All BUs / Stores', className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-300' }
+              : { label: 'Unique Branding Per BU / Store', className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-300' }
+            return (
+              <div className="flex shrink-0 flex-col items-end gap-0.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Logo &amp; Banner Branding
+                </span>
+                <span
+                  title="Logo & banner branding mode"
+                  className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none ${badge.className}`}
+                >
+                  {badge.label}
+                </span>
+              </div>
+            )
+          })() : null}
         </header>
 
         <div className="px-3 py-4 sm:px-4">
@@ -581,7 +665,12 @@ function SettingsPageBody() {
             <ProfileSection
               vendor={vendor}
               activeStore={activeStoreRecord}
-              unitBrandingEditable={!allBusinessUnitsMode && Boolean(activeStoreRecord)}
+              unitBrandingEditable={
+                brandingMode === 'per_unit' &&
+                !allBusinessUnitsMode &&
+                Boolean(activeStoreRecord)
+              }
+              showVendorBranding={brandingMode === 'shared' || allBusinessUnitsMode}
               open={openSection === 'profile'}
               toggle={() => toggleSection('profile')}
               onSave={updateVendor}
@@ -728,6 +817,11 @@ type ProfileSectionProps = SectionProps & {
   activeStore?: StoreRecord
   /** When a single BU is scoped, logo/banner save to that unit — not vendor-wide. */
   unitBrandingEditable: boolean
+  /**
+   * When true (single-link mode or all-BU view), show and allow editing the vendor-level branding.
+   * When false (unique-per-BU mode with one unit selected), hide vendor branding — each BU manages its own.
+   */
+  showVendorBranding?: boolean
 }
 
 function storeSettingStr(settings: Record<string, unknown> | undefined, key: string): string {
@@ -792,7 +886,7 @@ function resolveProfileBusinessCategory(
   }
 }
 
-function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEditable, open, toggle, onSave }: ProfileSectionProps) {
+function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEditable, showVendorBranding = true, open, toggle, onSave }: ProfileSectionProps) {
   const qc = useQueryClient()
   const setVendor = useVendorStore((s) => s.setVendor)
   const { data: storesData } = useStores()
@@ -928,7 +1022,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
     ? storeExtraBannersList(storeSettings)
     : (vendor?.theme_config as { extra_banners?: string[] } | undefined)?.extra_banners ?? []
 
-  const unitVisual = unitBrandingEditable && activeStore ? getBusinessUnitVisual(activeStore, vendor) : null
+  const unitVisual = unitBrandingEditable && activeStore ? getBusinessUnitVisual(activeStore, vendor, 'per_unit') : null
   const businessCategory = useMemo(
     () => resolveProfileBusinessCategory(vendor, activeStore, storeSettings, storesData?.stores),
     [vendor, activeStore, storeSettings, storesData?.stores],
@@ -1172,7 +1266,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
       {extraBannerPickerModal}
 
       <form onSubmit={handleSubmit} className="space-y-2.5">
-        {/* Logo & banner — single compact row */}
+        {/* Logo & banner — shown when: (a) vendor branding (single mode or all-BU view), or (b) per-unit branding editor */}
+        {(showVendorBranding || unitBrandingEditable) ? (
         <div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-medium text-foreground">
@@ -1346,6 +1441,14 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitBrandingEdit
             </div>
           </div>
         </div>
+        ) : (
+          <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Per-unit branding active.</span>{' '}
+            Each business unit uses its own logo and banners. Switch to{' '}
+            <span className="font-semibold text-foreground">Common Branding for All BUs / Stores</span>{' '}
+            in the Units section to manage shared branding here.
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -2351,6 +2454,7 @@ const KIT_ERP_SUPPORT_EMAIL = 'support@kiterp.com'
 function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [enabled, setEnabled] = useState(false)
   const [domainScope, setDomainScope] = useState<'all' | 'per_unit'>('all')
+  const [dnsMode, setDnsMode] = useState<ExternalDomainDnsMode>('kit_assisted')
   const [domainName, setDomainName] = useState('')
   const [registrar, setRegistrar] = useState('')
   const [regEmail, setRegEmail] = useState('')
@@ -2438,6 +2542,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       setRecoveryContact(v.external_domain_recovery_contact ?? '')
       setNotes(v.external_domain_notes ?? '')
       setDomainScope(v.external_domain_scope === 'per_unit' ? 'per_unit' : 'all')
+      setDnsMode(v.external_domain_dns_mode === 'self_managed' ? 'self_managed' : 'kit_assisted')
     }
   }, [vendor])
 
@@ -2457,6 +2562,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
     onSave.mutate({
       external_domain_enabled: enabled,
       external_domain_scope: domainScope,
+      external_domain_dns_mode: dnsMode,
       external_domain_name: domainName.trim() || undefined,
       external_domain_registrar: registrar || undefined,
       external_domain_reg_email: regEmail.trim() || undefined,
@@ -2470,13 +2576,16 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
 
   const handleGrantedAccess = () => {
     if (!domainName.trim()) { toast.error('Enter the domain name first'); return }
-    if (!registrar) { toast.error('Select a registrar first'); return }
-    if (!regEmail.trim()) { toast.error('Enter the registrar login email first'); return }
+    if (dnsMode === 'kit_assisted') {
+      if (!registrar) { toast.error('Select a registrar first'); return }
+      if (!regEmail.trim()) { toast.error('Enter the registrar login email first'); return }
+    }
     savingRef.current = true
     // Save ALL form fields together with the status — so "Edit" can pre-populate them
     onSave.mutate({
       external_domain_enabled: true,
       external_domain_scope: domainScope,
+      external_domain_dns_mode: dnsMode,
       external_domain_access_status: 'pending',
       external_domain_name: domainName.trim(),
       external_domain_registrar: registrar,
@@ -2487,7 +2596,14 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       external_domain_notes: notes.trim() || undefined,
     } as any, {
       onSettled: () => { savingRef.current = false },
-      onSuccess: () => { setAccessStatus('pending'); toast.success('Access marked as pending — KIT ERP team will verify') },
+      onSuccess: () => {
+        setAccessStatus('pending')
+        toast.success(
+          dnsMode === 'self_managed'
+            ? 'Submitted — KIT ERP will verify your DNS records and go live'
+            : 'Access marked as pending — KIT ERP team will verify',
+        )
+      },
     })
   }
 
@@ -2524,6 +2640,7 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
         {
           enabled,
           domainScope,
+          dnsMode,
           domainName,
           registrar,
           regEmail,
@@ -2535,13 +2652,20 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
         },
         vendor,
       ),
-    [enabled, domainScope, domainName, registrar, regEmail, holder, expiry, accessStatus, recoveryContact, notes, vendor],
+    [enabled, domainScope, dnsMode, domainName, registrar, regEmail, holder, expiry, accessStatus, recoveryContact, notes, vendor],
   )
   useSettingsSectionDirty('external-domain', isDirty)
 
   return (
     <SectionWrapper
       title="External Domain"
+      subtitle={
+        enabled
+          ? domainScope === 'all'
+            ? 'One domain for all business unit / store fronts'
+            : 'A unique domain per business unit front website'
+          : undefined
+      }
       helpText="Use your own domain instead of the default KIT ERP link"
       icon={Globe}
       badge={domainBadge}
@@ -2651,8 +2775,9 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                   {[
                     { label: 'Domain', value: domainName, link: domainName ? `https://${domainName}` : null },
                     { label: 'Registrar', value: registrar },
-                    { label: 'Login email', value: regEmail, mono: true },
+                    { label: 'Login email', value: dnsMode === 'kit_assisted' ? regEmail : '', mono: true },
                     { label: 'Scope', value: domainScope === 'all' ? 'All BU / Stores' : 'Per BU / Store' },
+                    { label: 'DNS setup', value: dnsMode === 'self_managed' ? 'Managed by you' : 'KIT ERP assisted' },
                   ].filter(r => r.value).map(r => (
                     <div key={r.label} className="flex items-center justify-between gap-2 px-3 py-1.5">
                       <span className="text-muted-foreground">{r.label}</span>
@@ -2666,23 +2791,69 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
             ) : (
               /* ── NOT REQUESTED / REVOKED / EDIT MODE: compact form ── */
               <>
-            {/* Scope: compact inline toggle */}
-            <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2">
-              <div>
-                <span className="text-xs font-medium text-foreground">Same domain for all BU / Stores</span>
-                <span className="ml-2 text-[10px] text-muted-foreground">
-                  {domainScope === 'all' ? '(1 domain)' : '(1 per BU)'}
-                </span>
+            {/* Scope: same for all vs unique per business unit front */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Where does this domain apply?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { key: 'all', title: 'One for all', desc: 'Same domain across every business unit / store front' },
+                  { key: 'per_unit', title: 'Per business unit', desc: 'A unique domain for each business unit front website' },
+                ] as const).map(opt => {
+                  const active = domainScope === opt.key
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setDomainScope(opt.key)}
+                      className={`flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
+                        active ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-background hover:bg-muted/40'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Globe className={`h-3.5 w-3.5 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+                        {opt.title}
+                      </span>
+                      <span className="text-[10px] leading-snug text-muted-foreground">{opt.desc}</span>
+                    </button>
+                  )
+                })}
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={domainScope === 'all'}
-                onClick={() => setDomainScope(s => s === 'all' ? 'per_unit' : 'all')}
-                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${domainScope === 'all' ? 'bg-primary' : 'bg-gray-300'}`}
-              >
-                <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${domainScope === 'all' ? 'translate-x-4' : 'translate-x-0'}`} />
-              </button>
+              {domainScope === 'per_unit' && (
+                <p className="flex items-start gap-1 text-[10px] leading-snug text-muted-foreground">
+                  <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                  Add the domain for this business unit below. Repeat from each business unit's settings to map a unique domain to each front website.
+                </p>
+              )}
+            </div>
+
+            {/* DNS management mode: self-managed vs KIT ERP assisted */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">How should DNS be configured?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { key: 'self_managed', title: 'I\'ll manage DNS', desc: 'Add the records yourself at your registrar', icon: Server },
+                  { key: 'kit_assisted', title: 'KIT ERP help', desc: 'Grant access and we configure it for you', icon: ShieldCheck },
+                ] as const).map(opt => {
+                  const active = dnsMode === opt.key
+                  const Icon = opt.icon
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setDnsMode(opt.key)}
+                      className={`flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
+                        active ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-background hover:bg-muted/40'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Icon className={`h-3.5 w-3.5 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+                        {opt.title}
+                      </span>
+                      <span className="text-[10px] leading-snug text-muted-foreground">{opt.desc}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Domain + Registrar row */}
@@ -2696,7 +2867,9 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs font-medium">Registrar <span className="text-red-500">*</span></Label>
+                <Label className="text-xs font-medium">
+                  Registrar {dnsMode === 'kit_assisted' && <span className="text-red-500">*</span>}
+                </Label>
                 <select
                   value={registrar}
                   onChange={e => setRegistrar(e.target.value)}
@@ -2708,89 +2881,149 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
               </div>
             </div>
 
-            {/* Registrar email + Account holder */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Registrar login email <span className="text-red-500">*</span></Label>
-                <Input
-                  type="email"
-                  value={regEmail}
-                  onChange={e => setRegEmail(e.target.value)}
-                  placeholder="your-email@example.com"
-                />
-                <p className="text-[10px] text-muted-foreground">Email used to log into your registrar account.</p>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Account holder name</Label>
-                <Input
-                  value={holder}
-                  onChange={e => setHolder(e.target.value)}
-                  placeholder="Name on the domain registration"
-                />
-              </div>
-            </div>
+            {/* KIT-assisted only: registrar credentials for delegated access */}
+            {dnsMode === 'kit_assisted' && (
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Registrar login email <span className="text-red-500">*</span></Label>
+                    <Input
+                      type="email"
+                      value={regEmail}
+                      onChange={e => setRegEmail(e.target.value)}
+                      placeholder="your-email@example.com"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Email used to log into your registrar account.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Account holder name</Label>
+                    <Input
+                      value={holder}
+                      onChange={e => setHolder(e.target.value)}
+                      placeholder="Name on the domain registration"
+                    />
+                  </div>
+                </div>
 
-            {/* Expiry + Recovery contact */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Domain expiry date</Label>
-                <Input type="date" value={expiry} onChange={e => setExpiry(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">2FA recovery contact</Label>
-                <Input
-                  value={recoveryContact}
-                  onChange={e => setRecoveryContact(e.target.value)}
-                  placeholder="Phone or backup email"
-                />
-                <p className="text-[10px] text-muted-foreground">Used if registrar requires 2FA verification.</p>
-              </div>
-            </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Domain expiry date</Label>
+                    <Input type="date" value={expiry} onChange={e => setExpiry(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">2FA recovery contact</Label>
+                    <Input
+                      value={recoveryContact}
+                      onChange={e => setRecoveryContact(e.target.value)}
+                      placeholder="Phone or backup email"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Used if registrar requires 2FA verification.</p>
+                  </div>
+                </div>
 
-            {/* Delegated access instructions */}
-            <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
-              <div className="flex items-start gap-2.5">
-                <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Grant KIT ERP team access</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Add <strong className="font-semibold text-foreground">{KIT_ERP_SUPPORT_EMAIL}</strong> as a
-                    delegated contact or team member in your {registrar || 'registrar'} account.
-                    This allows our team to manage DNS records on your behalf — you retain full ownership and
-                    can revoke access at any time.
+                {/* Delegated access instructions */}
+                <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Grant KIT ERP team access</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Add <strong className="font-semibold text-foreground">{KIT_ERP_SUPPORT_EMAIL}</strong> as a
+                        delegated contact or team member in your {registrar || 'registrar'} account.
+                        This allows our team to manage DNS records on your behalf — you retain full ownership and
+                        can revoke access at any time.
+                      </p>
+                    </div>
+                  </div>
+
+                  {guideUrl && (
+                    <a
+                      href={guideUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-white px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      How to add a delegate in {registrar}
+                    </a>
+                  )}
+
+                  {/* KIT ERP email to copy */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5">
+                      <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="text-xs font-mono text-foreground">{KIT_ERP_SUPPORT_EMAIL}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => { navigator.clipboard.writeText(KIT_ERP_SUPPORT_EMAIL); toast.success('Email copied') }}
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Self-managed: DNS records to add at the registrar */}
+            {dnsMode === 'self_managed' && (
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <ListChecks className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">Add these DNS records at your registrar</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Sign in to your DNS provider and create the records below. Changes can take up to
+                      a few hours to propagate. Your default KIT ERP link stays live until the domain is verified.
+                    </p>
+                  </div>
+                </div>
+
+                {!domainName.trim() ? (
+                  <p className="rounded-lg border border-dashed border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                    Enter your domain name above to see the exact records to add.
                   </p>
-                </div>
-              </div>
+                ) : (
+                  <div className="overflow-hidden rounded-lg border border-border bg-background">
+                    <div className="hidden grid-cols-[64px_1fr_1fr_32px] gap-2 border-b border-border bg-muted/40 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
+                      <span>Type</span>
+                      <span>Host / Name</span>
+                      <span>Value / Target</span>
+                      <span />
+                    </div>
+                    {buildSelfManagedDnsRecords(domainName, (vendor as Vendor | null)?.slug, (vendor as Vendor | null)?.id).map((rec, i) => (
+                      <div
+                        key={`${rec.type}-${i}`}
+                        className="grid grid-cols-1 gap-1 border-b border-border px-3 py-2 last:border-b-0 sm:grid-cols-[64px_1fr_1fr_32px] sm:items-center sm:gap-2"
+                      >
+                        <span className="inline-flex w-fit items-center rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-foreground">
+                          {rec.type}
+                        </span>
+                        <code className="block truncate font-mono text-[11px] text-foreground" title={rec.host}>{rec.host}</code>
+                        <code className="block truncate font-mono text-[11px] text-foreground" title={rec.value}>{rec.value}</code>
+                        <button
+                          type="button"
+                          aria-label="Copy record value"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                          onClick={() => { navigator.clipboard.writeText(rec.value); toast.success('Value copied') }}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                        <p className="text-[10px] leading-snug text-muted-foreground sm:col-span-4">{rec.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-              {guideUrl && (
-                <a
-                  href={guideUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-white px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  How to add a delegate in {registrar}
-                </a>
-              )}
-
-              {/* KIT ERP email to copy */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5">
-                  <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="text-xs font-mono text-foreground">{KIT_ERP_SUPPORT_EMAIL}</span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-xs"
-                  onClick={() => { navigator.clipboard.writeText(KIT_ERP_SUPPORT_EMAIL); toast.success('Email copied') }}
-                >
-                  <Copy className="h-3.5 w-3.5 mr-1" /> Copy
-                </Button>
+                <p className="flex items-start gap-1 text-[10px] leading-snug text-muted-foreground">
+                  <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                  Prefer not to touch DNS? Switch to <strong className="font-medium text-foreground">KIT ERP help</strong> above and our team will configure it for you.
+                </p>
               </div>
-            </div>
+            )}
 
             {/* Access status */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
@@ -2814,12 +3047,16 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                 {(accessStatus === 'not_requested' || (accessStatus === 'pending' && editMode)) && (
                   <Button type="button" size="sm" onClick={() => { handleGrantedAccess(); setEditMode(false) }}>
                     <Check className="mr-1 h-3.5 w-3.5" />
-                    {editMode ? 'Update & re-submit' : "I've granted access"}
+                    {editMode
+                      ? 'Update & re-submit'
+                      : dnsMode === 'self_managed'
+                        ? "I've added the records"
+                        : "I've granted access"}
                   </Button>
                 )}
                 {accessStatus === 'revoked' && (
                   <Button type="button" size="sm" variant="outline" onClick={handleGrantedAccess}>
-                    Re-grant access
+                    {dnsMode === 'self_managed' ? 'Re-submit' : 'Re-grant access'}
                   </Button>
                 )}
               </div>

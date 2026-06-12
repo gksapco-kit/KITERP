@@ -10,6 +10,7 @@ import { useCustomerRegister, useCustomerLogin } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { imgUrl } from '@/lib/utils'
 import { Loader2, Store, ShieldCheck, Check, Eye, EyeOff, MapPin } from 'lucide-react'
+import { useAuthStoreTheme } from './authStoreTheme'
 
 const phoneRegex = /^\+?\d{10,15}$/
 
@@ -61,22 +62,18 @@ export default function Register() {
 
   const isLoading = registerMut.isPending || loginMut.isPending
 
-  const themeConfig = vendor?.theme_config as Record<string, unknown> | undefined
-  const styleConfig = themeConfig?.style as Record<string, unknown> | undefined
-  const primaryColor: string = (styleConfig?.primary_color as string) || '#4F46E5'
+  const { primary, background, linkColor, btnText, panelGradient, fontFamily } = useAuthStoreTheme()
 
   const location = [vendor?.city, vendor?.state].filter(Boolean).join(', ')
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10 bg-gray-50">
-      <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border border-gray-200 flex flex-col md:flex-row">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10" style={{ backgroundColor: background, fontFamily }}>
+      <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-200 flex flex-col md:flex-row">
 
         {/* ── Left brand panel ── */}
         <div
           className="relative flex flex-col items-center justify-center p-10 md:w-[40%] shrink-0 overflow-hidden"
-          style={{
-            background: `linear-gradient(145deg, ${primaryColor} 0%, ${primaryColor}dd 50%, ${primaryColor}99 100%)`,
-          }}
+          style={{ background: panelGradient }}
         >
           <div className="absolute -top-16 -left-16 w-64 h-64 rounded-full bg-white/10" />
           <div className="absolute -bottom-20 -right-12 w-72 h-72 rounded-full bg-white/8" />
@@ -120,7 +117,7 @@ export default function Register() {
             </div>
           </div>
 
-          <p className="absolute bottom-4 text-white/35 text-xs">Powered by KITERP</p>
+          <p className="absolute bottom-4 text-white/60 text-xs">Powered by KITERP</p>
         </div>
 
         {/* ── Right form panel ── */}
@@ -146,7 +143,7 @@ export default function Register() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1.5 block">Full Name</label>
-                <Input {...register('full_name')} placeholder="John Doe" className="h-11" />
+                <Input {...register('full_name')} placeholder="John Doe" className="h-11 border-gray-300" />
                 {errors.full_name && <p className="text-xs text-red-500 mt-1">{errors.full_name.message}</p>}
               </div>
 
@@ -154,7 +151,7 @@ export default function Register() {
                 <label className="text-sm font-medium text-gray-700 mb-1.5 block">
                   Email Address <span className="text-gray-400 font-normal text-xs">(optional)</span>
                 </label>
-                <Input {...register('email')} type="email" placeholder="you@example.com" className="h-11" />
+                <Input {...register('email')} type="email" placeholder="you@example.com" className="h-11 border-gray-300" />
                 {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
               </div>
 
@@ -172,7 +169,7 @@ export default function Register() {
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1.5 block">Password</label>
                 <div className="relative">
-                  <Input {...register('password')} type={showPw ? 'text' : 'password'} placeholder="Min. 8 characters" className="h-11 pr-10" />
+                  <Input {...register('password')} type={showPw ? 'text' : 'password'} placeholder="Min. 8 characters" className="h-11 pr-10 border-gray-300" />
                   <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -183,7 +180,7 @@ export default function Register() {
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1.5 block">Confirm Password</label>
                 <div className="relative">
-                  <Input {...register('confirm_password')} type={showConfirm ? 'text' : 'password'} placeholder="Re-enter password" className="h-11 pr-10" />
+                  <Input {...register('confirm_password')} type={showConfirm ? 'text' : 'password'} placeholder="Re-enter password" className="h-11 pr-10 border-gray-300" />
                   <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
                     {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -193,8 +190,8 @@ export default function Register() {
 
               <Button
                 type="submit"
-                className="w-full h-11 font-bold text-white hover:opacity-90 transition-opacity mt-2"
-                style={{ backgroundColor: primaryColor }}
+                className="w-full h-11 font-bold hover:opacity-90 transition-opacity mt-2"
+                style={{ backgroundColor: primary, color: btnText }}
                 disabled={isLoading}
               >
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -209,7 +206,7 @@ export default function Register() {
             </div>
 
             <Link to={storePath('/login')}>
-              <Button variant="outline" className="w-full h-11 font-medium border-gray-300 hover:bg-gray-50">
+              <Button variant="outline" className="w-full h-11 font-medium border-2 hover:bg-gray-50" style={{ borderColor: linkColor, color: linkColor }}>
                 Sign In
               </Button>
             </Link>

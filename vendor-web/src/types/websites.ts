@@ -335,6 +335,11 @@ export interface SiteListItem {
   is_published: boolean
   status: 'draft' | 'published' | 'archived'
   page_count: number
+  applied_template_id?: string | null
+  applied_template_name?: string | null
+  website_store_scope?: string | null
+  website_store_id?: string | null
+  published_at?: string | null
   created_at: string
   updated_at: string
 }

@@ -7,7 +7,8 @@ import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { WebsiteTemplatePreviewModal, getStorefrontTemplateBrowserPreviewUrl } from '@/components/websites/WebsiteTemplatePreviewModal'
-import { BusinessFrontDefaultTemplatesSection } from '@/components/websites/BusinessFrontDefaultTemplatesSection'
+import { BusinessFrontDefaultTemplateCard } from '@/components/websites/BusinessFrontDefaultTemplateCard'
+import { StoreThemeCustomizerDialog } from '@/components/websites/StoreThemeCustomizerDialog'
 import { openDraftPreviewInBrowser, wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -31,6 +32,7 @@ export default function WebsiteTemplateGalleryPage() {
   const [templateSearch, setTemplateSearch] = useState('')
   const [templateCategory, setTemplateCategory] = useState<string>('all')
   const [applyTemplate, setApplyTemplate] = useState<WebsiteTemplate | null>(null)
+  const [customizeOpen, setCustomizeOpen] = useState(false)
 
   const siteParam = searchParams.get('site')
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
@@ -47,6 +49,16 @@ export default function WebsiteTemplateGalleryPage() {
       }
     }
   }, [sitesLoading, sites, siteParam, setSearchParams])
+
+  useEffect(() => {
+    if (searchParams.get('customize') !== '1') return
+    setCustomizeOpen(true)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('customize')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const onSiteChange = (id: string) => {
     setSelectedSiteId(id)
@@ -77,6 +89,8 @@ export default function WebsiteTemplateGalleryPage() {
   const busy = sitesLoading || templatesLoading
   const legacyPresetsBusy = themeLoading || presetsLoading || sitesLoading
   const legacyPresets = presetsData?.presets ?? []
+  const lightPreset = legacyPresets.find(p => p.id === 'light')
+  const showDefaultLayoutCard = templateCategory === 'all' && !templateSearch.trim()
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-accent/70 to-gray-50/80">
@@ -89,7 +103,7 @@ export default function WebsiteTemplateGalleryPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Website Templates</h1>
             <p className="text-sm text-gray-600 mt-1 max-w-xl">
-            Browse full-site Website Builder layouts, or use <b>default store themes</b> below for the live business front when no site is published.
+              Choose a default store layout or apply full-site Website Builder templates.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <Link
@@ -103,19 +117,6 @@ export default function WebsiteTemplateGalleryPage() {
             </div>
           </div>
         </div>
-
-        <BusinessFrontDefaultTemplatesSection
-          presets={legacyPresets}
-          themeTemplateId={themeConfig?.template}
-          sites={sites}
-          vendorSlug={vendor?.slug}
-          isLoading={legacyPresetsBusy}
-        />
-
-        <h2 className="text-lg font-extrabold text-gray-900 mb-3">Website Builder templates</h2>
-        <p className="text-sm text-gray-600 mb-4 max-w-2xl">
-          Full multi-page sites for the Website Builder. Publish a site to replace the default business front home above.
-        </p>
 
         <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-4 sm:p-5 mb-6 max-h-[90vh] overflow-y-auto">
           <label className="block text-xs font-extrabold uppercase tracking-wide text-gray-400 mb-2">Apply template to</label>
@@ -181,9 +182,18 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         </div>
 
-        {busy && <p className="text-sm text-gray-500 py-8">Loading templates…</p>}
-        {!busy && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {(busy || legacyPresetsBusy) && <p className="text-sm text-gray-500 py-8">Loading templates…</p>}
+        {!busy && !legacyPresetsBusy && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {showDefaultLayoutCard && lightPreset && (
+              <BusinessFrontDefaultTemplateCard
+                preset={lightPreset}
+                themeTemplateId={themeConfig?.template}
+                sites={sites}
+                vendorSlug={vendor?.slug}
+                onCustomize={() => setCustomizeOpen(true)}
+              />
+            )}
             {filteredTemplates.map((tpl: WebsiteTemplate) => {
               const pageCount = tpl.page_count ?? tpl.pages?.length ?? 0
               const tier = tpl.tier || (pageCount >= 6 ? 'full' : 'lite')
@@ -274,10 +284,12 @@ export default function WebsiteTemplateGalleryPage() {
           </div>
         )}
 
-        {!busy && filteredTemplates.length === 0 && (
+        {!busy && !legacyPresetsBusy && filteredTemplates.length === 0 && !showDefaultLayoutCard && (
           <p className="text-sm text-gray-500 py-8">No templates match your filters.</p>
         )}
       </div>
+
+      <StoreThemeCustomizerDialog open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
 
       <WebsiteTemplatePreviewModal
         template={applyTemplate}

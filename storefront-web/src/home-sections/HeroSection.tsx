@@ -13,6 +13,12 @@ import {
   SectionNavLink,
   str,
 } from './utils'
+import {
+  heroBannerDimOverlay,
+  heroBrandGradient,
+  heroPhotoOverlay,
+  textOnSolid,
+} from './heroContrast'
 
 export function HeroSection({
   props,
@@ -181,10 +187,10 @@ export function HeroSection({
       <section className="bg-white border-b">
         <div className={`max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh} text-center`}>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900" style={{ fontFamily: theme.font, ...fieldTypographyStyle(props, 'headline') }}>{title}</h1>
-          <p className="mt-4 text-lg text-gray-500 max-w-2xl mx-auto" style={fieldTypographyStyle(props, 'subtitle')}>{subtitle}</p>
+          <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto" style={fieldTypographyStyle(props, 'subtitle')}>{subtitle}</p>
           <div className="mt-8 flex justify-center gap-3 flex-wrap">
             <SectionNavLink onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/products')}>
-              <Button size="lg" className={`font-bold gap-2 h-12 px-8 text-white ${br}`} style={{ backgroundColor: c.primary, ...fieldTypographyStyle(props, 'cta_primary') }}><ShoppingBag className="w-5 h-5" /> {cta1}</Button>
+              <Button size="lg" className={`font-bold gap-2 h-12 px-8 ${br}`} style={{ backgroundColor: c.primary, color: textOnSolid(c.primary), ...fieldTypographyStyle(props, 'cta_primary') }}><ShoppingBag className="w-5 h-5" /> {cta1}</Button>
             </SectionNavLink>
             <SectionNavLink onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/services')}>
               <Button size="lg" variant="outline" className={`gap-2 h-12 px-8 ${br}`} style={{ borderColor: c.primary, color: c.primary, ...fieldTypographyStyle(props, 'cta_secondary') }}><Wrench className="w-5 h-5" /> {cta2}</Button>
@@ -204,7 +210,7 @@ export function HeroSection({
           <p className="mt-5 text-xl text-gray-300 max-w-2xl mx-auto" style={fieldTypographyStyle(props, 'subtitle')}>{subtitle}</p>
           <div className="mt-10 flex justify-center gap-4 flex-wrap">
             <SectionNavLink onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/products')}>
-              <Button size="lg" className={`font-bold gap-2 h-14 px-10 text-gray-900 ${br}`} style={{ backgroundColor: c.accent, ...fieldTypographyStyle(props, 'cta_primary') }}><ShoppingBag className="w-5 h-5" /> {cta1}</Button>
+              <Button size="lg" className={`font-bold gap-2 h-14 px-10 ${br}`} style={{ backgroundColor: c.accent, color: textOnSolid(c.accent), ...fieldTypographyStyle(props, 'cta_primary') }}><ShoppingBag className="w-5 h-5" /> {cta1}</Button>
             </SectionNavLink>
             <SectionNavLink onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/services')}>
               <Button size="lg" variant="outline" className={`border-white/30 text-white hover:bg-white/10 gap-2 h-14 px-10 ${br}`} style={fieldTypographyStyle(props, 'cta_secondary')}>{cta2}</Button>
@@ -223,24 +229,63 @@ export function HeroSection({
           ? 'min-h-[min(44dvh,280px)] sm:min-h-[400px] md:min-h-[520px] lg:min-h-[600px]'
           : 'min-h-[min(40dvh,240px)] sm:min-h-[320px] md:min-h-[420px]'
     const bgUrl = str(props.bg_image_url as string, '') || theme.hero_image_url || vendor?.banner_url || ''
+    const primaryBtnBg = c.primary
+    const primaryBtnFg = textOnSolid(primaryBtnBg)
     return (
-      <section className={`relative overflow-hidden ${minHeightClass} flex items-center`} style={{ backgroundColor: `${c.primary}10` }}>
-        {bgUrl && (
-          <div className="absolute inset-0">
-            <img src={imgUrl(bgUrl)} alt="" className="h-full w-full object-cover object-center opacity-30" />
-            <div className="absolute inset-0" style={{ background: `linear-gradient(to right, ${c.primary}cc, transparent)` }} />
-          </div>
+      <section className={`relative overflow-hidden ${minHeightClass} flex items-center`}>
+        {bgUrl ? (
+          <>
+            <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+            <div className="absolute inset-0" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
+          </>
+        ) : (
+          <div className="absolute inset-0" style={{ background: heroBrandGradient(c.primary, c.secondary) }} />
         )}
-        <div className={`relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh}`}>
-          <h1 className="text-2xl sm:text-4xl font-bold leading-tight" style={{ color: c.primary, fontFamily: theme.font, ...fieldTypographyStyle(props, 'headline') }}>{title}</h1>
-          <p className="mt-4 text-lg text-gray-700 max-w-xl" style={fieldTypographyStyle(props, 'subtitle')}>{subtitle}</p>
-          <div className="mt-8 flex gap-3 flex-wrap">
-            <SectionNavLink onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/products')}>
-              <Button size="lg" className={`font-bold gap-2 h-12 px-8 text-white ${br}`} style={{ backgroundColor: c.primary, ...fieldTypographyStyle(props, 'cta_primary') }}><ShoppingBag className="w-5 h-5" /> {cta1}</Button>
+        <div className={`relative z-[1] w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh} text-center`}>
+          <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
+            <h1
+              className="w-full text-center text-2xl sm:text-4xl font-bold leading-tight text-white drop-shadow-sm text-balance"
+              style={{ fontFamily: theme.font, ...fieldTypographyStyle(props, 'headline') }}
+            >
+              {title}
+            </h1>
+            <p
+              className="w-full text-center mt-4 text-lg text-white/95 max-w-xl mx-auto drop-shadow-sm text-pretty"
+              style={fieldTypographyStyle(props, 'subtitle')}
+            >
+              {subtitle}
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3 w-full">
+              <SectionNavLink
+                className="inline-flex"
+                onPreviewNavigate={onPreviewNavigate}
+                previewNavigateEnabled={previewNavigateEnabled}
+                to={storePath('/products')}
+              >
+              <Button
+                size="lg"
+                className={`font-bold gap-2 h-12 px-8 border-0 shadow-md ${br}`}
+                style={{ backgroundColor: primaryBtnBg, color: primaryBtnFg, ...fieldTypographyStyle(props, 'cta_primary') }}
+              >
+                <ShoppingBag className="w-5 h-5" /> {cta1}
+              </Button>
             </SectionNavLink>
-            <SectionNavLink onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/services')}>
-              <Button size="lg" variant="outline" className={`gap-2 h-12 px-8 ${br}`} style={{ borderColor: c.primary, color: c.primary, ...fieldTypographyStyle(props, 'cta_secondary') }}><Wrench className="w-5 h-5" /> {cta2}</Button>
+            <SectionNavLink
+              className="inline-flex"
+              onPreviewNavigate={onPreviewNavigate}
+              previewNavigateEnabled={previewNavigateEnabled}
+              to={storePath('/services')}
+            >
+              <Button
+                size="lg"
+                variant="outline"
+                className={`gap-2 h-12 px-8 bg-white/10 backdrop-blur-sm border-2 hover:bg-white/20 ${br}`}
+                style={{ borderColor: 'rgba(255,255,255,0.75)', color: '#ffffff', ...fieldTypographyStyle(props, 'cta_secondary') }}
+              >
+                <Wrench className="w-5 h-5" /> {cta2}
+              </Button>
             </SectionNavLink>
+          </div>
           </div>
         </div>
       </section>
@@ -248,44 +293,57 @@ export function HeroSection({
   }
 
   const bgUrl = theme.hero_image_url || vendor?.banner_url || ''
+  const accentBtnFg = textOnSolid(c.accent)
   return (
-    <section className="relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})` }}>
+    <section className="relative overflow-hidden" style={{ background: heroBrandGradient(c.primary, c.secondary) }}>
       {bgUrl && (
         <div className="absolute inset-0">
-          <img src={imgUrl(bgUrl)} alt="" className="h-full w-full object-cover object-center" style={{ opacity: 0.12 }} />
+          <img src={imgUrl(bgUrl)} alt="" className="h-full w-full object-cover object-center" />
+          <div className="absolute inset-0" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
         </div>
       )}
       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='1.5' fill='rgba(255,255,255,0.5)'/%3E%3C/svg%3E\")" }} />
-      <div className={`relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh}`}>
-        <div className="grid md:grid-cols-2 gap-8 items-center">
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight" style={{ fontFamily: theme.font, ...fieldTypographyStyle(props, 'headline') }}>{title}</h1>
-            <p className="mt-4 text-lg text-white/70 max-w-lg" style={fieldTypographyStyle(props, 'subtitle')}>{subtitle}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <SectionNavLink onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/products')}>
-                <Button size="lg" className={`font-bold gap-2 h-12 px-8 ${br}`} style={{ backgroundColor: c.accent, color: '#1e293b', ...fieldTypographyStyle(props, 'cta_primary') }}><ShoppingBag className="w-5 h-5" /> {cta1}</Button>
-              </SectionNavLink>
-              <SectionNavLink onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/services')}>
-                <Button size="lg" variant="outline" className={`border-white/30 text-white hover:bg-white/10 gap-2 h-12 px-8 ${br}`} style={fieldTypographyStyle(props, 'cta_secondary')}><Wrench className="w-5 h-5" /> {cta2}</Button>
-              </SectionNavLink>
-            </div>
+      <div className={`relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh} text-center`}>
+        <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
+          <h1 className="w-full text-center text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight text-balance" style={{ fontFamily: theme.font, ...fieldTypographyStyle(props, 'headline') }}>{title}</h1>
+          <p className="w-full text-center mt-4 text-lg text-white/95 max-w-lg mx-auto text-pretty" style={fieldTypographyStyle(props, 'subtitle')}>{subtitle}</p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3 w-full">
+            <SectionNavLink className="inline-flex" onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/products')}>
+              <Button
+                size="lg"
+                className={`font-bold gap-2 h-12 px-8 border-0 shadow-md ${br}`}
+                style={{ backgroundColor: c.accent, color: accentBtnFg, ...fieldTypographyStyle(props, 'cta_primary') }}
+              >
+                <ShoppingBag className="w-5 h-5" /> {cta1}
+              </Button>
+            </SectionNavLink>
+            <SectionNavLink className="inline-flex" onPreviewNavigate={onPreviewNavigate} previewNavigateEnabled={previewNavigateEnabled} to={storePath('/services')}>
+              <Button
+                size="lg"
+                variant="outline"
+                className={`border-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 gap-2 h-12 px-8 ${br}`}
+                style={{ borderColor: 'rgba(255,255,255,0.75)', color: '#ffffff', ...fieldTypographyStyle(props, 'cta_secondary') }}
+              >
+                <Wrench className="w-5 h-5" /> {cta2}
+              </Button>
+            </SectionNavLink>
           </div>
-          <div className="hidden md:grid grid-cols-2 gap-3">
+        </div>
+        <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto mt-12">
             {[
               { icon: Truck, title: 'Fast Delivery', desc: 'Quick & reliable' },
               { icon: ShieldCheck, title: 'Secure Shopping', desc: 'Safe platform' },
               { icon: RefreshCw, title: 'Easy Returns', desc: 'Hassle-free' },
               { icon: Headphones, title: '24/7 Support', desc: 'Always here' },
             ].map((f) => (
-              <div key={f.title} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2 bg-white/10">
+              <div key={f.title} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border-2 border-white/25 shadow-sm">
+                <div className="w-11 h-11 rounded-lg flex items-center justify-center mb-3 bg-white/15">
                   <f.icon className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-white text-sm font-semibold">{f.title}</h3>
-                <p className="text-gray-400 text-xs mt-0.5">{f.desc}</p>
+                <h3 className="text-white text-base font-semibold">{f.title}</h3>
+                <p className="text-white/90 text-sm mt-1">{f.desc}</p>
               </div>
             ))}
-          </div>
         </div>
       </div>
     </section>

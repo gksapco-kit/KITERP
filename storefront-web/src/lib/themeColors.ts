@@ -66,15 +66,28 @@ export function primaryForegroundHslForHex(hex: string): string {
   return relativeLuminance(rgb.r, rgb.g, rgb.b) > 0.55 ? '222 20% 12%' : '0 0% 100%'
 }
 
+export function textOnSolid(hex: string): string {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return '#ffffff'
+  return relativeLuminance(rgb.r, rgb.g, rgb.b) > 0.55 ? '#0f172a' : '#ffffff'
+}
+
+/** Prefer secondary when primary is too light for links/prices on pale backgrounds. */
+export function linkOnLight(primary: string, secondary: string): string {
+  const rgb = hexToRgb(primary)
+  if (!rgb) return secondary
+  return relativeLuminance(rgb.r, rgb.g, rgb.b) > 0.45 ? secondary : primary
+}
+
 /**
  * Literal Tailwind classes (picked up by JIT) using CSS vars from ThemeProvider.
  */
 export const themeUi = {
-  linkHover: 'hover:text-[color:var(--color-primary)] transition-colors',
-  textPrimary: 'text-[color:var(--color-primary)]',
-  iconPrimary: 'text-[color:var(--color-primary)]',
+  linkHover: 'hover:text-[color:var(--color-text)] transition-colors',
+  textPrimary: 'text-[color:var(--color-text)]',
+  iconPrimary: 'text-[color:var(--color-text)]',
   pillPrimary:
-    'bg-[color-mix(in_srgb,var(--color-primary)_12%,white)] text-[color:var(--color-primary)]',
+    'bg-[color-mix(in_srgb,var(--color-primary)_12%,white)] text-[color:var(--color-text)]',
   pillPrimaryHoverChip: 'hover:bg-[color-mix(in_srgb,var(--color-primary)_22%,white)]',
   pillSecondary:
     'bg-[color-mix(in_srgb,var(--color-secondary)_12%,white)] text-[color:var(--color-secondary)]',
@@ -89,27 +102,27 @@ export const themeUi = {
   gradientHeroBr:
     'bg-gradient-to-br from-[color-mix(in_srgb,var(--color-primary)_12%,white)] via-[color-mix(in_srgb,var(--color-secondary)_10%,white)] to-[color-mix(in_srgb,var(--color-primary)_8%,white)]',
   gradientDayOpen:
-    'bg-gradient-to-b from-[color-mix(in_srgb,var(--color-primary)_14%,white)] to-[color-mix(in_srgb,var(--color-primary)_8%,white)] border-[color-mix(in_srgb,var(--color-primary)_28%,white)] text-[color:var(--color-primary)]',
+    'bg-gradient-to-b from-[color-mix(in_srgb,var(--color-primary)_14%,white)] to-[color-mix(in_srgb,var(--color-primary)_8%,white)] border-[color-mix(in_srgb,var(--color-primary)_28%,white)] text-[color:var(--color-text)]',
   focusRing: 'focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_38%,transparent)]',
   focusRingInput:
     'focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_45%,transparent)] focus:border-[color:var(--color-primary)]',
-  btnSolid: 'bg-[color:var(--color-primary)] hover:brightness-[0.93] text-white',
+  btnSolid: 'bg-[color:var(--color-primary)] hover:brightness-[0.93] text-[color:var(--color-on-primary)]',
   shadowPrimarySoft: 'shadow-sm shadow-[color-mix(in_srgb,var(--color-primary)_12%,transparent)]',
   planSelected:
     'border-[color:var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,white)] shadow-sm',
   planHover: 'hover:border-[color-mix(in_srgb,var(--color-primary)_35%,white)]',
-  textOnPrimaryMuted: 'text-[color-mix(in_srgb,var(--color-primary)_65%,#1e293b)]',
-  textPrimaryStrong: 'text-[color:var(--color-primary)]',
-  textSecondaryTone: 'text-[color-mix(in_srgb,var(--color-primary)_45%,#64748b)]',
-  iconPlaceholder: 'text-[color-mix(in_srgb,var(--color-primary)_35%,white)]',
+  textOnPrimaryMuted: 'text-[color-mix(in_srgb,var(--color-text)_75%,#64748b)]',
+  textPrimaryStrong: 'text-[color:var(--color-text)]',
+  textSecondaryTone: 'text-[color:var(--color-text-muted)]',
+  iconPlaceholder: 'text-[color-mix(in_srgb,var(--color-secondary)_55%,#64748b)]',
   mutedLine: 'border-[color-mix(in_srgb,var(--color-primary)_22%,transparent)]',
   bgSoftPanel: 'bg-[color-mix(in_srgb,var(--color-primary)_10%,white)]',
   bgSoftPanelBorder: 'border-[color-mix(in_srgb,var(--color-primary)_16%,white)]',
   bgBlueishPanel: 'bg-[color-mix(in_srgb,var(--color-primary)_11%,white)]',
   pillDuration:
-    'text-xs font-semibold text-[color:var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_12%,white)] border border-[color-mix(in_srgb,var(--color-primary)_28%,white)]',
-  dayChip: 'text-[11px] font-semibold bg-[color-mix(in_srgb,var(--color-primary)_16%,white)] text-[color:var(--color-primary)]',
+    'text-xs font-semibold text-[color:var(--color-text)] bg-[color-mix(in_srgb,var(--color-primary)_12%,white)] border border-[color-mix(in_srgb,var(--color-primary)_28%,white)]',
+  dayChip: 'text-[11px] font-semibold bg-[color-mix(in_srgb,var(--color-primary)_16%,white)] text-[color:var(--color-text)]',
   accentRadio: 'accent-[color:var(--color-primary)]',
-  groupHoverTitle: 'group-hover:text-[color:var(--color-primary)]',
-  toggleActive: 'bg-white text-[color:var(--color-primary)] shadow-sm',
+  groupHoverTitle: 'group-hover:text-[color:var(--color-text)]',
+  toggleActive: 'bg-white text-[color:var(--color-text)] shadow-sm',
 } as const

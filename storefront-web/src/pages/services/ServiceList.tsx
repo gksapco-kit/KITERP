@@ -91,7 +91,7 @@ export default function ServiceList() {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
         <aside className="hidden lg:block w-64 shrink-0">
-          <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sticky top-4 shadow-sm max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 sticky top-4 shadow-sm max-h-[90vh] overflow-y-auto">
             <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-gray-900">
               <SlidersHorizontal className="w-4 h-4 text-gray-400" /> Filters
             </h3>

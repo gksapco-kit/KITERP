@@ -1,5 +1,6 @@
 import { getCustomerStorefrontBaseUrl, getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { readHrModuleSettings } from '@/lib/hrModuleSettings'
+import { resolveStorefrontLinkMode } from '@/lib/liveStorefrontUrl'
 
 export type HrEssLinkRow = {
   storeId: string
@@ -98,11 +99,14 @@ export function formatAllBusinessFrontLinksForClipboard(
 ): { text: string; storeCount: number; hrCount: number } {
   const slug = vendorSlug.trim()
   const base = slug ? getCustomerStorefrontBaseUrl(slug) : ''
-  const storeLines = stores.map((s) => {
-    const key = (s.code || s.id).trim()
-    const url = base ? `${base}?branch=${encodeURIComponent(key)}` : key
-    return `${s.name}: ${url}`
-  })
+  const linkMode = resolveStorefrontLinkMode(settings)
+  const storeLines = linkMode === 'single'
+    ? (base ? ['All business units: ' + base] : [])
+    : stores.map((s) => {
+        const key = (s.code || s.id).trim()
+        const url = base ? `${base}?branch=${encodeURIComponent(key)}` : key
+        return `${s.name}: ${url}`
+      })
   const hrLinks = buildHrEssLinksForStores(slug, stores, settings)
   const hrLines = hrLinks.map((r) => `${r.name}: ${r.url}`)
 
@@ -137,16 +141,27 @@ export function buildBusinessFrontLinkRows(
 ): { storeRows: BusinessFrontLinkRow[]; hrRows: BusinessFrontLinkRow[] } {
   const slug = vendorSlug.trim()
   const base = slug ? getCustomerStorefrontBaseUrl(slug) : ''
-  const storeRows: BusinessFrontLinkRow[] = stores.map((s) => {
-    const key = (s.code || s.id).trim()
-    return {
-      id: `store-${s.id}`,
-      label: s.name,
-      sublabel: 'Customer store',
-      url: base ? `${base}?branch=${encodeURIComponent(key)}` : key,
-      group: 'store',
-    }
-  })
+  const linkMode = resolveStorefrontLinkMode(settings)
+  const storeRows: BusinessFrontLinkRow[] = linkMode === 'single'
+    ? (base
+        ? [{
+            id: 'store-shared',
+            label: 'All business units',
+            sublabel: 'Customer store',
+            url: base,
+            group: 'store' as const,
+          }]
+        : [])
+    : stores.map((s) => {
+        const key = (s.code || s.id).trim()
+        return {
+          id: `store-${s.id}`,
+          label: s.name,
+          sublabel: 'Customer store',
+          url: base ? `${base}?branch=${encodeURIComponent(key)}` : key,
+          group: 'store' as const,
+        }
+      })
   const hrRows: BusinessFrontLinkRow[] = buildHrEssLinksForStores(slug, stores, settings ?? null).map((r) => ({
     id: `hr-${r.storeId}`,
     label: r.code ? `${r.code} — ${r.name}` : r.name,

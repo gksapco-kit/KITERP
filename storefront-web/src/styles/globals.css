@@ -14,10 +14,12 @@
   html {
     scroll-behavior: smooth;
     /* Min 14px — avoids broken glyphs when viewport scales root type down */
-    font-size: clamp(14px, 0.875rem + 0.35vw, 16px);
+    font-size: clamp(15px, 0.9rem + 0.35vw, 17px);
     text-rendering: optimizeLegibility;
   }
   body {
+    font-family: var(--font-body, Inter), system-ui, sans-serif;
+    color: var(--color-text, hsl(var(--foreground)));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -39,7 +41,7 @@
     --secondary: 210 20% 96%;
     --secondary-foreground: 222 47% 15%;
     --muted: 210 20% 96%;
-    --muted-foreground: 215 14% 45%;
+    --muted-foreground: 215 14% 38%;
     --accent: 156 44% 91%;
     --accent-foreground: 222 47% 15%;
     --destructive: 0 75% 55%;

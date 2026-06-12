@@ -16,7 +16,7 @@ export interface ServiceCardProps {
 export function ServiceCard({ service, layout = "card", onBook }: ServiceCardProps) {
   const row = layout === "row";
   return (
-    <Card className={cn("overflow-hidden", row && "flex")}>
+    <Card className={cn("overflow-hidden border-2 border-gray-200 shadow-sm", row && "flex")}>
       {service.image && (
         <div className={cn(row ? "w-56 shrink-0" : "aspect-[16/9]")}>
           <img src={service.image} alt={service.name} className="w-full h-full object-cover" />
@@ -25,24 +25,24 @@ export function ServiceCard({ service, layout = "card", onBook }: ServiceCardPro
       <CardContent className="p-5 flex flex-col gap-3 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="font-semibold">{service.name}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
             {service.shortDescription && (
-              <p className="text-sm text-muted-foreground mt-1">{service.shortDescription}</p>
+              <p className="text-base text-gray-600 mt-1.5 line-clamp-2">{service.shortDescription}</p>
             )}
           </div>
-          <Badge variant="secondary" className="shrink-0">
-            <Clock className="h-3 w-3 mr-1" />{service.durationMinutes}m
+          <Badge variant="secondary" className="shrink-0 text-sm">
+            <Clock className="h-3.5 w-3.5 mr-1" />{service.durationMinutes}m
           </Badge>
         </div>
         {service.features && (
-          <ul className="space-y-1">
+          <ul className="space-y-1.5">
             {service.features.slice(0, 3).map((f) => (
-              <li key={f} className="text-sm text-muted-foreground flex gap-2"><Check className="h-4 w-4 text-primary mt-0.5" />{f}</li>
+              <li key={f} className="text-sm text-gray-600 flex gap-2"><Check className="h-4 w-4 text-[color:var(--color-secondary)] mt-0.5 shrink-0" />{f}</li>
             ))}
           </ul>
         )}
-        <div className="mt-auto flex items-center justify-between pt-3">
-          <div className="font-semibold">{formatPrice(service.price, service.currency)}</div>
+        <div className="mt-auto flex items-center justify-between pt-3 gap-3">
+          <div className="text-lg font-bold text-gray-900">{formatPrice(service.price, service.currency)}</div>
           <Button size="sm" onClick={() => onBook?.(service)}>
             Book <ArrowRight />
           </Button>

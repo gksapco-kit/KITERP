@@ -363,10 +363,17 @@ async def list_sites(
             )
         )
         page_count = page_count_res.scalar() or 0
+        tpl_id, tpl_name = _resolved_applied_template(s.style_config)
+        sc = s.style_config if isinstance(s.style_config, dict) else {}
         out.append(SiteListItem(
             id=str(s.id), name=s.name, subdomain=s.subdomain, custom_domain=s.custom_domain,
             description=s.description, favicon_url=s.favicon_url, logo_url=s.logo_url,
             is_published=s.is_published, status=s.status, page_count=page_count,
+            applied_template_id=tpl_id,
+            applied_template_name=tpl_name,
+            website_store_scope=sc.get("website_store_scope"),
+            website_store_id=sc.get("website_store_id"),
+            published_at=s.published_at,
             created_at=s.created_at, updated_at=s.updated_at,
         ))
     return out
@@ -2405,6 +2412,47 @@ TEMPLATE_STYLE_FALLBACKS = {
 }
 
 
+_BUSINESS_TYPE_TEMPLATE_LABELS: Dict[str, str] = {
+    "retail": "Healthy Retail",
+    "services": "Service Business",
+    "restaurant": "Restaurant / Cafe",
+    "fashion": "Fashion / Boutique",
+    "electronics": "Electronics Store",
+    "salon": "Salon / Spa",
+    "clinic": "Clinic / Healthcare",
+    "consulting": "Consultant / Agency",
+}
+
+
+def _resolved_applied_template(style_config: Optional[Any]) -> tuple[Optional[str], Optional[str]]:
+    """Return (template_id, display_name) stored on a Website Builder site."""
+    sc = style_config if isinstance(style_config, dict) else {}
+    stored_name = sc.get("applied_template_name")
+    stored_id = sc.get("applied_template_id")
+    if isinstance(stored_name, str) and stored_name.strip():
+        tid = str(stored_id).strip() if stored_id else None
+        return tid or None, stored_name.strip()
+
+    for key in ("wb_catalog_template_id", "wb_editorial_template_id"):
+        raw = sc.get(key)
+        if raw:
+            tid = str(raw).strip()
+            tpl = WEBSITE_TEMPLATES.get(tid)
+            if isinstance(tpl, dict):
+                name = tpl.get("name") or tid.replace("_", " ").title()
+            else:
+                name = tid.replace("_", " ").title()
+            return tid, str(name)
+
+    bt = sc.get("business_type")
+    if isinstance(bt, str) and bt.strip():
+        key = bt.strip()
+        label = _BUSINESS_TYPE_TEMPLATE_LABELS.get(key, key.replace("_", " ").title())
+        return None, label
+
+    return None, None
+
+
 @router.get("/templates/all")
 async def list_templates(user: User = Depends(get_current_active_user)):
     enriched = []
@@ -2472,7 +2520,16 @@ async def apply_template(
         else:
             merged.pop("wb_catalog_template_id", None)
             merged.pop("wb_editorial_template_id", None)
+        merged["applied_template_id"] = tid
+        merged["applied_template_name"] = tpl.get("name") or tid.replace("_", " ").title()
         site.style_config = merged
+    else:
+        current = site.style_config if isinstance(site.style_config, dict) else {}
+        site.style_config = {
+            **current,
+            "applied_template_id": str(template_id),
+            "applied_template_name": tpl.get("name") or str(template_id).replace("_", " ").title(),
+        }
 
     # Remove existing pages
     await db.execute(delete(WebsiteBlock).where(

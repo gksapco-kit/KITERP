@@ -11,6 +11,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { imgUrl } from '@/lib/utils'
 import { isValidEmailOrPhoneLogin } from '@/lib/loginIdentifier'
 import { Loader2, Store, ShieldCheck, Eye, EyeOff, MapPin, Star, Clock } from 'lucide-react'
+import { useAuthStoreTheme } from './authStoreTheme'
 
 function customerLoginStorageKey(vendorId: string | undefined): string {
   return vendorId ? `kiterp_customer_login_${vendorId}` : ''
@@ -81,25 +82,21 @@ export default function Login() {
     })
   }
 
-  // Pull primary colour from vendor theme_config, fall back to indigo
-  const themeConfig = vendor?.theme_config as Record<string, unknown> | undefined
-  const styleConfig = themeConfig?.style as Record<string, unknown> | undefined
-  const primaryColor: string = (styleConfig?.primary_color as string) || '#4F46E5'
+  // Store theme colors (Light/Dark preset from theme_config)
+  const { primary, secondary, background, linkColor, btnText, panelGradient, fontFamily } = useAuthStoreTheme()
 
   const city = vendor?.city
   const state = vendor?.state
   const location = [city, state].filter(Boolean).join(', ')
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10 bg-gray-50">
-      <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border border-gray-200 flex flex-col md:flex-row">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10" style={{ backgroundColor: background, fontFamily }}>
+      <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-200 flex flex-col md:flex-row">
 
         {/* ── Left brand panel ── */}
         <div
           className="relative flex flex-col items-center justify-center p-10 md:w-[42%] shrink-0 overflow-hidden"
-          style={{
-            background: `linear-gradient(145deg, ${primaryColor} 0%, ${primaryColor}dd 50%, ${primaryColor}99 100%)`,
-          }}
+          style={{ background: panelGradient }}
         >
           {/* Background decorative circles */}
           <div className="absolute -top-16 -left-16 w-64 h-64 rounded-full bg-white/10" />
@@ -156,7 +153,7 @@ export default function Login() {
           </div>
 
           {/* Powered by */}
-          <p className="absolute bottom-4 text-white/35 text-xs">Powered by KITERP</p>
+          <p className="absolute bottom-4 text-white/60 text-xs">Powered by KITERP</p>
         </div>
 
         {/* ── Right form panel ── */}
@@ -217,7 +214,7 @@ export default function Login() {
                     type={showPw ? 'text' : 'password'}
                     autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="h-11 pr-10"
+                    className="h-11 pr-10 border-gray-300"
                     {...register('password')}
                   />
                   <button
@@ -238,8 +235,8 @@ export default function Login() {
               {/* Submit */}
               <Button
                 type="submit"
-                className="min-h-12 w-full rounded-xl px-4 py-3 text-lg font-bold text-white transition-opacity hover:opacity-90 sm:min-h-14 sm:px-6 sm:py-3.5 sm:text-xl"
-                style={{ backgroundColor: primaryColor }}
+                className="min-h-12 w-full rounded-xl px-4 py-3 text-lg font-bold transition-opacity hover:opacity-90 sm:min-h-14 sm:px-6 sm:py-3.5 sm:text-xl"
+                style={{ backgroundColor: primary, color: btnText }}
                 disabled={loginMut.isPending}
               >
                 {loginMut.isPending && (
@@ -255,7 +252,7 @@ export default function Login() {
                     checked={rememberEmail}
                     onChange={e => setRememberEmail(e.target.checked)}
                     className="h-4 w-4 shrink-0 rounded border-gray-300"
-                    style={{ accentColor: primaryColor }}
+                    style={{ accentColor: secondary }}
                   />
                   <span className="text-sm text-gray-600">Remember my email on this device</span>
                 </label>
@@ -267,7 +264,7 @@ export default function Login() {
               <Link
                 to={storePath('/register')}
                 className="font-semibold hover:underline underline-offset-2"
-                style={{ color: primaryColor }}
+                style={{ color: linkColor }}
               >
                 Create an account
               </Link>
@@ -277,7 +274,7 @@ export default function Login() {
               <Link
                 to={storePath('/forgot-password')}
                 className="text-xs font-medium hover:underline transition-colors"
-                style={{ color: primaryColor }}
+                style={{ color: linkColor }}
               >
                 Forgot password?
               </Link>

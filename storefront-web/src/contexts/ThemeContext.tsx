@@ -4,7 +4,9 @@ import { useVendor } from './VendorContext'
 import {
   hexToHslChannels,
   primaryForegroundHslForHex,
+  textOnSolid,
 } from '@/lib/themeColors'
+import { normalizeStorefrontThemeConfig } from '@/lib/storefrontThemeConfig'
 
 export interface ThemeConfig {
   template: string
@@ -29,8 +31,8 @@ export interface ThemeConfig {
 }
 
 const DEFAULT_THEME: ThemeConfig = {
-  template: 'hybrid',
-  colors: { primary: '#2563eb', secondary: '#1e40af', accent: '#f59e0b', background: '#f9fafb' },
+  template: 'light',
+  colors: { primary: '#64C3A0', secondary: '#13624A', accent: '#0891b2', background: '#f9fafb' },
   font: 'Inter',
   font_body: 'Inter',
   hero_style: 'gradient',
@@ -64,7 +66,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeConfig = vendor?.theme_config
 
   const theme: ThemeConfig = useMemo(() => {
-    const raw = (themeConfig && typeof themeConfig === 'object' ? themeConfig : {}) as Record<string, unknown>
+    const raw = normalizeStorefrontThemeConfig(
+      themeConfig && typeof themeConfig === 'object' ? (themeConfig as Record<string, unknown>) : {},
+    )
     const base = {
       ...DEFAULT_THEME,
       ...raw,
@@ -76,6 +80,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     return {
       ...base,
+      template: (raw.template as string) === 'dark' ? 'dark' : 'light',
       font: (raw as { font?: string }).font ?? DEFAULT_THEME.font,
       font_body:
         (raw as { font_body?: string }).font_body ??
@@ -90,6 +95,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--color-secondary', theme.colors.secondary)
     root.style.setProperty('--color-accent', theme.colors.accent)
     root.style.setProperty('--color-background', theme.colors.background)
+    const isDarkTemplate = theme.template === 'dark'
+    const textColor = isDarkTemplate ? '#f1f5f9' : theme.colors.secondary
+    const textMuted = isDarkTemplate ? '#cbd5e1' : '#374151'
+    root.style.setProperty('--color-text', textColor)
+    root.style.setProperty('--color-text-muted', textMuted)
+    root.style.setProperty('--color-on-primary', textOnSolid(theme.colors.primary))
     root.style.setProperty('--font-store', theme.font)
     root.style.setProperty('--font-body', theme.font_body || theme.font)
 
@@ -106,6 +117,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     document.body.style.backgroundColor = theme.colors.background
+    document.body.style.color = textColor
+    document.body.style.fontFamily = `"${theme.font_body || theme.font}", Inter, system-ui, sans-serif`
 
     const fontsToLoad = [...new Set([theme.font, theme.font_body].filter(f => f && f !== 'Inter' && GOOGLE_FONTS.includes(f)))]
     for (const f of fontsToLoad) {
@@ -121,9 +134,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     return () => {
       document.body.style.backgroundColor = ''
+      document.body.style.color = ''
+      document.body.style.fontFamily = ''
     }
   }, [
     isHrPortal,
+    theme.template,
     theme.colors.primary,
     theme.colors.secondary,
     theme.colors.accent,

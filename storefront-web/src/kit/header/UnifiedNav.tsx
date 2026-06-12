@@ -174,7 +174,7 @@ export function UnifiedNav({
             <Link
               key={l.href}
               to={l.href}
-              className="px-3 py-2 rounded-md text-base text-foreground/80 hover:text-foreground hover:bg-muted"
+              className="px-3 py-2 rounded-md text-base text-foreground hover:bg-muted font-medium"
             >
               {l.label}
             </Link>

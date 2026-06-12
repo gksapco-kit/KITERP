@@ -2,6 +2,7 @@ import { MapPin, Phone, Star } from 'lucide-react'
 import type { StoreRecord } from '@/api/vendor'
 import { cn } from '@/lib/utils'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
+import { resolveBrandingMode } from '@/lib/brandingMode'
 import { useVendorStore } from '@/stores/vendorStore'
 import { BusinessUnitLogoThumb } from '@/components/business-units/BusinessUnitLogoThumb'
 import VendorStorefrontLinksCard from '@/components/VendorStorefrontLinksCard'
@@ -16,7 +17,7 @@ type Props = {
 
 export default function BusinessUnitDetailPanel({ store, embeddedInSettings = false }: Props) {
   const { vendor } = useVendorStore()
-  const visual = getBusinessUnitVisual(store, vendor)
+  const visual = getBusinessUnitVisual(store, vendor, resolveBrandingMode(vendor?.settings))
 
   const slug = vendor?.slug?.trim()
 
@@ -60,7 +61,9 @@ export default function BusinessUnitDetailPanel({ store, embeddedInSettings = fa
           />
         )}
 
-        <h2 className="shrink-0 text-sm font-semibold text-foreground">{store.name}</h2>
+        {!embeddedInSettings ? (
+          <h2 className="shrink-0 text-sm font-semibold text-foreground">{store.name}</h2>
+        ) : null}
 
         <span className="flex shrink-0 flex-wrap items-center gap-1">{metaBadges}</span>
 

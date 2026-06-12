@@ -6,7 +6,7 @@ import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-do
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
   Users, Settings, LogOut, Store, MessageSquare,
-  UsersRound, ShieldCheck, Receipt, FileText, Tag, BarChart3, Palette, CreditCard, LayoutTemplate,
+  UsersRound, ShieldCheck, Receipt, FileText, Tag, BarChart3, CreditCard, LayoutTemplate,
   FolderTree, Truck, ClipboardList, Calendar, Bell, List,
   ChevronDown, ChevronRight, Check, Menu, FilePlus, Factory, PieChart,
   UserCog, Clock, Plane, DollarSign, Award, Building2, FileSignature,
@@ -18,7 +18,7 @@ import {
   Shuffle, ClipboardCheck, Heart, Layers, Percent, Link2, Wallet2, Sparkles,
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban,
-  GripVertical, SlidersHorizontal, Database, Search, ExternalLink, Monitor,
+  GripVertical, SlidersHorizontal, Database, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2,
   ArrowLeft, MoreHorizontal, Keyboard, Plus, Star, Save,
 } from 'lucide-react'
@@ -443,8 +443,18 @@ const allSections: NavSection[] = [
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
       { to: '/relationship-manager', icon: UsersRound, label: 'Relationship Manager', alwaysShow: true },
       { to: '/workspace', icon: LayoutGrid, label: 'Workspace Apps', alwaysShow: true },
-      { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
       { to: '/settings', icon: Settings, label: BUSINESS_UNIT_STORE_SETTINGS_LINK, alwaysShow: true },
+    ],
+  },
+  {
+    id: 'website-management',
+    title: 'Website Management',
+    icon: Globe,
+    items: [
+      { to: '/business-front', icon: LayoutDashboard, label: 'Dashboard', alwaysShow: true },
+      { to: '/websites', icon: Globe, label: 'Website Builder', alwaysShow: true },
+      { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
+      { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
     ],
   },
   {
@@ -635,12 +645,8 @@ const allSections: NavSection[] = [
     title: 'System Configuration',
     icon: Settings2,
     items: [
-      { to: '/business-front', icon: Monitor, label: 'Business Front', alwaysShow: true },
-      { to: '/websites/templates', icon: Sparkles, label: 'Website Templates', alwaysShow: true },
-      { to: '/template', icon: Palette, label: 'Store Template', alwaysShow: true },
       { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
-      { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
       { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
       { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
       { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Gallery', groupColor: 'violet' },
@@ -935,9 +941,8 @@ const pageTitles: Record<string, string> = {
   '/master-data': 'Master Data — Customers / Suppliers',
   '/reviews': 'Reviews',
   '/reports': 'Reports',
-  '/template': 'Store Template',
-  '/business-front': 'Business Front',
-  '/storefront-builder': 'Business Front',
+  '/business-front': 'Website Dashboard',
+  '/storefront-builder': 'Website Dashboard',
   '/document-templates': 'Document Templates',
   '/invoices/templates': 'Invoice Templates',
   '/purchase-orders/templates': 'PO Templates',
@@ -1864,12 +1869,16 @@ export default function DashboardLayout() {
     else sectionScrollAnchors.current.delete(sectionId)
   }, [])
 
-  /** Keep My Kit open on website routes so Website Builder stays visible in the sidebar. */
+  /** Keep Website Management open on website, blog, and dashboard routes. */
   useEffect(() => {
-    if (!location.pathname.startsWith('/websites')) return
+    if (
+      !location.pathname.startsWith('/websites')
+      && !location.pathname.startsWith('/blog')
+      && !location.pathname.startsWith('/business-front')
+    ) return
     setCollapsedSections((prev) => {
-      if (prev['My Kit'] === false) return prev
-      return { ...prev, 'My Kit': false }
+      if (prev['Website Management'] === false) return prev
+      return { ...prev, 'Website Management': false }
     })
   }, [location.pathname])
 

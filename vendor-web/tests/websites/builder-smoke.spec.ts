@@ -68,12 +68,12 @@ async function ensureCanvasHasBlock(page: import('@playwright/test').Page) {
 test('website builder smoke — navigation, guides, canvas, selection', async ({ page }) => {
   await loginViaUi(page)
 
-  // P0: Website Builder must appear under My Kit (not only buried in System Configuration)
+  // P0: Website Builder must appear under Website Management
   await page.goto('/websites', { waitUntil: 'domcontentloaded', timeout: 60000 })
-  const myKitHeader = page.getByRole('button', { name: 'My Kit' })
-  if (await myKitHeader.isVisible({ timeout: 10000 }).catch(() => false)) {
-    const expanded = await myKitHeader.getAttribute('aria-expanded')
-    if (expanded === 'false') await myKitHeader.click()
+  const websiteMgmtHeader = page.getByRole('button', { name: 'Website Management' })
+  if (await websiteMgmtHeader.isVisible({ timeout: 10000 }).catch(() => false)) {
+    const expanded = await websiteMgmtHeader.getAttribute('aria-expanded')
+    if (expanded === 'false') await websiteMgmtHeader.click()
   }
   await expect(page.getByRole('link', { name: 'Website Builder' }).first()).toBeVisible({ timeout: 15000 })
 

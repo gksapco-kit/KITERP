@@ -8,12 +8,17 @@ const LS_PLACEMENTS_V2 = 'kiterp.vendor.sidebar.nav-placements-v2'
  * (Users who customized nav before a link was added often only had it under System Configuration.)
  */
 export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
-  '/websites': 'my-kit',
+  '/business-front': 'website-management',
+  '/websites': 'website-management',
+  '/websites/templates': 'website-management',
+  '/blog': 'website-management',
 }
 
 /** When pinning, insert after this sibling route when it exists in that section. */
 const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
-  '/websites': '/workspace',
+  '/websites': '/business-front',
+  '/websites/templates': '/websites',
+  '/blog': '/websites/templates',
 }
 
 export type NavOrderScope = {
@@ -214,6 +219,17 @@ export function reconcileNavPlacements(
     } else {
       out[homeId].push(to)
     }
+  }
+
+  // Website routes always live under Website Management (avoids losing items after drag-and-drop).
+  const websiteManagementOrder = ['/business-front', '/websites', '/websites/templates', '/blog']
+  const websiteManagementRoutes = websiteManagementOrder.filter((to) => validTos.has(to))
+  if (websiteManagementRoutes.length && out['website-management']) {
+    for (const sid of Object.keys(out)) {
+      if (sid === 'website-management') continue
+      out[sid] = out[sid].filter((to) => !websiteManagementOrder.includes(to))
+    }
+    out['website-management'] = websiteManagementRoutes
   }
 
   // Restaurant ops routes always live under the Restaurant section (avoids losing items after drag-and-drop).

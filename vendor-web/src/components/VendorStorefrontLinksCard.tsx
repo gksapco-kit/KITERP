@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Store, UserCircle, Copy, ExternalLink, Check, Globe, Settings } from 'lucide-react'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
+import { buildCustomerStoreLink, resolveStorefrontLinkMode } from '@/lib/liveStorefrontUrl'
 import { buildHrEssLoginUrlForUnit, isHrEssLinkVisibleForStore } from '@/lib/hrStorefrontLinks'
 import { readHrModuleSettings } from '@/lib/hrModuleSettings'
 import { cn } from '@/lib/utils'
@@ -197,8 +198,11 @@ export default function VendorStorefrontLinksCard({
   const extEnabled = (vendor as any)?.external_domain_enabled
 
   const storeBase = getCustomerStorefrontBaseUrl(slug)
-  const branchQ = outletCode ? `?branch=${encodeURIComponent(outletCode)}` : ''
-  const storeUrl = `${storeBase}${branchQ}`
+  const linkMode = resolveStorefrontLinkMode(vendorSettings)
+  const storeUrl =
+    (linkMode === 'single'
+      ? buildCustomerStoreLink(slug)
+      : buildCustomerStoreLink(slug, outletCode)) ?? storeBase
   const showHr =
     !storeId || isHrEssLinkVisibleForStore(storeId, vendorSettings ?? undefined)
   const hrSettings = vendorSettings ?? undefined
@@ -216,7 +220,12 @@ export default function VendorStorefrontLinksCard({
   }
 
   const outlet = (outletCode ?? '').trim()
-  const storeHint = outlet ? 'Includes branch filter' : 'Customer-facing shop'
+  const storeHint =
+    linkMode === 'single'
+      ? 'Shared link for all units'
+      : outlet
+        ? 'Includes branch filter'
+        : 'Customer-facing shop'
 
   const cardBody = (
     <>
@@ -260,7 +269,7 @@ export default function VendorStorefrontLinksCard({
                 <p className="mt-0.5 text-[11px] text-muted-foreground">Not configured</p>
               )}
               <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                Point your own domain to this business front. KIT ERP team handles DNS setup.
+                Point your own domain to this business front. Manage DNS yourself or let KIT ERP set it up.
               </p>
             </div>
           </div>

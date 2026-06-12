@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { StoreRecord } from '@/api/vendor'
 import { resolveBrandingImageUrl } from '@/components/common/MediaUploadPickerModal'
+import type { BrandingMode } from '@/lib/brandingMode'
 
 const TYPE_GRADIENTS: Record<string, string> = {
   Retail: 'from-violet-500/90 via-fuchsia-500/80 to-pink-500/70',
@@ -75,15 +76,22 @@ function settingsStr(settings: Record<string, unknown> | undefined, key: string)
   return typeof v === 'string' && v.trim() ? v.trim() : ''
 }
 
+/**
+ * Resolve the visual assets for a business unit card / detail panel.
+ * When `mode` is `'shared'`, per-unit logo/banner overrides are ignored so the
+ * Business Profile (vendor-wide) branding is used everywhere — no data is touched.
+ * Defaults to `'per_unit'` (existing behavior) so all callers without the arg work unchanged.
+ */
 export function getBusinessUnitVisual(
   store: StoreRecord,
   vendor?: { logo_url?: string; banner_url?: string } | null,
+  mode: BrandingMode = 'per_unit',
 ): BusinessUnitVisual {
   const settings = store.settings as Record<string, unknown> | undefined
   const companyType = settingsStr(settings, 'company_type') || 'Business unit'
   const group = GROUP_BY_TYPE[companyType] ?? 'default'
-  const storeLogo = settingsStr(settings, 'logo_url')
-  const storeBanner = settingsStr(settings, 'banner_url')
+  const storeLogo = mode === 'shared' ? '' : settingsStr(settings, 'logo_url')
+  const storeBanner = mode === 'shared' ? '' : settingsStr(settings, 'banner_url')
   const vendorLogo = vendor?.logo_url?.trim() ?? ''
   const vendorBanner = vendor?.banner_url?.trim() ?? ''
 

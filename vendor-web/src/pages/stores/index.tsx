@@ -24,19 +24,20 @@ import {
   type VerificationLevel,
 } from '@/lib/verification'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
+import { buildCustomerStoreLink } from '@/lib/liveStorefrontUrl'
 import BusinessUnitDetailPanel from '@/components/business-units/BusinessUnitDetailPanel'
 import { StoresListToolbar } from '@/components/business-units/StoresListToolbar'
 import { BusinessUnitVisualHero } from '@/components/business-units/BusinessUnitVisualHero'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
+import { resolveBrandingMode } from '@/lib/brandingMode'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
 import { COMPANY_TYPES } from '@/data/companyTypes'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
 
 function storeLink(vendorSlug: string | undefined, store: StoreRecord) {
-  const base = vendorSlug ? getCustomerStorefrontBaseUrl(vendorSlug) : API_BASE
   const key = store.code || store.id
-  return `${base}?branch=${encodeURIComponent(key)}`
+  return buildCustomerStoreLink(vendorSlug, key) ?? (vendorSlug ? getCustomerStorefrontBaseUrl(vendorSlug) : API_BASE)
 }
 
 function copyText(text: string, label: string) {
@@ -374,7 +375,7 @@ function StoreCard({
 }) {
   const { vendor } = useVendorStore()
   const unitCode = formatStoreCode(store)
-  const visual = getBusinessUnitVisual(store, vendor)
+  const visual = getBusinessUnitVisual(store, vendor, resolveBrandingMode(vendor?.settings))
 
   return (
     <Card
