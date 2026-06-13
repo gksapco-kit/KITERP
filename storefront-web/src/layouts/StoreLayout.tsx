@@ -14,6 +14,8 @@ import { VendorProvider, useVendor } from '@/contexts/VendorContext'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { BuilderSiteProvider, useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
+import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
+import { isLegacyHomeTemplateId, resolveLiveCatalogTemplateId } from '@/lib/storefrontTemplateAssignment'
 import { useState, useRef, useEffect } from 'react'
 import CrmChatWidget from '@/components/CrmChatWidget'
 import { CustomerNotificationsBell } from '@/components/CustomerNotificationsBell'
@@ -400,6 +402,7 @@ function StoreContent() {
   const { builderSite } = useBuilderSite()
   const { vendor, isLoading, error } = useVendor()
   const { storePath } = useBranch()
+  const assignedTemplateId = useAssignedStorefrontTemplateId()
   const { isAuthenticated, customer } = useAuthStore()
   const { itemCount } = useCartStore()
   const logout = useCustomerLogout()
@@ -474,7 +477,12 @@ function StoreContent() {
     )
   }
 
-  const catalogTemplateId = getWbCatalogTemplateId(builderSite?.style_config as Record<string, unknown> | undefined)
+  const wbCatalogTemplateId = getWbCatalogTemplateId(builderSite?.style_config as Record<string, unknown> | undefined)
+  const catalogTemplateId =
+    assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId)
+      ? null
+      : resolveLiveCatalogTemplateId(assignedTemplateId, wbCatalogTemplateId)
+  const usesAssignedLegacyHome = Boolean(assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId))
 
   const navLinks = [
     { to: storePath('/'), label: 'Home', end: true },
@@ -498,7 +506,13 @@ function StoreContent() {
   const isBuilderPreview =
     !!vendorSlug &&
     (pathname === `/store/${vendorSlug}/preview` || pathname.startsWith(`/store/${vendorSlug}/preview/`))
-  const catalogHomeLayout = Boolean(catalogTemplateId && isStoreHome && builderSite && !hasSavedBuilderBlocks)
+  const catalogHomeLayout = Boolean(
+    catalogTemplateId &&
+      isStoreHome &&
+      builderSite &&
+      !hasSavedBuilderBlocks &&
+      !usesAssignedLegacyHome,
+  )
   const builderOwnedLayout = Boolean(builderSite && isStoreHome && hasSavedBuilderBlocks)
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -617,13 +631,13 @@ function StoreContent() {
 export default function StoreLayout() {
   return (
     <VendorProvider>
-      <ThemeProvider>
-        <BuilderSiteProvider>
-          <BranchProvider>
+      <BuilderSiteProvider>
+        <BranchProvider>
+          <ThemeProvider>
             <StoreContent />
-          </BranchProvider>
-        </BuilderSiteProvider>
-      </ThemeProvider>
+          </ThemeProvider>
+        </BranchProvider>
+      </BuilderSiteProvider>
     </VendorProvider>
   )
 }

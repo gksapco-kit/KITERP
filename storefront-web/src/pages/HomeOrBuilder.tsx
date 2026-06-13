@@ -9,30 +9,42 @@ import BuilderPage from '@/pages/BuilderPage'
 import Home from '@/pages/Home'
 import CatalogStorefrontLiveHome from '@/pages/CatalogStorefrontLiveHome'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
+import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
+import {
+  isLegacyHomeTemplateId,
+  isStorefrontCatalogTemplateId,
+  resolveLiveCatalogTemplateId,
+} from '@/lib/storefrontTemplateAssignment'
 
 export default function HomeOrBuilder() {
   const { builderSite, isLoading } = useBuilderSite()
+  const assignedTemplateId = useAssignedStorefrontTemplateId()
 
   if (isLoading) {
     return <BuilderPage isHome />
   }
 
   if (builderSite) {
-    const catalogId = getWbCatalogTemplateId(builderSite.style_config as Record<string, unknown>)
     const homepage = builderSite.pages?.find(p => p.is_homepage) || builderSite.pages?.[0]
     const hasSavedBuilderBlocks = Boolean(homepage?.blocks?.length)
 
-    if (catalogId && !hasSavedBuilderBlocks) {
-      return <CatalogStorefrontLiveHome catalogTemplateId={catalogId} />
+    if (hasSavedBuilderBlocks) {
+      return <BuilderPage isHome />
     }
 
-    // No explicit catalog template but has a builder site with no saved blocks:
-    // apply Services template as the default business front layout.
-    if (!hasSavedBuilderBlocks) {
-      return <CatalogStorefrontLiveHome catalogTemplateId="storefront_services" />
+    if (assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId)) {
+      return <Home />
     }
 
-    return <BuilderPage isHome />
+    const catalogId = resolveLiveCatalogTemplateId(
+      assignedTemplateId,
+      getWbCatalogTemplateId(builderSite.style_config as Record<string, unknown>),
+    )
+    return <CatalogStorefrontLiveHome catalogTemplateId={catalogId} />
+  }
+
+  if (assignedTemplateId && isStorefrontCatalogTemplateId(assignedTemplateId)) {
+    return <CatalogStorefrontLiveHome catalogTemplateId={assignedTemplateId} />
   }
 
   return <Home />

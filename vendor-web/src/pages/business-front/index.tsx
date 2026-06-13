@@ -10,7 +10,7 @@ import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
 import { useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { resolveBusinessFrontActiveTemplate } from '@/lib/businessFrontActiveTemplate'
-import { buildCustomerStoreLink, customerLinkForStore, resolveStorefrontLinkMode, resolveSingleFrontTemplateId } from '@/lib/liveStorefrontUrl'
+import { buildCustomerStoreLink, customerLinkForStore, resolveEffectiveStorefrontTemplateId, resolveStorefrontLinkMode, resolveStorefrontTemplateMode } from '@/lib/liveStorefrontUrl'
 import { openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import { WebsiteStorefrontCard } from '@/components/websites/WebsiteStorefrontCard'
@@ -18,6 +18,7 @@ import { StoreThemeCustomizerDialog } from '@/components/websites/StoreThemeCust
 import {
   resolveMainStorefrontTemplateLabel,
   resolveSiteAppliedTemplateLabel,
+  resolveTemplateDisplay,
 } from '@/lib/websiteAppliedTemplate'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import type { SiteListItem } from '@/types/websites'
@@ -93,14 +94,21 @@ export default function BusinessFrontHubPage() {
 
   const commonLiveUrl = buildCustomerStoreLink(vendor?.slug)
   const linkMode = resolveStorefrontLinkMode(vendor?.settings)
-  const isSingleMode = linkMode === 'single'
-  const singleFrontTemplateId = resolveSingleFrontTemplateId(vendor?.settings)
-  const singleFrontTemplate = isSingleMode && singleFrontTemplateId
-    ? websiteTemplates.find(t => t.id === singleFrontTemplateId) ?? null
-    : null
+  const templateMode = resolveStorefrontTemplateMode(vendor?.settings)
+  const isSingleTemplateMode = templateMode === 'single'
 
   const legacyPresets = presetsData?.presets ?? []
   const mainStorefrontTemplate = resolveMainStorefrontTemplateLabel(config?.template, legacyPresets)
+
+  const resolveAssignedTemplateForStore = (store: typeof stores[number]) => {
+    const assignedId = resolveEffectiveStorefrontTemplateId(
+      vendor?.settings,
+      store.settings,
+      templateMode,
+    )
+    if (!assignedId) return null
+    return resolveTemplateDisplay(assignedId, websiteTemplates, legacyPresets)
+  }
 
   const { storefrontCards, builderDraftCards } = useMemo(() => {
     const storefrontCards: StorefrontCardModel[] = []
@@ -139,29 +147,34 @@ export default function BusinessFrontHubPage() {
       })
     } else {
       for (const store of stores) {
-        // Single-website mode: one shared template drives every BU front — ignore
-        // any per-store assigned website and show the chosen single template.
-        if (isSingleMode && singleFrontTemplate) {
-          const storeLiveUrl = customerLinkForStore(vendor?.slug, store, linkMode)
+        const assignedTemplate = resolveAssignedTemplateForStore(store)
+        const storeLiveUrl = customerLinkForStore(vendor?.slug, store, linkMode)
+
+        if (assignedTemplate) {
           storefrontCards.push({
             key: `bu-${store.id}`,
             name: store.name,
             description:
-              store.description?.trim() ||
-              (store.is_default
-                ? 'Default business unit · shared website for all units.'
-                : 'Shares the single website used across all business units.'),
+              store.description?.trim()
+              || (isSingleTemplateMode
+                ? (linkMode === 'single'
+                  ? 'Default business unit · shared template for all units.'
+                  : 'Uses the shared template assigned for all business units.')
+                : (store.is_default
+                  ? 'Default business unit · customer-facing storefront.'
+                  : 'Business unit storefront for this outlet.')),
             builderTo: '/websites/templates',
             liveUrl: storeLiveUrl,
             live: store.is_default && activeFront.kind === 'legacy_preset',
-            templateName: singleFrontTemplate.name,
-            templateThumbnail: singleFrontTemplate.thumbnail || legacyHeroThumb,
+            templateName: assignedTemplate.name,
+            templateThumbnail: assignedTemplate.thumbnail || legacyHeroThumb,
             thumbnailSiteId: null,
             livePreviewUrl: storeLiveUrl,
-            fallbackGradient: legacyGradient,
+            fallbackGradient: assignedTemplate.gradient ?? legacyGradient,
           })
           continue
         }
+
         const linkedSite = sitesByStoreId.get(store.id)
         const templateName = linkedSite
           ? (resolveSiteAppliedTemplateLabel(linkedSite, websiteTemplates) ?? 'Custom website')
@@ -170,7 +183,6 @@ export default function BusinessFrontHubPage() {
             : 'Default storefront'
         const defaultPublishedThumb = store.is_default ? (publishedSite as SiteListItem | undefined) : undefined
         const thumbSite = linkedSite ?? defaultPublishedThumb
-        const storeLiveUrl = customerLinkForStore(vendor?.slug, store, linkMode)
         const useLiveIframe = !linkedSite && !(store.is_default && publishedSite)
         storefrontCards.push({
           key: `bu-${store.id}`,
@@ -233,8 +245,8 @@ export default function BusinessFrontHubPage() {
     websiteTemplates,
     stores,
     linkMode,
-    isSingleMode,
-    singleFrontTemplate,
+    templateMode,
+    vendor?.settings,
   ])
 
   const websiteToolLinks: HubLink[] = [

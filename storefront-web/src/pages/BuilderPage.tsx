@@ -21,11 +21,14 @@ import { Loader2 } from 'lucide-react'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import BlockRenderer from '@/components/builder/BlockRenderer'
 import CatalogStorefrontLiveHome from '@/pages/CatalogStorefrontLiveHome'
+import Home from '@/pages/Home'
 import type { LiveItem, PublicBlock, PublicPage, PublicSite } from '@/blocks/registry'
 import { buildPageJsonLd, siteBaseUrl } from '@/blocks/jsonLd'
 import { publicSitesApi } from '@/api/publicSites'
 import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
+import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
+import { isLegacyHomeTemplateId, resolveLiveCatalogTemplateId } from '@/lib/storefrontTemplateAssignment'
 
 interface BuilderPageProps {
   /** Force a specific slug (for shell routes like /home). Otherwise reads from URL. */
@@ -177,6 +180,7 @@ function useLiveDataMap(blocks: PublicBlock[], siteId: string | undefined): Reco
 
 export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPageProps) {
   const { builderSite, isLoading } = useBuilderSite()
+  const assignedTemplateId = useAssignedStorefrontTemplateId()
   const [searchParams] = useSearchParams()
   const params = useParams<{ '*': string }>()
   const navigate = useNavigate()
@@ -292,7 +296,11 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
     return null
   }
 
-  const catalogTemplateId = getWbCatalogTemplateId(builderSite.style_config as Record<string, unknown>)
+  const wbCatalogTemplateId = getWbCatalogTemplateId(builderSite.style_config as Record<string, unknown>)
+  const catalogTemplateId =
+    assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId)
+      ? null
+      : resolveLiveCatalogTemplateId(assignedTemplateId, wbCatalogTemplateId)
   // Only fall back to the hardcoded catalog-template React shell when the
   // vendor has NOT yet added any blocks in the builder. Once they save real
   // pages/blocks, the block renderer takes over so custom content is shown.
@@ -301,6 +309,10 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   )
   if (catalogTemplateId && !hasSavedBuilderBlocks && (isHome || slug === '' || slug === '/')) {
     return <CatalogStorefrontLiveHome catalogTemplateId={catalogTemplateId} />
+  }
+
+  if (assignedTemplateId && isLegacyHomeTemplateId(assignedTemplateId) && !hasSavedBuilderBlocks && (isHome || slug === '' || slug === '/')) {
+    return <Home />
   }
 
   if (!page) {

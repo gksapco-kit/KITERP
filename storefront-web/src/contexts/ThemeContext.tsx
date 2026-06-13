@@ -1,12 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useVendor } from './VendorContext'
+import { useBranch } from './BranchContext'
 import {
   hexToHslChannels,
   primaryForegroundHslForHex,
   textOnSolid,
 } from '@/lib/themeColors'
 import { normalizeStorefrontThemeConfig } from '@/lib/storefrontThemeConfig'
+import { resolveAssignedStorefrontTemplateId } from '@/lib/storefrontTemplateAssignment'
 
 export interface ThemeConfig {
   template: string
@@ -63,12 +65,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const isHrPortal = /\/hr(\/|$)/.test(pathname)
   const { vendor } = useVendor()
+  const { branchCode, branches } = useBranch()
   const themeConfig = vendor?.theme_config
 
   const theme: ThemeConfig = useMemo(() => {
     const raw = normalizeStorefrontThemeConfig(
       themeConfig && typeof themeConfig === 'object' ? (themeConfig as Record<string, unknown>) : {},
     )
+    const assignedTemplateId = resolveAssignedStorefrontTemplateId(vendor?.settings, branches, branchCode)
+    const assignedTemplate =
+      assignedTemplateId === 'dark' || assignedTemplateId === 'light'
+        ? assignedTemplateId
+        : assignedTemplateId === 'atelier' || assignedTemplateId === 'verde' || assignedTemplateId === 'solace'
+          ? assignedTemplateId
+          : null
     const base = {
       ...DEFAULT_THEME,
       ...raw,
@@ -80,14 +90,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     return {
       ...base,
-      template: (raw.template as string) === 'dark' ? 'dark' : 'light',
+      template: assignedTemplate ?? ((raw.template as string) === 'dark' ? 'dark' : 'light'),
       font: (raw as { font?: string }).font ?? DEFAULT_THEME.font,
       font_body:
         (raw as { font_body?: string }).font_body ??
         (raw as { font?: string }).font ??
         DEFAULT_THEME.font_body,
     }
-  }, [themeConfig])
+  }, [themeConfig, vendor?.settings, branches, branchCode])
 
   useEffect(() => {
     const root = document.documentElement

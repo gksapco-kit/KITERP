@@ -71,10 +71,22 @@ export type StorefrontLinkMode = 'single' | 'per_unit'
 export const STOREFRONT_LINK_MODE_KEY = 'storefront_link_mode'
 
 /**
- * In `single` mode, the chosen Website Builder template id used for the one shared
- * business front — overrides any per-store template assignments. Stored on vendor settings.
+ * In `single` template mode, the chosen template id used for every business unit.
+ * Stored on vendor settings as `single_front_template_id`.
  */
 export const SINGLE_FRONT_TEMPLATE_KEY = 'single_front_template_id'
+
+/**
+ * How storefront templates are assigned:
+ * - `single`: one template for all business units (`single_front_template_id`).
+ * - `per_unit`: each BU/store can have its own template (`front_template_id` on store settings).
+ */
+export type StorefrontTemplateMode = 'single' | 'per_unit'
+
+export const STOREFRONT_TEMPLATE_MODE_KEY = 'storefront_template_mode'
+
+/** Per-store template id when template mode is `per_unit`. Stored on store.settings. */
+export const STORE_FRONT_TEMPLATE_KEY = 'front_template_id'
 
 /** Read the configured storefront link mode from vendor settings (defaults to per-unit). */
 export function resolveStorefrontLinkMode(
@@ -83,12 +95,42 @@ export function resolveStorefrontLinkMode(
   return settings?.[STOREFRONT_LINK_MODE_KEY] === 'single' ? 'single' : 'per_unit'
 }
 
-/** Read the single shared business-front template id (only meaningful in `single` mode). */
+/** Read the storefront template assignment mode. */
+export function resolveStorefrontTemplateMode(
+  settings?: Record<string, unknown> | null,
+): StorefrontTemplateMode {
+  const explicit = settings?.[STOREFRONT_TEMPLATE_MODE_KEY]
+  if (explicit === 'per_unit' || explicit === 'single') return explicit
+  // Before template mode existed, single link mode implied one shared template.
+  return resolveStorefrontLinkMode(settings) === 'single' ? 'single' : 'per_unit'
+}
+
+/** Read the single shared business-front template id (used when template mode is `single`). */
 export function resolveSingleFrontTemplateId(
   settings?: Record<string, unknown> | null,
 ): string | null {
   const raw = settings?.[SINGLE_FRONT_TEMPLATE_KEY]
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null
+}
+
+/** Read a business unit's assigned storefront template id (used when template mode is `per_unit`). */
+export function resolveStoreFrontTemplateId(
+  storeSettings?: Record<string, unknown> | null,
+): string | null {
+  const raw = storeSettings?.[STORE_FRONT_TEMPLATE_KEY]
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null
+}
+
+/** Effective template id for a store given vendor + store settings and template mode. */
+export function resolveEffectiveStorefrontTemplateId(
+  vendorSettings: Record<string, unknown> | null | undefined,
+  storeSettings: Record<string, unknown> | null | undefined,
+  templateMode: StorefrontTemplateMode,
+): string | null {
+  if (templateMode === 'single') {
+    return resolveSingleFrontTemplateId(vendorSettings)
+  }
+  return resolveStoreFrontTemplateId(storeSettings) ?? resolveSingleFrontTemplateId(vendorSettings)
 }
 
 /** Customer store link for a store, honoring the vendor-wide link mode. */
@@ -114,4 +156,63 @@ export function resolveSiteStoreLink(
     if (store) branchCode = branchCodeForStore(store)
   }
   return resolveLiveStorefrontUrl({ vendorSlug, site, branchCode })
+}
+
+export type AppliedTemplateViewLiveLink = { href: string; label: string }
+
+type StoreForViewLive = {
+  id: string
+  name: string
+  code?: string | null
+  settings?: Record<string, unknown> | null
+}
+
+/** Live storefront links for a template that is currently applied (single or per-store mode). */
+export function resolveAppliedTemplateViewLiveLinks(
+  vendorSlug: string | null | undefined,
+  linkMode: StorefrontLinkMode,
+  options: {
+    templateId: string
+    templateMode: StorefrontTemplateMode
+    singleFrontTemplateId: string | null
+    stores: StoreForViewLive[]
+  },
+): AppliedTemplateViewLiveLink[] {
+  const slug = vendorSlug?.trim()
+  if (!slug) return []
+
+  const { templateId, templateMode, singleFrontTemplateId, stores } = options
+  const isApplied =
+    templateMode === 'single'
+      ? singleFrontTemplateId === templateId
+      : stores.some(s => resolveStoreFrontTemplateId(s.settings) === templateId)
+
+  if (!isApplied) return []
+
+  if (linkMode === 'single') {
+    const href = buildCustomerStoreLink(slug)
+    return href ? [{ href, label: 'View live BU / Store' }] : []
+  }
+
+  const assignedStores =
+    templateMode === 'single'
+      ? stores
+      : stores.filter(s => resolveStoreFrontTemplateId(s.settings) === templateId)
+
+  if (assignedStores.length === 0) {
+    const href = buildCustomerStoreLink(slug)
+    return href ? [{ href, label: 'View live BU / Store' }] : []
+  }
+
+  if (assignedStores.length === 1) {
+    const href = customerLinkForStore(slug, assignedStores[0], linkMode)
+    return href ? [{ href, label: 'View live BU / Store' }] : []
+  }
+
+  return assignedStores
+    .map(store => {
+      const href = customerLinkForStore(slug, store, linkMode)
+      return href ? { href, label: store.name } : null
+    })
+    .filter((link): link is AppliedTemplateViewLiveLink => link != null)
 }
