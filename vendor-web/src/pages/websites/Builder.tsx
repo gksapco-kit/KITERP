@@ -44,7 +44,9 @@ import type {
   PageTrashItem,
   StyleConfig, BlockProps,
   LiveResource, LiveItem,
+  SiteListItem,
 } from '@/types/websites'
+import { resolveUniqueSiteName, suggestSiteCopyName } from '@/lib/websiteSiteNames'
 import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -8480,15 +8482,41 @@ export default function WebsiteBuilder() {
     })
   }, [siteId, isTemplateMode, queryClient, hydrateEditorFromSite, openTextPrompt])
 
-  const handleCopyTemplateJson = useCallback(async () => {
-    try {
-      const payload = buildLocalSiteExport(site, localPages, localBlocks, localStyle)
-      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
-      toast.success('Site JSON copied ? compatible with Import, or save as a backup.')
-    } catch {
-      toast.error('Could not copy to clipboard')
-    }
-  }, [site, localPages, localBlocks, localStyle])
+  const handleCopyTemplateSaveAs = useCallback(() => {
+    if (!siteId) return
+    const existingNames = (queryClient.getQueryData<SiteListItem[]>(['websites']) ?? []).map(s => s.name)
+    const defaultName = suggestSiteCopyName(site?.name?.trim() || 'Site', existingNames)
+    openTextPrompt({
+      title: 'Copy template / Save As',
+      subtitle: 'Save a copy of this site as a new website. It will appear in your Website Builder list.',
+      placeholder: 'Website name',
+      initialValue: defaultName,
+      confirmLabel: 'Save copy',
+      minLength: 1,
+      onSave: async (name) => {
+        const trimmed = name.trim()
+        if (!trimmed) return
+        const finalName = resolveUniqueSiteName(trimmed, existingNames)
+        try {
+          const payload = buildLocalSiteExport(site, localPages, localBlocks, localStyle)
+          const newSite = await websiteApi.importSite({
+            ...payload,
+            site: { ...payload.site, name: finalName },
+          })
+          queryClient.setQueryData(['websites', newSite.id], newSite)
+          await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
+          if (finalName !== trimmed) {
+            toast.success(`Name already in use — saved as "${finalName}"`)
+          } else {
+            toast.success(`"${finalName}" saved — find it in Website Builder`)
+          }
+          navigate('/websites')
+        } catch {
+          toast.error('Could not save template copy')
+        }
+      },
+    })
+  }, [siteId, site, localPages, localBlocks, localStyle, openTextPrompt, queryClient, navigate])
 
   const handleResetCanvasFromServer = useCallback(() => {
     if (!siteId) return
@@ -11538,7 +11566,7 @@ export default function WebsiteBuilder() {
 
   const autoSaveStatusLabel = useMemo(() => {
     if (!autoSaveEnabled) {
-      if (hasSaveChanges) return 'Auto-save off — unsaved'
+      if (hasSaveChanges) return 'Unsaved changes'
       if (lastSavedAt) {
         return `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
       }
@@ -11883,7 +11911,7 @@ export default function WebsiteBuilder() {
   }, [selectedBlockId, activePageId, localBlocks, handleUpdateBlockProps])
 
   // Device widths + canvas fit/zoom
-  const designWidthPx = CANVAS_DESIGN_WIDTH[device]
+  const designWidthPx = customDeviceWidths[device]
   const [canvasFitScale, setCanvasFitScale] = useState(1)
   const [canvasZoom, setCanvasZoom] = useState(1)
   const [canvasPreviewHeight, setCanvasPreviewHeight] = useState(600)
@@ -11892,6 +11920,13 @@ export default function WebsiteBuilder() {
   const clampCanvasZoom = useCallback((z: number) => (
     Math.min(CANVAS_ZOOM_MAX, Math.max(CANVAS_ZOOM_MIN, Math.round(z * 100) / 100))
   ), [])
+
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [liveTime, setLiveTime] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setLiveTime(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   /** Editable zoom field: null when not editing, otherwise the in-progress text. */
   const [zoomInputDraft, setZoomInputDraft] = useState<string | null>(null)
@@ -12106,12 +12141,60 @@ export default function WebsiteBuilder() {
         />
       )}
 
+      {/* ── Command Palette ─────────────────────────────────────────── */}
+      <BuilderCommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        activeBlocks={activeBlocks.map(b => ({
+          id: b.id,
+          label: (b.props as any)?.headline || (b.props as any)?.title || (b.props as any)?.brand || b.block_type,
+          blockType: b.block_type,
+        }))}
+        pages={localPages}
+        activePageId={activePageId}
+        blockCatalog={[...BLOCK_CATALOG] as CommandPaletteBlockDef[]}
+        selectedBlockId={selectedBlockId}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        device={device}
+        onSelectBlock={(id) => {
+          setSelectedBlockId(id)
+          setLeftCollapsed(true)
+        }}
+        onNavigatePage={(id) => {
+          setActivePageId(id)
+        }}
+        onAddSection={(def) => {
+          handleAddSectionFromPanel(def as any)
+          setLeftCollapsed(true)
+        }}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onSave={() => void handleSaveCanvas()}
+        onPreview={() => void handleOpenBrowserPreview()}
+        onDuplicateBlock={(id) => handleDuplicateBlock(id)}
+        onDeleteBlock={(id) => confirmDeleteBlock(id)}
+        onDeselectBlock={() => setSelectedBlockId(null)}
+        onSetDevice={setDevice}
+        onSetZoom={(z) => setCanvasZoom(z)}
+        onFitZoom={() => { setCanvasZoom(1); if (canvasMainRef.current) canvasMainRef.current.scrollLeft = 0 }}
+        onOpenPanel={(panel) => {
+          setLeftPanel(panel)
+          setLeftCollapsed(false)
+        }}
+        onOpenRightPanel={(panel) => {
+          setRightPanel(panel)
+          setRightCollapsed(false)
+        }}
+        onOpenHelp={() => { restoreBuilderCoachMarks() }}
+      />
+
       {/* ── Top Toolbar ──────────────────────────────────────────────── */}
       <header className="relative z-40 shrink-0 bg-gray-900 text-white shadow-lg isolate">
         {/* Row 1: scrollable controls + pinned actions (actions stay outside overflow so rings/popovers aren't clipped) */}
         <div className="relative z-20 flex items-stretch border-b border-gray-800 bg-gray-900">
           <div className="min-w-0 flex-1 overflow-x-auto hide-scrollbar overscroll-x-contain">
-            <div className="flex items-center gap-2 sm:gap-3 px-3 sm:pl-5 py-2 min-h-[3.5rem] min-w-max">
+            <div className="flex items-center gap-2 sm:gap-2.5 px-3 sm:pl-5 py-1 min-w-max">
           {/* Back */}
           <button onClick={() => navigate('/websites')} className={cn('flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors', BUILDER_CRISP_LABEL)}>
             <ArrowLeft className="w-4 h-4" /> Sites
@@ -12127,100 +12210,111 @@ export default function WebsiteBuilder() {
                 Template Edit — {templateModeName}
               </span>
             ) : (
-              <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-semibold leading-none antialiased', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
-                {site.is_published ? 'Live for customers' : 'Not live yet'}
-              </span>
+              <div className="flex flex-col gap-0.5">
+                <div
+                  className="flex items-center gap-1.5"
+                  title={
+                    !autoSaveEnabled
+                      ? 'Auto-save is off — use Save to keep changes'
+                      : autoSaveStatus === 'error'
+                        ? 'Auto-save failed — use Save to retry'
+                        : `Changes auto-save after ${AUTO_SAVE_DELAY_MS / 1000}s of inactivity`
+                  }
+                >
+                  {autoSaveStatus === 'saving' || isSaving ? (
+                    <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" />
+                  ) : autoSaveStatus === 'error' ? (
+                    <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" />
+                  ) : autoSaveStatus === 'pending' || (hasSaveChanges && !autoSaveEnabled) ? (
+                    <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-400" />
+                  ) : (
+                    <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" />
+                  )}
+                  <span className={cn(
+                    'truncate text-[10px] font-medium leading-none antialiased sm:text-[11px]',
+                    autoSaveStatus === 'error' ? 'text-amber-300' : (autoSaveStatus === 'pending' || (hasSaveChanges && !autoSaveEnabled)) ? 'text-amber-200' : 'text-gray-400',
+                  )}>
+                    {autoSaveStatusLabel}
+                  </span>
+                </div>
+                <span className={cn('text-[11px] px-2 py-0.5 rounded-full font-semibold leading-none antialiased', site.is_published ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40' : 'bg-gray-700 text-gray-400')}>
+                  {site.is_published ? 'Live for customers' : 'Not live yet'}
+                </span>
+              </div>
             )}
           </div>
 
-          {/* Draft save cluster: status on top, toggle + save below */}
-          <div className="flex shrink-0 flex-col gap-1">
-            <div
-              className="flex max-w-[min(220px,40vw)] items-center gap-1.5"
-              title={
-                !autoSaveEnabled
-                  ? 'Auto-save is off — use Save to keep changes'
-                  : autoSaveStatus === 'error'
-                    ? 'Auto-save failed — use Save to retry'
-                    : `Changes auto-save after ${AUTO_SAVE_DELAY_MS / 1000}s of inactivity`
-              }
-            >
-              {autoSaveStatus === 'saving' || isSaving ? (
-                <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" />
-              ) : autoSaveStatus === 'error' ? (
-                <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" />
-              ) : autoSaveStatus === 'pending' || (hasSaveChanges && !autoSaveEnabled) ? (
-                <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-400" />
-              ) : (
-                <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" />
-              )}
-              <span className={cn(
-                'truncate text-[10px] font-medium leading-none antialiased sm:text-[11px]',
-                autoSaveStatus === 'error' ? 'text-amber-300' : (autoSaveStatus === 'pending' || (hasSaveChanges && !autoSaveEnabled)) ? 'text-amber-200' : 'text-gray-400',
+          {/* Draft save cluster: toggle + save */}
+          <div className="flex shrink-0 items-center gap-1.5">
+              {/* Toggle + Save merged group */}
+              <div className={cn(
+                'relative inline-flex h-6 shrink-0 items-stretch overflow-hidden rounded-full border transition-colors',
+                hasSaveChanges && !isSaving
+                  ? 'border-amber-400/50 bg-amber-500/10'
+                  : saveFlash
+                    ? 'border-emerald-400/40 bg-emerald-500/10'
+                    : 'border-white/30 bg-gray-900/40',
               )}>
-                {autoSaveStatusLabel}
-              </span>
-            </div>
+                <button
+                  type="button"
+                  onClick={toggleAutoSave}
+                  title={autoSaveEnabled ? 'Turn auto-save off' : 'Turn auto-save on'}
+                  aria-pressed={autoSaveEnabled}
+                  aria-label={autoSaveEnabled ? 'Auto-save on' : 'Auto-save off'}
+                  className="relative inline-flex w-12 shrink-0 items-center hover:bg-white/10 transition-colors"
+                >
+                  <span
+                    className={cn(
+                      'absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all duration-200 ease-out',
+                      autoSaveEnabled ? 'right-0.5' : 'left-0.5',
+                    )}
+                  />
+                  <span className={cn(
+                    'relative z-10 w-full text-[9px] font-semibold tracking-wide text-white',
+                    autoSaveEnabled ? 'pl-1.5 pr-5 text-left' : 'pl-5 pr-1.5 text-right',
+                  )}>
+                    {autoSaveEnabled ? 'On' : 'Off'}
+                  </span>
+                </button>
 
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                type="button"
-                onClick={toggleAutoSave}
-                title={autoSaveEnabled ? 'Turn auto-save off' : 'Turn auto-save on'}
-                aria-pressed={autoSaveEnabled}
-                aria-label={autoSaveEnabled ? 'Auto-save on' : 'Auto-save off'}
-                className={cn(
-                  'relative inline-flex h-7 w-[3.35rem] shrink-0 items-center rounded-full border border-white/80 bg-gray-900/40 transition-colors hover:border-white',
-                )}
-              >
-                <span
+                <span className="w-px self-stretch bg-white/20" aria-hidden />
+
+                <button
+                  type="button"
+                  onClick={hasSaveChanges ? () => void handleSaveCanvas() : undefined}
+                  disabled={isSaving || !hasSaveChanges}
+                  title={
+                    hasSaveChanges
+                      ? 'Save draft (does not publish to customers)'
+                      : lastSavedAt
+                        ? `Draft saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                        : 'Draft saved'
+                  }
+                  aria-label={isSaving ? 'Saving draft' : hasSaveChanges ? 'Save draft' : 'Draft saved'}
                   className={cn(
-                    'absolute top-1/2 h-[1.125rem] w-[1.125rem] -translate-y-1/2 rounded-full bg-white shadow-sm transition-all duration-200 ease-out',
-                    autoSaveEnabled ? 'right-1' : 'left-1',
+                    'relative inline-flex items-center gap-1.5 px-2 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors',
+                    hasSaveChanges && !isSaving
+                      ? 'text-amber-100 hover:bg-amber-500/20'
+                      : saveFlash
+                        ? 'text-emerald-200'
+                        : 'text-gray-400',
+                    (isSaving || !hasSaveChanges) && !saveFlash && 'cursor-default opacity-70',
                   )}
-                />
-                <span className={cn(
-                  'relative z-10 w-full text-[10px] font-semibold tracking-wide text-white',
-                  autoSaveEnabled ? 'pl-2 pr-5 text-left' : 'pl-5 pr-2 text-right',
-                )}>
-                  {autoSaveEnabled ? 'On' : 'Off'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={hasSaveChanges ? () => void handleSaveCanvas() : undefined}
-                disabled={isSaving || !hasSaveChanges}
-                title={
-                  hasSaveChanges
-                    ? 'Save draft (does not publish to customers)'
-                    : lastSavedAt
-                      ? `Draft saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                      : 'Draft saved'
-                }
-                aria-label={isSaving ? 'Saving draft' : hasSaveChanges ? 'Save draft' : 'Draft saved'}
-                className={cn(
-                  'relative inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors',
-                  hasSaveChanges && !isSaving
-                    ? 'border-amber-400/50 bg-amber-500/20 text-amber-100 hover:bg-amber-500/30'
-                    : saveFlash
-                      ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
-                      : 'border-gray-600/80 bg-gray-800/60 text-gray-400',
-                  (isSaving || !hasSaveChanges) && !saveFlash && 'cursor-default opacity-70',
-                )}
-              >
-                {isSaving ? (
-                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-                ) : saveFlash || isCanvasSaved ? (
-                  <Check className="h-3.5 w-3.5 shrink-0 stroke-[1.75]" />
-                ) : (
-                  <Save className="h-3.5 w-3.5 shrink-0 stroke-[1.75]" />
-                )}
-                {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Saved' : 'Save'}
-                {hasSaveChanges && !isSaving && !saveFlash && (
-                  <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
-                )}
-              </button>
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                  ) : saveFlash || isCanvasSaved ? (
+                    <Check className="h-3.5 w-3.5 shrink-0 stroke-[1.75]" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5 shrink-0 stroke-[1.75]" />
+                  )}
+                  {isSaving ? 'Saving…' : saveFlash || isCanvasSaved ? 'Saved' : 'Save'}
+                  {hasSaveChanges && !isSaving && !saveFlash && (
+                    <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+                  )}
+                </button>
+              </div>
+            </div>
 
               <button
                 type="button"
@@ -12229,7 +12323,7 @@ export default function WebsiteBuilder() {
                 title="Undo (Ctrl+Z)"
                 aria-label="Undo"
                 className={cn(
-                  'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
+                  'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition-colors',
                   canUndo
                     ? 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800'
                     : 'border-gray-700/60 text-gray-500/50 cursor-not-allowed bg-gray-800/60',
@@ -12244,7 +12338,7 @@ export default function WebsiteBuilder() {
                 title="Redo (Ctrl+Y)"
                 aria-label="Redo"
                 className={cn(
-                  'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
+                  'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition-colors',
                   canRedo
                     ? 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800'
                     : 'border-gray-700/60 text-gray-500/50 cursor-not-allowed bg-gray-800/60',
@@ -12264,7 +12358,7 @@ export default function WebsiteBuilder() {
                 onClick={() => { void handleResetCanvasFromServer() }}
                 title="Reset to last saved site from the server (discards unsaved canvas and style changes)"
                 className={cn(
-                  'inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors',
+                  'inline-flex h-6 shrink-0 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors',
                   siteId && !resettingCanvasFromServer && !applyingTemplateInline && !clearingTemplateSandbox
                     ? 'border-gray-600 text-gray-300 hover:bg-gray-700/70 bg-gray-800/50'
                     : 'border-gray-600 text-gray-500 cursor-not-allowed bg-gray-800/50',
@@ -12285,7 +12379,7 @@ export default function WebsiteBuilder() {
                 tabIndex={selectedBlockId ? 0 : -1}
                 onClick={() => setSelectedBlockId(null)}
                 className={cn(
-                  'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold leading-none antialiased text-gray-300 bg-gray-700/60 hover:bg-gray-700 transition-colors',
+                  'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold leading-none antialiased text-gray-300 bg-gray-700/60 hover:bg-gray-700 transition-colors',
                   !selectedBlockId && 'invisible pointer-events-none',
                 )}
               >
@@ -12293,7 +12387,7 @@ export default function WebsiteBuilder() {
                 <BuilderShortcutKbd className="border-gray-600 bg-gray-800 text-gray-400 shadow-none">Esc</BuilderShortcutKbd>
               </button>
 
-              <div className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-lg border border-gray-600 bg-gray-900/50 px-1">
+              <div className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-lg border border-gray-600 bg-gray-900/50 px-1">
                 <button
                   type="button"
                   title="Zoom out"
@@ -12352,26 +12446,123 @@ export default function WebsiteBuilder() {
                 </button>
               </div>
 
-              <div className="flex items-center bg-gray-900/80 rounded-lg p-0.5 shrink-0 border border-gray-700/80" title="Preview size on different screens">
-                {DEVICE_SWITCHER.map(({ mode, Icon, label, sizeLabel }) => (
+              {/* Command palette trigger */}
+              <button
+                type="button"
+                onClick={() => setCommandPaletteOpen(true)}
+                title="Search sections, pages, commands… (⌘K)"
+                className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-lg border border-gray-600 bg-gray-800/60 px-2 text-[11px] font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition-colors"
+              >
+                <Search className="w-3 h-3 shrink-0" />
+                <span className="hidden sm:inline text-gray-500">Search…</span>
+                <kbd className="rounded border border-gray-700 bg-gray-900 px-1 py-px text-[9px] font-semibold text-gray-500">⌘K</kbd>
+              </button>
+
+              {/* Live clock */}
+              <span
+                className="hidden md:inline-flex h-6 shrink-0 items-center rounded-lg border border-gray-700 bg-gray-900/50 px-2 text-[11px] font-semibold leading-none tabular-nums text-gray-400"
+                title="Current time"
+              >
+                {liveTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+
+            </div>
+          </div>
+
+          {/* Pinned actions — outside overflow-x-auto so dropdowns aren't clipped */}
+          <div className="flex shrink-0 items-center gap-1.5 border-l border-gray-800 px-2.5">
+            {/* Device dropdown */}
+            <div className="relative shrink-0" ref={deviceDropdownRef}>
+              {(() => {
+                const active = DEVICE_SWITCHER.find(d => d.mode === device) ?? DEVICE_SWITCHER[0]
+                return (
                   <button
-                    key={mode}
                     type="button"
-                    onClick={() => setDevice(mode)}
-                    title={mode === 'mobile' ? `Phone view (${sizeLabel})` : `${label} view (${sizeLabel})`}
-                    aria-label={mode === 'mobile' ? 'Phone view' : `${label} view`}
+                    onClick={() => setDeviceDropdownOpen(v => !v)}
+                    title={`${active.label} view (${customDeviceWidths[device]}px) — click to switch`}
+                    aria-haspopup="listbox"
+                    aria-expanded={deviceDropdownOpen}
                     className={cn(
-                      'flex flex-col items-center px-1.5 py-1 rounded transition-colors min-w-[2.5rem]',
-                      device === mode ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-gray-700/60',
+                      'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors',
+                      deviceDropdownOpen
+                        ? 'border-primary/50 bg-primary/15 text-primary'
+                        : 'border-gray-600 bg-gray-800 text-gray-200 hover:text-white hover:bg-gray-700',
                     )}
                   >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="text-[8px] font-semibold leading-none mt-0.5">{label}</span>
+                    <active.Icon className="w-3 h-3 shrink-0" />
                   </button>
-                ))}
-              </div>
+                )
+              })()}
 
-              <button
+              {deviceDropdownOpen && (
+                <div className="absolute right-0 top-full z-[300] mt-1 w-44 rounded-xl border border-gray-200 bg-white py-1 text-gray-800 shadow-2xl">
+                  {DEVICE_SWITCHER.map(({ mode, Icon, label }) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="option"
+                      aria-selected={device === mode}
+                      onClick={() => { setDevice(mode); setDeviceDropdownOpen(false) }}
+                      className={cn(
+                        'flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-semibold transition-colors',
+                        device === mode ? 'bg-primary/5 text-primary' : 'text-gray-700 hover:bg-gray-50',
+                      )}
+                    >
+                      <Icon className={cn('w-3.5 h-3.5 shrink-0', device === mode ? 'text-primary' : 'text-gray-400')} />
+                      <span className="flex-1">{label}
+                        <span className="block text-[10px] font-normal text-gray-400">{customDeviceWidths[mode]}px</span>
+                      </span>
+                      {device === mode && <Check className="w-3 h-3 shrink-0 text-primary" />}
+                    </button>
+                  ))}
+
+                  <div className="border-t border-gray-100 px-3 py-2.5">
+                    <label className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
+                      Canvas width (px)
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={320}
+                        max={2560}
+                        step={1}
+                        value={deviceWidthDraft ?? customDeviceWidths[device]}
+                        onChange={e => setDeviceWidthDraft(e.target.value)}
+                        onBlur={e => {
+                          const val = parseInt(e.target.value, 10)
+                          if (!isNaN(val) && val >= 320 && val <= 2560) {
+                            setCustomDeviceWidths(prev => ({ ...prev, [device]: val }))
+                          }
+                          setDeviceWidthDraft(null)
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                          if (e.key === 'Escape') { setDeviceWidthDraft(null); (e.target as HTMLInputElement).blur() }
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        placeholder="e.g. 1440"
+                        className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-800 outline-none focus:border-primary/50 focus:bg-white focus:ring-2 focus:ring-primary/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <button
+                        type="button"
+                        title="Reset to default"
+                        onClick={e => {
+                          e.stopPropagation()
+                          setCustomDeviceWidths(prev => ({ ...prev, [device]: CANVAS_DESIGN_WIDTH[device] }))
+                          setDeviceWidthDraft(null)
+                        }}
+                        className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-1.5 text-[10px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                      >
+                        ↺
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[9px] text-gray-400">320 – 2560 px · Enter to apply</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
                 type="button"
                 disabled={openingBrowserPreview}
                 onClick={() => void handleOpenBrowserPreview()}
@@ -12390,16 +12581,16 @@ export default function WebsiteBuilder() {
                 Preview
               </button>
 
-              {/* More: publish, view store, history, tips, copy template */}
+              {/* More: publish, view store, history, copy template */}
               <div className="relative shrink-0" ref={moreMenuRef}>
                 <button
                   type="button"
                   onClick={() => { setMoreMenuOpen(v => !v); setChangeHistoryOpen(false) }}
-                  title="More — publish, view store, change history, tips"
+                  title="More — publish, view store, change history"
                   aria-haspopup="menu"
                   aria-expanded={moreMenuOpen}
                   className={cn(
-                    'inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors sm:text-[12px]',
+                    'inline-flex h-6 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-semibold leading-none antialiased whitespace-nowrap transition-colors sm:text-[12px]',
                     moreMenuOpen
                       ? 'border-primary/50 bg-primary/15 text-primary'
                       : 'border-gray-600 text-gray-200 hover:text-white hover:bg-gray-700 bg-gray-800',
@@ -12570,6 +12761,28 @@ export default function WebsiteBuilder() {
                       Tools
                     </p>
 
+                    {/* Copy template / Save As */}
+                    <button
+                      type="button"
+                      disabled={
+                        !siteId
+                        || applyingTemplateInline
+                        || clearingTemplateSandbox
+                        || resettingCanvasFromServer
+                      }
+                      onClick={() => { setMoreMenuOpen(false); handleCopyTemplateSaveAs() }}
+                      title="Save a copy of this site as a new website in Website Builder"
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <ClipboardCopy className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="flex-1">
+                        Copy template / Save As
+                        <span className="block text-[10px] font-normal text-gray-400">
+                          Duplicate this site under a new name
+                        </span>
+                      </span>
+                    </button>
+
                     {/* Change history (restore previous edits) */}
                     <button
                       type="button"
@@ -12636,50 +12849,16 @@ export default function WebsiteBuilder() {
                         )}
                       </div>
                     )}
-
-                    {/* Show tips again */}
-                    <button
-                      type="button"
-                      onClick={() => { restoreBuilderCoachMarks(); setMoreMenuOpen(false) }}
-                      title="Show the builder tips and coach marks again"
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-                    >
-                      <Lightbulb className="h-4 w-4 shrink-0 text-amber-500" />
-                      <span className="flex-1">
-                        Show tips
-                        <span className="block text-[10px] font-normal text-gray-400">
-                          Replay the builder coach marks
-                        </span>
-                      </span>
-                    </button>
-
-                    {/* Copy template JSON */}
-                    <button
-                      type="button"
-                      disabled={
-                        !siteId
-                        || applyingTemplateInline
-                        || clearingTemplateSandbox
-                        || resettingCanvasFromServer
-                      }
-                      onClick={() => { void handleCopyTemplateJson(); setMoreMenuOpen(false) }}
-                      title="Copy site JSON (current canvas and style). Use Import elsewhere or keep as backup."
-                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <ClipboardCopy className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="flex-1">
-                        Copy template
-                        <span className="block text-[10px] font-normal text-gray-400">
-                          Copy this site's JSON to the clipboard
-                        </span>
-                      </span>
-                    </button>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-            </div>
+
+              {/* Help / Tips — after More */}
+              <BuilderTipsButton
+                isPublished={site.is_published}
+                onRestoreCoachMarks={restoreBuilderCoachMarks}
+                className="h-6 w-6"
+              />
           </div>
         </div>
 
@@ -12715,6 +12894,7 @@ export default function WebsiteBuilder() {
                   { id: 'templates' as const, icon: Sparkles, label: 'Templates' },
                   { id: 'media' as const, icon: ImageIcon, label: 'Media' },
                   { id: 'settings' as const, icon: Globe, label: 'Site' },
+                  { id: 'seo' as const, icon: Search, label: 'SEO' },
                 ] as const).map(({ id, icon: Icon, label }) => (
                     <button
                       key={id}
@@ -13177,6 +13357,39 @@ export default function WebsiteBuilder() {
 
                 {leftPanel === 'settings' && site && (
                   <SiteSettingsPanel siteId={siteId!} site={site} />
+                )}
+
+                {leftPanel === 'seo' && site && (
+                  <SEOPanel
+                    siteId={siteId!}
+                    activePage={activePage}
+                    site={site}
+                    onSavePage={(data) => {
+                      if (!activePage) return
+                      websiteApi.updatePage(siteId!, activePage.id, data as any)
+                        .then(updated => {
+                          setLocalPages(prev => prev.map(p =>
+                            p.id === activePage.id ? { ...p, ...data, ...updated } : p,
+                          ))
+                          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old => {
+                            if (!old) return old
+                            return { ...old, pages: old.pages.map(p => p.id === activePage.id ? { ...p, ...data, ...updated } : p) }
+                          })
+                          toast.success('SEO settings saved!')
+                        })
+                        .catch(() => toast.error('Save failed'))
+                    }}
+                    onSaveSite={(data) => {
+                      websiteApi.updateSite(siteId!, data as any)
+                        .then(updated => {
+                          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
+                            old ? { ...old, ...data, ...updated } : old,
+                          )
+                          toast.success('Site SEO settings saved!')
+                        })
+                        .catch(() => toast.error('Save failed'))
+                    }}
+                  />
                 )}
 
               </div>
@@ -13795,7 +14008,6 @@ export default function WebsiteBuilder() {
                   { id: 'props' as const, icon: Settings2, label: 'Section Edit', hint: 'Text, colors, and layout for the selected section' },
                   { id: 'page' as const, icon: FileText, label: 'Page Edit', hint: 'Page-wide colors and fonts (switch pages in the left Pages panel)' },
                   { id: 'style' as const, icon: Palette, label: 'Style', hint: 'Site fonts and colors' },
-                  { id: 'seo' as const, icon: Search, label: 'Search', hint: 'How your page appears in Google and when shared' },
                   { id: 'data' as const, icon: Database, label: 'Store data', hint: 'Connect sections to products, services, and catalog' },
                 ] as const).map(({ id, icon: Icon, label, hint }) => (
                   <button
@@ -13905,44 +14117,6 @@ export default function WebsiteBuilder() {
                       </p>
                     </div>
                   </div>
-                )}
-
-                {rightPanel === 'seo' && (
-                  <SEOPanel
-                    siteId={siteId!}
-                    activePage={activePage}
-                    site={site}
-                    onSavePage={(data) => {
-                      if (!activePage) return
-                      websiteApi.updatePage(siteId!, activePage.id, data as any)
-                        .then(updated => {
-                          setLocalPages(prev => prev.map(p =>
-                            p.id === activePage.id ? { ...p, ...data, ...updated } : p,
-                          ))
-                          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old => {
-                            if (!old) return old
-                            return {
-                              ...old,
-                              pages: old.pages.map(p =>
-                                p.id === activePage.id ? { ...p, ...data, ...updated } : p,
-                              ),
-                            }
-                          })
-                          toast.success('Search settings saved!')
-                        })
-                        .catch(() => toast.error('Save failed'))
-                    }}
-                    onSaveSite={(data) => {
-                      websiteApi.updateSite(siteId!, data as any)
-                        .then(updated => {
-                          queryClient.setQueryData<WebsiteSite>(['websites', siteId!], old =>
-                            old ? { ...old, ...data, ...updated } : old,
-                          )
-                          toast.success('Site search settings saved!')
-                        })
-                        .catch(() => toast.error('Save failed'))
-                    }}
-                  />
                 )}
 
               </div>

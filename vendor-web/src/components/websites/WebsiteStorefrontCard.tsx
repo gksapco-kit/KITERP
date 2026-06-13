@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Copy, ExternalLink, Eye, Loader2, Monitor, Sparkles } from 'lucide-react'
+import { Check, Copy, ExternalLink, Eye, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
+import type { WebsiteTemplate } from '@/types/websites'
 
 type Props = {
   name: string
@@ -18,6 +20,13 @@ type Props = {
   onChangeTheme?: () => void
   templateName?: string | null
   templateThumbnail?: string | null
+  /** When set, loads homepage hero/section images for the card preview. */
+  thumbnailSiteId?: string | null
+  /** Live customer store URL for default/legacy storefront cards. */
+  livePreviewUrl?: string | null
+  vendorSlug?: string | null
+  previewTemplates?: WebsiteTemplate[]
+  fallbackGradient?: string | null
   className?: string
 }
 
@@ -33,6 +42,11 @@ export function WebsiteStorefrontCard({
   onChangeTheme,
   templateName,
   templateThumbnail,
+  thumbnailSiteId,
+  livePreviewUrl,
+  vendorSlug,
+  previewTemplates,
+  fallbackGradient,
   className,
 }: Props) {
   const [copied, setCopied] = useState(false)
@@ -68,18 +82,15 @@ export function WebsiteStorefrontCard({
       )}
     >
       <div className="relative h-24 shrink-0 overflow-hidden">
-        {templateThumbnail ? (
-          <>
-            <img src={templateThumbnail} alt="" className="w-full h-full object-cover" loading="lazy" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
-          </>
-        ) : (
-          <div className="h-full bg-gradient-to-br from-primary/15 via-accent to-primary/5 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-xl bg-primary shadow-sm flex items-center justify-center">
-              <Monitor className="w-5 h-5 text-white" />
-            </div>
-          </div>
-        )}
+        <WebsiteSiteGlimpse
+          siteId={thumbnailSiteId}
+          vendorSlug={vendorSlug}
+          fallbackImage={templateThumbnail}
+          fallbackGradient={fallbackGradient}
+          livePreviewUrl={livePreviewUrl}
+          templates={previewTemplates}
+          className="absolute inset-0"
+        />
         {live ? (
           <span className="absolute top-2 left-2 text-[9px] uppercase tracking-wide font-extrabold bg-primary text-white rounded-full px-1.5 py-0.5">
             Live

@@ -16,6 +16,11 @@ type Props = {
   sites: { id: string; name: string; is_published: boolean }[]
   vendorSlug: string | undefined
   onCustomize: () => void
+  /** When single-website mode: show "Use for all stores" and active badge. */
+  singleFrontMode?: boolean
+  isSingleFrontSelected?: boolean
+  onUseForAllStores?: (templateId: string) => void
+  useForAllStoresPending?: boolean
 }
 
 export function BusinessFrontDefaultTemplateCard({
@@ -24,6 +29,10 @@ export function BusinessFrontDefaultTemplateCard({
   sites,
   vendorSlug,
   onCustomize,
+  singleFrontMode,
+  isSingleFrontSelected,
+  onUseForAllStores,
+  useForAllStoresPending,
 }: Props) {
   const qc = useQueryClient()
   const active = resolveBusinessFrontActiveTemplate(themeTemplateId, [preset], sites)
@@ -70,6 +79,11 @@ export function BusinessFrontDefaultTemplateCard({
               <Check className="w-3 h-3" /> Live
             </span>
           )}
+          {singleFrontMode && isSingleFrontSelected && (
+            <span className="text-[10px] uppercase tracking-wide font-extrabold bg-violet-600 text-white rounded-full px-2 py-0.5">
+              All stores
+            </span>
+          )}
         </div>
         {palette.length > 0 && (
           <div className="absolute bottom-2 right-2 inline-flex -space-x-1">
@@ -89,6 +103,21 @@ export function BusinessFrontDefaultTemplateCard({
           {preset.description || 'Section-based home used when no Website Builder site is published.'}
         </p>
         <div className="flex flex-wrap items-center justify-end gap-2 mt-3">
+          {singleFrontMode && onUseForAllStores ? (
+            <button
+              type="button"
+              disabled={isSingleFrontSelected || useForAllStoresPending}
+              onClick={() => onUseForAllStores(preset.id)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-extrabold transition-colors',
+                isSingleFrontSelected
+                  ? 'bg-violet-100 text-violet-800 cursor-default'
+                  : 'bg-violet-600 text-white hover:bg-violet-700',
+              )}
+            >
+              {isSingleFrontSelected ? 'In use for all stores' : 'Use for all stores'}
+            </button>
+          ) : null}
           {storeUrl && (
             <a
               href={storeUrl}

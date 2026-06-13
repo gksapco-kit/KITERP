@@ -70,11 +70,25 @@ export type StorefrontLinkMode = 'single' | 'per_unit'
 
 export const STOREFRONT_LINK_MODE_KEY = 'storefront_link_mode'
 
+/**
+ * In `single` mode, the chosen Website Builder template id used for the one shared
+ * business front — overrides any per-store template assignments. Stored on vendor settings.
+ */
+export const SINGLE_FRONT_TEMPLATE_KEY = 'single_front_template_id'
+
 /** Read the configured storefront link mode from vendor settings (defaults to per-unit). */
 export function resolveStorefrontLinkMode(
   settings?: Record<string, unknown> | null,
 ): StorefrontLinkMode {
   return settings?.[STOREFRONT_LINK_MODE_KEY] === 'single' ? 'single' : 'per_unit'
+}
+
+/** Read the single shared business-front template id (only meaningful in `single` mode). */
+export function resolveSingleFrontTemplateId(
+  settings?: Record<string, unknown> | null,
+): string | null {
+  const raw = settings?.[SINGLE_FRONT_TEMPLATE_KEY]
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null
 }
 
 /** Customer store link for a store, honoring the vendor-wide link mode. */

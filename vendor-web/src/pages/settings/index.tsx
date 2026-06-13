@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -246,6 +246,7 @@ function SettingsPageBody() {
   const showUnitDetailInSettings = !allBusinessUnitsMode && Boolean(activeStoreRecord)
   const showUnitsZone = allBusinessUnitsMode || (showUnitDetailInSettings && Boolean(activeStoreRecord))
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const updateVendor = useUpdateVendor()
   const { hasDirty, hasDirtyRef, discardAll, formResetKey } = useSettingsDirtyContext()
 
@@ -254,12 +255,22 @@ function SettingsPageBody() {
     (mode: StorefrontLinkMode) => {
       const current = useVendorStore.getState().vendor
       if (!current) return
-      if (resolveStorefrontLinkMode(current.settings) === mode) return
-      updateVendor.mutate({
-        settings: { ...(current.settings ?? {}), [STOREFRONT_LINK_MODE_KEY]: mode },
-      })
+      if (resolveStorefrontLinkMode(current.settings) === mode) {
+        if (mode === 'single') navigate('/websites/templates?singleFront=1')
+        return
+      }
+      updateVendor.mutate(
+        {
+          settings: { ...(current.settings ?? {}), [STOREFRONT_LINK_MODE_KEY]: mode },
+        },
+        {
+          onSuccess: () => {
+            if (mode === 'single') navigate('/websites/templates?singleFront=1')
+          },
+        },
+      )
     },
-    [updateVendor],
+    [navigate, updateVendor],
   )
 
   const brandingMode = resolveBrandingMode(vendor?.settings)

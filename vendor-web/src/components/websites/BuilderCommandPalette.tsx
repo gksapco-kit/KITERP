@@ -53,7 +53,7 @@ export interface BuilderCommandPaletteProps {
   selectedBlockId: string | null
   canUndo: boolean
   canRedo: boolean
-  device: 'desktop' | 'tablet' | 'phone'
+  device: 'desktop' | 'tablet' | 'mobile'
 
   /* action callbacks */
   onSelectBlock: (id: string) => void
@@ -66,7 +66,7 @@ export interface BuilderCommandPaletteProps {
   onDuplicateBlock: (id: string) => void
   onDeleteBlock: (id: string) => void
   onDeselectBlock: () => void
-  onSetDevice: (d: 'desktop' | 'tablet' | 'phone') => void
+  onSetDevice: (d: 'desktop' | 'tablet' | 'mobile') => void
   onSetZoom: (z: number) => void
   onFitZoom: () => void
   onOpenPanel: (panel: 'blocks' | 'pages' | 'templates' | 'media' | 'settings' | 'seo') => void
@@ -286,10 +286,10 @@ export function BuilderCommandPalette(props: BuilderCommandPaletteProps) {
     })
 
     /* Device & zoom */
-    const devices: { mode: 'desktop' | 'tablet' | 'phone'; label: string; icon: React.ElementType }[] = [
+    const devices: { mode: 'desktop' | 'tablet' | 'mobile'; label: string; icon: React.ElementType }[] = [
       { mode: 'desktop', label: 'Desktop view', icon: Monitor },
       { mode: 'tablet', label: 'Tablet view', icon: Tablet },
-      { mode: 'phone', label: 'Phone view', icon: Smartphone },
+      { mode: 'mobile', label: 'Phone view', icon: Smartphone },
     ]
     for (const d of devices) {
       items.push({

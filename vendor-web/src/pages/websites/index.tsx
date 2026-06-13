@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
@@ -7,8 +8,8 @@ import { isAxiosError } from 'axios'
 import {
   Globe, Plus, ExternalLink, Edit3, Trash2, Eye, EyeOff,
   MoreVertical, Loader2, Layout, FileText, Calendar,
-  CheckCircle2, AlertCircle, Sparkles, Rocket, Copy, Check,
-  Globe2, Link2,
+  CheckCircle2, AlertCircle, Sparkles, Rocket, Check, Copy,
+  Globe2, ClipboardCopy,
   Pencil,
   X,
   Smartphone,
@@ -29,7 +30,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useSiteList, useCreateSite, useDeleteSite, usePublishSite, useUnpublishSite, useUpdateSite } from '@/hooks/useWebsites'
+import { useSiteList, useCreateSite, useDeleteSite, usePublishSite, useUnpublishSite, useUpdateSite, useWebsiteTemplates } from '@/hooks/useWebsites'
 import { useStores } from '@/hooks/useVendor'
 import { websiteApi } from '@/api/websites'
 import type { SiteListItem } from '@/types/websites'
@@ -38,11 +39,14 @@ import { extractApiError } from '@/lib/errorMessages'
 import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getDefaultSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, type SetupFeatureId, type SetupFeatureOption, resolveWebsiteSetupFromBusinessSettings } from '@/lib/businessSitePresets'
 import { companyTypeLabel } from '@/data/companyTypes'
 import { useVendorStore } from '@/stores/vendorStore'
-import { shouldUseLocalStorefrontUrls } from '@/lib/storefrontPreviewUrl'
 import { resolveSiteStoreLink } from '@/lib/liveStorefrontUrl'
+import { copyBuilderSiteDraftPreviewLink, openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
 import { CustomDomainVerifyPanel } from '@/components/websites/CustomDomainVerifyPanel'
 import { format } from 'date-fns'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
+import { countSitesWithName, resolveUniqueSiteName, suggestSiteCopyName } from '@/lib/websiteSiteNames'
+import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
+import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
 
 const BUSINESS_PRESETS = [
   {
@@ -165,10 +169,12 @@ const WEBSITE_STORE_SCOPE_OPTIONS_MULTI = WEBSITE_STORE_SCOPE_OPTIONS.filter(o =
 const EXTERNAL_SCOPE_OPTION = WEBSITE_STORE_SCOPE_OPTIONS.find(o => o.id === 'external')!
 
 const STATUS_CONFIG = {
-  draft:     { label: 'Draft — not live', icon: AlertCircle,  color: 'text-amber-600 bg-amber-50 border-amber-200' },
-  published: { label: 'Live for customers', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-  archived:  { label: 'Archived',  icon: EyeOff,       color: 'text-gray-500 bg-gray-50 border-gray-200' },
+  draft:     { label: 'Draft — not live', shortLabel: 'Draft', icon: AlertCircle,  color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  published: { label: 'Live for customers', shortLabel: 'Live', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+  archived:  { label: 'Archived', shortLabel: 'Archived', icon: EyeOff,       color: 'text-gray-500 bg-gray-50 border-gray-200' },
 }
+
+const SITE_CARD_GRID = 'grid grid-cols-2 lg:grid-cols-4 gap-3'
 
 const SETUP_FEATURE_ICONS: Record<SetupFeatureId, LucideIcon> = {
   homepage_copy: FileText,
@@ -658,7 +664,157 @@ function CreateSiteModal({
   )
 }
 
-function SiteCard({ site, stores }: { site: SiteListItem; stores: { id: string; code?: string | null }[] }) {
+function RenameSiteModal({
+  siteName,
+  open,
+  saving,
+  onClose,
+  onSave,
+}: {
+  siteName: string
+  open: boolean
+  saving: boolean
+  onClose: () => void
+  onSave: (name: string) => void | Promise<void>
+}) {
+  const [name, setName] = useState(siteName)
+  useEscapeToClose(onClose, open)
+
+  useEffect(() => {
+    if (open) setName(siteName)
+  }, [open, siteName])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Rename website</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Change how this site appears in Website Builder.</p>
+          </div>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label htmlFor="rename-site-name" className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Website name
+            </label>
+            <input
+              id="rename-site-name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && name.trim() && !saving) void onSave(name.trim())
+              }}
+              autoFocus
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary hover:bg-primary/90 text-white"
+              disabled={!name.trim() || saving}
+              onClick={() => void onSave(name.trim())}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+              Save name
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CopySiteSaveAsModal({
+  siteName,
+  existingSiteNames,
+  open,
+  saving,
+  onClose,
+  onSave,
+}: {
+  siteName: string
+  existingSiteNames: string[]
+  open: boolean
+  saving: boolean
+  onClose: () => void
+  onSave: (name: string) => void | Promise<void>
+}) {
+  const [name, setName] = useState('')
+  useEscapeToClose(onClose, open)
+
+  useEffect(() => {
+    if (open) setName(suggestSiteCopyName(siteName, existingSiteNames))
+  }, [open, siteName, existingSiteNames])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Copy template / Save As</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Save a copy of this site as a new website.</p>
+          </div>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label htmlFor="copy-site-name" className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Website name
+            </label>
+            <input
+              id="copy-site-name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && name.trim() && !saving) void onSave(name.trim())
+              }}
+              autoFocus
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary hover:bg-primary/90 text-white"
+              disabled={!name.trim() || saving}
+              onClick={() => void onSave(name.trim())}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ClipboardCopy className="w-4 h-4 mr-2" />}
+              Save copy
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SiteCard({
+  site,
+  stores,
+  sameNameCount,
+}: {
+  site: SiteListItem
+  stores: { id: string; code?: string | null }[]
+  sameNameCount: number
+}) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const vendor = useVendorStore(s => s.vendor)
@@ -666,37 +822,49 @@ function SiteCard({ site, stores }: { site: SiteListItem; stores: { id: string; 
   const publishSite = usePublishSite(site.id)
   const unpublishSite = useUnpublishSite(site.id)
   const updateSite = useUpdateSite(site.id)
+  const { data: websiteTemplates = [] } = useWebsiteTemplates()
+  const staticThumb = resolveSiteStaticThumbnail(site, websiteTemplates)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [settingLink, setSettingLink] = useState(false)
   const [showDomainPanel, setShowDomainPanel] = useState(false)
-  const [subdomainInput, setSubdomainInput] = useState(
-    site.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-  )
+  const [saveAsOpen, setSaveAsOpen] = useState(false)
+  const [copyingSite, setCopyingSite] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renamingSite, setRenamingSite] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
+  const [copyingPreviewLink, setCopyingPreviewLink] = useState(false)
+  const [previewLinkCopied, setPreviewLinkCopied] = useState(false)
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0, openUp: false })
 
   const testUrl = resolveSiteStoreLink(vendor?.slug, site, stores)
 
-  const handleCopy = async () => {
-    if (!testUrl) return
-    await navigator.clipboard.writeText(testUrl).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+  useEscapeToClose(() => setMenuOpen(false), menuOpen)
 
-  const handleGetLink = async () => {
-    const slug = subdomainInput.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-')
-    if (!slug) return
-    try {
-      await updateSite.mutateAsync({ subdomain: slug } as any)
-      const url = shouldUseLocalStorefrontUrls()
-        ? `${window.location.protocol}//${window.location.hostname}:3002/store/${slug}`
-        : `https://${slug}.kiterp.com`
-      toast.success(`Test link ready: ${url}`)
-      setSettingLink(false)
-    } catch {
-      toast.error('Subdomain unavailable — try a different name')
+  useEffect(() => {
+    if (!menuOpen || !menuBtnRef.current) return
+    const rect = menuBtnRef.current.getBoundingClientRect()
+    const menuHeight = 320
+    const openUp = window.innerHeight - rect.bottom < menuHeight && rect.top > menuHeight
+    setMenuPos({
+      top: openUp ? rect.top + window.scrollY - 4 : rect.bottom + window.scrollY + 4,
+      right: window.innerWidth - rect.right,
+      openUp,
+    })
+  }, [menuOpen])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (
+        menuBtnRef.current?.contains(e.target as Node)
+        || menuRef.current?.contains(e.target as Node)
+      ) return
+      setMenuOpen(false)
     }
-  }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuOpen])
 
   const statusCfg = STATUS_CONFIG[site.status] || STATUS_CONFIG.draft
   const StatusIcon = statusCfg.icon
@@ -726,164 +894,224 @@ function SiteCard({ site, stores }: { site: SiteListItem; stores: { id: string; 
     setMenuOpen(false)
   }
 
+  const handleCopyTemplateSaveAs = () => {
+    setSaveAsOpen(true)
+    setMenuOpen(false)
+  }
+
+  const handleRename = () => {
+    setRenameOpen(true)
+    setMenuOpen(false)
+  }
+
+  const handleRenameConfirm = async (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    if (trimmed.toLowerCase() === site.name.trim().toLowerCase()) {
+      setRenameOpen(false)
+      return
+    }
+    const otherNames = (queryClient.getQueryData<SiteListItem[]>(['websites']) ?? [])
+      .filter(s => s.id !== site.id)
+      .map(s => s.name)
+    if (otherNames.some(n => n.trim().toLowerCase() === trimmed.toLowerCase())) {
+      toast.error('That name is already used by another website')
+      return
+    }
+    setRenamingSite(true)
+    try {
+      await updateSite.mutateAsync({ name: trimmed } as any)
+      toast.success(`Renamed to "${trimmed}"`)
+      setRenameOpen(false)
+    } catch {
+      toast.error('Could not rename website')
+    } finally {
+      setRenamingSite(false)
+    }
+  }
+
+  const handlePreview = async () => {
+    if (previewing) return
+    setPreviewing(true)
+    try {
+      await openBuilderSiteDraftPreview(site.id)
+    } finally {
+      setPreviewing(false)
+    }
+  }
+
+  const handleCopyPreviewLink = async () => {
+    if (copyingPreviewLink || previewing) return
+    setCopyingPreviewLink(true)
+    try {
+      await copyBuilderSiteDraftPreviewLink(site.id)
+      setPreviewLinkCopied(true)
+      setTimeout(() => setPreviewLinkCopied(false), 2000)
+    } finally {
+      setCopyingPreviewLink(false)
+    }
+  }
+
+  const handleSaveAsConfirm = async (name: string) => {
+    setCopyingSite(true)
+    try {
+      const existingNames = (queryClient.getQueryData<SiteListItem[]>(['websites']) ?? []).map(s => s.name)
+      const finalName = resolveUniqueSiteName(name, existingNames)
+      const payload = await websiteApi.exportSite(site.id)
+      await websiteApi.importSite({
+        ...payload,
+        site: { ...payload.site, name: finalName },
+      })
+      await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
+      if (finalName !== name.trim()) {
+        toast.success(`Name already in use — saved as "${finalName}"`)
+      } else {
+        toast.success(`"${finalName}" saved — find it in Website Builder`)
+      }
+      setSaveAsOpen(false)
+    } catch {
+      toast.error('Could not save template copy')
+    } finally {
+      setCopyingSite(false)
+    }
+  }
+
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group max-h-[90vh] overflow-y-auto">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all overflow-visible group">
       {/* Thumbnail */}
       <div
-        className="relative h-40 bg-gradient-to-br from-accent via-info/10 to-primary/15 cursor-pointer overflow-hidden"
+        className="relative h-24 rounded-t-xl bg-gradient-to-br from-accent via-info/10 to-primary/15 cursor-pointer overflow-hidden"
         onClick={() => navigate(`/websites/${site.id}`)}
       >
-        {site.favicon_url ? (
-          <img src={site.favicon_url} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center">
-              <Globe className="w-8 h-8 text-primary/80" />
-            </div>
-            <div className="flex gap-1">
-              {[...Array(site.page_count || 1)].slice(0, 4).map((_, i) => (
-                <div key={i} className="w-2 h-2 rounded-full bg-primary/35 opacity-60" />
-              ))}
-            </div>
-          </div>
-        )}
+        <WebsiteSiteGlimpse
+          siteId={site.id}
+          vendorSlug={vendor?.slug}
+          fallbackImage={staticThumb}
+          templates={websiteTemplates}
+          className="absolute inset-0"
+        />
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white font-semibold text-sm flex items-center gap-2 bg-black/60 px-4 py-2 rounded-full">
-            <Edit3 className="w-4 h-4" /> Open Builder
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white font-semibold text-[11px] flex items-center gap-1.5 bg-black/60 px-2.5 py-1 rounded-full">
+            <Edit3 className="w-3 h-3" /> Open Builder
           </span>
         </div>
         {/* Status badge */}
-        <div className={cn('absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium', statusCfg.color)}>
-          <StatusIcon className="w-3 h-3" />
-          {statusCfg.label}
+        <div
+          className={cn('absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-medium', statusCfg.color)}
+          title={statusCfg.label}
+        >
+          <StatusIcon className="w-2.5 h-2.5" />
+          {statusCfg.shortLabel}
         </div>
       </div>
 
       {/* Info */}
-      <div className="p-4">
+      <div className="p-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-gray-900 truncate text-base">{site.name}</h3>
-            {site.description && (
-              <p className="text-xs text-gray-500 mt-0.5 truncate">{site.description}</p>
-            )}
-            {testUrl ? (
-              <div className="flex items-center gap-1 mt-1.5">
-                <a
-                  href={testUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:text-primary flex items-center gap-1 min-w-0 flex-1 truncate"
+            <div className="flex items-center gap-1 min-w-0">
+              <h3 className="font-bold text-gray-900 truncate text-sm leading-tight">{site.name}</h3>
+              {sameNameCount > 1 && (
+                <span
+                  className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-medium text-amber-800 border border-amber-200"
+                  title={`${sameNameCount} sites share this name`}
                 >
-                  <Globe2 className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{testUrl.replace('https://', '')}</span>
-                </a>
-                <button
-                  onClick={handleCopy}
-                  title="Copy test link"
-                  className="p-1 rounded-md text-gray-400 hover:text-primary hover:bg-accent transition-colors shrink-0"
-                >
-                  {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                </button>
-                <a
-                  href={testUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
-                  title="Open store"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            ) : settingLink ? (
-              <div className="mt-2 space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <input
-                    value={subdomainInput}
-                    onChange={e => setSubdomainInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                    placeholder="my-store"
-                    className="flex-1 min-w-0 px-2.5 py-1.5 border border-primary/40 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                    onKeyDown={e => e.key === 'Enter' && handleGetLink()}
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleGetLink}
-                    disabled={updateSite.isPending}
-                    className="px-2.5 py-1.5 bg-primary hover:bg-primary/90 text-white text-xs font-medium rounded-lg disabled:opacity-60 transition-colors"
-                  >
-                    {updateSite.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Set'}
-                  </button>
-                  <button onClick={() => setSettingLink(false)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
-                    <span className="text-xs">✕</span>
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400">
-                  {shouldUseLocalStorefrontUrls()
-                    ? `${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3002/store/${subdomainInput || '…'}`
-                    : `${subdomainInput || '…'}.kiterp.com`}
-                </p>
-              </div>
-            ) : (
-              <button
-                onClick={() => setSettingLink(true)}
-                className="flex items-center gap-1 mt-1.5 text-xs text-gray-400 hover:text-primary transition-colors"
-              >
-                <Link2 className="w-3 h-3" /> Get test link
-              </button>
-            )}
+                  {format(new Date(site.created_at), 'MMM d')}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Menu */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
+              ref={menuBtnRef}
+              type="button"
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
               onClick={() => setMenuOpen(v => !v)}
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors shrink-0"
             >
-              <MoreVertical className="w-4 h-4" />
+              <MoreVertical className="w-3.5 h-3.5" />
             </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-8 z-30 bg-white border border-gray-200 rounded-xl shadow-xl w-44 py-1 overflow-hidden max-h-[90vh] overflow-y-auto">
+            {menuOpen && createPortal(
+              <div
+                ref={menuRef}
+                role="menu"
+                style={{
+                  position: 'absolute',
+                  top: menuPos.top,
+                  right: menuPos.right,
+                  zIndex: 9999,
+                  transform: menuPos.openUp ? 'translateY(-100%)' : undefined,
+                }}
+                className="w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 max-h-[min(90vh,20rem)] overflow-y-auto"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => { navigate(`/websites/${site.id}`); setMenuOpen(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
+                >
+                  <Edit3 className="w-4 h-4 text-gray-400" /> Open Builder
+                </button>
+                {testUrl && (
                   <button
-                    onClick={() => { navigate(`/websites/${site.id}`); setMenuOpen(false) }}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { window.open(testUrl, '_blank'); setMenuOpen(false) }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
                   >
-                    <Edit3 className="w-4 h-4 text-gray-400" /> Open Builder
+                    <ExternalLink className="w-4 h-4 text-gray-400" /> View Store
                   </button>
-                  {testUrl && (
-                    <button
-                      onClick={() => { window.open(testUrl, '_blank'); setMenuOpen(false) }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
-                    >
-                      <ExternalLink className="w-4 h-4 text-gray-400" /> View Store
-                    </button>
-                  )}
-                  <button
-                    onClick={() => { setShowDomainPanel((v) => !v); setMenuOpen(false) }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
-                  >
-                    <Globe2 className="w-4 h-4 text-gray-400" /> Custom domain
-                  </button>
-                  <button
-                    onClick={handleTogglePublish}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
-                  >
-                    {site.is_published
-                      ? <><EyeOff className="w-4 h-4 text-gray-400" /> Take offline</>
-                      : <><Eye className="w-4 h-4 text-gray-400" /> Publish store</>
-                    }
-                  </button>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={handleDelete}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" /> Delete
-                  </button>
-                </div>
-              </>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => { setShowDomainPanel(v => !v); setMenuOpen(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
+                >
+                  <Globe2 className="w-4 h-4 text-gray-400" /> Custom domain
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleTogglePublish}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
+                >
+                  {site.is_published
+                    ? <><EyeOff className="w-4 h-4 text-gray-400" /> Take offline</>
+                    : <><Eye className="w-4 h-4 text-gray-400" /> Publish store</>
+                  }
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleRename}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
+                >
+                  <Pencil className="w-4 h-4 text-gray-400" /> Rename
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleCopyTemplateSaveAs}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-accent"
+                >
+                  <ClipboardCopy className="w-4 h-4 text-gray-400" /> Copy template / Save As
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleDelete}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete
+                </button>
+              </div>,
+              document.body,
             )}
           </div>
         </div>
@@ -900,41 +1128,80 @@ function SiteCard({ site, stores }: { site: SiteListItem; stores: { id: string; 
         )}
 
         {/* Meta row */}
-        <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
-          <span className="flex items-center gap-1">
-            <FileText className="w-3 h-3" />
-            {site.page_count} page{site.page_count !== 1 ? 's' : ''}
+        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 text-[10px] text-gray-500">
+          <span className="flex items-center gap-0.5">
+            <FileText className="w-2.5 h-2.5" />
+            {site.page_count} pg{site.page_count !== 1 ? 's' : ''}
           </span>
-          <span className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            {format(new Date(site.updated_at), 'MMM d, yyyy')}
+          <span className="flex items-center gap-0.5 truncate">
+            <Calendar className="w-2.5 h-2.5 shrink-0" />
+            {format(new Date(site.updated_at), 'MMM d, yy')}
           </span>
         </div>
 
         {/* CTA */}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {testUrl && (
+        <div className="mt-2 grid grid-cols-1 gap-1.5">
+          <div className="flex gap-1.5">
             <Button
               variant="outline"
-              className="flex-1 min-w-[8.5rem] text-sm"
-              asChild
+              size="sm"
+              type="button"
+              disabled={previewing || copyingPreviewLink}
+              className="flex-1 h-7 text-[11px] px-2 min-w-0"
+              onClick={() => void handlePreview()}
             >
-              <a href={testUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-3.5 h-3.5 mr-2" /> View live store
-              </a>
+              {previewing ? (
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              ) : (
+                <Eye className="w-3 h-3 mr-1" />
+              )}
+              {previewing ? 'Opening…' : 'Preview'}
             </Button>
-          )}
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              disabled={previewing || copyingPreviewLink}
+              title="Copy preview link"
+              aria-label="Copy preview link"
+              className="h-7 w-7 shrink-0 px-0"
+              onClick={() => void handleCopyPreviewLink()}
+            >
+              {copyingPreviewLink ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : previewLinkCopied ? (
+                <Check className="w-3 h-3 text-emerald-500" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+            </Button>
+          </div>
           <Button
-            className={cn(
-              'text-sm bg-primary hover:bg-primary/90 text-white',
-              testUrl ? 'flex-1 min-w-[8.5rem]' : 'w-full',
-            )}
+            size="sm"
+            className="w-full h-7 text-[11px] px-2 bg-primary hover:bg-primary/90 text-white"
             onClick={() => navigate(`/websites/${site.id}`)}
           >
-            <Edit3 className="w-3.5 h-3.5 mr-2" /> Open in builder
+            <Edit3 className="w-3 h-3 mr-1" /> Open builder
           </Button>
         </div>
       </div>
+
+      <RenameSiteModal
+        siteName={site.name}
+        open={renameOpen}
+        saving={renamingSite}
+        onClose={() => !renamingSite && setRenameOpen(false)}
+        onSave={handleRenameConfirm}
+      />
+
+      <CopySiteSaveAsModal
+        siteName={site.name}
+        existingSiteNames={(queryClient.getQueryData<SiteListItem[]>(['websites']) ?? []).map(s => s.name)}
+        open={saveAsOpen}
+        saving={copyingSite}
+        onClose={() => !copyingSite && setSaveAsOpen(false)}
+        onSave={handleSaveAsConfirm}
+      />
     </div>
   )
 }
@@ -945,7 +1212,6 @@ export default function WebsitesPage() {
   const stores = storesData?.stores ?? []
   const [createOpen, setCreateOpen] = useState(false)
   const [openingTemplateEditor, setOpeningTemplateEditor] = useState(false)
-  const [showSandboxSites, setShowSandboxSites] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -1028,10 +1294,9 @@ export default function WebsitesPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const mainSites = (sites as SiteListItem[]).filter(s => !isTemplateSandboxSite(s))
-  const sandboxSites = (sites as SiteListItem[]).filter(s => isTemplateSandboxSite(s))
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
+    <div className="max-w-[1440px] mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1111,54 +1376,29 @@ export default function WebsitesPage() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">
               {mainSites.length} website{mainSites.length !== 1 ? 's' : ''}
-              {sandboxSites.length > 0 && !showSandboxSites && (
-                <span className="text-gray-400"> · {sandboxSites.length} template workshop hidden</span>
-              )}
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className={SITE_CARD_GRID}>
             {/* Add new card */}
             <button
               onClick={() => setCreateOpen(true)}
-              className="border-2 border-dashed border-primary/30 rounded-2xl h-64 flex flex-col items-center justify-center gap-3 text-primary/80 hover:border-primary/60 hover:bg-accent transition-all"
+              className="border-2 border-dashed border-primary/30 rounded-xl min-h-[220px] flex flex-col items-center justify-center gap-2 text-primary/80 hover:border-primary/60 hover:bg-accent transition-all"
             >
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Plus className="w-6 h-6" />
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Plus className="w-5 h-5" />
               </div>
-              <div className="text-sm font-semibold">Add New Website</div>
+              <div className="text-xs font-semibold">Add New Website</div>
             </button>
 
             {mainSites.map(site => (
-              <SiteCard key={site.id} site={site} stores={stores} />
+              <SiteCard
+                key={site.id}
+                site={site}
+                stores={stores}
+                sameNameCount={countSitesWithName(sites as SiteListItem[], site.name)}
+              />
             ))}
           </div>
-
-          {sandboxSites.length > 0 && (
-            <div className="mt-8 border border-dashed border-gray-200 rounded-2xl p-4 bg-gray-50/80">
-              <button
-                type="button"
-                onClick={() => setShowSandboxSites(v => !v)}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">Template workshop</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Internal sandboxes for trying templates — not customer websites. {sandboxSites.length} site{sandboxSites.length !== 1 ? 's' : ''}.
-                  </p>
-                </div>
-                <span className="text-xs font-semibold text-primary shrink-0">
-                  {showSandboxSites ? 'Hide' : 'Show'}
-                </span>
-              </button>
-              {showSandboxSites && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
-                  {sandboxSites.map(site => (
-                    <SiteCard key={site.id} site={site} stores={stores} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </>
       )}
 

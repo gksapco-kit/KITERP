@@ -10,7 +10,7 @@ import { useSiteList, useWebsiteTemplates } from '@/hooks/useWebsites'
 import { useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { resolveBusinessFrontActiveTemplate } from '@/lib/businessFrontActiveTemplate'
-import { buildCustomerStoreLink, customerLinkForStore, resolveStorefrontLinkMode } from '@/lib/liveStorefrontUrl'
+import { buildCustomerStoreLink, customerLinkForStore, resolveStorefrontLinkMode, resolveSingleFrontTemplateId } from '@/lib/liveStorefrontUrl'
 import { openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
 import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import { WebsiteStorefrontCard } from '@/components/websites/WebsiteStorefrontCard'
@@ -18,10 +18,10 @@ import { StoreThemeCustomizerDialog } from '@/components/websites/StoreThemeCust
 import {
   resolveMainStorefrontTemplateLabel,
   resolveSiteAppliedTemplateLabel,
-  resolveTemplateThumbnail,
 } from '@/lib/websiteAppliedTemplate'
+import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import type { SiteListItem } from '@/types/websites'
-import { cn } from '@/lib/utils'
+import { cn, mediaUrl } from '@/lib/utils'
 
 type HubLink = {
   title: string
@@ -41,6 +41,9 @@ type StorefrontCardModel = {
   live: boolean
   templateName: string
   templateThumbnail: string | null
+  thumbnailSiteId: string | null
+  livePreviewUrl: string | null
+  fallbackGradient: string | null
 }
 
 type BuilderDraftCardModel = {
@@ -51,6 +54,17 @@ type BuilderDraftCardModel = {
   builderTo: string
   templateName: string
   templateThumbnail: string | null
+  thumbnailSiteId: string
+  fallbackGradient: string | null
+}
+
+function presetPreviewGradient(preset: { colors?: Record<string, string> } | undefined): string | null {
+  const colors = preset?.colors
+  if (!colors) return null
+  const start = colors.primary?.trim() || colors.accent?.trim()
+  const end = colors.secondary?.trim() || colors.background?.trim()
+  if (start && end && start !== end) return `linear-gradient(135deg, ${start}, ${end})`
+  return start || end || null
 }
 
 export default function BusinessFrontHubPage() {
@@ -79,6 +93,11 @@ export default function BusinessFrontHubPage() {
 
   const commonLiveUrl = buildCustomerStoreLink(vendor?.slug)
   const linkMode = resolveStorefrontLinkMode(vendor?.settings)
+  const isSingleMode = linkMode === 'single'
+  const singleFrontTemplateId = resolveSingleFrontTemplateId(vendor?.settings)
+  const singleFrontTemplate = isSingleMode && singleFrontTemplateId
+    ? websiteTemplates.find(t => t.id === singleFrontTemplateId) ?? null
+    : null
 
   const legacyPresets = presetsData?.presets ?? []
   const mainStorefrontTemplate = resolveMainStorefrontTemplateLabel(config?.template, legacyPresets)
@@ -94,7 +113,15 @@ export default function BusinessFrontHubPage() {
       }
     }
 
+    const legacyHeroThumb = config?.hero_image_url?.trim()
+      ? mediaUrl(String(config.hero_image_url))
+      : null
+    const legacyPreset = legacyPresets.find(p => p.id === (config?.template === 'dark' ? 'dark' : 'light'))
+      ?? legacyPresets.find(p => p.id === 'light')
+    const legacyGradient = presetPreviewGradient(legacyPreset)
+
     if (stores.length === 0) {
+      const thumbSite = publishedSite as SiteListItem | undefined
       storefrontCards.push({
         key: 'main-storefront',
         name: 'Main Storefront',
@@ -103,16 +130,48 @@ export default function BusinessFrontHubPage() {
         liveUrl: commonLiveUrl,
         live: activeFront.kind === 'legacy_preset',
         templateName: mainStorefrontTemplate,
-        templateThumbnail: null,
+        templateThumbnail: thumbSite
+          ? resolveSiteStaticThumbnail(thumbSite, websiteTemplates)
+          : legacyHeroThumb,
+        thumbnailSiteId: thumbSite?.id ?? null,
+        livePreviewUrl: thumbSite ? null : commonLiveUrl,
+        fallbackGradient: thumbSite ? null : legacyGradient,
       })
     } else {
       for (const store of stores) {
+        // Single-website mode: one shared template drives every BU front — ignore
+        // any per-store assigned website and show the chosen single template.
+        if (isSingleMode && singleFrontTemplate) {
+          const storeLiveUrl = customerLinkForStore(vendor?.slug, store, linkMode)
+          storefrontCards.push({
+            key: `bu-${store.id}`,
+            name: store.name,
+            description:
+              store.description?.trim() ||
+              (store.is_default
+                ? 'Default business unit · shared website for all units.'
+                : 'Shares the single website used across all business units.'),
+            builderTo: '/websites/templates',
+            liveUrl: storeLiveUrl,
+            live: store.is_default && activeFront.kind === 'legacy_preset',
+            templateName: singleFrontTemplate.name,
+            templateThumbnail: singleFrontTemplate.thumbnail || legacyHeroThumb,
+            thumbnailSiteId: null,
+            livePreviewUrl: storeLiveUrl,
+            fallbackGradient: legacyGradient,
+          })
+          continue
+        }
         const linkedSite = sitesByStoreId.get(store.id)
         const templateName = linkedSite
           ? (resolveSiteAppliedTemplateLabel(linkedSite, websiteTemplates) ?? 'Custom website')
           : store.is_default
             ? mainStorefrontTemplate
             : 'Default storefront'
+        const defaultPublishedThumb = store.is_default ? (publishedSite as SiteListItem | undefined) : undefined
+        const thumbSite = linkedSite ?? defaultPublishedThumb
+        const storeLiveUrl = customerLinkForStore(vendor?.slug, store, linkMode)
+        const useLiveIframe = !linkedSite && !(store.is_default && publishedSite)
         storefrontCards.push({
           key: `bu-${store.id}`,
           name: store.name,
@@ -126,7 +185,7 @@ export default function BusinessFrontHubPage() {
             : publishedSite
               ? `/websites/${publishedSite.id}`
               : '/websites/templates',
-          liveUrl: customerLinkForStore(vendor?.slug, store, linkMode),
+          liveUrl: storeLiveUrl,
           live: Boolean(
             (store.is_default && activeFront.kind === 'legacy_preset') ||
               (linkedSite?.is_published &&
@@ -134,9 +193,12 @@ export default function BusinessFrontHubPage() {
                 activeFront.siteId === linkedSite.id),
           ),
           templateName,
-          templateThumbnail: linkedSite
-            ? resolveTemplateThumbnail(linkedSite.applied_template_id, websiteTemplates)
-            : null,
+          templateThumbnail: thumbSite
+            ? resolveSiteStaticThumbnail(thumbSite, websiteTemplates)
+            : legacyHeroThumb,
+          thumbnailSiteId: linkedSite?.id ?? (store.is_default && publishedSite ? publishedSite.id : null),
+          livePreviewUrl: useLiveIframe ? storeLiveUrl : null,
+          fallbackGradient: thumbSite ? null : legacyGradient,
         })
       }
     }
@@ -153,7 +215,9 @@ export default function BusinessFrontHubPage() {
         description: site.description?.trim() || 'Website Builder draft — preview before publishing.',
         builderTo: `/websites/${site.id}`,
         templateName,
-        templateThumbnail: resolveTemplateThumbnail(site.applied_template_id, websiteTemplates),
+        templateThumbnail: resolveSiteStaticThumbnail(site, websiteTemplates),
+        thumbnailSiteId: site.id,
+        fallbackGradient: null,
       })
     }
 
@@ -161,6 +225,7 @@ export default function BusinessFrontHubPage() {
   }, [
     activeFront,
     commonLiveUrl,
+    config?.hero_image_url,
     mainSites,
     mainStorefrontTemplate,
     publishedSite,
@@ -168,6 +233,8 @@ export default function BusinessFrontHubPage() {
     websiteTemplates,
     stores,
     linkMode,
+    isSingleMode,
+    singleFrontTemplate,
   ])
 
   const websiteToolLinks: HubLink[] = [
@@ -293,6 +360,11 @@ export default function BusinessFrontHubPage() {
               onChangeTheme={() => setThemeCustomizerOpen(true)}
               templateName={card.templateName}
               templateThumbnail={card.templateThumbnail}
+              thumbnailSiteId={card.thumbnailSiteId}
+              livePreviewUrl={card.livePreviewUrl}
+              vendorSlug={vendor?.slug}
+              previewTemplates={websiteTemplates}
+              fallbackGradient={card.fallbackGradient}
             />
           ))}
         </div>
@@ -325,6 +397,10 @@ export default function BusinessFrontHubPage() {
                   onPreview={openBuilderSiteDraftPreview}
                   templateName={card.templateName}
                   templateThumbnail={card.templateThumbnail}
+                  thumbnailSiteId={card.thumbnailSiteId}
+                  vendorSlug={vendor?.slug}
+                  previewTemplates={websiteTemplates}
+                  fallbackGradient={card.fallbackGradient}
                 />
               ))}
             </div>

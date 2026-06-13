@@ -32,6 +32,12 @@ export const websiteApi = {
       .then(r => r.data),
   ensureBlankSite: (siteId: string) =>
     apiClient.post<WebsiteSite>(`${base}/${siteId}/ensure-blank`).then(r => r.data),
+  importSite: (payload: { export_version: number; exported_at: string; site: Record<string, unknown> }) =>
+    apiClient.post<WebsiteSite>(`${base}/import`, payload).then(r => r.data),
+  exportSite: (siteId: string) =>
+    apiClient
+      .get<{ export_version: number; exported_at: string; site: Record<string, unknown> }>(`${base}/${siteId}/export`)
+      .then(r => r.data),
 
   // Pages
   listPages: (siteId: string) => apiClient.get<WebsitePage[]>(`${base}/${siteId}/pages`).then(r => r.data),
